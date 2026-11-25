@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -41,10 +42,11 @@ function inventoryFixture(_required = {}, _optional = {}) {
 }
 
 async function inventoryClient({ t, deps }: { t: import("node:test").TestContext; deps: AdminCustomCredentialsDeps }, _optional = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminCustomCredentialsRoutes({ app, deps });
+  registerAdminCustomCredentialsRoutes({ errors: routeErrors, app, deps });
   const root = await startTestServer(app, t);
   return (init?: RequestInit) => fetch(`${root}/api/admin/v1/workspaces/${deps.workspaceId}/system/custom/credentials`, init);
 }

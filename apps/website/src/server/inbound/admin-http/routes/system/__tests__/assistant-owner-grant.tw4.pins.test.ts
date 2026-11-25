@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -8,6 +9,7 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "#src/server/runtime/composition/modules/system-assistant";
 
 async function fixture({ previous = false, requireAcknowledgment }: { previous?: boolean; requireAcknowledgment?: boolean }, _options = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const repo = new InMemorySettingsRepo();
   let counter = 0;
   const clock = { nowMs: () => 0, nowIso: () => "2026-10-20T00:00:00.000Z" };
@@ -21,7 +23,7 @@ async function fixture({ previous = false, requireAcknowledgment }: { previous?:
   } satisfies AssistantOwnerGrantDeps;
   const app = express();
   let parses = 0;
-  registerAssistantOwnerGrantRoutes({ app, deps, path: "/grant", namespace, key: "policy", writeReason: "owner only", validationError: "invalid grant",
+  registerAssistantOwnerGrantRoutes({ errors: routeErrors, app, deps, path: "/grant", namespace, key: "policy", writeReason: "owner only", validationError: "invalid grant",
     read: async () => ({ enabled: previous, allowedToolIds: [] as string[] }),
     parse: ({ body }) => { parses++; return { enabled: body.enabled as boolean, allowedToolIds: [] as string[] }; },
     value: ({ settings }) => settings,

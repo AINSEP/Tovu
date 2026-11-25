@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 /**
  * The sites-settings save route (`PUT .../system/sites/config`) and the Node directory probe the
  * settings rules inspect folders through.
@@ -52,12 +53,12 @@ function asRouteRefusal<T>({ run }: { run: () => T }, _optional: Record<string, 
 
 /** `PUT .../system/sites/config` — save the sites settings: mounts Jini's spec over this host's workspace, folder probe and patch rules.
  * @complexity O(1) setup; per request as the spec. */
-export function registerSitesConfigSaveRoute({ app, deps, workspace }: { app: Express; deps: SitesSettingsDeps; workspace: SitesWorkspace }, _options = {}): void {
+export function registerSitesConfigSaveRoute({ errors, app, deps, workspace }: { errors: RouteErrorPorts; app: Express; deps: SitesSettingsDeps; workspace: SitesWorkspace }, _options = {}): void {
   // `authorize` is read per request so a later reassignment of `deps.authorize` is honoured.
   const portDeps: AdminJsonRoutePortDeps = { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
   const failure = (message: string) => ({ operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message });
   mountAdminJsonRoute(
-    {
+    { errors,
       app, spec: sitesConfigSaveRoute,
       deps: {
         ...portDeps,

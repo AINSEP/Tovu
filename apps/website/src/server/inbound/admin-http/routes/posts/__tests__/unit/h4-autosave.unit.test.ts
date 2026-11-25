@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -13,7 +14,7 @@ const VALID = { bodyFormat: 'html', title: 'Unsaved title', slug: 'draft', bodyH
 for (const byline of [{ author: 7 }, { showAuthor: 'true' }, { author: 'x'.repeat(201) }]) {
   test(`autosave refuses invalid byline ${JSON.stringify(byline)} before a write`, async () => {
     const app = express();
-    registerAdminPostAutosaveRoute({ app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
+    registerAdminPostAutosaveRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
       authorize: async () => ({ allowed: true, reason: 'owner' }),
       postRepo: { writeAutosave: async () => assert.fail('invalid byline must not be parked') },
     }) });
@@ -30,7 +31,7 @@ test('autosave parks by raw id after a lookup miss, retaining the normalized byl
   const writes: unknown[] = [];
   const lookups: unknown[] = [];
   const app = express();
-  registerAdminPostAutosaveRoute({ app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
+  registerAdminPostAutosaveRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
     authorize: async () => ({ allowed: true, reason: 'owner' }),
     clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
     postRepo: { findBySlug: async (input: unknown) => { lookups.push(input); return null; },
@@ -50,7 +51,7 @@ test('autosave parks by raw id after a lookup miss, retaining the normalized byl
 test('autosave refuses to park after a lookup failure that is not a miss, writing nothing', async () => {
   const writes: unknown[] = [];
   const app = express();
-  registerAdminPostAutosaveRoute({ app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
+  registerAdminPostAutosaveRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
     authorize: async () => ({ allowed: true, reason: 'owner' }),
     clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
     postRepo: { findBySlug: async () => null, findById: async () => { throw new Error('lookup failed'); },

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -14,6 +15,7 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 
 /** Owner dispatch 2026-10-04: authenticated attribution, JSON spoof refusal and read-only edits. */
 test("admin upload stamps its actor, PATCH preserves it, and list exposes it", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   let id = 0;
   const deps: MediaRouteDeps = {
     tracker: createNoopTracker({}),
@@ -29,9 +31,9 @@ test("admin upload stamps its actor, PATCH preserves it, and list exposes it", a
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "authenticated-owner" }; next(); });
-  registerAdminMediaUploadRoute({ app, deps });
-  registerAdminMediaUpdateRoute({ app, deps });
-  registerAdminMediaListRoute({ app, deps });
+  registerAdminMediaUploadRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaUpdateRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaListRoute({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t);
   const url = `${base}/api/admin/v1/workspaces/creator-ws/media`;
   const upload = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },

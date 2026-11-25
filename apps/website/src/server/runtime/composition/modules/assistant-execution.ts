@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { detectAgents, listProviderModels, testProviderConnection } from "@jini-ai/agent-runtime";
 import { assistantDetectAgentsRoute, type DetectAgentsFn } from "@jini-ai/cms/admin-http/routes/assistant/detect-agents";
@@ -13,7 +14,7 @@ import {
 } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveProbeCredential } from "#src/server/inbound/admin-http/routes/assistant/stored-credential-probe";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `assistant-execution` server module: the 4 admin routes backing
@@ -93,7 +94,7 @@ export type AssistantExecutionRouteDeps = Pick<
   readonly probeRequestInit?: NonNullable<Parameters<typeof testProviderConnection>[1]>["requestInit"];
 };
 
-export type AssistantExecutionRouteRegistrar = (required: { app: Express; deps: AssistantExecutionRouteDeps }, optional?: Record<string, never>) => void;
+export type AssistantExecutionRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: AssistantExecutionRouteDeps }, optional?: Record<string, never>) => void;
 
 /**
  * Replaces the runtime's host-neutral empty-key refusal ("No API key saved. Save one to load
@@ -148,9 +149,9 @@ function detectionSnapshotFor({ deps }: { deps: AssistantExecutionRouteDeps }, _
  * A strict `force:true` body is explicit Rescan. Ordinary reads return the previous
  * inventory immediately while one background scan refreshes it; no per-caller configuration.
  */
-export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: assistantDetectAgentsRoute, deps: { ...executionPortDeps({ deps }), detectAgents: detectionSnapshotFor({ deps }) } },
+    { errors, app, spec: assistantDetectAgentsRoute, deps: { ...executionPortDeps({ deps }), detectAgents: detectionSnapshotFor({ deps }) } },
     mountOptions({ operation: "routes/assistant/detect-agents", authorization: "direct" }),
   );
 };
@@ -194,9 +195,9 @@ function connectionProbeFor({ deps }: { deps: AssistantExecutionRouteDeps }, _op
  * that constraint exists (ADR-028 §6) and where the key lives instead
  * (the browser's own localStorage).
  */
-export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: assistantTestConnectionRoute, deps: { ...executionPortDeps({ deps }), resolveProbeCredential: probeCredentialFor({ deps }), testConnection: connectionProbeFor({ deps }) } },
+    { errors, app, spec: assistantTestConnectionRoute, deps: { ...executionPortDeps({ deps }), resolveProbeCredential: probeCredentialFor({ deps }), testConnection: connectionProbeFor({ deps }) } },
     mountOptions({ operation: "routes/assistant/test-connection", authorization: "direct" }),
   );
 };
@@ -224,9 +225,9 @@ function modelListProbeFor({ deps }: { deps: AssistantExecutionRouteDeps }, _opt
  * actually holds the boundary now. A correct sentence about the wrong boundary reads like a safety
  * argument and audits like one too.
  */
-export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: assistantListModelsRoute, deps: {
+    { errors, app, spec: assistantListModelsRoute, deps: {
       ...executionPortDeps({ deps }), noServerKeyMessage: NO_SERVER_KEY_MESSAGE,
       resolveProbeCredential: probeCredentialFor({ deps }), listModels: modelListProbeFor({ deps }),
     } },
@@ -242,23 +243,23 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
  * adds no new subprocess surface beyond what detect-agents already exposes on this same permission.
  * `force: true` bypasses the process detection cache; the detector is read per request.
  */
-export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const testAgent: TestAgentFn = ({ agentId }) =>
     (deps.detectAgents ?? deps.assistantAgentInventory?.runtime.detectAgents ?? detectAgents)({ agentIds: [agentId] }, { force: true });
   mountAdminJsonRoute(
-    { app, spec: assistantTestAgentRoute, deps: { ...executionPortDeps({ deps }), testAgent } },
+    { errors, app, spec: assistantTestAgentRoute, deps: { ...executionPortDeps({ deps }), testAgent } },
     mountOptions({ operation: "routes/assistant/test-agent", authorization: "direct" }),
   );
 };
 
-export function createAssistantExecutionModule(deps: AssistantExecutionRouteDeps): ServerModuleHandle {
+export function createAssistantExecutionModule(deps: AssistantExecutionRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "assistant-execution",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminAssistantDetectAgentsRoute({ app, deps });
-      registerAdminAssistantTestConnectionRoute({ app, deps });
-      registerAdminAssistantListModelsRoute({ app, deps });
-      registerAdminAssistantTestAgentRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminAssistantDetectAgentsRoute({ errors, app, deps });
+      registerAdminAssistantTestConnectionRoute({ errors, app, deps });
+      registerAdminAssistantListModelsRoute({ errors, app, deps });
+      registerAdminAssistantTestAgentRoute({ errors, app, deps });
     },
   };
 }

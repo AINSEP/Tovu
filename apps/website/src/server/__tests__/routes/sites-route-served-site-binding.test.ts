@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -101,8 +102,9 @@ function routeDeps(binding: SiteBinding, overrides: Partial<AdminSitesDeps> = {}
 }
 
 async function invoke(deps: AdminSitesDeps, method: "get" | "post", route: string, req: { params?: Record<string, string>; body?: unknown } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminSitesRoutes({ app, deps });
+  registerAdminSitesRoutes({ errors: routeErrors, app, deps });
   const handler = extractRouteHandler(app, method, route);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };

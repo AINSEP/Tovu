@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -26,8 +28,9 @@ import type { NewsletterRouteDeps } from "../deps.js";
 
 async function failWith(
   t: import("node:test").TestContext, thrown: unknown,
-  { tracker }: { tracker?: { error: (...args: unknown[]) => void } } = {},
+  { tracker, recorded = recordingComposedReporter() }: { tracker?: { error: (...args: unknown[]) => void }; recorded?: ReturnType<typeof recordingComposedReporter> } = {},
 ): Promise<{ status: number; json: unknown }> {
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const deps = {
     ...createRouteDeps(),
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -39,7 +42,7 @@ async function failWith(
     if (tracker) res.locals.adminFailureTracker = tracker;
     next();
   });
-  registerAdminNewsletterListListsRoute({ app, deps });
+  registerAdminNewsletterListListsRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/newsletter/lists`);
   return { status: res.status, json: await res.json() };
@@ -89,10 +92,11 @@ test("unknown newsletter failures redact internal details, including non-Error t
 // log and the tracker under the same error ID the response carries, and the secret reaches none of them.
 test("unknown newsletter failures are correlated in log and tracker without leaking details", async (t) => {
   const secret = "ghp_" + "x".repeat(36);
-  const logs: unknown[][] = [], tracked: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const recorded = recordingComposedReporter();
+  const logs = recorded.records, tracked = recorded.reports;
+  
   for (const error of [new Error(`private ${secret}`), `private ${secret}`, null]) {
-    const { status, json } = await failWith(t, error, { tracker: { error: (...args: unknown[]) => { tracked.push(args); } } });
+    const { status, json } = await failWith(t, error, { recorded });
     const body = json as Record<string, unknown>;
     assert.equal(status, 500);
     assert.equal(body.code, "INTERNAL_ERROR");

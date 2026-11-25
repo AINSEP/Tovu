@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -93,6 +94,7 @@ function makeThemesRoot(): string {
 }
 
 function buildTestApp(themesDir: string): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -108,10 +110,10 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFilePutRoute({ app, deps });
-  registerAdminThemeFileResetRoute({ app, deps });
-  registerAdminThemeFileCopyRoute({ app, deps });
-  registerAdminThemeFileRenameRoute({ app, deps });
+  registerAdminThemeFilePutRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileResetRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileCopyRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileRenameRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

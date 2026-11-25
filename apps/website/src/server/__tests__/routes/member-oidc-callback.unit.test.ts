@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -14,6 +15,7 @@ import { dispatchHttpRequest } from "../helpers/in-process-http.js";
 import { portFake } from "../helpers/port-fake.js";
 
 test("T44: a rate-limited OIDC email continuation redirects the browser to the sign-in error page", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const clock = createFakeClock({ startIso: "2026-10-24T12:00:00.000Z" });
   const binding = "b".repeat(43);
   const email = "person@other.example";
@@ -51,7 +53,7 @@ test("T44: a rate-limited OIDC email continuation redirects the browser to the s
     listProviders: async () => [],
   };
   const app = express();
-  registerMemberOidcCallbackRoute({ app, deps });
+  registerMemberOidcCallbackRoute({ errors: routeErrors, app, deps });
   // Real Express/native HTTP transport: the binding cookie and the query travel on the wire.
   const response = await dispatchHttpRequest({ app, method: "GET",
     url: "/api/members/v1/workspaces/ws/oidc/google/callback?code=one-time-code&state=sealed-state",

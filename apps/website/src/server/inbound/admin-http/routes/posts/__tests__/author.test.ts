@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -13,6 +14,7 @@ import { registerAdminPostUpdateRoute } from "#src/server/runtime/composition/mo
 import { registerAdminPostAutosaveRoute } from "#src/server/runtime/composition/modules/posts";
 
 async function fixture(t: { after: (cleanup: () => Promise<void>) => void }) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const postRepo = new InMemoryPostRepo({});
   let sequence = 0;
   const deps = { workspaceId: "ws", postRepo, clock: { nowMs: () => Date.parse("2026-10-09T00:00:00Z"), nowIso: () => "2026-10-09T00:00:00.000Z" },
@@ -22,9 +24,9 @@ async function fixture(t: { after: (cleanup: () => Promise<void>) => void }) {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "human" }; next(); });
-  registerAdminPostCreateRoute({ app, deps });
-  registerAdminPostUpdateRoute({ app, deps });
-  registerAdminPostAutosaveRoute({ app, deps });
+  registerAdminPostCreateRoute({ errors: routeErrors, app, deps });
+  registerAdminPostUpdateRoute({ errors: routeErrors, app, deps });
+  registerAdminPostAutosaveRoute({ errors: routeErrors, app, deps });
   const server = createServer(app);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");

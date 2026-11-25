@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import type { RouteDeps } from "#src/server/routes/types";
@@ -19,4 +20,4 @@ export type ExternalMcpRouteDeps = Pick<
   "workspaceId" | "authorize" | "clock" | "externalMcpServerRepo" | "builtInExternalMcpServerIds" | "externalMcpToolApprovalRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "observability" | "externalMcpAdmissions"
 >;
 
-export type ExternalMcpRouteRegistrar = (required: { app: Express; deps: ExternalMcpRouteDeps }, optional?: Record<string, never>) => void;
+export type ExternalMcpRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: ExternalMcpRouteDeps }, optional?: Record<string, never>) => void;

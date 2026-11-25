@@ -39,13 +39,14 @@ test("the serving app exposes admissions while export apps cannot replace its fe
 });
 
 function buildApp({ admissions, allowed = true }: { admissions?: ExternalMcpOperations["admissions"]; allowed?: boolean } = {}, _options: Record<string, never> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   deps.externalMcpAdmissions = admissions;
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminExternalMcpAdmissionsRoute({ app, deps: { ...deps, authorize: allowed ? deps.authorize : async () => ({ allowed: false, reason: "no_grant" }) } });
+  registerAdminExternalMcpAdmissionsRoute({ errors: routeErrors, app, deps: { ...deps, authorize: allowed ? deps.authorize : async () => ({ allowed: false, reason: "no_grant" }) } });
   return app;
 }
 

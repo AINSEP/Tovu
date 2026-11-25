@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -8,6 +9,7 @@ type Deps = Parameters<typeof registerAdminCredentialCopyRoutes>[0]["deps"];
 const path = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
 const selection = { sourceSiteId: "shared-keys", ids: ["key"], overwrite: false };
 function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: unknown[] = [];
   let allowed = true, instanceAllowed = true;
   const deps: Deps = { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
@@ -21,7 +23,7 @@ function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}
       use: async input => { calls.push(input); return { keyId: input.keyId, usedByThisSite: input.use, usedBy: [], appliesAt: "now" }; },
     },
   };
-  const app = express(); registerAdminCredentialCopyRoutes({ app, deps });
+  const app = express(); registerAdminCredentialCopyRoutes({ errors: routeErrors, app, deps });
   return { calls, deps, deny: () => { allowed = false; }, denyInstance: () => { instanceAllowed = false; },
     async request(input: {
       method?: "get" | "post"; body?: unknown; local?: string; remote?: string; host?: string; origin?: string;

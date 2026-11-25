@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -48,6 +49,7 @@ function buildApp(options: {
   limiter?: RateLimiter;
   allowed?: boolean;
 }): { app: express.Express; authorizeCalls: unknown[] } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const authorizeCalls: unknown[] = [];
   const deps = {
@@ -79,7 +81,7 @@ function buildApp(options: {
   });
   registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter });
   registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limiter });
-  registerAdminExternalMcpOAuthDisconnectRoute({ app, deps });
+  registerAdminExternalMcpOAuthDisconnectRoute({ errors: routeErrors, app, deps });
   return { app, authorizeCalls };
 }
 

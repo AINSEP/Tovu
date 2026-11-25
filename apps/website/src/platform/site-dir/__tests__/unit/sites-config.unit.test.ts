@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../helpers/isolated-catalog-home.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -122,7 +123,7 @@ test('web config endpoint checks capability and permission, validates atomically
       post(url: string, handler: import('express').RequestHandler) { handlers.set(`post:${url}`, handler); },
       put(url: string, handler: import('express').RequestHandler) { handlers.set(`put:${url}`, handler); } } as unknown as import('express').Express;
     let enabled = false, allowed = false; const permissions: string[] = [];
-    registerSitesHomeRoutes({ app, workspace: f.workspace, deps: { workspaceId: 'workspace', isSiteSwitcherEnabled: () => enabled,
+    registerSitesHomeRoutes({ errors: createRouteIncidentReporter().errors, app, workspace: f.workspace, deps: { workspaceId: 'workspace', isSiteSwitcherEnabled: () => enabled,
       authorize: async ({ permission }) => { permissions.push(permission); return { allowed, reason: 'policy' }; },
     } });
     const invoke = async (method: 'get' | 'put', body: unknown = {}, workspaceId = 'workspace') => {

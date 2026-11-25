@@ -17,10 +17,10 @@ import { registerMemberPageRoutes } from "../../../inbound/public-http/routes/si
 import { registerSiteChatComparisonRoutes } from "../../../inbound/public-http/routes/site/chat-comparison.js";
 import { registerSiteChatBundle } from "./public-middleware.js";
 import { registerCommentsSubmit, registerAnalyticsIngest, registerFormsSubmit } from "./visitor-submit.js";
-import type { MountInput, PreviewRevisionCheck } from "./module-handles.js";
+import type { ErrorBoundMountInput, PreviewRevisionCheck } from "./module-handles.js";
 
 /** Static mounts, theme previews, commerce, the visitor registrations, member pages and the site catch-all, in registration order. */
-export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision }: MountInput & { isAuthenticatedPreviewRevision: PreviewRevisionCheck }, _optional = {}): void {
+export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision }: ErrorBoundMountInput & { isAuthenticatedPreviewRevision: PreviewRevisionCheck }, _optional = {}): void {
   // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
   // at the site root (hardcoded, no `ChatPaneProps` override exists to relocate it — verified
   // against `chat-react@0.2.0`'s `AgentRuntimePicker.tsx`), which sits outside the admin SPA's own

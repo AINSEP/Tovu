@@ -36,9 +36,9 @@ const IDEMPOTENCY_HEADERS = ["idempotency-key"];
  * documented 1 MiB route-layer body cap ahead of the handler, so an oversized request 413s before
  * `createPost`/the command gateway ever runs.
  */
-export const registerAdminPostCreateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPostCreateRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
-  mountAdminJsonRoute({ app: capped, spec: { ...postCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+  mountAdminJsonRoute({ errors, app: capped, spec: { ...postCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
     createEntry: ({ workspaceId, id, actorId, body }) => createPost({
       deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
@@ -51,9 +51,9 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = ({ app, deps 
  * PUT post through the command gateway (spec doc: `postUpdateRoute`), behind the same 1 MiB cap as
  * the create, since api.spec.md §4 scopes it to the update endpoints too.
  */
-export const registerAdminPostUpdateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPostUpdateRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
-  mountAdminJsonRoute({ app: capped, spec: { ...postUpdateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+  mountAdminJsonRoute({ errors, app: capped, spec: { ...postUpdateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
     findPostId: postIdLookup({ deps }),
     updateInverse: postUpdateInverse,
@@ -62,8 +62,8 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = ({ app, deps 
 };
 
 /** DELETE (trash) a post through the command gateway (spec doc: `postDeleteRoute`); no body cap. */
-export const registerAdminPostDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: { ...postDeleteRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+export const registerAdminPostDeleteRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: { ...postDeleteRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), postErrors: postWriteErrors,
     findPostId: postIdLookup({ deps }),
     trashEntry: trashContentEntry({ deps }),
@@ -93,9 +93,9 @@ function autosaveLookupDeps({ deps }: { deps: ContentRouteDeps }, _options: Reco
  * same order. All three were `authorizeOrRespond` (`"guarded"`); their unexpected-failure copy keys
  * and messages are copied verbatim from the hand-written `sendAdminFailure` calls.
  */
-export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
-  mountAdminJsonRoute({ app: capped, spec: postAutosavePutRoute, deps: {
+  mountAdminJsonRoute({ errors, app: capped, spec: postAutosavePutRoute, deps: {
     ...autosaveLookupDeps({ deps }),
     normalizeAuthor: ({ author }) => normalizePostAuthor({ author }),
     isPostValidation: ({ err }) => err instanceof PostValidationError,
@@ -103,11 +103,11 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, dep
     nowIso: () => deps.clock.nowIso(),
     writeAutosave: (input) => deps.postRepo.writeAutosave(input),
   } }, { authorization: "guarded", failure: { operation: "routes/posts/autosave/save", code: "INTERNAL_ERROR", message: "The post draft could not be saved." } });
-  mountAdminJsonRoute({ app, spec: postAutosaveGetRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: postAutosaveGetRoute, deps: {
     ...autosaveLookupDeps({ deps }),
     readAutosave: (input) => deps.postRepo.readAutosave(input),
   } }, { authorization: "guarded", failure: { operation: "routes/posts/autosave/read", code: "INTERNAL_ERROR", message: "The post draft could not be loaded." } });
-  mountAdminJsonRoute({ app, spec: postAutosaveDeleteRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: postAutosaveDeleteRoute, deps: {
     ...autosaveLookupDeps({ deps }),
     clearAutosave: (input) => deps.postRepo.clearAutosave(input),
   } }, { authorization: "guarded", failure: { operation: "routes/posts/autosave/clear", code: "INTERNAL_ERROR", message: "The post draft could not be cleared." } });

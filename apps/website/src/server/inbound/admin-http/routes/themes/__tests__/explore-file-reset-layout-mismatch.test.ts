@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -83,6 +84,7 @@ function makeThemesRoot(): string {
 }
 
 async function startApp(t: test.TestContext, packageCatalog = false): Promise<{ baseUrl: string; themesDir: string }> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const themesDir = makeThemesRoot();
   const packageThemesDir = packageCatalog ? fs.mkdtempSync(path.join(os.tmpdir(), "tovu-reset-package-")) : undefined;
   if (packageThemesDir) {
@@ -106,8 +108,8 @@ async function startApp(t: test.TestContext, packageCatalog = false): Promise<{ 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute({ app, deps });
-  registerAdminThemeFileResetRoute({ app, deps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileResetRoute({ errors: routeErrors, app, deps });
   return { baseUrl: await startTestServer(app, t), themesDir };
 }
 

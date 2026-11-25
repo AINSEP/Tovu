@@ -70,6 +70,7 @@ interface BuildOptions {
 }
 
 function buildApp(options: BuildOptions = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const reads: string[] = [];
   const baseDeps = createRouteDeps();
   // The composition binds a real handler host; these routes must also work without one.
@@ -85,8 +86,8 @@ function buildApp(options: BuildOptions = {}) {
   app.use((req, res, next) => (options.parseJson === false && req.path.includes("/surfaces/") ? next() : json(req, res, next)));
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginAdminSurfaceRoutes({ app, deps });
-  registerAdminSurfaceFilesRoute({ app, deps });
+  registerAgentPluginAdminSurfaceRoutes({ errors: routeErrors, app, deps });
+  registerAdminSurfaceFilesRoute({ errors: routeErrors, app, deps });
   return { app, baseDeps, reads };
 }
 

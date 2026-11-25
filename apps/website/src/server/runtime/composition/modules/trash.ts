@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { trashMoveRoute, type TrashMoveFn } from "@jini-ai/cms/admin-http/routes/trash/items";
@@ -12,7 +13,7 @@ import {
   type TrashAuthorizeFn, type TrashDb, type TrashKindMover,
 } from "#src/features/trash/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
@@ -65,7 +66,7 @@ export interface TrashRouteDeps {
   movers?: ReadonlyMap<string, TrashKindMover>;
 }
 
-export type TrashRouteRegistrar = (required: { app: Express; deps: TrashRouteDeps }, optional?: Record<string, never>) => void;
+export type TrashRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: TrashRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation). Every trash route called
  *  `authorizeDirectOrRespond` (or no port authorizer at all), never the publishing-credential
@@ -118,8 +119,8 @@ function postDisplayKinds({ deps }: { deps: TrashRouteDeps }, _optional: Record<
   };
 }
 
-export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: trashListRoute, deps: trashMountDeps({ deps, own: {
+export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: trashListRoute, deps: trashMountDeps({ deps, own: {
     authorizeEntry: trashEntryGate({ deps }), loadPostDisplayKinds: postDisplayKinds({ deps }),
     // The same host value `createTrashService` stamps with, echoed so the admin header states it.
     retentionDays: TRASH_RETENTION_DAYS,
@@ -128,34 +129,34 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, 
   } }) }, mountOptions("routes/trash/list"));
 };
 
-export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: trashRestoreRoute, deps: trashMountDeps({ deps, own: {
+export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: trashRestoreRoute, deps: trashMountDeps({ deps, own: {
     authorizeEntry: trashEntryGate({ deps }), mayActOn: trashKindGate({ deps }),
   } }) }, mountOptions("routes/trash/restore"));
 };
 
-export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: trashPurgeRoute, deps: trashMountDeps({ deps, own: {
+export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: trashPurgeRoute, deps: trashMountDeps({ deps, own: {
     authorizeEntry: trashEntryGate({ deps }), mayActOn: trashKindGate({ deps }),
   } }) }, mountOptions("routes/trash/purge"));
 };
 
-export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: trashMoveRoute, deps: trashMountDeps({ deps, own: {
+export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: trashMoveRoute, deps: trashMountDeps({ deps, own: {
     moveToTrash: (input: Parameters<TrashMoveFn>[0]) => moveToTrash(input, {
       registry: deps.registry, trash: deps.trash, db: deps.db, authorize: deps.authorize, clock: deps.clock, movers: deps.movers,
     }),
   } }) }, mountOptions("routes/trash/items"));
 };
 
-export function createTrashModule(deps: TrashRouteDeps): ServerModuleHandle {
+export function createTrashModule(deps: TrashRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "trash",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminTrashListRoute({ app, deps });
-      registerAdminTrashRestoreRoute({ app, deps });
-      registerAdminTrashPurgeRoute({ app, deps });
-      registerAdminTrashMoveToTrashRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminTrashListRoute({ errors, app, deps });
+      registerAdminTrashRestoreRoute({ errors, app, deps });
+      registerAdminTrashPurgeRoute({ errors, app, deps });
+      registerAdminTrashMoveToTrashRoute({ errors, app, deps });
     },
   };
 }

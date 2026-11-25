@@ -1,7 +1,10 @@
 import type { Express, RequestHandler, Response } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec, type RouteMountOptions } from "@jini-ai/http-kit";
-import { isSameOriginBrowserWrite, type JsonRouteAuthorizeScope, type RouteHostContext, type RouteInputContext, type ServerApiError } from "@jini-ai/core/contracts/server";
+import { isSameOriginBrowserWrite, type JsonRouteAuthorizeScope, type OriginContext, type RouteErrorPorts, type RouteHostContext, type RouteInputContext, type ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
+
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { wasAdmittedInRequest } from "#src/server/inbound/shared/request-admissions";
 
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute, type AsyncRouteHandler } from "#src/platform/express/async-route";
@@ -292,11 +295,11 @@ async function authorizeWithPorts(
  * presentation PATCH writes `adminFailureResponse` (operation-only copy, the request's tracker).
  * @complexity The shared failure lifecycle.
  */
-function writeAdminFailure({ res, error, options, authorized }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions; authorized: boolean }, _optional: Record<string, never> = {}): void {
+function writeAdminFailure({ res, error, options, authorized, reporter }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions; authorized: boolean; reporter?: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
   const byPhase = options.failureByPhase && (authorized ? options.failureByPhase.afterAuthorize : options.failureByPhase.beforeAuthorize);
   const failure = options.failureFor?.(error) ?? byPhase ?? options.failure;
-  if (options.failureCopy !== "operation") { sendAdminFailure({ res, error }, failure); return; }
-  const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter }, failure);
+  if (options.failureCopy !== "operation") { sendAdminFailure({ res, error, ...(reporter ? { reporter } : {}) }, failure); return; }
+  const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: reporter ?? res.locals?.failureReporter, trackerAlreadyReported: wasAdmittedInRequest({ scope: res.locals?.adminFailureReportScope, error }) }, failure);
   res.status(status).json(body);
 }
 
@@ -306,10 +309,10 @@ function writeAdminFailure({ res, error, options, authorized }: { res: Response;
  * @throws The original error, when unclaimed.
  * @complexity O(1).
  */
-function forwardUnlessClaimed({ res, error, options }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): void {
+function forwardUnlessClaimed({ res, error, options, reporter }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions; reporter?: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
   const claimed = options.failureFor?.(error);
   if (!claimed) throw error;
-  writeAdminFailure({ res, error, options: { ...options, failureFor: () => claimed }, authorized: true });
+  writeAdminFailure({ res, error, options: { ...options, failureFor: () => claimed }, authorized: true, ...(reporter ? { reporter } : {}) });
 }
 
 /** Build the admin ports; `failure` carries the per-route `sendAdminFailure` options (operation, status…).
@@ -321,7 +324,7 @@ function forwardUnlessClaimed({ res, error, options }: { res: Response; error: u
  */
 export function createAdminJsonRoutePorts(
   required: AdminJsonRouteMountOptions & { workspaceScoped?: boolean; requireSameOrigin?: boolean } = {},
-  _optional: Record<string, never> = {},
+  { reporter }: { reporter?: Pick<ErrorReporter, "record"> } = {},
 ): AdminPorts {
   if (required.deferMissingPrincipal && required.sessionCredentialOnly) {
     throw new Error("admin route ports: deferMissingPrincipal cannot be combined with sessionCredentialOnly — the credential gate must run before parse");
@@ -368,8 +371,8 @@ export function createAdminJsonRoutePorts(
       if (error instanceof RouteRefusalError) { (required.refusalWriter ?? writeRefusal)({ res, error }); return; }
       if (error instanceof AdminWorkspaceRefusal) { writeWorkspaceRefusal({ res, reply: error.reply }); return; }
       if (required.failureWriter) { required.failureWriter({ res, error }); return; }
-      if (required.forwardUncaughtErrors) { forwardUnlessClaimed({ res, error, options: required }); return; }
-      writeAdminFailure({ res, error, options: required, authorized: phase?.authorized({ res }) ?? false });
+      if (required.forwardUncaughtErrors) { forwardUnlessClaimed({ res, error, options: required, ...(reporter ? { reporter } : {}) }); return; }
+      writeAdminFailure({ res, error, options: required, authorized: phase?.authorized({ res }) ?? false, ...(reporter ? { reporter } : {}) });
     },
     onReturnedError: writeReturnedFailure,
     requestFacts: routeRequestFactsFor,
@@ -393,7 +396,7 @@ export interface PublicRouteFailure { operation: string; visitorError: string; s
  */
 export function createPublicJsonRoutePorts(
   required: PublicRouteFailure & { workspaceId?: string },
-  _optional: Record<string, never> = {},
+  { reporter }: { reporter?: Pick<ErrorReporter, "record"> } = {},
 ): JsonRoutePorts<object> {
   const { workspaceId } = required;
   return {
@@ -403,7 +406,7 @@ export function createPublicJsonRoutePorts(
     } }),
     onError: ({ res, error }) => {
       if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
-      const { errorId } = reportServerFailure({ error, operation: required.operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
+      const { errorId } = reportServerFailure({ error, operation: required.operation }, { tracker: res.locals.adminFailureTracker, reporter: reporter ?? res.locals.failureReporter });
       res.status(required.status ?? 500).json({ error: required.visitorError, errorId });
     },
     onReturnedError: writeReturnedFailure,
@@ -418,12 +421,12 @@ export function createPublicJsonRoutePorts(
  */
 export function adminPortsFor(
   { path, options, requireSameOrigin }: { path: string; options: AdminJsonRouteMountOptions; requireSameOrigin?: boolean },
-  _optional: Record<string, never> = {},
+  { reporter }: { reporter?: Pick<ErrorReporter, "record"> } = {},
 ): AdminPorts {
   // A path without `:workspaceId` is deployment-level: its hand-written route never ran the guard.
   const workspaceScoped = path.includes(":workspaceId");
   const customized = Object.values(options).some((value) => value !== undefined);
-  return customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...options, workspaceScoped, requireSameOrigin }) : adminJsonRoutePorts;
+  return reporter || customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...options, workspaceScoped, requireSameOrigin }, { ...(reporter ? { reporter } : {}) }) : adminJsonRoutePorts;
 }
 
 /** Header-only reads, because http-kit hands the policy the raw Node request (no Express `req.get`). */
@@ -436,7 +439,7 @@ function headerText({ req, name }: { req: { headers?: Record<string, unknown> };
  *  hand-written saved-keys write applies (`isSameOriginBrowserWrite` — an `Origin` naming this host, and
  *  `sec-fetch-site`, when sent, `same-origin`). A JSON admin route only ever serves the admin's own pages,
  *  so this is the mount's default; without one http-kit throws and a cross-origin write became a 500. */
-export const adminBrowserWriteOrigin: RouteHostContext = {
+export const adminBrowserWriteOrigin: OriginContext = {
   originPolicy: {
     isSameOrigin: ({ req }) => isSameOriginBrowserWrite({
       origin: headerText({ req, name: "origin" }), host: headerText({ req, name: "host" }), fetchSite: headerText({ req, name: "sec-fetch-site" }),
@@ -452,15 +455,16 @@ export const adminBrowserWriteOrigin: RouteHostContext = {
  * @complexity O(1) setup; per request as `createAdminJsonRoutePorts`.
  */
 export function mountAdminJsonRoute<Input, Output, Deps>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: RouteHostContext },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext; errors?: RouteErrorPorts },
   optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
   const { forwardRejection, bodyParsers, requestDeps, ...portOptions } = optional;
-  const adapter = required.spec.requireSameOrigin ? { adapter: required.origin ?? adminBrowserWriteOrigin } : {};
-  const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
+  const errors = required.errors;
+  const adapter = routeAdapterFor({ origin: required.spec.requireSameOrigin ? required.origin ?? adminBrowserWriteOrigin : undefined, errors });
+  const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin }, { ...(errors ? { reporter: errors.reporter } : {}) });
   const app = forwardRejection || portOptions.forwardUncaughtErrors ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, routeMountOptionsFor({ bodyParsers, requestDeps }));
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor({ bodyParsers, requestDeps }), ...(errors ? { preserveHostErrorRouting: true as const } : {}) });
 }
 
 /**
@@ -468,7 +472,7 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
  * (and whose fetch metadata, when sent, agrees) — the rule `site-share-password.ts` applies by hand.
  * A request without `Origin` is refused, so a cross-site form or script can never reach the handler.
  */
-export const adminSameOriginWrites: RouteHostContext = {
+export const adminSameOriginWrites: OriginContext = {
   originPolicy: {
     isSameOrigin: ({ req }) => {
       const headers = req.headers ?? {};
@@ -503,10 +507,24 @@ export type PublicRouteMountOptions<Deps> = RequestDepsMountOption<Deps> & Pick<
  * @complexity O(1) setup.
  */
 export function mountPublicJsonRoute<Input, Output, Deps extends object>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; errors?: RouteErrorPorts; failure: PublicRouteFailure; workspaceId?: string },
   optional: PublicRouteMountOptions<Deps> = {},
 ): void {
   // Only a `:workspaceId` path can name a foreign workspace; elsewhere the option is inert.
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
-  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps }, routeMountOptionsFor(optional));
+  const errors = required.errors;
+  if (required.spec.requireSameOrigin) throw new Error(`public JSON route ${required.spec.path}: requireSameOrigin needs the host's origin context`);
+  const adapter = routeAdapterFor({ origin: undefined, errors });
+  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }, { ...(errors ? { reporter: errors.reporter } : {}) }) }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor(optional), ...(errors ? { preserveHostErrorRouting: true as const } : {}) });
+}
+
+
+const denyUnboundOrigin: OriginContext = { originPolicy: { isSameOrigin: () => false } };
+
+export function routeAdapterFor(
+  { origin, errors }: { origin: OriginContext | undefined; errors: RouteErrorPorts | undefined },
+  _optional: Record<string, never> = {},
+): { adapter?: RouteHostContext } {
+  if (!errors) return origin ? { adapter: origin } : {};
+  return { adapter: { ...(origin ?? denyUnboundOrigin), errors } };
 }

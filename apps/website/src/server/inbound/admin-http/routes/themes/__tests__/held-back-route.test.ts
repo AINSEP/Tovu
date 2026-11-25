@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -51,6 +52,7 @@ function buildSite() {
 }
 
 function buildApp(options: { allowed?: (permission: string) => boolean; activeThemeId?: string; explain?: typeof explainThemeTree } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const site = buildSite();
   const themes = discoverAllBuiltInThemes({ dir: site.themesDir, source: "built-in" });
   const permissions: string[] = [];
@@ -81,7 +83,7 @@ function buildApp(options: { allowed?: (permission: string) => boolean; activeTh
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerAdminHeldBackThemeRoutes({ app, deps });
+  registerAdminHeldBackThemeRoutes({ errors: routeErrors, app, deps });
   return { app, themes, permissions, presentation, ...site };
 }
 

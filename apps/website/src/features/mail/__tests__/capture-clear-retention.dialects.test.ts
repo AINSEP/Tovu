@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
@@ -36,8 +37,9 @@ const owner: Authorize = async ({ permission }) => ({ allowed: permission === MA
 const sqlText = (q: unknown) => (q as { toOperationNode: () => { sqlFragments: readonly string[] } }).toOperationNode().sqlFragments.join("?");
 /** `POST .../system/mail-capture/clear` through the composition's real mount: owner permission, confirm card, workspace "w". */
 async function clearCall(db: Db, body: Record<string, unknown>, authorize: Authorize = owner) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminMailActivityRoutes({ app, deps: { workspaceId: "w", authorize, contentKernel: db } as unknown as AdminMailActivityDeps });
+  registerAdminMailActivityRoutes({ errors: routeErrors, app, deps: { workspaceId: "w", authorize, contentKernel: db } as unknown as AdminMailActivityDeps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/system/mail-capture/clear")({ query: {}, body, params: { workspaceId: "w" } }, res);

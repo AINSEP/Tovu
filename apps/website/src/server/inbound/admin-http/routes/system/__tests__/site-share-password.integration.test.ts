@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** k1 T1/T4: session-only, exact-origin, owner-only reveal; no listening server. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -31,7 +32,7 @@ test("password reveal denies other principals, workspaces, origins, tools and ma
     if (trusted) res.locals.publishTrust = { sourceInstallationId: "peer", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 };
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }),
+  registerAdminSiteShareRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }),
     siteShareBackend: { revealPassword: async () => { reveals++; return { password: "private-export-password" }; }, create: async () => ({ ok: true }) },
   } as unknown as RouteDeps });
   const root = "/api/admin/v1/workspaces/ws/site-shares", endpoint = root + "/00000000-0000-0000-0000-000000000000/password";

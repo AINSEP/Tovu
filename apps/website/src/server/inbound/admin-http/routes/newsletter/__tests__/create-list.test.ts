@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -22,6 +23,7 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): {
   app: express.Express;
   deps: NewsletterRouteDeps;
 } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps = {
     ...base,
@@ -35,7 +37,7 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterCreateListRoute({ app, deps });
+  registerAdminNewsletterCreateListRoute({ errors: routeErrors, app, deps });
   return { app, deps };
 }
 

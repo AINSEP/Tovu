@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -45,11 +46,11 @@ async function setup() {
     return policyId;
   };
   const app = express();
-  registerAdminUserCreateRoute({ app, deps });
-  registerAdminUserUpdateRoute({ app, deps });
-  registerAdminUserEnableRoute({ app, deps });
-  registerAdminUserAssignRoleRoute({ app, deps });
-  registerAdminUserAttachPolicyRoute({ app, deps });
+  registerAdminUserCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminUserUpdateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminUserEnableRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminUserAssignRoleRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminUserAttachPolicyRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const invoke = async (method: "post" | "patch", suffix: string, callerId: string, principalId: string, body: unknown) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: callerId };

@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -62,15 +64,16 @@ async function request(app: express.Express, method: string, suffix: string) {
   } finally { clearTimeout(timer); socket.destroy(); }
 }
 
-function appFor(error: unknown, tracked: unknown[] = []) {
+function appFor(error: unknown, tracked: unknown[] = [], { recorded = recordingComposedReporter() } = {}) {
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const fail = async () => { throw error; };
   const app = express();
   app.use((req, res, next) => {
-    res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
+    res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; res.locals.failureReporter = recorded.reporter;
     req.body = req.method === "PUT" ? Buffer.from([0x50, 0x4b, 0x03, 0x04]) : {};
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps: {
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: {
     workspaceId: "ws", ownerPrincipalId: "owner", authorize: async () => ({ allowed: true }),
     tracker: { error: (report: unknown) => tracked.push(report) }, siteShareBackend: {
       create: fail, list: fail, staticOptions: fail, revoke: fail, acknowledge: fail, revealPassword: fail,
@@ -84,10 +87,11 @@ for (const [method, suffix] of [["POST", ""], ["GET", ""], ["GET", "/static/opti
   ["POST", "/share/acknowledge"], ["GET", "/share/download"], ["DELETE", "/share"], ["PUT", "/artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip"],
   ["DELETE", "/artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip"], ["POST", "/share/password"]]) {
   test(`${method} ${suffix || "/"} logs unexpected share failures with the public error id`, async t => {
-    const logs: unknown[][] = [];
-    t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
+    const recorded = recordingComposedReporter();
+    const logs = recorded.records;
+    
     const secret = "ghp_" + "x".repeat(36), tracked: unknown[] = [];
-    const response = await request(appFor(new Error("storage unavailable " + secret), tracked), method!, suffix!);
+    const response = await request(appFor(new Error("storage unavailable " + secret), tracked, { recorded }), method!, suffix!);
     assert.equal(response.status, 500);
     assert.equal(response.body.code, "SHARE_FAILED");
     assert.equal(typeof response.body.errorId, "string");
@@ -98,8 +102,8 @@ for (const [method, suffix] of [["POST", ""], ["GET", ""], ["GET", "/static/opti
     assert.ok(diagnostic.includes(response.body.errorId));
     assert.match(diagnostic, /storage unavailable/);
     assert.equal(diagnostic.includes(secret), false);
-    assert.equal(tracked.length, 1);
-    const trackedText = String((tracked[0] as { error: Error }).error.message);
+    assert.equal(recorded.reports.length, 1);
+    const trackedText = String(recorded.reports[0]?.[0].error.message);
     assert.match(trackedText, /storage unavailable/);
     assert.equal(trackedText.includes(secret), false, "tracker report must be redacted too");
     assert.equal(JSON.stringify(response.body).includes("storage unavailable"), false);

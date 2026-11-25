@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** @file Consent 1b: all HTTP contracts, authorization, tenant isolation and safe failures. */
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
@@ -19,11 +21,13 @@ const cases = [
 ];
 
 for (const route of cases) test(`${route.method} consent/${route.path}: permission, workspace and storage failures`, async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const f = consentFixture({ t });
   const app = express(); app.use(express.json());
   // Authentication itself is exercised through the real composed gate below.
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
+  registerAdminConsentRoutes({ errors: routeErrors, app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
   const base = await startTestServer(app, t);
   const body = route.path === 'publish' ? { draftId: 'revision-1', expectedPublishedId: null } : route.method === 'PUT' ? { config: f.config, expectedDraftId: null } : {};
   const request = (workspace = 'ws', payload: unknown = body) => fetch(`${base}/api/admin/v1/workspaces/${workspace}/consent/${route.path}`, { method: route.method, ...(route.method === 'GET' ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
@@ -52,9 +56,11 @@ test('all consent routes reject anonymous sessions and principals with no grants
 });
 
 test('dry-run accepts a candidate without persisting; unknown fields and missing tokens are rejected', async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const f = consentFixture({ t }); const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
+  registerAdminConsentRoutes({ errors: routeErrors, app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
   const base = await startTestServer(app, t);
   const send = (suffix: string, method: string, value: unknown) => fetch(`${base}/api/admin/v1/workspaces/ws/consent/${suffix}`, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) });
   const dryRun = await send('dry-run', 'POST', { config: f.config, path: '/' });
@@ -66,9 +72,11 @@ test('dry-run accepts a candidate without persisting; unknown fields and missing
 
 /** A route mounted with an always-allow gate, so the service's own permission re-check is what decides. */
 async function serviceGatedApp(t: import('node:test').TestContext) {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const f = consentFixture({ t }); const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'matched' }) }, service: f.service });
+  registerAdminConsentRoutes({ errors: routeErrors, app, deps: { workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'matched' }) }, service: f.service });
   const base = await startTestServer(app, t);
   const send = (suffix: string, method: string, value?: unknown) => fetch(`${base}/api/admin/v1/workspaces/ws/consent/${suffix}`, value === undefined ? { method } : { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) });
   return { f, send };
@@ -104,9 +112,11 @@ test('publish without a draft id is a 400 naming the missing draft, and nothing 
 });
 
 test('a hand-built request with no :workspaceId is 404 before authorization (direct invoke)', async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const f = consentFixture({ t }); const app = express();
   let authorized = 0;
-  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: async () => { authorized++; return { allowed: true, reason: 'matched' }; } }, service: f.service });
+  registerAdminConsentRoutes({ errors: routeErrors, app, deps: { workspaceId: 'ws', authorize: async () => { authorized++; return { allowed: true, reason: 'matched' }; } }, service: f.service });
   const handler = lastRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/consent/settings');
   const { res, capture } = createCapturingResponse();
   const headers: Record<string, string> = {};
@@ -118,6 +128,8 @@ test('a hand-built request with no :workspaceId is 404 before authorization (dir
 });
 
 test('unexpected consent failure preserves 503 enforcement guidance and one redacted incident', async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const f = consentFixture({ t });
   const cause = new Error('consent storage context password=CONSENT_CANARY');
   t.mock.method(f.service, 'read', async () => { throw cause; });
@@ -125,7 +137,7 @@ test('unexpected consent failure preserves 503 enforcement guidance and one reda
   const reports: unknown[] = [];
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
-  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
+  registerAdminConsentRoutes({ errors: routeErrors, app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
   const base = await startTestServer(app, t);
   const res = await fetch(`${base}/api/admin/v1/workspaces/ws/consent/settings`);
   const body = await res.json();
@@ -133,8 +145,8 @@ test('unexpected consent failure preserves 503 enforcement guidance and one reda
   assert.equal(body.code, 'CONSENT_UNAVAILABLE');
   assert.match(body.error, /Published enforcement remains in place/);
   assert.ok(body.errorId);
-  assert.equal(reports.length, 1);
-  assert.equal(logs.mock.calls.length, 1);
-  assert.ok(JSON.stringify(reports).includes(body.errorId));
-  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /CONSENT_CANARY/);
+  assert.equal(recorded.reports.length, 1);
+  assert.equal(recorded.records.length, 1);
+  assert.ok(JSON.stringify(recorded.reports).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(recorded.reports) + JSON.stringify(recorded.records), /CONSENT_CANARY/);
 });

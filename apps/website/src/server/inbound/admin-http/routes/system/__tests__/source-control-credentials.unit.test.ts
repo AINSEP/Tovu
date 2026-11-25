@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -20,8 +21,9 @@ const offline = async () => { throw new Error("SECRET repo detail"); };
 const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
 
 function harness(overrides: PortFake<AdminSourceControlCredentialsDeps> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminSourceControlCredentialsRoutes({ app, deps: portFake<AdminSourceControlCredentialsDeps>({
+  registerAdminSourceControlCredentialsRoutes({ errors: routeErrors, app, deps: portFake<AdminSourceControlCredentialsDeps>({
     workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { nowIso: () => "2026-10-21T00:00:00.000Z", nowMs: () => 0 }, idGen: { newId: () => "cred-1" },
     sourceControlCredentialSetRepo: { listByWorkspace: offline, findById: offline, delete: offline },
@@ -153,7 +155,7 @@ type RegisteredRoute = { method: "get" | "post" | "put" | "delete"; path: string
 
 function registeredRoutes(): RegisteredRoute[] {
   const app = express();
-  registerAdminSourceControlCredentialsRoutes({ app, deps: portFake<AdminSourceControlCredentialsDeps>({ workspaceId: "ws-1" }) });
+  registerAdminSourceControlCredentialsRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminSourceControlCredentialsDeps>({ workspaceId: "ws-1" }) });
   const stack = (app as unknown as { _router: { stack: RouterLayer[] } })._router.stack;
   return stack.flatMap((layer) => layer.route === undefined ? [] : Object.keys(layer.route.methods).map((method) => ({ method: method as RegisteredRoute["method"], path: layer.route!.path })));
 }

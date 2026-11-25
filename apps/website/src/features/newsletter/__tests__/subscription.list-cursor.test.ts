@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { once } from "node:events";
@@ -81,7 +82,7 @@ test("subscription route keeps its data envelope and continues through cursor", 
     authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as NewsletterRouteDeps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "principal" }; next(); });
-  registerAdminNewsletterListSubscriptionsRoute({ app, deps });
+  registerAdminNewsletterListSubscriptionsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   async function request(query: string): Promise<{ status: number; body: unknown }> {
     const socket = new PassThrough();
     let text = "";

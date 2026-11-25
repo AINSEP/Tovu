@@ -2,7 +2,7 @@ import { registerAdminApiKeyPrincipalCreateRoute } from "#src/server/inbound/adm
 import { registerAdminApiKeyIssueRoute } from "#src/server/inbound/admin-http/routes/api-keys/issue";
 import { registerAdminApiKeyRevokeRoute } from "#src/server/inbound/admin-http/routes/api-keys/revoke";
 import type { ApiKeysRouteDeps } from "#src/server/inbound/admin-http/routes/api-keys/deps";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `api-keys` server module (SPEC-006 REQ-08) — the three api-key admin routes
@@ -16,13 +16,13 @@ import type { ServerModuleHandle } from "./types.js";
  * Every route here registers under `/api/admin`, so all three sit behind the session gate
  * `createCoreModule` mounts — this module must be mounted after it.
  */
-export function createApiKeysModule(deps: ApiKeysRouteDeps): ServerModuleHandle {
+export function createApiKeysModule(deps: ApiKeysRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "api-keys",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminApiKeyPrincipalCreateRoute({ app, deps });
-      registerAdminApiKeyIssueRoute({ app, deps });
-      registerAdminApiKeyRevokeRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminApiKeyPrincipalCreateRoute({ errors, app, deps });
+      registerAdminApiKeyIssueRoute({ errors, app, deps });
+      registerAdminApiKeyRevokeRoute({ errors, app, deps });
     },
   };
 }

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -9,7 +10,7 @@ import { registerAdminMediaReplaceRoute } from '#src/server/runtime/composition/
 import { mediaApp } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/replace';
-const register = ({ app, deps }: { app: Express; deps: Deps }) => registerAdminMediaReplaceRoute({ app, deps });
+const register = ({ app, deps }: { app: Express; deps: Deps }) => registerAdminMediaReplaceRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
 test('media replace: a hand-built request with no params falls back to an empty workspace id and 404s', async () => {
   const { app } = mediaApp(register);

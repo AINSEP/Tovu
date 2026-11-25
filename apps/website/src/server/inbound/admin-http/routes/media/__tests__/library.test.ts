@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 /** L1 step 3: RED on old code (documents rejected, no text route, no kind isolation). */
 import assert from 'node:assert/strict';
@@ -22,8 +23,8 @@ function appFixture() {
   const { deps, deny } = libraryFixture(); const app = express();
   app.use(express.json({ limit: '16mb' }));
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  for (const register of [registerAdminMediaUploadRoute, registerAdminMediaListRoute, registerAdminMediaUpdateRoute, registerAdminMediaOriginalRoute, registerAdminMediaTrashRoute]) register({ app, deps });
-  registerAdminMediaTextRoute({ app, deps });
+  for (const register of [registerAdminMediaUploadRoute, registerAdminMediaListRoute, registerAdminMediaUpdateRoute, registerAdminMediaOriginalRoute, registerAdminMediaTrashRoute]) register({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMediaTextRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   // Private documents must short-circuit before unrelated post/member lookups.
   registerMediaRenditionRoute({ app, deps: deps as MediaRenditionRouteDeps });
   registerMediaOriginalVideoRoute({ app, deps: deps as MediaRenditionRouteDeps });

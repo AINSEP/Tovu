@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
@@ -11,8 +12,9 @@ import { forbiddenBody, mediaApp, seedPng } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId';
 const register = ({ app, deps }: { app: Parameters<typeof registerAdminMediaDeleteRoute>[0]["app"]; deps: Deps }) => {
-  registerAdminMediaTrashRoute({ app, deps });
-  registerAdminMediaDeleteRoute({ app, deps });
+  const routeErrors = createRouteIncidentReporter().errors;
+  registerAdminMediaTrashRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaDeleteRoute({ errors: routeErrors, app, deps });
 };
 
 test('media delete: denial writes the exact 403 body for media.delete.force and names the asset to authorize', async () => {

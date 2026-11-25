@@ -117,6 +117,7 @@ async function installReal(
  *  route actually wrote, the same way this file's other tests re-read `readAgentPluginActivations`
  *  rather than trusting the response body alone. */
 function buildTestApp(overrides: Partial<Pick<AgentPluginsRouteDeps, "setAgentPluginEnabled" | "tracker">> = {}): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
+  const routeErrors = createRouteIncidentReporter().errors;
   // ONE `createRouteDeps()` call for both the auth stack and the route's deps — a second call
   // stands up a separate identity/policy store and the owner login would 403 against it. Same
   // reason `agent-plugins-http.integration.test.ts` threads `baseDeps.authorize` through.
@@ -138,7 +139,7 @@ function buildTestApp(overrides: Partial<Pick<AgentPluginsRouteDeps, "setAgentPl
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginSetEnabledRoute({ app, deps: routeDeps });
+  registerAgentPluginSetEnabledRoute({ errors: routeErrors, app, deps: routeDeps });
   return { app, baseDeps };
 }
 
@@ -197,6 +198,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
 });
 
 test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per activation change through the mailer", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-events");
     await installReal("linked-metrics", "seed-composition-linked", { extensions: { tovu: { id: "test/linked-metrics", providerPlugin: "metrics-provider" } } });
@@ -218,7 +220,7 @@ test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per ac
     registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
     // No toggle override: this goes through deps.ts -> site mailer -> the shared boot lifecycle.
-    registerAgentPluginSetEnabledRoute({ app, deps });
+    registerAgentPluginSetEnabledRoute({ errors: routeErrors, app, deps });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     await deps.pluginRuntimeReady;
     events.length = 0;
@@ -837,6 +839,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a provider plugin's assistant face has no switch
  * fails closed (500) in `authorize` before the lookup, the write or any provisioning.
  */
 test("AGENT_PLUGIN_SET_ENABLED: deferral — without a session a malformed body keeps its 400, a valid one is 500 and writes nothing", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-deferral");
     const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
@@ -857,7 +860,7 @@ test("AGENT_PLUGIN_SET_ENABLED: deferral — without a session a malformed body 
     });
     const app = express();
     app.use(express.json());
-    registerAgentPluginSetEnabledRoute({ app, deps: routeDeps });
+    registerAgentPluginSetEnabledRoute({ errors: routeErrors, app, deps: routeDeps });
     const server = app.listen(0);
     await new Promise((resolve) => server.once("listening", resolve));
     t.after(() => new Promise((resolve) => server.close(resolve)));

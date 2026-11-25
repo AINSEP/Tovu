@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -70,7 +71,7 @@ function buildApp(deps = buildDeps()): express.Express {
   });
   const { registerRoutes } = createPublishContentModule(deps);
   assert.ok(registerRoutes, "publish-content must register its admin routes");
-  registerRoutes({ app });
+  registerRoutes({ app, errors: createRouteIncidentReporter().errors });
   return app;
 }
 

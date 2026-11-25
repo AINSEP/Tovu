@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -13,6 +14,7 @@ import type { SiteBackupToolDeps } from "#src/features/site-backup/backup-servic
  * a missing session answered by the route's own redacted `BACKUP_FAILED` 500.
  */
 async function serve(t: test.TestContext, { principal = true, trusted = false }: { principal?: boolean; trusted?: boolean } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }) } as unknown as SiteBackupToolDeps;
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => {
@@ -20,7 +22,7 @@ async function serve(t: test.TestContext, { principal = true, trusted = false }:
     if (trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 };
     next();
   });
-  registerAdminSiteBackupRoutes({ app, deps });
+  registerAdminSiteBackupRoutes({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t);
   return async (workspaceId: string, step: "plan" | "push") => {
     const response = await fetch(`${base}/api/admin/v1/workspaces/${workspaceId}/site-backups/${step}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });

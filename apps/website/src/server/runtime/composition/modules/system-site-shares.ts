@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express, Response } from "express";
 import {
   SiteShareUploadRefusal, siteShareAcknowledgeRoute, siteShareArtifactDeleteRoute, siteShareCreateRoute,
@@ -47,7 +48,7 @@ const STEP_BY_ROUTE = new Map<SiteShareRoute, string>([
 /** `sendSiteShareFailure`'s reply, captured: the same copy, status and tracker report the hand-written
  * routes wrote, with the request facts its route-derived copy reads.
  * @complexity The shared failure lifecycle. */
-function siteShareFailureReply({ deps, args }: { deps: RouteDeps; args: SiteShareFailureArgs }, _optional: Record<string, never> = {}): { status: number; body: unknown } {
+function siteShareFailureReply({ deps, args, errors }: { deps: RouteDeps; args: SiteShareFailureArgs; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): { status: number; body: unknown } {
   const { error, step, method, path, authenticated } = args;
   const reason = error instanceof SiteShareUploadRefusal ? PARSER_TYPE_BY_REFUSAL[error.refusal.reason] : undefined;
   const message = error instanceof Error ? error.message : String(error);
@@ -55,7 +56,7 @@ function siteShareFailureReply({ deps, args }: { deps: RouteDeps; args: SiteShar
   const reply = { status: 500, body: undefined as unknown };
   const res = {
     status: (status: number) => ({ json: (body: unknown) => { reply.status = status; reply.body = body; } }),
-    locals: authenticated ? { principal: true } : {}, req: { method, route: { path } },
+    locals: { ...(authenticated ? { principal: true } : {}), failureReporter: errors.reporter }, req: { method, route: { path } },
   };
   // Only `status().json()`, `locals` and `req.method/route` are read (`admin-failure.ts` `FailureResponse`).
   sendSiteShareFailure({ res: res as unknown as Response, error: failure, tracker: deps.tracker }, { step });
@@ -74,7 +75,7 @@ async function removeSiteShareArtifact({ backend, site, token, file }: { backend
 
 /** The specs' deps, built from `RouteDeps` (never passed whole). `siteShareBackend` is read per request.
  * @complexity O(1). */
-function siteShareRouteDeps({ deps }: { deps: RouteDeps }, _optional: Record<string, never> = {}): SiteShareRouteDeps & { authorize: RouteDeps["authorize"] } {
+function siteShareRouteDeps({ deps, errors }: { deps: RouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): SiteShareRouteDeps & { authorize: RouteDeps["authorize"] } {
   return {
     workspaceId: deps.workspaceId,
     authorize: (params) => deps.authorize(params),
@@ -87,31 +88,31 @@ function siteShareRouteDeps({ deps }: { deps: RouteDeps }, _optional: Record<str
     receiveArtifact: ({ backend, token, file, archive }: { backend: SiteShareBackend; token: string; file: string; archive: Uint8Array }) =>
       receiveSiteShareArtifact({ registry: backend.registry, site: deps.workspaceId, token, file, archive: Buffer.from(archive.buffer, archive.byteOffset, archive.byteLength) }),
     removeArtifact: ({ backend, token, file }: { backend: SiteShareBackend; token: string; file: string }) => removeSiteShareArtifact({ backend, site: deps.workspaceId, token, file }),
-    failureReply: (args) => siteShareFailureReply({ deps, args }),
+    failureReply: (args) => siteShareFailureReply({ deps, args, errors }),
     maxArchiveBytes: SHARE_LIMITS.maxArchiveBytes,
   };
 }
 
 /** One spec behind the admin ports, with its step's own workspace refusal. @complexity O(1). */
-function mountSiteShareRoute({ app, spec, routeDeps }: { app: Express; spec: SiteShareRoute; routeDeps: ReturnType<typeof siteShareRouteDeps> }, _optional: Record<string, never> = {}): void {
+function mountSiteShareRoute({ errors, app, spec, routeDeps }: { errors: RouteErrorPorts; app: Express; spec: SiteShareRoute; routeDeps: ReturnType<typeof siteShareRouteDeps> }, _optional: Record<string, never> = {}): void {
   const step = STEP_BY_ROUTE.get(spec);
   const mount: AdminJsonRouteMountOptions = {
     workspaceRefusal: () => ({ status: 404, body: { code: "NOT_FOUND", message: `${step} failed: this workspace is not available.` } }),
     // A missing session reached the hand-written gate's authorization, whose failure took the step's copy.
     deferMissingPrincipal: true,
   };
-  mountAdminRawRoute({ app, spec, deps: routeDeps }, mount);
+  mountAdminRawRoute({ errors, app, spec, deps: routeDeps }, mount);
 }
 
 /** Authenticated management and ZIP-only download. Mounted under the existing admin session gate. */
-export function registerAdminSiteShareRoutes(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminSiteShareRoutes(required: { errors: RouteErrorPorts; app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
-  const routeDeps = siteShareRouteDeps({ deps });
-  for (const spec of [siteShareListRoute, siteShareCreateRoute, siteShareStaticOptionsRoute, siteShareStaticCreateRoute]) mountSiteShareRoute({ app, spec, routeDeps });
+  const routeDeps = siteShareRouteDeps({ deps, errors: required.errors });
+  for (const spec of [siteShareListRoute, siteShareCreateRoute, siteShareStaticOptionsRoute, siteShareStaticCreateRoute]) mountSiteShareRoute({ errors: required.errors, app, spec, routeDeps });
   app.post("/api/admin/v1/workspaces/:workspaceId/site-shares/:shareId/password", createSiteSharePasswordHandler({ deps }));
-  mountSiteShareRoute({ app, spec: siteShareAcknowledgeRoute, routeDeps });
+  mountSiteShareRoute({ errors: required.errors, app, spec: siteShareAcknowledgeRoute, routeDeps });
   registerAdminSiteShareDownloadRoute({ app, deps });
-  mountSiteShareRoute({ app, spec: siteShareRevokeRoute, routeDeps });
+  mountSiteShareRoute({ errors: required.errors, app, spec: siteShareRevokeRoute, routeDeps });
   registerAdminSiteShareArtifactUploadRoute({ app, deps });
-  mountSiteShareRoute({ app, spec: siteShareArtifactDeleteRoute, routeDeps });
+  mountSiteShareRoute({ errors: required.errors, app, spec: siteShareArtifactDeleteRoute, routeDeps });
 }

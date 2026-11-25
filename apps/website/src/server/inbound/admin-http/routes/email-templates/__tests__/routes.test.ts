@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -16,6 +17,7 @@ const BASE = `/api/admin/v1/workspaces/${WS}/email-templates`;
 const HTML = '<html><head><meta name="email-fields" content="name=Ada"><title>Hi {{name}}</title></head><body><p onclick="x()">Hello {{name}}</p><script>x()</script></body></html>';
 
 async function boot(t: TestContext, options: { granted?: ReadonlySet<string>; override?: Partial<ContentRouteDeps>; jsonParser?: boolean } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const granted = options.granted ?? new Set(["content.read", "pages.edit_html", "admin.forms.manage"]);
   const asked: string[] = [];
   const deps = {
@@ -32,7 +34,7 @@ async function boot(t: TestContext, options: { granted?: ReadonlySet<string>; ov
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminEmailTemplateRoutes({ app, deps });
+  registerAdminEmailTemplateRoutes({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
   const send = async (method: string, path: string, body?: unknown) => {
     const res = await fetch(`${baseUrl}${path}`, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });

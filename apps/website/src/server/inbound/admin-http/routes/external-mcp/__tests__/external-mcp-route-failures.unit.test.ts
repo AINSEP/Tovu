@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
@@ -60,7 +61,7 @@ for (const [name, register, method, suffix] of [
   test(`MCP OAuth ${name}: wrong workspace and denied permission do not invoke the service`, async () => {
     let calls = 0;
     const service = { beginConnect: async () => { calls++; }, pollDeviceAuthorization: async () => { calls++; }, disconnect: async () => { calls++; } };
-    const { app } = fixture(({ app, deps }) => register({ app, deps: { ...deps, externalMcpOAuth: service } as any, limiter }), {
+    const { app } = fixture(({ app, deps }) => register({ errors: createRouteIncidentReporter().errors, app, deps: { ...deps, externalMcpOAuth: service } as any, limiter }), {
       authorize: async () => ({ allowed: false, reason: 'no_grant' }),
     });
     const path = `${BASE}/mcp-servers/server/oauth${suffix}`;
@@ -136,7 +137,7 @@ for (const [method, path, repo] of [
 
 for (const thrown of ['secret upstream body', new Error('secret upstream body')]) {
   test(`MCP OAuth unexpected ${typeof thrown} is never reflected to the operator`, async () => {
-    const { app } = fixture(({ app, deps }) => registerAdminExternalMcpOAuthDisconnectRoute({ app, deps: {
+    const { app } = fixture(({ app, deps }) => registerAdminExternalMcpOAuthDisconnectRoute({ errors: createRouteIncidentReporter().errors, app, deps: {
       ...deps, externalMcpOAuth: { disconnect: async () => { throw thrown; } },
     } as any }));
     assertAdminResponse({ actual: await dispatchJsonRequest(app, 'DELETE', `${BASE}/mcp-servers/server/oauth`), expected: { status: 500, body: INTERNAL_CODE } }, { failure: {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} });
@@ -192,7 +193,7 @@ for (const [name, register, method, suffix, expected] of [
       pollDeviceAuthorization: async ({ serverId }: { serverId: string }) => { serverIds.push(serverId); return { polled: true }; },
       disconnect: async ({ serverId }: { serverId: string }) => { serverIds.push(serverId); },
     };
-    const { app } = fixture(({ app, deps }) => register({ app, deps: { ...deps, externalMcpOAuth: service } as unknown as Parameters<typeof register>[0]["deps"], limiter }));
+    const { app } = fixture(({ app, deps }) => register({ errors: createRouteIncidentReporter().errors, app, deps: { ...deps, externalMcpOAuth: service } as unknown as Parameters<typeof register>[0]["deps"], limiter }));
     assert.deepEqual(await invokeRouteDirectly({ app, method, path: `${BASE}/mcp-servers/server/oauth${suffix}`, req: MISSING_SERVER_REQ }), {
       statusCode: 200, jsonBody: expected,
     });

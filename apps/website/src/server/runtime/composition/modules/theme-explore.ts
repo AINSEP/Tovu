@@ -86,24 +86,24 @@ function exploreWriteDeps({ deps }: { deps: ContentRouteDeps }, _optional: Recor
 }
 
 /** GET one theme's detail — what the Explore screen lists and what its banner says. */
-export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeDetailRoute, deps: {
+export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeDetailRoute, deps: {
     ...explorePortDeps({ deps }),
     describeThemeFiles: ({ theme }: { theme: DiscoveredTheme }) => describeThemeDetailFiles({ deps, theme }),
   } }, EXPLORE_MOUNT);
 };
 
 /** GET the raw source of one file inside a theme. */
-export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeFileGetRoute, deps: {
+export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeFileGetRoute, deps: {
     ...explorePortDeps({ deps }),
     readThemeFile: ({ theme, path }: { theme: DiscoveredTheme; path: string }) => readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path }),
   } }, EXPLORE_MOUNT);
 };
 
 /** PUT one file inside a theme (the host's save gate decides what Explore may write). */
-export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeFilePutRoute, deps: {
+export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeFilePutRoute, deps: {
     ...explorePortDeps({ deps }),
     ...exploreWriteDeps({ deps }),
     isPutWritable: ({ theme, path, writeScope }: { theme: DiscoveredTheme; path: string; writeScope: ThemeFileWriteScope }) => isPutWritable({ theme, path, writeScope }),
@@ -124,8 +124,8 @@ function resetOriginalDeps({ deps }: { deps: ContentRouteDeps }, _optional: Reco
 }
 
 /** POST — restore file(s) to the pristine copy in the originals catalog (a built theme's generated tree restores whole). */
-export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeFileResetRoute, deps: {
+export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeFileResetRoute, deps: {
     ...explorePortDeps({ deps }),
     ...exploreWriteDeps({ deps }),
     ...resetOriginalDeps({ deps }),
@@ -137,16 +137,16 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, d
 };
 
 /** POST — save the theme's current files as its stored original (refused when one exists). */
-export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeSaveOriginalRoute, deps: {
+export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeSaveOriginalRoute, deps: {
     ...explorePortDeps({ deps }),
     saveThemeAsOriginal: ({ theme }: { theme: DiscoveredTheme }) => saveThemeAsOriginal({ theme, themesRoot: deps.themesDir, packageThemesRoot: deps.packageThemesDir }),
   } }, EXPLORE_MOUNT);
 };
 
 /** POST — duplicate one file inside a theme under the next available `name-1`, `name-2`, … suffix. */
-export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeFileCopyRoute, deps: {
+export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeFileCopyRoute, deps: {
     ...explorePortDeps({ deps }),
     ...exploreWriteDeps({ deps }),
     isGeneratedThemePath: ({ path }: { path: string }) => isGeneratedThemePath({ relativePath: path }),
@@ -159,8 +159,8 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, de
 };
 
 /** POST — rename (move within the same folder) one file inside a theme. */
-export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeFileRenameRoute, deps: {
+export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeFileRenameRoute, deps: {
     ...explorePortDeps({ deps }),
     checkFileIdentityChange: fileIdentityLock,
     listThemeFiles: ({ theme }: { theme: DiscoveredTheme }) => themeFilePaths({ deps, theme }),
@@ -171,8 +171,8 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, 
 };
 
 /** POST — move one file into the theme's restorable trash (the assistant's trash lifecycle). */
-export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themeFileDeleteRoute, deps: {
+export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themeFileDeleteRoute, deps: {
     ...explorePortDeps({ deps }),
     checkFileIdentityChange: fileIdentityLock,
     listThemeFiles: ({ theme }: { theme: DiscoveredTheme }) => themeFilePaths({ deps, theme }),
@@ -181,8 +181,8 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, 
 };
 
 /** POST — publish or unpublish one of a static theme's own pages through the shared publication service. */
-export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: themePagePublishRoute, deps: {
+export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: themePagePublishRoute, deps: {
     ...explorePortDeps({ deps }),
     setThemePagePublished: (input: { themeId: string; page: string; published: boolean }) => setThemePagePublished(deps, input),
     isThemePagePublicationError: ({ err }: { err: unknown }) => err instanceof ThemePagePublicationError,

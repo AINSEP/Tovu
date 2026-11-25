@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import net from "node:net";
@@ -34,6 +35,7 @@ function normalize(text: string): unknown {
 }
 
 async function serve(t: test.TestContext) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const directory = fs.mkdtempSync(path.join(tmpdir(), "share-wire-")); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const state = { principal: true, trusted: false, allowed: true, available: true, failure: undefined as unknown, permissions: [] as string[], tracked: [] as unknown[] };
@@ -57,7 +59,7 @@ async function serve(t: test.TestContext) {
     if (state.trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 };
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps });
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t);
   const call = async (method: string, suffix: string, init: { body?: unknown; type?: string; workspace?: string } = {}): Promise<Wire> => {
     const url = `${base}${ROOT.replace("/ws/", `/${init.workspace ?? "ws"}/`)}${suffix}`;

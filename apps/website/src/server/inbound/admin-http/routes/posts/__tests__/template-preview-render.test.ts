@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** t08: extraction parity through the existing route handler, without binding a port. */
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -22,7 +23,7 @@ test("real extracted renderer serves an unpublished bare page and pending body w
 test("extracted rendering is byte-identical to the old route output for the same input", async () => {
   const { deps } = bareDeps();
   let handler: Function | undefined;
-  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, ...fns: Function[]) => { handler = fns.at(-1); }, post: () => {} } as never, deps });
+  registerAdminPostTemplatePreviewRoute({ errors: createRouteIncidentReporter().errors, app: { get: (_path: string, ...fns: Function[]) => { handler = fns.at(-1); }, post: () => {} } as never, deps });
   // The raw mount answers a buffered `Response`: headers through `setHeader`, the body as a Buffer through `send`.
   let output = ''; let status = 200; const headers: Record<string, string> = {};
   const response = { locals: { principal: { id: 'p' } }, statusCode: 200, on: () => response, off: () => response, vary: () => response, append: () => response, setHeader: (key: string, value: string) => { headers[key] = value; return response; }, send: (value: Buffer) => { status = response.statusCode; output = value.toString(); return response; } };
@@ -157,8 +158,9 @@ test("TW2 themed preview preserves saved and pending bodies across format and pu
  *  double with just what that mount writes through: it answers a buffered `Response`, so the body arrives as a Buffer
  *  through `send`, and a refusal or failure writer answers with `status().type().send()`. */
 function previewHandler(deps: ReturnType<typeof bareDeps>["deps"]) {
+  const routeErrors = createRouteIncidentReporter().errors;
   let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
-  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, ...fns: Array<typeof handler>) => { handler = fns.at(-1); }, post: () => {} } as never, deps });
+  registerAdminPostTemplatePreviewRoute({ errors: routeErrors, app: { get: (_path: string, ...fns: Array<typeof handler>) => { handler = fns.at(-1); }, post: () => {} } as never, deps });
   assert.ok(handler);
   const invoke = async (req: unknown) => {
     const out = { status: 200, text: '' };

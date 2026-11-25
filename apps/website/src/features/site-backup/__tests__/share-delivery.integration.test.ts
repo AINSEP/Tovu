@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -22,6 +23,7 @@ const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELEC
 
 // RED: no peer delivery existed, no binding to live, and publishing tokens failed artifact auth.
 test("peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace and no receiver env opt-in", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const directory = await mkdtemp(path.join(tmpdir(), "share-peer-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const source = new SiteShareRegistry({ directory: path.join(directory, "source"), now: () => Date.now() });
@@ -35,7 +37,7 @@ test("peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace 
     res.locals.publishTrust = { sourceInstallationId: "source", capabilities: apply ? ["publish_content.apply"] : ["publish_content.read"], entityTypes: [], generation: 1 };
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "remote-ws", authorize: async () => { throw new Error("Publishing sessions cannot use RBAC"); }, siteShareBackend: { registry: receiver } } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: { workspaceId: "remote-ws", authorize: async () => { throw new Error("Publishing sessions cannot use RBAC"); }, siteShareBackend: { registry: receiver } } as unknown as RouteDeps });
   const local = await startTestServer(app, t);
   const baseUrl = "https://deployed.example.test/tovu";
   const requests: { method: string; path: string; authorized: boolean }[] = [];

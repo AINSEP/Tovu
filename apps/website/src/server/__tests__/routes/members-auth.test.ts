@@ -45,10 +45,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps; membersDeps: M
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMemberListRoute({ app, deps: membersDeps });
-  registerAdminMemberGetRoute({ app, deps: membersDeps });
-  registerAdminMemberDisableRoute({ app, deps: membersDeps });
-  registerAdminMemberRequestMagicLinkRoute({ app, deps: membersDeps });
+  registerAdminMemberListRoute({ errors: createRouteIncidentReporter().errors, app, deps: membersDeps });
+  registerAdminMemberGetRoute({ errors: createRouteIncidentReporter().errors, app, deps: membersDeps });
+  registerAdminMemberDisableRoute({ errors: createRouteIncidentReporter().errors, app, deps: membersDeps });
+  registerAdminMemberRequestMagicLinkRoute({ errors: createRouteIncidentReporter().errors, app, deps: membersDeps });
   return { app, deps, membersDeps };
 }
 

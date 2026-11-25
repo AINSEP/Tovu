@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -46,7 +47,8 @@ async function fixture(t: test.TestContext) {
  * real SQL repositories still verify the entire mutation/transaction, including persisted rows. */
 async function invoke({ deps, id, input = body, workspaceId = deps.workspaceId, principal = true }:
   { deps: MediaRouteDeps; id: string; input?: unknown; workspaceId?: string; principal?: boolean }) {
-  const app = express(); registerAdminMediaReplaceRoute({ app, deps });
+  const routeErrors = createRouteIncidentReporter().errors;
+  const app = express(); registerAdminMediaReplaceRoute({ errors: routeErrors, app, deps });
   const layer = (app as any)._router.stack.find((entry: any) => entry.route?.path.endsWith('/:mediaId/replace'));
   assert.equal(layer.route.path, '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/replace');
   assert.equal(layer.route.methods.post, true);

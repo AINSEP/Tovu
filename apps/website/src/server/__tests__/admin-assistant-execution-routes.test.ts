@@ -51,7 +51,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createAssistantExecutionModule(deps).registerRoutes?.({ app });
+  createAssistantExecutionModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   return { app, deps };
 }
 

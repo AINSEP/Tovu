@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
@@ -60,4 +61,4 @@ export interface AgentPluginsRouteDeps {
   readonly tracker: RouteDeps["tracker"];
 }
 
-export type AgentPluginsRouteRegistrar = (required: { app: Express; deps: AgentPluginsRouteDeps }, optional?: Record<string, never>) => void;
+export type AgentPluginsRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: AgentPluginsRouteDeps }, optional?: Record<string, never>) => void;

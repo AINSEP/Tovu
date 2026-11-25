@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
@@ -43,8 +44,9 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
 }
 
 async function invoke(register: ApiKeysRouteRegistrar, deps: ApiKeysRouteDeps, path: string, body: unknown, params: unknown = {}, credentialKind = "session") {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  register({ app, deps });
+  register({ errors: routeErrors, app, deps });
   const handler = extractRouteHandler(app, "post", path);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-9" };

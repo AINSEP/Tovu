@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -15,6 +16,7 @@ const SITES = [
 ];
 
 async function list({ switching }: { switching: boolean }) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const localSiteSupervisor = createLocalSiteSupervisor({ servingName: "owner", scheme: "https", processPort: {
     isPortFree: async () => true, schedule: () => () => {},
     launch: async () => ({ pid: 10, ready: async () => true, onExit() {}, terminate: async () => {}, killNow() {} }),
@@ -32,7 +34,7 @@ async function list({ switching }: { switching: boolean }) {
     isSiteSwitcherEnabled: () => switching, localSiteSupervisor, sitePreviews,
     listSites: () => SITES, readPersistedActiveSite: () => null, listSiteTrash: () => [], devRestart: null,
   };
-  const app = express(); registerAdminSitesRoutes({ app, deps });
+  const app = express(); registerAdminSitesRoutes({ errors: routeErrors, app, deps });
   const get = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/sites");
   const response = createCapturingResponse(); response.res.locals.principal = { id: "operator" };
   await get({ params: { workspaceId: "ws" }, socket: { localPort: 3000, encrypted: true } }, response.res);

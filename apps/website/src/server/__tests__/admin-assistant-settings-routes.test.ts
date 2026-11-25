@@ -49,7 +49,7 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createAssistantSettingsModule(deps).registerRoutes?.({ app });
+  createAssistantSettingsModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   return { app, deps };
 }
 

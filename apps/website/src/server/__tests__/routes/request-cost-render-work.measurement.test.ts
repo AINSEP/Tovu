@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
@@ -65,7 +66,7 @@ function buildInstrumentedApp(): { app: express.Express; log: CallLog } {
   const deps: RouteDeps = createRouteDeps();
   const log = instrumentDeps(deps);
   const app = express();
-  createSeoModule(deps).registerRoutes?.({ app });
+  createSeoModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   registerProductRoutes({ app, deps });
   registerSiteRoutes({ app, deps });
   return { app, log };

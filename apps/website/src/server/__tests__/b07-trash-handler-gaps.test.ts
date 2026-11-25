@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -28,8 +29,9 @@ const base = { workspaceId: WS, clock: { nowIso: () => AT }, registry: buildTras
 type TrashRouteFakes = { [K in keyof TrashRouteDeps]?: Partial<TrashRouteDeps[K]> };
 
 async function invoke(register: TrashRouteRegistrar, deps: TrashRouteFakes, suffix = "", body?: unknown, query: object = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  register({ app, deps: { ...base, ...deps } as TrashRouteDeps });
+  register({ errors: routeErrors, app, deps: { ...base, ...deps } as TrashRouteDeps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-b07" };
   await extractRouteHandler(app, register === registerAdminTrashListRoute ? "get" : "post", `${ROOT}${suffix}`)(

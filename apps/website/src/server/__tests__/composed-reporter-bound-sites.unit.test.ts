@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /**
  * @file Codex FIX 4 remainder: every former legacy-sink caller of `reportServerFailure` now records through
  * the site's composed reporter (read from `res.locals.failureReporter`, or injected as a REQUIRED
@@ -115,12 +116,13 @@ test("public JSON route ports: an unexpected failure is one composed incident", 
 });
 
 test("admin site-update status: a failed check records through the injected reporter", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
   const deps = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
     siteUpdateRuntime: { runningVersion: async () => { throw thrown; }, feed: { latestRelease: async () => { throw thrown; } }, ids: { next: () => "id" } } } as unknown as Pick<RouteDeps, "workspaceId" | "authorize" | "siteUpdateRuntime">;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteUpdateStatusRoute({ app, deps, reporter: probe.reporter });
+  registerAdminSiteUpdateStatusRoute({ errors: { ...routeErrors, reporter: probe.reporter }, app, deps, reporter: probe.reporter });
   const base = await startTestServer(app, t);
   const response = await fetch(`${base}/api/admin/v1/workspaces/ws/system/site-update/status`);
   assert.doesNotMatch(await response.text(), /Zq9Xw8Vu7Ts6Rq5Po4Nm3Lk2|cause-secret|field-secret/);
@@ -158,9 +160,10 @@ function adminApp(reporter: unknown): Express {
 }
 
 test("analytics recent hits: a sink failure is one composed incident", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
   const app = adminApp(probe.reporter);
-  registerAdminAnalyticsRecentHitsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+  registerAdminAnalyticsRecentHitsRoute({ errors: { ...routeErrors, reporter: probe.reporter }, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
     analyticsSink: { capabilities: () => ({ durable: false, batch: true }), accept: async () => {}, acceptBatch: async () => {}, list: async () => { throw thrown; } } } as AdminAnalyticsRecentHitsDeps });
   const response = await dispatchHttpRequest({ app, method: "get", url: "/api/admin/v1/workspaces/ws/analytics/recent-hits" });
   assert.equal(response.status, 500);
@@ -168,9 +171,10 @@ test("analytics recent hits: a sink failure is one composed incident", async (t)
 });
 
 test("post template preview: an unexpected failure is one composed incident", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
   const app = adminApp(probe.reporter);
-  registerAdminPostTemplatePreviewRoute({ app, deps: { workspaceId: "ws", authorize: async () => { throw thrown; } } as never });
+  registerAdminPostTemplatePreviewRoute({ errors: { ...routeErrors, reporter: probe.reporter }, app, deps: { workspaceId: "ws", authorize: async () => { throw thrown; } } as never });
   const response = await dispatchHttpRequest({ app, method: "get", url: "/api/admin/v1/workspaces/ws/posts/p1/template-preview" });
   assert.equal(response.status, 500);
   probe.assertOneIncident({ errorId: REF.exec(String(response.body))?.[1], thrown });

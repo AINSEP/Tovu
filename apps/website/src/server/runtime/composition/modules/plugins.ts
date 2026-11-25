@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { pluginFilesRoute } from "@jini-ai/cms/admin-http/routes/plugins/files";
@@ -20,7 +21,7 @@ import { registerPluginInstallRoutes } from "#src/server/inbound/admin-http/rout
 import { localPluginInstaller, type LocalInstallerDeps } from "#src/server/inbound/admin-http/routes/plugins/local-installer";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OutboxPort, AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
@@ -70,7 +71,7 @@ export interface PluginsRouteDeps {
   previewPluginBeforeSave: PluginBeforeSavePreview;
 }
 
-export type PluginsRouteRegistrar = (required: { app: Express; deps: PluginsRouteDeps }, optional?: Record<string, never>) => void;
+export type PluginsRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: PluginsRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The deps the list route reads; activation is only ever looked up, never written. */
 export type PluginsListRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins" | "listPluginConflicts"> &
@@ -115,26 +116,26 @@ function pluginReadDeps({ deps }: { deps: Pick<PluginsRouteDeps, "discoverPlugin
   };
 }
 
-export const registerPluginsListRoute = ({ app, deps }: { app: Express; deps: PluginsListRouteDeps }, _optional: Record<string, never> = {}): void => {
+export const registerPluginsListRoute = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: PluginsListRouteDeps }, _optional: Record<string, never> = {}): void => {
   const listDeps = {
     ...pluginPortDeps({ deps }), ...pluginReadDeps({ deps }), toAdminPluginResponse,
     // A host without conflict tracking has none to show.
     listPluginConflicts: async () => (await deps.listPluginConflicts?.()) ?? new Map(),
     localInstallAvailable: () => Boolean(localPluginInstaller(deps)),
   };
-  mountAdminJsonRoute({ app, spec: pluginListRoute, deps: listDeps }, mountOptions({ operation: "routes/plugins/list", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: pluginListRoute, deps: listDeps }, mountOptions({ operation: "routes/plugins/list", authorization: "guarded" }));
 };
 
-export const registerPluginFilesRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPluginFilesRoute: PluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const filesDeps = {
     ...pluginPortDeps({ deps }), discoverPlugins: () => deps.discoverPlugins(),
     readPluginPackageFiles: (record: PluginDiscoveryRecord) => deps.readPluginPackageFiles(record),
     packageFileLimits: PLUGIN_PACKAGE_FILE_LIMITS, unsafePathError: PluginPackagePathError,
   };
-  mountAdminJsonRoute({ app, spec: pluginFilesRoute, deps: filesDeps }, mountOptions({ operation: "routes/plugins/files", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: pluginFilesRoute, deps: filesDeps }, mountOptions({ operation: "routes/plugins/files", authorization: "guarded" }));
 };
 
-export const registerPluginUninstallRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPluginUninstallRoute: PluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const uninstallDeps = {
     ...pluginPortDeps({ deps }), clock: deps.clock, discoverPlugins: () => deps.discoverPlugins(),
     uninstallPlugin: ({ discovery, input }: { discovery: readonly PluginDiscoveryRecord[]; input: PluginUninstallInput }) =>
@@ -144,7 +145,7 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = ({ app, deps 
       alreadyInTrash: PluginAlreadyInTrashError, unsafePath: PluginUninstallPathError,
     },
   };
-  mountAdminJsonRoute({ app, spec: pluginUninstallRoute, deps: uninstallDeps }, mountOptions({ operation: "routes/plugins/uninstall", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: pluginUninstallRoute, deps: uninstallDeps }, mountOptions({ operation: "routes/plugins/uninstall", authorization: "guarded" }));
 };
 
 /** The owner's enable of a site plugin is its approved capability set; a host without a plugin
@@ -162,7 +163,7 @@ async function recordSiteApproval({ deps, record }: { deps: Pick<PluginsRouteDep
  * `enabled` with its 400 before reading the principal, and a valid body still fails closed in the
  * spec's `pluginActorId` before discovery or the gateway runs.
  */
-export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const setEnabledDeps = {
     ...pluginPortDeps({ deps }), clock: deps.clock, idGen: deps.idGen, changeSets: deps.changeSets, outbox: deps.outbox,
     authorizeCommand: (params: Parameters<PluginsRouteDeps["authorize"]>[0]) => deps.authorize(params),
@@ -182,19 +183,19 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps
       invalid: PluginInvalidError, conflict: PluginConflictError, load: PluginLoadError,
     },
   };
-  mountAdminJsonRoute({ app, spec: pluginSetEnabledRoute, deps: setEnabledDeps }, mountOptions({ operation: "routes/plugins/set-enabled", authorization: "direct" }, { deferMissingPrincipal: true }));
+  mountAdminJsonRoute({ errors, app, spec: pluginSetEnabledRoute, deps: setEnabledDeps }, mountOptions({ operation: "routes/plugins/set-enabled", authorization: "direct" }, { deferMissingPrincipal: true }));
 };
 
 /** `PLUGIN_PREVIEW_STATUS` (GET) then `PLUGIN_PREVIEW` (POST), same order as before. The hook-failure
  *  body stays the host's (`http/plugin-hook-error.ts` logs the plugin's own error, redacted). */
-export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const previewDeps = {
     ...pluginPortDeps({ deps }), ...pluginReadDeps({ deps }),
     previewPluginBeforeSave: (...args: Parameters<PluginsRouteDeps["previewPluginBeforeSave"]>) => deps.previewPluginBeforeSave(...args),
     hookFailedError: PluginHookFailedError, pluginHookFailedBody,
   };
-  mountAdminJsonRoute({ app, spec: pluginPreviewStatusRoute, deps: previewDeps }, mountOptions({ operation: "routes/plugins/preview", authorization: "guarded" }));
-  mountAdminJsonRoute({ app, spec: pluginPreviewRunRoute, deps: previewDeps }, mountOptions({ operation: "routes/plugins/preview", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: pluginPreviewStatusRoute, deps: previewDeps }, mountOptions({ operation: "routes/plugins/preview", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: pluginPreviewRunRoute, deps: previewDeps }, mountOptions({ operation: "routes/plugins/preview", authorization: "guarded" }));
 };
 
 /** The host bag the provider-settings and project-key-use registrar reads (moved from the deleted
@@ -234,15 +235,15 @@ function providerSettingsDeps({ deps }: { deps: ProviderSettingsRouteDeps }, _op
  * (`"guarded"`, `sendAdminFailure`'s route-derived 500 copy, as the hand-written routes had). Only the
  * installation owner's own session may change saved-key grants: the session-only 403 is the mount gate.
  */
-export function registerPluginProviderSettingsRoutes({ app, deps }: { app: Express; deps: ProviderSettingsRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerPluginProviderSettingsRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: ProviderSettingsRouteDeps }, _optional: Record<string, never> = {}): void {
   const settingsDeps = providerSettingsDeps({ deps });
-  mountAdminJsonRoute({ app, spec: pluginProviderSettingsGetRoute, deps: settingsDeps }, { authorization: "guarded" });
-  mountAdminJsonRoute({ app, spec: pluginProviderSettingsSaveRoute, deps: settingsDeps }, { authorization: "guarded" });
+  mountAdminJsonRoute({ errors, app, spec: pluginProviderSettingsGetRoute, deps: settingsDeps }, { authorization: "guarded" });
+  mountAdminJsonRoute({ errors, app, spec: pluginProviderSettingsSaveRoute, deps: settingsDeps }, { authorization: "guarded" });
   const keyUseDeps = {
     ...pluginPortDeps({ deps }), get projectKeys() { return deps.projectKeys; },
     ownerPrincipalId: async () => deps.ownerPrincipalId, ownerOnlyMessage: "Sign in as the installation owner to change this site's saved key grants.",
   };
-  mountAdminJsonRoute({ app, spec: projectKeyUseRoute, deps: keyUseDeps }, {
+  mountAdminJsonRoute({ errors, app, spec: projectKeyUseRoute, deps: keyUseDeps }, {
     authorization: "guarded",
     sessionCredentialOnly: { message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" },
   });
@@ -273,20 +274,20 @@ export function registerPluginProviderSettingsRoutes({ app, deps }: { app: Expre
  * added no new routes to this module. Local folder install/update now use the owner-approved
  * 2026-09-22 plan: uninstall/disable came first, since revocation is what makes installing safe.
  */
-export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
+export function createPluginsModule(deps: RouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "plugins",
-    registerRoutes: ({ app }, _options = {}) => {
+    registerRoutes: ({ errors, app }, _options = {}) => {
       registerChartProviderRoutes({ app, deps });
-      registerPluginsListRoute({ app, deps });
-      registerPluginSetEnabledRoute({ app, deps });
-      registerPluginUninstallRoute({ app, deps });
-      registerPluginFilesRoute({ app, deps });
-      registerPluginProviderSettingsRoutes({ app, deps });
+      registerPluginsListRoute({ errors, app, deps });
+      registerPluginSetEnabledRoute({ errors, app, deps });
+      registerPluginUninstallRoute({ errors, app, deps });
+      registerPluginFilesRoute({ errors, app, deps });
+      registerPluginProviderSettingsRoutes({ errors, app, deps });
       registerPluginInstallRoutes({ app, deps });
       // After the install routes: `.../plugins/:pluginId/preview` also matches
       // `.../plugins/install/preview`, and Express runs the first registered match.
-      registerPluginPreviewRoute({ app, deps });
+      registerPluginPreviewRoute({ errors, app, deps });
     },
   };
 }

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
@@ -24,13 +25,14 @@ import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-rete
 const base = "/api/admin/v1/workspaces/:workspaceId/trash";
 const now = "2026-10-01T12:00:00.000Z";
 function harness(overrides: Record<string, unknown> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   const deps = { workspaceId: "ws-7", registry: new Map(), clock: { nowIso: () => now },
     authorize: async () => ({ allowed: true, reason: "matched" }), ...overrides } as any;
-  registerAdminTrashListRoute({ app, deps });
-  registerAdminTrashMoveToTrashRoute({ app, deps });
-  registerAdminTrashPurgeRoute({ app, deps });
-  registerAdminTrashRestoreRoute({ app, deps });
+  registerAdminTrashListRoute({ errors: routeErrors, app, deps });
+  registerAdminTrashMoveToTrashRoute({ errors: routeErrors, app, deps });
+  registerAdminTrashPurgeRoute({ errors: routeErrors, app, deps });
+  registerAdminTrashRestoreRoute({ errors: routeErrors, app, deps });
   return async (method: "get" | "post", suffix: string, body?: unknown, query: unknown = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
@@ -181,8 +183,8 @@ test("trash list and purge 404 an absent or foreign workspace before authorizing
   const app = express();
   let calls = 0;
   const deps = portFake<TrashRouteDeps>({ workspaceId: "ws-7", authorize: async () => { calls++; return { allowed: true, reason: "matched" }; } });
-  registerAdminTrashListRoute({ app, deps });
-  registerAdminTrashPurgeRoute({ app, deps });
+  registerAdminTrashListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTrashPurgeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   for (const [method, suffix] of [["get", ""], ["post", "/purge"]] as const) {
     for (const params of [{}, { workspaceId: "foreign" }]) {
       const { res, capture } = createCapturingResponse();

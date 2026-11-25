@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -31,7 +32,7 @@ test("MEMBER_DISABLE route: 400 VALIDATION_ERROR when disableMember throws Membe
       },
     },
   } as unknown as MembersRouteDeps;
-  registerAdminMemberDisableRoute({ app, deps });
+  registerAdminMemberDisableRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const routeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/members/:memberId/disable");
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-123" };
@@ -63,7 +64,7 @@ test("MEMBER_DISABLE route: a concurrent member write surfaces 409 VERSION_CONFL
       save: (record: Parameters<InMemoryMemberRepo["save"]>[0]) => members.save(record),
     },
   } as unknown as MembersRouteDeps;
-  registerAdminMemberDisableRoute({ app, deps });
+  registerAdminMemberDisableRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const routeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/members/:memberId/disable");
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-123" };

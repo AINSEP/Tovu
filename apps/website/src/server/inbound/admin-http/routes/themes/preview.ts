@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import {
   themePreviewRoute,
@@ -43,7 +44,7 @@ const boundPerRequest = (): never => { throw new Error("bound per request by req
  *   most one capture (~1–2 s) when the theme changed since the last one.
  */
 export function registerAdminThemePreviewRoute(
-  { app, deps }: { app: Express; deps: ThemePreviewRouteDeps },
+  { errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: ThemePreviewRouteDeps },
   {
     waitMs = 20_000, contentVersion = themeContentVersion, shippedImage = themePreviewImage,
     previewServiceForHost = themePreviewServiceForHost,
@@ -59,7 +60,7 @@ export function registerAdminThemePreviewRoute(
     servingAddress: boundPerRequest,
     contentVersion, shippedImage, waitMs, previewContentType: SITE_PREVIEW_CONTENT_TYPE,
   };
-  mountAdminRawRoute({ app, spec: themePreviewRoute, deps: mounted }, {
+  mountAdminRawRoute({ errors, app, spec: themePreviewRoute, deps: mounted }, {
     failure: { operation: "routes/themes/preview", code: "INTERNAL_ERROR" },
     // The live theme list is read when the request arrives, as the hand-written route read `deps.themes`.
     requestDeps: ({ req, deps: base }) => ({ ...base, themes: deps.themes, servingAddress: () => servingAddressOf({ req }) }),

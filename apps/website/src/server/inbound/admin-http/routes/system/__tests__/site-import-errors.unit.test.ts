@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { ImportHistoryUnavailable } from "@jini-ai/devops/backup/site/import-index/errors";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,7 +12,7 @@ test("non-ZIP import failures name the parser's actual limit and cause", async (
   let failure: unknown;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSiteImportRoutes({ app, deps: portFake<RouteDeps>({
+  registerAdminSiteImportRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<RouteDeps>({
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "fixture" }),
     siteImportBackend: { listPage: async () => { throw failure; } },
   }) });
@@ -40,12 +41,13 @@ for (const [code, status, message] of [
   ["IMPORT_PAYLOADS_UNMOVABLE", 503, "Imports are paused because the app could not move its import files. Check that the app can write to its data folder, then try again."],
   ["INSUFFICIENT_STORAGE", 507, "There is not enough free disk space to record the import. Free up space and try again."],
 ] as const) test(`import history ${status} preserves safe copy and correlates the incident`, async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const tracked: unknown[] = [];
   t.mock.method(console, "error", () => {});
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   const error = new ImportHistoryUnavailable({ code, status, message }, { cause: new Error("PRIVATE_HISTORY_PATH password=CANARY") });
-  registerAdminSiteImportRoutes({ app, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true }), tracker: { error: (...args: unknown[]) => tracked.push(args) }, siteImportBackend: { listPage: async () => { throw error; } } }) });
+  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true }), tracker: { error: (...args: unknown[]) => tracked.push(args) }, siteImportBackend: { listPage: async () => { throw error; } } }) });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/ws/site-imports");
   const body = response.body as { code: string; message: string; errorId: string };
   assert.equal(response.status, status);

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { localSiteLifecycleRoutes } from "@jini-ai/cms/admin-http/routes/sites/local-sites";
@@ -72,14 +73,14 @@ function sitesPortDeps({ deps }: { deps: Pick<RouteDeps, "workspaceId" | "author
  *  specs over this host's workspace and Node directory probe; the save is mounted by
  *  `registerSitesConfigSaveRoute` with its gate and phase-aware failure copy. @complexity O(1). */
 export function registerSitesHomeRoutes(
-  { app, deps, workspace }: { app: Express; deps: Omit<SitesSettingsDeps, "isSiteSwitcherEnabled"> & { isSiteSwitcherEnabled?: () => boolean }; workspace: SitesWorkspace },
+  { errors, app, deps, workspace }: { errors: RouteErrorPorts; app: Express; deps: Omit<SitesSettingsDeps, "isSiteSwitcherEnabled"> & { isSiteSwitcherEnabled?: () => boolean }; workspace: SitesWorkspace },
   _options = {},
 ): void {
   const switcherEnabled = () => (deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal)();
-  mountAdminJsonRoute({ app, spec: sitesConfigReadRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace } },
+  mountAdminJsonRoute({ errors, app, spec: sitesConfigReadRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace } },
     sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not read sites settings.", gateFirst: true }));
-  registerSitesConfigSaveRoute({ app, deps: { ...deps, isSiteSwitcherEnabled: switcherEnabled }, workspace });
-  mountAdminJsonRoute({ app, spec: sitesHomeSetRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace, directories: nodeSitesDirectoryProbe } },
+  registerSitesConfigSaveRoute({ errors, app, deps: { ...deps, isSiteSwitcherEnabled: switcherEnabled }, workspace });
+  mountAdminJsonRoute({ errors, app, spec: sitesHomeSetRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace, directories: nodeSitesDirectoryProbe } },
     sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not save sites home.", gateFirst: true }));
 }
 
@@ -136,7 +137,7 @@ export interface LocalSitesRouteDeps extends Pick<RouteDeps, "workspaceId" | "au
  * site-dir layer. Register only handlers; host lifetime belongs to the serving composition.
  * @complexity O(1).
  */
-export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: LocalSitesRouteDeps }, _options = {}): void {
+export function registerLocalSitesRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: LocalSitesRouteDeps }, _options = {}): void {
   const siteTrash = deps.siteTrash ?? { trash: trashSite, restore: restoreSite, remove: permanentlyDeleteTrashedSite };
   const routeDeps = {
     workspaceId: deps.workspaceId, authorize: deps.authorize, localSiteSupervisor: deps.localSiteSupervisor, siteTrash, siteTrashName,
@@ -146,14 +147,14 @@ export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: Lo
   };
   // No mount options: the hand-written lifecycle handler called `authorizeOrRespond` (the `"guarded"`
   // default) and answered an unexpected failure with `sendAdminFailure`'s route-derived copy (no options).
-  for (const spec of localSiteLifecycleRoutes) mountAdminJsonRoute({ app, spec, deps: routeDeps });
+  for (const spec of localSiteLifecycleRoutes) mountAdminJsonRoute({ errors, app, spec, deps: routeDeps });
 }
 
-function registerSitesSupportRoutes({ app, ports }: { app: Express; ports: SitesPorts }): void {
+function registerSitesSupportRoutes({ errors, app, ports }: { errors: RouteErrorPorts; app: Express; ports: SitesPorts }): void {
   const { deps, warmServer, sitePreviews, localSiteSupervisor, isSiteSwitcherEnabled, readPersistedActiveSite } = ports;
   registerDevWarmSiteRoute({ app, warmServer });
-  registerSitePreviewRoutes({ app, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, sitePreviews } });
-  registerLocalSitesRoutes({ app, deps: { ...deps, localSiteSupervisor, isSiteSwitcherEnabled,
+  registerSitePreviewRoutes({ errors, app, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, sitePreviews } });
+  registerLocalSitesRoutes({ errors, app, deps: { ...deps, localSiteSupervisor, isSiteSwitcherEnabled,
     afterTrash({ base, name }) {
       // A next-launch default must not silently recreate the folder just moved to Trash.
       if (readPersistedActiveSite({ cwd: base }) === name) {
@@ -182,15 +183,15 @@ function createSiteCollaborator({ deps }: { deps: AdminSitesDeps }, _options = {
 
 /** Mount the token-plugin list, Create and Activate specs with this host's site-admin functions.
  * @complexity O(1). */
-function registerSiteAdminSpecs({ app, ports }: { app: Express; ports: SitesPorts }, _options = {}): void {
+function registerSiteAdminSpecs({ errors, app, ports }: { errors: RouteErrorPorts; app: Express; ports: SitesPorts }, _options = {}): void {
   const { deps, isSiteSwitcherEnabled, listSites, devRestart, sitesWorkspace, warmServer } = ports;
   // The served tree's base, never `process.cwd()`: the flag, then the binding (see `resolveSiteSwitchBase`).
   const siteSwitchBase = () => resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
   const listTokenSignInPlugins = deps.listTokenSignInPlugins
     ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() }));
-  mountAdminJsonRoute({ app, spec: siteTokenSignInPluginsRoute, deps: { ...sitesPortDeps({ deps }), listTokenSignInPlugins } }, sitesMountOptions({ operation: "routes/system/sites" }));
-  mountAdminJsonRoute({ app, spec: siteCreateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase, createSite: createSiteCollaborator({ deps }) } }, sitesMountOptions({ operation: "routes/system/sites" }, { gateFirst: true }));
-  mountAdminJsonRoute({ app, spec: siteActivateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase,
+  mountAdminJsonRoute({ errors, app, spec: siteTokenSignInPluginsRoute, deps: { ...sitesPortDeps({ deps }), listTokenSignInPlugins } }, sitesMountOptions({ operation: "routes/system/sites" }));
+  mountAdminJsonRoute({ errors, app, spec: siteCreateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase, createSite: createSiteCollaborator({ deps }) } }, sitesMountOptions({ operation: "routes/system/sites" }, { gateFirst: true }));
+  mountAdminJsonRoute({ errors, app, spec: siteActivateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase,
     // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the
     // new site; without it, Activate behaves exactly as before (persist + instructions).
     activateSite: ({ switcherBase, name, restartNow }) => activateSiteWithWarmServer(
@@ -199,13 +200,13 @@ function registerSiteAdminSpecs({ app, ports }: { app: Express; ports: SitesPort
     ) } }, sitesMountOptions({ operation: "routes/system/sites" }, { gateFirst: true }));
 }
 
-export function registerAdminSitesRoutes({ app, deps }: { app: Express; deps: AdminSitesDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminSitesRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminSitesDeps }, _optional: Record<string, never> = {}): void {
   const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
-  registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
+  registerSitesHomeRoutes({ errors, app, deps, workspace: sitesWorkspace });
   if (registerWarmSiteControl({ app, binding: deps.siteBinding, workspaceId: deps.workspaceId })) return;
   const ports = resolveSitesPorts({ deps, sitesWorkspace });
   const base = "/api/admin/v1/workspaces/:workspaceId/system/sites";
-  registerSitesSupportRoutes({ app, ports });
+  registerSitesSupportRoutes({ errors, app, ports });
   app.get(base, (req, res) => handleListSites({ ports, req, res }));
-  registerSiteAdminSpecs({ app, ports });
+  registerSiteAdminSpecs({ errors, app, ports });
 }

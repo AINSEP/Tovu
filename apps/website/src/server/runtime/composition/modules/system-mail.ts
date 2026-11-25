@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 
@@ -67,8 +68,8 @@ export type AdminMailStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | 
  * `GET .../system/mail-status` (Jini spec): `direct` authorization and the route's own failure copy, as the hand-written route answered.
  * @complexity O(1) setup.
  */
-export function registerAdminMailStatusRoute({ app, deps }: { app: Express; deps: AdminMailStatusDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: mailStatusRoute, deps: {
+export function registerAdminMailStatusRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminMailStatusDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: mailStatusRoute, deps: {
     workspaceId: deps.workspaceId,
     // Read per request, as the hand-written route read `deps.authorize`, so a later reassignment is honoured.
     authorize: (params) => deps.authorize(params),
@@ -100,15 +101,15 @@ export function registerAdminMailStatusRoute({ app, deps }: { app: Express; deps
  * `mailProviderControl` is read per request, as the hand-written routes read it.
  * @complexity O(1) setup; one provider operation per request.
  */
-export function registerAdminMailProviderRoutes({ app, deps }: { app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminMailProviderRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
   const options = { authorization: "direct", failure: { operation: "routes/system/mail-providers", code: "INTERNAL_ERROR" } } as const;
   const ports = { workspaceId: deps.workspaceId, authorize: (params: Parameters<AdminMailProviderDeps["authorize"]>[0]) => deps.authorize(params), classifyMailProviderError };
-  mountAdminJsonRoute({ app, spec: mailProvidersListRoute, deps: { ...ports,
+  mountAdminJsonRoute({ errors, app, spec: mailProvidersListRoute, deps: { ...ports,
     readMailProviderConfigurations: () => readMailProviderConfigurations({ control: deps.mailProviderControl }) } }, options);
-  mountAdminJsonRoute({ app, spec: mailProviderCredentialPlanRoute, deps: { ...ports,
+  mountAdminJsonRoute({ errors, app, spec: mailProviderCredentialPlanRoute, deps: { ...ports,
     planMailProviderCredential: ({ providerId }) => planMailProviderCredential({ control: deps.mailProviderControl, providerId }) } }, options);
-  registerAdminMailProviderCredentialSaveRoute({ app, deps });
-  mountAdminJsonRoute({ app, spec: mailProviderActivateRoute, deps: { ...ports,
+  registerAdminMailProviderCredentialSaveRoute({ errors, app, deps });
+  mountAdminJsonRoute({ errors, app, spec: mailProviderActivateRoute, deps: { ...ports,
     activateMailProvider: ({ providerId, principalId }) => activateMailProvider({ control: deps.mailProviderControl, providerId, principalId }) } }, options);
 }
 
@@ -134,11 +135,11 @@ export interface AdminMailDnsDeps {
  * Both operations run over fresh `mailDnsPorts` per request. Same operations as the assistant's `mail_dns_status`/`mail_dns_verify`.
  * @complexity O(1) setup.
  */
-export function registerAdminMailDnsRoutes({ app, deps }: { app: Express; deps: AdminMailDnsDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminMailDnsRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminMailDnsDeps }, _optional: Record<string, never> = {}): void {
   const ports = { workspaceId: deps.workspaceId, authorize: (params: Parameters<DnsChangeToolDeps["authorize"]>[0]) => deps.dns.authorize(params) };
   const options = { authorization: "direct", failure: { operation: "routes/system/mail-dns", code: "INTERNAL_ERROR" } } as const;
-  mountAdminJsonRoute({ app, spec: mailDnsStatusRoute, deps: { ...ports, readMailDnsStatus: () => readMailDnsStatus({}, mailDnsPorts(deps.dns)) } }, options);
-  mountAdminJsonRoute({ app, spec: mailDnsVerifyRoute, deps: { ...ports, verifyMailDnsStatus: () => verifyMailDnsStatus({}, mailDnsPorts(deps.dns)) } }, options);
+  mountAdminJsonRoute({ errors, app, spec: mailDnsStatusRoute, deps: { ...ports, readMailDnsStatus: () => readMailDnsStatus({}, mailDnsPorts(deps.dns)) } }, options);
+  mountAdminJsonRoute({ errors, app, spec: mailDnsVerifyRoute, deps: { ...ports, verifyMailDnsStatus: () => verifyMailDnsStatus({}, mailDnsPorts(deps.dns)) } }, options);
 }
 
 /** The deps `registerAdminMailTestSendRoute` reads. */
@@ -163,8 +164,8 @@ export type AdminMailTestSendDeps = Pick<RouteDeps, "workspaceId" | "authorize">
  * key and the plan-then-run send (the operation `mail_send_test` runs).
  * @complexity One authorization, one user lookup, one settings read and at most one delivery.
  */
-export function registerAdminMailTestSendRoute({ app, deps }: { app: Express; deps: AdminMailTestSendDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: mailTestSendRoute, deps: {
+export function registerAdminMailTestSendRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminMailTestSendDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ errors, app, spec: mailTestSendRoute, deps: {
     workspaceId: deps.workspaceId,
     authorize: (params) => deps.authorize(params),
     readTestRecipient: (required) => readTestRecipient(required),
@@ -227,7 +228,7 @@ function classifyMailActivityError({ error }: { error: unknown }, _optional: Rec
  * Same operations as `mail_get_readiness`, `mail_list_activity`, `mail_get_activity` and the suppression/feedback tools.
  * @complexity One readiness pass or one activity read per request.
  */
-export function registerAdminMailActivityRoutes({ app, deps }: { app: Express; deps: AdminMailActivityDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminMailActivityRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminMailActivityDeps }, _optional: Record<string, never> = {}): void {
   const mount = { authorization: "direct", failure: { operation: "routes/system/mail-activity", code: "INTERNAL_ERROR" } } as const;
   const shared = { workspaceId: deps.workspaceId, authorize: (params: Parameters<AdminMailActivityDeps["authorize"]>[0]) => deps.authorize(params), classifyMailActivityError };
   const domain = () => mailDomainDepsFrom({ deps });
@@ -235,20 +236,20 @@ export function registerAdminMailActivityRoutes({ app, deps }: { app: Express; d
     ...shared, statusPermission: MAIL_STATUS_PERMISSION,
     checkPermission: ({ principalId, permission }: { principalId: string; permission: string }) => deps.authorize({ principalId, permission, workspaceId: deps.workspaceId, entityType: "mail" }),
   };
-  mountAdminJsonRoute({ app, spec: mailUsesRoute, deps: { ...status, readMailUseReadiness: () => readMailUseReadiness(mailUseReadinessDepsFrom(deps)) } }, mount);
-  mountAdminJsonRoute({ app, spec: mailActivityListRoute, deps: { ...shared,
+  mountAdminJsonRoute({ errors, app, spec: mailUsesRoute, deps: { ...status, readMailUseReadiness: () => readMailUseReadiness(mailUseReadinessDepsFrom(deps)) } }, mount);
+  mountAdminJsonRoute({ errors, app, spec: mailActivityListRoute, deps: { ...shared,
     listMailActivity: ({ principalId, input }) => listMailActivity({ principalId, query: readMailActivityQuery({ input }), deps: domain() }) } }, mount);
-  mountAdminJsonRoute({ app, spec: mailActivityGetRoute, deps: { ...shared,
+  mountAdminJsonRoute({ errors, app, spec: mailActivityGetRoute, deps: { ...shared,
     getMailActivity: async ({ principalId, activityId }) => (await getMailActivity({ principalId, activityId: readMailActivityId({ value: activityId }), deps: domain() })) ?? undefined } }, mount);
-  mountAdminJsonRoute({ app, spec: mailSuppressionsListRoute, deps: { ...shared,
+  mountAdminJsonRoute({ errors, app, spec: mailSuppressionsListRoute, deps: { ...shared,
     listMailSuppressions: ({ principalId, input }) => listMailSuppressions({ principalId, query: readMailSuppressionQuery({ input }), deps: domain() }) } }, mount);
-  mountAdminJsonRoute({ app, spec: mailSuppressionRemoveRoute, deps: { ...shared,
+  mountAdminJsonRoute({ errors, app, spec: mailSuppressionRemoveRoute, deps: { ...shared,
     planSuppressionRemoval: async ({ principalId, input }) => {
       const plan = await planMailSuppressionRemoval({ principalId, input: readMailSuppressionRemoval({ input }), deps: domain() });
       return { plan, revision: plan.revision, remove: () => runMailSuppressionRemoval({ principalId, plan, deps: domain() }) };
     } } }, mount);
-  mountAdminJsonRoute({ app, spec: mailFeedbackRoute, deps: { ...status, readMailFeedbackSetup: () => readMailFeedbackSetup(deps) } }, mount);
-  mountAdminJsonRoute({ app, spec: mailCaptureClearRoute, deps: { ...shared,
+  mountAdminJsonRoute({ errors, app, spec: mailFeedbackRoute, deps: { ...status, readMailFeedbackSetup: () => readMailFeedbackSetup(deps) } }, mount);
+  mountAdminJsonRoute({ errors, app, spec: mailCaptureClearRoute, deps: { ...shared,
     planCaptureClear: ({ principalId }) => {
       if (!deps.contentKernel) throw new MailActivityUnavailableError();
       return planMailCaptureClear({ principalId, workspaceId: deps.workspaceId }, { capture: createMailCaptureRepo({ db: deps.contentKernel }), checkPermission: status.checkPermission });

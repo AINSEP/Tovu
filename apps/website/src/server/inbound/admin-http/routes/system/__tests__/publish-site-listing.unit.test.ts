@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -56,6 +57,7 @@ const registry: DeployTargetRegistry = {
 };
 
 function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const permissions: string[] = [];
   const deps = {
@@ -66,7 +68,7 @@ function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}) {
     ...overrides,
   };
   const app = express();
-  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes({ app, deps }) };
+  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes({ errors: routeErrors, app, deps }) };
 }
 
 async function direct(app: express.Express, path: string, req: object, locals: Record<string, unknown> = { principal: { id: "owner" } }) {

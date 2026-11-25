@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -112,6 +113,7 @@ test("filesystem custom root stays scoped to A and reflects live folder changes"
 }));
 
 test("admin memory and file handlers consume A's binding when env points at B", () => withSites(async binding => {
+  const routeErrors = createRouteIncidentReporter().errors;
   await seedPlugin(binding.agentPluginLayout);
   const input = { ...binding, workspaceId };
   await pluginMemory({ contain: containAgentPluginStatePath, ...input, pluginId: "bound-plugin" , layout: binding.agentPluginLayout }).writeNote({ entryPath: "project.txt", text: "HTTP site A" });
@@ -126,7 +128,7 @@ test("admin memory and file handlers consume A's binding when env points at B", 
     return app;
   }) as typeof app.get;
   const deps = { ...input, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as RouteDeps;
-  registerAgentPluginMemoryRoutes({ app, deps }); registerAgentPluginFilesRoute({ app, deps }); registerSkillFilesRoute({ app, deps });
+  registerAgentPluginMemoryRoutes({ errors: routeErrors, app, deps }); registerAgentPluginFilesRoute({ errors: routeErrors, app, deps }); registerSkillFilesRoute({ errors: routeErrors, app, deps });
   for (const [url, handler] of handlers) {
     const res = { locals: { principal: { id: "owner" } }, code: 200, body: undefined as any, status(code: number) { this.code = code; return this; }, json(body: unknown) { this.body = body; return this; } };
     await handler({ params: { workspaceId, pluginId: "bound-plugin", toolId: "skill_bound_skill" }, query: {} }, res);

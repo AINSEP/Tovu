@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { postListRoute } from "@jini-ai/cms/admin-http/routes/posts/list";
 import { postGetRoute } from "@jini-ai/cms/admin-http/routes/posts/get-by-id";
 import { getAdminPostByIdOrSlug, listAdminPosts } from "#src/features/post/index";
@@ -31,7 +32,7 @@ import {
 } from "./theme-explore.js";
 import type { Express } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-038) — the `content` server module (posts/pages/change-sets/
@@ -201,7 +202,7 @@ export type ContentRouteDeps = Pick<
    *  previews (`theme-preview-host.ts`). Optional: an in-memory or test runtime has no site folder. */
   | "siteBinding">>;
 
-export type ContentRouteRegistrar = (required: { app: Express; deps: ContentRouteDeps }, optional?: Record<string, never>) => void;
+export type ContentRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: ContentRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The two port fields every posts read mount passes. `authorize` is read per request, as the
  *  hand-written routes read `deps.authorize`, so a test's later reassignment of it is still honoured.
@@ -213,16 +214,16 @@ function postReadPortDeps({ deps }: { deps: ContentRouteDeps }, _options: Record
 
 /** GET the workspace's posts (Jini spec `postListRoute`), behind `authorizeOrRespond` as before.
  *  `deps.postRepo` is read per request, so a test's later reassignment of it is still honoured. */
-export const registerAdminPostListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: postListRoute, deps: {
+export const registerAdminPostListRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: postListRoute, deps: {
     ...postReadPortDeps({ deps }),
     listPostResponses: async (input) => (await listAdminPosts({ deps: { repo: deps.postRepo }, input })).posts.map(toAdminPostResponse),
   } }, { failure: { operation: "routes/posts/list", code: "INTERNAL_ERROR" } });
 };
 
 /** GET one post by id or slug (Jini spec `postGetRoute`), behind `authorizeOrRespond` as before. */
-export const registerAdminPostGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: postGetRoute, deps: {
+export const registerAdminPostGetRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: postGetRoute, deps: {
     ...postReadPortDeps({ deps }),
     readPost: (input) => readAdminPost({ deps, input }),
     isPostNotFound: ({ err }) => err instanceof PostNotFoundError,
@@ -269,8 +270,8 @@ async function renderPreviewForEmbeds(
  * publishing grant (the neighbouring post CRUD routes' guarded semantics would widen who may read a
  * draft). `deps.authorize` is read per request, as the HTML handler reads it.
  */
-export const registerAdminPostTemplatePreviewEmbedsRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: templatePreviewEmbedsRoute, deps: {
+export const registerAdminPostTemplatePreviewEmbedsRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: templatePreviewEmbedsRoute, deps: {
     workspaceId: deps.workspaceId,
     authorize: (params) => deps.authorize(params),
     renderPreview: (input) => renderPreviewForEmbeds({ deps, input }),
@@ -278,53 +279,53 @@ export const registerAdminPostTemplatePreviewEmbedsRoute: ContentRouteRegistrar 
   } }, { authorization: "direct", failure: { operation: "routes/posts/template-preview-embeds", code: "INTERNAL_ERROR" } });
 };
 
-export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
+export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "content",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminPostListRoute({ app, deps });
-      registerAdminPostCreateRoute({ app, deps });
-      registerAdminPostGetRoute({ app, deps });
-      registerAdminPostTemplatePreviewRoute({ app, deps });
-      registerAdminPostTemplatePreviewEmbedsRoute({ app, deps });
-      registerAdminPostUpdateRoute({ app, deps });
-      registerAdminPostDeleteRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminPostListRoute({ errors, app, deps });
+      registerAdminPostCreateRoute({ errors, app, deps });
+      registerAdminPostGetRoute({ errors, app, deps });
+      registerAdminPostTemplatePreviewRoute({ errors, app, deps });
+      registerAdminPostTemplatePreviewEmbedsRoute({ errors, app, deps });
+      registerAdminPostUpdateRoute({ errors, app, deps });
+      registerAdminPostDeleteRoute({ errors, app, deps });
       // Standing-draft autosave (2026-09-06) — kind-blind, serves both Posts and Pages (see the
       // route file's own header for why this is not duplicated under /pages/).
-      registerAdminPostAutosaveRoute({ app, deps });
-      registerAdminPageListRoute({ app, deps });
-      registerAdminPageCreateRoute({ app, deps });
-      registerAdminPageGetRoute({ app, deps });
-      registerAdminPageUpdateRoute({ app, deps });
+      registerAdminPostAutosaveRoute({ errors, app, deps });
+      registerAdminPageListRoute({ errors, app, deps });
+      registerAdminPageCreateRoute({ errors, app, deps });
+      registerAdminPageGetRoute({ errors, app, deps });
+      registerAdminPageUpdateRoute({ errors, app, deps });
       // Registered after the metadata PUT so the more specific `/pages/:pageId/html` path is not
       // shadowed — Express matches in registration order, and `/pages/:pageId` would otherwise never
       // reach this one. (It would not today, since that route has no trailing segment, but the
       // ordering is the guarantee, not the current path shapes.)
-      registerAdminPageUpdateHtmlRoute({ app, deps });
-      registerAdminPageDeleteRoute({ app, deps });
+      registerAdminPageUpdateHtmlRoute({ errors, app, deps });
+      registerAdminPageDeleteRoute({ errors, app, deps });
       // HTML email templates: Pages storage (kind "email-template"), same HTML store and gates.
-      registerAdminEmailTemplateRoutes({ app, deps });
-      registerAdminChangeSetListRoute({ app, deps });
-      registerAdminChangeSetGetRoute({ app, deps });
-      registerAdminChangeSetRevertRoute({ app, deps });
-      registerAdminPresentationGetRoute({ app, deps });
-      registerAdminPresentationPatchRoute({ app, deps });
-      registerAdminThemeRescanRoute({ app, deps });
-      registerAdminThemesListRoute({ app, deps });
-      registerAdminThemeDuplicateRoute({ app, deps });
+      registerAdminEmailTemplateRoutes({ errors, app, deps });
+      registerAdminChangeSetListRoute({ errors, app, deps });
+      registerAdminChangeSetGetRoute({ errors, app, deps });
+      registerAdminChangeSetRevertRoute({ errors, app, deps });
+      registerAdminPresentationGetRoute({ errors, app, deps });
+      registerAdminPresentationPatchRoute({ errors, app, deps });
+      registerAdminThemeRescanRoute({ errors, app, deps });
+      registerAdminThemesListRoute({ errors, app, deps });
+      registerAdminThemeDuplicateRoute({ errors, app, deps });
       // Explore screen. `/themes/:themeId/file` is registered BEFORE `/themes/:themeId` would
       // shadow it — Express matches in registration order, and while `/themes/:themeId` has no
       // trailing segment today, the ordering is the guarantee rather than the current path shapes
       // (the same reasoning the pages `/html` route above is ordered by).
-      registerAdminThemeFileGetRoute({ app, deps });
-      registerAdminThemeFilePutRoute({ app, deps });
-      registerAdminThemeFileResetRoute({ app, deps });
-      registerAdminThemeFileCopyRoute({ app, deps });
-      registerAdminThemeFileRenameRoute({ app, deps });
-      registerAdminThemeFileDeleteRoute({ app, deps });
-      registerAdminThemePagePublishRoute({ app, deps });
-      registerAdminThemeSaveOriginalRoute({ app, deps });
-      registerAdminThemeDetailRoute({ app, deps });
+      registerAdminThemeFileGetRoute({ errors, app, deps });
+      registerAdminThemeFilePutRoute({ errors, app, deps });
+      registerAdminThemeFileResetRoute({ errors, app, deps });
+      registerAdminThemeFileCopyRoute({ errors, app, deps });
+      registerAdminThemeFileRenameRoute({ errors, app, deps });
+      registerAdminThemeFileDeleteRoute({ errors, app, deps });
+      registerAdminThemePagePublishRoute({ errors, app, deps });
+      registerAdminThemeSaveOriginalRoute({ errors, app, deps });
+      registerAdminThemeDetailRoute({ errors, app, deps });
     },
   };
 }

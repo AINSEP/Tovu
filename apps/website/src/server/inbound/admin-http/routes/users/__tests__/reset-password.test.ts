@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -29,6 +30,7 @@ async function buildApp(
   depsOverrides: Partial<UsersRouteDeps> = {},
   principalId?: string
 ): Promise<{ app: express.Express; deps: UsersRouteDeps; ownerId: string }> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   await base.identityReady;
   const ownerId = await base.ownerPrincipalId;
@@ -62,7 +64,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserResetPasswordRoute({ app, deps });
+  registerAdminUserResetPasswordRoute({ errors: routeErrors, app, deps });
   return { app, deps, ownerId };
 }
 

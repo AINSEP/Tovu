@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -17,9 +18,10 @@ const unexpected = (name: string) => () => assert.fail(`unexpected ${name}`);
 const view = { importId: id, hasEncryptedKeys: true, state: "needs-owner" };
 
 function appWith(backend: SiteImportBackend | undefined, workspaceId = "ws") {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId, tracker: createNoopTracker({}), authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
+  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: { workspaceId, tracker: createNoopTracker({}), authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
   return app;
 }
 
@@ -62,13 +64,14 @@ test("site-import upload refusals: compressed body 400 and second concurrent upl
 
 
 test("site import paging preserves gate precedence and private response headers", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   let allowed = false;
   let publishTrust = false;
   let available = true;
   const calls: unknown[] = [];
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; if (publishTrust) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: [], entityTypes: [], generation: 1 }; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), get siteImportBackend() { return available ? { ...backend, listPage: async input => { calls.push(input); return { imports: [], nextCursor: "next" }; } } : undefined; } } });
+  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), get siteImportBackend() { return available ? { ...backend, listPage: async input => { calls.push(input); return { imports: [], nextCursor: "next" }; } } : undefined; } } });
   const origin = await startTestServer(app, t);
   const root = origin + "/api/admin/v1/workspaces/ws/site-imports";
   for (const [url, status] of [[root.replace("/ws/", "/foreign/") + "?extra=1", 404], [root + "?extra=1", 403]] as const) {

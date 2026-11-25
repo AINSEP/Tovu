@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { AGENT_DEFS } from "@jini-ai/agent-runtime";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -45,11 +46,11 @@ async function fixture() {
     principalRepo: { findById: async () => null }, authorize: async () => ({ allowed, reason: "test_permission" }),
   } as unknown as Deps;
   const app = express();
-  registerAdminAssistantSubagentsRoutes({ app, deps });
-  registerAdminSettingsSetRoute({ app, deps });
-  registerAdminSettingsClearRoute({ app, deps });
-  registerAdminSettingsResetRoute({ app, deps });
-  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+  registerAdminAssistantSubagentsRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsSetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsClearRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsResetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const definition = (await repo.listActiveDefinitions({ workspaceId: null })).find((def) => def.namespace === namespace && def.key === "enabled")!;
   assert.ok(definition, "boot must register the subagent setting");
   const permissionDefinition = (await repo.listActiveDefinitions({ workspaceId: null })).find(def => def.namespace === namespace && def.key === ASSISTANT_CLI_PERMISSIONS_KEY)!;

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -29,6 +30,7 @@ function freshSiteDir(): string {
 }
 
 function buildApp(depsOverrides: Partial<AdminFsFilesCustomRootDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: AdminFsFilesCustomRootDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -41,7 +43,7 @@ function buildApp(depsOverrides: Partial<AdminFsFilesCustomRootDeps> = {}): expr
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminFsFilesCustomRootRoutes({ app, deps: deps });
+  registerAdminFsFilesCustomRootRoutes({ errors: routeErrors, app, deps: deps });
   return app;
 }
 

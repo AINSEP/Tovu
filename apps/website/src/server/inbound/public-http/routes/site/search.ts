@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { siteSearchRoute, type SiteSearchRouteDeps as SiteSearchSpecDeps } from "@jini-ai/search/public-http/routes/site/search";
 
@@ -35,9 +36,9 @@ const boundPerRequest = (): never => { throw new Error("bound per request by req
  * Register `GET /api/search`.
  * @complexity Per request: one member-session read, one provider query and one access check.
  */
-export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSearchRouteDeps): void {
+export function registerSiteSearchRoute({ app, deps, errors }: { app: Pick<Express, "get">; deps: SiteSearchRouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   const mounted: SiteSearchSpecDeps = { siteSearch: deps.siteSearch, clock: deps.clock, limits: SEARCH_LIMITS, sessionToken: boundPerRequest, recordSearchPerformed: boundPerRequest };
-  mountPublicJsonRoute({
+  mountPublicJsonRoute({ errors,
     // `mountJsonRoute` only calls `app.get(path, handler)`, so a `Pick<Express, "get">` is enough.
     app: app as Express,
     spec: siteSearchRoute,

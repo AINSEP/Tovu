@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -59,7 +60,7 @@ async function buildApp(): Promise<{ app: express.Express; deps: NewsletterRoute
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterCreateCampaignRoute({ app, deps });
+  registerAdminNewsletterCreateCampaignRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps, authorizeCalls, listId };
 }
 

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -15,6 +16,7 @@ type Deps = Pick<AdminSitesDeps, "workspaceId" | "authorize" | "isSiteSwitcherEn
 async function fixture({ t }: { t: TestContext }, { overrides = {}, workspaceOverrides = {}, principal = true }: {
   overrides?: Partial<Deps>; workspaceOverrides?: Partial<SitesWorkspace>; principal?: boolean;
 } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sites-home-pins-")));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const workspace = { ...createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [] }), ...workspaceOverrides };
@@ -23,7 +25,7 @@ async function fixture({ t }: { t: TestContext }, { overrides = {}, workspaceOve
     authorize: async ({ permission }) => { permissions.push(permission); return { allowed: true, reason: "owner" }; }, ...overrides };
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { if (principal) res.locals.principal = { id: "owner" }; next(); });
-  registerSitesHomeRoutes({ app, deps, workspace });
+  registerSitesHomeRoutes({ errors: routeErrors, app, deps, workspace });
   const origin = await startTestServer(app, t);
   return { app, root, workspace, permissions, async request({ suffix = "/config", method = "put", body = {}, workspaceId = "ws" }: {
     suffix?: string; method?: "get" | "put"; body?: unknown; workspaceId?: string;

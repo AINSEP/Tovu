@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -27,6 +28,7 @@ async function buildApp(
   depsOverrides: Partial<UsersRouteDeps> = {},
   principalId?: string
 ): Promise<{ app: express.Express; deps: UsersRouteDeps; ownerId: string }> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   await base.identityReady;
   const ownerId = await base.ownerPrincipalId;
@@ -60,7 +62,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserCreateRoute({ app, deps });
+  registerAdminUserCreateRoute({ errors: routeErrors, app, deps });
   return { app, deps, ownerId };
 }
 
@@ -112,11 +114,12 @@ test("CREATE_USER route: direct invoke fallback for nullish body (`parseUserCrea
 });
 
 test("CREATE_USER route: 201 on success, with email provided", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { app, deps } = await buildApp();
-  registerAdminUserListRoute({ app, deps });
-  registerAdminUserUpdateRoute({ app, deps });
-  registerAdminUserEnableRoute({ app, deps });
-  registerAdminUserDisableRoute({ app, deps });
+  registerAdminUserListRoute({ errors: routeErrors, app, deps });
+  registerAdminUserUpdateRoute({ errors: routeErrors, app, deps });
+  registerAdminUserEnableRoute({ errors: routeErrors, app, deps });
+  registerAdminUserDisableRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {

@@ -15,6 +15,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /** Owner's 2026-10-04 corrected decision: size comes from the original blob; missing is null. */
 test("admin media list and single-record response report exact stored bytes and null after removal", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const rootDir = await mkdtemp(join(tmpdir(), "admin-media-byte-size-"));
   t.after(() => rm(rootDir, { recursive: true, force: true }));
   const deps = { ...createRouteDeps(), blobStore: new LocalFsBlobStore({ rootDir }) };
@@ -22,8 +23,8 @@ test("admin media list and single-record response report exact stored bytes and 
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminMediaListRoute({ app, deps });
-  registerAdminMediaUpdateRoute({ app, deps });
+  registerAdminMediaListRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaUpdateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5]);
   const { media } = await uploadMedia({

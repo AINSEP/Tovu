@@ -11,8 +11,8 @@ import type { MediaRouteRegistrar } from "./deps.js";
  * this host's media repo and its three batch lookups injected. `media.read` is a direct decision and
  * a missing session is deferred to `authorize`, so an invalid `?kind=` still answers its 400 first.
  */
-export const registerAdminMediaListRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({
+export const registerAdminMediaListRoute: MediaRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors,
     app,
     spec: mediaListRoute,
     deps: {

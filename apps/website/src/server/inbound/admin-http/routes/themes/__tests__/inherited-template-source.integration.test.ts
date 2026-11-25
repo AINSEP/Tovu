@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -14,6 +15,7 @@ import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/c
 // for either supported layout, without publishing unrelated package files or writing stock bytes.
 for (const apiVersion of [undefined, 2] as const) {
   test(`View Template and Explore resolve inherited source read-only (layout ${apiVersion ?? 1})`, async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "inherited-template-source-"));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const themesDir = path.join(root, "site");
@@ -39,9 +41,9 @@ for (const apiVersion of [undefined, 2] as const) {
     const deps = { workspaceId: "ws", themesDir, themes, authorize: async () => ({ allowed: true }),
       postRepo: { list: async () => [] } } as unknown as ContentRouteDeps;
     registerThemeStaticAssets({ app, themeRoots: [path.join(themesDir, "static")] }, { themes });
-    registerAdminThemeDetailRoute({ app, deps });
-    registerAdminThemeFileGetRoute({ app, deps });
-    registerAdminThemeFilePutRoute({ app, deps });
+    registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
+    registerAdminThemeFileGetRoute({ errors: routeErrors, app, deps });
+    registerAdminThemeFilePutRoute({ errors: routeErrors, app, deps });
     const base = "/api/admin/v1/workspaces/ws/themes/future";
     const assetUrl = `/theme-assets/future/${inheritedPath}`;
     for (const prefix of ["/theme-assets/future", "/theme-preview-assets/rev/future"]) {

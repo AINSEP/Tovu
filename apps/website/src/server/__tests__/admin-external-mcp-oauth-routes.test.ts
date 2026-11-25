@@ -81,6 +81,7 @@ function scriptedFetch(script: readonly ScriptStep[], options: { rejectReplayedC
 }
 
 async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean; sharedOAuth?: Partial<import("@jini-ai/integrations/api-connections/hosted-mcp").ExternalMcpOAuthService> } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const http = scriptedFetch(options.script ?? [], options);
   const oauthDeps: Parameters<typeof createExternalMcpOAuthService>[0] = {
@@ -131,7 +132,7 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: routeErrors, app });
   return { app, deps, http };
 }
 

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { registerSkillsListRoute } from "#src/server/runtime/composition/modules/skills";
@@ -18,11 +19,12 @@ import { installErrorResponse } from "../../routes/agent-plugins/install-respons
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
-function fixture(error: unknown, tracked: unknown[]) {
+function fixture(error: unknown, tracked: unknown[], { recorded = recordingComposedReporter() } = {}) {
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const app = express();
   const tracker = { error: (...args: unknown[]) => tracked.push(args) };
   app.use((req, res, next) => {
-    res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
+    res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; res.locals.failureReporter = recorded.reporter;
     res.locals.adminFailureTracker = tracker;
     req.body = req.path.includes("site-imports") ? { uploadId: "00000000-0000-0000-0000-000000000000" } : { restorePointId: "rp" };
     next();
@@ -32,16 +34,17 @@ function fixture(error: unknown, tracked: unknown[]) {
     siteImportBackend: { importBackup: fail, list: fail, listPage: fail, upload: fail, get: () => { throw error; }, completeOwner: fail },
     dbOps: { getCapabilities: fail }, gatedMutations: { gatewayDeps: { authorizeInstance: fail } },
   } as unknown as RouteDeps;
-  registerAdminSiteImportRoutes({ app, deps });
-  registerAdminRecoveryRestoreRoutes({ app, deps });
+  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps });
+  registerAdminRecoveryRestoreRoutes({ errors: routeErrors, app, deps });
   return app;
 }
 
 for (const url of ["/api/admin/v1/workspaces/ws/site-imports", "/api/admin/v1/recovery/restore/plan"]) {
   test(`${url}: unexpected exceptions are private, redacted and correlated`, async t => {
-    const secret = "ghp_" + "x".repeat(36), tracked: unknown[] = [], logs: unknown[][] = [];
-    t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
-    const response = await dispatchJsonRequest(fixture(new Error(`disk /private/site.db unavailable ${secret}`), tracked), "POST", url);
+    const recorded = recordingComposedReporter();
+    const secret = "ghp_" + "x".repeat(36), tracked: unknown[] = [], logs = recorded.records;
+    
+    const response = await dispatchJsonRequest(fixture(new Error(`disk /private/site.db unavailable ${secret}`), tracked, { recorded }), "POST", url);
     const body = response.body as Record<string, string>;
     assert.equal(response.status, 500);
     assert.equal(typeof body.errorId, "string");
@@ -50,11 +53,11 @@ for (const url of ["/api/admin/v1/workspaces/ws/site-imports", "/api/admin/v1/re
     assert.equal(logs.length, 1);
     assert.match(JSON.stringify(logs), /disk \/private\/site.db unavailable/);
     assert.equal(JSON.stringify(logs).includes(secret), false);
-    assert.equal(tracked.length, 1);
-    assert.match(String((tracked[0] as any[])[0].error.message), /disk/);
-    assert.equal(String((tracked[0] as any[])[0].error.message).includes(secret), false);
+    assert.equal(recorded.reports.length, 1);
+    assert.match(String(recorded.reports[0]?.[0].error.message), /disk/);
+    assert.equal(String(recorded.reports[0]?.[0].error.message).includes(secret), false);
     assert.ok(JSON.stringify(logs).includes(body.errorId));
-    assert.ok(JSON.stringify(tracked).includes(body.errorId));
+    assert.ok(JSON.stringify(recorded.reports).includes(body.errorId));
   });
 }
 
@@ -73,12 +76,14 @@ test("import expected refusals keep their diagnosis without reporting an inciden
 // restore spec): a gateway *Result* error (INTERNAL_ERROR, not a throw) answers the same private,
 // correlated envelope as a thrown exception.
 test("restore gateway Result errors have the same private diagnostic envelope as thrown exceptions", async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const secret = "ghp_" + "x".repeat(36), logs: unknown[][] = [], tracked: unknown[] = [];
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
-    res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
+    res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; res.locals.failureReporter = recorded.reporter;
     res.locals.adminFailureTracker = { error: (value: unknown) => tracked.push(value) };
     req.body = { restorePointId: "rp" };
     next();
@@ -88,18 +93,20 @@ test("restore gateway Result errors have the same private diagnostic envelope as
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "snapshot" } }) },
     gatedMutations: { gatewayDeps: { authorizeInstance: async () => { throw new Error(`database failed ${secret}`); } } },
   } as unknown as RouteDeps;
-  registerAdminRecoveryRestoreRoutes({ app, deps });
+  registerAdminRecoveryRestoreRoutes({ errors: routeErrors, app, deps });
   const response = await dispatchJsonRequest(app, "POST", "/api/admin/v1/recovery/restore/plan");
   const body = response.body as Record<string, string>;
   assert.equal(response.status, 500);
   assert.equal(typeof body.errorId, "string");
   assert.ok(body.error.includes(body.errorId));
   assert.equal(body.error.includes(secret), false);
-  assert.equal(logs.length, 1); assert.equal(tracked.length, 1);
-  assert.equal(JSON.stringify(logs).includes(secret), false);
+  assert.equal(recorded.records.length, 1); assert.equal(recorded.reports.length, 1);
+  assert.equal(JSON.stringify(recorded.records).includes(secret), false);
 });
 
 test("the recorded duplicate-skill-name refusal remains actionable while unexpected discovery errors stay private", async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const site = createTempSiteLayoutFixture({});
   t.after(site.cleanup);
   const root = site.deps.skillLayout.forWorkspace({ workspaceId: "workspace-local" }).root;
@@ -112,7 +119,7 @@ test("the recorded duplicate-skill-name refusal remains actionable while unexpec
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSkillsListRoute({ app, deps: { ...site.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) } });
+  registerSkillsListRoute({ errors: routeErrors, app, deps: { ...site.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) } });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/workspace-local/skills");
   const body = response.body as Record<string, string>;
   assert.equal(response.status, 500);

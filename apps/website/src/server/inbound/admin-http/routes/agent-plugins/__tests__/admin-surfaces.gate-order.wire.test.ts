@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -17,6 +18,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 type Deps = Parameters<typeof registerAgentPluginAdminSurfaceRoutes>[0]["deps"];
 
 async function serve(t: test.TestContext, { credential = "session" }: { credential?: string } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: string[] = [];
   const deps = {
     workspaceId: "ws", clock: { nowMs: () => 0 },
@@ -25,7 +27,7 @@ async function serve(t: test.TestContext, { credential = "session" }: { credenti
   } as unknown as Deps;
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = credential; next(); });
-  registerAgentPluginAdminSurfaceRoutes({ app, deps });
+  registerAgentPluginAdminSurfaceRoutes({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t);
   const call = async ({ method = "POST", workspaceId = "ws", tail = "/s1/bootstrap", origin }: { method?: "GET" | "POST"; workspaceId?: string; tail?: string; origin?: string }) => {
     const response = await fetch(`${base}/api/admin/v1/workspaces/${workspaceId}/agent-plugins/p1/surfaces${tail}`, {
@@ -66,10 +68,11 @@ test("admin-surfaces list: no write gates; the workspace 404 first, a machine cr
 // Pinned before the move too: the exact success answers (body, status, every response header that
 // differs between routes) and that a refusal never carries the success-only cache headers.
 test("admin-surfaces answers: bootstrap and action success headers and bodies; refusals carry no cache headers", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const surface = { plugin: { pluginId: "p1" }, descriptor: { id: "s1", title: "S1", entry: "ui/index.html", files: [], actions: [], csp: {} } };
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAgentPluginAdminSurfaceRoutes({ app, deps: {
+  registerAgentPluginAdminSurfaceRoutes({ errors: routeErrors, app, deps: {
     workspaceId: "ws", clock: { nowMs: () => 1000 }, authorize: async () => ({ allowed: true, reason: "pin" }),
     adminSurfaceSource: { list: async () => [surface], readFile: async () => "" },
   } as unknown as Deps });

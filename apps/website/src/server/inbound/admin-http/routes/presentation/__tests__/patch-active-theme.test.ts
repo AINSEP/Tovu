@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -36,6 +37,7 @@ const WORKSPACE_ID = "workspace-local";
 const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/presentation`;
 
 function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps: ContentRouteDeps = {
     ...base,
@@ -78,7 +80,7 @@ function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Expres
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminPresentationPatchRoute({ app, deps });
+  registerAdminPresentationPatchRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

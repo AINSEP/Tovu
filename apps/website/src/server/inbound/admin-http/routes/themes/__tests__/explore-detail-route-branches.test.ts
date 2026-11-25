@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -43,13 +44,14 @@ function baseDeps(themesDir: string): ContentRouteDeps {
 }
 
 function buildTestApp(deps: ContentRouteDeps): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

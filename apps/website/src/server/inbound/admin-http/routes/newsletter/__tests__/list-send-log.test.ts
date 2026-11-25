@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -50,6 +51,7 @@ function makeCampaign(overrides: Partial<CampaignRecord> = {}): CampaignRecord {
 }
 
 function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): { app: express.Express; deps: NewsletterRouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps = {
     ...base,
@@ -63,7 +65,7 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): { app: expr
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterListSendLogRoute({ app, deps });
+  registerAdminNewsletterListSendLogRoute({ errors: routeErrors, app, deps });
   return { app, deps };
 }
 

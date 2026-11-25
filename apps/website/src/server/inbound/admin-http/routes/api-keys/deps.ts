@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { API_KEY_SESSION_CREDENTIAL_GATE } from "@jini-ai/user-management/admin-http/routes/api-keys/shared";
@@ -45,7 +46,7 @@ export type ApiKeysRouteDeps = Pick<
 > & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the api-keys route modules (mirrors `UsersRouteRegistrar`). */
-export type ApiKeysRouteRegistrar = (required: { app: Express; deps: ApiKeysRouteDeps }, optional?: Record<string, never>) => void;
+export type ApiKeysRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: ApiKeysRouteDeps }, optional?: Record<string, never>) => void;
 
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
 function identityReposFrom(deps: ApiKeysRouteDeps): IdentityRepos {

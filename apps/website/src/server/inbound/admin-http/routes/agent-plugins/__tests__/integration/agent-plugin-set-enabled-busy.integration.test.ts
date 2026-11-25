@@ -125,7 +125,7 @@ function buildTestApp(): { app: express.Express } {
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginSetEnabledRoute({ app, deps: routeDeps });
+  registerAgentPluginSetEnabledRoute({ errors: createRouteIncidentReporter().errors, app, deps: routeDeps });
   return { app };
 }
 

@@ -11,7 +11,7 @@ import {
   CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, SETTINGS_WRITE_FENCE, createTovuSettingsService, resolveUserLayerReadTarget, toWriteServiceDeps,
 } from "#src/server/inbound/admin-http/routes/settings/shared";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `settings` server module (SPEC-007 Phase 5 admin
@@ -73,46 +73,46 @@ function settingsReadDeps({ deps }: { deps: SettingsRouteDeps }, _optional: Reco
   };
 }
 
-export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const writeDeps = { ...settingsBaseDeps({ deps }), writeServiceDeps: () => toWriteServiceDeps(deps) };
-  mountAdminJsonRoute({ app, spec: settingsRegisterDefinitionsRoute, deps: writeDeps }, SETTINGS_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: settingsRegisterDefinitionsRoute, deps: writeDeps }, SETTINGS_MOUNT);
 };
 
-export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: settingsGetEffectiveRoute, deps: settingsReadDeps({ deps }) }, SETTINGS_MOUNT);
+export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: settingsGetEffectiveRoute, deps: settingsReadDeps({ deps }) }, SETTINGS_MOUNT);
 };
 
-export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: settingsGetRawRoute, deps: settingsReadDeps({ deps }) }, SETTINGS_MOUNT);
+export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: settingsGetRawRoute, deps: settingsReadDeps({ deps }) }, SETTINGS_MOUNT);
 };
 
-export const registerAdminSettingsListDefinitionsRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: settingsListDefinitionsRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
+export const registerAdminSettingsListDefinitionsRoute: SettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: settingsListDefinitionsRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
 };
 
-export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: settingsSetRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
+export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: settingsSetRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
 };
 
-export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: settingsClearRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
+export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: settingsClearRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
 };
 
-export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: settingsResetRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
+export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: settingsResetRoute, deps: settingsServiceDeps({ deps }) }, SETTINGS_MOUNT);
 };
 
-export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandle {
+export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "settings",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
-      registerAdminSettingsGetEffectiveRoute({ app, deps });
-      registerAdminSettingsGetRawRoute({ app, deps });
-      registerAdminSettingsListDefinitionsRoute({ app, deps });
-      registerAdminSettingsSetRoute({ app, deps });
-      registerAdminSettingsClearRoute({ app, deps });
-      registerAdminSettingsResetRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminSettingsRegisterDefinitionsRoute({ errors, app, deps });
+      registerAdminSettingsGetEffectiveRoute({ errors, app, deps });
+      registerAdminSettingsGetRawRoute({ errors, app, deps });
+      registerAdminSettingsListDefinitionsRoute({ errors, app, deps });
+      registerAdminSettingsSetRoute({ errors, app, deps });
+      registerAdminSettingsClearRoute({ errors, app, deps });
+      registerAdminSettingsResetRoute({ errors, app, deps });
       registerAdminSettingsEventsRoute({ app, deps });
     },
   };

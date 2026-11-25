@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** Post-list preview parity (2026-10-22): real rendering with DI repositories, no server process. */
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -89,7 +90,7 @@ test("editor Preview route includes the draft listing and retains no-store and i
   const { deps, post, repo, writes } = postListPreviewDeps({ count: 25, slug: "writing" });
   type Handler = (req: unknown, res: unknown) => Promise<void>;
   const handlers: Record<string, Handler> = {};
-  registerAdminPostTemplatePreviewRoute({ app: {
+  registerAdminPostTemplatePreviewRoute({ errors: createRouteIncidentReporter().errors, app: {
     get: (_path: string, fn: Handler) => { handlers.get = fn; },
     post: (_path: string, _parser: unknown, fn: Handler) => { handlers.post = fn; },
   } as never, deps });

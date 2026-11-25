@@ -164,9 +164,10 @@ const FIXTURE_REPLY = 'event: message_start\ndata: {"type":"message_start","mess
 /** Boots the BYOK route behind a probe that sees the server-side close, counts stream starts and
  *  hands back each turn's own settlement, so a test can wait for the turn instead of a clock. */
 async function bootClosableTurn(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext, { holdUntilClosed = false } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ errors: routeErrors, app, deps });
   const serverClosed = deferred();
   const requestReached = deferred();
   const turnStarted = deferred<{ turn: unknown }>();

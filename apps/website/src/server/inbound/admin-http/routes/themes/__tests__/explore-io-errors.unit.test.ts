@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -38,6 +39,7 @@ const scenarios = [
 
 for (const scenario of scenarios) {
   test(`explore returns 500 for ${scenario.name} EIO and leaves theme files unchanged`, async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
     const { operation, suffix } = scenario;
     // Canonicalize the root: macOS's /var alias otherwise misses the product's /private/var I/O.
     const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-explore-io-")));
@@ -62,11 +64,11 @@ for (const scenario of scenarios) {
     } as unknown as ContentRouteDeps;
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; next(); });
-    registerAdminThemeDetailRoute({ app, deps });
-    registerAdminThemeFileDeleteRoute({ app, deps });
-    registerAdminThemeFileRenameRoute({ app, deps });
-    registerAdminThemeFileGetRoute({ app, deps });
-    registerAdminThemeFileResetRoute({ app, deps });
+    registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
+    registerAdminThemeFileDeleteRoute({ errors: routeErrors, app, deps });
+    registerAdminThemeFileRenameRoute({ errors: routeErrors, app, deps });
+    registerAdminThemeFileGetRoute({ errors: routeErrors, app, deps });
+    registerAdminThemeFileResetRoute({ errors: routeErrors, app, deps });
     const fault = Object.assign(new Error("injected I/O failure"), { code: "EIO" });
     const original = fs[operation] as (...args: unknown[]) => unknown;
     let faultReached = false;

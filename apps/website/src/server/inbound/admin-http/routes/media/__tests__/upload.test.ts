@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -36,6 +37,7 @@ const ONE_PIXEL_PNG_BASE64 =
 const MP4_FTYP_HEADER = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
 
 function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps: MediaRouteDeps = {
     tracker: createNoopTracker({}),
@@ -63,7 +65,7 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaUploadRoute({ app, deps });
+  registerAdminMediaUploadRoute({ errors: routeErrors, app, deps });
   return app;
 }
 
@@ -213,10 +215,11 @@ test("upload: unrecognized bytes declared as image/png are rejected with 400", a
 });
 
 test("upload: a real PNG mislabeled image/jpeg is stored as what its bytes are (image/png)", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   const mediaDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
   const app = buildApp(mediaDeps);
-  registerAdminMediaUpdateRoute({ app, deps: mediaDeps });
+  registerAdminMediaUpdateRoute({ errors: routeErrors, app, deps: mediaDeps });
   const { status, json } = await upload(t, app, {
     filename: "pixel.jpg",
     contentType: "image/jpeg",

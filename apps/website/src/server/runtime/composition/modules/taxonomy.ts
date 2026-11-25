@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import {
@@ -22,7 +23,7 @@ import { buildMergeTermHooks } from "#src/features/taxonomy/gated-hooks";
 import type { TaxonomyRouteDeps } from "#src/server/inbound/admin-http/routes/taxonomy/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 import { actorForMutation } from "../mutation-actor.js";
 
 /**
@@ -41,7 +42,7 @@ import { actorForMutation } from "../mutation-actor.js";
  * `migrate-forward` and recovery `restore` ceremonies that share the `core/gated-mutations` gateway
  * pattern — SPEC-016), so it takes the full gateway-bearing `TaxonomyMergeRouteDeps`, not `TaxonomyRouteDeps`.
  */
-export type TaxonomyRouteRegistrar = (required: { app: Express; deps: TaxonomyRouteDeps }, optional?: Record<string, never>) => void;
+export type TaxonomyRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: TaxonomyRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The two port fields every taxonomy mount passes. `authorize` is read per request, as the
  *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */
@@ -50,17 +51,17 @@ function taxonomyPortDeps({ deps }: { deps: Pick<TaxonomyRouteDeps, "workspaceId
 }
 
 /** The list route never consulted the publishing-credential override (`authorizeDirectOrRespond`). */
-export const registerAdminTaxonomyListRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminTaxonomyListRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: taxonomyListRoute, deps: { ...taxonomyPortDeps({ deps }), taxonomyRepo: deps.taxonomyRepo, termRepo: deps.termRepo } },
+    { errors, app, spec: taxonomyListRoute, deps: { ...taxonomyPortDeps({ deps }), taxonomyRepo: deps.taxonomyRepo, termRepo: deps.termRepo } },
     { authorization: "direct", failure: { operation: "routes/taxonomy/list", code: "INTERNAL_ERROR" } },
   );
 };
 
 /** Delete went through the guarded `authorizeOrRespond`, so a publishing credential still answers from its grant. */
-export const registerAdminTaxonomyDeleteRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminTaxonomyDeleteRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: taxonomyDeleteRoute, deps: { ...taxonomyPortDeps({ deps }), taxonomyRepo: deps.taxonomyRepo, removeTaxonomy: deps.removeTaxonomy, clock: deps.clock } },
+    { errors, app, spec: taxonomyDeleteRoute, deps: { ...taxonomyPortDeps({ deps }), taxonomyRepo: deps.taxonomyRepo, removeTaxonomy: deps.removeTaxonomy, clock: deps.clock } },
     { failure: { operation: "routes/taxonomy/delete-taxonomy", code: "INTERNAL_ERROR" } },
   );
 };
@@ -81,20 +82,20 @@ function taxonomyWriteDeps({ deps }: { deps: TaxonomyRouteDeps }, _options: Reco
   };
 }
 
-export const registerAdminTaxonomyCreateRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminTaxonomyCreateRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: taxonomyCreateRoute, deps: taxonomyWriteDeps({ deps }) },
+    { errors, app, spec: taxonomyCreateRoute, deps: taxonomyWriteDeps({ deps }) },
     { authorization: "direct", failure: { operation: "routes/taxonomy/create-taxonomy", code: "INTERNAL_ERROR" } },
   );
 };
 
-export const registerAdminTaxonomyCreateTermRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: taxonomyCreateTermRoute, deps: taxonomyWriteDeps({ deps }) }, { authorization: "direct" });
+export const registerAdminTaxonomyCreateTermRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: taxonomyCreateTermRoute, deps: taxonomyWriteDeps({ deps }) }, { authorization: "direct" });
 };
 
-export const registerAdminTaxonomyRenameTermRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminTaxonomyRenameTermRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: taxonomyRenameTermRoute, deps: { ...taxonomyWriteDeps({ deps }), taxonomyRepo: deps.taxonomyRepo } },
+    { errors, app, spec: taxonomyRenameTermRoute, deps: { ...taxonomyWriteDeps({ deps }), taxonomyRepo: deps.taxonomyRepo } },
     { authorization: "direct", failure: { operation: "routes/taxonomy/rename-term", code: "INTERNAL_ERROR" } },
   );
 };
@@ -106,22 +107,22 @@ function taxonomyAssignmentDeps({ deps }: { deps: TaxonomyRouteDeps }, _options:
   };
 }
 
-export const registerAdminTaxonomyAssignTermsRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: taxonomyAssignTermsRoute, deps: taxonomyAssignmentDeps({ deps }) }, { authorization: "direct" });
+export const registerAdminTaxonomyAssignTermsRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: taxonomyAssignTermsRoute, deps: taxonomyAssignmentDeps({ deps }) }, { authorization: "direct" });
 };
 
-export const registerAdminTaxonomyUnassignTermsRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: taxonomyUnassignTermsRoute, deps: taxonomyAssignmentDeps({ deps }) }, { authorization: "direct" });
+export const registerAdminTaxonomyUnassignTermsRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: taxonomyUnassignTermsRoute, deps: taxonomyAssignmentDeps({ deps }) }, { authorization: "direct" });
 };
 
-export const registerAdminTaxonomyAssignedTermsRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: taxonomyAssignedTermsRoute, deps: taxonomyAssignmentDeps({ deps }) }, { authorization: "direct" });
+export const registerAdminTaxonomyAssignedTermsRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: taxonomyAssignedTermsRoute, deps: taxonomyAssignmentDeps({ deps }) }, { authorization: "direct" });
 };
 
 /** Term delete went through the guarded `authorizeOrRespond`, like taxonomy delete. */
-export const registerAdminTaxonomyDeleteTermRoute: TaxonomyRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminTaxonomyDeleteTermRoute: TaxonomyRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: taxonomyDeleteTermRoute, deps: { ...taxonomyPortDeps({ deps }), termRepo: deps.termRepo, removeTerm: deps.removeTerm, clock: deps.clock } },
+    { errors, app, spec: taxonomyDeleteTermRoute, deps: { ...taxonomyPortDeps({ deps }), termRepo: deps.termRepo, removeTerm: deps.removeTerm, clock: deps.clock } },
     { failure: { operation: "routes/taxonomy/delete-term", code: "INTERNAL_ERROR" } },
   );
 };
@@ -144,9 +145,9 @@ function mergeTermHooks(
  *  authorize port, so they mount without an `authorization` mode; the principal is read before the body
  *  is checked, as the hand-written routes did, so no `deferMissingPrincipal`. The gateway is read per
  *  request from `deps` so a reassigned `gatedMutations` is still honoured. */
-export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Express; deps: TaxonomyMergeRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminTaxonomyMergeTermRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: TaxonomyMergeRouteDeps }, _optional: Record<string, never> = {}): void {
   const portDeps = taxonomyPortDeps({ deps });
-  mountAdminJsonRoute({
+  mountAdminJsonRoute({ errors,
     app, spec: taxonomyMergePlanRoute,
     deps: {
       ...portDeps, entryTermRepo: deps.entryTermRepo,
@@ -156,7 +157,7 @@ export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Expre
       }),
     },
   });
-  mountAdminJsonRoute({
+  mountAdminJsonRoute({ errors,
     app, spec: taxonomyMergeConfirmRoute,
     deps: {
       ...portDeps,
@@ -167,7 +168,7 @@ export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Expre
       },
     },
   });
-  mountAdminJsonRoute({
+  mountAdminJsonRoute({ errors,
     app, spec: taxonomyMergeExecuteRoute,
     deps: {
       ...portDeps,
@@ -179,19 +180,19 @@ export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Expre
   });
 }
 
-export function createTaxonomyModule(deps: TaxonomyRouteDeps): ServerModuleHandle {
+export function createTaxonomyModule(deps: TaxonomyRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "taxonomy",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminTaxonomyListRoute({ app, deps });
-      registerAdminTaxonomyCreateRoute({ app, deps });
-      registerAdminTaxonomyCreateTermRoute({ app, deps });
-      registerAdminTaxonomyRenameTermRoute({ app, deps });
-      registerAdminTaxonomyAssignTermsRoute({ app, deps });
-      registerAdminTaxonomyUnassignTermsRoute({ app, deps });
-      registerAdminTaxonomyAssignedTermsRoute({ app, deps });
-      registerAdminTaxonomyDeleteRoute({ app, deps });
-      registerAdminTaxonomyDeleteTermRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminTaxonomyListRoute({ errors, app, deps });
+      registerAdminTaxonomyCreateRoute({ errors, app, deps });
+      registerAdminTaxonomyCreateTermRoute({ errors, app, deps });
+      registerAdminTaxonomyRenameTermRoute({ errors, app, deps });
+      registerAdminTaxonomyAssignTermsRoute({ errors, app, deps });
+      registerAdminTaxonomyUnassignTermsRoute({ errors, app, deps });
+      registerAdminTaxonomyAssignedTermsRoute({ errors, app, deps });
+      registerAdminTaxonomyDeleteRoute({ errors, app, deps });
+      registerAdminTaxonomyDeleteTermRoute({ errors, app, deps });
     },
   };
 }

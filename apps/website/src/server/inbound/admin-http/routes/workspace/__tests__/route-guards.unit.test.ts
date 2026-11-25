@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,6 +19,7 @@ const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdA
 const other = { id: "ws-8", name: "Other Site", slug: "other-site", createdAt: "2026-09-02T00:00:00Z", version: 1 };
 
 function harness(repo: unknown, allowed = true) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   let authorizeCalls = 0;
   const deps = {
@@ -25,10 +27,10 @@ function harness(repo: unknown, allowed = true) {
     workspaceRepo: repo,
     authorize: async () => { authorizeCalls++; return { allowed, reason: allowed ? "matched" : "no-grant" }; },
   } as any;
-  registerAdminWorkspaceCreateRoute({ app, deps });
-  registerAdminWorkspaceDeleteRoute({ app, deps });
-  registerAdminWorkspaceGetRoute({ app, deps });
-  registerAdminWorkspaceUpdateRoute({ app, deps });
+  registerAdminWorkspaceCreateRoute({ errors: routeErrors, app, deps });
+  registerAdminWorkspaceDeleteRoute({ errors: routeErrors, app, deps });
+  registerAdminWorkspaceGetRoute({ errors: routeErrors, app, deps });
+  registerAdminWorkspaceUpdateRoute({ errors: routeErrors, app, deps });
   return {
     authorizeCalls: () => authorizeCalls,
     invoke: async (method: "get" | "patch" | "delete" | "post", path: string, req: { params?: unknown; body?: unknown }) => {
@@ -103,13 +105,14 @@ test("deleting the bound workspace over HTTP is refused BOUND_WORKSPACE (INV-05)
 // (`@jini-ai/cms` admin-http/routes/workspace/__tests__/workspace-routes.test.ts). The host's own
 // half — the opaque, logged 500 for anything the spec does not map — is pinned over the mount here.
 test("a stackless Error carrying secrets on the delete route is logged and answered by the opaque 500, leaking no message", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const stackless = new Error("db exploded: connection string postgres://user:pw@host");
   stackless.stack = undefined;
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
   const app = express();
-  registerAdminWorkspaceDeleteRoute({ app, deps: { workspaceId: "ws-7", workspaceRepo: repo, authorize: async () => { throw stackless; } } as any });
+  registerAdminWorkspaceDeleteRoute({ errors: routeErrors, app, deps: { workspaceId: "ws-7", workspaceRepo: repo, authorize: async () => { throw stackless; } } as any });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-7" };
   await extractRouteHandler(app, "delete", `${base}/:workspaceId`)({ params: { workspaceId: "ws-7" } }, res);
@@ -119,11 +122,12 @@ test("a stackless Error carrying secrets on the delete route is logged and answe
 });
 
 test("an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
   const app = express();
-  registerAdminWorkspaceDeleteRoute({ app, deps: {
+  registerAdminWorkspaceDeleteRoute({ errors: routeErrors, app, deps: {
     workspaceId: "ws-7", workspaceRepo: repo,
     authorize: async () => { throw "authorizer offline"; },
   } as any });

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { SqlTaxonomyRepo, SqlTermRepo } from "@jini-ai/cms/taxonomy/sql";
 import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
@@ -18,6 +19,7 @@ import type { TaxonomyRouteDeps } from "../deps.js";
  * 409 and the guard's own code, not a 500 or a silent join.
  */
 function buildApp(postRepo: TaxonomyRouteDeps["postRepo"], jsonBodies: unknown[] = []): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   // The same SQLite adapters `createRouteDeps` composes (the CMS package's in-memory taxonomy/term
   // repos lack the host's `findForTrash`/`findAnyById` reads `TaxonomyRouteDeps` requires).
   const db = openContentDb(":memory:");
@@ -48,7 +50,7 @@ function buildApp(postRepo: TaxonomyRouteDeps["postRepo"], jsonBodies: unknown[]
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminTaxonomyAssignTermsRoute({ app, deps });
+  registerAdminTaxonomyAssignTermsRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

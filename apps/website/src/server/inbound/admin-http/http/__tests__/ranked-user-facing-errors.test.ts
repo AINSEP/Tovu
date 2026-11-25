@@ -1,3 +1,5 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -14,20 +16,21 @@ import { importErrorResponse } from "../../routes/publish-content/import-errors.
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 const ranked = [
-  { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminAssistantGetSettingsRoute({ app, deps }), method: "GET", path: "assistant/settings", step: "assistant.settings.load", message: "Assistant settings could not be loaded." },
+  { register: ({ app, deps, errors }: { app: express.Express; deps: never; errors: RouteErrorPorts }, _options: Record<string, never> = {}) => registerAdminAssistantGetSettingsRoute({ errors, app, deps }), method: "GET", path: "assistant/settings", step: "assistant.settings.load", message: "Assistant settings could not be loaded." },
   { register: registerAdminPageListRoute, method: "GET", path: "pages", step: "pages.list", message: "Pages could not be loaded." },
   { register: registerAdminPageUpdateRoute, method: "PUT", path: "pages/p1", step: "pages.save", message: "The page could not be saved." },
-  { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminMediaListRoute({ app, deps }), method: "GET", path: "media", step: "media.list", message: "The media library could not be loaded." },
+  { register: ({ app, deps, errors }: { app: express.Express; deps: never; errors: RouteErrorPorts }, _options: Record<string, never> = {}) => registerAdminMediaListRoute({ errors, app, deps }), method: "GET", path: "media", step: "media.list", message: "The media library could not be loaded." },
   { register: registerAdminPostUpdateRoute, method: "PUT", path: "posts/p1", step: "posts.save", message: "The post could not be saved." },
 ];
 
 for (const row of ranked) {
   test(`${row.step}: unexpected failure names the operation with safe copyable evidence`, async t => {
-    const logged = t.mock.method(console, "error", () => {});
+    const recorded = recordingComposedReporter();
+    const errors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
     const fail = async () => { throw new Error("CANARY_BACKEND password=CANARY_SECRET"); };
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-    row.register({ app, deps: { workspaceId: "ws", authorize: fail, assistantSettingsReady: Promise.resolve(),
+    row.register({ app, errors, deps: { workspaceId: "ws", authorize: fail, assistantSettingsReady: Promise.resolve(),
       clock: { nowIso: () => "2026-11-04T12:00:00Z", nowMs: () => 0 }, idGen: { newId: () => "id" },
       postRepo: { findById: fail, findBySlug: fail },
     } as never });
@@ -40,7 +43,7 @@ for (const row of ranked) {
     assert.match(body.details.failure.copyText, new RegExp(body.errorId));
     assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
     assert.equal(JSON.stringify(body).includes("CANARY_"), false);
-    assert.match(JSON.stringify(logged.mock.calls.map(call => call.arguments)), /CANARY_BACKEND/);
+    assert.match(JSON.stringify(recorded.records), /CANARY_BACKEND/);
   });
 }
 

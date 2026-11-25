@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createSite } from "#src/server/runtime/composition/site-dir";
 import { isolatedCatalogHome } from "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -24,8 +25,9 @@ function routeDeps(base: string, overrides: Partial<AdminSitesDeps> = {}): Admin
 }
 
 async function create(deps: AdminSitesDeps, body: unknown) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminSitesRoutes({ app, deps });
+  registerAdminSitesRoutes({ errors: routeErrors, app, deps });
   const handler = extractRouteHandler(app, "post", ROUTE);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "authorized-owner" };

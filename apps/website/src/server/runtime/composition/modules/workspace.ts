@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { workspaceCreateRoute } from "@jini-ai/cms/admin-http/routes/workspace/create";
 import { workspaceDeleteRoute } from "@jini-ai/cms/admin-http/routes/workspace/delete";
 import { workspaceGetRoute } from "@jini-ai/cms/admin-http/routes/workspace/get";
@@ -8,7 +9,7 @@ import type { Express } from "express";
 
 import type { RouteDeps } from "#src/server/routes/types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file SPEC-044 — the `workspace` server module (list/view/rename/delete a workspace, plus the
@@ -37,7 +38,7 @@ import type { ServerModuleHandle } from "./types.js";
 export type WorkspaceRouteDeps = Pick<RouteDeps, "workspaceId" | "workspaceRepo" | "authorize" | "clock" | "idGen" | "outbox" | "bus">;
 
 /** Registrar signature for the workspace route modules (mirrors `UsersRouteRegistrar`). */
-export type WorkspaceRouteRegistrar = (required: { app: Express; deps: WorkspaceRouteDeps }, optional?: Record<string, never>) => void;
+export type WorkspaceRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: WorkspaceRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The route's own deps plus the two port fields. `authorize` is read per request, as the
  *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */
@@ -53,8 +54,8 @@ const failureFor = (operation: string) => ({ failure: { operation, code: "INTERN
  * type, so the port's `entityType` is dropped here to keep the authorizer's arguments byte-identical.
  * `flushOutbox` is the host outbox worker the hand-written route awaited before its `201`.
  */
-export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: workspaceCreateRoute, deps: {
+export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: workspaceCreateRoute, deps: {
     workspaceId: deps.workspaceId,
     authorize: ({ entityType: _entityType, ...params }) => deps.authorize(params),
     workspaceRepo: deps.workspaceRepo,
@@ -65,31 +66,31 @@ export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = ({ app
   } }, failureFor("routes/workspace/create"));
 };
 
-export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: workspaceListRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/list"));
+export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: workspaceListRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/list"));
 };
 
-export const registerAdminWorkspaceGetRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: workspaceGetRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/get"));
+export const registerAdminWorkspaceGetRoute: WorkspaceRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: workspaceGetRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/get"));
 };
 
-export const registerAdminWorkspaceUpdateRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: workspaceUpdateRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/update"));
+export const registerAdminWorkspaceUpdateRoute: WorkspaceRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: workspaceUpdateRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/update"));
 };
 
-export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: workspaceDeleteRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/delete"));
+export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: workspaceDeleteRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/delete"));
 };
 
-export function createWorkspaceModule(deps: WorkspaceRouteDeps): ServerModuleHandle {
+export function createWorkspaceModule(deps: WorkspaceRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "workspace",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminWorkspaceListRoute({ app, deps });
-      registerAdminWorkspaceCreateRoute({ app, deps });
-      registerAdminWorkspaceGetRoute({ app, deps });
-      registerAdminWorkspaceUpdateRoute({ app, deps });
-      registerAdminWorkspaceDeleteRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminWorkspaceListRoute({ errors, app, deps });
+      registerAdminWorkspaceCreateRoute({ errors, app, deps });
+      registerAdminWorkspaceGetRoute({ errors, app, deps });
+      registerAdminWorkspaceUpdateRoute({ errors, app, deps });
+      registerAdminWorkspaceDeleteRoute({ errors, app, deps });
     },
   };
 }

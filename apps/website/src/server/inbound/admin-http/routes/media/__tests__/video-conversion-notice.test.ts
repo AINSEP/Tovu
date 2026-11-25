@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -22,6 +23,7 @@ const CONVERTED_MP4 = new Uint8Array([0, 0, 0, 24, ...Buffer.from("ftypmp42"), 0
 const CANARY = "CANARY-91c /srv/provider/ffmpeg: license server said no";
 
 async function mounted(t: TestContext, transcode: MediaTranscoderPort["transcode"]) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const mediaImportHttpClient: HttpClientPort = { async send() {
     return { status: 200, headers: { "content-type": "video/mp4" }, bodyText: "", bodyBytes: MP4_VIDEO };
@@ -32,8 +34,8 @@ async function mounted(t: TestContext, transcode: MediaTranscoderPort["transcode
   const app = express();
   app.use(express.json({ limit: "5mb" }));
   app.use((_req, res, next) => { res.locals.principal = { id: "notice-owner" }; next(); });
-  registerAdminMediaUploadRoute({ app, deps }, { videoImport });
-  registerAdminMediaImportUrlRoute({ app, deps }, { videoImport, logEgressRefusal: () => {} });
+  registerAdminMediaUploadRoute({ errors: routeErrors, app, deps }, { videoImport });
+  registerAdminMediaImportUrlRoute({ errors: routeErrors, app, deps }, { videoImport, logEgressRefusal: () => {} });
   const origin = await startTestServer(app, t);
   const post = async (path: string, body: unknown) => {
     const response = await fetch(`${origin}/api/admin/v1/workspaces/${base.workspaceId}/media${path}`, {

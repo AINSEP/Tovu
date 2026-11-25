@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
@@ -10,6 +11,7 @@ import { createCapturingResponse, extractRouteHandler, startTestServer } from "#
 const ROOT = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 const STATE: LocalSiteState = { name: "alpha", status: "stopped", pid: null, port: null, daemonPort: null, adminUrl: null };
 async function fixture({ t }: { t: TestContext }, { overrides = {}, principal = true }: { overrides?: Partial<LocalSitesRouteDeps>; principal?: boolean } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: unknown[] = [];
   const supervisor: LocalSiteSupervisorPort = {
     async start(input) { calls.push(["start", input]); return STATE; },
@@ -27,7 +29,7 @@ async function fixture({ t }: { t: TestContext }, { overrides = {}, principal = 
   };
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { if (principal) res.locals.principal = { id: "operator" }; next(); });
-  registerLocalSitesRoutes({ app, deps });
+  registerLocalSitesRoutes({ errors: routeErrors, app, deps });
   const origin = await startTestServer(app, t);
   return { app, calls, async request({ suffix = "/alpha/start", body = {}, workspaceId = "ws" } = {}, _options = {}) {
     const response = await fetch(`${origin}/api/admin/v1/workspaces/${workspaceId}/system/sites${suffix}`, {

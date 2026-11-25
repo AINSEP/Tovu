@@ -1,4 +1,5 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -17,10 +18,11 @@ const WS = "ws-b07";
 const ROOT = "/api/admin/v1/workspaces/:workspaceId";
 const allow = async () => ({ allowed: true, reason: "granted" });
 
-async function invoke(register: (required: { app: express.Express; deps: never }, options?: Record<string, never>) => void, deps: object, path: string,
+async function invoke(register: (required: { errors: RouteErrorPorts; app: express.Express; deps: never }, options?: Record<string, never>) => void, deps: object, path: string,
   params: Record<string, string> = {}, query: object = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  register({ app, deps: deps as never });
+  register({ errors: routeErrors, app, deps: deps as never });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "reader-b07" };
   await extractRouteHandler(app, "get", path)({ params: { workspaceId: WS, ...params }, query }, res);
@@ -201,7 +203,7 @@ test("policy and role lists preserve picker metadata and scope repository reads 
     [registerAdminRoleListRoute, "roles", "roleRepo", roles, { roles }],
   ] as const) {
     const reads: unknown[] = [];
-    const capture = await invoke(({ app, deps }, _options = {}) => register({ app, deps }), { workspaceId: WS, authorize: allow, [repoName]: { async list(input: unknown) {
+    const capture = await invoke(({ app, deps }, _options = {}) => register({ errors: createRouteIncidentReporter().errors, app, deps }), { workspaceId: WS, authorize: allow, [repoName]: { async list(input: unknown) {
       reads.push(input);
       return rows.map((row) => ({ ...row, privateStorageField: "hidden" }));
     } } }, `${ROOT}/${suffix}`);
@@ -218,11 +220,11 @@ test("policy permission listing refuses an absent parent and conceals repository
     policyRepo: { async findById(input: unknown) { reads.push(input); return null; } },
     policyPermissionRepo: { async listByPolicyId() { permissionReads++; return []; } },
   };
-  const missing = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ app, deps }), deps, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
+  const missing = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ errors: createRouteIncidentReporter().errors, app, deps }), deps, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
   assert.deepEqual(reads, [{ workspaceId: WS, id: "absent-b07" }]);
   assert.equal(permissionReads, 0);
   assert.deepEqual(missing, { statusCode: 404, jsonBody: { error: "policy 'absent-b07' was not found", code: "RESOURCE_NOT_FOUND" } });
-  const failed = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ app, deps }), { ...deps, policyRepo: { async findById() {
+  const failed = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ errors: createRouteIncidentReporter().errors, app, deps }), { ...deps, policyRepo: { async findById() {
     throw new Error("private connection string");
   } } }, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
   // Shared admin failure envelope: a correlatable id, never the repository's cause.

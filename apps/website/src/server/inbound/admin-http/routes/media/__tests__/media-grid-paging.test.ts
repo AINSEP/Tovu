@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import '../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -21,7 +22,7 @@ function gridApp(t: TestContext): { app: Express; repo: SqlMediaRepo; blobs: Sql
   const repo = new SqlMediaRepo(kernel);
   const blobs = new SqlAssetBlobRepo(kernel);
   const types = new SqlMediaContentTypeStore(kernel);
-  const { app } = fixture(({ app: target, deps }) => registerAdminMediaGridRoute({ app: target, deps }), { mediaRepo: repo, assetBlobRepo: blobs, mediaContentTypeStore: types });
+  const { app } = fixture(({ app: target, deps }) => registerAdminMediaGridRoute({ errors: createRouteIncidentReporter().errors, app: target, deps }), { mediaRepo: repo, assetBlobRepo: blobs, mediaContentTypeStore: types });
   return { app, repo, blobs, types };
 }
 

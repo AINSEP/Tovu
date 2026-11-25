@@ -111,7 +111,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminRecoveryRestoreRoutes({ app, deps });
+  registerAdminRecoveryRestoreRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

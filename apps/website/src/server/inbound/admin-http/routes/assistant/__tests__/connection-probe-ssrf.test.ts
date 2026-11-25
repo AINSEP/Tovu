@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -52,6 +53,7 @@ async function probe(
   registrar: (typeof registrars)[number], baseUrl: string, options: Partial<AssistantExecutionRouteDeps> = {},
   request?: { body: unknown; expectedStatus: number },
 ) {
+  const routeErrors = createRouteIncidentReporter().errors;
   // Only the members the handler actually reads are modelled; the registrar's `app` stub captures it
   // under this narrow signature so no partial Request/Response needs a cast.
   type ProbeHandler = (
@@ -60,7 +62,7 @@ async function probe(
     next: (error?: unknown) => void,
   ) => unknown;
   let handler: ProbeHandler | undefined;
-  registrar({ app: { post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, deps: { ...deps, ...options } });
+  registrar({ errors: routeErrors, app: { post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, deps: { ...deps, ...options } });
   let status = 200;
   let body: { ok?: boolean; message?: string; models?: string[]; error?: string; code?: string } | undefined;
   const response = {
@@ -235,7 +237,7 @@ for (const [label, registrar] of [
     type GuardHandler = (req: { params: Record<string, never>; body: unknown }, res: unknown) => unknown;
     let handler: GuardHandler | undefined;
     const authorizations: unknown[] = [];
-    registrar({ app: { post: (_path: string, registered: GuardHandler) => { handler = registered; } } as unknown as Express, deps: {
+    registrar({ errors: createRouteIncidentReporter().errors, app: { post: (_path: string, registered: GuardHandler) => { handler = registered; } } as unknown as Express, deps: {
       ...deps,
       authorize: async (params) => { authorizations.push(params); return { allowed: true, reason: "allowed" }; },
     } });

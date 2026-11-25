@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -14,6 +15,7 @@ import { registerAdminMenuAssignLocationRoute } from "#src/server/runtime/compos
  * wired in first.
  */
 test("assign-location: a trashed menu is refused with 409 ENTITY_IN_TRASH", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const menuRepo = {
     findById: async () => ({ id: "m1", workspaceId: "ws-1", status: "trash", version: 2, title: "Nav", slug: "nav", locations: [] }),
     save: async (row: unknown) => row,
@@ -37,7 +39,7 @@ test("assign-location: a trashed menu is refused with 409 ENTITY_IN_TRASH", asyn
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminMenuAssignLocationRoute({ app, deps });
+  registerAdminMenuAssignLocationRoute({ errors: routeErrors, app, deps });
 
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/menus/m1/locations`, {

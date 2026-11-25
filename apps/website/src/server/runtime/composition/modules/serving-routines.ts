@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { randomUUID } from "node:crypto";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -71,6 +72,7 @@ export function ownerAccessFor(routeDeps: ServingRoutineDeps): RoutineAccess {
 const parentChannel = (): RoutineWakeChannel | undefined => (typeof process.send === "function" ? (process as unknown as RoutineWakeChannel) : undefined);
 
 export interface ServingRoutinesRequired {
+  errors: RouteErrorPorts;
   routeDeps: ServingRoutineDeps;
   /** The slot `mountAssistantRoutines` placed among the admin routes; behind `/api/admin`'s session gate. */
   router: Router;
@@ -136,7 +138,7 @@ export function startServingRoutines(required: ServingRoutinesRequired, optional
   // Registered first: a request that lands while the sidecar opens waits for the routes, not a 404.
   router.use(ROUTINE_ROUTE_BASE, (_req, _res, next) => { void settled.then(() => next()); });
   const mountAdminRoute: MountRoutineAdminRoute = ({ spec, deps }, { sessionCredentialOnly }) =>
-    mountAdminJsonRoute({ app: router as unknown as Express, spec: spec as never, deps: { ...deps, authorize: routeDeps.authorize } }, { sessionCredentialOnly });
+    mountAdminJsonRoute({ errors: required.errors, app: router as unknown as Express, spec: spec as never, deps: { ...deps, authorize: routeDeps.authorize } }, { sessionCredentialOnly });
   const ready = composeAssistantRoutines({
     launch: { desktopEligible }, workspaceId: routeDeps.workspaceId, contentDbPath: hooks?.dbPath ?? "", openSqlite: openNativeSqlite,
     beforeStoreClose: hooks?.beforeStoreClose ?? (() => {}), onStoreClose: hooks?.onStoreClose ?? (() => {}),

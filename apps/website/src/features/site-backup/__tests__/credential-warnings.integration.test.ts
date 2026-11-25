@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -78,6 +79,7 @@ async function prepareWarnedShareFixture({ t }: { t: TestContext }) {
 }
 
 test("export keeps database values and complete plugin packages; download requires a durable acknowledgement", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { directory, plan } = await prepareWarnedShareFixture({ t });
   const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => undefined });
@@ -96,7 +98,7 @@ test("export keeps database values and complete plugin packages; download requir
   let allowed = false;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "fixture" }), siteShareBackend: backend } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "fixture" }), siteShareBackend: backend } as unknown as RouteDeps });
   const root = `/api/admin/v1/workspaces/ws/site-shares/${created.shareId}`;
   assert.equal((await dispatchJsonRequest(app, "POST", root + "/acknowledge", {})).status, 403);
   assert.equal((await registry.get({ shareId: created.shareId }))?.needsAcknowledgement, true);

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
@@ -182,13 +183,14 @@ test("plugin_installed on an install (never a preview), with the plugin id", asy
 });
 
 test("staging a backup that needs an owner emits no site_imported event before the site commits", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { port, events } = recording();
   const view = { importId: "00000000-0000-4000-8000-000000000001", source: { url: `https://share.example/site.zip?token=${secret}` }, newSiteId: null, newSiteName: null, state: "needs-owner" as const, status: "needs-owner" as const, createdAt: "2026-10-25", instructions: "Choose an owner password" };
   const backend = { importBackup: async () => view } as unknown as SiteImportBackend;
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend, tracker: createTracker({ productAnalytics: port }) } });
+  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend, tracker: createTracker({ productAnalytics: port }) } });
   const origin = await startTestServer(app, t);
   const response = await fetch(`${origin}/api/admin/v1/workspaces/ws/site-imports`, { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(view.source) });
   assert.equal(response.status, 200, await response.clone().text());

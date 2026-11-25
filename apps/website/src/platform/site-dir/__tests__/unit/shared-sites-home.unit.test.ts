@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { isolatedCatalogHome } from "../helpers/isolated-catalog-home.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -75,7 +76,7 @@ test("home settings enforce workspace/capability/permission boundaries before fi
     let enabled = false, allowed = false, checks = 0;
     let handler: import("express").RequestHandler | undefined;
     const app = { post() {}, get() {}, put(_url: string, callback: import("express").RequestHandler) { handler = callback; } } as unknown as import("express").Express;
-    registerSitesHomeRoutes({ app, workspace, deps: { workspaceId: "workspace", isSiteSwitcherEnabled: () => enabled,
+    registerSitesHomeRoutes({ errors: createRouteIncidentReporter().errors, app, workspace, deps: { workspaceId: "workspace", isSiteSwitcherEnabled: () => enabled,
       authorize: async ({ permission }) => { checks++; assert.equal(permission, "system.write"); return { allowed, reason: "policy" }; },
     } });
     const selected = path.join(root, "chosen");

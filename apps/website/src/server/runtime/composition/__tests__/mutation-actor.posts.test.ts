@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -21,6 +22,7 @@ async function sendJson(required: { url: string; cookie: string; method: "POST" 
 }
 
 test("an admin post update records kind user on its outbox event", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   // The admin routes drain the outbox after each write, so the events are read as they are enqueued.
   const events: Array<Parameters<typeof deps.outbox.enqueue>[0]> = [];
@@ -28,10 +30,10 @@ test("an admin post update records kind user on its outbox event", async t => {
   deps.outbox.enqueue = async (event, ...rest) => { events.push(event); return enqueue(event, ...rest); };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ errors: routeErrors, app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminPostCreateRoute({ app, deps });
-  registerAdminPostUpdateRoute({ app, deps });
+  registerAdminPostCreateRoute({ errors: routeErrors, app, deps });
+  registerAdminPostUpdateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const api = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/posts`;
 

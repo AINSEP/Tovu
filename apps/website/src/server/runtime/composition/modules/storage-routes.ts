@@ -1,7 +1,8 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import path from "node:path";
 import type { Express } from "express";
 
-import type { JsonRouteSpec, RouteHostContext } from "@jini-ai/core/contracts/server";
+import type { JsonRouteSpec, OriginContext } from "@jini-ai/core/contracts/server";
 import { ok } from "@jini-ai/core/contracts/server";
 import { ToolInputError } from "@jini-ai/core";
 import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
@@ -43,7 +44,7 @@ export interface MountStorageRoutesRequired {
   /** Absent outside the process that owns the served site (exporter, attached serve, daemon). */
   storage: SiteStoragePort | undefined;
   authorizeOwner: StorageOwnerCheck;
-  adminPorts: { mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: RouteHostContext };
+  adminPorts: { errors: RouteErrorPorts; mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: OriginContext };
 }
 
 /** Everything the owner keeps by hand; no request may name one of these for cleanup. */
@@ -187,12 +188,12 @@ export function mountStorageRoutes({ app, storage, authorizeOwner, adminPorts }:
   const specs = createStorageRoutes({ paths: STORAGE_ROUTE_PATHS }, {});
   const deps = { ...adminPorts.deps, ...storageDeps({ storage }) };
   const options: AdminJsonRouteMountOptions = { sessionCredentialOnly: { message: "Use the site owner's own sign-in to manage storage.", permission: "storage.manage" } };
-  adminPorts.mount({ app, spec: ownerOnly({ spec: specs.report, authorizeOwner, bind: ({ deps: bound }) => bound }), deps, origin: adminPorts.origin }, options);
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: ownerOnly({ spec: specs.report, authorizeOwner, bind: ({ deps: bound }) => bound }), deps, origin: adminPorts.origin }, options);
   const cleanup = { ...specs.cleanup, parse: (raw: Parameters<typeof specs.cleanup.parse>[0]) => specs.cleanup.parse({ ...raw, body: parseCleanupBody({ body: raw.body }) }) };
   // Every live pass goes through the gate with this request's owner and grant; the spec's own runOnce is never the unbound one.
   const bind = ({ principalId, input, deps: bound }: { principalId: string; input: CleanupInput | { dryRun?: boolean }; deps: typeof deps }) =>
     ({ ...bound, runOnce: gatedRunOnce({ gate: bound.cleanup, principalId, previewToken: (input as CleanupInput).previewToken }) });
-  adminPorts.mount({ app, spec: ownerOnly({ spec: cleanup, authorizeOwner, bind }), deps, origin: adminPorts.origin }, options);
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: ownerOnly({ spec: cleanup, authorizeOwner, bind }), deps, origin: adminPorts.origin }, options);
 }
 
 /**

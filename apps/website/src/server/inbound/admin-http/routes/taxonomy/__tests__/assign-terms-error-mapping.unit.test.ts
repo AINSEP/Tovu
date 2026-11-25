@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,9 +15,10 @@ import { registerAdminTaxonomyAssignedTermsRoute } from "#src/server/runtime/com
  * route with a hand-written `authorize` port that fails the way the validation chain or a broken
  * driver would. No database, no listener.
  */
-async function readAssigned(authorize: () => Promise<never>) {
+async function readAssigned(authorize: () => Promise<never>, { recorded = recordingComposedReporter() } = {}) {
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const app = express();
-  registerAdminTaxonomyAssignedTermsRoute({ app, deps: portFake<TaxonomyRouteDeps>({ workspaceId: "ws-1", authorize }) });
+  registerAdminTaxonomyAssignedTermsRoute({ errors: routeErrors, app, deps: portFake<TaxonomyRouteDeps>({ workspaceId: "ws-1", authorize }) });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-1" };
   await extractRouteHandler(app, "get", "/api/admin/v1/taxonomy/assigned-terms")({ params: {}, query: { contentType: "post", contentId: "p1" } }, res);
@@ -41,12 +44,12 @@ test("assigned-terms maps Error and non-Error failures to private correlated 500
 });
 
 test("unexpected assigned-term failure logs one redacted incident matching the reply", async t => {
-  const logs = t.mock.method(console, "error", () => {});
-  const capture = await readAssigned(async () => { throw new Error("assignment context password=ASSIGN_CANARY"); });
+  const recorded = recordingComposedReporter();
+  const capture = await readAssigned(async () => { throw new Error("assignment context password=ASSIGN_CANARY"); }, { recorded });
   const body = capture.jsonBody as { code: string; errorId: string };
   assert.equal(capture.statusCode, 500);
   assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(logs.mock.calls.length, 1);
-  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
-  assert.doesNotMatch(JSON.stringify(capture) + JSON.stringify(logs.mock.calls), /ASSIGN_CANARY/);
+  assert.equal(recorded.records.length, 1);
+  assert.ok(JSON.stringify(recorded.records).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(capture) + JSON.stringify(recorded.records), /ASSIGN_CANARY/);
 });

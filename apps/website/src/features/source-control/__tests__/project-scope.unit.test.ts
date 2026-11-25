@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
@@ -181,7 +182,7 @@ test('a Source control-page save is visible after reload on this site only; site
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
   const app = express();
-  registerAdminSourceControlCredentialsRoutes({ app, deps: {
+  registerAdminSourceControlCredentialsRoutes({ errors: createRouteIncidentReporter().errors, app, deps: {
     customCredentialsHttpClient: noNetwork,
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.clock, idGen: a.idGen,
     sourceControlCredentialSetRepo: a.repo, siteAssistantSecretSealer: a.sealer, siteAssistantSecretKeyring: a.keyring,

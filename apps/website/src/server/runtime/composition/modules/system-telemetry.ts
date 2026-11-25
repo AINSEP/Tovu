@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { browserTelemetryRoute } from "@jini-ai/cms/admin-http/routes/system/browser-telemetry";
@@ -26,8 +27,8 @@ export function createBrowserTelemetryLimiter(deps: Pick<RouteDeps, "clock">): R
  * permission, so the port fields are inert: the authorizer fails closed should a later edit call it.
  * @complexity O(1) setup.
  */
-export function registerAdminBrowserTelemetryRoute({ app, deps }: { app: Express; deps: AdminBrowserTelemetryDeps }, { limiter = createBrowserTelemetryLimiter(deps) }: { limiter?: RateLimiter } = {}): void {
-  mountAdminJsonRoute({
+export function registerAdminBrowserTelemetryRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminBrowserTelemetryDeps }, { limiter = createBrowserTelemetryLimiter(deps) }: { limiter?: RateLimiter } = {}): void {
+  mountAdminJsonRoute({ errors,
     app,
     spec: { ...browserTelemetryRoute, readHeaders: ["content-length"] },
     deps: {

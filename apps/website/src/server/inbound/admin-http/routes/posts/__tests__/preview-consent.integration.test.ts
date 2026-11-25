@@ -20,6 +20,7 @@ const video = "https://www.youtube.com/embed/dQw4w9WgXcQ";
 const note = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
 
 test("authenticated preview leaves authored HTML intact; public flags cannot disable managed declared-script loading", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const consent = consentFixture({ t });
   const saved = await consent.service.saveDraft({ principalId: "owner", config: consent.config, expectedDraftId: null });
   await consent.service.publish({ principalId: "owner", draftId: saved.revision.id, expectedPublishedId: null });
@@ -43,7 +44,7 @@ test("authenticated preview leaves authored HTML intact; public flags cannot dis
   }) };
   applySiteCookieConsent({ app, deps, consent: deps.cookieConsent });
   await deps.cookieConsent.refresh?.();
-  registerAdminPostTemplatePreviewRoute({ app, deps });
+  registerAdminPostTemplatePreviewRoute({ errors: routeErrors, app, deps });
   registerSiteRoutes({ app, deps });
   const previewPath = `/api/admin/v1/workspaces/w/posts/${post.id}/template-preview?templateChoice=`;
 

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { credentialCopyGrantRoute, credentialCopyListRoute, type CredentialCopyRouteDeps } from "@jini-ai/cms/admin-http/routes/system/credential-copy";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -28,7 +29,7 @@ const CREDENTIAL_COPY_MOUNT: AdminJsonRouteMountOptions = {
 
 /** Owner-only browser picker; one approval submits one reference to this server-bound site.
  * @complexity O(1) per request besides the injected collaborators. */
-export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express; deps: Deps }, _optional: Record<string, never> = {}): void {
+export function registerAdminCredentialCopyRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: Deps }, _optional: Record<string, never> = {}): void {
   // Every field is read per request, as the hand-written route read `deps` (tests and boot swap them).
   const routeDeps: CredentialCopyRouteDeps & Pick<RouteDeps, "workspaceId" | "authorize"> = {
     workspaceId: deps.workspaceId,
@@ -42,6 +43,6 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
     isLocalRequest: ({ context }) => adminRequestFactsFor({ context: context as OperatorPrincipalRecord }).localAdmin,
   };
   const responseHeaders = { "Cache-Control": "no-store" };
-  mountAdminJsonRoute({ app, spec: { ...credentialCopyListRoute, responseHeaders }, deps: routeDeps }, CREDENTIAL_COPY_MOUNT);
-  mountAdminJsonRoute({ app, spec: { ...credentialCopyGrantRoute, responseHeaders }, deps: routeDeps }, CREDENTIAL_COPY_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: { ...credentialCopyListRoute, responseHeaders }, deps: routeDeps }, CREDENTIAL_COPY_MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: { ...credentialCopyGrantRoute, responseHeaders }, deps: routeDeps }, CREDENTIAL_COPY_MOUNT);
 }

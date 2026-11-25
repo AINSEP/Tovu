@@ -89,13 +89,14 @@ test("site_publish_started when an owner starts a publish run", async (t) => {
 });
 
 test("plugin_toggled identifies the plugin family and direction without settings", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { port, events } = recording();
   const baseDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerPluginSetEnabledRoute({ app, deps: {
+  registerPluginSetEnabledRoute({ errors: routeErrors, app, deps: {
     notifyRosterChanged: baseDeps.notifyRosterChanged,
     workspaceId: baseDeps.workspaceId, authorize: baseDeps.authorize, clock: baseDeps.clock, idGen: baseDeps.idGen,
     changeSets: baseDeps.changeSets, outbox: baseDeps.outbox, pluginActivationRepo: new InMemoryPluginActivationRepo(),

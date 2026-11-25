@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -20,6 +21,7 @@ async function boot(
   t: TestContext,
   options: { preview?: Preview; allowed?: boolean; discover?: () => Promise<readonly PluginDiscoveryRecord[]>; activation?: PluginsRouteDeps["pluginActivationRepo"]["getActivation"] } = {}
 ) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: Array<{ pluginId: string; entry: ContentEntryDraft }> = [];
   const authorizations: unknown[] = [];
   const preview: Preview = options.preview ?? (async () => ({ score: 84, report: "{}" }));
@@ -39,7 +41,7 @@ async function boot(
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   app.use(express.json());
-  registerPluginPreviewRoute({ app, deps });
+  registerPluginPreviewRoute({ errors: routeErrors, app, deps });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => server.close());

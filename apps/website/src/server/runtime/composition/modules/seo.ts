@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { createSettingsPrincipalLookup, getEffective, set } from "#src/features/settings/index";
 import type { Express } from "express";
 import { describeRequestFailure } from "@jini-ai/core";
@@ -14,7 +15,7 @@ import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerFeedRoute, registerLlmsTxtRoute, registerSeoRobotsRoute, registerSeoSitemapRoute } from "#src/server/inbound/public-http/routes/site/seo-documents";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — the `seo` server module (SPEC-008 SEO).
@@ -74,7 +75,7 @@ export type SeoRouteDeps = Pick<
   | "siteDisplayName"
 >;
 
-export type SeoRouteRegistrar = (required: { app: Express; deps: SeoRouteDeps }, optional?: Record<string, never>) => void;
+export type SeoRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: SeoRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The two port fields every seo mount passes. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
@@ -95,8 +96,8 @@ function mountOptions(
   return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
-export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: seoGetEntryRoute, deps: { ...seoPortDeps({ deps }), seoDeps: deps.seoDeps } }, mountOptions({ operation: "routes/seo/get-entry", authorization: "direct" }));
+export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: seoGetEntryRoute, deps: { ...seoPortDeps({ deps }), seoDeps: deps.seoDeps } }, mountOptions({ operation: "routes/seo/get-entry", authorization: "direct" }));
 };
 
 // The hand-written put-entry answered its 500 with `adminFailureResponse` and the operation alone,
@@ -112,27 +113,27 @@ const PUT_ENTRY_FAILURE = {
 
 /** The entry write: the chokepoint's own authorizer is the RBAC `deps.authorize` (read per call), never
  *  the publish-credential override the mount port applies — exactly what the hand-written route passed. */
-export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const putDeps = {
     ...seoPortDeps({ deps }), seoDeps: deps.seoDeps, clock: deps.clock,
     outwardErrorMessage: ({ error }: { error: Error }) => error.message,
     entryAuthorize: (params: Parameters<SeoRouteDeps["authorize"]>[0]) => deps.authorize(params),
     invalidateSitemapCache: (input: { workspaceId: string }) => deps.sitemapService.invalidateSitemapCache(input),
   };
-  mountAdminJsonRoute({ app, spec: seoPutEntryRoute, deps: putDeps }, { authorization: "guarded", failure: PUT_ENTRY_FAILURE });
+  mountAdminJsonRoute({ errors, app, spec: seoPutEntryRoute, deps: putDeps }, { authorization: "guarded", failure: PUT_ENTRY_FAILURE });
 };
 
-export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: seoGetEntryAnalyzeRoute, deps: { ...seoPortDeps({ deps }), seoDeps: deps.seoDeps } }, mountOptions({ operation: "routes/seo/get-entry-analyze", authorization: "direct" }));
+export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: seoGetEntryAnalyzeRoute, deps: { ...seoPortDeps({ deps }), seoDeps: deps.seoDeps } }, mountOptions({ operation: "routes/seo/get-entry-analyze", authorization: "direct" }));
 };
 
 /** The `seo.*` settings ledger mapping is host-local (`features/seo/settings.ts`), bound here. */
-export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const readSeoSettings = (input: { workspaceId: string }) => getSeoSettings({ ...seoSettingsHostBindings, settingsRepo: deps.settingsRepo }, input);
-  mountAdminJsonRoute({ app, spec: seoGetSettingsRoute, deps: { ...seoPortDeps({ deps }), readSeoSettings } }, mountOptions({ operation: "routes/seo/get-settings", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: seoGetSettingsRoute, deps: { ...seoPortDeps({ deps }), readSeoSettings } }, mountOptions({ operation: "routes/seo/get-settings", authorization: "direct" }));
 };
 
-export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const writeSeoSettings = (input: { workspaceId: string; patch: unknown; callerPrincipalId: string }) => setSeoSettings(
     {
       ...seoSettingsHostBindings, settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo,
@@ -140,26 +141,26 @@ export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = ({ app, deps 
     },
     { workspaceId: input.workspaceId, patch: input.patch as SeoSettingsPatch, callerPrincipalId: input.callerPrincipalId },
   );
-  mountAdminJsonRoute({ app, spec: seoPutSettingsRoute, deps: { ...seoPortDeps({ deps }), writeSeoSettings } }, mountOptions({ operation: "routes/seo/put-settings", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: seoPutSettingsRoute, deps: { ...seoPortDeps({ deps }), writeSeoSettings } }, mountOptions({ operation: "routes/seo/put-settings", authorization: "direct" }));
 };
 
-export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: seoPostSitemapRegenerateRoute, deps: { ...seoPortDeps({ deps }), sitemapService: deps.sitemapService } },
+    { errors, app, spec: seoPostSitemapRegenerateRoute, deps: { ...seoPortDeps({ deps }), sitemapService: deps.sitemapService } },
     mountOptions({ operation: "routes/seo/post-sitemap-regenerate", authorization: "direct" }),
   );
 };
 
-export function createSeoModule(deps: SeoRouteDeps): ServerModuleHandle {
+export function createSeoModule(deps: SeoRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "seo",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminSeoGetEntryRoute({ app, deps });
-      registerAdminSeoPutEntryRoute({ app, deps });
-      registerAdminSeoGetEntryAnalyzeRoute({ app, deps });
-      registerAdminSeoGetSettingsRoute({ app, deps });
-      registerAdminSeoPutSettingsRoute({ app, deps });
-      registerAdminSeoPostSitemapRegenerateRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminSeoGetEntryRoute({ errors, app, deps });
+      registerAdminSeoPutEntryRoute({ errors, app, deps });
+      registerAdminSeoGetEntryAnalyzeRoute({ errors, app, deps });
+      registerAdminSeoGetSettingsRoute({ errors, app, deps });
+      registerAdminSeoPutSettingsRoute({ errors, app, deps });
+      registerAdminSeoPostSitemapRegenerateRoute({ errors, app, deps });
       registerSeoSitemapRoute({ app, deps });
       registerSeoRobotsRoute({ app, deps });
       registerLlmsTxtRoute({ app, deps });

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -42,10 +43,11 @@ const allowAll: RateLimiter = { check: async () => ({ allowed: true, retryAfterS
 async function post(body: unknown, options: {
   warn?: (message: string) => void; deps?: Partial<ReturnType<typeof fakePorts>>; limiter?: RateLimiter; kind?: string; contentLength?: number; principalId?: string;
 } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   let handler!: (req: Request, res: Response) => Promise<void>;
   let path = '';
   const ports = { ...fakePorts(), ...options.deps };
-  registerAdminBrowserTelemetryRoute({ app: { post: (p: string, cb: typeof handler) => { path = p; handler = cb; } } as unknown as Express, deps: {
+  registerAdminBrowserTelemetryRoute({ errors: routeErrors, app: { post: (p: string, cb: typeof handler) => { path = p; handler = cb; } } as unknown as Express, deps: {
     clock: { nowMs: () => 0, nowIso: () => new Date(0).toISOString() }, tracker: createTracker({ observability: ports.observability, productAnalytics: ports.productAnalytics }, { warn: options.warn }),
   } }, { limiter: options.limiter ?? allowAll });
   let status = 200, json: unknown;

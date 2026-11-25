@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -45,6 +46,7 @@ function heldFederationSurface({ federation }: { federation: Promise<void> }) {
 
 for (const held of ["federation", "credential"] as const) {
   test(held === "federation" ? "closing during federation starts no paid BYOK turn" : "closing during the stored credential wait starts no paid BYOK turn", { timeout: 15_000 }, async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
     const gate = deferred();
     const reached = deferred();
     const serverClosed = deferred();
@@ -61,7 +63,7 @@ for (const held of ["federation", "credential"] as const) {
     const headWrites: number[] = [];
     const app = express();
     app.use(express.json());
-    registerAuthRoutes({ app, deps });
+    registerAuthRoutes({ errors: routeErrors, app, deps });
     app.use(BYOK_TURN_PATH, (_req, res, next) => {
       const writeHead = res.writeHead.bind(res) as (...args: unknown[]) => typeof res;
       (res as unknown as { writeHead: (...args: unknown[]) => typeof res }).writeHead = (...args: unknown[]) => { headWrites.push(Number(args[0])); return writeHead(...args); };

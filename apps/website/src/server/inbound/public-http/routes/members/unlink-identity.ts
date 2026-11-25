@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express, RequestHandler } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { memberUnlinkIdentityRoute } from "@jini-ai/cms/public-http/routes/members/unlink-identity";
@@ -90,9 +91,9 @@ function memberOidcPostApp({ app, deps }: { app: Express; deps: MemberPublicRout
 /** `POST …/identities/:providerId/unlink`: mounts the Jini spec. The strict counters are read per request, as
  * the hand-written route did (tests swap the limiter instances on `deps` after registration). O(1) setup.
  */
-export function registerMemberUnlinkIdentityRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
+export function registerMemberUnlinkIdentityRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
   // A raw mount: the reissued member cookie is appended after any cookie an earlier handler set, as `res.append` did.
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors,
     app: memberOidcPostApp({ app, deps: deps.members }),
     spec: memberUnlinkIdentityRoute,
     deps: {

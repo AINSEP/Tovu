@@ -30,12 +30,12 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminContentTypeRegisterRoute({ app, deps });
-  registerAdminContentTypeLifecycleRoute({ app, deps });
-  registerAdminEntryListRoute({ app, deps });
-  registerAdminEntryCreateRoute({ app, deps });
-  registerAdminEntryUpdateRoute({ app, deps });
-  registerAdminEntryLifecycleRoute({ app, deps });
+  registerAdminContentTypeRegisterRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminContentTypeLifecycleRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminEntryListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminEntryCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminEntryUpdateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminEntryLifecycleRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

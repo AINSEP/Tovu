@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,6 +16,8 @@ const BASE = "/api/admin/v1/workspaces/ws/system/sites";
 const KEY = "sk-" + "a".repeat(40);
 
 function fixture(t: TestContext, { failWrite = false, env = {} }: { failWrite?: boolean; env?: NodeJS.ProcessEnv } = {}) {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sites-home-errors-")));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const ports = createNodeDurableJsonPorts({});
@@ -26,8 +30,8 @@ function fixture(t: TestContext, { failWrite = false, env = {} }: { failWrite?: 
     res.locals.principal = { id: "owner" };
     res.locals.adminFailureTracker = { error: ({ error }: { error: Error }) => { reports.push(error); } }; next();
   });
-  registerSitesHomeRoutes({ app, workspace, deps: { workspaceId: "ws", isSiteSwitcherEnabled: () => true, authorize: async () => ({ allowed: true, reason: "owner" }) } });
-  return { app, workspace, root, logs, reports };
+  registerSitesHomeRoutes({ errors: routeErrors, app, workspace, deps: { workspaceId: "ws", isSiteSwitcherEnabled: () => true, authorize: async () => ({ allowed: true, reason: "owner" }) } });
+  return { app, workspace, root, logs: recorded.records, reports: recorded.reports };
 }
 
 test("sites config validation refusals retain their safe 400 messages without logging incidents", async (t) => {
@@ -67,7 +71,7 @@ for (const fault of ["write", "stat"] as const) {
     assert.ok(JSON.stringify(f.logs).includes(body.errorId));
     assert.equal(JSON.stringify(f.logs).includes(KEY), false);
     assert.match(JSON.stringify(f.logs), /REDACTED/);
-    assert.equal(f.reports[0].message.includes(KEY), false);
+    assert.equal(f.reports[0]![0].error.message.includes(KEY), false);
     assert.equal(fs.existsSync(f.workspace.config({}).configPath), false);
   });
 }

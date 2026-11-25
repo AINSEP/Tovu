@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -25,9 +26,9 @@ async function fixture() {
     principalRepo: { findById: async () => null }, authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as Parameters<typeof registerAdminAssistantPermanentDeletesRoutes>[0]["deps"];
   const app = express();
-  registerAdminAssistantPermanentDeletesRoutes({ app, deps });
-  registerAdminSettingsSetRoute({ app, deps }); registerAdminSettingsClearRoute({ app, deps });
-  registerAdminSettingsResetRoute({ app, deps }); registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+  registerAdminAssistantPermanentDeletesRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsSetRoute({ errors: createRouteIncidentReporter().errors, app, deps }); registerAdminSettingsClearRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsResetRoute({ errors: createRouteIncidentReporter().errors, app, deps }); registerAdminSettingsRegisterDefinitionsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const definitions = (await repo.listActiveDefinitions({ workspaceId: null })).filter(def => def.namespace === namespace);
   const policyDefinition = definitions.find(def => def.key === "policy")!;
   const receiptDefinition = definitions.find(def => def.key === "riskAcknowledgment")!;

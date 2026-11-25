@@ -1,3 +1,4 @@
+import { NO_OPERATION_TRACKING } from "#src/platform/express/jini-routes";
 import { createCleanupPreviewStore, createRetentionRunner } from "@jini-ai/platform/retention";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
@@ -146,7 +147,8 @@ export function createServingApp(
     const handle = await (await routinesReady);
     if (handle.bootInterruption.isLeaseOwner()) await handle.bootInterruption.whenInterrupted();
   } };
-  const app = createApp(routeDeps, { assistantRoutineBoot, stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
+  const errors = { reporter: siteFailureReporter({ routeDeps }, {}), observability: NO_OPERATION_TRACKING };
+  const app = createApp(routeDeps, { errorReporter: errors.reporter, assistantRoutineBoot, stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
     ...(siteStorage ? { siteStorage } : {}),
     onShutdown: ({ shutdown }) => { shutdownReleases.push(shutdown); },
     mountAssistantRoutines: ({ app: routed }) => { routed.use(routineRouter); },
@@ -155,8 +157,8 @@ export function createServingApp(
       ready: () => routinesReady.then((ready) => ready), access: ownerAccessFor(routeDeps), workspaceId: routeDeps.workspaceId },
       routeDeps.settingsRepo ? { localeFor: settingsLocaleFor({ settingsRepo: routeDeps.settingsRepo, workspaceId: routeDeps.workspaceId }) } : {}) });
   // `siteFailureReporter` is memoized per routeDeps, so routines record through the reporter `createApp` bound above.
-  const routines = startServingRoutines({ routeDeps, router: routineRouter, desktopEligible: optional.routines?.desktopEligible ?? false,
-    releaseEnabled: optional.routines?.releaseEnabled ?? false, reporter: siteFailureReporter({ routeDeps }) }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : { acceptanceDeps: routeDeps });
+  const routines = startServingRoutines({ routeDeps, errors, router: routineRouter, desktopEligible: optional.routines?.desktopEligible ?? false,
+    releaseEnabled: optional.routines?.releaseEnabled ?? false, reporter: errors.reporter }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : { acceptanceDeps: routeDeps });
   bindRoutines(routines.ready);
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },

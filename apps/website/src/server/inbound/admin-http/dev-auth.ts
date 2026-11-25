@@ -609,12 +609,12 @@ export function registerAuthRoutes({ app, deps, errors }: { app: Express; deps: 
   // gets an isolated counter store rather than sharing process-wide state.
   const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } });
 
-  registerOwnerRecoveryRoutes({ app, deps, limiter: loginRateLimiter,
+  registerOwnerRecoveryRoutes({ errors, app, deps, limiter: loginRateLimiter,
     authenticate: ({ req }) => currentPrincipal({ deps, req }, { localOwnerSignIn }),
     desktopOwnerReset: localOwnerSignIn.enabled && !!localOwnerSignIn.acceptsCapability,
     ...(localOwnerSignIn.acceptsCapability ? { acceptsDesktopCapability: localOwnerSignIn.acceptsCapability } : {}) });
 
-  registerOwnerMfaRoutes({ app, deps, limiter: loginRateLimiter,
+  registerOwnerMfaRoutes({ errors, app, deps, limiter: loginRateLimiter,
     authenticate: ({ req }) => currentCredential({ deps, req }, { localOwnerSignIn }) });
   registerOwnerPasskeyRoutes({ app, deps, limiter: loginRateLimiter,
     authenticate: ({ req }) => currentCredential({ deps, req }, { localOwnerSignIn }),

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -56,8 +57,9 @@ function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {})
 }
 
 async function call(d: AdminMailActivityDeps, path: string, req: Record<string, unknown> = {}, workspaceId = WS, method: "get" | "post" = "get") {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminMailActivityRoutes({ app, deps: d });
+  registerAdminMailActivityRoutes({ errors: routeErrors, app, deps: d });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, method, path)({ query: {}, ...req, params: { workspaceId, ...(req.params as object | undefined) } }, res);

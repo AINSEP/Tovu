@@ -37,8 +37,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMediaUploadRoute({ app, deps });
-  registerAdminMediaTrashRoute({ app, deps });
+  registerAdminMediaUploadRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMediaTrashRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   registerAdminMediaOriginalRoute({ app, deps });
   return { app, deps };
 }

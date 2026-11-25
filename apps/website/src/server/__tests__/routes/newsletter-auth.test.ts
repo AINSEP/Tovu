@@ -42,7 +42,7 @@ function buildTestApp(): { app: express.Express; deps: NewsletterRouteDeps } {
     clock: deps.clock,
     idGen: deps.idGen,
   };
-  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ app });
+  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   return { app, deps };
 }
 

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { contentTypeLifecycleRoute } from "@jini-ai/cms/admin-http/routes/content-types/lifecycle";
@@ -12,7 +13,7 @@ import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { registerContentType, updateContentTypeFields } from "@jini-ai/cms/content-types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — the `content-types` server module (ADR-043
@@ -73,7 +74,7 @@ export type ContentTypesRouteDeps = Pick<
   "workspaceId" | "authorize" | "clock" | "idGen" | "outbox" | "bus" | "contentTypeRepo" | "contentTypeIndexProvisioner" | "entryRepo"
 >;
 
-export type ContentTypesRouteRegistrar = (required: { app: Express; deps: ContentTypesRouteDeps }, optional?: Record<string, never>) => void;
+export type ContentTypesRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: ContentTypesRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The two port fields every mount passes. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a later reassignment of it is still honoured — by the route
@@ -131,25 +132,25 @@ function drainOutboxFor({ deps }: { deps: ContentTypesRouteDeps }, _options: Rec
 /** These routes never consulted the publishing-credential override (`authorizeDirectOrRespond`). */
 const directMountOptions = (operation: string) => ({ authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } });
 
-export const registerAdminContentTypeListRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: contentTypeListRoute, deps: { ...collectionsPortDeps({ deps }), contentTypeRepo: deps.contentTypeRepo } }, directMountOptions("routes/content-types/list"));
+export const registerAdminContentTypeListRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: contentTypeListRoute, deps: { ...collectionsPortDeps({ deps }), contentTypeRepo: deps.contentTypeRepo } }, directMountOptions("routes/content-types/list"));
 };
 
 /** `registerContentType` is the host's registrar (it pins the site's reserved route segments). */
-export const registerAdminContentTypeRegisterRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: contentTypeRegisterRoute, deps: { ...collectionsWriteDeps({ deps }), registerContentType } }, directMountOptions("routes/content-types/register"));
+export const registerAdminContentTypeRegisterRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: contentTypeRegisterRoute, deps: { ...collectionsWriteDeps({ deps }), registerContentType } }, directMountOptions("routes/content-types/register"));
 };
 
-export const registerAdminContentTypeUpdateFieldsRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: contentTypeUpdateFieldsRoute, deps: { ...collectionsWriteDeps({ deps }), updateContentTypeFields } }, directMountOptions("routes/content-types/update-fields"));
+export const registerAdminContentTypeUpdateFieldsRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: contentTypeUpdateFieldsRoute, deps: { ...collectionsWriteDeps({ deps }), updateContentTypeFields } }, directMountOptions("routes/content-types/update-fields"));
 };
 
-export const registerAdminContentTypeLifecycleRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: contentTypeLifecycleRoute, deps: { ...collectionsWriteDeps({ deps }), drainOutbox: drainOutboxFor({ deps }) } }, directMountOptions("routes/content-types/lifecycle"));
+export const registerAdminContentTypeLifecycleRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: contentTypeLifecycleRoute, deps: { ...collectionsWriteDeps({ deps }), drainOutbox: drainOutboxFor({ deps }) } }, directMountOptions("routes/content-types/lifecycle"));
 };
 
-export const registerAdminEntryListRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: entryListRoute, deps: { ...collectionsPortDeps({ deps }), entryRepo: deps.entryRepo } }, directMountOptions("routes/entries/list"));
+export const registerAdminEntryListRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: entryListRoute, deps: { ...collectionsPortDeps({ deps }), entryRepo: deps.entryRepo } }, directMountOptions("routes/entries/list"));
 };
 
 /** The write-route deps every entry write reads (`entriesDeps` plus the outbox drain). */
@@ -158,30 +159,30 @@ function entryWriteDeps({ deps }: { deps: ContentTypesRouteDeps }, _options: Rec
 }
 
 /** Create alone consulted the publishing-credential override (`authorizeOrRespond`), so it stays guarded. */
-export const registerAdminEntryCreateRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: entryCreateRoute, deps: entryWriteDeps({ deps }) }, { failure: { operation: "routes/entries/create", code: "INTERNAL_ERROR" } });
+export const registerAdminEntryCreateRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: entryCreateRoute, deps: entryWriteDeps({ deps }) }, { failure: { operation: "routes/entries/create", code: "INTERNAL_ERROR" } });
 };
 
-export const registerAdminEntryUpdateRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: entryUpdateRoute, deps: entryWriteDeps({ deps }) }, directMountOptions("routes/entries/update"));
+export const registerAdminEntryUpdateRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: entryUpdateRoute, deps: entryWriteDeps({ deps }) }, directMountOptions("routes/entries/update"));
 };
 
-export const registerAdminEntryLifecycleRoute: ContentTypesRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: entryLifecycleRoute, deps: entryWriteDeps({ deps }) }, directMountOptions("routes/entries/lifecycle"));
+export const registerAdminEntryLifecycleRoute: ContentTypesRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: entryLifecycleRoute, deps: entryWriteDeps({ deps }) }, directMountOptions("routes/entries/lifecycle"));
 };
 
-export function createContentTypesModule(deps: ContentTypesRouteDeps): ServerModuleHandle {
+export function createContentTypesModule(deps: ContentTypesRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "content-types",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminContentTypeListRoute({ app, deps });
-      registerAdminContentTypeRegisterRoute({ app, deps });
-      registerAdminContentTypeUpdateFieldsRoute({ app, deps });
-      registerAdminContentTypeLifecycleRoute({ app, deps });
-      registerAdminEntryListRoute({ app, deps });
-      registerAdminEntryCreateRoute({ app, deps });
-      registerAdminEntryUpdateRoute({ app, deps });
-      registerAdminEntryLifecycleRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminContentTypeListRoute({ errors, app, deps });
+      registerAdminContentTypeRegisterRoute({ errors, app, deps });
+      registerAdminContentTypeUpdateFieldsRoute({ errors, app, deps });
+      registerAdminContentTypeLifecycleRoute({ errors, app, deps });
+      registerAdminEntryListRoute({ errors, app, deps });
+      registerAdminEntryCreateRoute({ errors, app, deps });
+      registerAdminEntryUpdateRoute({ errors, app, deps });
+      registerAdminEntryLifecycleRoute({ errors, app, deps });
     },
   };
 }

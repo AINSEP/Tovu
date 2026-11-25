@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -60,7 +61,7 @@ for (const [name, method] of [["GET", "GET"], ["DELETE", "DELETE"]] as const) {
   test(`custom-root ${name}: an uncaught error reaches next(error) with a redacted 500`, async (t) => {
     const observed: Observed = [];
     const error = boom();
-    const app = appWith((a) => registerAdminFsFilesCustomRootRoutes({ app: a, deps: failingStoreDeps(error) }), observed);
+    const app = appWith((a) => registerAdminFsFilesCustomRootRoutes({ errors: createRouteIncidentReporter().errors, app: a, deps: failingStoreDeps(error) }), observed);
     const res = await fetch(`${await startTestServer(app, t)}${CUSTOM_ROOT}`, { method });
     assert.equal(res.status, 500);
     const text = await res.text();
@@ -73,7 +74,7 @@ for (const [name, method] of [["GET", "GET"], ["DELETE", "DELETE"]] as const) {
   test(`custom-root ${name}: an uncaught error carrying a 4xx status keeps its status`, async (t) => {
     const observed: Observed = [];
     const error = clientError();
-    const app = appWith((a) => registerAdminFsFilesCustomRootRoutes({ app: a, deps: failingStoreDeps(error) }), observed);
+    const app = appWith((a) => registerAdminFsFilesCustomRootRoutes({ errors: createRouteIncidentReporter().errors, app: a, deps: failingStoreDeps(error) }), observed);
     const res = await fetch(`${await startTestServer(app, t)}${CUSTOM_ROOT}`, { method });
     assert.equal(res.status, 422);
     assert.equal(observed[0]?.error, error);
@@ -95,7 +96,7 @@ const localHeaders = (baseUrl: string) => ({ origin: new URL(baseUrl).origin });
 test("folder-picker: an uncaught authorize crash reaches next(error), not the generic 500 writer", async (t) => {
   const observed: Observed = [];
   const error = boom();
-  const app = appWith((a) => registerAdminFsFilesFolderPickerRoutes({ app: a, deps: pickerDeps({ authorize: async () => { throw error; } }) }), observed);
+  const app = appWith((a) => registerAdminFsFilesFolderPickerRoutes({ errors: createRouteIncidentReporter().errors, app: a, deps: pickerDeps({ authorize: async () => { throw error; } }) }), observed);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${PICKER}`, { method: "POST", headers: localHeaders(baseUrl) });
   assert.equal(res.status, 500);
@@ -107,7 +108,7 @@ test("folder-picker: an uncaught authorize crash reaches next(error), not the ge
 test("folder-picker: an uncaught 4xx-status error keeps its status", async (t) => {
   const observed: Observed = [];
   const error = clientError();
-  const app = appWith((a) => registerAdminFsFilesFolderPickerRoutes({ app: a, deps: pickerDeps({ authorize: async () => { throw error; } }) }), observed);
+  const app = appWith((a) => registerAdminFsFilesFolderPickerRoutes({ errors: createRouteIncidentReporter().errors, app: a, deps: pickerDeps({ authorize: async () => { throw error; } }) }), observed);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${PICKER}`, { method: "POST", headers: localHeaders(baseUrl) });
   assert.equal(res.status, 422);
@@ -116,10 +117,56 @@ test("folder-picker: an uncaught 4xx-status error keeps its status", async (t) =
 
 test("folder-picker: the chooser's own failure stays the handler-local redacted picker-failed 500 (middleware not reached)", async (t) => {
   const observed: Observed = [];
-  const app = appWith((a) => registerAdminFsFilesFolderPickerRoutes({ app: a, deps: pickerDeps({ pick: async () => { throw boom(); } }) }), observed);
+  const app = appWith((a) => registerAdminFsFilesFolderPickerRoutes({ errors: createRouteIncidentReporter().errors, app: a, deps: pickerDeps({ pick: async () => { throw boom(); } }) }), observed);
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${PICKER}`, { method: "POST", headers: localHeaders(baseUrl) });
   assert.equal(res.status, 500);
   assert.equal((await res.text()).includes("secret"), false);
   assert.equal(observed.length, 0);
+});
+
+
+test("folder-picker forwards the unclaimed error and writes the claimed failure once", async (t) => {
+  const fixture = createRouteIncidentReporter();
+  const error = clientError();
+  const observed: Observed = [];
+  const app = appWith((app) => registerAdminFsFilesFolderPickerRoutes({ app, errors: fixture.errors, deps: pickerDeps({ authorize: async () => { throw error; } }) }), observed);
+  const base = await startTestServer(app, t);
+  const unclaimed = await fetch(`${base}${PICKER}`, { method: "POST", headers: localHeaders(base) });
+  assert.equal(unclaimed.status, 422);
+  assert.equal(observed[0]?.error, error);
+  assert.equal(fixture.entries.length, 0);
+  const claimed = createRouteIncidentReporter();
+  const claimedObserved: Observed = [];
+  const claimedApp = appWith((app) => registerAdminFsFilesFolderPickerRoutes({ app, errors: claimed.errors, deps: pickerDeps({ pick: async () => { throw error; } }) }), claimedObserved);
+  const claimedBase = await startTestServer(claimedApp, t);
+  const response = await fetch(`${claimedBase}${PICKER}`, { method: "POST", headers: localHeaders(claimedBase) });
+  const body = await response.json();
+  assert.equal(response.status, 500);
+  assert.equal(body.reasonCode, "picker-failed");
+  assert.equal(body.errorId, claimed.entries[0]?.meta?.errorId);
+  assert.equal(claimed.entries.length, 1);
+  assert.equal(claimedObserved.length, 0);
+});
+
+test("custom-root keeps distinct GET DELETE and PUT error policies", async (t) => {
+  const fixture = createRouteIncidentReporter();
+  const error = clientError();
+  const observed: Observed = [];
+  const app = appWith((app) => { app.use(express.json()); registerAdminFsFilesCustomRootRoutes({ app, errors: fixture.errors, deps: failingStoreDeps(error) }); }, observed);
+  const base = await startTestServer(app, t);
+  for (const method of ["GET", "DELETE"]) {
+    const response = await fetch(`${base}${CUSTOM_ROOT}`, { method });
+    assert.equal(response.status, 422);
+    await response.body?.cancel();
+    assert.equal(observed.at(-1)?.error, error);
+    assert.equal(fixture.entries.length, 0);
+  }
+  const put = await fetch(`${base}${CUSTOM_ROOT}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: null }) });
+  const body = await put.json();
+  assert.equal(put.status, 500);
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.errorId, fixture.entries[0]?.meta?.errorId);
+  assert.equal(fixture.entries.length, 1);
+  assert.equal(observed.length, 2);
 });

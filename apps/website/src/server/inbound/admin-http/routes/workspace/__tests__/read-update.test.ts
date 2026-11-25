@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,11 +9,12 @@ import { registerAdminWorkspaceGetRoute, registerAdminWorkspaceListRoute, regist
 
 const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z", version: 1 };
 function harness(repo: any) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   const deps = { workspaceId: "ws-7", workspaceRepo: repo, authorize: async () => ({ allowed: true, reason: "matched" }) } as any;
-  registerAdminWorkspaceGetRoute({ app, deps });
-  registerAdminWorkspaceListRoute({ app, deps });
-  registerAdminWorkspaceUpdateRoute({ app, deps });
+  registerAdminWorkspaceGetRoute({ errors: routeErrors, app, deps });
+  registerAdminWorkspaceListRoute({ errors: routeErrors, app, deps });
+  registerAdminWorkspaceUpdateRoute({ errors: routeErrors, app, deps });
   return async (method: "get" | "patch", path: string, body?: unknown) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };

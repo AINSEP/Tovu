@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -34,6 +35,7 @@ type BootOptions = {
 };
 
 async function boot(t: TestContext, options: BootOptions = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const authorizations: Authorization[] = [];
   const lookups: Lookup[] = [];
   let discoveries = 0;
@@ -49,7 +51,7 @@ async function boot(t: TestContext, options: BootOptions = {}) {
   };
   const app = express();
   if (options.principal !== "none") app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerPluginsListRoute({ app, deps });
+  registerPluginsListRoute({ errors: routeErrors, app, deps });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => server.close());

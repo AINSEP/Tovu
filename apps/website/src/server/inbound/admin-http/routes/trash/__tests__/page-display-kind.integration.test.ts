@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -25,6 +26,7 @@ const outbox: OutboxPort = {
 };
 
 function harness(t: { after(fn: () => Promise<void>): void }) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const db = openContentDb(":memory:");
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
   const kernel = contentKernel({ store: db });
@@ -46,7 +48,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     userRepo: { list: async () => [] } as unknown as TrashRouteDeps["userRepo"],
   };
-  registerAdminTrashListRoute({ app, deps });
+  registerAdminTrashListRoute({ errors: routeErrors, app, deps });
   return {
     kernel, postRepo, trashRepo, deps,
     async trashPost(kind: "page" | "post", id = kind) {

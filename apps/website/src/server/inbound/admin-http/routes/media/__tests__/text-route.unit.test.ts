@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -9,7 +10,7 @@ import type { Express } from 'express';
 import { registerAdminMediaTextRoute } from '#src/server/runtime/composition/modules/media';
 import { mediaApp, seedPng } from './media-route-harness.js';
 
-const register = ({ app, deps }: { app: Express; deps: Deps }) => registerAdminMediaTextRoute({ app, deps });
+const register = ({ app, deps }: { app: Express; deps: Deps }) => registerAdminMediaTextRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 const seedDocument = (app: Express) => seedPng(app, { kind: 'document', filename: 'notes.txt', contentType: undefined, dataBase64: Buffer.from('hello world').toString('base64') });
 
 test('media text: every response, even a foreign workspace 404, is private and nosniff', async (t) => {

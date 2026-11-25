@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -23,6 +24,7 @@ interface Scenario {
 }
 
 async function serve(t: test.TestContext, scenario: Scenario = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { actor = "owner", credential = "session", rbac = true, instance = true, keyRbac = true, keyInstance = true, projectKeys = true, useError, listError } = scenario;
   const calls: unknown[] = [];
   const deps = {
@@ -47,7 +49,7 @@ async function serve(t: test.TestContext, scenario: Scenario = {}) {
     res.locals.authCredentialKind = credential;
     next();
   });
-  registerAdminCredentialCopyRoutes({ app, deps });
+  registerAdminCredentialCopyRoutes({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t);
   const request = async ({ method = "GET", workspaceId = "ws", body: sent, headers = {} }: { method?: "GET" | "POST"; workspaceId?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
     const body = method === "GET" ? undefined : sent;

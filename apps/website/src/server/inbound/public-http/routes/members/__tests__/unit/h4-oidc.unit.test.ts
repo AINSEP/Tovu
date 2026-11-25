@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import express, { type Request } from 'express';
@@ -104,7 +105,7 @@ for (const [query, search] of [[{ error: 'access_denied' }, 'error=access_denied
     app.use((req, _res, next) => { parsed = req.query; next(); });
     const members = memberDeps({});
     const deps = portFake<MemberOidcRouteDeps>({ members, protocol: { origin: originFixture() } });
-    registerMemberOidcCallbackRoute({ app, deps });
+    registerMemberOidcCallbackRoute({ errors: createRouteIncidentReporter().errors, app, deps });
     const response = await dispatchHttpRequest({ app, method: 'GET', url: `/api/members/v1/workspaces/ws/oidc/google/callback?${search}` });
     assert.deepEqual(queryShape(parsed ?? {}), queryShape(query), 'the wire query parses to the former query shape');
     assert.deepEqual(clearedCookies(response.headers), [MEMBER_OIDC_BINDING_COOKIE]);
@@ -118,7 +119,7 @@ for (const [query, search] of [[{ error: 'access_denied' }, 'error=access_denied
 for (const failure of [new MemberLoginError({ code: 'LOGIN_UNAVAILABLE' }), new Error('private provider failure')]) {
   test(`provider metadata failure ${failure.constructor.name} is a fixed response`, async () => {
     const app = express();
-    registerMemberLoginProvidersRoute({ app, deps: portFake<MemberOidcRouteDeps>({ members: memberDeps({}), listProviders: async () => { throw failure; } }) });
+    registerMemberLoginProvidersRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<MemberOidcRouteDeps>({ members: memberDeps({}), listProviders: async () => { throw failure; } }) });
     const { res, capture } = createCapturingResponse(); res.setHeader = (() => res) as typeof res.setHeader;
     await extractRouteHandler(app, 'get', '/api/members/v1/workspaces/:workspaceId/login-providers')({ params: { workspaceId: 'ws' } }, res);
     assert.deepEqual(capture, { statusCode: failure instanceof MemberLoginError ? 503 : 401, jsonBody: { error: 'member login failed', code: failure instanceof MemberLoginError ? 'LOGIN_UNAVAILABLE' : 'LOGIN_INVALID' } });
@@ -127,7 +128,7 @@ for (const failure of [new MemberLoginError({ code: 'LOGIN_UNAVAILABLE' }), new 
 
 test('OIDC start refuses an invalid provider id before resolving provider configuration', async () => {
   const app = express();
-  registerMemberOidcStartRoute({ app, deps: portFake<MemberOidcRouteDeps>({ members: memberDeps({}) }) });
+  registerMemberOidcStartRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<MemberOidcRouteDeps>({ members: memberDeps({}) }) });
   const response = await dispatchHttpRequest({ app, method: 'GET', url: '/api/members/v1/workspaces/ws/oidc/INVALID/start' });
   assert.deepEqual({ statusCode: response.status, location: response.headers.location }, { statusCode: 303, location: '/signin#oidcError=LOGIN_INVALID' });
 });
@@ -142,7 +143,7 @@ test('me keeps linked identities readable when provider discovery is unavailable
     ] }) }),
     listProviders: async () => { throw new Error('plugin disabled'); },
   });
-  registerPublicMemberMeRoute({ app, deps: members }, { login });
+  registerPublicMemberMeRoute({ errors: createRouteIncidentReporter().errors, app, deps: members }, { login });
   const { res, capture } = createCapturingResponse(); res.setHeader = (() => res) as typeof res.setHeader;
   await extractRouteHandler(app, 'get', '/api/members/v1/workspaces/:workspaceId/me')({ params: { workspaceId: 'ws' }, headers: { cookie: 'tovu_member_session=token' } }, res);
   assert.equal(capture.statusCode, 200);
