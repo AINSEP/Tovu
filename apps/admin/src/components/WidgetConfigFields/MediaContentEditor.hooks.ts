@@ -30,7 +30,7 @@ import {
   type MediaKind,
   type MediaLayout,
   type MediaSlugProblem,
-} from "./media-content-rules";
+} from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 
 /**
  * @file State and handlers for `MediaContentEditor.tsx` (the two-tab Media / Raw HTML editor), so

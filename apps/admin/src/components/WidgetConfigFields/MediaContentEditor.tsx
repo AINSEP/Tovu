@@ -12,7 +12,7 @@ import "../../styles/native-domain-dialogs.css";
 import "../../styles/media-content-editor.css";
 import { HtmlAttributeRows } from "./HtmlAttributeRows";
 import { useMediaContentEditor, type MediaContentEditorController, type MediaItemRow } from "./MediaContentEditor.hooks";
-import type { MediaContentMode, MediaLayout, MediaSlugProblem } from "./media-content-rules";
+import type { MediaContentMode, MediaLayout, MediaSlugProblem } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
 import { useWidgetPreview } from "./WidgetPreview.hooks";
 
