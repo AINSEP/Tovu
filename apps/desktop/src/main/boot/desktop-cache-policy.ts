@@ -82,22 +82,26 @@ export async function measureTreeBytes(
   { fs, path: root }: { fs: typeof fsModule; path: string },
   { maxEntries = 50_000 }: { maxEntries?: number } = {},
 ): Promise<SizeRead> {
-  let bytes = 0, seen = 0;
-  const stack = [root];
+  const walk = { bytes: 0, seen: 0, stack: [root] };
   try {
-    while (stack.length > 0) {
-      const at = stack.pop()!;
-      const stat = await fs.promises.lstat(at);
-      if ((seen += 1) > maxEntries) return { state: "unknown", reason: `more than ${maxEntries} entries` };
-      if (stat.isDirectory()) for (const name of await fs.promises.readdir(at)) stack.push(path.join(at, name));
-      else if (stat.isFile()) bytes += stat.size;
+    while (walk.stack.length > 0) {
+      if (!(await visit({ fs, walk, maxEntries }))) return { state: "unknown", reason: `more than ${maxEntries} entries` };
     }
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code;
-    if (code === "ENOENT" && seen === 0) return { state: "measured", bytes: 0 };
-    return { state: "unknown", reason: String(code ?? error) };
+    return code === "ENOENT" && walk.seen === 0 ? { state: "measured", bytes: 0 } : { state: "unknown", reason: String(code ?? error) };
   }
-  return { state: "measured", bytes };
+  return { state: "measured", bytes: walk.bytes };
+}
+
+/** One entry of the walk; false once the entry cap is passed. Links are counted, never followed. */
+async function visit({ fs, walk, maxEntries }: { fs: typeof fsModule; walk: { bytes: number; seen: number; stack: string[] }; maxEntries: number }): Promise<boolean> {
+  const at = walk.stack.pop()!;
+  const stat = await fs.promises.lstat(at);
+  if ((walk.seen += 1) > maxEntries) return false;
+  if (stat.isDirectory()) for (const name of await fs.promises.readdir(at)) walk.stack.push(path.join(at, name));
+  else if (stat.isFile()) walk.bytes += stat.size;
+  return true;
 }
 
 export interface DesktopCacheInterlock {
