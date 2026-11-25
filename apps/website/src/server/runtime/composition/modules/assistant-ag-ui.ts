@@ -65,7 +65,9 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
+import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import type { ServerModuleHandle } from "./types.js";
+import { acceptOwnedAssistantRun, assistantRunAcceptancePorts, type AssistantRunAcceptancePorts } from "./assistant-run-acceptance.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
 
@@ -150,6 +152,66 @@ function beginAgUiStream(req: Request, res: Response, requestId: string): void {
   res.flushHeaders?.();
 }
 
+/** The durable identity a durable-aware client sends in `forwardedProps.durableRun`: the
+ *  conversation and the assistant message it already created. Bounded here, before acceptance. */
+interface AgUiDurableIdentity { readonly conversationId: string; readonly assistantMessageId: string }
+const DURABLE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+function readDurableIdentity({ body }: { body: AgUiRunBody }, _optional = {}): AgUiDurableIdentity | undefined {
+  const props = body.forwardedProps;
+  const durable = typeof props === "object" && props !== null ? (props as { durableRun?: unknown }).durableRun : undefined;
+  if (typeof durable !== "object" || durable === null) return undefined;
+  const { conversationId, assistantMessageId } = durable as Record<string, unknown>;
+  if (typeof conversationId !== "string" || typeof assistantMessageId !== "string") return undefined;
+  return DURABLE_ID.test(conversationId) && DURABLE_ID.test(assistantMessageId) ? { conversationId, assistantMessageId } : undefined;
+}
+
+/** The daemon context, built only from server-parsed fields: the verified principal is stamped
+ *  here, and nothing browser-owned (a claimed principal, recovery mode or recovery session) is
+ *  copied through, matching `assistant.ts`'s `proxyRunStart`. */
+function agUiContextRef({ run, principalId }: { run: AgUiRunInput; principalId: string }, { identity }: { identity?: AgUiDurableIdentity } = {}): string {
+  const prompt = flattenMessagesToPrompt({ messages: run.messages });
+  return JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId,
+    ...(identity ? { conversationId: identity.conversationId, assistantMessageId: identity.assistantMessageId } : {}),
+    ...(run.frontendBindToken ? { frontendBindToken: run.frontendBindToken } : {}),
+    ...(run.frontendTabId ? { frontendTabId: run.frontendTabId } : {}),
+    ...(run.secretRedacted ? { secretRedacted: true } : {}) });
+}
+
+type AgUiRouteDeps = Pick<RouteDeps, "tracker" | "observability" | "chatRunLedger" | "workspaceId">
+  & Pick<Parameters<typeof assistantRunAcceptancePorts>[0]["deps"], "assistantDaemonDemand">;
+
+/** The durable start: accept (or replay) the owned run through the same acceptance `/api/runs`
+ *  uses, then follow THAT run's events. `RUN_STARTED` carries the durable run id and the accepted
+ *  conversation, so a reopened client follows the actual run instead of a per-request segment.
+ *
+ *  Disconnect here is a detach, never a Stop: it closes only this reader's subscription and the
+ *  run keeps going under its finalizer. Explicit Stop is the owned cancel at
+ *  `/api/runs/:runId/cancel`, which also covers a Stop that lands before acceptance by message id.
+ * @complexity O(h) in bounded history plus the drained run frames. */
+async function handleDurableAgUiRun(
+  { req, res, run, identity, ports, deps }: { req: Request; res: Response; run: AgUiRunInput; identity: AgUiDurableIdentity; ports: AssistantRunAcceptancePorts; deps: AgUiRouteDeps },
+  _optional = {},
+): Promise<void> {
+  const principalId = getAuthedPrincipal(res).id;
+  const accepted = await acceptOwnedAssistantRun({ principalId, workspaceId: deps.workspaceId, ports,
+    conversationId: identity.conversationId, messageId: identity.assistantMessageId,
+    request: { ...(run.agentId ? { agentId: run.agentId } : {}), contextRef: agUiContextRef({ run, principalId }, { identity }) } }, {});
+  if (!accepted) { res.status(404).json({ error: "not found", code: "NOT_FOUND" }); return; }
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let detached = false;
+  res.on("close", () => { detached = true; reader?.cancel().catch(() => undefined); });
+  const subscribed = await subscribeToDaemonEvents(req, res, accepted.runId, { observability: deps.observability });
+  if (!subscribed) return;
+  if (detached) { await subscribed.cancel().catch(() => undefined); return; }
+  reader = subscribed;
+  beginAgUiStream(req, res, run.requestId);
+  writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: accepted.conversationId, runId: accepted.runId });
+  await drainRunFramesToAgUi({ reader: subscribed, threadId: accepted.conversationId, runId: accepted.runId, state: createAgUiTranslationState(AG_UI_TRANSLATION),
+    notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE, failureMessage: AG_UI_FAILURE_MESSAGE });
+  res.end();
+}
+
 /** Starts the real daemon run for one AG-UI request — the identical `POST /api/runs` shape
  *  `assistant.ts`'s `proxyRunStart` uses. Split out of `handleAgUiRun` so its own two failure shapes
  *  (transport-level via `fetchAgentDaemon`, and a non-ok daemon status) don't add to that function's
@@ -162,27 +224,51 @@ async function startDaemonRun(
   res: Response,
   run: AgUiRunInput,
   principalId: string,
-  daemon: DaemonCallOptions,
+  daemon: DaemonCallOptions & { reporter: Pick<RouteDeps["tracker"], "error"> },
 ): Promise<{ ok: true; daemonRunId: string } | { ok: false }> {
-  const prompt = flattenMessagesToPrompt({ messages: run.messages });
   const startUpstream = await fetchAgentDaemon(req, res, {
     path: "/api/runs",
     method: "POST",
-    body: { contextRef: JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId,
-      ...(run.frontendBindToken ? { frontendBindToken: run.frontendBindToken } : {}),
-      ...(run.frontendTabId ? { frontendTabId: run.frontendTabId } : {}),
-      ...(run.secretRedacted ? { secretRedacted: true } : {}) }), agentId: run.agentId },
+    body: { contextRef: agUiContextRef({ run, principalId }), agentId: run.agentId },
     observability: daemon.observability,
   });
   if (!startUpstream) return { ok: false }; // fetchAgentDaemon already wrote a 503/502.
 
   if (!startUpstream.ok) {
-    const detail = await startUpstream.text().catch(() => "");
-    res.status(startUpstream.status).json({ error: "agent run failed to start", code: "DAEMON_START_FAILED", detail });
+    await refuseDaemonStart({ res, upstream: startUpstream, reporter: daemon.reporter });
     return { ok: false };
   }
   const { run: daemonRun } = (await startUpstream.json()) as { run: { id: string } };
   return { ok: true, daemonRunId: daemonRun.id };
+}
+
+/** A daemon refusal code the browser can act on (a busy slot, a missing agent). Anything that is
+ *  not a bare upper-snake code — prose, paths, keys — stays private. */
+const SAFE_REFUSAL_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+function readSafeRefusalCode({ body }: { body: string }, _optional = {}): string | undefined {
+  try {
+    const code = (JSON.parse(body) as { code?: unknown } | null)?.code;
+    return typeof code === "string" && SAFE_REFUSAL_CODE.test(code) ? code : undefined;
+  } catch {
+    return undefined; // A non-JSON refusal still answers with the daemon's status and the report id.
+  }
+}
+
+/** Answers a daemon start refusal without its raw body: the public route carries the daemon's
+ *  status, a known refusal code and a report reference; the redacted detail goes only to the host
+ *  reporter under that same reference, so support can find it without the browser ever seeing it.
+ * @complexity O(n) in the bounded refusal body. */
+async function refuseDaemonStart(
+  { res, upstream, reporter }: { res: Response; upstream: globalThis.Response; reporter: Pick<RouteDeps["tracker"], "error"> }, _optional = {},
+): Promise<void> {
+  const reportId = randomUUID();
+  const body = (await upstream.text().catch(() => "")).slice(0, 4096);
+  const exactSecrets = [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value));
+  reporter.error({ error: redactedTovuError({ error: new Error(`AG-UI daemon start refused: HTTP ${upstream.status}; ${body}`) }, { exactSecrets }) },
+    { context: { operation: "assistant.run", exactSecrets, attributes: { "tovu.report_id": reportId } } });
+  const reason = readSafeRefusalCode({ body });
+  res.status(upstream.status).json({ error: AG_UI_START_REFUSAL_MESSAGE, code: "DAEMON_START_FAILED", ...(reason ? { reason } : {}), reportId });
 }
 
 /** Subscribes to one daemon run's native SSE stream, returning a reader ready for
@@ -207,13 +293,18 @@ async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId:
  *  ended: the close handler only ends a tracker once a daemon run exists. */
 const UNSTARTED_RUN: TrackerSpan<AgentRunTrackingOutcome> = { setOutcome() {} };
 
-async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, "tracker" | "observability">): Promise<void> {
+async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps): Promise<void> {
   const body = (req.body ?? {}) as AgUiRunBody;
   const run = resolveAgUiRunInput({ body, maxHistoryMessages: MAX_HISTORY_MESSAGES, ids: { newId: randomUUID } });
   if (!run) {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
     return undefined;
   }
+  // Clients that send durable identity get the owned durable run; clients without it keep the
+  // legacy per-request start during the handoff (they do not have parity, and are not told so).
+  const identity = readDurableIdentity({ body });
+  const ports = identity ? assistantRunAcceptancePorts({ deps, principalId: getAuthedPrincipal(res).id }, {}) : null;
+  if (identity && ports) return handleDurableAgUiRun({ req, res, run, identity, ports, deps }, {});
 
   // Cancels the DAEMON run, not just this response's own SSE subscription (MEDIUM audit finding,
   // 2026-08-19 Codex sol bug/architecture audit; RE-AUDITED 2026-08-19 by both `gpt-5.6-sol` and
@@ -238,7 +329,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
   // before this function returns and therefore strictly before the async `"close"` event can fire —
   // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
-  const daemon: DaemonCallOptions = { observability: deps.observability };
+  const daemon = { observability: deps.observability, reporter: deps.tracker };
   let daemonRunId: string | null = null;
   // One agent-run span per daemon run (its own trace root, like the finalizer's), ended exactly once:
   // canceled by the close handler, failed if the subscribe fails, else the drain's own outcome.
@@ -294,11 +385,14 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
  *  transport's own message stays private: Jini's drain returns it to the run tracker only. */
 const AG_UI_INTERRUPTION_MESSAGE = "The assistant’s response was interrupted. Send your request again.";
 
+/** The plain sentence for a run the daemon refused to start; its own reason stays at the reporter. */
+const AG_UI_START_REFUSAL_MESSAGE = "The assistant could not start that request. Send it again; if it keeps failing, restart the site.";
+
 /** The plain sentence for a run the daemon reported as failed. The daemon's own wording (exit
  *  codes, transport errors) is not shown here; it stays in the run's status line and the logs. */
 const AG_UI_FAILURE_MESSAGE = "The assistant could not finish that request. Send it again, or try a shorter request.";
 
-export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
+export function createAssistantAgUiModule(routeDeps: RouteDeps & AgUiRouteDeps): ServerModuleHandle {
   return {
     name: "assistant-ag-ui",
     registerRoutes: ({ app }, _options = {}) => {
