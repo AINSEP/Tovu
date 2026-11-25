@@ -21,7 +21,8 @@ import { FetchQueryProvider } from "./lib/fetch-query/provider";
 import { redirectLegacyHashUrl } from "@jini-ai/admin/shell/lib/router";
 import { bindShellFailureLogger } from "@jini-ai/admin/shell/lib/shell-failure-log";
 import { adminLogger } from "./lib/shell-collaborators";
-import { adminTelemetry, installBrowserErrorListeners, reactRootErrorOptions } from "./lib/browser-telemetry";
+import { adminTelemetry } from "./lib/browser-telemetry";
+import { installBrowserErrorListeners, createReactRootErrorHandlers } from "@jini-ai/admin/browser";
 import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
 import "./styles.css";
 import "./styles/forms.css";
@@ -85,7 +86,7 @@ function SessionApp({
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("admin app root element is missing");
-ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemetry })).render(
+ReactDOM.createRoot(rootElement, createReactRootErrorHandlers({ telemetry: adminTelemetry, report: ({ error }) => { console.error(error); } })).render(
   <React.StrictMode>
     {/* Server-state cache for every section that reads through `fetch-query`.
         Sections not yet migrated are unaffected — they still call `api.*`

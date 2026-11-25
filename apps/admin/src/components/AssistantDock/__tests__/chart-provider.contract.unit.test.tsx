@@ -9,7 +9,14 @@ import { createChartProviderRegistry } from "@jini-ai/ui/charts";
 import { createChartInteractiveRegistry } from "@jini-ai/ui/charts/react";
 import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
 import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
-import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
+import type { ComponentProps } from "react";
+import { RoutedA2uiSurfaceCard as JiniRoutedA2uiSurfaceCard } from "@jini-ai/chat/react/components/RoutedA2uiSurfaceCard";
+import { routedA2uiCardBindings } from "../hooks/use-dock-renderer-registry.hooks";
+
+/** The Jini card with the dock's real host binding, as `use-dock-renderer-registry.hooks.ts` mounts it. */
+function RoutedA2uiSurfaceCard(props: Omit<ComponentProps<typeof JiniRoutedA2uiSurfaceCard>, keyof typeof routedA2uiCardBindings>) {
+  return <JiniRoutedA2uiSurfaceCard {...props} {...routedA2uiCardBindings} />;
+}
 
 // A test supplies its own clock port; the system clock lives in the platform package.
 const testClock: Clock = { nowMs: () => Date.now() };

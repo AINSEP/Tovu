@@ -9,7 +9,7 @@ import {
   usePublishContentConfirm,
 } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentConfirmView } from "./hooks/use-publish-content-confirm.hooks";
-import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
+import type { PublishContentPort } from "@jini-ai/cms/react/publish-content/hooks/publish-content-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

@@ -41,6 +41,11 @@ describe('credential byte preservation and safe admin hints', () => {
       expect(toAccessTokenWriteBody({ authMode: 'static_env', accessToken: token })).toEqual(token === '' ? {} : { accessToken: token });
     }
   });
+  it('validates the untrimmed draft bytes (M-trim-secret-before-validation)', () => {
+    const seen: string[] = [];
+    expect(credentialDraftError({ value: ' \nabc \n' }, { assertToken: ({ value }) => { seen.push(value); } })).toBe(null);
+    expect(seen).toEqual([' \nabc \n']);
+  });
   it('gives a clear draft error while keeping exact blank updates valid', () => {
     expect(credentialDraftError({ value: '' })).toBe(null);
     expect(credentialDraftError({ value: '' }, { required: true })).toBe('Enter a token. Spaces alone are not a token.');

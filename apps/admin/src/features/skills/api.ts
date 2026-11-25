@@ -1,24 +1,25 @@
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { createSkillsApi } from "@jini-ai/agentic/react/skills/api";
 import type { SkillInstallPayload } from "@jini-ai/core/contracts/site/skill-install";
-import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
 import type { AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
 export const SKILLS_CHANGED_EVENT = "tovu-skills-changed";
-const base = `/workspaces/${WORKSPACE_ID}/skills`;
 export type SkillFiles = Pick<AdminPluginFilesEnvelope, "files" | "truncated" | "limits"> & { readonly toolId: string };
-async function request<T>(_required = {}, { suffix = "", method, body }: { suffix?: string; method?: string; body?: unknown } = {}): Promise<T> {
-  return authenticatedAdminRequest<T>({ path: `${base}${suffix}`, method: method ?? "GET", body });
-}
 function changed() { window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)); }
-export async function listSkills() { return (await request<{ skills: InstalledSkill[] }>()).skills; }
-export function listSkillFiles({ toolId }: { toolId: string }, _optional = {}): Promise<SkillFiles> { return request({}, { suffix: `/${encodeURIComponent(toolId)}/files` }); }
-export async function installSkill(payload: SkillInstallPayload) { await request({}, { method: "POST", body: { ...payload, confirmed: true } }); changed(); }
-export async function removeSkill({ toolId }: { toolId: string }, _optional = {}) { await request({}, { suffix: `/${encodeURIComponent(toolId)}`, method: "DELETE" }); changed(); }
-export async function enableSkill({ toolId, enabled }: { toolId: string; enabled: boolean }, _optional = {}) { await request({}, { suffix: `/${encodeURIComponent(toolId)}`, method: "PATCH", body: { enabled } }); changed(); }
 
+/** The bound skills client: Jini owns routes, the confirmed install and notify-after-acceptance;
+ *  Tovu owns the browser change event and the draft's guidance wording. */
+const skillsApi = createSkillsApi({
+  request: authenticatedAdminRequest,
+  workspaceId: WORKSPACE_ID,
+  notifyChanged: changed,
+  formatDraft: ({ skillName, guidance, bundledFiles }) => `Use and follow the "${skillName}" skill for this task.\n\n${guidance}\n\nRead bundled files with fs_read_file as needed:\n${JSON.stringify(bundledFiles)}\n\nTask: `,
+  invalidGuidanceError: () => new Error("Could not load this skill. Try again."),
+}, {});
+export const listSkills = skillsApi.listSkills;
+export const listSkillFiles: (required: { toolId: string }, optional?: Record<string, never>) => Promise<SkillFiles> = skillsApi.listSkillFiles;
+export async function installSkill(payload: SkillInstallPayload) { await skillsApi.installSkill({ payload }); }
+export const removeSkill = skillsApi.removeSkill;
+export const enableSkill = skillsApi.enableSkill;
 /** Selection fetches current enabled guidance; sending this draft puts the instructions in the run. */
-export async function loadSkillDraft({ toolId }: { toolId: string }, _optional = {}): Promise<string> {
-  const skill = await request<{ skillName: string; guidance: string; bundledFiles: { kind: string; root: string; path: string }[] }>({}, { suffix: `/${encodeURIComponent(toolId)}/guidance` });
-  if (typeof skill.skillName !== "string" || typeof skill.guidance !== "string" || !Array.isArray(skill.bundledFiles)) throw new Error("Could not load this skill. Try again.");
-  return `Use and follow the "${skill.skillName}" skill for this task.\n\n${skill.guidance}\n\nRead bundled files with fs_read_file as needed:\n${JSON.stringify(skill.bundledFiles)}\n\nTask: `;
-}
+export const loadSkillDraft = skillsApi.loadSkillDraft;

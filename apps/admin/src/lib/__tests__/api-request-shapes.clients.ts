@@ -18,7 +18,7 @@ import { pagesApi } from "../../features/pages/api/pages-api";
 import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { postsApi } from "../../features/posts/posts-host-ports";
 import { providersApi } from "../../features/providers/providers-host-ports";
-import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
+import { publishContentApi } from "../../features/publish-content/hooks/publish-content-dependencies.hooks";
 import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { securityApi } from "@/features/security/security-host-ports";

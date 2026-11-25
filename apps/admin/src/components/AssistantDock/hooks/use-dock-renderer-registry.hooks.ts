@@ -1,11 +1,12 @@
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 import { formatUserFacingError } from '@jini-ai/core';
-import { createElement, useLayoutEffect, useState } from "react";
+import { createElement, useContext, useLayoutEffect, useState } from "react";
 import {
   createExtEventRendererRegistry,
   createMcpUiToolCaller,
   MCP_UI_EXT_EVENT_NAME,
   mcpUiSurfaceSlotKey,
+  A2uiSurfaceCard,
   MidRunUserMessage,
   MID_RUN_USER_MESSAGE_EXT_EVENT_NAME,
   midRunUserMessageSlotKey,
@@ -20,7 +21,11 @@ import { hasAgentFailureNotice, useAgentFailureCard } from "@jini-ai/admin/shell
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { OverflowAwareMcpUiSurfaceCard } from "@jini-ai/admin/shell/components/AssistantDock/OverflowAwareMcpUiSurfaceCard";
-import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
+import { RoutedA2uiSurfaceCard } from "@jini-ai/chat/react/components/RoutedA2uiSurfaceCard";
+import { useRoutedA2uiSurfaceCard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-routed-a2ui-surface-card.hooks";
+import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
+// This boundary renders both inline and into the Playground portal; styles must follow both paths.
+import "@jini-ai/ui/interactive-ui.css";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { buildAssistantMcpUiSandboxProxyUrl } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-mcp-ui";
 import { openMcpUiLink } from "@jini-ai/admin/shell/components/AssistantDock/hooks/open-mcp-ui-link";
@@ -75,6 +80,17 @@ const postA2uiAction = createA2uiActionPoster({ baseUrl: "" }, { path: "/api/adm
 /** Tovu is the host, so the dock owns the system clock handed to every A2UI card. */
 const dockClock = createSystemClock();
 
+/** The admin's chart snapshot (string `generation`, core's chart-provider contract) for the routed card. */
+function useAdminChartRegistrySnapshot() { return useContext(AdminChartRegistryContext); }
+/** The host collaborators Jini's `RoutedA2uiSurfaceCard` requires: the real card, translator,
+ *  Playground routing hook and chart registry. Exported so card tests render the real binding. */
+export const routedA2uiCardBindings = {
+  SurfaceCard: A2uiSurfaceCard,
+  useTHook: useT,
+  useRoutedA2uiSurfaceCardHook: useRoutedA2uiSurfaceCard,
+  useChartRegistryHook: useAdminChartRegistrySnapshot,
+};
+
 /**
  * Registers the dock's cards on `registry` and returns one disposer for all of them. Each disposer
  * removes only its own entry (Jini compares the registration, not the callback), so a stale cleanup
@@ -121,7 +137,7 @@ function registerDockRenderers({ registry, agUiApprovals }: { registry: ExtEvent
      * @file The "Show in modal" affordance for MCP-UI surfaces (owner request, chat-overflow fix
      * 2026-08-30) — see `MessageOverflowModal.tsx`'s own doc for the owner's exact wording. Wraps
      * Jini's own `McpUiSurfaceCard` without touching it, or `@jini-ai/chat`'s package at all: the same
-     * `RoutedA2uiSurfaceCard.tsx` pattern one file over — `hooks/use-dock-renderer-registry.hooks.ts`
+     * `@jini-ai/chat`'s `RoutedA2uiSurfaceCard` pattern one file over — `hooks/use-dock-renderer-registry.hooks.ts`
      * registers THIS component under `mcp-ui` in the dock's owned registry in place of Jini's own
      * `registerMcpUiSurfaceRenderer` convenience call (which would register `McpUiSurfaceCard` itself,
      * with no seam to wrap it), and it renders the real `McpUiSurfaceCard` unchanged plus the new
@@ -195,10 +211,10 @@ function registerDockRenderers({ registry, agUiApprovals }: { registry: ExtEvent
      * Playground "whiteboard" feature: when `/admin/playground` is the active page, that wrapper
      * portals the exact same card onto the Playground canvas instead of rendering it inline in the
      * transcript. Every other page is unaffected — no target registered there, so the wrapper falls
-     * straight through to `A2uiSurfaceCard` unchanged. See `RoutedA2uiSurfaceCard.tsx`'s own doc for
+     * straight through to `A2uiSurfaceCard` unchanged. See `@jini-ai/chat`'s `RoutedA2uiSurfaceCard` doc for
      * the full routing decision and `lib/playground-render-target-bus.ts` for the seam it reads.
      */
-    registry.register({ name: "a2ui", renderer: (props) => createElement(RoutedA2uiSurfaceCard, { ...props, clock: dockClock, onAgentAction: postA2uiAction }) }),
+    registry.register({ name: "a2ui", renderer: (props) => createElement(RoutedA2uiSurfaceCard, { ...props, ...routedA2uiCardBindings, clock: dockClock, onAgentAction: postA2uiAction }) }),
     // The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run
     // watchdog) — see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the
     // existing (unrendered) `'status'` kind" reasoning.

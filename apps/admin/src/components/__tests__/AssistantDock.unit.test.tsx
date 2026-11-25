@@ -74,7 +74,7 @@ import { useExecutionConfig, type UseExecutionConfig } from "../AssistantDock/ho
 import { useLocalCliSelection, type UseLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import { ChatPane as RealChatPane, MessageRow, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, registerExtEventRenderer, getExtEventRenderer, type ExtEventRenderProps, type ExtEventRendererRegistry } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "@jini-ai/admin/shell/components/AssistantDock/OverflowAwareMcpUiSurfaceCard";
-import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
+import { RoutedA2uiSurfaceCard } from "@jini-ai/chat/react/components/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { DOCK_DEEP_LINK_OFF } from "../AssistantDock/__tests__/deep-link-off";

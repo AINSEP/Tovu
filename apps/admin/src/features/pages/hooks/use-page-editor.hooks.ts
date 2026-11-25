@@ -1,3 +1,5 @@
+import { readVersionConflict } from "../../../lib/shell-collaborators";
+import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
 import { useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
@@ -34,6 +36,7 @@ import { HOME_PAGE_HANDLE, pageAdminPath, PAGES_RESOURCE, type PageSaveConflict 
 import {
   buildPageAutosaveDraft,
   buildPageSavePlan,
+  pagePartialSaveMessage, pageSaveSuccessMessage, pageUnchangedSaveMessage,
   pageAcceptsHtmlBody,
   pageDirtyGuardBaseline,
   pageEditableHtml,
@@ -42,8 +45,8 @@ import {
   type PageSavePlan,
 } from "@jini-ai/admin/pages/page-editor-rules";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
-import { applyPartialSave, applySavedPage, applySaveFailure, PageBodyWriteError, writePage } from "./page-editor-save";
-import type { PageEditorPort } from "./page-editor-port.hooks";
+import { applyPartialSave, applySavedPage, applySaveFailure, PageBodyWriteError, writePage } from "@jini-ai/cms/react/pages/hooks/page-editor-save";
+import type { PageEditorPort } from "./page-editor-dependencies.hooks";
 import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
 import type { ThemeCanvasPort } from "@jini-ai/admin/pages/hooks/theme-canvas-port.hooks";
 import {
@@ -891,6 +894,7 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
         // stale-settlement sweep: "last-to-settle wins" rather than "last-clicked wins").
         if (!settlement.isCurrent({ generation })) return;
         applySavedPage({
+          pageSaveSuccessMessage, pageUnchangedSaveMessage,
           updated,
           form: { templateChoice, html: bodyHtml, nextStatus, basisVersion: basis.version },
           canSaveHtml: plan.canSaveHtml,
@@ -907,7 +911,8 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
       } catch (e) {
         if (!settlement.isCurrent({ generation })) return;
         autosave.preserveFailedSave({ error: e, draft: buildPageAutosaveDraft({ page: basis, form: { title, slug, html: bodyHtml } }) });
-        applySaveFailure({
+        applySaveFailure<AdminPost, PageSaveConflict>({
+          readVersionConflict, isUnexpectedServerFailure, pagePartialSaveMessage,
           e,
           attemptedStatus: nextStatus,
           form: { templateChoice },

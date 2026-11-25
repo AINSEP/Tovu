@@ -1,7 +1,10 @@
+import { useWiredMediaEditDialog } from "@/components/MediaEditDialog/MediaEditDialog.hooks";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "@/styles/native-domain-dialogs.css";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
-import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
-import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
+import { MediaPickerDialog } from "../components/MediaPickerDialog/media-picker-host";
+import { MediaEditDialog } from "@jini-ai/cms/react/media/MediaEditDialog/MediaEditDialog";
 import { insertBlockAtom } from "./block-atom-insert";
 import { useWiredMediaEmbedNodeView } from "./media-embed-extension.hooks";
 import type { MediaPreviewKind } from "@jini-ai/admin/shell/lib/media-embed-extension.hooks";
@@ -94,7 +97,7 @@ export function MediaEmbedNodeView({
           {view.t({ key: "Remove" })}
         </button>
       </span>
-      {view.editing ? <MediaEditDialog initial={view.editInitial} onSave={view.saveEdit} onCancel={view.closeEdit} /> : null}
+      {view.editing ? <MediaEditDialog Dialog={Dialog} useDialog={useWiredMediaEditDialog} initial={view.editInitial} onSave={view.saveEdit} onCancel={view.closeEdit} /> : null}
       {view.picking ? <MediaPickerDialog onSelect={view.replaceWith} onCancel={view.closePicker} /> : null}
     </NodeViewWrapper>
   );

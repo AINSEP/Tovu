@@ -4,7 +4,7 @@ import { useState } from "react";
 import TiptapImage from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { mediaApi } from "../features/media/api/media-api";
-import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
+import { MediaPickerDialog } from "../components/MediaPickerDialog/media-picker-host";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
 /**

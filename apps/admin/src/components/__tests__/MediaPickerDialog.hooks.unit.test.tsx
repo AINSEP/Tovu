@@ -1,4 +1,4 @@
-import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
+import { MediaPickerDialog } from "../MediaPickerDialog/media-picker-host";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,7 +7,11 @@ import { mediaApi } from "../../features/media/api/media-api";
 import { settingsApi } from "../../lib/admin-http/settings-api";
 import { ApiError } from "../../lib/admin-http/request";
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
-import { useMediaPickerDialog, useMediaPickerItems, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
+import { useMediaPickerDialog, useMediaPickerItems } from "@jini-ai/cms/react/media/MediaPickerDialog/MediaPickerDialog.hooks";
+import { defaultMediaPickerPort, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/media-picker-dependencies.hooks";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { describeApiError } from "../../lib/admin-http/request";
+import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 
 /**
  * @file `useMediaPickerItems`/`useMediaPickerDialog` — the data-fetch and Escape-to-cancel state
@@ -145,7 +149,7 @@ describe("useMediaPickerDialog", () => {
 describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dictionary)", () => {
   it("useMediaPickerDialog's t resolves against the real Spanish dictionary when given deps.locale", () => {
     const port = createFakeMediaPickerPort({ media: [] });
-    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port, locale: "es" } }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port, locale: "es" }, useFetchQueryHook: useFetchQuery, describeError: describeApiError, translate: sharedComponentsT }));
 
     expect(result.current.locale).toBe("es");
     expect(result.current.t("Choose an image")).toBe("Elegir una imagen");
@@ -159,7 +163,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: [row] }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchFake);
     try {
-      const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: {} }));
+      const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port: defaultMediaPickerPort, locale: "en" }, useFetchQueryHook: useFetchQuery, describeError: describeApiError, translate: sharedComponentsT }));
       expect(result.current.mediaOriginalUrl({ id: "m1" })).toBe(mediaApi.mediaOriginalUrl({ id: "m1" }));
       await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["m1"]));
       expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media/);
@@ -170,7 +174,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
 
   it("useMediaPickerDialog defaults locale/t to English when deps.locale is omitted", () => {
     const port = createFakeMediaPickerPort({ media: [] });
-    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port } }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port, locale: "en" }, useFetchQueryHook: useFetchQuery, describeError: describeApiError, translate: sharedComponentsT }));
 
     expect(result.current.locale).toBe("en");
     expect(result.current.t("Choose an image")).toBe("Choose an image");
@@ -182,7 +186,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     // "falls back to the given default" case for `useExistingInstances`).
     const port = createFakeMediaPickerPort();
     port.listMedia = () => Promise.reject(new ApiError({ message: "", status: 500 }));
-    const { result } = renderHook(() => useMediaPickerItems({ port }, { locale: "es" }));
+    const { result } = renderHook(() => useMediaPickerItems({ port, locale: "es", useFetchQueryHook: useFetchQuery, describeError: describeApiError, translate: sharedComponentsT }));
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("no se pudo cargar el contenido multimedia");
@@ -201,7 +205,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
   it("filters to active assets from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(mediaApi, "listMedia");
     const port = createFakeMediaPickerPort({ media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })] });
-    const { result } = renderHook(() => useMediaPickerItems({ port }));
+    const { result } = renderHook(() => useMediaPickerItems({ port, locale: "en", useFetchQueryHook: useFetchQuery, describeError: describeApiError, translate: sharedComponentsT }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([media({ id: "a", status: "active" })]);
@@ -210,7 +214,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
 
   it("useMediaPickerDialog reads items from the injected port too", async () => {
     const port = createFakeMediaPickerPort({ media: [media()] });
-    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port } }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port, locale: "en" }, useFetchQueryHook: useFetchQuery, describeError: describeApiError, translate: sharedComponentsT }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([media()]);
@@ -225,7 +229,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
   it("does not resolve items while the injected port's list call is still pending", () => {
     const port = createFakeMediaPickerPort();
     port.listMedia = () => new Promise(() => {});
-    const { result } = renderHook(() => useMediaPickerItems({ port }));
+    const { result } = renderHook(() => useMediaPickerItems({ port, locale: "en", useFetchQueryHook: useFetchQuery, describeError: describeApiError, translate: sharedComponentsT }));
     expect(result.current.items).toBeNull();
   });
 });

@@ -398,13 +398,6 @@
       "reason": "Exact brand, protocol, unit or editor notation."
     },
     {
-      "file": "components/WidgetConfigFields/HtmlAttributeRows.tsx",
-      "line": 33,
-      "kind": "placeholder",
-      "text": "data-kui",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
       "file": "components/WidgetConfigFields/MediaContentEditor.tsx",
       "line": 322,
       "kind": "placeholder",

@@ -100,11 +100,6 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/features/pages/hooks/page-editor-save.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/pages/hooks/theme-canvas-dependencies.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -240,14 +235,9 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/lib/browser-telemetry.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/lib/settings-events.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
     "file": "apps/admin/src/lib/widget-embed-extension.hooks.ts",

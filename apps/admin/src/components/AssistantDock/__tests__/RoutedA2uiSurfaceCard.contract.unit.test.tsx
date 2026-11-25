@@ -4,7 +4,14 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, expect, it, vi } from "vitest";
 import { createLabCatalog } from "@jini-ai/protocol/a2ui";
 
-import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
+import type { ComponentProps } from "react";
+import { RoutedA2uiSurfaceCard as JiniRoutedA2uiSurfaceCard } from "@jini-ai/chat/react/components/RoutedA2uiSurfaceCard";
+import { routedA2uiCardBindings } from "../hooks/use-dock-renderer-registry.hooks";
+
+/** The Jini card with the dock's real host binding, as `use-dock-renderer-registry.hooks.ts` mounts it. */
+function RoutedA2uiSurfaceCard(props: Omit<ComponentProps<typeof JiniRoutedA2uiSurfaceCard>, keyof typeof routedA2uiCardBindings>) {
+  return <JiniRoutedA2uiSurfaceCard {...props} {...routedA2uiCardBindings} />;
+}
 import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 
 // A test supplies its own clock port; the system clock lives in the platform package.

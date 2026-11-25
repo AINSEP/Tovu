@@ -1,6 +1,5 @@
-import { agentHandle } from "@jini-ai/core/agent-handles";
+import { Placeholder as JiniPlaceholder, ComingSoonNotice as JiniComingSoonNotice } from "@jini-ai/admin/react/shell/Placeholder";
 import { getNav } from "../nav";
-import type { AdminNavItem } from "@jini-ai/core/contracts/site/nav";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";
@@ -38,33 +37,6 @@ import { interpolate, localeEntry } from '@jini-ai/core/text';
  */
 
 /**
- * @complexity O(n) in the total nav item count across all groups (currently ~26) — a linear scan,
- * acceptable for a lookup that runs once per Placeholder render against a small, static list.
- * @overallScore 100
- */
-function findNavItem({ sectionId }: { sectionId: string }, _options: Record<string, never> = {}): AdminNavItem | undefined {
-  for (const group of getNav()) {
-    const item = group.items.find((entry) => entry.id === sectionId);
-    if (item) return item;
-  }
-  return undefined;
-}
-
-/** The nav group this item lives in, for the page header's kicker — "Overview" for the ungrouped
- *  top row (matches how `AiAssistant.unit.test.tsx` itself describes that row), otherwise the
- *  group's own `label`. Real IA, not an invented word: every kicker in this pass reuses a `nav.ts`
- *  group label rather than a per-screen ad hoc string.
- *
- * Exported for `PlaceholderTabs`, deleted 2026-09-21 as dead code; `Placeholder` is now its only
- * production caller. */
-export function findNavGroupLabel({ sectionId }: { sectionId: string }, _options: Record<string, never> = {}): string {
-  for (const group of getNav()) {
-    if (group.items.some((entry) => entry.id === sectionId)) return group.label ?? "Overview";
-  }
-  return "Overview";
-}
-
-/**
  * The actual "not built yet" body markup — this repo's one idiom for an announced-but-unbuilt
  * section (see the file header). Split out from `Placeholder` for a caller with no `nav.ts` id to
  * look up; that caller, `PlaceholderTabs`, was deleted 2026-09-21 as dead code.
@@ -97,45 +69,6 @@ function comingSoonDescription({ locale, label }: { locale: string; label: strin
   return interpolate({ template: localeEntry({ table: COMING_SOON_TEMPLATE, locale }), vars: { label } });
 }
 
-export function ComingSoonNotice(props: {
-  kicker: string;
-  label: string;
-  locale?: string;
-  note?: string;
-  /** Publishes this notice as an agent-observable status region via `agentHandle()`
-   *  (`@jini-ai/agentic`) — there is no control here to click, only a fact to read (`page.read_page`
-   *  et al). Omit to leave it untagged; every existing render then stays byte-identical. */
-  agentHandle?: string;
-}) {
-  const locale = props.locale ?? DEFAULT_LOCALE;
-  return (
-    <div
-      className="page"
-      {...(props.agentHandle
-        ? agentHandle({ handle: props.agentHandle }, { role: "status", label: `"${props.label}" is not built yet` })
-        : {})}
-    >
-      <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">{props.kicker}</p>
-          <h1 className="page-title">{props.label}</h1>
-          <p className="page-description">{comingSoonDescription({ locale, label: props.label })}</p>
-          {/* Optional second line for a section whose label alone could be mistaken for a
-              DIFFERENT, already-shipped screen (`admin-appearance`, 2026-08-10: "Appearance" sits
-              in the same Studio group as `id: "themes"`, itself labelled "Themes" but also
-              rendering as an `Appearance` component under the hood — see `panels.tsx`'s own
-              comment on that collision). Every other `soon` caller omits `note` and renders
-              exactly as before; this does not become a second "coming soon" shape, just an
-              optional extra sentence in the one that already exists. Untranslated, same disclosed
-              precedent as `PostEditor.tsx`'s template picker (2026-08-10): this repo's 19-locale
-              dictionaries are out of scope for a one-line disambiguation note. */}
-          {props.note ? <p className="page-description">{props.note}</p> : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
   en: "Unknown section",
   es: "Sección desconocida",
@@ -158,39 +91,24 @@ const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
   it: "Sezione sconosciuta",
 };
 
-export function Placeholder({
-  useAdminLocaleHook, ...props }: {
+const copy = {
+  fallbackLocale: DEFAULT_LOCALE,
+  defaultGroupLabel: "Overview",
+  unknownSectionPrefix: ({ locale }: { locale: string }) => localeEntry({ table: UNKNOWN_SECTION_PREFIX, locale }),
+  unknownSectionLabel: "Unknown section",
+  comingSoonDescription,
+  comingSoonLabel: ({ label }: { label: string }) => `"${label}" is not built yet`,
+};
+
+export function ComingSoonNotice(props: Omit<Parameters<typeof JiniComingSoonNotice>[0], "copy">) {
+  return <JiniComingSoonNotice {...props} copy={copy} />;
+}
+
+export function Placeholder(props: {
   sectionId: string;
   note?: string;
-  /** Passed straight through to {@link ComingSoonNotice}, or applied to this component's own
-   *  "Unknown section" notice when `sectionId` matches nothing in `getNav()`. Omit to leave either
-   *  branch untagged. */
   agentHandle?: string;
-  /** The host's locale hook, required: every renderer (the route registry, App's unknown-section
-   *  branch) passes the one host binding, so there is no default to drift from it. */
   useAdminLocaleHook: UseAdminLocaleHook;
 }) {
-  const locale = useAdminLocaleHook({}, {});
-  const item = findNavItem({ sectionId: props.sectionId });
-  if (!item) {
-    const unknownSectionPrefix = localeEntry({ table: UNKNOWN_SECTION_PREFIX, locale });
-    return (
-      <div
-        className="notice error"
-        {...(props.agentHandle ? agentHandle({ handle: props.agentHandle }, { role: "status", label: "Unknown section" }) : {})}
-      >
-        {unknownSectionPrefix}: {props.sectionId}
-      </div>
-    );
-  }
-
-  return (
-    <ComingSoonNotice
-      kicker={translateAdminNavLabel({ locale, key: findNavGroupLabel({ sectionId: props.sectionId }) })}
-      label={translateAdminNavLabel({ locale: locale, key: item.label })}
-      locale={locale}
-      note={props.note}
-      agentHandle={props.agentHandle}
-    />
-  );
+  return <JiniPlaceholder {...props} navGroups={getNav()} translateNavLabel={translateAdminNavLabel} copy={copy} />;
 }
