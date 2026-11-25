@@ -7,6 +7,7 @@ import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../../custom-c
 /** t10: human credential setup; real exchange/store/sealer, no HTTP listener or provider API. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
 import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext } from '@jini-ai/core';
 
 /** Context overrides a call may pass; `emitSurface` travels as a handler option, not on the context. */
@@ -455,7 +456,7 @@ test('an invalid secret-looking reason fails before a card opens and an approved
   await assert.rejects(saveMediaCredential({ ctx: {
     executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
     input: { provider: 'openai', reason: 'sk-' + 'a'.repeat(48) }, signal: new AbortController().signal,
-  }, deps: f.deps, surfaces: { surfaceExchanges: f.surfaces }, host: mediaProviderHost }, { emitSurface: async () => { opened++; throw new Error("unexpected card"); } }), ToolInputError);
+  }, deps: f.deps, surfaces: { surfaceExchanges: f.surfaces }, host: mediaProviderHost }, { emitSurface: async () => { opened++; throw new Error("unexpected card"); } }), CredentialInputError);
   assert.equal(opened, 0);
   assert.deepEqual(f.auth, []);
   const { pending, emitted } = await form(f);
