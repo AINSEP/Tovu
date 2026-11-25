@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo, buildVaultAad } from '@jini-ai/platform/secrets/credential-sets';
-import { siteGrantedSealer, ownerKeyHandleOnly } from '../site-sealer.js';
+import { siteGrantedSealer, ownerKeyHandleOnly } from '@jini-ai/user-management/project-keys/site-sealer';
+import { keyringPolicy, sealerPolicy } from '../vault-policy.js';
 import { fakeAttachments, vaultRow } from './helpers.js';
 
 test('retaining a sealed owner row cannot bypass a later site revocation', async () => {
@@ -12,7 +13,7 @@ test('retaining a sealed owner row cannot bypass a later site revocation', async
   await vault.put({ record: row, expectedRevision: null });
   await attachments.attach({ siteId: 'a', keyId: row.id, siteName: 'A' });
   let opens = 0;
-  const sealer = siteGrantedSealer({ allowed: ({ credentialId }) => attachments.isAttached({ siteId: 'a', keyId: credentialId }),
+  const sealer = siteGrantedSealer({ ...sealerPolicy, allowed: ({ credentialId }) => attachments.isAttached({ siteId: 'a', keyId: credentialId }),
     sealer: { open: async () => { opens++; return 'fixture-token'; }, seal: async () => sealed } });
   const aad = buildVaultAad(row);
   assert.equal(await sealer.open({ sealed }, { aad }), 'fixture-token');
@@ -23,7 +24,7 @@ test('retaining a sealed owner row cannot bypass a later site revocation', async
 
 test('a site receives only an active owner key handle and cannot derive owner key bytes', async () => {
   let derivations = 0;
-  const keyring = ownerKeyHandleOnly({ keyring: { activeKey: async (...args: unknown[]) => {
+  const keyring = ownerKeyHandleOnly({ ...keyringPolicy, keyring: { activeKey: async (...args: unknown[]) => {
     // combine-22 (KeyringPort split, bug c): the one owner type is core `KeyringPort.activeKey(_required)`;
     // the handle-only wrapper must forward the caller's options object unchanged, not drop it.
     assert.deepEqual(args, [{}], 'the handle-only keyring forwards the one-owner activeKey({}) ABI');
@@ -38,7 +39,7 @@ test('a site receives only an active owner key handle and cannot derive owner ke
 
 test('a revoke committed during asynchronous crypto prevents returning plaintext', async () => {
   let allowed = true;
-  const sealer = siteGrantedSealer({ allowed: async () => allowed,
+  const sealer = siteGrantedSealer({ ...sealerPolicy, allowed: async () => allowed,
     sealer: { seal: async () => assert.fail('must not seal'), open: async () => { allowed = false; return 'private-fixture'; } } });
   await assert.rejects(sealer.open({ sealed: { keyId: 'v1', alg: 'fixture', nonce: 'fixture', ciphertext: 'fixture' } },
     { aad: buildVaultAad(vaultRow()) }), /no longer has access/);
@@ -48,7 +49,7 @@ test('human saves forward plaintext, key handle and exact row AAD unchanged', as
   const input = { plaintext: 'fixture-token', key: { keyId: 'v1' }, aad: buildVaultAad(vaultRow()) };
   const sealed = { keyId: 'v1', alg: 'aes-256-gcm', ciphertext: 'fixture', nonce: 'fixture' };
   const calls: unknown[] = [];
-  const sealer = siteGrantedSealer({ allowed: async () => assert.fail('human saves do not read site grants'),
+  const sealer = siteGrantedSealer({ ...sealerPolicy, allowed: async () => assert.fail('human saves do not read site grants'),
     sealer: { seal: async value => { calls.push(value); return sealed; }, open: async () => assert.fail('must not open') } });
   assert.equal(await sealer.seal(input), sealed);
   assert.deepEqual(calls, [input]);

@@ -27,7 +27,7 @@ import { readTemplate } from "../../../../platform/site-dir/read-template.js";
 import { FixedSiteKeyKeyring, EnvOrFileKeyring } from "../../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { siteKeySourcesForSiteDir } from "../../../webhooks/site-key-sources.js";
-import { attachedOnlyVault } from "../../../project-keys/attached-vault.js";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
 import { openProjectStore } from "../../../../server/runtime/composition/project-store.js";
 import { composeSiteSavedKeys, sanitizeShareDatabase, rewriteArchiveMedia, restoreStagedImport } from "../../../../server/runtime/composition/site-portability.js";
@@ -43,6 +43,7 @@ import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard
 import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 /** The production bundled-file policy, bound the way the host composition root binds it. */
 const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });

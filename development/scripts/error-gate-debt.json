@@ -670,11 +670,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/project-keys/attached-vault.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/publish-content/apply-retire.ts",
     "rule": "failure-text-from-catalog",
     "value": 1

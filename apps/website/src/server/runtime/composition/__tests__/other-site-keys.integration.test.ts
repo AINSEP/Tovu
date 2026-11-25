@@ -16,11 +16,12 @@ import { secretsVaultStatements } from "#src/platform/db/migrations/0012_secrets
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { openProjectStore } from "../project-store.js";
 import { createOtherSiteKeys } from "../other-site-keys.js";
 import { composeProviderConfig } from "../site-deps/provider-identity.js";
+import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 
 const stamp = "2026-11-08T12:00:00.000Z";
 const FAKE_TOKEN = "fake-vercel-token-not-real-1234";
@@ -92,9 +93,9 @@ test("a key saved only on site A is listed on site B and usable there after appr
     assert.doesNotMatch(JSON.stringify(used), new RegExp(FAKE_TOKEN), "use result never carries a token");
     assert.equal(used.usedByThisSite, true);
     assert.equal(await projectToken(f, used.keyId), FAKE_TOKEN, "the owner store holds the key, re-sealed");
-    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id });
+    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id, policy: attachedVaultPolicy });
     assert.equal((await granted.find({ workspaceId: "project", id: used.keyId }))?.id, used.keyId, "site B can read it through its grant");
-    const grantedOnA = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.a.id });
+    const grantedOnA = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.a.id, policy: attachedVaultPolicy });
     assert.equal(await grantedOnA.find({ workspaceId: "project", id: used.keyId }), null, "only the approving site gets a grant");
     assert.deepEqual(fs.readFileSync(f.a.dbPath), before, "the source vault is never written");
   } finally { await f.close(); }
@@ -127,7 +128,7 @@ test("an approved saved key remains usable after fifty earlier keys are inserted
     assert.equal(used.keyId, "vercel-a", "the captured saved-key ID adopts the original row beyond the picker limit");
     assert.equal(used.usedByThisSite, true, "the approving site receives the saved key");
     assert.equal(await projectToken(f, used.keyId), FAKE_TOKEN, "the original key is re-sealed into the owner store");
-    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id });
+    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id, policy: attachedVaultPolicy });
     assert.equal((await granted.find({ workspaceId: "project", id: used.keyId }))?.id, used.keyId, "site B can read the adopted key through its grant");
     assert.deepEqual(fs.readFileSync(f.a.dbPath), before, "adopting the captured key leaves the source vault unchanged");
   } finally { await f.close(); }
