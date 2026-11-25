@@ -89,9 +89,9 @@ test('without a renderer a challenge remains non-persistent, and late challenges
     let done!: () => void;
     const finished = new Promise<void>(resolve => { done = resolve; });
     const prompts: Array<ToolConfirmationDirective | null> = [];
-    const transport = createSiteAssistantTransport({}, { onToolConfirmation: onToolConfirmation && (({ directive: value }) => prompts.push(value)), fetch: async () => new Response(
+    const transport = createSiteAssistantTransport({}, { onToolConfirmation: onToolConfirmation && (({ directive: value }) => prompts.push(value)), fetch: async (_url, init) => { capture(init); return new Response(
       frame('text', { delta: 'Hello.' }) + frame('client_directive', null) + frame('client_directive', 'approved') +
-      frame('client_directive', { ...directive, challengeId: 'malformed' }) + frame('client_directive', directive) + frame('end', {}) + frame('client_directive', directive)) });
+      frame('client_directive', { ...directive, challengeId: 'malformed' }) + frame('client_directive', directive) + frame('end', {}) + frame('client_directive', directive)); } });
     await transport.startRun({ agentId: 'site-assistant', history: [{ id: 'u', role: 'user', content: 'Hi' }], signal: new AbortController().signal },
       { onEvent: () => {}, onError: error => assert.fail(error.message), onDone: () => done() });
     await finished;
