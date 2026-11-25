@@ -1,6 +1,6 @@
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `onStarted`: resolves a run's
- * pinned Agent Plugin refs into prompt-prefix text and prepends it onto the run's base prompt.
+ * pinned Agent Plugin refs into prompt-prefix text.
  *
  * `agent-daemon-server.ts` cannot be imported directly by a unit test without inheriting its own
  * import-time side effects (opens a DB connection, builds the tool registry, etc — see that
@@ -8,8 +8,8 @@
  * imports only the layout type, `resolveAgentPluginRefs` and the retired-ref map, all side-effect-free at
  * import time, so a test can import it directly and exercise the exact code `onStarted` runs.
  *
- * `agent-daemon-server.ts`'s `onStarted` is the only caller of either export below. Moving them
- * here changes WHERE they live, not what they do — see git history on this file's introduction
+ * `agent-daemon-server.ts`'s `onStarted` is the only caller of the resolver below. Moving it
+ * here changes WHERE it lives, not what it does — see git history on this file's introduction
  * for the line-for-line move out of `onStarted`'s neighborhood.
  */
 import type { RunStartHandler } from "@jini-ai/daemon/http";
@@ -62,12 +62,3 @@ export async function resolveAgentPluginPromptPrefix(
 
   return result.promptPrefix;
 }
-
-/**
- * Prepends a resolved Agent Plugin prompt-prefix onto a run's base prompt — split out from
- * {@link resolveAgentPluginPromptPrefix} because this half has no async/IO/failure path at all,
- * so a test can assert on it directly with zero setup. Mirrors `onStarted`'s own original guard:
- * an empty prefix (the common case — a run pinning no plugin ref) leaves `basePrompt` untouched
- * rather than prepending an empty section plus a blank-line separator for nothing.
- */
-export { assemblePromptWithPluginPrefix } from "./plugin-prompt-assembly.js";
