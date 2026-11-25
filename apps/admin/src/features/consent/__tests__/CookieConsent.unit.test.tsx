@@ -18,7 +18,7 @@ vi.mock('@jini-ai/admin/shell/lib/router', async importOriginal => ({ ...(await 
 
 const consentHooks: CookieConsentHooks = { useConsentPage, useConsentReadiness, useConsentPreview, useConsentPreviewScale, useAdminKit };
 const t = (key: string) => key;
-const useTranslate = () => ({ t, dictionary: {} });
+const useTranslate = () => ({ t, dictionary: {}, productName: 'Tovu' });
 const delays = { autosaveMs: 0, previewMs: 0 };
 const withDraft = consentSnapshot({ draft: revision('d1'), published: revision('p1') });
 const cookieConsentSnapshot = consentSnapshot({ ...withDraft, editor: { ...withDraft.editor, bannerModes: ['jini', 'headless', 'off'] } });
@@ -242,8 +242,8 @@ describe('CookieConsent: cookie-consent engine', () => {
       get: async () => ({ ...cookieConsentSnapshot, draft: revision('d1', config) }), saveDraft,
     });
     const view = renderPage(port);
-    expect(await screen.findByRole('radio', { name: 'Jini banner' })).toBeChecked();
-    for (const [label, mode] of [['My own', 'headless'], ['None', 'off'], ['Jini banner', 'jini'], ['My own', 'headless']]) {
+    expect(await screen.findByRole('radio', { name: 'Tovu banner' })).toBeChecked();
+    for (const [label, mode] of [['My own', 'headless'], ['None', 'off'], ['Tovu banner', 'jini'], ['My own', 'headless']]) {
       fireEvent.click(screen.getByRole('radio', { name: label }));
       await waitFor(() => expect(saveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ config: expect.objectContaining({ bannerMode: mode, enabled: true }) })));
     }

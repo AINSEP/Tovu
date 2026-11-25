@@ -30,8 +30,9 @@ export const consentUi: ConsentScreenUi = {
   previewDesktopWidth: CONSENT_PREVIEW_DESKTOP_WIDTH, previewScale: consentPreviewScale,
 };
 
-/** Binds the consent copy to the admin's resolved locale. @complexity O(1) per lookup. */
+/** Binds the consent copy to the admin's resolved locale. @complexity O(1) per lookup.
+ *  The product name is bound here too, so the built-in banner mode reads "Tovu banner". */
 export function useConsentTranslate(): ConsentTranslation {
   const locale = useAdminLocale();
-  return useMemo(() => consentTranslation({ locale }), [locale]);
+  return useMemo(() => consentTranslation({ locale, productName: "Tovu" }), [locale]);
 }
