@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createMailAttemptObserver, createMailCaptureRepo, createMailSendLedgerRepo, purgeExpiredMail } from "@jini-ai/platform/mail/sql";
+import { createMailActivityRepo, createMailAttemptObserver, createMailCaptureRepo, createMailSendLedgerRepo, purgeExpiredMail } from "@jini-ai/platform/mail/sql";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "#src/server/runtime/composition/modules/system-mail";
@@ -91,6 +91,33 @@ describeEachDialect("mail retention windows and clear-all captured test emails",
     assert.deepEqual(await keys(db, "mail_capture"), ["other:kept"], "another workspace's captures are never touched");
     assert.deepEqual(await keys(db, "mail_send_ledger"), ["other:kept", "w:one", "w:two"], "sent-email records are not test emails");
     assert.deepEqual(await keys(db, "mail_activity_attempts"), ["other:kept", "w:one", "w:two"]);
+  });
+
+  test("clear all covers a console-provider test send the Activity list shows as Kept locally (no stored copy)", async () => {
+    const db = make(); await workspaces(db);
+    // The console driver prints the message and stores no `mail_capture` row; the Activity list still shows it as "Kept locally".
+    const key = "mail:test:console-1";
+    const id = { workspaceId: "w", idempotencyKey: key, recipient: "qa@example.com" };
+    const ledger = createMailSendLedgerRepo({ db }, { nowIso: () => iso(NOW) });
+    await ledger.reserve({ ...id, payloadHash: "h", lane: "transactional", providerId: "console" }); await ledger.mark({ ...id, outcome: "sent" });
+    await createMailAttemptObserver({ db }, { nowIso: () => iso(NOW), newId: () => "a-console" })({ message: msg("w"), providerId: "console", mode: { mode: "off" },
+      options: { workspaceId: "w", idempotencyKey: key, sourceContext: { module: "mail" }, purpose: "transactional", lane: "interactive" }, result: { ok: true, providerMessageId: "console-1", acceptedAt: iso(NOW) } });
+    // A real (smtp) send with no stored test copy: not a test email, so it stays listed.
+    await createMailAttemptObserver({ db }, { nowIso: () => iso(NOW - 1), newId: () => "a-real" })({ message: msg("w"), providerId: "smtp", mode: { mode: "off" },
+      options: { workspaceId: "w", idempotencyKey: "real-send", sourceContext: { module: "mail" }, purpose: "transactional", lane: "interactive" }, result: { ok: true, providerMessageId: "m-real", acceptedAt: iso(NOW) } });
+    const activity = createMailActivityRepo({ db }, { now: () => NOW });
+    const keptLocally = async () => (await activity.list({ workspaceId: "w", limit: 10 })).filter((r) => r.outcome === "captured").map((r) => r.idempotencyKey);
+    assert.deepEqual(await keptLocally(), [key], "the Activity list shows the console send as Kept locally");
+    const preview = await clearCall(db, {});
+    const body = preview.jsonBody as { cleared: boolean; plan: { count: number }; revision: string };
+    assert.equal(body.plan.count, 1, "clear must not say there is nothing to clear while a Kept-locally send is listed");
+    assert.equal((await clearCall(db, { confirmed: true, revision: "stale" })).statusCode, 400);
+    assert.deepEqual(await keptLocally(), [key], "without the reviewed approval nothing is deleted");
+    const done = await clearCall(db, { confirmed: true, revision: body.revision });
+    assert.deepEqual([done.statusCode, done.jsonBody], [200, { cleared: true, deleted: 1 }]);
+    assert.deepEqual(await keptLocally(), [], "the cleared send no longer shows (nor resurfaces from the send ledger)");
+    assert.deepEqual((await activity.list({ workspaceId: "w", limit: 10 })).map((r) => r.idempotencyKey), ["real-send"], "real sends stay listed");
+    assert.deepEqual(await keys(db, "mail_send_ledger"), ["w:mail:test:console-1"], "the send ledger (duplicate protection) is kept");
   });
 
   test("clear all: a capture arriving while the confirmed clear runs survives", async () => {

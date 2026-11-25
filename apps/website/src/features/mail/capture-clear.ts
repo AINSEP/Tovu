@@ -8,7 +8,8 @@ import { MAIL_CAPTURE_CLEAR_PERMISSION, type MailCaptureClearPlan, type MailCapt
  * route (`@jini-ai/cms/admin-http/routes/system/mail-activity`) only clears when the request is
  * confirmed with the revision of this plan. The revision names the exact reviewed set of captures
  * (not its count and newest time), and the clear deletes only those ids: a capture that arrived
- * after the review is never deleted unseen.
+ * after the review is never deleted unseen. "Test emails" are exactly what the Activity list shows
+ * as kept locally: stored test-mode captures and console-driver sends (which store no copy).
  */
 
 /** What `planMailCaptureClear` reads and deletes through, and how it asks for the owner grant. */
@@ -33,10 +34,10 @@ export async function planMailCaptureClear(
   if (!grant.allowed) {
     throw new MailActivityForbiddenError({ permission: MAIL_CAPTURE_CLEAR_PERMISSION, message: "Only the site owner can clear captured test emails." });
   }
-  const { plan, captureIds, revision } = await deps.capture.reviewCaptured({ workspaceId });
+  const { plan, captureIds, attemptIds, revision } = await deps.capture.reviewCaptured({ workspaceId });
   return {
     plan,
     revision,
-    clear: async () => ({ cleared: true, deleted: (await deps.capture.clearReviewedCaptures({ workspaceId, captureIds })).deleted }),
+    clear: async () => ({ cleared: true, deleted: (await deps.capture.clearReviewedCaptures({ workspaceId, captureIds, attemptIds })).deleted }),
   };
 }
