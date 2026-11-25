@@ -116,6 +116,36 @@ export interface AdminJsonRouteMountOptions {
   /** Opt-in: writes an unexpected failure instead of `sendAdminFailure`/`adminFailureResponse`'s JSON — the host owns
    *  the incident report and the copy (a `text/plain` 500). Refusals never reach it. */
   failureWriter?: (args: { res: Response; error: unknown }) => void;
+  /** Opt-in: a host check answered in the workspace port RIGHT AFTER the foreign-workspace 404 and before
+   *  the principal read, authorization and the handler — for a route whose hand-written version refused on a
+   *  deployment gate (sites settings: "Local sites management is disabled.") after the workspace check but
+   *  before the session. `preflight` runs before the 404 (wrong order here) and `deferMissingPrincipal`
+   *  changes the missing-session answer. A returned reply is written as-is; `undefined` admits the request. */
+  afterWorkspace?: (args: { deps: AdminJsonRoutePortDeps }) => { status: number; body: unknown } | undefined;
+  /** Opt-in: two unexpected-failure copies by phase — `beforeAuthorize` until the spec's `authorize` has
+   *  allowed THIS request (a missing session, an authorizer that crashed), `afterAuthorize` once it has
+   *  (sites settings read "Could not read…" vs save "Could not save…"). `failureFor` still wins per error;
+   *  `failure` is the fallback for a mount that gives neither. The phase is tracked per request. */
+  failureByPhase?: { beforeAuthorize: FailureOptions; afterAuthorize: FailureOptions };
+}
+
+/** Per-request "authorize already allowed" marks behind {@link AdminJsonRouteMountOptions.failureByPhase}.
+ *  Keyed on the request's `res` and its own principal copy — never held on the mount, so one request's phase
+ *  cannot leak into another's. */
+interface AuthorizationPhaseTracker {
+  begin: (args: { res: Response; principal: OperatorPrincipalRecord }) => void;
+  markAuthorized: (args: { context: OperatorPrincipalRecord | undefined }) => void;
+  authorized: (args: { res: Response }) => boolean;
+}
+
+/** @complexity O(1) per call; one WeakMap entry per in-flight request. */
+function createAuthorizationPhaseTracker(): AuthorizationPhaseTracker {
+  const marks = new WeakMap<object, { authorized: boolean }>();
+  return {
+    begin: ({ res, principal }) => { const mark = { authorized: false }; marks.set(res, mark); marks.set(principal, mark); },
+    markAuthorized: ({ context }) => { const mark = context && marks.get(context); if (mark) mark.authorized = true; },
+    authorized: ({ res }) => marks.get(res)?.authorized ?? false,
+  };
 }
 
 /** What a {@link AdminMountPreflight.check} is given: its declared headers (lower-cased keys, an absent
@@ -256,8 +286,9 @@ async function authorizeWithPorts(
  * presentation PATCH writes `adminFailureResponse` (operation-only copy, the request's tracker).
  * @complexity The shared failure lifecycle.
  */
-function writeAdminFailure({ res, error, options }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): void {
-  const failure = options.failureFor?.(error) ?? options.failure;
+function writeAdminFailure({ res, error, options, authorized }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions; authorized: boolean }, _optional: Record<string, never> = {}): void {
+  const byPhase = options.failureByPhase && (authorized ? options.failureByPhase.afterAuthorize : options.failureByPhase.beforeAuthorize);
+  const failure = options.failureFor?.(error) ?? byPhase ?? options.failure;
   if (options.failureCopy !== "operation") { sendAdminFailure({ res, error }, failure); return; }
   const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker }, failure);
   res.status(status).json(body);
@@ -281,6 +312,8 @@ export function createAdminJsonRoutePorts(
     throw new Error("an admin mount cannot set authenticateBeforeWorkspace on a same-origin spec: it would move the same-origin gate ahead of the workspace check too");
   }
   const workspaceFirst = required.workspaceScoped !== false && !required.authenticateBeforeWorkspace;
+  // Only a mount that asked for phased copy tracks anything; every other mount's ports are unchanged.
+  const phase = required.failureByPhase ? createAuthorizationPhaseTracker() : undefined;
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
@@ -289,6 +322,9 @@ export function createAdminJsonRoutePorts(
       // `preflight`: the mount's own first refusal, before the workspace 404 and every later gate.
       if (required.preflight) runPreflight({ raw, deps, preflight: required.preflight });
       if (workspaceFirst) refuseForeignWorkspace({ raw, deps, options: required });
+      // `afterWorkspace`: the host's own refusal, once the workspace is the mounted one and before the session.
+      const reply = required.afterWorkspace?.({ deps });
+      if (reply) throw new RouteRefusalError(reply);
     },
     // A missing session is deferred only on an opted-in mount (`deferMissingPrincipal`): those
     // hand-written routes validated the body before reading the principal, so their 400 must still
@@ -303,14 +339,18 @@ export function createAdminJsonRoutePorts(
       recordAdminRequestFacts({ principal, res });
       const publishTrust = mountMayUseGrant({ options: required }) ? getPublishTrustContext(res) : null;
       if (publishTrust) publishTrustByContext.set(principal, publishTrustAuthorizeFor(publishTrust));
+      phase?.begin({ res, principal });
       return principal;
     },
-    authorize: (args, scope = {}) => authorizeWithPorts({ args, scope, options: required }),
+    authorize: async (args, scope = {}) => {
+      await authorizeWithPorts({ args, scope, options: required });
+      phase?.markAuthorized({ context: args.context });
+    },
     onError: ({ res, error }) => {
       if (error instanceof RouteRefusalError) { (required.refusalWriter ?? writeRefusal)({ res, error }); return; }
       if (error instanceof AdminWorkspaceRefusal) { writeWorkspaceRefusal({ res, reply: error.reply }); return; }
       if (required.failureWriter) { required.failureWriter({ res, error }); return; }
-      writeAdminFailure({ res, error, options: required });
+      writeAdminFailure({ res, error, options: required, authorized: phase?.authorized({ res }) ?? false });
     },
     onReturnedError: writeReturnedFailure,
     requestFacts: routeRequestFactsFor,

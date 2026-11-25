@@ -149,3 +149,86 @@ test("requestDeps hands each request its own bound deps through the admin and pu
     ["ada", "bob", "ada", "cy", "di", "nobody"],
   );
 });
+
+/** A JSON mount whose `handle` records itself, asks the host to authorize, then crashes when the body says so. */
+function phaseRoute({ calls }: { calls: string[] }) {
+  return defineJsonRoute<{ crash?: boolean }, { ok: true }, Deps, { id: string }>({
+    method: "put", path: `${path}-phase`,
+    parse: ({ body }) => ok({ value: (body ?? {}) as { crash?: boolean } }),
+    handle: async ({ input, authorize }) => {
+      calls.push("handle");
+      await authorize?.({ permission: "probe.write" });
+      if (input.crash) throw new Error("secret /var/db/site.sqlite");
+      return ok({ value: { ok: true } });
+    },
+  });
+}
+
+test("afterWorkspace answers after the workspace 404 and before the principal read, authorize and handler", async (t) => {
+  const calls: string[] = [];
+  const checked: string[] = [];
+  let disabled = true;
+  const hostDeps: Deps = { workspaceId: "local", authorize: async () => { calls.push("authorize"); return { allowed: true, reason: "owner" }; } };
+  const afterWorkspace = ({ deps: mounted }: { deps: { workspaceId: string } }) => {
+    checked.push(mounted.workspaceId);
+    return disabled ? { status: 403, body: { error: "Local sites management is disabled." } } : undefined;
+  };
+  // No session on this app: a request that reached the principal read would fail closed (500), so a 403 proves the order.
+  const anonymous = fakeAdminApp({ principal: false });
+  mountAdminJsonRoute({ app: anonymous, spec: phaseRoute({ calls }), deps: hostDeps }, { afterWorkspace });
+  const signedIn = fakeAdminApp();
+  mountAdminJsonRoute({ app: signedIn, spec: phaseRoute({ calls }), deps: hostDeps }, { afterWorkspace });
+  const bare = await listen({ app: anonymous });
+  const session = await listen({ app: signedIn });
+  t.after(bare.close);
+  t.after(session.close);
+  const put = (server: typeof bare, workspace: string) => server.call(`/api/admin/v1/workspaces/${workspace}/optin-phase`, { method: "PUT", body: "{}" });
+
+  assert.deepEqual(await put(bare, "elsewhere"), { status: 404, body: { error: "workspace was not found" } });
+  assert.deepEqual(checked, [], "a foreign workspace never reaches the host check");
+  assert.deepEqual(await put(bare, "local"), { status: 403, body: { error: "Local sites management is disabled." } });
+  assert.deepEqual(checked, ["local"]);
+  assert.equal((await put(session, "local")).status, 403, "a signed-in caller is refused too, with no authorize or handler");
+  assert.deepEqual(calls, []);
+
+  disabled = false;
+  assert.equal((await put(bare, "local")).status, 500, "admitted, the missing session now fails closed in authenticate");
+  assert.deepEqual(await put(session, "local"), { status: 200, body: { ok: true } });
+  assert.deepEqual(calls, ["handle", "authorize"]);
+});
+
+test("failureByPhase answers the before copy until authorize allowed THIS request, the after copy once it did; the phase is per request", async (t) => {
+  const copy = { beforeAuthorize: { operation: "probe/phase", code: "INTERNAL_ERROR", message: "Could not read probe settings." }, afterAuthorize: { operation: "probe/phase", code: "INTERNAL_ERROR", message: "Could not save probe settings." } };
+  const calls: string[] = [];
+  let authorizeCrashes = false;
+  const hostDeps: Deps = { workspaceId: "local", authorize: async () => { if (authorizeCrashes) throw new Error("rbac store offline"); return { allowed: true, reason: "owner" }; } };
+  const app = fakeAdminApp();
+  mountAdminJsonRoute({ app, spec: phaseRoute({ calls }), deps: hostDeps }, { failureByPhase: copy });
+  const anonymous = fakeAdminApp({ principal: false });
+  mountAdminJsonRoute({ app: anonymous, spec: phaseRoute({ calls }), deps: hostDeps }, { failureByPhase: copy });
+  const plain = fakeAdminApp();
+  mountAdminJsonRoute({ app: plain, spec: phaseRoute({ calls }), deps: hostDeps }, { failure: { operation: "probe/phase", code: "INTERNAL_ERROR", message: "Could not do the probe." } });
+  const server = await listen({ app });
+  const bare = await listen({ app: anonymous });
+  const unphased = await listen({ app: plain });
+  t.after(server.close);
+  t.after(bare.close);
+  t.after(unphased.close);
+  const failureOf = async (target: typeof server, crash: boolean) => {
+    const answer = await target.call("/api/admin/v1/workspaces/local/optin-phase", { method: "PUT", body: JSON.stringify({ crash }) });
+    assert.equal(answer.status, 500);
+    return String(answer.body?.error);
+  };
+
+  // Request 1 passes authorize and fails after it; request 2 fails IN authorize and must not inherit request 1's phase.
+  assert.match(await failureOf(server, true), /^Could not save probe settings\./);
+  authorizeCrashes = true;
+  assert.match(await failureOf(server, false), /^Could not read probe settings\./);
+  authorizeCrashes = false;
+  // No session: authenticate fails before authorize, so it is never the after copy (the shared failure lifecycle
+  // answers an anonymous boundary with approved vocabulary only, so the before sentence itself is not shown).
+  assert.doesNotMatch(await failureOf(bare, false), /Could not (save|read) probe settings/);
+  assert.match(await failureOf(server, true), /^Could not save probe settings\./, "and a later request is not stuck on the before copy");
+  // Without the option the mount's single failure copy answers every phase, as before.
+  assert.match(await failureOf(unphased, true), /^Could not do the probe\./);
+});

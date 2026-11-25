@@ -1,14 +1,15 @@
 /** HTTP-only member-login dependencies. No staff cookie or authorization capability crosses here. */
-import type { Request, Response } from "express";
+import type { Express, Request, RequestHandler, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
-import { parse } from "cookie";
+import { parse, serialize } from "cookie";
 import type { MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
 import type { OidcLoginDeps, LoginContext } from "@jini-ai/user-management/member-login/oidc-login";
 import { MemberLoginError, type MemberLoginOutcomeCode } from "@jini-ai/user-management/server";
 import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
 import { type MemberSessionRecord, type MemberRecord } from "@jini-ai/user-management/members/types";
-import type { MemberPublicRouteDeps } from "./deps.js";
+import { checkMemberWorkspace, type MemberPublicRouteDeps } from "./deps.js";
+import { observeMemberSignInFailure } from "./analytics.js";
 import { MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";
 
 export interface MemberOidcRouteDeps {
@@ -39,12 +40,38 @@ export function uniqueMemberCookie(required: { req: Pick<Request, "headers">; na
 export function memberOidcCookie(required: {
   res: Response; callbackUrl: string; kind: "callback" | "proof"; binding?: string;
 }, _options = {}): void {
+  required.res.append("Set-Cookie", memberOidcCookieHeader(required));
+}
+
+/** The `Set-Cookie` value {@link memberOidcCookie} writes, exactly as Express 4's `res.cookie(name, binding,
+ *  { ...COOKIE_OPTIONS, path, maxAge: 600000 })` / `res.clearCookie(name, { ...COOKIE_OPTIONS, path })` serialized
+ *  it: whole-second `Max-Age` with `Expires` at now + 10 minutes, or an empty value expiring at the epoch.
+ * @throws {MemberLoginError} LOGIN_INVALID for a malformed binding. @complexity O(u) callback URL bytes.
+ */
+export function memberOidcCookieHeader(required: { callbackUrl: string; kind: "callback" | "proof"; binding?: string }, _options = {}): string {
   const path = new URL(required.callbackUrl).pathname;
   const name = required.kind === "callback" ? MEMBER_OIDC_BINDING_COOKIE : MEMBER_OIDC_PROOF_COOKIE;
   const scope = required.kind === "callback" ? path : path.replace(/\/callback$/, "/verify-email");
-  if (required.binding === undefined) { required.res.clearCookie(name, { ...COOKIE_OPTIONS, path: scope }); return; }
+  if (required.binding === undefined) return serialize(name, "", { ...COOKIE_OPTIONS, path: scope, expires: new Date(1) });
   if (!/^[A-Za-z0-9_-]{43}$/.test(required.binding)) throw new MemberLoginError({ code: "LOGIN_INVALID" });
-  required.res.cookie(name, required.binding, { ...COOKIE_OPTIONS, path: scope, maxAge: 600000 });
+  return serialize(name, required.binding, { ...COOKIE_OPTIONS, path: scope, expires: new Date(Date.now() + 600000), maxAge: 600 });
+}
+
+/** Start and callback (Jini specs) are GET pages mounted on this app view: the no-store/no-referrer headers, the
+ * failed-sign-in observer and the workspace 404 run on the Express request first, in the hand-written order.
+ * @returns An `app` whose `get` still makes ONE `app.get(path, handler)` registration (route table unchanged).
+ * @complexity O(1) setup; per request O(1).
+ */
+export function memberOidcGetApp({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): Express {
+  const view: Express = Object.create(app);
+  const get = (path: string, handler: RequestHandler) => app.get(path, (req, res, next) => {
+    memberOidcHeaders({ res });
+    observeMemberSignInFailure({ deps, request: req, response: res, method: "oidc" });
+    if (!checkMemberWorkspace({ req, res, deps })) return;
+    return handler(req, res, next);
+  });
+  view.get = get as unknown as Express["get"];
+  return view;
 }
 
 /** Never cache callbacks, continuations, identity lists or their failures. O(1). */
@@ -75,9 +102,14 @@ export class MemberOidcCancelled extends Error {}
  * to show in plain words. Same fixed codes as the JSON routes; nothing upstream is echoed. O(1).
  */
 export function redirectMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
+  res.redirect(303, memberOidcErrorLocation({ error }));
+}
+
+/** The fixed `/signin#oidcError=<CODE>` location {@link redirectMemberOidcError} answers. O(1). */
+export function memberOidcErrorLocation({ error }: { error: unknown }, _options = {}): string {
   let code: MemberLoginOutcomeCode | "LOGIN_CANCELLED" = error instanceof MemberLoginError ? error.code : "LOGIN_INVALID";
   if (error instanceof MemberOidcCancelled) code = "LOGIN_CANCELLED";
-  res.redirect(303, `/signin#oidcError=${code}`);
+  return `/signin#oidcError=${code}`;
 }
 
 /** Revalidate the presenting member on every leg. Only this member session can establish a
