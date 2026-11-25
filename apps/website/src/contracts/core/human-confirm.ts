@@ -16,18 +16,18 @@
  * The generic prepare/ask/run handler and its ordering rationale live in Jini/core/src/registration-kit.ts;
  * Tovu keeps the surface exchange, allowlist, dialog wording and fail-closed confirmation policy here.
  */
-import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delete-grant.js";
+import { requireHumanConfirm as daemonRequireHumanConfirm, HUMAN_CONFIRM_CHOICE_PARAM, type HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
+import type { ChatDeleteSurfaceDeps, HumanConfirmSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
+import { requireChatDeleteGrant } from "./chat-delete-grant.js";
 import { nativeToolMetadata } from './tool-metadata/index.js';
-import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type AccessApprovalDescription, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
-import { ToolInputError, type ApprovalReceiptObserver, type SurfaceEmitter, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
+import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
 import type { UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
-import { approvalText } from './approval-i18n.js';
+import { approvalText } from '@jini-ai/core/contracts/site/approval-i18n';
 
 import {
-  askOnce,
-  classifyConfirmationAnswer,
   SURFACE_EXCHANGE_ID_PARAM,
   type ConfirmationOutcome,
 } from "@jini-ai/daemon/surface-exchanges";
@@ -52,34 +52,6 @@ export function toolApprovalConfirmation({ descriptor, input, locale, details = 
 }
 
 /**
- * Surfaces for a confirmation, plus one OPTIONAL observe-only port (P3-T3.T). Why optional and
- * per-call: only a trusted routine run has somewhere to project "waiting for approval", so every
- * other run gets `undefined` and opens exactly the exchange it always did. The port can never answer:
- * it receives the exchange's own receipts and, with `restorable: false`, refuses to restart a closed
- * invocation after a late answer (a routine has no tab that could legitimately bring it back).
- */
-export type HumanConfirmSurfaceDeps = ChatDeleteSurfaceDeps & {
-  approvalReceiptsFor?: (required: { ctx: Pick<ToolExecutionContext, "run" | "principal"> }, optional?: Record<string, never>) =>
-    { onApprovalReceipt: ApprovalReceiptObserver; restorable?: false } | undefined;
-};
-
-/** Keep the lease (signal, run, principal) but make its retry a no-op, so a late answer restores nothing. */
-function withoutRestore(emit: SurfaceEmitter, _optional = {}): SurfaceEmitter {
-  const lifetime = emit.exchangeLifetime;
-  if (!lifetime) return emit;
-  return Object.assign((emission: Parameters<SurfaceEmitter>[0]) => emit(emission), { exchangeLifetime: { ...lifetime, retry: async () => {} } });
-}
-
-/** The params key an alternative's `choice` rides under. */
-export const HUMAN_CONFIRM_CHOICE_PARAM = "choice";
-
-/**
- * {@link ConfirmationOutcome}, plus which offered alternative the person clicked. `choice` is set
- * only on a confirm made through an alternative that was actually on the card.
- */
-export type HumanConfirmOutcome = { confirmed: true; choice?: string } | Extract<ConfirmationOutcome, { confirmed: false }>;
-
-/**
  * Shows the confirmation dialog and waits for the human's answer.
  *
  * @throws {ToolInputError} `<errorCode>_NO_CONFIRMATION_CHANNEL` when the call has no
@@ -90,55 +62,11 @@ export type HumanConfirmOutcome = { confirmed: true; choice?: string } | Extract
  */
 export async function requireHumanConfirm(
   { ctx, surfaces, spec }: { ctx: ToolExecutionContext; surfaces: HumanConfirmSurfaceDeps; spec: HumanConfirmSpec },
-  { emitSurface }: ToolExecutionOptions = {},
+  options: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
-  await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
-  await requireAccessApprover({ surfaces, principalId: ctx.principal.id, toolId: spec.toolId, access: spec.access });
-  if (!emitSurface) {
-    throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
-        "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
-  }
-  // An abort listener cannot observe an event that already fired. Refuse before opening an
-  // exchange so a completed run never creates a new card or waits for its idle deadline.
-  if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned" };
   // Shorthand `{ toolId }` on purpose: the allowlist completeness scan resolves the `toolId` of
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
-  const { toolId } = spec;
-  // Observe-only and synchronous inside the exchange; the answer below still comes only from the card.
-  const receipts = surfaces.approvalReceiptsFor?.({ ctx });
-  const exchange = receipts
-    ? surfaces.surfaceExchanges.open({ binding: { toolId, principalId: ctx.principal.id },
-      emit: receipts.restorable === false ? withoutRestore(emitSurface) : emitSurface }, { onApprovalReceipt: receipts.onApprovalReceipt })
-    : surfaces.surfaceExchanges.open({ binding: { toolId, principalId: ctx.principal.id }, emit: emitSurface });
-  const alternatives = spec.alternatives ?? [];
-  const resource = renderHumanConfirmation({ spec, exchange, alternatives });
-
-  const closeOnAbort = () => exchange.close({});
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource } } });
-    const outcome = classifyConfirmationAnswer({ answer });
-    if (!outcome.confirmed || answer.status !== "received") return outcome;
-    await requireAccessApprover({ surfaces, principalId: ctx.principal.id, toolId: spec.toolId, access: spec.access });
-    // A revoke while the human reads the card takes effect before the domain effect resumes.
-    await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
-    const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
-    const offered = alternatives.some((alternative) => alternative.choice === choice);
-    return offered && typeof choice === "string" ? { confirmed: true, choice } : { confirmed: true };
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-  }
-}
-
-/** Re-read the active person before disclosure and before resuming the domain writer.
- * Domain writers retain their own current permission and revision checks. */
-export async function requireAccessApprover({ surfaces, principalId, toolId, access }: {
-  surfaces: ChatDeleteSurfaceDeps; principalId: string; toolId: string; access: AccessApprovalDescription | undefined;
-}, _optional = {}): Promise<void> {
-  if (!access) return;
-  if (access.resources.some(resource => resource.scope.personId !== principalId)) throw new ToolInputError({ message: `${toolId}: this access proposal belongs to another person. Nothing was changed. Request access for your own signed-in session.` });
-  if (!surfaces.assertAccessApprover) throw new ToolInputError({ message: `${toolId}: this chat cannot verify the person approving access. Nothing was changed. Reopen the chat in your signed-in admin session.` });
-  await surfaces.assertAccessApprover({ toolId, principalId });
+  return daemonRequireHumanConfirm({ ctx, surfaces, spec, requireDeleteGrant: requireChatDeleteGrant, render: renderHumanConfirmation }, options);
 }
 
 /**

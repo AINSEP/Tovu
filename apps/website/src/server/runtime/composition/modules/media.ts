@@ -51,7 +51,7 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/ag
 
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
 const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
-import { toStoredMediaResponse } from "#src/server/inbound/admin-http/routes/media/stored-media-response";
+import { toStoredMediaResponse } from "@jini-ai/cms/admin-http/routes/media/stored-media-response";
 import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
@@ -196,7 +196,7 @@ export function registerAdminMediaReplaceRoute(
     mediaRepo: deps.mediaRepo,
     ...UPLOAD_CAPS,
     replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { ...UPLOAD_CAPS, videoCodecProbe }),
-    describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
+    describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ ...input, resolvePublicUrls: ({ media }) => resolveMediaPublicUrls({ deps, assets: media }), resolveByteSizes: ({ media }) => resolveMediaByteSizes({ deps, media }) }),
   };
   mountAdminJsonRoute({ app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
 }
@@ -245,7 +245,7 @@ export function registerAdminMediaUploadRoute(
     onUploaded: ({ actorId, kind, contentType, byteLength }: { actorId: string; kind: MediaKind; contentType: string; byteLength: number }) => captureMediaUploaded({
       tracker: deps.tracker, actorId, byteLength, kind: uploadedMediaKind({ kind, contentType }), source: "admin",
     }),
-    describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
+    describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ ...input, resolvePublicUrls: ({ media }) => resolveMediaPublicUrls({ deps, assets: media }), resolveByteSizes: ({ media }) => resolveMediaByteSizes({ deps, media }) }),
   };
   mountAdminJsonRoute({ app, spec: mediaUploadRoute, deps: uploadDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE, deferMissingPrincipal: true });
 }

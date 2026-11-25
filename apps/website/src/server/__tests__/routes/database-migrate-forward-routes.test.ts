@@ -114,7 +114,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-test("database migrate-forward: plan -> confirm -> execute succeeds end-to-end and records a restore point + ledger row", async (t) => {
+test("admin migrate-forward records the authenticated user in the ledger detail", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -148,6 +148,12 @@ test("database migrate-forward: plan -> confirm -> execute succeeds end-to-end a
   assert.equal(ledger.items.length, 1);
   assert.equal(ledger.items[0].kind, "core.migration");
   assert.equal(ledger.items[0].outcome, "success");
+  const principal = await seededOwner(deps);
+  assert.equal(ledgerDetail(ledger.items[0]).actorId, principal.id);
+  assert.deepEqual(JSON.parse(ledgerDetail(ledger.items[0]).detailJson!), {
+    artifactRef: restorePoints[0].artifactRef,
+    actor: { id: principal.id, kind: "user" },
+  });
 });
 
 test("database migrate-forward: a forged hash is rejected at execute without effects and releases the operation lock", async (t) => {
@@ -493,3 +499,9 @@ test("database migrate-forward execute: a non-Error throw is a 500 with the gene
   assert.equal(res.status, 500);
   assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database execution could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database execution" } });
 });
+
+/** The timeline read port types only the rendered columns; the stored row also carries the writer's attribution. */
+function ledgerDetail<Row extends object>(row: Row | undefined): Row & { actorId: string; detailJson: string | null } {
+  if (row === undefined) throw new Error("expected a ledger row");
+  return row as Row & { actorId: string; detailJson: string | null };
+}

@@ -5,7 +5,7 @@ import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/
 import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import { resolveMediaCaptionsTrack } from "@jini-ai/cms/media/site/public-path";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
-import { featuredImageView } from "../../../../http/site/render/template-render-data.js";
+import { featuredImageView } from "@jini-ai/cms/public-http/http/site/render/template-render-data";
 import type { RenderContextResolutionDeps } from "./deps.js";
 
 /**

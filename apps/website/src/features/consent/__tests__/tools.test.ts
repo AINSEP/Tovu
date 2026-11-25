@@ -224,3 +224,14 @@ test('reserved path refuses before local rendering', async t => {
   await assert.rejects(f.call('consent_get_readiness', { path: '/api/admin' }), /Choose a local public page path/);
   assert.equal(render.mock.callCount(), 0);
 });
+
+test("a rejected banner mode uses Tovu’s copy during held preparation without saving a draft", async t => {
+  const f = tools({ t });
+  let opened = false;
+  await assert.rejects(f.call('consent_update_settings', { config: { ...f.config, bannerMode: 'invalid' }, expectedDraftId: null }, {
+    emitSurface: async () => { opened = true; },
+  }), { name: 'ToolInputError', message: 'Choose the Tovu banner, your own banner, or none.' });
+  assert.equal(opened, false);
+  assert.equal(f.surfaceExchanges.size(), 0);
+  assert.deepEqual(await f.store.read({}), { draft: null, published: null });
+});

@@ -106,9 +106,13 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
 // +1 (href-standard 2026-11-17): the theme tier's `safeHref` copy (inside already-loaded `render-contract.ts`) was replaced by
 // Jini's one href standard, `@jini-ai/cms/navigation/href` (a dependency-free leaf, one file); the barrel is not an option here.
 // +1 (R5a): the managed document template now lives in CMS presentation/document-shell.
+// +4 (W3 CRP-11 2026-11-25): post-body, template-render-data, entry-lists and blocks moved to
+// `@jini-ai/cms/public-http/http/site/render/*` behind injected ports; each host file stays as the real
+// binding of host renderers/copy/money, so each now loads as host binding + one Jini leaf. No new
+// rendering behaviour and no non-rendering package (the database/blob/agent pins above still hold).
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 179,
-  "liquid-worker.ts": 136,
+  "handlebars-worker.ts": 183,
+  "liquid-worker.ts": 140,
 } as const;
 
 /** Loads one entry in a bounded child, preserving errors so incomplete graphs cannot pass.

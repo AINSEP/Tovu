@@ -7,7 +7,7 @@ import type { composeOutboundConnections } from "./outbound-connections.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
-import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { isShareArtifactKey, SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { artifactStoreBinding } from "@jini-ai/platform/object-store/site/artifact-provider";
 import { artifactStoreTarget } from "@jini-ai/platform/object-store/site/artifact-provider";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
@@ -110,7 +110,7 @@ function shareDeliveryPorts(required: ShareDeliveryPortsRequired, _optional = {}
     // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
     // A normal publish's kit remains unchanged, including its observability.
     const kit = createDeployHostKit({});
-    return { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
+    return { ...kit, isShareArtifactKey, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
       // A provider whose own upload/delete API goes through kit.fetch (not SigV4) keeps it.
       if (init.method !== "HEAD") return kit.fetch(url, init, options);
       const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });

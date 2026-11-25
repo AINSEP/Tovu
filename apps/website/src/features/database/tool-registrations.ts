@@ -23,7 +23,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { createDatabaseReadTools, type InputReaders, type RestorePointListPort, type RestorePointSavePort } from "@jini-ai/db/tools";
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, requireNoInput, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
+import { type AuthorizeFn, type MutationActor } from "@jini-ai/core/contracts/events";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
 // `Error` gets. Same reasoning as `features/post/tool-registrations.ts`'s identical import.
@@ -67,6 +67,8 @@ export interface DatabaseToolDeps {
   dbOps: DbOpsPort;
   gatedMutations: { gatewayDeps: GatewayDeps };
 }
+
+type DatabaseMutationActorBinding = (required: { readonly principalId: string }, optional?: Record<string, never>) => MutationActor;
 
 /**
  * Widened this dispatch (ADR-041 §3, closing `agent-tools.ts`'s own disclosed gap) with the three
@@ -121,7 +123,7 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
 ]);
 
 
-    async function planDatabaseMigrateForward(routeDeps: DatabaseToolDeps, ctx: Parameters<ToolHandler>[0]) {
+    async function planDatabaseMigrateForward(routeDeps: DatabaseToolDeps, ctx: Parameters<ToolHandler>[0], mutationActor: DatabaseMutationActorBinding) {
       requireNoInput({ input: ctx.input });
       // No explicit pre-check here: `gateway.ts`'s plan() calls authorize() unconditionally,
       // BEFORE hooks.computePlan() ever runs — verified directly against its body (see
@@ -129,7 +131,7 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
       // duplicate evaluator ADR-021 §2 forbids.
       const hooks = buildMigrateForwardHooks({
         workspaceId: routeDeps.workspaceId,
-        actorId: ctx.principal.id,
+        actor: mutationActor({ principalId: ctx.principal.id }),
         clock: routeDeps.clock,
         idGen: routeDeps.idGen,
         dbOps: routeDeps.dbOps,
@@ -155,11 +157,11 @@ const MIGRATE_FORWARD_DIALOG_COPY = {
   danger: true,
   confirmLabel: "Update database",
 };
-function createMigrateHooks(routeDeps: DatabaseToolDeps) {
+function createMigrateHooks(routeDeps: DatabaseToolDeps, mutationActor: DatabaseMutationActorBinding) {
   return ({ actorId }: { actorId: string }, _options = {}) =>
     buildMigrateForwardHooks({
       workspaceId: routeDeps.workspaceId,
-      actorId,
+      actor: mutationActor({ principalId: actorId }),
       clock: routeDeps.clock,
       idGen: routeDeps.idGen,
       dbOps: routeDeps.dbOps,
@@ -169,8 +171,8 @@ function createMigrateHooks(routeDeps: DatabaseToolDeps) {
 }
 
 
-function createMigrateForwardHandler(routeDeps: DatabaseToolDeps, surfaces: AssistantSurfaceDeps): ToolHandler {
-const migrateHooks = createMigrateHooks(routeDeps);
+function createMigrateForwardHandler(routeDeps: DatabaseToolDeps, surfaces: AssistantSurfaceDeps, mutationActor: DatabaseMutationActorBinding): ToolHandler {
+const migrateHooks = createMigrateHooks(routeDeps, mutationActor);
   return humanConfirmedToolHandler(surfaces, {
       flag: "migrated",
       prepare: async ({ ctx }) => {
@@ -224,6 +226,7 @@ const migrateHooks = createMigrateHooks(routeDeps);
 export function buildDatabaseRegistrations(
   routeDeps: DatabaseToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+  { mutationActor }: { readonly mutationActor: DatabaseMutationActorBinding },
 ): ToolRegistration[] {
 
   const portable = createDatabaseReadTools({
@@ -237,14 +240,14 @@ export function buildDatabaseRegistrations(
   if (restorePointTool === undefined) throw new Error("Database tools have no backup restore point registration");
   const handlers: Record<string, ToolHandler> = {
     ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
-    database_plan_migrate_forward: (ctx) => planDatabaseMigrateForward(routeDeps, ctx),
+    database_plan_migrate_forward: (ctx) => planDatabaseMigrateForward(routeDeps, ctx, mutationActor),
 
 
     backup_create_restore_point: restorePointTool.handler,
 
     // Plans as the agent, asks the human, then confirms as the human and executes as the agent
     // inside the same operation lock and cost-class refusal the admin execute route uses.
-    [MIGRATE_TOOL_ID]: createMigrateForwardHandler(routeDeps, surfaces),
+    [MIGRATE_TOOL_ID]: createMigrateForwardHandler(routeDeps, surfaces, mutationActor),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,
@@ -262,8 +265,8 @@ export function buildDatabaseRegistrations(
  * Database drift logic belongs to the low-level database module, which must not value-import
  * this feature: that would close a runtime cycle through assistant tool discovery.
  */
-export function contributeDatabaseTools(): ToolContributor<DatabaseToolDeps, AssistantSurfaceDeps> {
-  return { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk };
+export function contributeDatabaseTools({ mutationActor }: { mutationActor: DatabaseMutationActorBinding }, _optional = {}): ToolContributor<DatabaseToolDeps, AssistantSurfaceDeps> {
+  return { domain: "database", build: (deps, surfaces) => buildDatabaseRegistrations(deps, surfaces, { mutationActor }), risk: databaseDerivedRisk };
 }
 
 /** Host kit is the validation authority; factories receive the same reader behavior through ports. */

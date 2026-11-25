@@ -6,7 +6,8 @@ import { installUploadedAgentPlugin } from "#src/features/agent-plugins/install-
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { mountAdminRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "#src/server/inbound/admin-http/routes/agent-plugins/deps";
-import { bodyParseRefusal, installedAgentPluginRow, knownInstallRefusal } from "#src/server/inbound/admin-http/routes/agent-plugins/install-response";
+import { bodyParseRefusal, installedAgentPluginRow } from "@jini-ai/cms/admin-http/routes/agent-plugins/install-response";
+import { knownInstallRefusal } from "#src/server/inbound/admin-http/routes/agent-plugins/install-response";
 
 /**
  * @file K1 (RT-K1-adm-agent-plugins-4, w4-routes batch L): registrar for `AGENT_PLUGIN_INSTALL_ZIP` and

@@ -5,7 +5,8 @@ import express from "express";
 
 import type { CommentSubmission } from "@jini-ai/cms/comments";
 import type { CommentIngressPolicy, CommentIngressResult } from "@jini-ai/cms/comments";
-import { registerCommentsSubmitRoute, commentFormReturnTo, isSameOriginCommentPost } from "../comments-submit.js";
+import { registerCommentsSubmitRoute, isSameOriginCommentPost } from "../comments-submit.js";
+import { commentFormReturnTo } from "@jini-ai/cms/public-http/routes/site/comments-submit";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 
@@ -320,4 +321,23 @@ test('behind a trusted proxy hop, two visitors sharing the proxy socket get sepa
   assert.ok(trusted.every(key => /^[a-f0-9]{64}$/.test(key)), 'the key is the salted hash, never the raw address');
   const untrusted = await keysFor(false);
   assert.equal(untrusted[0], untrusted[1], 'without the platform hop the socket peer is the only identity (the reason trust-proxy.ts exists)');
+});
+
+test('proxied form admission uses the configured serving origin without widening JSON admission', () => {
+  const request = (headers: Record<string, string>, type: string | false = false) => ({
+    headers, protocol: 'http', is: (value: string) => (type === value ? type : false),
+    get: (key: string) => (key === 'host' ? 'internal.proxy' : headers[key]),
+  }) as unknown as Parameters<typeof isSameOriginCommentPost>[0]['request'];
+  const saved = process.env.TOVU_PUBLIC_URL;
+  process.env.TOVU_PUBLIC_URL = 'https://www.site.test/';
+  try {
+    const form = 'application/x-www-form-urlencoded';
+    assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://www.site.test' }, form) }), true, 'form from the configured public origin behind a Host-rewriting proxy');
+    assert.equal(isSameOriginCommentPost({ request: request({ origin: 'http://internal.proxy' }, form) }), true, 'form from the serving origin');
+    assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://evil.test' }, 'application/json') }), false, 'a foreign Origin is refused even for JSON');
+    assert.equal(isSameOriginCommentPost({ request: request({ referer: 'https://www.site.test/page' }, form) }), false, 'no Referer fallback');
+    assert.equal(isSameOriginCommentPost({ request: request({}, 'application/json') }), true, 'originless JSON stays a non-browser client');
+  } finally {
+    if (saved === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = saved;
+  }
 });

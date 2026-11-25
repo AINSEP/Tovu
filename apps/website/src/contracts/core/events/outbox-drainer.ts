@@ -30,11 +30,6 @@ import { readOutboxTraceParent, withoutOutboxTraceParent } from "./outbox-trace-
  * - The timer is `unref`'d, so the drainer never keeps a process alive by itself.
  */
 
-/** Wait between drains when the last one did not fill a batch; bounds how late an event is delivered. */
-export { DEFAULT_OUTBOX_DRAIN_INTERVAL_MS } from "@jini-ai/infra/events/outbox";
-
-export type { OutboxDrainer } from "@jini-ai/infra/events/outbox";
-
 /** The drainer's queue-depth sampling ports, as Jini's `startOutboxDrainer` takes them. */
 export type OutboxQueueMetrics = NonNullable<NonNullable<Parameters<typeof startJiniOutboxDrainer>[1]>["queueMetrics"]>;
 
@@ -69,6 +64,5 @@ export function startOutboxDrainer(
   // The parent is read from the stored row, then the reserved value is stripped: subscribers (and
   // the webhook payloads they build) never see the transport value. A timer-inherited context is
   // neither durable nor attributable to the right request, so delivery never relies on it.
-  const subscriberBus: typeof args.bus = { ...args.bus, publish: (input) => args.bus.publish({ ...input, event: withoutOutboxTraceParent({ event: input.event }) }) };
-  return startJiniOutboxDrainer({ ...args, bus: trackOutboxDelivery({ bus: subscriberBus, tracker }, { readParent }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
+  return startJiniOutboxDrainer({ ...args, bus: trackOutboxDelivery({ bus: args.bus, tracker }, { readParent, prepareEvent: withoutOutboxTraceParent }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
 }

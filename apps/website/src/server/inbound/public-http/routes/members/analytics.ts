@@ -1,11 +1,12 @@
 import type { Request, Response } from "express";
 import type { MemberSignInResult } from "@jini-ai/user-management/members/ports";
-import { captureVisitorEvent, type VisitorAnalyticsDeps } from "../../visitor-analytics.js";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
+import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 
 /** One session outcome after its authoritative owner commits. Account metadata stays local.
  * @complexity O(1). */
 export function captureMemberSignedIn(
-  { deps, request, result, method, workspaceId }: { deps: VisitorAnalyticsDeps; request: Request; result: MemberSignInResult;
+  { deps, request, result, method, workspaceId }: { deps: VisitorAnalyticsDeps<Request>; request: Request; result: MemberSignInResult;
     method: "password" | "challenge" | "oidc"; workspaceId: string },
   _optional: Record<string, never> = {},
 ): void {
@@ -19,7 +20,7 @@ export function captureMemberSignedIn(
 /** Observe refused password/challenge responses once, including validation and rate-limit exits.
  * OIDC redirect failures are captured by their fixed redirect error path. @complexity O(1). */
 export function observeMemberSignInFailure(
-  { deps, request, response, method }: { deps: VisitorAnalyticsDeps; request: Request; response: Response;
+  { deps, request, response, method }: { deps: VisitorAnalyticsDeps<Request>; request: Request; response: Response;
     method: "password" | "challenge" | "oidc" },
   _optional: Record<string, never> = {},
 ): void {

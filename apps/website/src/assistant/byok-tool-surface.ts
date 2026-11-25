@@ -451,7 +451,7 @@ export interface ByokToolSurfaceOptions {
    * Human-confirm's optional receipt port (P3-T3.T): trusted routine context for a tracked routine run,
    * else undefined. Rides on the surfaces every first-party tool gets; it observes and never answers.
    */
-  readonly approvalReceiptsFor?: import("../contracts/core/human-confirm.js").HumanConfirmSurfaceDeps["approvalReceiptsFor"];
+  readonly approvalReceiptsFor?: import("@jini-ai/core/contracts/site/daemon-surface-exchanges").HumanConfirmSurfaceDeps["approvalReceiptsFor"];
   /**
    * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
    * injected by the composition root (`modules/assistant-byok.ts` passes

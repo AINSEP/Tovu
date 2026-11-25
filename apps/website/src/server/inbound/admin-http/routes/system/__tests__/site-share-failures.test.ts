@@ -52,20 +52,20 @@ test("an archive failure returns the actual job step and redacted copyable detai
 const root = "/api/admin/v1/workspaces/ws/site-shares";
 
 /** Exercise Express routing/auth/catches without a listening socket. */
-async function request(app: express.Express, method: string, suffix: string) {
+async function request(app: express.Express, method: string, suffix: string, headers: Record<string, string> = {}) {
   const socket = new PassThrough(), req = new IncomingMessage(socket as unknown as Socket);
   req.method = method; req.url = root + suffix;
-  req.headers = { host: "localhost", origin: "http://localhost", "sec-fetch-site": "same-origin" };
+  req.headers = { host: "localhost", origin: "http://localhost", "sec-fetch-site": "same-origin", ...headers };
   req.push(null);
   const res = new ServerResponse(req); res.assignSocket(socket as unknown as Socket);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await new Promise<{ status: number; body: any }>((resolve, reject) => {
+    return await new Promise<{ status: number; body: any; cacheControl: unknown }>((resolve, reject) => {
       timer = setTimeout(() => reject(new Error("request timeout")), 2000);
       const chunks: Buffer[] = []; socket.on("data", chunk => chunks.push(Buffer.from(chunk)));
       res.on("finish", () => {
         const wire = Buffer.concat(chunks).toString();
-        resolve({ status: res.statusCode, body: JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)) });
+        resolve({ status: res.statusCode, body: JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)), cacheControl: res.getHeader("cache-control") });
       });
       app(req, res);
     });
@@ -140,4 +140,25 @@ test("shared diagnostics remain correlated without a telemetry provider", t => {
   assert.equal(logs.length, 1);
   assert.ok(JSON.stringify(logs).includes(body.errorId));
   assert.equal(body.message.includes("storage unavailable"), false);
+});
+
+test("a foreign-origin owner session gets a no-store refusal before the reveal backend", async () => {
+  let revealed = 0;
+  const sinks = recordingComposedReporter();
+  const reveal = async () => { revealed += 1; return { password: "never" }; };
+  const app = express();
+  app.use((req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; res.locals.failureReporter = sinks.reporter; next(); });
+  registerAdminSiteShareRoutes({ app, reporter: sinks.reporter, deps: {
+    workspaceId: "ws", ownerPrincipalId: "owner", authorize: async () => ({ allowed: true }),
+    siteShareBackend: { revealPassword: reveal },
+  } as unknown as RouteDeps });
+  // Browser facts say same-origin, but the Origin is not the exact serving origin (scheme + host).
+  const foreign = await request(app, "POST", "/share/password", { origin: "https://localhost" });
+  assert.equal(foreign.status, 403);
+  assert.equal(foreign.body.code, "FORBIDDEN");
+  assert.match(String(foreign.cacheControl), /no-store/);
+  assert.equal(revealed, 0, "the reveal backend is never reached");
+  const missing = await request(app, "POST", "/share/password", { origin: "" });
+  assert.equal(missing.status, 403);
+  assert.equal(revealed, 0);
 });

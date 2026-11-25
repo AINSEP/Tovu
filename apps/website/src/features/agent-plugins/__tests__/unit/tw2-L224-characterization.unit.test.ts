@@ -1,3 +1,4 @@
+import { TOVU_LEGACY_MCP_ALIASES } from "../../mcp-host-bindings.js";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
@@ -23,7 +24,7 @@ test("MCP adapter retains stdio, optional remote fields, declared invalid ids an
     ["__proto__", { type: "sse", url: "https://example.com/events" }],
     ["invalid", { type: "unknown" }],
   ]);
-  const result = parseAgentPluginMcpConfig({ value: { $schema: schema, mcpServers: servers } });
+  const result = parseAgentPluginMcpConfig({ value: { $schema: schema, mcpServers: servers } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   if (!result.ok) assert.fail(result.errors.join("; "));
   assert.equal(result.ok, true);
   assert.equal(Object.getPrototypeOf(result.config.servers), null);

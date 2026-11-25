@@ -5,6 +5,7 @@ import { createCapturingResponse, startTestServer } from "#src/server/__tests__/
 import { respondToSignInError, reportMemberDeliveryFailure } from "../sign-in.js";
 import { sendMemberAuthError } from "../complete-sign-in.js";
 import { MemberAuthError } from "@jini-ai/user-management/members/types";
+import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 
 for (const send of [respondToSignInError, sendMemberAuthError]) test(`${send.name} returns safe correlated JSON and keeps credential refusal`, async t => {
   const logs = t.mock.method(console, "error", () => {});
@@ -37,4 +38,15 @@ test("post-acceptance delivery failure reports privately without changing accept
   assert.equal(logs.mock.calls.length, 0);
   assert.equal(recorded.length, 1);
   assert.match(JSON.stringify(recorded), /public:member-delivery/);
+});
+
+test("site-wide sender setup refusal stays 503 without leaking a provider exception", t => {
+  const logs = t.mock.method(console, "error", () => {});
+  const { res, capture } = createCapturingResponse();
+  const failure = new SenderIdentityNotConfiguredError({ workspaceId: "ws-private", driver: "smtp password=PROVIDER_CANARY" });
+  respondToSignInError({ res, error: failure });
+  assert.equal(capture.statusCode, 503);
+  assert.deepEqual(capture.jsonBody, { error: "Member sign-in is unavailable: email is not set up for this site.", code: "MEMBER_SIGN_IN_UNAVAILABLE" });
+  assert.doesNotMatch(JSON.stringify(capture.jsonBody), /PROVIDER_CANARY|ws-private/);
+  assert.equal(logs.mock.calls.length, 0, "a known refusal is not an incident");
 });

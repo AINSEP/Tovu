@@ -4,7 +4,8 @@ import test from "node:test";
 import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext } from "@jini-ai/core";
 import { createInMemoryRoutineStore } from "@jini-ai/daemon";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { requireHumanConfirm, type HumanConfirmSurfaceDeps } from "#src/contracts/core/human-confirm";
+import { requireHumanConfirm } from "#src/contracts/core/human-confirm";
+import { type HumanConfirmSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createRoutineApprovalObserver } from "../routine-approval-observer.js";
 
 /**

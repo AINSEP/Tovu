@@ -2,6 +2,11 @@ import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
+import express from "express";
+import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { registerAdminDatabaseMigrateForwardRoutes } from "#src/server/runtime/composition/modules/database-migrate-forward";
+import type { RouteDeps } from "#src/server/routes/types";
+import { actorForMutation } from "#src/server/runtime/composition/mutation-actor";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
@@ -48,7 +53,7 @@ const contributions = {
 // Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeRecoveryTools() });
-contributions.contributors.register({ contribution: contributeDatabaseTools() });
+contributions.contributors.register({ contribution: contributeDatabaseTools({ mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "assistant" }) }) });
 
 /**
  * @file The combined Database (SPEC-017, ADR-041) + Recovery (SPEC-019, ADR-045) tool-wiring test
@@ -769,6 +774,45 @@ async function executeEffects(fixture: ReturnType<typeof fakeRouteDeps>): Promis
   };
 }
 
+test("human confirmation does not turn an assistant migration into a user write", async () => {
+  const fixture = fakeRouteDeps();
+  const tokens = fixture.deps.gatedMutations.gatewayDeps.tokens;
+  const saved: Parameters<typeof tokens.save>[0][] = [];
+  const save = tokens.save.bind(tokens);
+  tokens.save = async record => { saved.push(record); return save(record); };
+  const call = await startExecute(fixture.deps, "database_execute_migrate_forward", {});
+  assert.deepEqual(call.answer(PRINCIPAL_ID, "confirm"), { ok: true });
+  assert.equal((await call.pending as { migrated: boolean }).migrated, true);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0]!.confirmerPrincipalId, PRINCIPAL_ID);
+  assert.ok(fixture.authorizeCalls.length > 0);
+  assert.ok(fixture.authorizeCalls.every(params => params.principalId === PRINCIPAL_ID));
+  const assistantLedger = await fixture.repos.databaseLedgerRepo.query({ limit: 10 });
+  assert.equal(assistantLedger.items.length, 1);
+  const assistantActor = JSON.parse(ledgerDetail(assistantLedger.items[0]!).detailJson!).actor;
+  assert.deepEqual(assistantActor, { id: PRINCIPAL_ID, kind: "agent" });
+  assert.equal(ledgerDetail(assistantLedger.items[0]!).actorId, PRINCIPAL_ID);
+
+  const admin = fakeRouteDeps();
+  const app = express();
+  registerAdminDatabaseMigrateForwardRoutes({ app, deps: admin.deps as unknown as RouteDeps });
+  let body = {};
+  for (const step of ["plan", "confirm", "execute"]) {
+    const handler = extractRouteHandler(app, "post", `/api/admin/v1/database/migrate-forward/${step}`);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: PRINCIPAL_ID };
+    await handler({ params: {}, body }, res);
+    assert.equal(capture.statusCode, 200);
+    body = capture.jsonBody as Record<string, unknown>;
+  }
+  const adminLedger = await admin.repos.databaseLedgerRepo.query({ limit: 10 });
+  assert.equal(adminLedger.items.length, 1);
+  const adminActor = JSON.parse(ledgerDetail(adminLedger.items[0]!).detailJson!).actor;
+  assert.deepEqual(adminActor, { id: PRINCIPAL_ID, kind: "user" });
+  assert.equal(adminActor.id, assistantActor.id);
+  assert.notEqual(adminActor.kind, assistantActor.kind);
+});
+
 test("Stopped migration during confirm authorization saves no token", async () => {
   const fixture = fakeRouteDeps();
   const before = await executeEffects(fixture);
@@ -948,4 +992,9 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     );
     assert.equal(surfaceExchanges.size(), 0, "no dialog was opened");
   });
+}
+
+/** The timeline read port types only the rendered columns; the stored row also carries the writer's attribution. */
+function ledgerDetail<Row extends object>(row: Row): Row & { actorId: string; detailJson: string | null } {
+  return row as Row & { actorId: string; detailJson: string | null };
 }

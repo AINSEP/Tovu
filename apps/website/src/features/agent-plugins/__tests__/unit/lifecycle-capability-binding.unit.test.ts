@@ -46,7 +46,7 @@ test("explicit-root MCP readers fail open to nothing when mcp.json is missing", 
   assert.deepEqual(await readInstalledMcpServers({ packageRoot: root }), {});
 });
 
-test("installed legacy MCP metadata keeps its connection and warns with this host's [agent-plugins] prefix", async (t) => {
+test("Tovu’s installed MCP owner reads legacy aliases without changing canonical output", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "portable-mcp-warning-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(path.join(root, "plugin.json"), JSON.stringify({
@@ -62,5 +62,5 @@ test("installed legacy MCP metadata keeps its connection and warns with this hos
   const lines = warnings.mock.calls.map(call => String(call.arguments[0]));
   assert.ok(lines.length > 0);
   assert.ok(lines.every(line => line.startsWith("[agent-plugins] ")), lines.join("\n"));
-  assert.ok(lines.some(line => line.includes("2027-05-06")));
+  assert.ok(lines.includes('[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.'));
 });

@@ -1,42 +1,8 @@
-import type { MemberRecord, MemberStatus } from "@jini-ai/user-management/members/types";
-
 /**
- * @file Public-facing member response DTO (ADR-PIPE-013 Decision §2, C-014).
- *
- * Purpose:
- * Serializes `MemberRecord` for the new PUBLIC `sign-in/complete` route — the
- * response a member's own (unauthenticated) browser receives. Mirrors
- * `apps/website/src/server/inbound/admin-http/http/members.ts`'s `toAdminMemberResponse` exclusion discipline, but
- * STRICTER: this response goes to the member's own client on an
- * unauthenticated surface, not to an operator, so it additionally excludes
- * `emailVerifiedAt`, `workspaceId`, and `version` on top of everything the
- * admin serializer already excludes (`note`, `fields`, anything
- * session/token-shaped). A public serializer leaking an internal field here
- * is a direct PII/internal-state exposure — see ADR-PIPE-013 Enforcement.
+ * @file Tovu's member cookie identity, read by both the sign-in routes and the public site's read-path gate.
+ * The public member DTO and its mapper are Jini's (`@jini-ai/user-management/members/public-member-response`);
+ * the cookie name stays here because it is Tovu's product identity.
  */
 
 /** Shared read/write cookie identity; page requests must not load sign-in services to read it. */
 export const MEMBER_SESSION_COOKIE = "tovu_member_session";
-
-/** Public-facing shape of a member — deliberately the smallest useful surface. */
-export interface PublicMemberResponse {
-  id: string;
-  email: string;
-  name?: string;
-  status: MemberStatus;
-}
-
-/**
- * Serialize a `MemberRecord` to the public-facing `PublicMemberResponse`.
- *
- * @complexity O(1).
- * @overallScore 100
- */
-export function toPublicMemberResponse(member: MemberRecord): PublicMemberResponse {
-  return {
-    id: member.id,
-    email: member.email,
-    name: member.name,
-    status: member.status,
-  };
-}

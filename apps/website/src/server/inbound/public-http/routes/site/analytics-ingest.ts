@@ -1,4 +1,4 @@
-import { captureVisitorEvent } from "../../visitor-analytics.js";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express, Request } from "express";
 
 import { createAnalyticsForwardLimiter } from "@jini-ai/analytics";

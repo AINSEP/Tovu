@@ -51,7 +51,7 @@ import { readPluginCredentialValues } from "./plugin-credential-card.js";
 import { loadPluginCredentialCardsSafely, findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { buildCreateForm, buildCreateOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-create-ui";
 import { setTokenForm, setTokenOutcome } from "@jini-ai/integrations/custom-credentials/custom-credential-set-token-ui";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
 import type { LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError, CustomCredentialValidationError, describeCredential, describeCredentialByLabel, listCustomCredentials, resolveCustomCredentialByLabel, updateCustomCredential } from "./store.js";

@@ -1,4 +1,5 @@
-import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
+import type { Request } from "express";
+import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 /**
  * @file Deps bundle for the 2 PUBLIC (unauthenticated) newsletter routes — `newsletter-confirm.ts`/
  * `newsletter-unsubscribe.ts` (api.spec.md §1a). Mirrors `routes/members/deps.ts`'s
@@ -24,7 +25,7 @@ import type {
 } from "@jini-ai/user-management/newsletter/ports";
 import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 
-export interface NewsletterPublicRouteDeps extends VisitorAnalyticsDeps {
+export interface NewsletterPublicRouteDeps extends VisitorAnalyticsDeps<Request> {
   workspaceId: UUID;
   newsletterReady: Promise<void>;
   newsletterConfirmationTokenRepo: NewsletterConfirmationTokenRepoPort;

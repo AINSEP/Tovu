@@ -1,3 +1,4 @@
+import { TOVU_LEGACY_MCP_ALIASES } from "../mcp-host-bindings.js";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -15,7 +16,7 @@ function parseDefaults(tovuDefaultTools: unknown) {
   const result = parseAgentPluginMcpConfig({ value: {
     $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } },
-  } }, { pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "fixture",
+  } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES, pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "fixture",
     extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools } } } } } });
   if (!result.ok) throw new Error(result.errors.join("; "));
   return remote(result.config.servers.remote);
@@ -73,7 +74,7 @@ test("bundled Higgsfield declares the reviewed sign-in grants and independent re
 
 test("legacy mcp.json fields cannot supply operator read trust", () => {
   const parsed = parseAgentPluginMcpConfig({ value: { $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuDefaultTools: { allow: ["inspect"], read: ["inspect"] } } } } });
+    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuDefaultTools: { allow: ["inspect"], read: ["inspect"] } } } } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
   assert.deepEqual(remote(parsed.config.servers.remote)?.defaultTools?.read, []);
@@ -81,7 +82,7 @@ test("legacy mcp.json fields cannot supply operator read trust", () => {
 
 test("an invalid plugin manifest cannot supply read trust", () => {
   const parsed = parseAgentPluginMcpConfig({ value: { $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } } } }, { pluginManifest: { name: "fixture", extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read: ["inspect"] } } } } } } });
+    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } } } }, { legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES, pluginManifest: { name: "fixture", extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read: ["inspect"] } } } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
   assert.equal(remote(parsed.config.servers.remote)?.defaultTools, undefined);

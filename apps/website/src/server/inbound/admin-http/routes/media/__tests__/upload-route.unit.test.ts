@@ -5,7 +5,7 @@ import { MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { BASE, fixture, WS, type Deps } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMediaUploadRoute } from '#src/server/runtime/composition/modules/media';
+import { registerAdminMediaReplaceRoute, registerAdminMediaUploadRoute } from '#src/server/runtime/composition/modules/media';
 import { forbiddenBody, PNG_BASE64 } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media';
@@ -90,6 +90,22 @@ test('media upload: an SVG reports its stored (sanitized) size, and null when th
   const unknown = await dispatchJsonRequest(app, 'POST', `${BASE}/media`, { ...png, filename: 'other.svg', dataBase64: Buffer.from(svg.replace('10', '20')).toString('base64') });
   assert.equal(unknown.status, 201);
   assert.equal((unknown.body as Uploaded).media.byteSize, null);
+});
+
+test('upload and replace use the stored byte size for a sanitized SVG', async () => {
+  const { app, deps } = fixture(({ app, deps }) => { registerAdminMediaUploadRoute({ app, deps }); registerAdminMediaReplaceRoute({ app, deps }); });
+  const body = { ...png, filename: 'logo.svg', dataBase64: Buffer.from(svg).toString('base64') };
+  const uploaded = await dispatchJsonRequest(app, 'POST', `${BASE}/media`, body);
+  assert.equal(uploaded.status, 201);
+  const target = await dispatchJsonRequest(app, 'POST', `${BASE}/media`, png);
+  const replaced = await dispatchJsonRequest(app, 'POST', `${BASE}/media/${(target.body as Uploaded).media.id}/replace`, body);
+  assert.equal(replaced.status, 200);
+  for (const { media } of [uploaded.body as Uploaded, replaced.body as Uploaded]) {
+    const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WS, sha256: media.sha256 });
+    assert.ok(blob);
+    assert.equal(media.byteSize, (await deps.blobStore.get({ storageKey: blob.storageKey })).byteLength);
+    assert.notEqual(media.byteSize, Buffer.byteLength(svg));
+  }
 });
 
 test('media upload: a hand-built request with no params falls back to an empty workspace id and 404s', async () => {

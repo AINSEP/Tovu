@@ -353,3 +353,26 @@ test('a batch approval shows one combined card naming every selection, de-duplic
   await pending;
   assert.deepEqual(ran, ['a.txt', 'b.txt', 'c.txt']);
 });
+
+
+test('a grant revoked while a real host card is displayed prevents the writer', async (t) => {
+  const revoked = new Error('grant revoked');
+  let granted = true;
+  let writes = 0;
+  const h = grantHarness(t, () => { if (!granted) throw revoked; });
+  const handler = approvalToolHandler({ surfaces: h.surfaces,
+    prepare: async () => ({}), describe: () => h.spec,
+    run: async () => { writes++; },
+  });
+  const pending = handler(h.ctx, { emitSurface: h.emitSurface });
+  await turn();
+  assert.equal(h.emitted.length, 1);
+  const { resource } = h.emitted[0].payload as { resource: { resource: { uri: string; text: string } } };
+  assert.equal(resource.resource.uri, 'ui://tovu/trash-empty/confirmation-42');
+  assert.match(resource.resource.text, /Approve this action\?/);
+  granted = false;
+  assert.deepEqual(h.answer({ decision: 'confirm' }), { ok: true });
+  await assert.rejects(pending, (error) => error === revoked);
+  assert.equal(writes, 0);
+  assert.equal(h.calls.length, 2);
+});

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { mailProviderCredentialSaveRoute, type MailProviderFailure } from "@jini-ai/cms/admin-http/routes/system/mail-providers";
+import { classifyMailProviderError as classifyMailProviderFailure, mailProviderCredentialSaveRoute, type MailProviderFailure } from "@jini-ai/cms/admin-http/routes/system/mail-providers";
 import {
   CustomCredentialDuplicateLabelError,
   CustomCredentialNotFoundError,
@@ -47,12 +47,16 @@ const STORE_ERRORS: readonly [new (...args: never[]) => Error, MailProviderFailu
   [CustomCredentialSecretStoreUnconfiguredError, { kind: "store", code: "SECRET_STORE_UNCONFIGURED" }],
 ];
 
+/** The host's operation error, as an operation failure. */
+function operationFailure({ error }: { error: unknown }): Extract<MailProviderFailure, { kind: "operation" }> | undefined {
+  return error instanceof MailProviderOperationError ? { kind: "operation", code: error.code, message: error.message } : undefined;
+}
+
 /** The host's own error classes, as the mail-provider specs' failures; anything else is unexpected (`undefined`).
  * @complexity O(1).
  */
 export function classifyMailProviderError({ error }: { error: unknown }, _optional: Record<string, never> = {}): MailProviderFailure | undefined {
-  if (error instanceof MailProviderOperationError) return { kind: "operation", code: error.code, message: error.message };
-  return STORE_ERRORS.find(([type]) => error instanceof type)?.[1];
+  return classifyMailProviderFailure({ error, operationFailure, storeErrors: STORE_ERRORS });
 }
 
 /** `PUT …/:providerId/credential` (Jini spec): `direct` authorization and the one `routes/system/mail-providers`

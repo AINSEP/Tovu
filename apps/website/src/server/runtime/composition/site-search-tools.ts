@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildSearchToolRegistrations, derivedRisk, SEARCH_TOOL_DOMAIN, type SearchApprovalDescription } from "@jini-ai/search/tools";
 
 import type { ToolContributor } from "@jini-ai/core";
-import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { requireHumanConfirm } from "#src/contracts/core/human-confirm";
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";

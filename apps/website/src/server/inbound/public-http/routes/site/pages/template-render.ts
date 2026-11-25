@@ -16,7 +16,7 @@ import { expandPartials } from "@jini-ai/cms/widgets/markers";
 import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { postPublicPath } from "#src/platform/routing/index";
-import { renderAssignedTermsBlock } from "../../../http/site/render/post-body.js";
+import { renderAssignedTermsBlock } from "@jini-ai/cms/public-http/http/site/render/post-body";
 import { renderHtmlPageBody } from "../../../http/site/render/page-body.js";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { injectSiteAssistantIntoStaticPage } from "../../../http/site/render/site-assistant-mount.js";
@@ -172,7 +172,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
   const withTerms = placeAfterCurrentContent({
     html: withCurrentId,
     post,
-    block: renderAssignedTermsBlock(await resolveAssignedTermsForRender({ deps, post })),
+    block: renderAssignedTermsBlock({ terms: await resolveAssignedTermsForRender({ deps, post }) }),
   });
   const withNestedContent = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps }), html: withTerms, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined });
   const resolved = await resolveHtmlPageEmbeds({

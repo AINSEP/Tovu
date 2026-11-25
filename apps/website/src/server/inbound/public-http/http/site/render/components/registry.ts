@@ -3,7 +3,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { siteHeader, siteFooter, siteNav, siteFooterRich } from "@jini-ai/cms/public-http/http/site/render/components/layout";
 import { entryList } from "./entry-lists.js";
 import { entryContent } from "../post-body.js";
-import { hero, section, featureGrid, announcement, ctaBand } from "./marketing.js";
+import { hero, section, featureGrid, announcement, ctaBand } from "@jini-ai/cms/public-http/http/site/render/components/marketing";
 import { mediaPlaceholder } from "@jini-ai/cms/public-http/http/site/render/media-placeholder";
 import { TOVU_DOC_RENDER_CLASSES } from "#src/server/runtime/composition/doc-render-host";
 
@@ -26,12 +26,12 @@ export const COMPONENTS: Record<string, Component> = {
   "tovu/entry-list": entryList,
   "tovu/entry-content": entryContent,
   "tovu/site-footer": (ctx) => siteFooter(ctx, { creditText: "powered by Tovu" }),
-  "tovu/hero": hero,
-  "tovu/section": section,
-  "tovu/feature-grid": featureGrid,
+  "tovu/hero": (_ctx, props) => hero({ props, mediaPlaceholderClasses: TOVU_DOC_RENDER_CLASSES.mediaPlaceholder }),
+  "tovu/section": (_ctx, props) => section({ props, mediaPlaceholderClasses: TOVU_DOC_RENDER_CLASSES.mediaPlaceholder }),
+  "tovu/feature-grid": (_ctx, props) => featureGrid({ props }),
   "tovu/media-placeholder": (_ctx, props) => mediaPlaceholder({ props, classes: TOVU_DOC_RENDER_CLASSES.mediaPlaceholder }),
-  "tovu/announcement": announcement,
+  "tovu/announcement": (_ctx, props) => announcement({ props }),
   "tovu/nav": siteNav,
-  "tovu/cta": ctaBand,
+  "tovu/cta": (_ctx, props) => ctaBand({ props }),
   "tovu/footer": siteFooterRich,
 };

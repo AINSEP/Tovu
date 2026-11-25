@@ -7,31 +7,11 @@
  * opts in. A CDN copy of that pre-consent document would keep being replayed after the site's
  * tracking set or consent policy changes, so such responses are `private, no-store` instead.
  */
+import { preConsentCacheControl as sharedPreConsentCacheControl } from "@jini-ai/cookie-consent/site/pre-consent-cache";
 import type { Request } from "express";
 import { CONFIG_ID, CONSENT_COOKIE } from "@jini-ai/cookie-consent";
 import { parseStored } from "@jini-ai/cookie-consent/policy";
 import { readRequestCookie } from "#src/server/http/request-cookie";
-
-export const CACHE_CONTROL_PRE_CONSENT_TRACKING = "private, no-store";
-
-const CONFIG_SCRIPT = new RegExp(`<script type="application/json" id="${CONFIG_ID}">([\\s\\S]*?)</script>`);
-
-/**
- * True when the page's consent config lists at least one consent-gated script. A config that does
- * not parse counts as gated: failing toward `no-store` costs a cache hit, failing the other way
- * could publish a tracking page to a shared cache.
- * @complexity O(html length).
- */
-export function hasConsentGatedScripts({ html }: { html: string }, _optional = {}): boolean {
-  const match = CONFIG_SCRIPT.exec(html);
-  if (!match) return false;
-  try {
-    const config = JSON.parse(match[1]) as { scripts?: unknown };
-    return Array.isArray(config.scripts) && config.scripts.length > 0;
-  } catch {
-    return true;
-  }
-}
 
 /** Parses the stored consent cookie value; the library's own trust-boundary parser, so anything it
  *  rejects (wrong shape, wrong version, oversize, not JSON) is "no choice". */
@@ -61,7 +41,7 @@ export function preConsentCacheControl(
   { html, request, cacheControl }: { html: string; request: Pick<Request, "headers">; cacheControl: string },
   options: { parseConsentCookie?: ParseConsentCookie } = {},
 ): string {
-  if (/\b(private|no-store)\b/.test(cacheControl)) return cacheControl;
-  if (hasParsedConsentChoice({ request }, options)) return cacheControl;
-  return hasConsentGatedScripts({ html }) ? CACHE_CONTROL_PRE_CONSENT_TRACKING : cacheControl;
+  return sharedPreConsentCacheControl({ html, cacheControl, configId: CONFIG_ID,
+    hasConsentChoice: () => hasParsedConsentChoice({ request }, options),
+  });
 }

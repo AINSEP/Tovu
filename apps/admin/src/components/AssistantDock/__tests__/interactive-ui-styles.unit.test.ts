@@ -8,8 +8,8 @@ const interactiveCss = readFileSync(createRequire(import.meta.url).resolve("@jin
 
 it("loads the built table stylesheet at the shared inline and canvas A2UI boundary", () => {
   expect(renderBoundary).toContain('import "@jini-ai/ui/interactive-ui.css";');
-  expect(interactiveCss).toContain(".jini-data-table");
-  expect(interactiveCss).toContain(".jini-data-table-scroll");
+  expect(interactiveCss).toContain(".jini-ui-data-table");
+  expect(interactiveCss).toContain(".jini-ui-data-table-scroll");
   // Importing the shared stylesheet must not reset unrelated admin elements.
   expect(interactiveCss).not.toMatch(/\*[^{}]*\{[^}]*box-sizing\s*:\s*border-box/);
 });

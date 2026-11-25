@@ -1,3 +1,4 @@
+import type { Request } from "express";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -12,7 +13,7 @@ import { FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceeded
 import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { formSubmissionAttemptsFor, submitForm } from "#src/features/forms/index";
 import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
-import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";
+import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor } from "@jini-ai/cms/forms";
 import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -57,7 +58,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const tracker = createTracker({ productAnalytics: overrides.productAnalytics });
-  const visitorAnalyticsProof: VisitorAnalyticsDeps['visitorAnalyticsProof'] = overrides.allowVisitorAnalytics ? async ({ request }) =>
+  const visitorAnalyticsProof: VisitorAnalyticsDeps<Request>['visitorAnalyticsProof'] = overrides.allowVisitorAnalytics ? async ({ request }) =>
     await overrides.allowVisitorAnalytics!({ request }) ? { receiptId: ['fake', 'consent', 'receipt'].join('_'), policyVersion: '1' } : undefined : undefined;
   const visitorAnalyticsDeliveryAllowed = async () => true;
   const formSubmissionAttempts = formSubmissionAttemptsFor({ submissionRepo });

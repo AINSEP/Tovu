@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CONFIG_ID, CONSENT_COOKIE } from "@jini-ai/cookie-consent";
-import { CACHE_CONTROL_PRE_CONSENT_TRACKING, hasConsentGatedScripts, preConsentCacheControl } from "../pre-consent-cache.js";
+import { CACHE_CONTROL_PRE_CONSENT_TRACKING, hasConsentGatedScripts } from "@jini-ai/cookie-consent/site/pre-consent-cache";
+import { preConsentCacheControl } from "../pre-consent-cache.js";
 
 const PUBLIC = "public, max-age=60, stale-while-revalidate=300";
 const config = (client: unknown) => `<script type="application/json" id="${CONFIG_ID}">${JSON.stringify(client).replace(/</g, "\\u003c")}</script>`;
@@ -28,8 +29,8 @@ test("preConsentCacheControl: never loosens an already-private directive", () =>
 });
 
 test("hasConsentGatedScripts: reads only the consent config's scripts; unparsable config fails safe as gated", () => {
-  assert.equal(hasConsentGatedScripts({ html: TRACKED_PAGE }), true);
-  assert.equal(hasConsentGatedScripts({ html: NO_GATED_PAGE }), false);
-  assert.equal(hasConsentGatedScripts({ html: NO_BANNER_PAGE }), false);
-  assert.equal(hasConsentGatedScripts({ html: `<script type="application/json" id="${CONFIG_ID}">{not json</script>` }), true);
+  assert.equal(hasConsentGatedScripts({ configId: CONFIG_ID, html: TRACKED_PAGE }), true);
+  assert.equal(hasConsentGatedScripts({ configId: CONFIG_ID, html: NO_GATED_PAGE }), false);
+  assert.equal(hasConsentGatedScripts({ configId: CONFIG_ID, html: NO_BANNER_PAGE }), false);
+  assert.equal(hasConsentGatedScripts({ configId: CONFIG_ID, html: `<script type="application/json" id="${CONFIG_ID}">{not json</script>` }), true);
 });

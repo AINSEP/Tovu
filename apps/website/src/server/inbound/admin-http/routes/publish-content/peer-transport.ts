@@ -23,9 +23,8 @@ import {
   mappedErrorResponse,
   OVERWRITE_REFUSED,
   sendRefusal,
-  type MappedErrorClass,
-  type RouteRefusal,
 } from "./route-helpers.js";
+import type { MappedErrorClass, RouteRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
 import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**

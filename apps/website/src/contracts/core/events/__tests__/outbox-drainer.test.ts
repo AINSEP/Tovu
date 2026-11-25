@@ -1,3 +1,4 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -326,4 +327,26 @@ test("observability: a successful delivery ends as delivered", async (t) => {
   t.after(() => drainer.stop());
   await outbox.enqueue(makeEvent("ok-1"));
   assert.ok(await waitFor(() => log.includes("end:outbox.deliver:delivered:false")), log.join("\n"));
+});
+
+
+test("the subscriber envelope excludes the trace parent while its delivery span preserves it", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  const received: DomainEvent<unknown>[] = [];
+  const parents: Array<string | undefined> = [];
+  const parent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+  const tracker = createNoopTracker({});
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => { received.push(event); } });
+  await outbox.enqueue({ ...makeEvent("private-parent"), metadata: { "tovu.outbox.traceparent": parent, correlationId: "run-9" } });
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, tracker: {
+    // The drainer opens operation spans only, so the spy implements that overload.
+    ...tracker, trace: ((required: Parameters<typeof tracker.trace>[0], optional?: Parameters<typeof tracker.trace>[1]) => {
+      parents.push(optional?.traceparent); return tracker.trace(required, optional);
+    }) as typeof tracker.trace,
+  } });
+  t.after(() => drainer.stop());
+  assert.ok(await waitFor(() => received.length === 1));
+  assert.deepEqual(received, [{ ...makeEvent("private-parent"), metadata: { correlationId: "run-9" } }]);
+  assert.deepEqual(parents, [parent]);
 });

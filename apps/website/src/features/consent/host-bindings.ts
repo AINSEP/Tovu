@@ -30,13 +30,16 @@ export function reportConsentPluginFailure({ message, error }: { message: string
   console.error(`[consent] ${message}`, formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
 }
 
+export const TOVU_CONSENT_BANNER_MODE_REFUSAL = 'Choose the Tovu banner, your own banner, or none.';
+
 /** The host-owned service ports, spread into every `createSiteConsentService` binding. */
 export const consentServiceHostPorts = {
-  consentPagePath, deploymentRefusal, reportConsentFailure,
-} satisfies Pick<ConsentServicePorts, 'consentPagePath' | 'deploymentRefusal' | 'reportConsentFailure'>;
+  consentPagePath, deploymentRefusal, reportConsentFailure, bannerModeRefusal: TOVU_CONSENT_BANNER_MODE_REFUSAL,
+} satisfies Pick<ConsentServicePorts, 'consentPagePath' | 'deploymentRefusal' | 'reportConsentFailure' | 'bannerModeRefusal'>;
 
 /** The host-owned consent tool collaborators: the held-confirmation lifecycle and the closed request
  * contract the HTTP routes share, bound once where `contributeConsentTools` is registered. */
 export const consentToolHost = {
+  bannerModeRefusal: TOVU_CONSENT_BANNER_MODE_REFUSAL,
   approvalToolHandler, readConsentRequest, consentRevisionToken,
 } satisfies ConsentToolHost;

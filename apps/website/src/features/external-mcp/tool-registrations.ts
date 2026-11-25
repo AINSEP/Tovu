@@ -10,7 +10,7 @@ import { ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@ji
 import type { UUID } from "@jini-ai/core/primitives";
 import { ToolInputError, redactSecrets } from "@jini-ai/core";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
-import type { ChatDeleteSurfaceDeps } from "../../contracts/core/chat-delete-grant.js";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 import {
   askThenReport,

@@ -25,7 +25,7 @@ function ctxWithInput(input: unknown): ToolExecutionContext {
 
 function buildTool(id: string) {
   const deps = createRouteDeps() as unknown as DatabaseToolDeps;
-  const registration = buildDatabaseRegistrations(deps).find((r) => r.descriptor.id === id);
+  const registration = buildDatabaseRegistrations(deps, undefined, { mutationActor: ({ principalId }) => ({ id: principalId, kind: "agent" }) }).find((r) => r.descriptor.id === id);
   assert.ok(registration, `expected '${id}' to be wired`);
   return registration;
 }
@@ -65,7 +65,7 @@ test("database_query_timeline: limit 300 is capped to 200 rows, limit 0 is refus
     authorize: async () => ({ allowed: true, reason: "test" }),
     databaseLedgerRepo: { ...base.databaseLedgerRepo, query: async (filter) => { queriedLimits.push(filter.limit); return { items: rows.slice(0, filter.limit), nextCursor: null }; } },
   };
-  const registration = buildDatabaseRegistrations(deps).find((r) => r.descriptor.id === "database_query_timeline")!;
+  const registration = buildDatabaseRegistrations(deps, undefined, { mutationActor: ({ principalId }) => ({ id: principalId, kind: "agent" }) }).find((r) => r.descriptor.id === "database_query_timeline")!;
 
   const page = (await registration.handler(ctxWithInput({ limit: 300 }))) as { items: unknown[] };
   assert.equal(page.items.length, 200);
