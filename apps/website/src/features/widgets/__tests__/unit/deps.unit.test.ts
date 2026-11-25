@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { updatePost } from "#src/features/post/post-update";
+import { restorePostForward } from "#src/features/post/post-trash";
 
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { VersionConflictError } from "@jini-ai/cms/entries";
@@ -32,6 +34,7 @@ function makeRouteDeps(): WidgetsRouteDeps {
     changeSets: { marker: "changeSets" } as unknown as WidgetsRouteDeps["changeSets"],
         pluginBeforeSaveHook: { marker: "pluginBeforeSaveHook" } as unknown as WidgetsRouteDeps["pluginBeforeSaveHook"],
         forgetRemovedPost: (() => {}) as unknown as WidgetsRouteDeps["forgetRemovedPost"],
+        widgetPostWrites: { updatePost, restorePostForward },
         removeWidget: (async () => ({ ok: true })) as unknown as WidgetsRouteDeps["removeWidget"],
   };
 }
@@ -116,7 +119,7 @@ function postLookupRepo(label: string, seen: string[]): PostRepoPort {
 test("buildWidgetHostPorts: published-post lookups use the bound postRepo, and fall back to the caller's repo when none is bound", async () => {
   const seen: string[] = [];
   const bound = buildWidgetHostPorts({ postRepo: postLookupRepo("bound", seen) });
-  const unbound = buildWidgetHostPorts({});
+  const unbound = buildWidgetHostPorts({ postWrites: { updatePost, restorePostForward } });
   const callerRepo = postLookupRepo("caller", seen);
   const input = { workspaceId: "ws-1", id: "p-1", slug: "s-1" };
 
@@ -156,8 +159,8 @@ test("buildWidgetHostPorts: each index provisioner is a fresh no-op provisioner"
 test("buildWidgetHostPorts: updatePost and restorePostForward read through the bound postRepo, else the caller's repo", async () => {
   const seen: string[] = [];
   const missingRepo = (label: string) => ({ findById: async ({ id }: { id: string }) => { seen.push(`${label}:${id}`); return null; } }) as unknown as PostRepoPort;
-  const bound = buildWidgetHostPorts({ postRepo: missingRepo("bound") });
-  const unbound = buildWidgetHostPorts({});
+  const bound = buildWidgetHostPorts({ postRepo: missingRepo("bound"), postWrites: { updatePost, restorePostForward } });
+  const unbound = buildWidgetHostPorts({ postWrites: { updatePost, restorePostForward } });
   const caller = { repo: missingRepo("caller") };
 
   for (const host of [bound, unbound]) {

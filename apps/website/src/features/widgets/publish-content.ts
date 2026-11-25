@@ -1,5 +1,5 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { collectPlacementReferences } from "@jini-ai/cms/publish/content/content-references";
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
@@ -48,7 +48,7 @@ function serviceDeps(
   const { deps, ports } = ctx;
   const gateway = gatewayDeps({ deps, entityType });
   return {
-    host: buildWidgetHostPorts({}, {}),
+    host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
     entryLocks: getEntryLockState({ owner: ports.entries }),
     entryRepo: ports.entries,
     contentTypeRepo: ports.contentTypes,

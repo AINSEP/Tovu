@@ -1,4 +1,4 @@
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { createPublicPostReader, findPublishedPostById, findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
 import type { ContentMarkerPorts } from "@jini-ai/cms/widgets/content-markers";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
@@ -21,7 +21,7 @@ export function contentMarkerPorts({ deps }: { deps: ContentMarkerResolutionDeps
     },
     renderEmbeds: async ({ html: nestedHtml }) => {
       const nestedResolved = await resolveHtmlPageEmbeds({
-        deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
+        deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo, postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
           entryRepo: deps.entryRepo,
           postRepo: createPublicPostReader({ repo: deps.postRepo }),
           mediaRepo: deps.mediaRepo,

@@ -1,5 +1,5 @@
 import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.js";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import type { Request } from "express";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { createPublicPostReader } from "@jini-ai/cms/posts/post-read";
@@ -91,7 +91,7 @@ export async function resolveWidgetsForRender({ deps, theme }: { deps: RenderCon
 export async function resolveHtmlEmbedsForRender({ deps, post }: { deps: RenderContextResolutionDeps; post: PostRecord | undefined }, _optional = {}): Promise<ResolveHtmlPageEmbedsResult | undefined> {
   if (!post || post.bodyFormat !== "html") return undefined;
   return resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
+    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo, postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo: deps.entryRepo,
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,

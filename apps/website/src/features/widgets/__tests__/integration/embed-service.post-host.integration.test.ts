@@ -1,6 +1,8 @@
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { updatePost } from "#src/features/post/post-update";
+import { restorePostForward } from "#src/features/post/post-trash";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
@@ -51,7 +53,7 @@ let idCounter = 0;
 
 function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<EmbedServiceDeps> = {}): EmbedServiceDeps {
   return {
-    host: buildWidgetHostPorts({ postRepo: repos.postRepo }, {}),
+    host: buildWidgetHostPorts({ postRepo: repos.postRepo, postWrites: { updatePost, restorePostForward } }, {}),
     entryRepo: repos.entryRepo,
     contentTypeRepo: repos.contentTypeRepo,
     entryRefsRepo: repos.entryRefsRepo,
