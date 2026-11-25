@@ -1,7 +1,6 @@
-import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
+import type { PublishContentPeerView, PublishDestinationView as AdminPublishDestinationView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPlanResult, PublishContentReport, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
-import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 import { publishContentApi } from "@/features/publish-content/api/publish-content-api";
 
 import type { PublishContentPort } from "./publish-content-port.hooks";

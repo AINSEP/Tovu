@@ -1,7 +1,7 @@
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
-import type { AdminThemeSummary, PresentationSettings, ThemeFileGroup, ThemeTier } from "./themes-api.types";
+import type { AdminThemeSummary, PresentationSettings, ThemeFileGroup, ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 
 /** The admin API calls of the themes feature. */
 export const themesApi = {

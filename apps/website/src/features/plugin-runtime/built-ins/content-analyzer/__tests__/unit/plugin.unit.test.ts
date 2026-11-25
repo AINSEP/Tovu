@@ -3,9 +3,8 @@ import test from "node:test";
 
 import type { ContentEntryDraft, ExtPatch, HookContext, PluginSdk } from "@tovu/sdk";
 
-import { analyzeContent } from "../../analyze-content.js";
 import contentAnalyzerPlugin, { buildContentAnalyzerPatch, readMetaDescription } from "../../plugin.js";
-import { summarizeReport, tiptapToBlocks } from "@jini-ai/cms/seo/content-analysis";
+import { analyzeContentWithSiteSlug as analyzeContent, summarizeReport, tiptapToBlocks } from "@jini-ai/cms/seo/content-analysis";
 
 /**
  * @file `content-analyzer`'s worker-side entry module (`plugin.ts`) end to end through a tiny fake
@@ -88,6 +87,14 @@ test("metaDescription hook point: read from the entry only when it is a string, 
 
   const without = JSON.parse(String(buildContentAnalyzerPatch(entry()).report)) as typeof report;
   assert.equal(without.checks.find((c) => c.id === "meta-description-length")?.status, "skip");
+});
+
+test("an accented heading's TOC anchor is the renderer's transliterated fragment id", () => {
+  // TOC links must match the fragment ids the site renderer emits (AW-7 Tier 2), so the worker's
+  // projection has to anchor through the renderer's `toSlug`, not an ASCII-only rule.
+  const bodyJson = { type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Café Münster" }] }] };
+  const report = JSON.parse(String(buildContentAnalyzerPatch(entry({ bodyJson })).report)) as { toc: Array<{ anchor: string }> };
+  assert.deepEqual(report.toc.map((row) => row.anchor), ["cafe-muenster"]);
 });
 
 test("the SDK-typed preview description reaches the installed beforeSave filter", async () => {

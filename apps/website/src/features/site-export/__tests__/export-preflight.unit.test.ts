@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { privacyPageTemplate } from "../../consent/privacy-page-template.js";
-import { createExportPreflight, findContactEmailPlaceholder, findThirdPartyScriptHosts } from "../export-preflight.js";
+import { createExportPreflight, findContactEmailPlaceholder, findThirdPartyScriptHosts } from "@jini-ai/devops/static-export/site/export-preflight";
+import { CONTACT_EMAIL_PLACEHOLDER, EXPORT_PREFLIGHT_COPY } from "../export-preflight-copy.js";
 
 test("the privacy template's own placeholder is what the detector looks for (drift pin)", () => {
-  assert.equal(findContactEmailPlaceholder({ html: privacyPageTemplate({ siteTitle: "Site" }) }), true);
-  assert.equal(findContactEmailPlaceholder({ html: privacyPageTemplate({ siteTitle: "Site", email: "me@example.com" }) }), false);
+  assert.equal(findContactEmailPlaceholder({ placeholder: CONTACT_EMAIL_PLACEHOLDER, html: privacyPageTemplate({ siteTitle: "Site" }) }), true);
+  assert.equal(findContactEmailPlaceholder({ placeholder: CONTACT_EMAIL_PLACEHOLDER, html: privacyPageTemplate({ siteTitle: "Site", email: "me@example.com" }) }), false);
 });
 
 test("third-party hosts: only other-origin authored scripts count", () => {
@@ -24,16 +25,26 @@ test("third-party hosts: mixed-case <ScRiPt> markup still reaches the parser", (
 
 test("collector: placeholder always warns; third-party scripts warn only with consent configured; existing warning is kept", () => {
   const html = '<mark>ADD YOUR CONTACT EMAIL</mark><script src="https://t.test/p.js"></script>';
-  const off = createExportPreflight({ ownOrigins: ["https://example.com/base", undefined] });
+  const off = createExportPreflight({ copy: EXPORT_PREFLIGHT_COPY, ownOrigins: ["https://example.com/base", undefined] });
   off.observePage({ html });
   assert.match(off.joinWarnings({ existing: "Banner missing." }) ?? "", /^Banner missing\. 1 exported page still shows the placeholder/);
   assert.doesNotMatch(off.joinWarnings({ existing: undefined }) ?? "", /third-party/);
-  const on = createExportPreflight({ ownOrigins: [] });
+  const on = createExportPreflight({ copy: EXPORT_PREFLIGHT_COPY, ownOrigins: [] });
   on.setConsentConfigured({ configured: true });
   on.observePage({ html });
   on.observePage({ html });
   const joined = on.joinWarnings({ existing: undefined }) ?? "";
   assert.match(joined, /2 exported pages still show/);
   assert.match(joined, /2 pages load third-party scripts .*\(t\.test\)/);
-  assert.equal(createExportPreflight({ ownOrigins: [] }).joinWarnings({ existing: undefined }), undefined);
+  assert.equal(createExportPreflight({ copy: EXPORT_PREFLIGHT_COPY, ownOrigins: [] }).joinWarnings({ existing: undefined }), undefined);
+});
+
+test("host preflight copy caps sorted hosts at five and preserves the privacy placeholder warning", () => {
+  const preflight = createExportPreflight({ copy: EXPORT_PREFLIGHT_COPY, ownOrigins: [] });
+  preflight.setConsentConfigured({ configured: true });
+  preflight.observePage({ html: privacyPageTemplate({ siteTitle: "Site" }) +
+    ["f.test", "c.test", "e.test", "a.test", "d.test", "b.test"].map(host => `<script src="https://${host}/a.js"></script>`).join("") });
+  assert.equal(preflight.joinWarnings({ existing: undefined }),
+    '1 exported page still shows the placeholder "ADD YOUR CONTACT EMAIL" (the privacy page\'s contact line). Replace it with a real address before sharing this copy. ' +
+    "1 page loads third-party scripts written straight into the page (a.test, b.test, c.test, d.test, e.test, ...). The cookie banner does not hold these back until a visitor agrees. Declare them in the theme's scripts with a consent category, or remove them.");
 });

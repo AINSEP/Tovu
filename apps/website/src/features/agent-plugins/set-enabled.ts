@@ -38,9 +38,9 @@ import type { NotifyToolAccessChanged } from '@jini-ai/core/tool-access-change';
  */
 
 import { createTovuAgentPluginLifecycle, explicitRootSoonCatalog } from "./lifecycle.js";
-import { assertAgentPluginReady } from "./soon-lock.js";
+import { assertAgentPluginReady } from "@jini-ai/agent-plugins/site/soon-lock";
+import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
 import type { SetAgentPluginEnabledResult } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
-export { AgentPluginNotReadyError } from "./soon-lock.js";
 import { bindProviderFacePorts, linkedProviderOf, type ProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { AgentPluginLinkedError, providerFaceLifecycle } from "./provider-plugin-link.js";
 export { AgentPluginLinkedError } from "./provider-plugin-link.js";
@@ -76,7 +76,7 @@ export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, o
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
   if (providerPluginId !== undefined) {
     // A Soon face says it isn't ready rather than pointing at a provider switch that can't help.
-    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId });
+    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
     throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
   }
   const conditional = options.unlessOperatorDisabled ? { unlessOperatorDisabled: true } : {};

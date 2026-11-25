@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { findSoonAgentPlugin } from "#src/features/agent-plugins/soon-lock";
+import { findSoonAgentPlugin } from "@jini-ai/agent-plugins/site/soon-lock";
+import { HOST_SOON_AGENT_PLUGINS } from "#src/features/agent-plugins/bundled-catalog";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { bundledAgentPluginsDir, readTemplate } from "#src/platform/site-dir/index";
 import { writeExclusive } from "./import-restore-placement.js";
@@ -40,7 +41,7 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
     // A "Soon" plugin is locked off (`agent-plugins/soon-lock.ts`, owner 2026-11-10): written off
     // rather than refused, so one locked plugin never aborts the rest of the import.
     const enabled = importedActivation({ plugin, installed, trusted, edited })
-      && !(await findSoonAgentPlugin({ catalog: lifecycle.soonCatalog, workspaceRoot: workspace.root, pluginId: plugin.id }));
+      && !(await findSoonAgentPlugin({ catalog: lifecycle.soonCatalog, workspaceRoot: workspace.root, pluginId: plugin.id, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }));
     await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: plugin.id, enabled, actor: "system:import" });
     if (enabled) enabledUnits.add("agent-plugins/" + plugin.id);
   }

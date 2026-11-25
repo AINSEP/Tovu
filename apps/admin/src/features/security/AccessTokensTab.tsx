@@ -33,8 +33,10 @@ import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { OtherCredentialEntry } from "./OtherCredentialsSection";
 import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsOrder } from "./AccessTokensTab.hooks";
-import { CopyKeysDialog } from "./CopyKeysDialog";
-import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
+import { CopyKeysDialog } from "@jini-ai/admin/security/host/CopyKeysDialog";
+import { useWiredCopyKeys } from "./hooks/copy-keys-dependencies.hooks";
+import "../../styles/native-domain-dialogs.css";
+import "./copy-keys-dialog.css";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";

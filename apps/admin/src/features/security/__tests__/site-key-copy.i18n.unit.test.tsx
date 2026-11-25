@@ -2,7 +2,7 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 import { SiteKeyTab } from "../SiteKeyTab";
 import { tSecurity as t } from "../../../lib/i18n-common";
-import { siteKeyStatusBadgeLabel } from "../hooks/site-key-status.rules";
+import { siteKeyStatusBadgeLabel } from "@jini-ai/admin/security/host/hooks/site-key-status.rules";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";
 
@@ -23,7 +23,7 @@ describe("site key tab translations", () => {
         expect(translated.trim()).not.toBe("");
         if (locale !== "en") expect(translated, key).not.toBe(key);
       }
-      const label = siteKeyStatusBadgeLabel({ status: { active: true, source: "env", envVarName: "TOVU_SITE_KEY" }, t: key => t({ locale: locale, key: key }) });
+      const label = siteKeyStatusBadgeLabel({ status: { active: true, source: "env", envVarName: "TOVU_SITE_KEY" }, t: key => t({ locale: locale, key: key }), fallbackEnvVarName: "TOVU_SITE_KEY" });
       expect(label).toContain("TOVU_SITE_KEY");
       expect(label).not.toContain("{name}");
     });

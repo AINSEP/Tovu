@@ -990,7 +990,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // A CONNECTION page — save a personal access token per git host so Tovu can read (and later
     // push to) repositories. Not git integration itself: no commit history, rollback, sync,
     // diffing, or branch management here — that is a separate, larger, not-yet-started feature.
-    // See `features/source-control/SourceControl.tsx`'s own header for the full scope boundary.
+    // See `features/source-control/source-control-panel.tsx`'s own header for the full scope boundary.
     //
     // Its own Operations entry rather than a Deployment tab (owner's call, 2026-08-15): GitLab and
     // Bitbucket are not deploy targets, so filing this under Deployment would list providers that

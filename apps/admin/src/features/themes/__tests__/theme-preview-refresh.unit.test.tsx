@@ -8,8 +8,9 @@ import {
   reloadThemePreviews,
   subscribeThemePreviewRefresh,
 } from "../theme-preview-refresh";
-import { useThemePreviewRefresh } from "../hooks/use-theme-preview-refresh.hooks";
-import { WiredThemePreviewReloadButton } from "../ThemePreviewReloadButton";
+import { useThemePreviewRefresh, useThemePreviewReloadButton } from "../hooks/use-theme-preview-refresh.hooks";
+import { WiredThemePreviewReloadButton } from "@jini-ai/cms/react/themes/ThemePreviewReloadButton";
+import { ThemePreviewReloadControl } from "@jini-ai/admin/react";
 import { THEMES_DICT } from "../themes-i18n";
 afterEach(resetThemePreviewRefresh);
 
@@ -79,7 +80,7 @@ it("wired reload button shows a failed reload as an alert and clears it when the
     () => Promise.reject(new Error("preview host unreachable")),
     () => Promise.resolve(),
   ];
-  render(<WiredThemePreviewReloadButton reloadPreviews={() => outcomes.shift()!()} />);
+  render(<WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} reloadPreviews={() => outcomes.shift()!()} />);
   expect(screen.queryByRole("alert")).toBeNull();
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Reload preview" })); });
   expect(screen.getByRole("alert").textContent).toBe("preview host unreachable");
@@ -89,7 +90,7 @@ it("wired reload button shows a failed reload as an alert and clears it when the
 });
 
 it("wired reload button names a non-Error reload failure generically", async () => {
-  render(<WiredThemePreviewReloadButton reloadPreviews={() => Promise.reject("nope")} />);
+  render(<WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} reloadPreviews={() => Promise.reject("nope")} />);
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Reload preview" })); });
   expect(screen.getByRole("alert").textContent).toBe("preview reload failed");
 });

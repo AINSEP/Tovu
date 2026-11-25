@@ -8,7 +8,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/sh
 
 import { t as translateThemes } from "../themes-i18n";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
-import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
+import type { ThemeExplorePort } from "@jini-ai/core/contracts/site/cms-admin-theme-explore";
 import {
   canResetThemeFile,
   dispatchPublishToggle,

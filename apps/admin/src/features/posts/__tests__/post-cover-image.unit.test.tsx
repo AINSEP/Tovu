@@ -5,10 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
-import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
+import { usePostFeaturedImage } from "@jini-ai/cms/react/posts/hooks/use-post-featured-image.hooks";
 import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import { PostCoverImage } from "../PostCoverImage";
+import { PostCoverImage } from "@jini-ai/cms/react/posts/PostCoverImage";
+import { postCoverBindings } from "../hooks/post-cover-host.hooks";
 import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
 
 /**
@@ -59,7 +60,7 @@ describe("showsHideCoverInBodyToggle", () => {
 describe("PostCoverImage", () => {
   it("empty: one Add cover image button that opens the picker, and no image", () => {
     const openPicker = vi.fn();
-    const { container } = render(<PostCoverImage {...toggleProps} bodyFormat="doc" featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ openPicker })} />);
+    const { container } = render(<PostCoverImage bindings={postCoverBindings} {...toggleProps} bodyFormat="doc" featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ openPicker })} />);
     expect(screen.queryByRole("img")).toBeNull();
     expect(screen.queryByRole("button", { name: "Change" })).toBeNull();
     const add = screen.getByRole("button", { name: "Add cover image" });
@@ -72,7 +73,7 @@ describe("PostCoverImage", () => {
     const openPicker = vi.fn();
     const clear = vi.fn();
     const { container } = render(
-      <PostCoverImage {...toggleProps} bodyFormat="doc" featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ openPicker, clear, previewUrl: "/media/m1" })} />,
+      <PostCoverImage bindings={postCoverBindings} {...toggleProps} bodyFormat="doc" featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ openPicker, clear, previewUrl: "/media/m1" })} />,
     );
     expect(screen.getByRole("img", { name: "Cover image" }).getAttribute("src")).toBe("/media/m1");
     expect(screen.queryByRole("button", { name: "Add cover image" })).toBeNull();
@@ -88,7 +89,7 @@ describe("PostCoverImage", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ media: [], data: [] }), { status: 200, headers: { "content-type": "application/json" } })));
     try {
       const closePicker = vi.fn();
-      render(<PostCoverImage {...toggleProps} bodyFormat="doc" featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ pickerOpen: true, closePicker })} />);
+      render(<PostCoverImage bindings={postCoverBindings} {...toggleProps} bodyFormat="doc" featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ pickerOpen: true, closePicker })} />);
       fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
       expect(closePicker).toHaveBeenCalledTimes(1);
     } finally {
@@ -98,7 +99,7 @@ describe("PostCoverImage", () => {
 
   it("an image that will not load shows the unavailable placeholder and keeps Change/Remove", () => {
     render(
-      <PostCoverImage {...toggleProps} bodyFormat="doc" featuredMediaId="m-gone" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m-gone", previewFailed: true })} />,
+      <PostCoverImage bindings={postCoverBindings} {...toggleProps} bodyFormat="doc" featuredMediaId="m-gone" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m-gone", previewFailed: true })} />,
     );
     expect(screen.queryByRole("img", { name: "Cover image" })).toBeNull();
     const placeholder = screen.getByRole("img", { name: "Cover image unavailable" });
@@ -110,7 +111,7 @@ describe("PostCoverImage", () => {
   it("a broken image reports through onPreviewError", () => {
     const onPreviewError = vi.fn();
     render(
-      <PostCoverImage {...toggleProps} bodyFormat="doc" featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m1", onPreviewError })} />,
+      <PostCoverImage bindings={postCoverBindings} {...toggleProps} bodyFormat="doc" featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m1", onPreviewError })} />,
     );
     fireEvent.error(screen.getByRole("img", { name: "Cover image" }));
     expect(onPreviewError).toHaveBeenCalled();
@@ -118,7 +119,7 @@ describe("PostCoverImage", () => {
 
   it("renders nothing for an html page", () => {
     const { container } = render(
-      <PostCoverImage {...toggleProps} bodyFormat="html" featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m1" })} />,
+      <PostCoverImage bindings={postCoverBindings} {...toggleProps} bodyFormat="html" featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m1" })} />,
     );
     expect(container.innerHTML).toBe("");
   });
@@ -148,6 +149,7 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
     onController(controller);
     return (
       <PostCoverImage
+        bindings={postCoverBindings}
         bodyFormat="doc"
         featuredMediaId={controller.featuredMediaId}
         setFeaturedMediaId={controller.setFeaturedMediaId}
@@ -217,15 +219,15 @@ describe("Hide the cover image in the body, under the cover slot (owner, 2026-10
   it("posts show it with or without a cover, explained by an ⓘ; pages do not", () => {
     const setHideCoverImageInBody = vi.fn();
     const props = { bodyFormat: "doc" as const, featuredMediaId: null, setFeaturedMediaId: vi.fn(), hideCoverImageInBody: true, setHideCoverImageInBody, t: fakeT, useFeaturedImage: fakePicker() };
-    const view = render(<PostCoverImage {...props} kind="post" />);
+    const view = render(<PostCoverImage bindings={postCoverBindings} {...props} kind="post" />);
     const toggle = screen.getByRole("checkbox", { name: "Hide the cover image in the body" });
     expect(toggle).toBeChecked();
     expect(screen.getAllByText("Applies when the cover comes from the first image in the post").length).toBeGreaterThan(0);
     fireEvent.click(toggle);
     expect(setHideCoverImageInBody).toHaveBeenCalledWith(false);
-    view.rerender(<PostCoverImage {...props} kind="post" featuredMediaId="m1" useFeaturedImage={fakePicker({ previewUrl: "/media/m1" })} />);
+    view.rerender(<PostCoverImage bindings={postCoverBindings} {...props} kind="post" featuredMediaId="m1" useFeaturedImage={fakePicker({ previewUrl: "/media/m1" })} />);
     expect(screen.getByRole("checkbox", { name: "Hide the cover image in the body" })).toBeTruthy();
-    view.rerender(<PostCoverImage {...props} kind="page" />);
+    view.rerender(<PostCoverImage bindings={postCoverBindings} {...props} kind="page" />);
     expect(screen.queryByRole("checkbox", { name: "Hide the cover image in the body" })).toBeNull();
   });
 

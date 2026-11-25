@@ -8,7 +8,7 @@ import {
 } from "@jini-ai/admin/shell/lib/admin-post-list-sort";
 import { siteUrl } from "../../lib/site-url";
 import { ServerLabel } from "@/components/status-labels";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 import { pageAdminPath, pagePublicPath } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import type { ThemePagesController } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";

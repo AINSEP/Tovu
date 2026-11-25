@@ -10,7 +10,7 @@ import {
 } from "#src/features/publish-content/peer-transport";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
-import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import {
   canPublishToLive,
   PUBLISH_FROM_LIVE_SITE_CODE,

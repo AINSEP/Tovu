@@ -43,7 +43,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/database", moduleId: "database", exports: ["Database"] },
   { modulePath: "../../features/recovery", moduleId: "recovery", exports: ["Recovery"] },
   { modulePath: "../../features/deployment", moduleId: "deployment", exports: ["Deployment"] },
-  { modulePath: "../../features/source-control", moduleId: "source-control", exports: ["SourceControl"] },
+  { modulePath: "../../features/source-control/source-control-panel", moduleId: "source-control", exports: ["SourceControl"] },
   { modulePath: "../../features/security", moduleId: "security", exports: ["Security"] },
   { modulePath: "../../features/observability", moduleId: "observability", exports: ["Observability"] },
   { modulePath: "@jini-ai/admin/screens/widgets", moduleId: "widgets", exports: ["WidgetsLibrary", "WidgetInstanceEditor", "WidgetRegions", "WidgetRegionEditor"] },

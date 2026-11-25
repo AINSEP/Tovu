@@ -33,7 +33,7 @@ async function harness() {
   let beforeAttach: (() => Promise<void>) | undefined;
   const attachments = { ...originalAttachments, attach: async (input: Parameters<typeof originalAttachments.attach>[0]) => { await beforeAttach?.(); await originalAttachments.attach(input); } };
   let transactionTail = Promise.resolve();
-  const transaction: import('../../project-keys/attachments.js').ProjectKeyTransaction = ({ run }) => {
+  const transaction: import('@jini-ai/core/contracts/site/project-key-attachments').ProjectKeyTransaction = ({ run }) => {
     const result = transactionTail.then(run);
     transactionTail = result.then(() => undefined, () => undefined);
     return result;

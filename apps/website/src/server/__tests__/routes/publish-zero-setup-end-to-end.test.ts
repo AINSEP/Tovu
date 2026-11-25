@@ -15,14 +15,16 @@ import { pushBundleToPeer, confirmPeerImport, executePeerImport } from "#src/fea
 import { saveConnectedDestination, InMemoryPublishContentPeerRepo, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { buildPublishContentCatalog, listPublishContentContributors } from "#src/features/publish-content/type-registry";
-import { connectDestination, disconnectDestination, findCandidateDestination } from "#src/features/publish-trust/connect";
-import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
+import { connectDestination, disconnectDestination } from "@jini-ai/cms/publish/trust/connect";
+import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import { nowIso } from "@jini-ai/core/primitives";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
   type ProvisioningFileIo,
 } from "@jini-ai/cms/publish/trust/provisioning";
-import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_ENV_VAR, PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/deploy-config-registry";
 import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
@@ -196,7 +198,7 @@ async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, siteKey
   const keyring = testKeyring(siteKeyHex);
   const connected = await connectDestination(
     {
-      deps: { httpClient: s.httpClient, keyring, provisioning: s.provisioning, clock: s.clock, workspaceId: s.sourceDeps.workspaceId },
+      deps: { httpClient: s.httpClient, protocol: PUBLISH_TRUST_WIRE, keyring, provisioning: s.provisioning, clock: s.clock, nowIso, workspaceId: s.sourceDeps.workspaceId },
       input: { baseUrl: DESTINATION_ORIGIN, entityTypes: listPublishContentContributors().map((c) => c.entityType) }
     }
   );
@@ -457,9 +459,11 @@ test("disconnecting removes only this computer, and leaves another computer's gr
       {
         deps: {
           httpClient: s.httpClient,
+          protocol: PUBLISH_TRUST_WIRE,
           keyring: testKeyring(OTHER_COMPUTER_SITE_KEY),
           provisioning: s.provisioning,
           clock: s.clock,
+          nowIso,
           workspaceId: s.sourceDeps.workspaceId,
         },
         input: { baseUrl: DESTINATION_ORIGIN, entityTypes: ["post"] }

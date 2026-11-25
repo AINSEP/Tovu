@@ -1,4 +1,6 @@
-import { WiredThemePreviewReloadButton } from "../../../themes/ThemePreviewReloadButton";
+import { WiredThemePreviewReloadButton } from "@jini-ai/cms/react/themes/ThemePreviewReloadButton";
+import { ThemePreviewReloadControl } from "@jini-ai/admin/react";
+import { useThemePreviewReloadButton } from "../../../themes/hooks/use-theme-preview-refresh.hooks";
 import { PostEditorTemplatePicker } from "@jini-ai/admin/posts/editor/template/PostEditorTemplatePicker";
 import { ViewTemplateButton } from "@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton";
 import type { PostEditorView } from "@jini-ai/admin/posts/view-tabs";
@@ -22,7 +24,7 @@ export function PostEditorToolbarEnd({
 } & Omit<Parameters<typeof PostEditorTemplatePicker>[0], "ViewTemplateButton">) {
   return (
     <div className="page-editor-toolbar-end">
-      {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
+      {view === "preview" ? <WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} /> : null}
       <PostEditorTemplatePicker {...pickerProps} ViewTemplateButton={ViewTemplateButton} />
     </div>
   );

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-qu
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SourceControl } from "../SourceControl";
+import { SourceControl } from "../source-control-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
@@ -101,11 +101,15 @@ describe("SourceControl — page shell: tabbed like Deployment, not a bare setti
 
   it("clicking the Providers tab replaces the URL with its own ?tab= link", () => {
     window.history.replaceState(null, "", "/source-control?tab=typo");
+    const replaceState = vi.spyOn(window.history, "replaceState");
     const lengthBefore = window.history.length;
     renderPage({}, { tabId: "typo" });
     fireEvent.click(within(screen.getByRole("tablist")).getByRole("tab", { name: /Providers/ }));
     expect(window.location.pathname + window.location.search).toMatch(/\/source-control\?tab=providers$/);
     expect(window.history.length).toBe(lengthBefore);
+    expect(replaceState).toHaveBeenCalledTimes(1);
+    expect(replaceState.mock.calls[0]?.[2]).toMatch(/\/source-control\?tab=providers$/);
+    replaceState.mockRestore();
     window.history.replaceState(null, "", "/");
   });
 

@@ -2032,6 +2032,17 @@ describe("PublishContentDialog — destination reads and incomplete connections"
 });
 
 describe("PublishContentDialog — criteria report edge cases", () => {
+  it("reports a forced preview row in both lists with the host next step", async () => {
+    const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["page"], rows: [
+      { entityType: "page", entityId: "home", entityLabel: "Home", outcome: "forced", writes: true, reason: null },
+    ] };
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report });
+    const onPlanned = vi.fn<(result: PublishRequestResult) => void>();
+    render(<PublishContentDialog onCancel={() => {}} t={t} port={port} criteria={{ types: ["page"] }} onPlanned={onPlanned} confirmArmDelayMs={NO_ARM_DELAY} />);
+    await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
+    expect(onPlanned.mock.calls[0][0]).toEqual({ opened: true, planned: true, site: "tovu.com (production)", willPublish: ["Home"], willOverwrite: ["Home"], leftAlone: [], unmatchedItems: [], unknownTypes: [], nextStep: "Check the list in the Publish dialog, then click Publish." });
+  });
+
   it("reports skipped rows without reasons, excluding already-current and unselected writable rows", async () => {
     const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["page", "post"], rows: [
       { entityType: "page", entityId: "home", entityLabel: "Home", outcome: "created", writes: true, reason: null },

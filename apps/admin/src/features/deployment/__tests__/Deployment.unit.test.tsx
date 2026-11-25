@@ -126,6 +126,7 @@ describe("?tab= deep linking", () => {
   it("opens directly on History when given that tabId", () => {
     renderScreen(<Deployment tabId="history" />);
     expect(screen.getByText("No deploys yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See how to publish today" })).toHaveAttribute("href", "/admin/deployment?tab=static-site");
   });
 });
 

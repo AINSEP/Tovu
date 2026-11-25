@@ -1,6 +1,7 @@
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
-import { withLargeUploadRouting } from "./large-upload-routing.js";
+import { withLargeUploadRouting } from "@jini-ai/cms/media/site/large-upload-routing";
+import { LARGE_UPLOAD_ROUTING } from "./large-upload-routing-copy.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import { CONVERT_VIDEO_TOOL_ID, type ImageCodecPort, type MediaTranscoderPort } from "@jini-ai/cms/media";
 import { createDerivedMediaLink } from "./derived-media-link.js";
@@ -199,7 +200,7 @@ export function buildMediaRegistrationsForTovu(
       return { ...registration, handler: buildMediaTrashHandler(routeDeps, registration.handler) };
     }
     return registration;
-  }).map((registration) => withLargeUploadRouting(registration));
+  }).map((registration) => withLargeUploadRouting({ registration, routingText: LARGE_UPLOAD_ROUTING }));
 }
 
 /**

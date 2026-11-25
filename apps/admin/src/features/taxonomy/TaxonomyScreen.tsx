@@ -2,7 +2,7 @@ import { Taxonomy as TaxonomyView } from "@jini-ai/admin/screens/taxonomy/Taxono
 import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import type { TaxonomyController } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
 import { ServerLabel } from "@/components/status-labels";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 import {
   useWiredMergeTermSection,
   useWiredNewTaxonomyForm,

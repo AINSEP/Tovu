@@ -9,7 +9,8 @@ import type {
 } from "@jini-ai/cms/seo";
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import { createPublicPostReader, withoutHeldAgentSchedule, type AgentHoldReader } from "../post/index.js";
+import { createPublicPostReader } from "../post/index.js";
+import { withoutHeldAgentSchedule, type AgentHoldReader } from "@jini-ai/cms/posts/agent-hold";
 import { resolveFeaturedImageRef, type FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
 import { ROOT_SLUG, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";

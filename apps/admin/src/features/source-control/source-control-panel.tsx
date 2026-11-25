@@ -4,13 +4,14 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
-import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
+import { TabBar } from "@jini-ai/admin/react/kit";
 import { t } from "./source-control-host-i18n";
 import { ProvidersTab } from "./ProvidersTab";
 import { SourceControlIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
+import { SourceControl as SourceControlShell } from "@jini-ai/devops/source-control/react";
 /**
  * @file The Source Control page (`/admin/source-control`) — a CONNECTION page, not git integration.
  * See `ProvidersTab.tsx`'s own header for the scope boundary: save a personal access token per
@@ -46,75 +47,44 @@ import { resolveActiveTabId } from '@jini-ai/core/text';
  * of this — that argument was always about this page's place in the top-level nav, not about
  * whether it may have an internal tab bar of its own.
  */
-
-const SOURCE_CONTROL_TAB_IDS = ["providers"] as const;
-type SourceControlTabId = (typeof SOURCE_CONTROL_TAB_IDS)[number];
-
-/** Falls back to the one tab for an absent or unrecognized `?tab=` value. Delegates to the shared
- *  `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`Security.tsx`/`Database.tsx`/
- *  `Themes.tsx` all use, for the same reason (a stale link or a typo must not blank the panel).
- *  Kept as a real function rather than inlined even with one tab today: `Deployment.tsx` started
- *  at five tabs where this guard mattered immediately, and a second real tab landing here later
- *  should not have to reintroduce it. */
-function resolveSourceControlTabId({ tabId }: { tabId: string | null | undefined }, _optional = {}): SourceControlTabId {
-  return resolveActiveTabId({ tabId: tabId, validIds: SOURCE_CONTROL_TAB_IDS, defaultId: "providers" });
-}
-
 export interface SourceControlProps {
   /** The `?tab=` query value from `panels.tsx`'s `source-control` route (`URLSearchParams.get`
-   *  returns `null` when the param is absent). See {@link resolveSourceControlTabId}. */
+   *  returns `null` when the param is absent). */
   tabId?: string | null;
   /** DI seam for tests, threaded through to {@link ProvidersTab} — same convention
    *  `DeploymentProps` would carry if this shell owned any fetch/state of its own. It does not (each
    *  tab owns its own, same carve-out `Deployment.tsx`'s header documents), so this is the only prop
    *  besides {@link tabId}. */
   useSourceControlCredentialsHook?: typeof useWiredSourceControlCredentials;
-  useAdminLocaleHook?: typeof useAdminLocale;
+  useAdminLocaleHook?: (required: Record<string, never>, optional?: Record<string, never>) => string;
+}
+
+/** Adapts the host locale hook (optional port positional arg) to the Jini shell's
+ *  `(required, optional?)` hook contract, so the real hook is still the injected default. */
+function useShellAdminLocale(_required: Record<string, never>, _optional: Record<string, never> = {}): string {
+  return useAdminLocale();
 }
 
 export function SourceControl({
-  useAdminLocaleHook = useAdminLocale, ...props }: SourceControlProps) {
-  const locale = useAdminLocaleHook();
-  const activeTabId = resolveSourceControlTabId({ tabId: props.tabId });
-
-  const tabs: TabBarTab[] = [
-    {
-      id: "providers",
-      label: t({ locale: locale, key: "Providers" }),
-      icon: <SourceControlIcon size={16} />,
-      handle: "source-control-tab-providers",
-      handleLabel: "Switch to the Providers tab — connect a plugin-provided source control host so Tovu can read (and later push to) your repositories",
-    },
-  ];
-
+  useAdminLocaleHook = useShellAdminLocale, ...props }: SourceControlProps) {
   return (
-    <div className="page">
-      <div
-        className="page-header"
-        {...agentHandle({ handle: "source-control-header" }, {
-          role: "region",
-          label: "Source Control panel header — connect a git account so Tovu can read and later push to your repositories",
-        })}
-      >
-        <div className="page-header-text">
-          <p className="page-kicker">{t({ locale: locale, key: "Operations" })}</p>
-          <h1 className="page-title">{t({ locale: locale, key: "Source Control" })}</h1>
-          <p className="page-description">
-            {t({ locale: locale, key: "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet." }
-            )}
-          </p>
-        </div>
-      </div>
-      <TabBar
-        ariaLabel={t({ locale: locale, key: "Source Control" })}
-        tabs={tabs}
-        activeId={activeTabId}
-        onChange={(nextTabId) => navigateSourceControlTab({ nextTabId, navigate })}
-        containerHandle="source-control-tab-bar"
-      />
-      {/* `providers` is the only tab (SOURCE_CONTROL_TAB_IDS) and `activeTabId` always resolves to
-          it, so its panel renders unconditionally; add a dispatch here alongside a second tab. */}
-      <ProvidersTab useSourceControlCredentialsHook={props.useSourceControlCredentialsHook} />
-    </div>
+    <SourceControlShell
+      tabId={props.tabId}
+      useAdminLocaleHook={useAdminLocaleHook}
+      t={t}
+      resolveActiveTabId={resolveActiveTabId}
+      TabBar={TabBar}
+      onTabChange={({ nextTabId }) => navigateSourceControlTab({ nextTabId, navigate })}
+      providerIcon={<SourceControlIcon size={16} />}
+      providers={<ProvidersTab useSourceControlCredentialsHook={props.useSourceControlCredentialsHook} />}
+      headerAttrs={agentHandle({ handle: "source-control-header" }, {
+        role: "region",
+        label: "Source Control panel header — connect a git account so Tovu can read and later push to your repositories",
+      })}
+      copy={{
+        descriptionKey: "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.",
+        providerTabHandleLabel: "Switch to the Providers tab — connect a plugin-provided source control host so Tovu can read (and later push to) your repositories",
+      }}
+    />
   );
 }

@@ -4,8 +4,8 @@ import path from "node:path";
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
 import type { BundledIdUpgradeOutcome } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
-import { lockSoonAgentPlugins } from "#src/features/agent-plugins/soon-lock";
-import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+import { lockSoonAgentPlugins } from "@jini-ai/agent-plugins/site/soon-lock";
+import { HOST_SOON_AGENT_PLUGINS, SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
 import { grantDeclaredToolsAtBoot } from "#src/features/agent-plugins/grant-signed-in-defaults";
@@ -60,7 +60,7 @@ async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void>
 async function lockSoonAgentPluginsAtBoot(deps: NewsletterRouteDeps): Promise<void> {
   try {
     const switched = await lockSoonAgentPlugins({ catalog: explicitRootSoonCatalog, activations: explicitRootAgentPluginActivations,
-      workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root });
+      workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
     if (switched.length === 0) return;
     bootLog.info(`[bundled-agent-plugins] switched off plugins that aren't ready yet: ${switched.join(", ")}`);
     await notifyExternalMcpRosterChanged({ lowered: { pluginIds: switched } });

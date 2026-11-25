@@ -43,7 +43,7 @@ import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 import { RemoteImageImport, useRemoteImageImport, type ImportDialogKit } from "@jini-ai/cms/react/media";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { describeApiError } from "@/lib/admin-http/request";

@@ -14264,6 +14264,106 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "7d0b6272b92a",
+      "reason": "PostCoverImage moved to Jini @jini-ai/cms/react/posts/PostCoverImage (x9 posts AP01); the picker hook is now a REQUIRED prop, so 'defaults to the real hook' is obsolete — the host binding post-cover-host.hooks.ts supplies it."
+    },
+    {
+      "id": "f6f8a3e5bce7",
+      "reason": "publish-content-api.types.ts deleted by x9 deploy P0.T: the destination response type was consolidated into the existing core contract, so there is no longer a hand-mirrored admin copy to explain."
+    },
+    {
+      "id": "4f120dc5fbd5",
+      "reason": "ThemePreviewReloadButton moved to Jini @jini-ai/cms/react/themes/ThemePreviewReloadButton (x9 rest TH03); comment carried there reworded for the now-required hook prop ('defaults inside the supplied hook')."
+    },
+    {
+      "id": "2340f53ac4b1",
+      "reason": "withLargeUploadRouting moved to Jini @jini-ai/cms/media/site/large-upload-routing (x9 posts); the routing text is now injected (routingText), comment reworded there; the product text stays in large-upload-routing-copy.ts."
+    },
+    {
+      "id": "c87e40383e1b",
+      "reason": "http.memory.ts moved to Jini @jini-ai/integrations/webhooks/site/http.memory (x9 small SM-J02); @file header carried verbatim except its two path references, updated to the new module location."
+    },
+    {
+      "id": "35aa3824fd7f",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-timezone-fallback (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
+    },
+    {
+      "id": "51b55d477d5c",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-reporter (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
+    },
+    {
+      "id": "82e5cc11b6f7",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-reporter (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
+    },
+    {
+      "id": "68201b347dab",
+      "reason": "S01: SiteKeyPort moved into Jini core contracts/site/site-key.ts with this comment text; only the `@file` tag word was dropped because that file already has its own @file header."
+    },
+    {
+      "id": "458585b6de05",
+      "reason": "TH01: ThemeTier moved to Jini core contracts/site/cms-admin-theme-types.ts; Jini guard N2 forbids naming the host `#src/contracts/headless` path, so the mirror note there reads 'the host server's headless contract's'."
+    },
+    {
+      "id": "a1eb740407bc",
+      "reason": "TH01: AdminThemeSummary.apiVersion moved to Jini core contracts/site/cms-admin-theme-types.ts; host `#src/...` path reworded to 'the host server's headless contract' for Jini guard N2."
+    },
+    {
+      "id": "875a9fca27de",
+      "reason": "AP-01: soon-lock moved to Jini @jini-ai/agent-plugins/site/soon-lock; the @file rationale (owner lock, manifest-first, any-revision, warning-only, no-uninstall) is carried there with the product name generalised to 'the host' (Jini neutrality)."
+    },
+    {
+      "id": "40d927144e4e",
+      "reason": "AP-01: the manifest-wins/host-list comment moved to Jini soon-lock.ts, generalised from 'Tovu's host list' to the injected hostSoonPluginIds (Jini neutrality); Tovu supplies HOST_SOON_AGENT_PLUGINS."
+    },
+    {
+      "id": "11bba8177dce",
+      "reason": "AC-01: bundledClientNamespaceFor moved to Jini @jini-ai/integrations/api-connections/bundled-client-namespace; its @param block there gains the new required readManifest/readClientNamespace params, so the old two-param text no longer applies verbatim."
+    },
+    {
+      "id": "bf2e90e18131",
+      "reason": "PR-02: the host binding file was deleted; the wrapper now lives in Jini cms seo/content-analysis/site-analyze-content.ts (analyzeContentWithSiteSlug) carrying AW-7's renderer-fragment-id rationale; the worker-only rationale stays in content-analyzer/index.ts."
+    },
+    {
+      "id": "69934c3e9486",
+      "reason": "PR-02: one-line description of the deleted host wrapper; superseded by the JSDoc on analyzeContentWithSiteSlug in Jini cms site-analyze-content.ts."
+    },
+    {
+      "id": "3a42c3166859",
+      "reason": "PR-01: the RT-005 tokenizer cases moved to Jini plugins runtime/built-ins/word-count/__tests__/count-words.test.ts with their rationale; this Tovu test file's header described a RED stub that no longer exists and was replaced with an accurate one."
+    },
+    {
+      "id": "b8637eea59e3",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "0494bb808476",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "3a816f1cfdaa",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "e22b83e5b84b",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "3da4ae56654b",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "3c011ddffb4b",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "ce657c36b6c0",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
+    },
+    {
+      "id": "6d0658ecbdcd",
+      "reason": "PT03: moved to Jini packages/cms/src/publish/trust/{handshake-client,connect}.ts; text carried with the product name neutralized (Tovu -> peer / host-injected PublishTrustWire) or retargeted to the host candidate lookup, so a verbatim match is impossible under Jini's no-product-name rule."
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { Menus as MenusScreen } from "@jini-ai/admin/screens/menus/Menus";
 import type { MenusController } from "@jini-ai/admin/screens/menus/hooks/use-menus.hooks";
 import { useWiredMenus } from "./hooks/use-menus.hooks";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 
 /**
  * @file The Menus list panel: `@jini-ai/admin`'s `Menus` screen bound to this host's wired list

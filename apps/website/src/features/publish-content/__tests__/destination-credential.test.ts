@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PublishTrustHandshakeError, type PublishSession } from "#src/features/publish-trust/handshake-client";
+import { PublishTrustHandshakeError, type PublishSession } from "@jini-ai/cms/publish/trust/handshake-client";
 import { resolvePublishDestinationCredential, type PublishDestinationCredentialDeps } from "../destination-credential.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
 import { type PublishContentPeerRecord } from "../peers.js";

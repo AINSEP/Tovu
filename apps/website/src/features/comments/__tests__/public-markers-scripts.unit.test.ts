@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createCommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { CommentsProviderDefinition, CommentsProviderAdapter } from "@jini-ai/core/contracts/site/comments-providers";
 import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
-import { renderCommentsMarkers } from '../public-markers.js';
+import { renderCommentsMarkers } from '@jini-ai/cms/comments/site/public-markers';
 
 const entry = { id: 'entry', slug: 'story', title: 'Story', canonicalUrl: '/story', status: 'published' };
 const marker = '<div class="thread" data-embed-config=\'{"type":"comments"}\'>fallback</div>';

@@ -2,11 +2,11 @@ import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fet
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { HeldBackTheme } from "../api/held-back-themes-api";
-import type { PresentationSettings } from "../api/themes-api.types";
+import type { HeldBackTheme } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
+import type { PresentationSettings } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import { HeldBackChosenThemeNotice, HeldBackThemes } from "../HeldBackThemes";
 import { createFakeHeldBackThemesPort, heldBackApiError } from "../hooks/held-back-themes-dependencies.hooks";
-import type { HeldBackThemesPort } from "../hooks/held-back-themes-port.hooks";
+import type { HeldBackThemesPort } from "@jini-ai/core/contracts/site/cms-admin-held-back-themes";
 import { useHeldBackThemes } from "../hooks/use-held-back-themes.hooks";
 import { Themes } from "../Themes";
 import type { ThemesController } from "../hooks/use-themes.hooks";

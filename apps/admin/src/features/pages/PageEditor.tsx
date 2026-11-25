@@ -1,10 +1,12 @@
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
-import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
-import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
+import { useThemePreviewFrame, useThemePreviewReloadButton } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import { WiredThemePreviewReloadButton } from "@jini-ai/cms/react/themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
-import { ConfirmDialog } from "@jini-ai/admin/react";
+import { ConfirmDialog, ThemePreviewReloadControl } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/core/agent-handles";
+import { PageExternalChangeBanner } from "@jini-ai/cms/react/pages/PageExternalChangeBanner";
+import { pageExternalChangeBindings } from "./page-external-change-bindings";
 import {
   InteractiveHtmlEditor,
   type CanvasEmbedPlaceholderDescriptor,
@@ -28,7 +30,7 @@ import type {
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPageEditor } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
-import type { ThemeTier } from "../themes/api/themes-api.types";
+import type { ThemeTier } from "@jini-ai/core/contracts/site/cms-admin-theme-types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
@@ -42,7 +44,6 @@ import {
   type PageSaveConflict,
 } from "./rules";
 import {
-  PAGE_EXTERNAL_CHANGE_MESSAGE,
   pageAutosaveStaleBasisMessage,
   PAGE_PREVIEW_IFRAME_SANDBOX,
   pageVersionConflictMessage,
@@ -472,54 +473,6 @@ function PageAutosaveStaleBanner({ staleBasis, t }: { staleBasis: StandingDraftS
 }
 
 /**
- * The EXTERNAL-CHANGE notice (2026-09-16) — an assistant tool wrote a newer version of this page
- * while the editor had unsaved edits. A CLEAN editor applies the newer version silently instead (see
- * `use-external-entry-refresh.hooks.ts`); this banner exists only for the case a silent apply could
- * clobber unsaved work — which, on the Interactive tab, is always assumed, because canvas typing can
- * be invisible to `dirty` (see `pageRefreshMayHaveUnsavedEdits`, `rules.ts`).
- *
- * Distinct from `PageVersionConflictBanner` above: that one is a Save the operator pressed and
- * watched fail; this one is a background check that found the row moved before they ever pressed
- * Save. "Load latest" mirrors that banner's "Save anyway" in shape (an explicit, named action) but
- * opposite in effect — it discards the operator's edits rather than the other write.
- */
-export function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLatest: () => void; onKeepEdits: () => void; t: Translate }) {
-  return (
-    <div
-      className="notice warning"
-      {...agentHandle({ handle: "page-external-change" }, {
-        role: "region",
-        label: "This page was changed outside the editor, probably by the assistant — load the latest version or keep your unsaved edits",
-      })}
-    >
-      <p>{t(PAGE_EXTERNAL_CHANGE_MESSAGE)}</p>
-      <button
-        type="button"
-        className="btn-secondary"
-        onClick={onLoadLatest}
-        {...agentHandle({ handle: "page-external-change-load-latest" }, {
-          role: "button",
-          label: "Load latest version, discarding my unsaved edits",
-        })}
-      >
-        {t("Load latest")}
-      </button>
-      <button
-        type="button"
-        className="btn-secondary"
-        onClick={onKeepEdits}
-        {...agentHandle({ handle: "page-external-change-keep-edits" }, {
-          role: "button",
-          label: "Keep my edits and ignore the outside change",
-        })}
-      >
-        {t("Keep my edits")}
-      </button>
-    </div>
-  );
-}
-
-/**
  * The four "something happened to your work" notices, grouped into one component so their four
  * independent render decisions are scored in this scope instead of accumulating onto `PageEditor`'s
  * own complexity — same extraction `features/posts/PostEditor.tsx`'s `PostEditorNotices` already
@@ -576,7 +529,7 @@ function PageEditorNotices({
         <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onLoadLatest={onLoadExternalChange} onDismiss={() => { onDismissConflict(); onDismissExternalChange(); }} t={t} />
       ) : null}
       {pendingExternalVersion !== null && !saveConflict ? (
-        <PageExternalChangeBanner onLoadLatest={onLoadExternalChange} onKeepEdits={onDismissExternalChange} t={t} />
+        <PageExternalChangeBanner onLoadLatest={onLoadExternalChange} onKeepEdits={onDismissExternalChange} t={t} {...pageExternalChangeBindings} />
       ) : null}
     </>
   );
@@ -641,7 +594,7 @@ function PageEditorToolbarEnd({
   const pickerValue = pagePickerValue({ templateChoice, availableTemplates });
   return (
     <div className="page-editor-toolbar-end">
-      {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
+      {view === "preview" ? <WiredThemePreviewReloadButton PreviewReloadControl={ThemePreviewReloadControl} useThemePreviewReloadButtonHook={useThemePreviewReloadButton} /> : null}
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
           <ViewTemplateButton
