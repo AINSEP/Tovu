@@ -248,7 +248,8 @@ test("collection-entry: a missing owning type may arrive after precheck, and omi
   const { source, dst } = await sites();
   const contentTypes = new InMemoryContentTypeRepo();
   const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes, terms: dst.terms } }, "late-owner");
-  const handler = contributeCollectionEntryPublish().build(dest);
+  // As the apply port does: the run's trusted actor is merged into the handler deps (FIX 19 / H2).
+  const handler = contributeCollectionEntryPublish().build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
   const packed = (await packAll(source)).find(entity => entity.id === "e-cake");
   assert.ok(packed);
   const state = { ...packed.state };

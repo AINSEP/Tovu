@@ -149,7 +149,7 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
   widget: async (s) => {
     await createWidgetInstance({
       deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) },
-      input: { workspaceId: s.workspaceId, actor: { principalId: "owner" }, widgetType: "text", title: "About", config: { body: "Hi" }, slug: "cov-widget" },
+      input: { workspaceId: s.workspaceId, actor: { principalId: "owner", kind: "user" }, widgetType: "text", title: "About", config: { body: "Hi" }, slug: "cov-widget" },
     });
   },
   "widget-area": async (s) => {
@@ -158,7 +158,7 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
     await mutateWidgetAreaPlacements({
       deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) },
       input: {
-        workspaceId: s.workspaceId, actor: { principalId: "owner" }, areaEntryId: areaEntry.id, baseVersion: areaEntry.version,
+        workspaceId: s.workspaceId, actor: { principalId: "owner", kind: "user" }, areaEntryId: areaEntry.id, baseVersion: areaEntry.version,
         placements: widget ? [{ placementId: "p-1", widgetEntryId: (widget as { id: string }).id, enabled: true }] : [],
       },
     });

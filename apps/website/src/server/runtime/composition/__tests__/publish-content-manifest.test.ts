@@ -139,7 +139,8 @@ for (const fixture of APPLY_FIXTURES) {
       const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
         entryRefs: new SqliteEntryRefsRepo({ store: site.db }), bindings: widgetRegionBindingRepoFor({ kernel: schemaErasedKernel({ store: site.db }), tables: WIDGETS_TABLES }) };
       const deps = makeSite({ ...site.ports, form: { repo: forms }, widget, "widget-area": widget }, "registry");
-      const handler = buildPublishContentCatalog(deps).handlerByType.get(fixture.entityType);
+      // As the apply port does: the run's trusted actor is merged into the handler deps (FIX 19 / H2).
+      const handler = buildPublishContentCatalog({ ...deps, mutationActor: { id: "registry-operator", kind: "user" } }).handlerByType.get(fixture.entityType);
       assert.ok(handler, `${fixture.entityType} must be installed`);
       const before = [];
       for await (const entity of handler.pack()) before.push(entity);

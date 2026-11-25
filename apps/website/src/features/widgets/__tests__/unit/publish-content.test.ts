@@ -40,7 +40,7 @@ async function sites() {
   registerOnly([contributeWidgetAreaPublish(), contributeWidgetPublish()]);
   const src = instance("src");
   const dst = instance("dst");
-  const actor = { principalId: "owner" };
+  const actor = { principalId: "owner", kind: "user" as const };
   const text = (title: string, body: string) =>
     createWidgetInstance({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor, widgetType: "text", title, config: { body }, slug: title.toLowerCase() } });
   const a = (await text("About", "Hello")).instance;
@@ -106,7 +106,7 @@ test("widget: a trashed destination widget holding the same slug under another i
   const { src, dst, a } = await sites();
   const { instance: old } = await createWidgetInstance({
     deps: { host: buildWidgetHostPorts({}, {}), ...dst.service },
-    input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner" }, widgetType: "text", title: "Old", config: { body: "x" }, slug: "about" },
+    input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner", kind: "user" }, widgetType: "text", title: "Old", config: { body: "x" }, slug: "about" },
   });
   const row = await dst.ports.entries.findAnyById({ workspaceId: WORKSPACE_ID, id: old.id });
   assert.ok(row);
@@ -213,7 +213,7 @@ test("widget-area: a placement change on the source updates the destination's ex
   const area = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: binding.areaEntryId });
   assert.ok(area);
   const reordered = [{ placementId: "p-2", widgetEntryId: a.id, enabled: true }, { placementId: "p-1", widgetEntryId: b.id, enabled: true }];
-  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner" }, areaEntryId: area.id, baseVersion: area.version, placements: reordered } });
+  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner", kind: "user" }, areaEntryId: area.id, baseVersion: area.version, placements: reordered } });
 
   const entities = await packAll(src.site);
   await applyReport(await plan(entities, dst.site, ["widget-area:sidebar"]), entities, dst.site);
