@@ -10,7 +10,8 @@ import type { ImportedExtensionState } from "@jini-ai/devops/backup/site/import-
 import { restoreImportedPluginState } from "./import-plugin-state.js";
 import { liveThemeTrees, restoreDestination } from "@jini-ai/devops/backup/site/import-restore-placement";
 import { inspectThemeManifests, writeExclusive } from "./import-restore-placement.js";
-import { keepImportedCodeOff, unrecognisedThemes } from "./import-keep-off.js";
+import { unrecognisedThemes } from "@jini-ai/devops/backup/site/import-keep-off";
+import { keepImportedCodeOff } from "./import-keep-off.js";
 
 /** Persist only verified, freshly projected data; the stage is private and never served. */
 export function stageVerifiedImport(required: { root: string; verified: VerifiedSiteImport }, _options: Record<string, never> = {}): void {

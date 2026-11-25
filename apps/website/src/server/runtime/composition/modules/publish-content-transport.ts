@@ -7,7 +7,7 @@ import {
   peerCreateRoute, peerDeleteRoute, peerListRoute, peerUpdateRoute, type PublishPeerErrorClasses,
 } from "@jini-ai/cms/admin-http/routes/publish-content/peers";
 import { peerPullRoute } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
-import { connectAndRecordDestination, disconnectAndForgetDestination } from "#src/features/publish-content/connect-destination";
+import { connectAndRecordDestination, disconnectAndForgetDestination } from "@jini-ai/cms/publish/content/connect-destination";
 import { createPublishContentPeer, deletePublishContentPeer, listPublishContentPeers, selectConnectedDestination, updatePublishContentPeer } from "@jini-ai/cms/publish/content/peer-registry";
 import { PublishContentPeerDuplicateLabelError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
 import { pullAndStageFromPeer } from "#src/features/publish-content/pull";

@@ -17,4 +17,5 @@ export const { rebuildImportDatabase, tidyImportDatabases, importWorkerLaunch } 
   schemaMismatchExitCode: IMPORT_SCHEMA_MISMATCH_EXIT_CODE,
   refusalExitCode: IMPORT_REFUSAL_EXIT_CODE,
   workerEnv: ({ root }) => ({ TOVU_DESKTOP_USER_DATA_DIR: path.join(root, "profile") }),
+  inheritedEnv: () => ({ PATH: process.env.PATH, SystemRoot: process.env.SystemRoot }),
 } });

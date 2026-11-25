@@ -45,7 +45,7 @@ import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-set
 
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";
-import { connectAndRecordDestination } from "./connect-destination.js";
+import { connectAndRecordDestination } from "@jini-ai/cms/publish/content/connect-destination";
 // Both pulls and autonomous publishes resolve the same saved destination credential.
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";

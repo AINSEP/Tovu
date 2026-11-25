@@ -6,7 +6,7 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/ag
 import type { ArchiveManifest } from "@jini-ai/devops/backup/site/archive-manifest";
 import type { ShareDatabaseProjection } from "./share-policy.js";
 import { validateSharePath } from "./share-file-policy.js";
-import { refuseArchive, sha256Hex } from "./import-verifier-inventory.js";
+import { refuseArchive, sha256Hex } from "@jini-ai/devops/backup/site/import-verifier-inventory";
 
 /**
  * @file Host binding for the database half of `verifySiteImport`: Tovu's share path policy, archive

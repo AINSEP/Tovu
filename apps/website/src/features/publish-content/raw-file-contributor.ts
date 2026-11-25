@@ -1,3 +1,5 @@
+import { computeBlobStorageKey, isDocumentOnlyBlob } from "@jini-ai/cms/media";
+import { normalizeMode } from "@jini-ai/cms/publish/content/file-tree-policy";
 import { createRawFileContributor } from "@jini-ai/cms/publish/content/raw-file-contributor";
 import { BACKSTOP_LIMITS, BACKSTOP_RAW_POLICY } from "./backstop-policy.js";
 import type { TovuPublishPorts } from "./tovu-publish-ports.js";
@@ -11,5 +13,11 @@ export const { contributeRawFilePublish, undoRawFile } = createRawFileContributo
   policy: BACKSTOP_RAW_POLICY,
   limits: BACKSTOP_LIMITS,
   copy: { tooManyFiles: "Choose at most 50 files per send.", tooManyBytes: "Choose files totaling at most 50 MB per send." },
-  mediaPorts: (deps) => deps.ports.media && { repo: deps.ports.media.repo, assetBlobRepo: deps.ports.media.assetBlobRepo },
+  normalizeMode,
+  blobStorageKey: computeBlobStorageKey,
+  // Missing media stores fail closed, exactly as before the move.
+  isLibraryOnlyBlob: async ({ deps, workspaceId, sha256 }) => {
+    const media = deps.ports.media;
+    return !media || isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo }, input: { workspaceId, sha256 } });
+  },
 });

@@ -16,7 +16,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import { postPreviewAgentToolCatalog } from "../../features/post/preview-tool.js";
 import { catalog as identityPolicyPermissionsCatalog } from "../../features/identity/permission-list-tool.js";
 import { catalog as sitesListCatalog } from "../../features/sites/list-tool.js";
-import { catalog as publishDisconnectCatalog } from "../../features/publish-content/disconnect-tool.js";
+import { catalog as publishDisconnectCatalog } from "@jini-ai/cms/publish/content/disconnect-tool";
 import { catalog as themePagePublishedCatalog } from "../../features/theme/page-publish-tool.js";
 import assert from "node:assert/strict";
 import test from "node:test";
