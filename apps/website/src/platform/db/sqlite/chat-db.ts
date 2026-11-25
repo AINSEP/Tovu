@@ -4,6 +4,7 @@ import { openNativeSqlite } from "../kernel/drivers/sqlite.js";
 
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
 import { SQLITE_CHAT_STATEMENTS } from "../migrations/chat/0001_sqlite_chat_tables.js";
+import { chatPinnedStatements } from "../migrations/chat/0004_chat_pinned.js";
 import { activeRunIndexStatement } from "../migrations/chat/0003_active_run_index.js";
 import { durableRunStatements } from "../migrations/chat/0002_durable_run_attempts.js";
 import { migrateChatDatabase } from "../migrations/index.js";
@@ -69,5 +70,8 @@ export function openChatDb({ filePath }: { filePath: string }, options: ChatDbOp
   for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);
   for (const statement of durableRunStatements({ dialect: "sqlite" }, {})) sqlite.exec(statement);
   sqlite.exec(activeRunIndexStatement({ dialect: "sqlite" }, {}));
+  const statements = chatPinnedStatements({ dialect: "sqlite" }, {});
+  if (!sqlite.prepare("SELECT 1 FROM pragma_table_info('ai_chats') WHERE name='pinned_at'").get()) sqlite.exec(statements[0]!);
+  sqlite.exec(statements[1]!);
   return sqlite;
 }

@@ -463,6 +463,21 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, routeMountOptionsFor({ bodyParsers, requestDeps }));
 }
 
+/**
+ * The admin same-origin write policy: a browser write whose `Origin` is exactly this server's host
+ * (and whose fetch metadata, when sent, agrees) — the rule `site-share-password.ts` applies by hand.
+ * A request without `Origin` is refused, so a cross-site form or script can never reach the handler.
+ */
+export const adminSameOriginWrites: RouteHostContext = {
+  originPolicy: {
+    isSameOrigin: ({ req }) => {
+      const headers = req.headers ?? {};
+      const text = (value: unknown): string | undefined => (typeof value === "string" ? value : Array.isArray(value) && typeof value[0] === "string" ? value[0] : undefined);
+      return isSameOriginBrowserWrite({ origin: text(headers.origin), host: text(headers.host), fetchSite: text(headers["sec-fetch-site"]) });
+    },
+  },
+};
+
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
  *  `mountJsonRoute` only calls `app[spec.method](path, handler)`; a new use of `app` there fails
  *  loudly here (not a silent bypass), and `admin-json-route-ports.test.ts` pins the wrapped name.

@@ -1,5 +1,6 @@
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { ToolAccessLoweringError } from '@jini-ai/core/tool-access-change';
+import type { SiteStoragePort } from "./storage-routes.js";
 import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun } from '@jini-ai/daemon';
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "@tovu/contracts/assistant-content-guidance";
@@ -460,7 +461,7 @@ async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
   { routeDeps, reporter }: { routeDeps: RouteDeps & ByokToolSurfaceDeps; reporter: ErrorReporter },
-  { toolSurface, attachmentLookup, federationConnect, routines, routineApprovalReceiptsFor }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
+  { toolSurface, attachmentLookup, federationConnect, routines, routineApprovalReceiptsFor, siteStorage }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup; siteStorage?: SiteStoragePort;
     federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
     /** The serving site's bound routine commands; supplied only when the routines release flag is on. Absent, no routine tool exists. */
     routines?: RoutineToolHost;
@@ -485,7 +486,7 @@ export function createAssistantByokModule(
   // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
   // adapters below change nothing for a BYOK turn.
   installFirstPartyToolContributors({ contributions }, { env: process.env, readAdmissions: () => serverFederation.admissions(),
-    readExternalMcpToolNames: required => resolvedToolSurface.readExternalMcpToolNames(required, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
+    readExternalMcpToolNames: required => resolvedToolSurface.readExternalMcpToolNames(required, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir, siteStorage,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
     readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }),
     ...(routines ? { routines } : {}) });

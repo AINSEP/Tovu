@@ -15,6 +15,7 @@ import {
   type SiteBackupSources as JiniSiteBackupSources,
 } from "@jini-ai/devops/backup/site/sources";
 import { readReviewedFile, reviewedFileIdentity } from "@jini-ai/platform/fs";
+import { siteTempRoot, SITE_TEMP_PREFIXES, type OwnedTempRootScope } from "#src/platform/temp/site-temp-roots";
 import { listSitePluginPackage, PluginPackagePathError } from "@jini-ai/plugins/host/node";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
@@ -64,8 +65,10 @@ export function readPlannedFile(file: PlannedDiskFile, optional: Omit<Parameters
 }
 
 /** A consistent in-memory copy of the site database; a site export's temp folder is `tovu-snapshot-*`. */
-export function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number; snapshotRoot?: string } = {}): Promise<DatabaseSnapshotResult> {
-  return captureSnapshot({ ...input, snapshotDirPrefix: "tovu-snapshot-" }, optional);
+export function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number; snapshotRoot?: string; tempRoot?: OwnedTempRootScope } = {}): Promise<DatabaseSnapshotResult> {
+  // P11: the snapshot stages in an owned, locked temp root (under `snapshotRoot` when given) that the temp-root tidy recognises.
+  const tempRoot = optional.tempRoot ?? siteTempRoot({ prefix: SITE_TEMP_PREFIXES.snapshot, ...(optional.snapshotRoot === undefined ? {} : { parent: optional.snapshotRoot }) });
+  return captureSnapshot({ ...input, snapshotDirPrefix: SITE_TEMP_PREFIXES.snapshot }, { ...optional, tempRoot });
 }
 
 /** Checks a backup against {@link SITE_BACKUP_LIMITS} (or the caps a test injects) and the host's per-file limit. */

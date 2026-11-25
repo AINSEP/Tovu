@@ -1664,8 +1664,27 @@ export const assetBlobs = sqliteTable(
      * method's own comment.
      */
     contentType: text("content_type"),
+    /** Migration 0046: `manual` or `trash-ttl` once the blob lost its last owner; NULL before the journal. */
+    purgeReason: text("purge_reason"),
   },
   (table) => [uniqueIndex("idx_asset_blobs_workspace_sha256").on(table.workspaceId, table.sha256)]
+);
+
+/** Migration 0046: files waiting for their bytes to be unlinked, with exact provenance. */
+export const blobGcJournal = sqliteTable(
+  "blob_gc_journal",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    storageKey: text("storage_key").notNull(),
+    sha256: text("sha256").notNull(),
+    kind: text("kind").notNull(),
+    reason: text("reason").notNull(),
+    journaledAt: text("journaled_at").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: text("next_attempt_at"),
+    lastError: text("last_error"),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.storageKey] })]
 );
 
 /** `asset_renditions` sidecar (ADR-027 §4) — the frozen public URL contract's lookup key is

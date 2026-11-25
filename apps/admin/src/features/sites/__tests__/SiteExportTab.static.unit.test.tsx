@@ -138,10 +138,13 @@ it("Select all toggles 50 options while the list has a separate scrolling region
   await user.click(screen.getByRole("button", { name: "Choose sites to export" }));
   const all = await screen.findByRole("checkbox", { name: "Select all" }) as HTMLInputElement;
   await user.click(all);
-  expect(screen.getAllByRole("checkbox").filter(input => (input as HTMLInputElement).checked)).toHaveLength(51);
+  // The export list's "Show expired exports" filter is its own checkbox, outside the picker, and Select all leaves it alone.
+  const expiryFilter = screen.getByRole("checkbox", { name: "Show expired exports" });
+  expect(screen.getAllByRole("checkbox").filter(input => input !== expiryFilter && (input as HTMLInputElement).checked)).toHaveLength(51);
   expect(container.querySelector(".static-export-theme-list")!.contains(all)).toBe(false);
   await user.click(all);
-  expect(screen.getAllByRole("checkbox").some(input => (input as HTMLInputElement).checked)).toBe(false);
+  expect(screen.getAllByRole("checkbox").some(input => input !== expiryFilter && (input as HTMLInputElement).checked)).toBe(false);
+  expect((expiryFilter as HTMLInputElement).checked).toBe(true);
 });
 
 it("disables export during roster loading or failure and explains the problem inside the picker", async () => {

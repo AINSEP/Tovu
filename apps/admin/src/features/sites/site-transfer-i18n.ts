@@ -390,4 +390,38 @@ for (const [locale, values] of Object.entries(DESKTOP_IMPORT_COPY)) {
   })));
 }
 
+/** P11 ST-12b.T share expiry copy: the status label, the owner's Never/7/30/90 choice, the list filter and the notice. */
+const SHARE_EXPIRY_LABELS = ["Expired", "Never expires", "Expires after {days} days", "Show expired exports", "Dismiss", "This export's link has expired."] as const;
+const SHARE_EXPIRY_COPY: Record<string, readonly string[]> = {
+  ar: ["منتهية الصلاحية", "لا تنتهي صلاحيته", "تنتهي صلاحيته بعد {days} يومًا", "إظهار عمليات التصدير المنتهية", "إغلاق", "انتهت صلاحية رابط هذا التصدير."],
+  bn: ["মেয়াদোত্তীর্ণ", "কখনো মেয়াদ শেষ হয় না", "{days} দিন পরে মেয়াদ শেষ হবে", "মেয়াদোত্তীর্ণ রপ্তানি দেখান", "বন্ধ করুন", "এই রপ্তানির লিংকের মেয়াদ শেষ হয়েছে।"],
+  de: ["Abgelaufen", "Läuft nie ab", "Läuft nach {days} Tagen ab", "Abgelaufene Exporte anzeigen", "Ausblenden", "Der Link dieses Exports ist abgelaufen."],
+  es: ["Caducado", "No caduca nunca", "Caduca tras {days} días", "Mostrar exportaciones caducadas", "Descartar", "El enlace de esta exportación ha caducado."],
+  fa: ["منقضی‌شده", "هرگز منقضی نمی‌شود", "پس از {days} روز منقضی می‌شود", "نمایش خروجی‌های منقضی‌شده", "بستن", "پیوند این خروجی منقضی شده است."],
+  fr: ["Expiré", "N'expire jamais", "Expire après {days} jours", "Afficher les exports expirés", "Ignorer", "Le lien de cet export a expiré."],
+  hi: ["समाप्त", "कभी समाप्त नहीं होता", "{days} दिनों बाद समाप्त होगा", "समाप्त निर्यात दिखाएँ", "हटाएँ", "इस निर्यात का लिंक समाप्त हो गया है।"],
+  hu: ["Lejárt", "Soha nem jár le", "{days} nap után lejár", "Lejárt exportok megjelenítése", "Elvetés", "Ennek az exportnak a hivatkozása lejárt."],
+  id: ["Kedaluwarsa", "Tidak pernah kedaluwarsa", "Kedaluwarsa setelah {days} hari", "Tampilkan ekspor yang kedaluwarsa", "Tutup", "Tautan ekspor ini sudah kedaluwarsa."],
+  it: ["Scaduto", "Non scade mai", "Scade dopo {days} giorni", "Mostra esportazioni scadute", "Ignora", "Il link di questa esportazione è scaduto."],
+  ja: ["期限切れ", "期限なし", "{days} 日後に期限切れ", "期限切れのエクスポートを表示", "閉じる", "このエクスポートのリンクは期限切れです。"],
+  ko: ["만료됨", "만료되지 않음", "{days}일 후 만료", "만료된 내보내기 표시", "닫기", "이 내보내기의 링크가 만료되었습니다."],
+  pl: ["Wygasło", "Nigdy nie wygasa", "Wygasa po {days} dniach", "Pokaż wygasłe eksporty", "Odrzuć", "Link tego eksportu wygasł."],
+  "pt-BR": ["Expirado", "Nunca expira", "Expira após {days} dias", "Mostrar exportações expiradas", "Dispensar", "O link desta exportação expirou."],
+  ru: ["Истёк", "Без срока действия", "Истекает через {days} дн.", "Показывать истёкшие экспорты", "Скрыть", "Срок действия ссылки этого экспорта истёк."],
+  th: ["หมดอายุแล้ว", "ไม่มีวันหมดอายุ", "หมดอายุหลังจาก {days} วัน", "แสดงการส่งออกที่หมดอายุ", "ปิด", "ลิงก์ของการส่งออกนี้หมดอายุแล้ว"],
+  tr: ["Süresi doldu", "Süresi hiç dolmaz", "{days} gün sonra süresi dolar", "Süresi dolan dışa aktarmaları göster", "Kapat", "Bu dışa aktarmanın bağlantısının süresi doldu."],
+  uk: ["Термін минув", "Без терміну дії", "Термін мине через {days} дн.", "Показувати експорти з минулим терміном", "Сховати", "Термін дії посилання цього експорту минув."],
+  ur: ["میعاد ختم", "کبھی ختم نہیں ہوتا", "{days} دن بعد میعاد ختم ہوگی", "میعاد ختم برآمدات دکھائیں", "بند کریں", "اس برآمد کے لنک کی میعاد ختم ہو چکی ہے۔"],
+  "zh-CN": ["已过期", "永不过期", "{days} 天后过期", "显示已过期的导出", "关闭", "此导出的链接已过期。"],
+  "zh-TW": ["已過期", "永不過期", "{days} 天後過期", "顯示已過期的匯出", "關閉", "此匯出的連結已過期。"],
+};
+
+for (const [locale, values] of Object.entries(SHARE_EXPIRY_COPY)) {
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(SHARE_EXPIRY_LABELS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`site transfer dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  })));
+}
+
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });

@@ -29,7 +29,7 @@ import { classifySiteDirSafely } from "./site-dir-store.ts";
 import fs from "node:fs";
 import path from "node:path";
 
-import { SITE_ORIGIN, readProjectsFile, updateProjectsFile } from "./tracked-sites.ts";
+import { SITE_ORIGIN, readProjectsFile, updateProjectsFile, type BeforeAddedRows } from "./tracked-sites.ts";
 import type { TrackedSiteRow, WritableTrackedRow } from "./tracked-sites.ts";
 
 const SITE_META_FILE = ".site-meta.json";
@@ -90,16 +90,17 @@ function movedRow({ row, siteDir, relocationId }: { row: TrackedSiteRow; siteDir
  *
  * @returns what changed; empty lists when nothing did, in which case nothing was written.
  * @param required.projectsPath Desktop registry; the existing cross-process lock owns updates.
+ * @param required.beforeAddedRows the tracked-list writer's required effect: a moved row is a new path.
  * @throws Filesystem persistence/lock errors; no site files are changed.
  * @complexity O(n * (n + r * c)) worst-case marker reads; O(n + r * c) space, for n rows,
  *   r roots and c children. Idle scans are gated; directories are never searched recursively.
  */
-function relocateMovedSites({ projectsPath }: { projectsPath: string }, options: RelocateOptions = {}): RelocationReport {
+function relocateMovedSites({ projectsPath, beforeAddedRows }: { projectsPath: string; beforeAddedRows: BeforeAddedRows }, options: RelocateOptions = {}): RelocationReport {
   const searchRoots = options.searchRoots ?? [];
   const classifySiteDir = options.classifySiteDir ?? classifySiteDirSafely;
   const report = reconcileDirectoryRelocations<WritableTrackedRow, TrackedSiteRow>({
     read: () => readProjectsFile({ projectsPath }),
-    update: ({ change }) => updateProjectsFile({ projectsPath, change }),
+    update: ({ change }) => updateProjectsFile({ projectsPath, change, beforeAddedRows }),
     directoryOf: ({ row }) => row.siteDir,
     recordedIdentityOf: ({ row }) => row.siteId,
     relocationIdentityOf: ({ row }) => row.relocationId,
@@ -126,9 +127,9 @@ function relocateMovedSites({ projectsPath }: { projectsPath: string }, options:
  * @throws {Error} operator-facing, when `fromDir` is not a tracked row.
  * @complexity O(n) in the row count.
  */
-function repointTrackedSite({ projectsPath, fromDir, toDir }: { projectsPath: string; fromDir: string; toDir: string }, _optional = {}): WritableTrackedRow[] {
+function repointTrackedSite({ projectsPath, fromDir, toDir, beforeAddedRows }: { projectsPath: string; fromDir: string; toDir: string; beforeAddedRows: BeforeAddedRows }, _optional = {}): WritableTrackedRow[] {
   let tracked = false;
-  const next = updateProjectsFile({ projectsPath, change: (current) => {
+  const next = updateProjectsFile({ projectsPath, beforeAddedRows, change: (current) => {
     tracked = current.rows.some((row) => row.siteDir === fromDir);
     if (!tracked || fromDir === toDir) return null;
     const merge = current.rows.some((row) => row.siteDir === toDir);

@@ -61,7 +61,7 @@ test('trackSite stamps siteId only on a CREATED row with a non-empty string id',
   ];
   for (const [origin, siteId, stamped] of cases) {
     const file = projectsFile(t);
-    const [row] = trackSite({ projectsPath: file, siteDir: '/sites/new' }, { origin: origin as never, siteId: siteId as never });
+    const [row] = trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: '/sites/new' }, { origin: origin as never, siteId: siteId as never });
     assert.equal(row?.origin, origin === SITE_ORIGIN.created ? 'created' : 'adopted', `${origin}/${String(siteId)}`);
     assert.equal('siteId' in (row ?? {}), stamped, `${origin}/${String(siteId)}`);
     if (stamped) assert.equal((row as { siteId?: string }).siteId, siteId);
@@ -70,6 +70,6 @@ test('trackSite stamps siteId only on a CREATED row with a non-empty string id',
 
 test('re-tracking a known dir adds no row, but clears its tombstone', t => {
   const file = projectsFile(t, JSON.stringify({ projects: [{ siteDir: '/a', createdAt: 'c', origin: 'adopted' }], dismissed: ['/a', '/b'] }));
-  assert.equal(trackSite({ projectsPath: file, siteDir: '/a' }).length, 1);
+  assert.equal(trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: '/a' }).length, 1);
   assert.deepEqual(readProjectsFile({ projectsPath: file }).dismissed, ['/b']);
 });

@@ -1127,6 +1127,11 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   chatHistory: ChatStoreFactory;
   /**
+   * Per-owner bulk chat deletion (preview, then confirmed apply) over the same chat kernel as
+   * `chatHistory`. Optional: compositions without one answer chat cleanup with a plain 503.
+   */
+  chatBulkDeletionFor?: import("#src/assistant/persistence/store-factory").ChatBulkDeletionFor;
+  /**
    * How an assistant turn's run ENDS in chat history, over the same `chat.db` as `chatHistory`:
    * first terminal write wins per run, the server finalizer's settle, and the boot-time repair of
    * turns left `running` by a dead process. See `assistant/persistence/run-ledger.ts`.

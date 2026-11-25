@@ -38,18 +38,25 @@ function appWindowOptions(
  *
  * @param url the admin URL to load; its parsed origin is the only one the window may stay on.
  * @param openExternal hands a foreign URL to the operator's own browser.
+ * @param assertPartitionHeld `desktop-partition-lock.ts`'s guard; throws for a managed partition this
+ *   process has not acquired, so no window opens on a jar a partition pass may be renaming.
+ * @throws the guard's `PartitionNotHeldError` before any `BrowserWindow` exists.
  * @param trackWindow the self-test tracker's `add`, when this launch has one.
  * @returns the window, already loading `url`.
  * @complexity O(1).
  */
 function createAppWindow<W extends AppWindow<ElectronNavigableContents>>(
-  { url, createBrowserWindow, preloadPath, openExternal }: {
+  { url, createBrowserWindow, preloadPath, openExternal, assertPartitionHeld }: {
     url: string; createBrowserWindow: (options: AppWindowOptions) => W; preloadPath: string; openExternal: (required: { url: string }) => void;
+    assertPartitionHeld: (required: { partition: string | undefined }) => void;
   },
   { title, partition, selftest = false, trackWindow }: {
     title?: string; partition?: string; selftest?: boolean; trackWindow?: (window: W) => void;
   } = {},
 ): W {
+  // Electron creates the partition's session implicitly inside `new BrowserWindow`, so the hold is
+  // checked here, before the factory, rather than trusted to every caller.
+  assertPartitionHeld({ partition });
   return createGuardedAppWindow({ url, title: title ?? DEFAULT_TITLE, preloadPath, ports: {
     createBrowserWindow,
     installNavigationPolicy: ({ contents, appOrigin }) => installAppWindowNavigationPolicy({ contents, appOrigin, openExternal }),

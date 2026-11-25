@@ -39,7 +39,7 @@ for (const linked of [false, true]) {
   test(`Add copied folder with ${linked ? 'symlinked' : 'app-data'} database preserves WAL content in an independent database`, async (t) => {
     const f = fixture(t, linked);
     const before = fs.readFileSync(path.join(f.original, '.site-meta.json'));
-    const added = await handleAddSite({ sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
+    const added = await handleAddSite({ sharedSites: f.workspace, beforeAddedRows: () => {}, projectsPath: f.projectsPath, repoRoot: f.root,
       openSites: new Map(), readSiteName: () => 'Original', readPreviewVersion: () => null, addSitePointer,
       dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [f.copy] }) } });
     assert.equal(added!.installDir, f.copy);
@@ -56,14 +56,14 @@ for (const linked of [false, true]) {
     assert.notEqual(meta.siteId, ID);
     assert.equal(meta.siteKeyId, 'retained-key');
     assert.deepEqual(fs.readFileSync(path.join(f.original, '.site-meta.json')), before);
-    addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+    addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
     assert.equal(JSON.parse(fs.readFileSync(path.join(f.copy, '.site-meta.json'), 'utf8')).siteId, meta.siteId);
   });
 }
 
 test('Start of a legacy-tracked app-data copy snapshots its content before the server opens it', async (t) => {
   const f = fixture(t, false);
-  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: f.projectsPath, siteDir: f.copy });
   await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root, openSites: new Map(),
     serializer: createKeyedSerializer({}), ctx: {}, readSiteName: () => 'Original', readPreviewVersion: () => null,
@@ -81,7 +81,7 @@ test('an unreadable external database refuses Add without changing identity or t
   f.source.close();
   fs.writeFileSync(f.sourcePath, 'not a SQLite database');
   const before = fs.readFileSync(path.join(f.copy, '.site-meta.json'));
-  assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace }), /copied website could not start/);
+  assert.throws(() => addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace }), /copied website could not start/);
   assert.deepEqual(fs.readFileSync(path.join(f.copy, '.site-meta.json')), before);
   assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
 });
@@ -93,7 +93,7 @@ test('a linked data.nosync directory gives the copy independent content and chat
   try { chat.exec("CREATE TABLE messages(body TEXT); INSERT INTO messages VALUES ('copied history')"); } finally { chat.close(); }
   fs.unlinkSync(path.join(f.copy, 'content.db'));
   fs.symlinkSync(path.dirname(f.sourcePath), path.join(f.copy, 'data.nosync'), 'junction');
-  addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+  addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
   const meta = JSON.parse(fs.readFileSync(path.join(f.copy, '.site-meta.json'), 'utf8'));
   for (const [filename, table, expected] of [['content.db', 'posts', 'committed in WAL'], ['chat.db', 'messages', 'copied history']] as const) {
     const dbPath = f.workspace.databasePath({ dir: f.copy, id: meta.siteId, filename });
@@ -109,7 +109,7 @@ test('failed marker commit restores copied database links and removes its provis
   const f = fixture(t, true);
   const before = fs.readFileSync(path.join(f.copy, '.site-meta.json'));
   const filesystem = { ...createNodeAtomicFilesystem({}), rename: () => { throw new Error('marker replacement denied'); } };
-  assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }), /copied website could not start/);
+  assert.throws(() => addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }), /copied website could not start/);
   assert.deepEqual(fs.readFileSync(path.join(f.copy, '.site-meta.json')), before);
   assert.equal(fs.readlinkSync(path.join(f.copy, 'content.db')), f.sourcePath);
   assert.deepEqual(fs.readdirSync(f.copy).sort(), fs.readdirSync(f.original).sort());

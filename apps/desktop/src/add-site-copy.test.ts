@@ -39,7 +39,7 @@ test("adding a copied folder gives it a fresh identity and leaves the original u
   fs.cpSync(f.original, f.copy, { recursive: true });
   const originalBytes = fs.readFileSync(path.join(f.original, ".site-meta.json"));
 
-  addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+  addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
 
   const copiedMeta = readMeta({ siteDir: f.copy });
   assert.notEqual(copiedMeta.siteId, ORIGINAL_ID);
@@ -61,7 +61,7 @@ test("adding a moved folder keeps its identity and uses the existing relocation 
   fs.rmSync(path.join(f.copy, "content.db"));
   f.workspace.updateConfig({ patch: { databases: "appData" } });
   const record = await handleAddSite({
-    sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root, openSites: new Map(),
+    sharedSites: f.workspace, beforeAddedRows: () => {}, projectsPath: f.projectsPath, repoRoot: f.root, openSites: new Map(),
     dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [f.copy] }) },
     addSitePointer, readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
   });
@@ -74,10 +74,10 @@ test("adding a moved folder keeps its identity and uses the existing relocation 
 test("adding the same copied folder twice is idempotent", (t) => {
   const f = fixture({ t });
   fs.cpSync(f.original, f.copy, { recursive: true });
-  const first = addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+  const first = addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
   const before = fs.readFileSync(path.join(f.copy, ".site-meta.json"));
   const rows = readTrackedSites({ projectsPath: f.projectsPath });
-  const second = addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+  const second = addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
 
   assert.equal(first.alreadyTracked, false);
   assert.equal(second.alreadyTracked, true);
@@ -89,14 +89,14 @@ test("adding the same copied folder twice is idempotent", (t) => {
 test("adding a symlink alias keeps the original directory identity", (t) => {
   const f = fixture({ t });
   fs.symlinkSync(f.original, f.copy, "junction");
-  addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+  addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
 });
 
 test("re-identifying a legacy copy preserves its implicit encryption key identity", (t) => {
   const f = fixture({ t, legacyKey: true });
   fs.cpSync(f.original, f.copy, { recursive: true });
-  addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+  addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
   const meta = readMeta({ siteDir: f.copy });
   assert.notEqual(meta.siteId, ORIGINAL_ID);
   assert.equal(meta.siteKeyId, ORIGINAL_ID);
@@ -113,7 +113,7 @@ test("a failed atomic identity replacement leaves both folders untouched and rep
     throw cause;
   } };
 
-  assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }), (error: unknown) => {
+  assert.throws(() => addSitePointer({ beforeAddedRows: () => {}, siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }), (error: unknown) => {
     assert.ok(error instanceof Error);
     assert.equal(error.message, "This copied website could not start because Tovu could not give its folder a separate identity.");
     assert.equal(error.cause, cause);
@@ -130,11 +130,11 @@ test("a failed atomic identity replacement leaves both folders untouched and rep
 test("Start automatically re-identifies a copy already tracked by an older desktop", async (t) => {
   const f = fixture({ t });
   fs.cpSync(f.original, f.copy, { recursive: true });
-  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
-  trackSite({ projectsPath: f.projectsPath, siteDir: f.original });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: f.projectsPath, siteDir: f.copy });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: f.projectsPath, siteDir: f.original });
   const started: string[] = [];
   const deps = {
-    sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
+    sharedSites: f.workspace, beforeAddedRows: () => {}, projectsPath: f.projectsPath, repoRoot: f.root,
     openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
     openSiteServer: async ({ siteDir }: { siteDir: string }) => {
@@ -156,7 +156,7 @@ test("Start keeps a moved folder's identity and relocates its existing reservati
   fs.renameSync(f.original, f.copy);
   fs.rmSync(path.join(f.copy, "content.db"));
   f.workspace.updateConfig({ patch: { databases: "appData" } });
-  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: f.projectsPath, siteDir: f.copy });
   await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
     openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
@@ -174,7 +174,7 @@ test("Start reports a plain sentence when a linked marker cannot safely be re-id
   fs.cpSync(f.original, f.copy, { recursive: true });
   fs.rmSync(path.join(f.copy, ".site-meta.json"));
   fs.symlinkSync(path.join(f.original, ".site-meta.json"), path.join(f.copy, ".site-meta.json"));
-  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: f.projectsPath, siteDir: f.copy });
   let spawned = false;
   await assert.rejects(handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,

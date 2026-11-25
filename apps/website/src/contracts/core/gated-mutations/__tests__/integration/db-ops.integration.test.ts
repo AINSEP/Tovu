@@ -13,6 +13,7 @@ import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
 import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import { openPreparedContentDb } from "../../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
+import { createCopyCoordinator } from "../../../../../platform/db/sqlite/copy-coordinator.js";
 
 /** `n` watermark stamps, each its own statement (how the taxonomy write-service stamps). */
 async function stampWatermark(db: ContentDb, n: number): Promise<void> {
@@ -74,7 +75,7 @@ function seedContent(db: ContentDb): void {
 
 test("AC-28: a SQLite-backed site's getCapabilities() reports costClass='cheap', kind='file-snapshot'", async () => {
   const db = await openPreparedContentDb(":memory:");
-  const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:" });
+  const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:", copies: createCopyCoordinator({}, {}) });
 
   const caps = await adapter.getCapabilities();
 
@@ -91,7 +92,7 @@ test("AC-30: capturing a restore point for a SQLite-backed site produces a whole
     seedContent(db);
     const before = databaseState(db.$client);
 
-    const adapter = new SqliteDbOpsAdapter({ db, filePath });
+    const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
     const result = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
 
     assert.ok(fs.existsSync(result.artifactRef), "capture must produce a real file artifact");
@@ -122,7 +123,7 @@ test("captureRestorePoint with a directory writes the whole-file copy there and 
     const before = databaseState(db.$client);
     const siteFiles = fs.readdirSync(siteData).sort();
 
-    const result = await new SqliteDbOpsAdapter({ db, filePath }).captureRestorePoint({ scopeId: "site-share" }, { directory: privateDir });
+    const result = await new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) }).captureRestorePoint({ scopeId: "site-share" }, { directory: privateDir });
 
     assert.equal(path.dirname(result.artifactRef), privateDir);
     assert.match(path.basename(result.artifactRef), /^restore-point-site-share-wm3-\d+\.db$/);
@@ -208,7 +209,7 @@ test("REQ-19: getCapabilities() is a pure, side-effect-free static check — cal
     db.$client.pragma("wal_checkpoint(TRUNCATE)");
     const before = databaseState(db.$client);
     const filesBefore = fs.readdirSync(tmpDir).sort().map(name => [name, fs.readFileSync(path.join(tmpDir, name))]);
-    const adapter = new SqliteDbOpsAdapter({ db, filePath });
+    const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
     const first = await adapter.getCapabilities();
     const second = await adapter.getCapabilities();
     assert.deepEqual(first, second);
@@ -233,7 +234,7 @@ test("restoreFromArtifact: swaps content.db's real content to match the captured
     const db = await openPreparedContentDb(filePath);
     await stampWatermark(db, 2); // watermark = 2 at capture time
 
-    const adapter = new SqliteDbOpsAdapter({ db, filePath });
+    const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
     const captured = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
     assert.equal(captured.watermarkAtCapture, 2);
 
@@ -271,7 +272,7 @@ test("restoreFromArtifact: removes stale -wal/-shm sidecars so a fresh boot neve
     const db = await openPreparedContentDb(filePath); // journal_mode=WAL — produces -wal/-shm sidecars
     await stampWatermark(db, 1);
 
-    const adapter = new SqliteDbOpsAdapter({ db, filePath });
+    const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
     const captured = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
 
     // Force a live -wal file to exist at the moment of restore (WAL mode may already have
@@ -290,7 +291,7 @@ test("restoreFromArtifact: removes stale -wal/-shm sidecars so a fresh boot neve
 
 test("restoreFromArtifact: :memory: mode is a no-op, reports restartRequired=false", async () => {
   const db = await openPreparedContentDb(":memory:");
-  const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:" });
+  const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:", copies: createCopyCoordinator({}, {}) });
 
   seedContent(db);
   await stampWatermark(db, 2);
@@ -307,7 +308,7 @@ test("restoreFromArtifact: a missing artifact file throws rather than silently s
   const filePath = path.join(tmpDir, "content.db");
   try {
     const db = await openPreparedContentDb(filePath);
-    const adapter = new SqliteDbOpsAdapter({ db, filePath });
+    const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
 
     seedContent(db);
     await stampWatermark(db, 2);
@@ -334,7 +335,7 @@ test("restoreFromArtifact: never leaves a stray temp file behind on success", as
   try {
     const db = await openPreparedContentDb(filePath);
     await stampWatermark(db, 1);
-    const adapter = new SqliteDbOpsAdapter({ db, filePath });
+    const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
     const captured = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
 
     await adapter.restoreFromArtifact({ artifactRef: captured.artifactRef });

@@ -29,7 +29,7 @@ function record(overrides: Partial<SiteShareRecord> = {}): SiteShareRecord {
 }
 
 class AnsweringRegistry extends SiteShareRegistry {
-  constructor(directory: string, private readonly answer: () => Promise<SiteShareRecord | null>) { super({ directory }); }
+  constructor(directory: string, private readonly answer: () => Promise<SiteShareRecord | null>) { super({ directory, now: () => Date.now() }); }
   override async findToken(): Promise<SiteShareRecord | null> { return this.answer(); }
 }
 
@@ -48,7 +48,7 @@ async function serve(t: import("node:test").TestContext, registry?: SiteShareReg
 const DOWNLOAD = `/_share/${"a".repeat(16)}/main.tovu.zip`;
 
 test("an acknowledged credential-warned ZIP is refused by the public token route", async t => {
-  const registry = new SiteShareRegistry({ directory: shareDir(t) });
+  const registry = new SiteShareRegistry({ directory: shareDir(t), now: () => Date.now() });
   const row = await receiveSiteShareArtifact({ registry, site: "main", token: "a".repeat(16), file: "main.tovu.zip", archive: Buffer.from("PK\u0003\u0004zip") },
     { credentialWarnings: [{ path: "themes/site/config.js", kind: "provider key shape" }] });
   await registry.put({ record: { ...row, needsAcknowledgement: false } });
@@ -122,7 +122,7 @@ test("any other path under /_share is a no-store 404 that never reaches the regi
 
 test("a real registry serves a minted 16-letter link and 404s a 64-hex link even when its files remain", async (t) => {
   const dir = shareDir(t);
-  const registry = new SiteShareRegistry({ directory: dir });
+  const registry = new SiteShareRegistry({ directory: dir, now: () => Date.now() });
   const { token } = newShareIdentity({});
   await receiveSiteShareArtifact({ registry, site: "main", token, file: "main.tovu.zip", archive: Buffer.from("PK\u0003\u0004zip") });
   const old = "0f".repeat(32);
@@ -139,7 +139,7 @@ test("a real registry serves a minted 16-letter link and 404s a 64-hex link even
 test("an old 64-hex share still revokes cleanly and deletes its ZIP, and its link stays a 404", async (t) => {
   // Owner 2026-10-25: no 64-hex SERVING, but rows minted before the switch must still be cleanable.
   const dir = shareDir(t);
-  const registry = new SiteShareRegistry({ directory: dir });
+  const registry = new SiteShareRegistry({ directory: dir, now: () => Date.now() });
   const old = "0f".repeat(32);
   writeFileSync(path.join(dir, `${old}.token`), SHARE_ID);
   writeFileSync(path.join(dir, `${SHARE_ID}.json`), JSON.stringify(record({ token: old })));
@@ -150,4 +150,22 @@ test("an old 64-hex share still revokes cleanly and deletes its ZIP, and its lin
   assert.equal(existsSync(path.join(dir, `${SHARE_ID}.tovu.zip`)), false);
   const base = await serve(t, registry);
   assert.equal((await fetch(`${base}/_share/${old}/main.tovu.zip`)).status, 404);
+});
+
+test("P11 ST-12a: an expired owner-chosen link is a plain 404 on the public route; a link without expiry still downloads", async t => {
+  const dir = shareDir(t);
+  const clock = { now: Date.parse("2026-12-01T00:00:00.000Z") };
+  const registry = new SiteShareRegistry({ directory: dir, now: () => clock.now });
+  const archive = Buffer.from("PK\u0003\u0004zip");
+  const expiring = await receiveSiteShareArtifact({ registry, site: "main", token: "a".repeat(16), file: "main.tovu.zip", archive });
+  await registry.put({ record: { ...expiring, expiresAt: "2026-12-08T00:00:00.000Z" } });
+  const lasting = await receiveSiteShareArtifact({ registry, site: "main", token: "b".repeat(16), file: "main.tovu.zip", archive });
+  const base = await serve(t, registry);
+  assert.equal((await fetch(base + DOWNLOAD)).status, 200, "served before its own date");
+  clock.now = Date.parse("2026-12-08T00:00:00.000Z");
+  const expired = await fetch(base + DOWNLOAD);
+  assert.equal(expired.status, 404);
+  assert.equal(expired.headers.get("content-disposition"), null);
+  assert.equal((await fetch(`${base}/_share/${lasting.token}/main.tovu.zip`)).status, 200, "absent expiry never expires");
+  assert.ok(existsSync(path.join(dir, `${expiring.shareId}.tovu.zip`)), "the expired ZIP is not removed here");
 });

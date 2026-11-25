@@ -9,6 +9,7 @@ import type { createAssistantByokModule } from "./modules/assistant-byok.js";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
 import type { HumanConfirmSurfaceDeps } from "#src/contracts/core/human-confirm";
+import type { SiteStoragePort } from "./modules/storage-routes.js";
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
@@ -39,6 +40,9 @@ export interface CreateAppOptions {
   /** Serving boot only: hears every owner/admin sign-in (the automatic form pull). Exporter and eager
    *  apps never pass it, so signing in to them pulls nothing. */
   onAdminSignIn?: AdminSignInPort;
+  /** Serving boot only: the site's retention runner and measurement behind `/api/admin/storage/*`.
+   *  Every other app answers those routes with a plain "not serving" refusal. */
+  siteStorage?: SiteStoragePort;
   /**
    * Render the site's pages through this theme id instead of the stored active one, for every request
    * this app serves. Only `RouteDeps.createSiteApp({ themeId })` sets it, for a throwaway loopback app

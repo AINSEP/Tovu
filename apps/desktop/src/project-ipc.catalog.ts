@@ -4,7 +4,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import fs from "node:fs";
 
 import { uniqueSiteName } from "./site-name-policy.ts";
-import { readProjectsFile, readTrackedSites, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
+import { ADDS_NO_ROWS, readProjectsFile, readTrackedSites, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
 import { relocateMovedSites, repointTrackedSite } from "./tracked-site-relocation.ts";
 import type { DirectoryRelocationGate } from "@jini-ai/platform/fs";
 import { type ProjectIpcDeps, type SiteRow } from "./project-ipc.types.ts";
@@ -13,14 +13,14 @@ import { buildSiteRecord } from "./project-ipc.records.ts";
 
 /** Import catalog discovery without transferring local origin or deletion authority. O(n) rows. */
 export function importSharedSiteDiscovery(
-  { projectsPath, sharedSites, readSiteName }: Pick<ProjectIpcDeps, "projectsPath" | "sharedSites" | "readSiteName">, _options = {},
+  { projectsPath, sharedSites, readSiteName, beforeAddedRows }: Pick<ProjectIpcDeps, "projectsPath" | "sharedSites" | "readSiteName" | "beforeAddedRows">, _options = {},
 ): void {
   if (!sharedSites) return;
   try {
     // The shared catalog supplies discovery, never the local origin/deletion authority.
     const rows = readTrackedSites({ projectsPath });
     if (rows.length) shareSiteDirectories({ workspace: sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${projectsPath}` });
-    adoptWithUniqueNames({ deps: { projectsPath, readSiteName }, siteDirs: sharedSites.registry({}).list({}).map((entry) => entry.path) });
+    adoptWithUniqueNames({ deps: { projectsPath, readSiteName, beforeAddedRows }, siteDirs: sharedSites.registry({}).list({}).map((entry) => entry.path) });
   } catch (error) { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
 }
 
@@ -36,14 +36,14 @@ export function importSharedSiteDiscovery(
  * @complexity O(n) in the tracked-project count, plus `relocateMovedSites`' scan for a missing row.
  */
 export function handleList(
-  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> &
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "beforeAddedRows" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> &
     Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: DirectoryRelocationGate<SiteRow> },
 ) {
-  importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
+  importSharedSiteDiscovery({ projectsPath: deps.projectsPath, beforeAddedRows: deps.beforeAddedRows, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
   const file = readProjectsFile({ projectsPath: deps.projectsPath });
   if (deps.relocationGate && !deps.relocationGate.shouldRun({ file })) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {
-    relocateMovedSites({ projectsPath: deps.projectsPath }, { searchRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots ?? [], classifySiteDir: deps.classifySiteDir });
+    relocateMovedSites({ projectsPath: deps.projectsPath, beforeAddedRows: deps.beforeAddedRows }, { searchRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots ?? [], classifySiteDir: deps.classifySiteDir });
   } catch (error) {
     console.warn(`tovu desktop: could not save moved site folders — ${(error as Error).message}`);
   }
@@ -57,7 +57,7 @@ export function rememberSiteName(
   { projectsPath, siteDir, displayName }: { projectsPath: string; siteDir: string; displayName: string }, _optional = {},
 ): void {
   try {
-    updateProjectsFile({ projectsPath, change: (current) => ({
+    updateProjectsFile({ projectsPath, beforeAddedRows: ADDS_NO_ROWS, change: (current) => ({
       rows: current.rows.map((row) => row.siteDir === siteDir ? { ...row, displayName } : row),
       dismissed: current.dismissed,
     }) });
@@ -73,7 +73,7 @@ function recordsWithRememberedNames(
   const names = new Map(records.filter((record) => !record.folderMissing).map((record) => [record.id, record.displayName]));
   if (rows.some((row) => names.has(row.siteDir) && names.get(row.siteDir) !== row.displayName)) {
     try {
-      updateProjectsFile({ projectsPath: deps.projectsPath, change: (current) => ({
+      updateProjectsFile({ projectsPath: deps.projectsPath, beforeAddedRows: ADDS_NO_ROWS, change: (current) => ({
         rows: current.rows.map((row) => {
           const displayName = names.get(row.siteDir);
           return displayName === undefined ? row : { ...row, displayName };
@@ -96,7 +96,7 @@ function recordsWithRememberedNames(
  *   Tovu site, or `id` is not tracked.
  * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes.
  */
-export async function handleLocate({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> }, _options = {}) {
+export async function handleLocate({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "beforeAddedRows" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> }, _options = {}) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Locate your Tovu website's folder",
     message: `Pick the folder that now holds the website that was at ${id}. Nothing in it will be changed.`,
@@ -112,7 +112,7 @@ export async function handleLocate({ id, deps }: { id: string; deps: Pick<Projec
     throw new Error(`${siteDir} is not a complete Tovu site (${kind}). Pick the folder that holds this website.`);
   }
   // The old row was repointed onto, or merged into, this exact siteDir above.
-  const row = repointTrackedSite({ projectsPath: deps.projectsPath, fromDir: id, toDir: siteDir }).find((entry) => entry.siteDir === siteDir);
+  const row = repointTrackedSite({ projectsPath: deps.projectsPath, beforeAddedRows: deps.beforeAddedRows, fromDir: id, toDir: siteDir }).find((entry) => entry.siteDir === siteDir);
   if (!row) throw new Error(`Located site ${siteDir} is missing from tracked projects.`);
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   return buildSiteRecord(row, deps);
@@ -131,7 +131,7 @@ export function otherSiteNames({ deps, siteDir }: {
 export function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
   projectsPath: string; siteDir: string; displayNameAlias?: string;
 }, _optional = {}): void {
-  updateProjectsFile({ projectsPath, change: (current) => ({
+  updateProjectsFile({ projectsPath, beforeAddedRows: ADDS_NO_ROWS, change: (current) => ({
     rows: current.rows.map((row) => row.siteDir === siteDir ? { ...row, displayNameAlias } : row),
     dismissed: current.dismissed,
   }) });
@@ -144,9 +144,9 @@ export function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
  * other. O(a·n) for a adoptions over n tracked rows.
  */
 function adoptWithUniqueNames({ deps, siteDirs }: {
-  deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">; siteDirs: string[];
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName" | "beforeAddedRows">; siteDirs: string[];
 }, _optional = {}): void {
-  for (const siteDir of adoptDiscoveredSites({ projectsPath: deps.projectsPath, siteDirs })) {
+  for (const siteDir of adoptDiscoveredSites({ projectsPath: deps.projectsPath, siteDirs, beforeAddedRows: deps.beforeAddedRows })) {
     const originalName = deps.readSiteName({ siteDir });
     const displayName = uniqueSiteName({ name: originalName, names: otherSiteNames({ deps, siteDir }) });
     if (displayName !== originalName) rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias: displayName });
@@ -181,7 +181,7 @@ function adoptWithUniqueNames({ deps, siteDirs }: {
  * @throws Discovery limit, timeout or cancellation errors before any candidate is adopted.
  * @complexity O(n log n) discovery plus O(n + m) adoption for n candidates and m stored rows.
  */
-export async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime" | "discoverSites">) {
+export async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "beforeAddedRows" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime" | "discoverSites">) {
   // Production injects the read-only worker. Legacy hosts/tests retain the same discovery owner.
   const found = deps.discoverSites ? await deps.discoverSites({}) : discoverSiteDirs({
     scanRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots,

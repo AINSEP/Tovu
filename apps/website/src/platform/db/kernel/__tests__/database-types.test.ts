@@ -10,6 +10,7 @@ import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 import { migrateSqliteContentFile, openSqliteContentConnection } from "../../sqlite/content-db.js";
+import { testCopyPorts } from "../../sqlite/__tests__/helpers/copy-ports.js";
 
 /**
  * @file The content database's Kysely types are exactly what the reference database says, and a
@@ -92,7 +93,7 @@ test("a migrated SQLite content.db has every generated table and column, with co
   }
   // Built the way a site's boot builds it: the migration runner (R1h), not the sync Drizzle opener.
   const db = openSqliteContentConnection({ filePath: ":memory:" });
-  await migrateSqliteContentFile({ db, filePath: ":memory:" });
+  await migrateSqliteContentFile({ db, filePath: ":memory:", ...testCopyPorts({ filePath: ":memory:" }) });
   const sqlite = sqliteKernel({ source: db });
   const tables = await listTables({ kernel: sqlite });
   const problems: string[] = [];

@@ -71,4 +71,6 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0046_media_description": "3f7d0d70e20a881b7267a2ff6dd05d13670b2235c5dc1d7ff79061fd5feb45b1",
   "0047_change_set_actor_kind": "576afd8e38e34e4b5b4f06d2aca407fec3767bd3984516db33d327b0b20a6887",
   "chat/0049_scrub_assistant_chat_titles": "8758a15c470d39216ed508381e2484b9291b5d1161f259b45bdc3e0d73ded55f",
+  "chat/0004_chat_pinned": "4021777ec3533f459aaa740d88002011a49a3523f08f07b2d289f17160d69188",
+  "0048_blob_gc_journal": "384f2a2a45628fdb04a6479c49b910f5b576fd74c73d607475f01eab6aac0293",
 };

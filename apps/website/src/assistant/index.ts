@@ -224,7 +224,7 @@ export type { DuplicateResourceHandlerContributor } from "./tool-registrations.j
 // Category 3, an ADR-006 composition root selecting an adapter, not a leak. Consumed by
 // `apps/website/src/server/runtime/composition/app.ts` and `apps/website/src/server/runtime/composition/deps.ts`.
 // ---------------------------------------------------------------------------------------------
-export { createChatStoreFactory, createInMemoryChatHistory } from "./persistence/store-factory.js";
+export { createChatBulkDeletionFor, createChatStoreFactory, createInMemoryChatHistory } from "./persistence/store-factory.js";
 export { createChatRunLedger, type ChatRunLedger, type RunSettlement } from "./persistence/run-ledger.js";
 
 // `persistence/agent-session-store.ts`'s SQLite/in-memory pair, same ADR-006 "composition root

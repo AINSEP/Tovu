@@ -148,7 +148,7 @@ test("a thrown render retains partial files and deletes its temporary render fol
 });
 
 test("static-only ZIP and top folder use the display name with a dated README and no backup content", async t => {
-  const registry = new SiteShareRegistry({ directory: await rootFor(t) });
+  const registry = new SiteShareRegistry({ directory: await rootFor(t), now: () => Date.now() });
   const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", zip: zipFolderFiles,
     prepare: async () => { throw new Error("Static export must not snapshot the database"); }, delivery: async () => { throw new Error("Static download must stay local"); },
     staticSite: { context: async () => ({ ...await context(), slug: "internal-old-slug", theme: "my-theme" }), now,
@@ -501,7 +501,7 @@ test("download README describes final entries and file-relative links", async ()
 test("static completion after polling includes opening instructions while pending stays progress-only", async t => {
   let release!: () => void;
   const hold = new Promise<void>(resolve => { release = resolve; });
-  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: new SiteShareRegistry({ directory: await rootFor(t) }), site: "ws", zip: zipFolderFiles,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: new SiteShareRegistry({ directory: await rootFor(t), now: () => Date.now() }), site: "ws", zip: zipFolderFiles,
     prepare: async () => { throw new Error("no backup"); }, delivery: async () => undefined,
     staticSite: { context, now, render: async ({ outputDir }) => { await hold; return report(outputDir); } } });
   const input = { principalId: "owner", signal: new AbortController().signal, format: "static" as const };

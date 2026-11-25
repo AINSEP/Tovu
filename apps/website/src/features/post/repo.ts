@@ -327,7 +327,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    */
   async appendRevision(input: PostRevisionInput): Promise<PostRevisionAppendResult> {
     return this.kernel.transaction(async () => {
-      await this.kernel.lockKey(`post_revisions:${input.workspaceId}:${input.postId}`);
+      await this.kernel.lockKey(postRevisionLockKey({ workspaceId: input.workspaceId, postId: input.postId }));
       const prior = await this.kernel.run((db) =>
         db
           .selectFrom("post_revisions")
@@ -365,6 +365,16 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     try { return await this.kernel.transaction(fn); }
     finally { this.mediaAccessEvidence.invalidate({ owner: this }); }
   }
+}
+
+/**
+ * The one fence over a post's revision stream: `appendRevision` and revision thinning
+ * (`revision-thinning.ts`) both take it, so a thinning apply never runs between an append's read of
+ * the latest row and its insert, and a new newest row cannot appear mid-apply.
+ * @complexity O(1).
+ */
+export function postRevisionLockKey({ workspaceId, postId }: { workspaceId: string; postId: string }, _optional: Record<string, never> = {}): string {
+  return `post_revisions:${workspaceId}:${postId}`;
 }
 
 /** The post repo for `kernel`, with its dialect's search projection. */

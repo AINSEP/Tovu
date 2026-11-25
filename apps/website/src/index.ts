@@ -337,15 +337,19 @@ async function main(): Promise<void> {
     },
     // Routines (P3-T1a.T): the boot policy is read once, here; the module never rereads the scrubbed env.
     routines: { desktopEligible: bootLocalOwnerSignIn.routineDesktopEligible, releaseEnabled: ROUTINES_RELEASE_ENABLED },
+    runningLease,
   };
-  const { app, routines, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork, releaseOnShutdown } = createServingApp(deps, servingOptions);
+  const { app, routines, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, siteRetention, bootWork: servingBootWork, releaseOnShutdown } = createServingApp(deps, servingOptions);
   bootWork.push(...servingBootWork);
   const daemonCallback = await startSiteDaemonListener({
     publicOrigin: pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port }), handler: app,
   });
   server.once("close", () => { void daemonCallback.close(); });
   // First worker: a parked AG-UI approval is denied and its held call ended, never left to its expiry.
-  stopServing = () => stopServingWithinGrace({ server, workers: [{ stop: async () => releaseOnShutdown() }, routines, { stop: () => daemonCallback.close() }, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
+  stopServing = async () => {
+    await siteRetention?.stop();
+    await stopServingWithinGrace({ server, workers: [{ stop: async () => releaseOnShutdown() }, routines, { stop: () => daemonCallback.close() }, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
+  };
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so
@@ -388,6 +392,7 @@ async function main(): Promise<void> {
     void shutdownLocalSiteHosts({}).catch((error: unknown) => console.error("[local-sites] Could not shut down local site hosts", describeErrorForLog({ err: error })));
   });
   startingHandler.attach(app);
+  siteRetention?.listenerReady();
 
   // Forwards Vite's HMR WebSocket through this server's own `upgrade` event when
   // `TOVU_ADMIN_DEV_PROXY_URL` is set — the one thing `admin-static.ts`'s ordinary Express routing

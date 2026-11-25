@@ -5,8 +5,10 @@ import type { removeDirectoryTree } from "@jini-ai/platform/fs";
 import type { OpenSiteEntry, ServerExitLike, SiteRuntime } from "./project-ipc.site-lifecycle.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
+import type { SiteRetirementPort } from "./site-retirement.ts";
 import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 import type { SitePresence, PresenceSender } from "@jini-ai/desktop-host/shell/site-presence";
+import type { BeforeAddedRows } from "./tracked-sites.ts";
 
 
 /**
@@ -162,7 +164,7 @@ interface AdoptSiteDirInput {
 /** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.ts`'s real
  *  `addSitePointer`, duplicated rather than imported for the same reason as {@link AdoptSiteDirInput}. */
 interface AddSitePointerLike {
-  (input: { siteDir: string; projectsPath: string }, options?: SiteIdentityOptions): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
+  (input: { siteDir: string; projectsPath: string; beforeAddedRows: BeforeAddedRows }, options?: SiteIdentityOptions): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
 }
 
 /**
@@ -187,6 +189,8 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   openSites: OpenSites;
   serializer: Serializer;
   projectsPath: string;
+  /** The tracked-list writer's required effect (`tracked-sites.ts`): invalidates a stale sign-in retirement for every added path. */
+  beforeAddedRows: BeforeAddedRows;
   registryPath: string;
   repoRoot: string;
   statePath: string;
@@ -240,6 +244,9 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   discoverSites?: (required: { scanRoots?: string[] }, options?: {}) => Promise<string[]>;
   recentSiteDirs: () => string[];
   sharedSites?: SitesWorkspace;
+  /** The erase arm's sign-in removal proof (ST-2b). Required: production binds the real ledger, and
+   *  only tests that never erase may pass `NO_RETIREMENT`. */
+  retirement: SiteRetirementPort;
   /** Stops a site another process serves (`external-site-stop.ts`). Absent: such a Stop is refused. */
   externalSites?: Pick<ExternalSiteStopper, "launcherOf" | "stop">;
   ctx: TCtx;

@@ -37,6 +37,7 @@ function launch() {
   } });
   const ports: SiteBackendPorts<SiteBackendServer> = {
     partitionFor: ({ siteDir }) => `persist:${siteDir}`,
+    acquirePartition: async () => {},
     attachRunning: () => null,
     rememberOpen: () => {},
     resolveAdminDevProxyUrl: async () => null,

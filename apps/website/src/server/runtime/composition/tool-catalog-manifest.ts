@@ -51,6 +51,9 @@ import { contributeMailStatusTools } from "#src/features/mail-status/tool-regist
 import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
 import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
 import { planMailDeliveryCaptureClear } from "./mail-capture-clear-planner.js";
+import { createStorageToolContributor } from "#src/features/storage/tool-registrations";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { PROTECTED_CONTENT_MESSAGE, storageToolPorts, type SiteStoragePort } from "./modules/storage-routes.js";
 import { contributeServerLogsTools } from "@jini-ai/diagnostics/server-logs/tool-registrations";
 import { processServerLogSource } from "#src/features/server-logs/process-source";
 import { contributeObservabilityTools } from "@jini-ai/diagnostics/observability/tool-registrations";
@@ -399,6 +402,7 @@ export function installFirstPartyToolContributors(
     mediaConversionPorts = createMediaConversionPorts({ env }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
     routines,
+    siteStorage,
   }: {
     deployOpsRegistry?: DeployOpsRegistry;
     observability?: ObservabilityPort;
@@ -418,6 +422,9 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
     /** The serving site's bound routine commands. Absent (release flag off, web-only, export) the four routine tools are never registered. */
     routines?: RoutineToolHost;
+    /** The serving process's storage port, the same one `/api/admin/storage/*` mounts. Absent in every
+     *  other app (exporter, attached serve, hermetic tests): the storage tools then refuse in plain words. */
+    siteStorage?: SiteStoragePort;
   } = {},
 ): void {
   installStatusAndAgentTools(contributions, () => findPublishCandidate, () => publishTrustProvisioning);
@@ -442,6 +449,20 @@ export function installFirstPartyToolContributors(
   installCredentialSaveTools(contributions);
   installWorkspaceToolContributors(contributions);
   if (routines) contributions.contributors.register({ contribution: contributeRoutineTools({ ...routines, requireHumanConfirm: requireRoutineHumanConfirm }) });
+  installStorageTools(contributions, { siteStorage });
+}
+
+const STORAGE_TOOL_COPY = { protectedContent: PROTECTED_CONTENT_MESSAGE, cardTitle: "Clean up this site's storage?", confirmLabel: "Clean up" };
+
+/** ST-15c: the owner-only storage tools over the serving port; the owner id is read from the built deps. */
+function installStorageTools(contributions: AssistantToolContributions, { siteStorage }: { siteStorage?: SiteStoragePort }) {
+  const bind = (ownerPrincipalId: () => Promise<string>) => createStorageToolContributor({
+    ...storageToolPorts({ storage: siteStorage, ownerPrincipalId }, {}), approval: { handler: approvalToolHandler }, copy: STORAGE_TOOL_COPY,
+  }, {});
+  contributions.contributors.register({ contribution: {
+    domain: "system-storage", risk: bind(async () => "").risk,
+    build: (deps, surfaces) => bind(async () => deps.ownerPrincipalId).build(deps, surfaces),
+  } });
 }
 
 function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>, getPublishTrustProvisioning: () => PublishTrustProvisioningPort) {

@@ -8,6 +8,7 @@ import { validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits } from "./share-policy.js";
 import { shareFileStem } from "@jini-ai/devops/backup/site/share-service";
 import { allocateStaticExportThemes } from "./static-export-selection.js";
+import { siteTempRoot, SITE_TEMP_PREFIXES, type OwnedTempRootScope } from "#src/platform/temp/site-temp-roots";
 import { staticLandingPage } from "./static-download-landing.js";
 
 /** @file Binds Jini's static copy and portable layout to this host's parse5 edits, share path policy and limits, theme-folder allocator, landing-page template, file-stem rule and scratch-folder name. */
@@ -31,6 +32,7 @@ export function prepareStaticReport(required: Omit<Parameters<typeof prepareJini
 }
 
 /** Jini's static capture with this host's source edits, file-stem rule and scratch-folder name bound. */
-export function captureStaticSite(ports: StaticSitePorts, optional: { themeId?: string; publicUrl?: string } = {}): ReturnType<typeof captureJiniStaticSite> {
-  return captureJiniStaticSite({ ports, host: STATIC_COPY_HOST }, optional);
+export function captureStaticSite(ports: StaticSitePorts, { themeId, publicUrl, tempRoot = siteTempRoot({ prefix: SITE_TEMP_PREFIXES.staticCopy }) }: { themeId?: string; publicUrl?: string; tempRoot?: OwnedTempRootScope } = {}): ReturnType<typeof captureJiniStaticSite> {
+  // P11: the render folder is an owned, locked temp root the daily tidy recognises and never removes mid-read.
+  return captureJiniStaticSite({ ports, host: STATIC_COPY_HOST }, { themeId, publicUrl, tempRoot });
 }

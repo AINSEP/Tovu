@@ -18,7 +18,7 @@ import type { SpellCheckWebContents } from "@jini-ai/desktop-host/shell/spellche
 
 /** The sites home window's own `webContents`, as the setup below uses it. */
 type SitesHomeWebContents = ElectronNavigableContents & SpellCheckWebContents & {
-  on(event: "will-attach-webview", listener: (event: { preventDefault(): void }, webPreferences: GuestWebPreferences, params: { src?: unknown }) => void): unknown;
+  on(event: "will-attach-webview", listener: (event: { preventDefault(): void }, webPreferences: GuestWebPreferences, params: { src?: unknown; partition?: unknown }) => void): unknown;
   on(event: "did-attach-webview", listener: (event: unknown, contents: SpellCheckWebContents) => void): unknown;
 };
 
@@ -57,6 +57,8 @@ interface SitesHomePorts<W extends SitesHomeWindow> {
   readWindowBounds: (args: { boundsPath: string }) => WindowBounds | null;
   writeWindowBounds: (args: { boundsPath: string; bounds: WindowBounds }) => void;
   isSupervisedGuestUrl: (required: { url: string }) => boolean;
+  /** `desktop-partition-lock.ts`'s guard: false for a managed partition this process does not hold. */
+  admitGuestPartition: (required: { partition: string | undefined }) => boolean;
   openExternal: (required: { url: string }) => void;
   relayFindResults: (args: { window: W }) => unknown;
   registerSpellCheck: (args: { webContents: SpellCheckWebContents }) => unknown;
@@ -147,6 +149,8 @@ function installGuestAttachPolicy<W extends SitesHomeWindow>({ window, ports }: 
   // input needs the desktop app, from inside the desktop app. That grant is only safe on a supervised
   // site's origin, so a guest pointed anywhere else is refused before it attaches.
   window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
+    // A managed partition nobody in this process holds could be mid-cleanup by a partition pass.
+    if (!ports.admitGuestPartition({ partition: typeof params.partition === "string" ? params.partition : undefined })) return void event.preventDefault();
     if (!admitGuestSource({ event, params, isAllowedSource: ({ src }) => ports.isSupervisedGuestUrl({ url: src }) })) return;
     applyGuestWebPreferences({ webPreferences, preloadPath: ports.guestPreloadPath });
   });

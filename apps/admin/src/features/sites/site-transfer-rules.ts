@@ -15,9 +15,36 @@ export function formatTransferBytes({ bytes }: { bytes: number | null | undefine
 }
 
 /** The pill for one export: its label and the shared `.status-*` tone class. */
+/**
+ * True only when the server says the link expired. Why a date is not consulted: rows made before
+ * expiry existed and peer-uploaded rows have no `expiresAt`, and a missing date says nothing about
+ * whether a link should stop, so it never reads as expired (owner rule (c): live links never break).
+ */
+export function isExpiredShare({ share }: { share: Pick<SiteShare, "status" | "expiresAt"> }, _optional = {}): boolean {
+  return share.status === "expired";
+}
+
+/** The export rows the list draws: all of them, or all but the expired ones when the owner hides those. O(n). */
+export function visibleShares<T extends Pick<SiteShare, "status" | "expiresAt">>({ shares, showExpired }: { shares: readonly T[]; showExpired: boolean }, _optional = {}): readonly T[] {
+  return showExpired ? shares : shares.filter(share => !isExpiredShare({ share }));
+}
+
+/**
+ * What the expiry notice says about the newest backup: `"expired"` until the owner dismisses it, then
+ * `"dismissed"`. Dismissing hides the notice only; the row keeps the server's status, so an expired
+ * link can never read as live again. O(1).
+ */
+export function expiryNoticeStatus({ share, acknowledgedId }: { share: Pick<SiteShare, "shareId" | "status" | "expiresAt"> | undefined; acknowledgedId: string | null }, _optional = {}): string {
+  if (!share) return "none";
+  if (!isExpiredShare({ share })) return share.status;
+  return share.shareId === acknowledgedId ? "dismissed" : "expired";
+}
+
 export function shareStatusView({ status, t }: { status: SiteShare["status"]; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   if (status === "active") return { label: t("Active"), className: "status status-ok" };
   if (status === "revoked") return { label: t("Revoked"), className: "status status-neutral" };
+  // An expired link is a normal end of life the owner chose, not an error: neutral, never "Failed".
+  if (status === "expired") return { label: t("Expired"), className: "status status-neutral" };
   return { label: t("Failed"), className: "status status-error" };
 }
 

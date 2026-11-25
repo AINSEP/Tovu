@@ -23,6 +23,7 @@ import { SITE_TRANSFER_MESSAGES } from "@jini-ai/db/tools";
 import { TOVU_TRANSFER_MESSAGES } from "../transfer-messages.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
+import { testCopyPorts } from "../../../platform/db/sqlite/__tests__/helpers/copy-ports.js";
 
 /**
  * @file P0's end-to-end proof against a REAL local Postgres (Homebrew 14, `/tmp` socket, role `la` —
@@ -45,7 +46,7 @@ async function buildMigratedBase(): Promise<Buffer> {
     const filePath = path.join(dir, "content.db");
     const db = openSqliteContentConnection({ filePath });
     try {
-      await migrateSqliteContentFile({ db, filePath });
+      await migrateSqliteContentFile({ db, filePath, ...testCopyPorts({ filePath: filePath }) });
       // Out of WAL, so the bytes open again as an in-memory database.
       db.$client.pragma("journal_mode = DELETE");
       return db.$client.serialize();

@@ -10,9 +10,8 @@ import { mountAdminRawRoute } from "#src/server/inbound/admin-http/admin-raw-rou
 import type { AdminJsonRouteMountOptions } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { adminPublishTrustFor } from "#src/server/inbound/admin-http/admin-request-facts";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
-import { readShareInput, registerAdminSiteShareArtifactUploadRoute, registerAdminSiteShareDownloadRoute } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { readShareInput, readStaticShareInput, registerAdminSiteShareArtifactUploadRoute, registerAdminSiteShareDownloadRoute } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { createSiteSharePasswordHandler, sendSiteShareFailure } from "#src/server/inbound/admin-http/routes/system/site-share-password";
-import { parseStaticExportInput } from "#src/features/site-backup/static-export-selection";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_FILE } from "#src/features/site-backup/share-registry";
@@ -82,7 +81,7 @@ function siteShareRouteDeps({ deps }: { deps: RouteDeps }, _optional: Record<str
     backend: () => deps.siteShareBackend as (SiteShareRouteBackend & SiteShareBackend) | undefined,
     isPublishTrusted: ({ context }: { context: OperatorPrincipalRecord }) => adminPublishTrustFor({ context }) !== null,
     readCreateInput: ({ body }) => readShareInput({ body }),
-    readStaticInput: ({ body }) => ({ ...parseStaticExportInput({ input: body === undefined ? {} : body }) }),
+    readStaticInput: ({ body }) => ({ ...readStaticShareInput({ body }) }),
     isArtifactIdentity: ({ token, file }) => SHARE_TOKEN.test(token) && SHARE_FILE.test(file),
     invalidArtifact: () => new SiteShareRefusal({ code: "INVALID_INPUT", message: "Expected a .tovu.zip artifact with a 16-letter token and application/zip body." }),
     receiveArtifact: ({ backend, token, file, archive }: { backend: SiteShareBackend; token: string; file: string; archive: Uint8Array }) =>

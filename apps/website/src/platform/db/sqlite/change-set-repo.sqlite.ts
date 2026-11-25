@@ -2,6 +2,8 @@ import type { OutboxEventPreparation } from "@jini-ai/db/events";
 import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
 import { SqlChangeSetRepo } from "@jini-ai/db/events";
 import type { ContentDb } from "./content-db.js";
+import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent } from "@jini-ai/core/contracts/events";
+import { postRevisionLockKey } from "#src/features/post/repo";
 
 /** Tovu owns the persisted names; the change-set repo's header, items and co-persisted outbox row use the same wiring. */
 export const CHANGE_SET_TABLES = { changeSets: "change_sets", changeSetItems: "change_set_items", outboxEvents: "outbox_events" } as const;
@@ -50,4 +52,29 @@ export class SqliteChangeSetRepo extends SqlChangeSetRepo {
     // Migration 0047 gave every content.db `change_sets.actor_kind`, so the attribution kind is read and written.
     super({ kernel: schemaErasedKernel({ store }), tables: CHANGE_SET_TABLES }, { ...optional, actorKindColumn: true });
   }
+
+  /**
+   * The header/items/outbox insert, under the revision fence of every post or page an item names a
+   * `post_revisions` id for. Why: revision thinning (`features/post/revision-thinning.ts`) reads
+   * `before_revision_id`/`after_revision_id` under that same fence before it deletes a row; on
+   * Postgres (READ COMMITTED) an unfenced insert still open mid-apply is invisible to that read, so
+   * the apply would delete the very revision the new item names. Taken inside the insert's own
+   * transaction (joining a caller's), in sorted order so two multi-post inserts never deadlock.
+   * Items for other entities name other ledgers and take no post fence.
+   * @complexity O(k log k) over the distinct posts named, plus the base insert.
+   */
+  override async insert(required: { record: ChangeSetRecord; items: ChangeSetItemRecord[] }, optional: { event?: DomainEvent } = {}): Promise<void> {
+    const keys = [...new Set(required.items.filter(namesPostRevision)
+      .map((item) => postRevisionLockKey({ workspaceId: required.record.workspaceId, postId: item.entityId }, {})))].sort();
+    if (keys.length === 0) return super.insert(required, optional);
+    await this.kernel.transaction(async () => {
+      for (const key of keys) await this.kernel.lockKey(key);
+      await super.insert(required, optional);
+    });
+  }
+}
+
+/** Post and page items are the ones whose revision ids are `post_revisions` rows. */
+function namesPostRevision(item: ChangeSetItemRecord): boolean {
+  return (item.entityType === "post" || item.entityType === "page") && (item.beforeRevisionId != null || item.afterRevisionId != null);
 }

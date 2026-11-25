@@ -79,7 +79,7 @@ async function prepareWarnedShareFixture({ t }: { t: TestContext }) {
 
 test("export keeps database values and complete plugin packages; download requires a durable acknowledgement", async t => {
   const { directory, plan } = await prepareWarnedShareFixture({ t });
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => undefined });
   const created = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 60_000 }) as { shareId: string; credentialWarnings: CredentialWarning[]; needsAcknowledgement: boolean; url: string | null };
   assert.equal(created.needsAcknowledgement, true); assert.equal(created.url, null);
@@ -106,7 +106,7 @@ test("export keeps database values and complete plugin packages; download requir
   assert.deepEqual(blocked.body, { code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: created.credentialWarnings });
   const acknowledged = await dispatchJsonRequest(app, "POST", root + "/acknowledge", {});
   assert.equal(acknowledged.status, 200, "the owner can acknowledge the private download");
-  const reopened = new SiteShareRegistry({ directory });
+  const reopened = new SiteShareRegistry({ directory, now: () => Date.now() });
   assert.equal((await reopened.get({ shareId: created.shareId }))?.needsAcknowledgement, false);
   assert.equal((await backend.list({}))[0]?.needsAcknowledgement, false);
   assert.equal(await registry.findToken(pendingRow), null, "warned exports remain private after acknowledgement");
@@ -127,6 +127,6 @@ test("old share rows without warning metadata remain acknowledged", async t => {
   t.after(() => rm(directory, { recursive: true, force: true }));
   const shareId = "00000000-0000-0000-0000-000000000001";
   await writeFile(path.join(directory, shareId + ".json"), JSON.stringify({ shareId, site: "ws", status: "active" }));
-  const row = await new SiteShareRegistry({ directory }).get({ shareId });
+  const row = await new SiteShareRegistry({ directory, now: () => Date.now() }).get({ shareId });
   assert.deepEqual(row?.credentialWarnings, []); assert.equal(row?.needsAcknowledgement, false);
 });

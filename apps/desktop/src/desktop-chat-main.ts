@@ -23,6 +23,8 @@ interface DesktopChatMainDeps {
   ipcMain: ChatIpcMain;
   userDataDir: string;
   projectsPath: string;
+  /** The tracked-list writer's required effect (`tracked-sites.ts` `BeforeAddedRows`), for the agent's add-site tool. */
+  beforeAddedRows: (required: { rows: readonly { siteDir: string }[] }) => void;
   revealPath: (required: { target: string }, options?: {}) => Promise<void>;
   pickDirectory: (required: Record<string, never>, optional?: { currentDirectory?: string }) => Promise<string | null>;
   /** Sends one push message to every shell window. */
@@ -60,7 +62,7 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
     agentRuntime: deps.agentRuntime,
     workDir: path.join(deps.userDataDir, "desktop-agent"),
     buildTools: ({ addresseeOf }) => buildDesktopAgentTools({
-      sitesToolContext: { userDataDir: deps.userDataDir, projectsPath: deps.projectsPath, revealPath: ({ target }) => deps.revealPath({ target }) },
+      sitesToolContext: { userDataDir: deps.userDataDir, projectsPath: deps.projectsPath, beforeAddedRows: deps.beforeAddedRows, revealPath: ({ target }) => deps.revealPath({ target }) },
       addresseeOf,
       siteTools: optional.siteTools ?? UNBUILT_SITE_TOOL_GATEWAY,
       navigate: ({ section }) => deps.broadcast({ channel: WORKSPACE_CHAT_IPC.navigate, payload: section }),

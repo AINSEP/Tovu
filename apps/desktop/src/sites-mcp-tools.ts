@@ -54,7 +54,7 @@ import type { McpToolDef } from "@jini-ai/mcp";
 import { appendSerialTask } from "@jini-ai/core/primitives";
 
 import { AddSitePointerError, addSitePointer } from "./add-site-pointer.ts";
-import { readTrackedSites } from "./tracked-sites.ts";
+import { readTrackedSites, type BeforeAddedRows } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
 
 /** One `tools/call` arguments bag, as received off the wire — untrusted until a handler validates
@@ -73,6 +73,8 @@ type ClassifySiteDirFn = typeof classifySiteDirSafely;
 interface ToolContext {
   userDataDir?: string;
   projectsPath: string;
+  /** The tracked-list writer's required effect (`tracked-sites.ts` `BeforeAddedRows`). */
+  beforeAddedRows: BeforeAddedRows;
   revealPath: (required: { target: string }) => Promise<void>;
   classifySiteDir?: ClassifySiteDirFn;
 }
@@ -201,6 +203,7 @@ function addSitePointerTool(args: ToolArgs, context: ToolContext): ToolHandlerRe
   const result = addSitePointer({
     siteDir: requested,
     projectsPath: context.projectsPath,
+    beforeAddedRows: context.beforeAddedRows,
     // Absolute paths only from a model: a relative path would resolve against the agent daemon's
     // cwd, which is neither the operator's shell cwd nor anything they can see. `cwd` is pinned to
     // the root so a relative argument becomes an obviously-wrong absolute path and is refused by

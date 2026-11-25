@@ -5,6 +5,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { computeCoreTableCopyOrder, DERIVED_OBJECTS } from "#src/platform/db/migration/manifest";
 import * as schema from "#src/platform/db/schema.postgres";
 import { captureSqliteBackupBytes, openSqliteSnapshotSource } from "@jini-ai/db/transfer";
+import { siteTempRoot, SITE_TEMP_PREFIXES } from "#src/platform/temp/site-temp-roots";
 import { planSnapshotTables, planChatSnapshotTables, type CoreTableCatalogPorts } from "#src/features/database-transfer/table-catalog";
 import type { DatabaseTransferAdapters, DatabaseTransferToolDeps } from "#src/features/database-transfer/tool-registrations";
 
@@ -28,7 +29,7 @@ export function createDatabaseTransferAdapters(_required = {}, _optional = {}): 
 }
 
 /** The host's temp-dir prefix for the chat DB online backup (`captureSqliteBackupBytes`, `@jini-ai/db/transfer`). */
-export const CHAT_SNAPSHOT_TEMP_PREFIX = "tovu-transfer-chat-";
+export const CHAT_SNAPSHOT_TEMP_PREFIX = SITE_TEMP_PREFIXES.transferChat;
 
 /** Read-only online backup of the exact configured chat DB; never create a missing source. */
 async function captureChatSnapshot(deps: Pick<DatabaseTransferToolDeps, "db" | "databaseTransferChatSnapshot">, _optional = {}): Promise<Buffer> {
@@ -38,7 +39,7 @@ async function captureChatSnapshot(deps: Pick<DatabaseTransferToolDeps, "db" | "
   const path = process.env.TOVU_CHAT_DB ?? join(dirname(contentPath), "chat.db");
   const source = openSqliteFileKernel({ filePath: path }, { readOnly: true });
   try {
-    return await captureSqliteBackupBytes({ source, tempDirPrefix: CHAT_SNAPSHOT_TEMP_PREFIX });
+    return await captureSqliteBackupBytes({ source, tempDirPrefix: CHAT_SNAPSHOT_TEMP_PREFIX }, { withTempRoot: siteTempRoot({ prefix: SITE_TEMP_PREFIXES.transferChat }) });
   } finally {
     await source.close();
   }

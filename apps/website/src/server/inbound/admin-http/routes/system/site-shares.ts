@@ -9,16 +9,35 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_TOKEN } from "@jini-ai/devops/backup/site/share-registry";
-import { receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
+import { receiveSiteShareArtifact, shareExpiredMessage } from "#src/features/site-backup/share-service";
 import { SHARE_DOWNLOAD_HEADERS } from "@jini-ai/devops/backup/site/share-service";
+import { SHARE_EXPIRY_COPY, isShareExpiryChoice, type ShareExpiryDays } from "#src/features/site-backup/share-expiry";
 
-export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } {
+type ShareExpiryInput = { expiresInDays?: ShareExpiryDays | null };
+
+export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } & ShareExpiryInput {
   const raw = body ?? {};
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId" && key !== "expiresInDays")) {
     throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Start an export with {}, or poll with jobId only." });
   }
   const jobId = shareInputJob({ value: (raw as Record<string, unknown>).jobId });
-  return jobId ? { jobId } : {};
+  return { ...(jobId ? { jobId } : {}), ...shareInputExpiry({ value: (raw as Record<string, unknown>).expiresInDays }) };
+}
+
+/** The static-export body: the owner's expiry beside the static selection the shared parser owns. */
+export function readStaticShareInput({ body }: { body: unknown }, _options = {}): ReturnType<typeof parseStaticExportInput> & ShareExpiryInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body) || !("expiresInDays" in body)) return parseStaticExportInput({ input: body === undefined ? {} : body });
+  const { expiresInDays, ...selection } = body as Record<string, unknown>;
+  const expiry = shareInputExpiry({ value: expiresInDays });
+  return { ...parseStaticExportInput({ input: selection }), ...expiry };
+}
+
+/** P11 ST-12a: the owner's link expiry, Never (absent or null) unless 7, 30 or 90 days was chosen. */
+function shareInputExpiry(required: { value: unknown }, _options = {}): ShareExpiryInput {
+  const days = required.value;
+  if (days === undefined) return {};
+  if (days !== null && !isShareExpiryChoice({ days })) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: SHARE_EXPIRY_COPY.choices });
+  return { expiresInDays: days as ShareExpiryDays | null };
 }
 
 function shareInputJob(required: { value: unknown }, _options = {}): string | undefined {
@@ -77,6 +96,8 @@ export function registerAdminSiteShareDownloadRoute(required: { app: Express; de
       const registry = backend.registry;
       const row = await registry.get({ shareId: String(req.params.shareId), site: deps.workspaceId });
       if (!row || row.status === "revoked") { res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: this export is missing or was revoked." }); return; }
+      // The expiry tombstone is published before the ZIP is unlinked, so this refuses before the file goes.
+      if (row.status === "expired") { res.status(410).json({ code: "EXPIRED", message: shareExpiredMessage({ row }) }); return; }
       if (row.needsAcknowledgement) {
         res.status(403).json({ code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: row.credentialWarnings ?? [] });
         return;

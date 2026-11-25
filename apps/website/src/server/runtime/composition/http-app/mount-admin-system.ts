@@ -53,6 +53,8 @@ import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";
 import type { CreateAppOptions } from "../create-app-options.js";
+import { mountStorageRoutes, storageOwnerFrom, type SiteStoragePort } from "../modules/storage-routes.js";
+import { adminSameOriginWrites } from "#src/server/inbound/admin-http/admin-json-route-ports";
 
 /** `GET .../system/module-status` (Jini spec) over this process's boot readiness snapshot; direct
  * authorization and the route's own failure copy, as the hand-written route answered.
@@ -120,8 +122,10 @@ export function registerAdminAssistantDaemonRoutes(
 }
 
 /** The system-admin registrations of `createApp`, as five sub-mounts called in the original statement order. `reporter` is the site's one reporter (the visitor assistant's routes record through it). */
-export function mountAdminSystem({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown"> = {}): void {
+export function mountAdminSystem({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown" | "siteStorage"> = {}): void {
   mountAnalyticsAndSiteAssistant({ app, routeDeps, reporter }, options);
+  mountStorageRoutes({ app, storage: options.siteStorage, authorizeOwner: storageOwnerFrom({ ownerPrincipalId: async () => routeDeps.ownerPrincipalId }),
+    adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize }, origin: adminSameOriginWrites } }, {});
   mountObservability({ app, routeDeps });
   mountMail({ app, routeDeps });
   mountSiteAdmin({ app, routeDeps });

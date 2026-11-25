@@ -19,6 +19,7 @@ import { type SiteShareRegistry } from "./share-registry.js";
 import { newShareIdentity } from "@jini-ai/devops/backup/site/share-registry";
 import { allocateStaticExportThemes, parseStaticExportInput } from "./static-export-selection.js";
 import { checkShareLimits } from "./share-policy.js";
+import { SHARE_EXPIRY_HOST, SHARE_OWN_FOLDER_PROVIDER } from "./share-expiry.js";
 
 /** Tovu's collaborators, limits, redaction rules and copy for the engine share backend. */
 export const SITE_SHARE_HOST: SiteShareHost = {
@@ -35,6 +36,8 @@ export const SITE_SHARE_HOST: SiteShareHost = {
   createSiteShare: (required, optional) => createSiteShare(required as Parameters<typeof createSiteShare>[0], optional as Parameters<typeof createSiteShare>[1]),
   acknowledgeSiteShare: (required, optional) => acknowledgeSiteShare(required as Parameters<typeof acknowledgeSiteShare>[0], optional as Parameters<typeof acknowledgeSiteShare>[1]),
   revokeSiteShare: (required, optional) => revokeSiteShare(required as Parameters<typeof revokeSiteShare>[0], optional as Parameters<typeof revokeSiteShare>[1]),
+  // P11 ST-12a/b: only this server's own share folder can host an expiring link; day choices and wording are Tovu's.
+  ownFolderProvider: SHARE_OWN_FOLDER_PROVIDER, expiry: SHARE_EXPIRY_HOST,
 };
 /** The engine backend, whose registry is this host's concrete registry (routes also disable/delete through it). */
 export type HostSiteShareBackend = SiteShareBackend & { readonly registry: SiteShareRegistry };

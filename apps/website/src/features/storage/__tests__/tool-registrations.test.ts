@@ -1,0 +1,67 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSystemClock } from "@jini-ai/platform/system";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { createStorageToolContributor } from "../tool-registrations.js";
+
+const COPY = { protectedContent: "Tovu never cleans up your chats, revisions, screenshots or media automatically.", cardTitle: "Clean up old copies?", confirmLabel: "Clean up" };
+
+/** The real approval lifecycle over a real exchange store; `log` records card and runner order. */
+function harness() {
+  let count = 0;
+  const log: string[] = [];
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `exchange-${++count}` }, defaultChannel: "mcp-ui" });
+  const contributor = createStorageToolContributor({
+    measure: async () => ({ totalBytes: 10 }),
+    runOnce: async ({ dryRun }) => { log.push(`runOnce:${dryRun}`); return { status: "completed", dryRun, policies: [{ id: "share-files", bytes: 5, items: 1 }] }; },
+    authorizeOwner: async ({ principalId }) => { if (principalId !== "owner") throw new Error("Only the site owner can clean up storage."); },
+    approval: { handler: approvalToolHandler }, copy: COPY,
+  }, {});
+  const tools = contributor.build(undefined, { surfaceExchanges: store });
+  const cleanup = tools.find(r => r.descriptor.id === "site_storage_cleanup")!;
+  const answer = (decision: "confirm" | "cancel"): ToolExecutionOptions => ({ emitSurface: async () => {
+    log.push("card");
+    store.deliver({ exchangeId: `exchange-${count}`, principalId: "owner", params: { decision } }, { toolId: "site_storage_cleanup" });
+  } });
+  const ctx = (input: unknown, principal = "owner"): ToolExecutionContext => ({ executionId: "e", principal: { id: principal }, run: { id: "r" }, input, signal: new AbortController().signal });
+  return { log, tools, call: (input: unknown, decision: "confirm" | "cancel" = "confirm", principal?: string) => cleanup.handler(ctx(input, principal), answer(decision)) };
+}
+
+test("cleanup defaults to dryRun", async () => {
+  const h = harness();
+  const result = await h.call({}) as Record<string, unknown>;
+  assert.deepEqual([result.cleaned, result.dryRun], [false, true]);
+  assert.deepEqual(h.log, ["runOnce:true"], "no card and no live pass");
+});
+
+test("content class refused in plain words", async () => {
+  const h = harness();
+  for (const kind of ["chats", "revisions", "screenshots", "media"]) await assert.rejects(h.call({ dryRun: false, classes: [kind] }), /never cleans up your chats, revisions, screenshots or media/);
+  assert.deepEqual(h.log, []);
+});
+
+test("approval card raised", async () => {
+  const h = harness();
+  await h.call({ dryRun: false });
+  assert.ok(h.log.includes("card"));
+  assert.equal(h.tools.find(r => r.descriptor.id === "site_storage_report")!.descriptor.id, "site_storage_report");
+});
+
+test("human confirmation precedes runOnce({ dryRun: false })", async () => {
+  const h = harness();
+  const result = await h.call({ dryRun: false }) as Record<string, unknown>;
+  assert.deepEqual(h.log, ["runOnce:true", "card", "runOnce:false"]);
+  assert.deepEqual([result.cleaned, result.dryRun], [true, false]);
+});
+
+test("decline never calls runOnce live", async () => {
+  const h = harness();
+  const result = await h.call({ dryRun: false }, "cancel") as Record<string, unknown>;
+  assert.equal(result.cleaned, false);
+  assert.ok(!h.log.includes("runOnce:false"));
+  await assert.rejects(h.call({ dryRun: false }, "confirm", "builtin-admin"), /site owner/);
+  assert.ok(!h.log.includes("runOnce:false"), "a non-owner never reaches a live pass");
+});

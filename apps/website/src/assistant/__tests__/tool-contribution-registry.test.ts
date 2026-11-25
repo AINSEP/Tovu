@@ -305,6 +305,9 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "theme-trash",
     "widgets",
     "workspace",
+    // 2026-11-25 (P11 ST-15c): `site_storage_report`/`site_storage_cleanup`, installed last over the
+    // serving process's storage port (absent outside it: both tools then refuse in plain words).
+    "system-storage",
   ]);
 });
 

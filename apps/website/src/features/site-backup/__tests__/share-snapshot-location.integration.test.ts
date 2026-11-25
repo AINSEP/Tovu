@@ -14,6 +14,7 @@ import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/hel
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { prepareShareContent } from "../share-preparation.js";
 import { captureDatabaseSnapshot } from "../sources.js";
+import { createCopyCoordinator } from "../../../platform/db/sqlite/copy-coordinator.js";
 
 /** Every path under `dir`, relative and sorted, so before/after listings compare exactly. */
 function listTree(dir: string): string[] {
@@ -29,7 +30,7 @@ async function sourceSite(t: TestContext) {
   const filePath = path.join(siteDir, "data.nosync", "content.db");
   const db = await openPreparedContentDb(filePath);
   t.after(() => db.$client.close());
-  const real = new SqliteDbOpsAdapter({ db, filePath });
+  const real = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
   const captured: string[] = [];
   const dbOps: DbOpsPort = {
     getCapabilities: () => real.getCapabilities(),

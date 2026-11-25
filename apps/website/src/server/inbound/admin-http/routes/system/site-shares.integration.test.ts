@@ -16,7 +16,7 @@ test("all share routes including static export require authentication, site-back
   const deps = createRouteDeps();
   let calls = 0;
   const inputs: unknown[] = [];
-  const registry = new SiteShareRegistry({ directory: path.join(directory, ".hidden", "shares") });
+  const registry = new SiteShareRegistry({ directory: path.join(directory, ".hidden", "shares"), now: () => Date.now() });
   const operation = async (input: unknown) => { calls++; inputs.push(input); return { ok: true }; };
   deps.siteShareBackend = { registry, staticOptions: operation as never, create: operation, revoke: operation as never, list: async () => { calls++; return []; },
     acknowledge: async () => assert.fail("these share routes must not acknowledge credential warnings"),
@@ -85,7 +85,7 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
     pages: { index: `<html><body>${id} HOME<img src="/m/${media.slug}/original.svg"><div data-embed-config='{"type":"content"}'></div></body></html>`, "theme-only": `<html><body>${id} ONLY</body></html>` }, partials: {}, css: "" }));
   deps.themes = themes;
   let renders = 0;
-  deps.siteShareBackend = createSiteShareBackend({ site: deps.workspaceId, registry: new SiteShareRegistry({ directory: path.join(directory, "shares") }), zip: zipFolderFiles,
+  deps.siteShareBackend = createSiteShareBackend({ site: deps.workspaceId, registry: new SiteShareRegistry({ directory: path.join(directory, "shares"), now: () => Date.now() }), zip: zipFolderFiles,
     prepare: async () => { throw new Error("A static export must not prepare a backup"); }, delivery: async () => { throw new Error("A static export must stay private"); },
     staticSite: { now: () => new Date("2026-10-30T17:15:00Z"), context: async () => ({ name: "Picker Test", slug: "picker-test", theme: "Active", themeId: activeThemeId }),
       themes: () => themes.map(theme => ({ themeId: theme.manifest.id, title: theme.manifest.id })),
