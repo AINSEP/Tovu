@@ -1,7 +1,8 @@
 import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { createHash } from "node:crypto";
 import { createConsoleLogger, type HttpClientPort, type HttpResponse, type Logger } from "@jini-ai/core/primitives";
-import { callPeer, type PeerCallDeps } from "../publish-content/peer-transport.js";
+import type { PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
+import { callPeer } from "../publish-content/peer-transport-binding.js";
 import { peerUrl } from "@jini-ai/cms/publish/content/peer-url";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_TOKEN_PATTERN, type SiteShareRegistry } from "./share-registry.js";

@@ -10,7 +10,8 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 import { captureStaticSite } from "../static-download-host.js";
 import { staticDownloadLayout } from "../static-download-host.js";
-import { claimSharePath, sharePathAlias } from "../share-file-policy.js";
+import { sharePathAlias } from "@jini-ai/devops/backup/site/share-file-policy";
+import { claimSharePath } from "../share-file-policy.js";
 import { buildStaticSiteZip } from "../share-zip.js";
 import { createShareArchiveReader } from "../import-archive-reader.js";
 

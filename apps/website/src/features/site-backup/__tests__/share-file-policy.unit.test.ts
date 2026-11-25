@@ -12,7 +12,8 @@ import test from "node:test";
 import { gzipSync } from "node:zlib";
 import { packAgentPluginDirectory } from "../../agent-plugins/lifecycle.js";
 import { readBundledImportPluginIds, readBundledPackageFiles } from "../package-file-inventory.js";
-import { claimSharePath, excludedSharePath, requireShareSecretFree, sharePathAlias, validateSharePath, type PackageFileInventory } from "../share-file-policy.js";
+import { sharePathAlias, type PackageFileInventory } from "@jini-ai/devops/backup/site/share-file-policy";
+import { claimSharePath, excludedSharePath, requireShareSecretFree, validateSharePath } from "../share-file-policy.js";
 import { archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
 
 const HEX = "a".repeat(64);

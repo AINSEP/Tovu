@@ -24,7 +24,7 @@ import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "@jin
 import { entityKey, type PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
-import { PublishContentPeerTransportError } from "./peer-transport.js";
+import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { toModelFacingPluginHookError } from "@jini-ai/plugins/host/hook-refusals";

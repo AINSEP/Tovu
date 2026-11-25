@@ -1,13 +1,9 @@
-import type { PeerCallDeps } from "#src/features/publish-content/peer-transport";
+import { PublishContentPeerTransportError, type PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Request, Response } from "express";
 
 import type { PublishScope } from "@jini-ai/cms/publish/content/ui";
-import {
-  confirmPeerImport,
-  executePeerImport,
-  PublishContentPeerTransportError,
-} from "#src/features/publish-content/peer-transport";
+import { confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport-binding";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";

@@ -1,7 +1,7 @@
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 import { stageBundle, type StageBundleDeps } from "@jini-ai/cms/publish/transfer";
 import { resolvePublishDestinationCredential, type PublishDestinationCredentialDeps } from "./destination-credential.js";
-import { pullBlobsFromPeer, pullBundleFromPeer } from "./peer-transport.js";
+import { pullBlobsFromPeer, pullBundleFromPeer } from "./peer-transport-binding.js";
 
 /** Ports shared by the HTTP pull route and assistant tools. Credentials come only from saved peers. */
 export interface PublishContentPullDeps {

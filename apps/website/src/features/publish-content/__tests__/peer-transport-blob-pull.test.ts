@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { pullBlobsFromPeer, PublishContentPeerTransportError } from "../peer-transport.js";
+import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
+import { pullBlobsFromPeer } from "../peer-transport-binding.js";
 import type { ResolvedPeerCredential } from "../peers.js";
 import { computeBlobStorageKey } from "../../media/index.js";
 

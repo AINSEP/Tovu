@@ -795,11 +795,6 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/features/site-backup/share-preparation-steps.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/site-backup/share-registry.ts",
     "rule": "failure-text-from-catalog",
     "value": 1

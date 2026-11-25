@@ -1,4 +1,4 @@
-import type { SiteShareBackend } from "./share-backend.js";
+import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { siteBackupToolMetadata as toolMetadata } from "../../contracts/core/tool-metadata/index.js";
 import { parseSiteImportInput } from "./import-backend.js";

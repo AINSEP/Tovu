@@ -1,5 +1,6 @@
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { validateSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
+import { SHARED_PLUGIN_MEMORY } from "@jini-ai/devops/backup/site/share-file-policy";
+import { validateSharePath } from "./share-file-policy.js";
 
 /**
  * Archive folder for the site's theme overrides. A theme id cannot hold `_` (`__originals__` relies on

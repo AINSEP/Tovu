@@ -11,7 +11,7 @@ import test from "node:test";
 
 import { buildExportBundle } from "@jini-ai/cms/publish/content/export-bundle";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
-import { pushBundleToPeer, confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport";
+import { pushBundleToPeer, confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport-binding";
 import { saveConnectedDestination, InMemoryPublishContentPeerRepo, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { buildPublishContentCatalog, listPublishContentContributors } from "#src/features/publish-content/type-registry";

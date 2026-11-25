@@ -12,7 +12,8 @@ import { BACKSTOP_FORBIDDEN, mayUseBackstop } from "@jini-ai/cms/publish/content
 import { readBackstopMetadata, runAuditedBackstop, validateBackstopRequest } from "#src/features/publish-content/backstop-service";
 import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
-import { confirmPeerImport, executePeerImport, pushBundleToPeer, type PeerCallDeps } from "#src/features/publish-content/peer-transport";
+import type { PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
+import { confirmPeerImport, executePeerImport, pushBundleToPeer } from "#src/features/publish-content/peer-transport-binding";
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { contributeRawFilePublish, undoRawFile } from "#src/features/publish-content/raw-file-contributor";
 import { contributeRawRowPublish, undoRawRow } from "#src/features/publish-content/raw-row-contributor";

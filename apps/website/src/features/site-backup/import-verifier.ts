@@ -8,7 +8,7 @@ import { readBundledPackageFiles } from "./package-file-inventory.js";
 import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { addCredentialWarning, type CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import type { PackageFileInventory } from "./share-file-policy.js";
+import type { PackageFileInventory } from "@jini-ai/devops/backup/site/share-file-policy";
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 export interface VerifiedSiteImport {

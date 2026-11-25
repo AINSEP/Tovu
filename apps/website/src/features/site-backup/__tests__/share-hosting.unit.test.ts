@@ -12,7 +12,7 @@ import test, { type TestContext } from "node:test";
 import { createHash } from "node:crypto";
 import type { HttpClientPort as AnonymousHttpPort, HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
 import type { HttpClientPort as PeerHttpPort } from "#src/platform/http/index";
-import type { PeerCallDeps } from "../../publish-content/peer-transport.js";
+import type { PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { SiteShareRegistry } from "../share-registry.js";
 import type { ShareDelivery } from "../share-service.js";
 import { createPeerShareDelivery, createRuntimeShareDelivery, resolveShareDelivery } from "../share-hosting.js";

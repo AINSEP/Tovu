@@ -1,4 +1,4 @@
-import type { PublishHistoryRecorder } from "./peer-transport.js";
+import type { PublishHistoryRecorder } from "@jini-ai/cms/publish/content/peer-transport";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { requireToolPermission } from "@jini-ai/cms/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";

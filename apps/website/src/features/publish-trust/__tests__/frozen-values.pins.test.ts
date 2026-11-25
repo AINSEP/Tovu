@@ -132,7 +132,7 @@ test("T-FROZEN: the history row kind already saved for a publish to a peer site"
   const rows = linesMatching(/(?<!readonly )kind: "tovu-peer"/);
 
   assert.equal(rows.length, 1, rows.join("\n"));
-  assert.match(rows[0] ?? "", /^publish-content\/peer-transport\.ts: kind: "tovu-peer", target: deps\.credential\.id,/);
+  assert.match(rows[0] ?? "", /^publish-content\/peer-transport-binding\.ts: history: \{ kind: "tovu-peer" \},/);
 });
 
 test("T-FROZEN: the deploy-config key that names a site's public address", () => {

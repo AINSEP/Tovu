@@ -12,9 +12,10 @@ import {
   executePeerImport,
   pullBundleFromPeer,
   pushBundleToPeer,
-  PublishContentPeerTransportError,
-  type PublishHistoryRecorder,
-} from "../peer-transport.js";
+  callPeer,
+} from "../peer-transport-binding.js";
+import { PublishContentPeerTransportError, type PublishHistoryRecorder } from "@jini-ai/cms/publish/content/peer-transport";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { ResolvedPeerCredential } from "../peers.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
@@ -789,7 +790,19 @@ test("pull labels an envelope with no sourceLabel after the saved peer", async (
 });
 
 test("a transport error raised inside the http client passes through unchanged, not re-wrapped as unreachable", async () => {
-  const original = new PublishContentPeerTransportError({ message: "the peer refused the upload size", code: "PEER_RESPONSE_INVALID" });
+  const original = new PublishContentPeerTransportError({ message: "the peer refused the upload size", code: "PEER_RESPONSE_INVALID", redact: redactSecretShapes });
   const http: HttpClientPort = { send: async () => { throw original; } };
   await assert.rejects(pullBundleFromPeer({ httpClient: http, credential: CREDENTIAL }), (err: unknown) => err === original);
+});
+
+test("the Tovu binding redacts a Tovu API key shape out of a peer error (Jini knows no host key prefix)", async () => {
+  const key = "tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET";
+  const httpClient: HttpClientPort = { send: async () => ({ status: 500, headers: {}, bodyText: JSON.stringify({ error: key }) }) };
+  await assert.rejects(callPeer({ deps: { httpClient, credential: CREDENTIAL }, request: { method: "GET", path: `/route/${key}` } }), (err: unknown) => {
+    assert.ok(err instanceof PublishContentPeerTransportError);
+    assert.equal(err.code, "PEER_REJECTED");
+    assert.match(err.message, /^the peer refused GET \/route\//);
+    assert.equal(err.message.includes("SECRETSECRET"), false, err.message);
+    return true;
+  });
 });

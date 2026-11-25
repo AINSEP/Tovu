@@ -2,7 +2,7 @@ import { readBundledImportPluginIds as readIds, readBundledPackageFiles as readF
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "../agent-plugins/lifecycle.js";
 import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import { listBundledAgentPluginServers } from "../agent-plugins/new-site-agent-plugin-tokens.js";
-import type { PackageFileInventory } from "./share-file-policy.js";
+import type { PackageFileInventory } from "@jini-ai/devops/backup/site/share-file-policy";
 
 /**
  * @file Host binding: this build's bundled agent-plugin source folder, packer, archive reader and

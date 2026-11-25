@@ -5,7 +5,7 @@ import { selectConnectedDestination } from "./peers.js";
 import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "@jini-ai/cms/publish/content/live-site-policy";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { planPublishToPeer } from "./push-plan.js";
-import { confirmPeerImport, executePeerImport } from "./peer-transport.js";
+import { confirmPeerImport, executePeerImport } from "./peer-transport-binding.js";
 import {
   applyPublishCriteria,
   parsePublishContentToolInput,
