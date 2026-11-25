@@ -7,8 +7,6 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { findMediaByIdOrSlug } from "../media/index.js";
 import { readStoredBytes } from "@jini-ai/cms/media/site/original-bytes";
-import { findThemeOrThrow } from "../theme/asset-operations.js";
-import { sniffThemeImportType } from "../theme/asset-operations.js";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
 import { inspectWriteTarget } from "@jini-ai/cms/fs-files/write-files";
 import { openFsFileForRead, resolveFsFilePath } from "../fs-files/fs-files.js";
@@ -30,7 +28,7 @@ function sourceFolder({ deps, source }: { deps: AssetToolDeps; source: Record<st
   if (root === "site") return siteDir;
   if (root === "picked") return resolvePickedFolder({ routeDeps: deps });
   if (root !== "theme") throw new ToolInputError({ message: "source.root must be site, picked, theme, media or url" });
-  return resolveFsFilePath({ rootPath: siteDir, relativePath: relative(siteDir, findThemeOrThrow({ routeDeps: deps, themeId: requireString({ input: source, key: "themeId" }) }).dir) });
+  return resolveFsFilePath({ rootPath: siteDir, relativePath: relative(siteDir, deps.assetHost.findTheme({ themeId: requireString({ input: source, key: "themeId" }) }).dir) });
 }
 
 /** Authorize and select a local source folder; callers lstat-walk each file before reading it.
@@ -59,7 +57,7 @@ export async function readAssetSource({ deps, ctx, input, maxBytes }: { deps: As
   const media = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: path } });
   if (!media || media.status !== "active") throw new ToolInputError({ message: "Restore this media item from Trash before using its file" });
   const bytes = Buffer.from(await readStoredBytes({ deps, asset: media, errorPrefix: "media_view_image" }, { maxBytes }));
-  const type = sniffThemeImportType({ bytes });
+  const type = deps.assetHost.sniffThemeImportType({ bytes });
   const extension = ({ "image/jpeg": "jpg", "image/svg+xml": "svg", "image/x-icon": "ico" } as Record<string, string>)[type] ?? type.split("/")[1];
   return { path: `${media.slug}.${extension}`, bytes };
 }
