@@ -38,6 +38,7 @@ import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { activeRunIndex } from "./chat/0003_active_run_index.js";
+import { scrubAssistantChatTitles } from "./chat/0049_scrub_assistant_chat_titles.js";
 import { durableRunAttempts } from "./chat/0002_durable_run_attempts.js";
 import { siteKeyAttachments } from "./project/0002_site_key_attachments.js";
 import { projectVault } from "./project/0000_project_vault.js";
@@ -133,6 +134,7 @@ export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = 
   sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
   durableRunAttempts({ checksum: pinned("chat/0002_durable_run_attempts") }, {}),
   activeRunIndex({ checksum: pinned("chat/0003_active_run_index") }, {}),
+  scrubAssistantChatTitles({ checksum: pinned("chat/0049_scrub_assistant_chat_titles") }, {}),
 ];
 
 /** `project.db`'s own history (files under `project/`, pinned as `project/NNNN_name`). */
