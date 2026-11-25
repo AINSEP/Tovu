@@ -5,7 +5,7 @@ import { adminKit } from "@/integrations/jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { AgentPluginRow } from "../AgentPluginRow";
-import { LINKED_PLUGIN_TIP } from "../AgentPluginLinkedLock";
+import { LINKED_PLUGIN_TIP } from "@jini-ai/admin/screens/plugins/AgentPluginLinkedLock";
 
 /** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
  *  mounts once at its root; each render here mounts the app's own kit the same way. */

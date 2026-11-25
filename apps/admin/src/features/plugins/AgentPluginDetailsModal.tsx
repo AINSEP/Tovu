@@ -1,10 +1,10 @@
 import { AgentPluginMemoryPanel } from "./AgentPluginMemoryPanel";
-import { AgentPluginMaturity } from "./AgentPluginMaturity";
+import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
 import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
 
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
-import { AgentPluginSurfaceFrame } from "./AgentPluginSurfaceFrame";
+import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import type { AgentPluginSurfacesPort } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
