@@ -12,6 +12,7 @@ import { minimatch } from "minimatch";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { isDeniedFsFileName, readFsFile } from "#src/features/fs-files/fs-files";
 import { checkTreeFiles, checkTreePath } from "@jini-ai/cms/publish/content/file-tree-policy";
+import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { duplicateSite } from "../../duplicate-site.js";
@@ -110,11 +111,11 @@ test("agent file tools and publish trees deny the secret by name, at any depth",
   for (const relativePath of [STORAGE_SECRET_FILENAME, `nested/${STORAGE_SECRET_FILENAME}`, `nested/.${STORAGE_SECRET_FILENAME}.123.abc.tmp`]) {
     fs.writeFileSync(path.join(root, relativePath), SECRET_MARKER);
     assert.throws(() => readFsFile({ rootPath: root, relativePath }), /denied filename pattern/);
-    assert.match(checkTreeFiles({ scanTextForSecrets, kind: "theme-files", files: [{ path: relativePath, mode: 0o644, size: SECRET_MARKER.length, textSample: SECRET_MARKER }] }) ?? "", /sealed database connection string/);
+    assert.match(checkTreeFiles({ scanTextForSecrets, maxFileBytes: MAX_DOCUMENT_BYTES, kind: "theme-files", files: [{ path: relativePath, mode: 0o644, size: SECRET_MARKER.length, textSample: SECRET_MARKER }] }) ?? "", /sealed database connection string/);
   }
   const ordinary = readFsFile({ rootPath: root, relativePath: "nested/ordinary.json" });
   assert.deepEqual(ordinary, { content: '{"message":"ordinary neighbor"}', bytes: 31 });
-  assert.equal(checkTreeFiles({ scanTextForSecrets, kind: "theme-files", files: [{ path: "nested/ordinary.json", mode: 0o644, size: ordinary.bytes, textSample: ordinary.content }] }), null);
+  assert.equal(checkTreeFiles({ scanTextForSecrets, maxFileBytes: MAX_DOCUMENT_BYTES, kind: "theme-files", files: [{ path: "nested/ordinary.json", mode: 0o644, size: ordinary.bytes, textSample: ordinary.content }] }), null);
   assert.equal(isDeniedFsFileName({ fileName: STORAGE_SECRET_FILENAME }), true);
   assert.equal(isDeniedFsFileName({ fileName: ".Storage-Secret.json" }), true, "case-folded like every other entry");
   assert.equal(isDeniedFsFileName({ fileName: `.${STORAGE_SECRET_FILENAME}.123.abc.tmp` }), true, "a crashed write's temp file too");

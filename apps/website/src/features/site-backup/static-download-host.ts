@@ -1,4 +1,5 @@
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
+import { exportUrlLocations, extractHtmlReferences, outputFileForUrl } from "@jini-ai/devops/static-export";
 import { captureStaticSite as captureJiniStaticSite, prepareStaticReport as prepareJiniStaticReport, type StaticCopyHost, type StaticSitePorts } from "@jini-ai/devops/backup/site/static-copy";
 import { staticDownloadLayout as jiniStaticDownloadLayout, type StaticDownloadHost } from "@jini-ai/devops/backup/site/static-download-layout";
 import { downloadHtmlSourceEdits } from "./download-html-source-edits.js";
@@ -14,6 +15,7 @@ import { allocateStaticExportThemes } from "./static-export-selection.js";
 export const STATIC_DOWNLOAD_HOST: StaticDownloadHost = {
   sourceEdits: downloadHtmlSourceEdits, validateSharePath, sharePathAlias, allocateThemes: allocateStaticExportThemes,
   checkShareLimits, extractPlainText: extractPlainTextFromHtml,
+  exportUrlLocations, extractHtmlReferences, outputFileForUrl,
 };
 const STATIC_COPY_HOST: StaticCopyHost = { sourceEdits: downloadHtmlSourceEdits, fileStem: shareFileStem, tempPrefix: "tovu-static-copy-" };
 

@@ -7,6 +7,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 import {
   checkTreeFiles,
@@ -22,7 +23,7 @@ test("checkTreeFiles with the real scanner blocks a planted Anthropic key, exact
     { path: "theme.json", size: 10, mode: 0o644, textSample: '{"id":"basic"}' },
     { path: "css/theme.css", size: 200, mode: 0o644, textSample: `body{}\n/* ${planted} */` },
   ];
-  assert.equal(checkTreeFiles({ kind: "theme-files", files, scanTextForSecrets }), `"css/theme.css" looks like it holds a key (Anthropic API key (sk-ant-))`);
+  assert.equal(checkTreeFiles({ kind: "theme-files", files, scanTextForSecrets, maxFileBytes: MAX_DOCUMENT_BYTES }), `"css/theme.css" looks like it holds a key (Anthropic API key (sk-ant-))`);
 });
 
 // (e) Every file-backed publish-content contributor uses this module (grep-style source check).
