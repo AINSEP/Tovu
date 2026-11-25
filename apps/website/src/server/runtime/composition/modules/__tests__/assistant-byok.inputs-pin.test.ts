@@ -15,7 +15,7 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { installAgentPlugin, recordBundledAgentPluginDigests } from "#src/features/agent-plugins/lifecycle";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { createRouteDeps } from "../../app.js";
-import { createByokToolSurface } from "#src/assistant/index";
+import { createByokToolSurface, setExecutionCredential, type ByokToolSurface } from "#src/assistant/index";
 import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
@@ -34,7 +34,7 @@ test("BYOK automatic preflight keeps the prompt and logs a redacted cause", asyn
   const append = new Function("automaticPluginRuns", "readChatAgentPluginState", "formatErrorForLog", "TOVU_ERROR_REDACTION_OPTIONS", code)(
     { start }, () => ({}), formatErrorForLog, TOVU_ERROR_REDACTION_OPTIONS,
   );
-  const prompt = await append({ run: { id: "run" }, principal: { id: "owner" }, conversationId: "chat", pluginBody: {}, messages: [], pinned: [], abort: new AbortController(), res: {}, system: "existing prompt" });
+  const prompt = await append({ run: { id: "run" }, principal: { id: "owner" }, conversationId: "chat", pluginBody: {}, messages: [], pinned: [], abort: new AbortController(), res: {}, system: "existing prompt" }, { start });
   assert.equal(prompt, "existing prompt");
   assert.equal(warnings.mock.calls[0]?.arguments[0], "[agent-plugins] automatic BYOK preflight unavailable");
   assert.match(String(warnings.mock.calls[0]?.arguments[1]), /boom/);
@@ -148,4 +148,123 @@ test("BYOK repeats pinned guidance while retaining good picks around failures (r
   assert.match(stream, /Some selected Agent Plugins could not be loaded/);
   assert.doesNotMatch(stream, /event: error/);
   assert.doesNotMatch(prompts[2]!, /Preserve the unique pin guidance/);
+});
+
+/** A promise the test settles by hand: every race below is ordered by these, never by a timer. */
+function deferred<T = void>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(settle => { resolve = settle; });
+  return { promise, resolve };
+}
+
+const FIXTURE_REPLY = 'event: message_start\ndata: {"type":"message_start","message":{"id":"reply","role":"assistant","content":[],"model":"fixture","usage":{"input_tokens":1,"output_tokens":0}}}\n\nevent: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":0}}\n\nevent: message_stop\ndata: {"type":"message_stop"}\n\n';
+
+/** Boots the BYOK route behind a probe that sees the server-side close, counts stream starts and
+ *  hands back each turn's own settlement, so a test can wait for the turn instead of a clock. */
+async function bootClosableTurn(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext, { holdUntilClosed = false } = {}) {
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps });
+  const serverClosed = deferred();
+  const requestReached = deferred();
+  const turnStarted = deferred<{ turn: unknown }>();
+  let streamStarts = 0;
+  app.use(BYOK_TURN_PATH, (_req, res, next) => {
+    res.once("close", () => serverClosed.resolve());
+    requestReached.resolve();
+    const writeHead = res.writeHead.bind(res) as (...args: unknown[]) => typeof res;
+    res.writeHead = ((...args: unknown[]) => { streamStarts++; return writeHead(...args); }) as typeof res.writeHead;
+    if (holdUntilClosed) void serverClosed.promise.then(() => next());
+    else next();
+  });
+  const recordingApp = {
+    use: app.use.bind(app),
+    post: (route: string, handler: (req: express.Request, res: express.Response, next: express.NextFunction) => unknown) =>
+      app.post(route, (req, res, next) => { turnStarted.resolve({ turn: handler(req, res, next) }); }),
+  } as unknown as express.Express;
+  createAssistantByokModule({ routeDeps: deps }, { toolSurface }).registerRoutes?.({ app: recordingApp });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  let providerCalls = 0;
+  const providerUrl = await startStubProviderServer(t, () => { providerCalls++; return { status: 200, body: FIXTURE_REPLY }; });
+  return { baseUrl, cookie, providerUrl, serverClosed: serverClosed.promise, requestReached: requestReached.promise, turnStarted: turnStarted.promise, streamStarts: () => streamStarts, providerCalls: () => providerCalls };
+}
+
+test("closing during federation startup never starts a paid BYOK call", async t => {
+  const deps = createRouteDeps();
+  const surface = createByokToolSurface(deps, { installExtensions: false });
+  const federationEntered = deferred();
+  const federationGate = deferred();
+  let federationCalls = 0;
+  const toolSurface: ByokToolSurface = { ...surface, awaitFederation: async (required, optional) => {
+    federationCalls++;
+    federationEntered.resolve();
+    await federationGate.promise;
+    return surface.awaitFederation(required, optional);
+  } };
+  const probe = await bootClosableTurn(deps, toolSurface, t);
+  const client = new AbortController();
+  const response = fetch(`${probe.baseUrl}${BYOK_TURN_PATH}`, { method: "POST", signal: client.signal, headers: { cookie: probe.cookie, "content-type": "application/json" }, body: JSON.stringify({
+    messages: [{ role: "user", content: "Hello" }], byok: { protocol: "anthropic", apiKey: "fixture-key", model: "fixture", baseUrl: probe.providerUrl },
+  }) });
+  await federationEntered.promise;
+  client.abort();
+  await assert.rejects(response, { name: "AbortError" });
+  await probe.serverClosed;
+  federationGate.resolve();
+  const { turn } = await probe.turnStarted;
+  assert.ok(turn instanceof Promise, "the route hands back the turn it started");
+  await turn;
+  assert.equal(federationCalls, 1, "the shared federation wait still ran for this turn");
+  assert.equal(probe.providerCalls(), 0, "a disconnected user must not leave paid work running");
+  assert.equal(probe.streamStarts(), 0);
+});
+
+test("closing during credential resolution never starts a BYOK stream", async t => {
+  const deps = createRouteDeps();
+  const storedRepo = deps.adminExecutionCredentialRepo;
+  const lookupEntered = deferred<{ workspaceId: string; principalId: string }>();
+  const lookupGate = deferred();
+  // The credential read goes through the repo's vault singleton lookup; hold exactly that call.
+  const storedVault = (storedRepo as unknown as { vault: { findOne: (input: { workspaceId: string; principalId: string }, options?: unknown) => Promise<unknown> } }).vault;
+  const heldVault = Object.create(storedVault, { findOne: { value: async (input: { workspaceId: string; principalId: string }, options?: unknown) => {
+    lookupEntered.resolve(input);
+    await lookupGate.promise;
+    return storedVault.findOne(input, options);
+  } } });
+  deps.adminExecutionCredentialRepo = Object.create(storedRepo, { vault: { value: heldVault } });
+  const probe = await bootClosableTurn(deps, createByokToolSurface(deps, { installExtensions: false }), t);
+  const client = new AbortController();
+  const response = fetch(`${probe.baseUrl}${BYOK_TURN_PATH}`, { method: "POST", signal: client.signal, headers: { cookie: probe.cookie, "content-type": "application/json" },
+    body: JSON.stringify({ messages: [{ role: "user", content: "Hello" }] }) });
+  const scope = await lookupEntered.promise;
+  // The saved key becomes usable only now, so the turn would have a provider to call once released.
+  await setExecutionCredential({ repo: storedRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+    { workspaceId: scope.workspaceId, principalId: scope.principalId, apiKey: "fixture-key", protocol: "anthropic", model: "fixture", baseUrl: probe.providerUrl });
+  client.abort();
+  await assert.rejects(response, { name: "AbortError" });
+  await probe.serverClosed;
+  lookupGate.resolve();
+  const { turn } = await probe.turnStarted;
+  assert.ok(turn instanceof Promise, "the route hands back the turn it started");
+  await turn;
+  assert.equal(probe.providerCalls(), 0, "a disconnected user must not leave paid work running");
+  assert.equal(probe.streamStarts(), 0);
+});
+
+test("a response closed before the turn begins never starts a paid BYOK call", async t => {
+  const deps = createRouteDeps();
+  const probe = await bootClosableTurn(deps, createByokToolSurface(deps, { installExtensions: false }), t, { holdUntilClosed: true });
+  const client = new AbortController();
+  const response = fetch(`${probe.baseUrl}${BYOK_TURN_PATH}`, { method: "POST", signal: client.signal, headers: { cookie: probe.cookie, "content-type": "application/json" }, body: JSON.stringify({
+    messages: [{ role: "user", content: "Hello" }], byok: { protocol: "anthropic", apiKey: "fixture-key", model: "fixture", baseUrl: probe.providerUrl },
+  }) });
+  await probe.requestReached;
+  client.abort();
+  await assert.rejects(response, { name: "AbortError" });
+  // The probe releases the request to the route only after the close, which emits no second `close`.
+  const { turn } = await probe.turnStarted;
+  assert.ok(turn instanceof Promise, "the route hands back the turn it started");
+  await turn;
+  assert.equal(probe.providerCalls(), 0, "a disconnected user must not leave paid work running");
+  assert.equal(probe.streamStarts(), 0);
 });
