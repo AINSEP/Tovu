@@ -7,6 +7,7 @@
  */
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { FILE_TOO_LARGE_COPY } from "./upload-size-copy";
+import { MEDIA_GRID_ENTRIES } from "./media-grid-i18n";
 import { createMediaDictionary } from "@jini-ai/admin/screens/media/media-i18n/create-media-dictionary";
 
 /** `MEDIA_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
@@ -47,4 +48,7 @@ export const UPLOAD_SIZE_PRODUCT_ENTRIES: Record<string, Record<string, string>>
   }),
 );
 
-export const { dictionary: MEDIA_DICT, t } = createMediaDictionary({ commonDictionary: COMMON_I18N, productEntries: MEDIA_PRODUCT_ENTRIES });
+export const { dictionary: MEDIA_DICT, t } = createMediaDictionary({
+  commonDictionary: COMMON_I18N,
+  productEntries: Object.fromEntries(Object.keys({ ...MEDIA_PRODUCT_ENTRIES, ...MEDIA_GRID_ENTRIES }).map((locale) => [locale, { ...MEDIA_PRODUCT_ENTRIES[locale], ...MEDIA_GRID_ENTRIES[locale] }])),
+});

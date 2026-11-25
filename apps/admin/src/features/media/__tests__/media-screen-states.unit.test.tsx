@@ -39,6 +39,12 @@ function item(overrides: Partial<AdminMedia> = {}): AdminMedia {
 function mediaController(overrides: Partial<MediaController> = {}): MediaController {
   return {
     media: [],
+    counts: null,
+    hasUntypedActive: false,
+    hasMore: false,
+    loadingMore: false,
+    loadMoreError: null,
+    loadMore: vi.fn(async () => {}),
     error: null,
     uploading: false,
     uploadOpen: false,
@@ -69,6 +75,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     setOrderBy: vi.fn(),
     t: (key: string) => key,
     locale: "en",
+    lookupMedia: overrides.media ?? [],
     ...overrides,
   };
 }
@@ -97,13 +104,15 @@ describe("Media screen states", () => {
   });
 
   it("shows the Videos tab's own empty state", () => {
-    renderMedia({ media: [item()] }, "videos");
+    // The server answered the Videos tab with no rows while the workspace holds one image: the screen
+    // shows the tab's own empty state rather than the image, because it no longer filters by itself.
+    renderMedia({ media: [], counts: { all: 1, images: 1, videos: 0, trash: 0 } }, "videos");
     expect(screen.getByText("No videos yet.")).toBeInTheDocument();
     expect(screen.getByText("Uploaded videos appear here once you add them.")).toBeInTheDocument();
   });
 
   it("shows the Images tab's own empty state", () => {
-    renderMedia({ media: [item({ contentType: "video/mp4" })] }, "images");
+    renderMedia({ media: [], counts: { all: 1, images: 0, videos: 1, trash: 0 } }, "images");
     expect(screen.getByText("No images yet.")).toBeInTheDocument();
     expect(screen.getByText("Uploaded images appear here once you add them.")).toBeInTheDocument();
   });

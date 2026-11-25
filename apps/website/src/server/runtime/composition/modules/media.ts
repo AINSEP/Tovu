@@ -12,6 +12,8 @@ import { mediaDeleteRoute } from "@jini-ai/cms/admin-http/routes/media/delete";
 import { mediaGetProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/get-providers";
 import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
 import { mediaPutProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/put-providers";
+import { mediaProviderCatalogRoute } from "#src/server/inbound/admin-http/routes/media/provider-catalog";
+import { projectMediaProviderCatalog } from "#src/features/media-generation/media-provider-catalog";
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
@@ -274,6 +276,13 @@ export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = 
   mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
 };
 
+/** GET the admin provider cards, projected per request from the live registry generation uses, so a
+ *  plugin vendor mounted after boot is listed exactly when it can generate. */
+export const registerAdminMediaProviderCatalogRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const listCatalog = () => projectMediaProviderCatalog({ registry: deps.mediaProviderRegistry });
+  mountAdminJsonRoute({ app, spec: mediaProviderCatalogRoute, deps: { ...mediaPortDeps({ deps }), listCatalog } }, mountOptions({ operation: "routes/media/provider-catalog", authorization: "direct" }));
+};
+
 export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
   const saveProviders = ({ workspaceId, providers }: { workspaceId: string; providers: Record<string, unknown> }) => saveMediaProviderCredentials(
     {
@@ -329,17 +338,14 @@ async function enrichGridMedia({ deps, media }: { deps: MediaRouteDeps; media: r
 }
 
 /** GET grid (Jini spec `mediaGridRoute`): one bounded page or one exact asset, beside the full list.
- *  Like the list route it answers 404 for a foreign workspace and asks `media.read` directly. Only the
- *  newest-first order is paged: no SQL collation reproduces the admin's `localeCompare` title order,
- *  so alphabetical stays on the full list until a persisted sort key exists.
+ *  Like the list route it answers 404 for a foreign workspace and asks `media.read` directly. Both
+ *  orders page: alphabetical is decided in the repo over a bounded id + title key set, because no SQL
+ *  collation reproduces the admin's `localeCompare` title order (`media-grid-query.ts`).
  *  @complexity O(1) setup; per request one bounded page read plus the summary aggregate. */
 export const registerAdminMediaGridRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void => {
   mountAdminJsonRoute({ app, spec: mediaGridRoute, deps: {
     ...mediaPortDeps({ deps }),
-    readPage: (required, optional) => {
-      if (required.orderBy !== "created") return rejectRoute({ status: 400, error: "alphabetical order is not available in pages yet" });
-      return gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional);
-    },
+    readPage: (required, optional) => gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional),
     findItem: (required) => gridQueries({ repo: deps.mediaRepo }).findGridItem(required),
     enrichMedia: ({ media }) => enrichGridMedia({ deps, media }),
   } }, mountOptions({ operation: "routes/media/grid", authorization: "direct" }));
@@ -401,6 +407,7 @@ export function createMediaModule(
       registerAdminMediaTextRoute({ app, deps });
       registerMediaRenditionRoute({ app, deps });
       registerMediaOriginalVideoRoute({ app, deps });
+      registerAdminMediaProviderCatalogRoute({ app, deps });
       registerAdminMediaGetProvidersRoute({ app, deps });
       registerAdminMediaPutProvidersRoute({ app, deps });
     },

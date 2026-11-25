@@ -3,7 +3,7 @@ import { SqliteAssetBlobRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
-import { withMediaSearchEvents } from "#src/features/media/media-search-source";
+import { createMediaSearchChangeSink } from "#src/features/media/media-search-source";
 import { SqlitePostRepo } from "#src/features/post/index";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 
@@ -35,8 +35,9 @@ export function composeContentStores(required: ComposeContentStoresRequired, _op
   // uses. Both are stateless wrappers over the shared `db`, so a second instance would behave
   // identically — one instance simply matches this root's own stated convention.
   // Committed media writes (description, trash, restore, purge) enqueue a site-search change event
-  // through the same kernel-bound outbox, so the event commits or rolls back with the write.
-  const mediaRepo = withMediaSearchEvents({ repo: new SqliteMediaRepo({ store: kernel }), outbox: new SqliteOutboxAdapter({ store: kernel }), nowIso: () => clock.nowIso() });
+  // through the same kernel-bound outbox INSIDE the write's transaction, so the event commits or
+  // rolls back with the write.
+  const mediaRepo = new SqliteMediaRepo({ store: kernel }, { changes: createMediaSearchChangeSink({ outbox: new SqliteOutboxAdapter({ store: kernel }), nowIso: () => clock.nowIso() }) });
   const assetBlobRepo = new SqliteAssetBlobRepo({ store: kernel });
   return { postRepo, changeSets, mediaRepo, assetBlobRepo };
 }

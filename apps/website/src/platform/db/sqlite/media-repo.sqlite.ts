@@ -6,6 +6,7 @@ import {
   SqlMediaContentTypeStore,
   SqlMediaRepo,
   SqlTransformDefinitionRepo,
+  type MediaChangeSink,
 } from "../repos/media-repo.js";
 
 /**
@@ -16,8 +17,9 @@ import {
  */
 
 export class SqliteMediaRepo extends SqlMediaRepo {
-  constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+  /** @param optional.changes told of every committed row change inside that write's transaction. */
+  constructor({ store }: { store: ContentKernel | ContentDb }, optional: { changes?: MediaChangeSink } = {}) {
+    super(contentKernel({ store }), optional);
   }
 }
 

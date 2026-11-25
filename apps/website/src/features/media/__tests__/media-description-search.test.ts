@@ -7,9 +7,18 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { MediaRecord } from "@jini-ai/cms/media";
 
 import {
-  createMediaSearchAccessPort, createMediaSearchSource, isPublicSearchImage, MEDIA_SEARCH_COLLECTION, withMediaSearchEvents,
-  type MediaSearchEventRepo,
+  createMediaSearchAccessPort, createMediaSearchChangeSink, createMediaSearchSource, isPublicSearchImage, MEDIA_SEARCH_COLLECTION,
 } from "../media-search-source.js";
+import { mediaChangeMarker, type MediaChangeSink } from "#src/platform/db/repos/media-repo";
+
+type MemoryRepo = {
+  rows: Map<string, MediaRecord>; failNext: boolean;
+  findById(required: { workspaceId: string; id: string }): Promise<MediaRecord | null>;
+  list(required: { workspaceId: string }): Promise<MediaRecord[]>;
+  save(record: MediaRecord): Promise<void>;
+  saveIfVersion(required: { record: MediaRecord; ifVersion: number }): Promise<{ applied: boolean }>;
+  remove(required: { workspaceId: string; id: string }): Promise<void>;
+};
 
 /**
  * @file Public image descriptions in site search: only current, eligible public images are indexed
@@ -32,8 +41,13 @@ function image(id: string, overrides: Partial<MediaRecord> = {}): MediaRecord {
   } as MediaRecord;
 }
 
-/** A versioned in-memory media table with the CAS semantics of the real repo. */
-function memoryRepo(): MediaSearchEventRepo & { rows: Map<string, MediaRecord>; failNext: boolean } {
+/**
+ * A versioned in-memory media table with the CAS semantics of the real repo, reporting each
+ * committed CAS write and purge to the change sink as the SQL repo does (its transactional
+ * placement is pinned on SQLite and PGlite in `media-change-events.test.ts`). `save` here only
+ * seeds fixture rows and reports nothing.
+ */
+function memoryRepo({ changes }: { changes: MediaChangeSink }): MemoryRepo {
   const rows = new Map<string, MediaRecord>();
   return {
     rows, failNext: false,
@@ -44,19 +58,24 @@ function memoryRepo(): MediaSearchEventRepo & { rows: Map<string, MediaRecord>; 
       if (this.failNext) { this.failNext = false; throw new Error("disk full"); }
       if (rows.get(record.id)?.version !== ifVersion) return { applied: false };
       rows.set(record.id, record);
+      await changes.changed({ workspaceId: record.workspaceId, mediaId: record.id, kind: record.kind ?? "media", marker: mediaChangeMarker(record) });
       return { applied: true };
     },
-    async remove({ id }) { rows.delete(id); },
+    async remove({ workspaceId, id }) {
+      const removed = rows.get(id);
+      rows.delete(id);
+      if (removed) await changes.changed({ workspaceId, mediaId: id, kind: removed.kind ?? "media", marker: `removed:${mediaChangeMarker(removed)}` });
+    },
   };
 }
 
 function setup() {
   let nowMs = T0 + 60_000;
   const clock = { now: () => nowMs, advance: (ms: number) => { nowMs += ms; } };
-  const raw = memoryRepo();
   const events: DomainEvent[] = [];
-  const outbox = { enqueue: async (event: DomainEvent) => { events.push(event); } };
-  const repo = withMediaSearchEvents({ repo: raw, outbox, nowIso: () => iso(clock.now()) });
+  const outbox = { enqueue: async (event: DomainEvent) => { if (!events.some(e => e.id === event.id)) events.push(event); } };
+  const raw = memoryRepo({ changes: createMediaSearchChangeSink({ outbox, nowIso: () => iso(clock.now()) }) });
+  const repo = raw;
   const ports = {
     loadMedia: ({ workspaceId, id }: { workspaceId: string; id: string }) => raw.findById({ workspaceId, id }),
     scanMedia: async ({ workspaceId }: { workspaceId: string; limit: number }) => ({ records: (await raw.list({ workspaceId })) }),
@@ -178,6 +197,19 @@ test("redelivery and an older event delivered after a newer change converge on c
   await s.deliver(older);
   await s.deliver(trash);
   assert.deepEqual(await s.indexed("owl"), []);
+});
+
+test("an older event delivered after a newer change keeps the newer state", async () => {
+  const s = setup();
+  await s.ready();
+  await s.raw.save(image("img-4"));
+  await edit(s, "img-4", { description: "osprey diving for fish" });
+  const older = s.events.splice(0);
+  await edit(s, "img-4", { description: "heron wading at low tide" });
+  await s.deliver();
+  await s.deliver(older);
+  assert.deepEqual(await s.search("heron"), ["img-4"]);
+  assert.deepEqual(await s.indexed("osprey"), []);
 });
 
 test("a failed or rejected write enqueues nothing, and Library documents emit no event", async () => {

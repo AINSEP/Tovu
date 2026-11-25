@@ -10,17 +10,18 @@ import { describe, expect, it, vi } from "vitest";
  * `save-error` state. Both branches of that asymmetry are asserted here.
  */
 
-const { getMediaProviders, saveMediaProviders } = vi.hoisted(() => ({
+const { getMediaProviders, saveMediaProviders, getMediaProviderCatalog } = vi.hoisted(() => ({
   getMediaProviders: vi.fn(),
   saveMediaProviders: vi.fn(),
+  getMediaProviderCatalog: vi.fn(),
 }));
 
 vi.mock("../api/media-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/media-api")>();
-  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, saveMediaProviders } };
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, saveMediaProviders, getMediaProviderCatalog } };
 });
 
-const { mediaProvidersPort } = await import("../media-providers-port");
+const { mediaProvidersPort, mediaProviderCatalogPort } = await import("../media-providers-port");
 
 describe("mediaProvidersPort.fetchMediaProviders", () => {
   it("returns the provider map on success", async () => {
@@ -52,5 +53,24 @@ describe("mediaProvidersPort.saveMediaProviders", () => {
   it("REJECTS on failure, unlike fetchMediaProviders — the tab renders this as its save-error state", async () => {
     saveMediaProviders.mockRejectedValue(new Error("no site key"));
     await expect(mediaProvidersPort.saveMediaProviders({})).rejects.toThrow("no site key");
+  });
+});
+
+describe("mediaProviderCatalogPort.fetchMediaProviderCatalog", () => {
+  it("returns the host's live cards", async () => {
+    getMediaProviderCatalog.mockResolvedValue({ providers: [{ id: "xai-grok-imagine", label: "xAI Grok Imagine", models: ["grok-imagine-image"] }] });
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toEqual([{ id: "xai-grok-imagine", label: "xAI Grok Imagine", models: ["grok-imagine-image"] }]);
+  });
+
+  it("resolves null (never [], never rejects) when the host is unreachable, so the tab shows no made-up count", async () => {
+    getMediaProviderCatalog.mockRejectedValue(new Error("network down"));
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toBeNull();
+  });
+
+  it("resolves null for a body that is not a catalog, and drops malformed cards from one that is", async () => {
+    getMediaProviderCatalog.mockResolvedValueOnce({ openai: { apiKeyConfigured: true } });
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toBeNull();
+    getMediaProviderCatalog.mockResolvedValueOnce({ providers: [{ id: "openai", label: "OpenAI" }, { id: 7 }, null] });
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toEqual([{ id: "openai", label: "OpenAI" }]);
   });
 });

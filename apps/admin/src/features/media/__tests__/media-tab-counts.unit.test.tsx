@@ -5,9 +5,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Media } from "../Media";
 import { resolveMediaTabs } from "../Media.hooks";
 import { mediaContentTabCounts } from "@jini-ai/admin/screens/media/rules";
-import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
+
+/** The host's live provider catalog, as `GET .../media/providers/catalog` answers it. */
+const LIVE_CATALOG = {
+  providers: [
+    { id: "nanobanana", label: "Nano Banana" },
+    { id: "xai-grok-imagine", label: "xAI Grok Imagine", models: ["grok-imagine-image", "grok-imagine-video"] },
+    { id: "openai", label: "OpenAI" },
+  ],
+};
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
 
 /**
  * @file Owner ask (2026-09-26): a count next to each Media tab — "All 42 · Images 30 · Videos 12 ·
@@ -154,7 +163,9 @@ describe("Media screen — tab counts", () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       if (url.includes("/locale")) return Promise.resolve(jsonResponse({ locale: "en" }));
+      if (url.includes("/media/providers/catalog")) return Promise.resolve(jsonResponse(LIVE_CATALOG));
       if (url.includes("/media/providers")) return Promise.resolve(jsonResponse({ "nano-banana": { apiKeyConfigured: true, apiKeyTail: "4321" } }));
+      if (isGridUrl({ url })) return Promise.resolve(jsonResponse(gridResponseBody({ url, media: [] })));
       return Promise.resolve(jsonResponse({ media: [] }));
     });
     renderScreen({ tabId: "external-providers" });
@@ -163,10 +174,12 @@ describe("Media screen — tab counts", () => {
     expect(key).toHaveValue("");
   });
 
-  it("shows each content tab's real item count, and External Providers' fixed catalog size", async () => {
+  it("shows each content tab's real item count, and External Providers' count from the live catalog", async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       if (url.includes("/locale")) return Promise.resolve(jsonResponse({ locale: "en" }));
+      if (url.includes("/media/providers/catalog")) return Promise.resolve(jsonResponse(LIVE_CATALOG));
+      if (isGridUrl({ url })) return Promise.resolve(jsonResponse(gridResponseBody({ url, media: [IMAGE_A, IMAGE_B, VIDEO_A] })));
       return Promise.resolve(jsonResponse({ media: [IMAGE_A, IMAGE_B, VIDEO_A] }));
     });
     renderScreen();
@@ -176,9 +189,38 @@ describe("Media screen — tab counts", () => {
     expect(tabCount("All")).toBe("3");
     expect(tabCount("Images")).toBe("2");
     expect(tabCount("Videos")).toBe("1");
-    // Not fetched, not media-derived — the same fixed roster `ExternalProvidersPanel`'s own
-    // `MediaProvidersTab` renders one card per entry from (`Media.tsx`'s own comment on this).
-    expect(tabCount("External Providers")).toBe(String(MEDIA_PROVIDER_CATALOG.length));
+    // Not media-derived — the host's live catalog, the same array `ExternalProvidersPanel` maps cards from.
+    await waitFor(() => expect(tabCount("External Providers")).toBe(String(LIVE_CATALOG.providers.length)));
+  });
+
+  it("renders one xAI card (with its configured-key marker) and counts it once", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/locale")) return Promise.resolve(jsonResponse({ locale: "en" }));
+      if (url.includes("/media/providers/catalog")) return Promise.resolve(jsonResponse(LIVE_CATALOG));
+      if (url.includes("/media/providers")) return Promise.resolve(jsonResponse({ "xai-grok-imagine": { apiKeyConfigured: true, apiKeyTail: "9876" } }));
+      if (isGridUrl({ url })) return Promise.resolve(jsonResponse(gridResponseBody({ url, media: [] })));
+      return Promise.resolve(jsonResponse({ media: [] }));
+    });
+    renderScreen({ tabId: "external-providers" });
+    const key = await screen.findByLabelText("xAI Grok Imagine API key");
+    await waitFor(() => expect(key).toHaveAttribute("placeholder", expect.stringContaining("9876")));
+    expect(screen.getAllByLabelText("xAI Grok Imagine API key")).toHaveLength(1);
+    expect(tabCount("External Providers")).toBe("3");
+  });
+
+  it("shows no External Providers badge when the host catalog cannot be read", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/locale")) return Promise.resolve(jsonResponse({ locale: "en" }));
+      if (url.includes("/media/providers/catalog")) return Promise.resolve(jsonResponse({ error: "unavailable" }, 503));
+      if (isGridUrl({ url })) return Promise.resolve(jsonResponse(gridResponseBody({ url, media: [IMAGE_A] })));
+      return Promise.resolve(jsonResponse({ media: [IMAGE_A] }));
+    });
+    renderScreen();
+    await screen.findByRole("button", { name: "Image A.png" });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/media/providers/catalog"))).toBe(true));
+    expect(tabCount("External Providers")).toBeNull();
   });
 
   it("hides every badge during the initial load, before media has ever resolved", () => {
@@ -201,6 +243,7 @@ describe("Media screen — tab counts", () => {
         items = items.filter((item) => item.id !== VIDEO_A.id);
         return Promise.resolve(jsonResponse({ purged: true }));
       }
+      if (isGridUrl({ url })) return Promise.resolve(jsonResponse(gridResponseBody({ url, media: items })));
       if (url.includes("/media")) return Promise.resolve(jsonResponse({ media: items }));
       return Promise.reject(new Error(`media-tab-counts test: no mocked route for ${method} ${url}`));
     });

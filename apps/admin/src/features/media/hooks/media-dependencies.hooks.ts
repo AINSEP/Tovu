@@ -1,10 +1,11 @@
-import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import type { AdminMedia, MediaGridPage } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 import { usersApi } from "@/features/users/api/users-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import { trimChars } from "@jini-ai/core/primitives";
+import type { MediaGridPort, MediaGridView } from "./use-grid-pages.hooks";
 
 /**
  * @file The only place under `features/media` that reaches `lib/api` for the five `MediaPort`
@@ -14,8 +15,9 @@ import { trimChars } from "@jini-ai/core/primitives";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. Each method wraps its `api` counterpart explicitly rather
  *  than pointing at it directly, so a route's default-parameter shape (`uploadMedia`'s
  *  `options = {}`, `updateMedia`'s `options = {}`) stays `lib/api.ts`'s to own. */
-export const defaultMediaPort: MediaPort = {
+export const defaultMediaPort: MediaPort & MediaGridPort = {
   listMedia: () => mediaApi.listMedia(),
+  listMediaGrid: (view, page) => mediaApi.listMediaGrid(view, page),
   uploadMedia: (input, options) => mediaApi.uploadMedia(input, options),
   updateMedia: (target, options) => mediaApi.updateMedia(target, options),
   trashMedia: (id) => mediaApi.trashMedia({ id }),
@@ -40,7 +42,7 @@ export interface FakeMediaPortOptions {
  * and stubbing global `fetch`. Shipped alongside the real binding per the pattern's "every port
  * gets a fake" rule.
  */
-export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPort & {
+export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPort & MediaGridPort & {
   /** Every item currently in the fake's store, in list order. */
   readonly items: AdminMedia[];
 } {
@@ -85,6 +87,12 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       return { media: [...items] };
     },
 
+    // The whole store as ONE page in the server's order, with the server's counts: a test that needs
+    // paging passes its own `listMediaGrid`. `itemId` is an exact lookup, never a scan.
+    async listMediaGrid({ tab, orderBy }, page = {}) {
+      return fakeGridPage({ items, tab, orderBy, itemId: page.itemId });
+    },
+
     async uploadMedia(input, options = {}) {
       const created = newItem(input, options);
       items.push(created);
@@ -127,5 +135,26 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
     mediaOriginalUrl(id) {
       return `fake://media-original/${id}`;
     },
+  };
+}
+
+/** The fake's answer to one grid request, shaped like the route's: filter by tab, order, count everything. @complexity O(n log n). */
+export function fakeGridPage({ items, tab, orderBy, itemId }: { items: AdminMedia[]; tab: MediaGridView["tab"]; orderBy: MediaGridView["orderBy"]; itemId?: string }, _optional: Record<string, never> = {}): MediaGridPage {
+  const inTab = (item: AdminMedia, wanted: MediaGridView["tab"]): boolean => {
+    if (wanted === "trash") return item.status === "trashed";
+    if (item.status === "trashed") return false;
+    const family = wanted === "images" ? "image/" : wanted === "videos" ? "video/" : "";
+    return (item.contentType ?? "").startsWith(family);
+  };
+  const matching = items.filter((item) => inTab(item, tab));
+  const ordered = orderBy === "alphabetical"
+    ? [...matching].sort((a, b) => a.title.trim().toLocaleLowerCase().localeCompare(b.title.trim().toLocaleLowerCase()) || (a.id < b.id ? -1 : 1))
+    : [...matching].sort((a, b) => (a.createdAt === b.createdAt ? (a.id < b.id ? 1 : -1) : a.createdAt < b.createdAt ? 1 : -1));
+  const count = (wanted: MediaGridView["tab"]): number => items.filter((item) => inTab(item, wanted)).length;
+  return {
+    media: itemId === undefined ? ordered : ordered.filter((item) => item.id === itemId),
+    nextCursor: null,
+    counts: { all: count("all"), images: count("images"), videos: count("videos"), trash: count("trash") },
+    hasUntypedActive: items.some((item) => item.status !== "trashed" && item.contentType === null),
   };
 }

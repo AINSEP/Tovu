@@ -51,14 +51,26 @@ const TOVU_ENV_GROUPS = {
     TOVU_PLUGINS_DIR: optionalText({ description: "is the plugin install directory for an in-memory store." }),
     TOVU_RUNNING_APP: optionalText({ description: "names the app that launched this server." }),
   } }),
+  // The desktop shell's own launch inputs. `TOVU_DESKTOP_PORT` pins the first own-server site's
+  // listener, so it gets the website's fixed-port range; there is no zero sentinel here.
   desktop: defineEnvSchema({ vars: {
     TOVU_DESKTOP_SELFTEST: optionalText({ description: "turns on the desktop self-test when '1'." }),
     TOVU_DESKTOP_USER_DATA_DIR: optionalText({ description: "is the desktop profile directory override." }),
+    TOVU_DESKTOP_PORT: optionalPort({ description: "must be a whole number from 1 to 65535 when set (the first desktop site's port).", allowZero: false }),
+    TOVU_DESKTOP_CLI_MODE: optionalText({ description: "is 'source' or 'compiled'; any other value keeps the default." }),
+    TOVU_DESKTOP_UI: optionalText({ description: "is 'runner' to open the sites home explicitly." }),
+    TOVU_DESKTOP_URL: optionalText({ description: "is an origin to attach to instead of starting a server." }),
+    TOVU_DESKTOP_SITE_DIR: optionalText({ description: "is the one site directory to open." }),
+    TOVU_DESKTOP_SITE_DIRS: optionalText({ description: "is a comma-separated list of site directories to open." }),
   } }),
   daemon: defineEnvSchema({ vars: {
     JINI_AGENT_DAEMON_PORT: optionalPort({ description: "must be 0 or a whole number from 1 to 65535 when set (the agent daemon port).", allowZero: true }),
     TOVU_AGENT_DAEMON_STANDALONE: optionalText({ description: "runs the agent daemon without a parent host when '1'." }),
     TOVU_AGENT_DAEMON_REGISTRY_PATH: optionalText({ description: "is the agent daemon registry file." }),
+    // The daemon's origin policy only: the parent pins the resolved website listener here, and a
+    // standalone daemon keeps the old `JINI_WEB_PORT` input (see `daemon-origin-policy.ts`).
+    TOVU_SITE_LISTENER_ORIGIN: optionalText({ description: "is the website listener origin the parent host pinned." }),
+    JINI_WEB_PORT: optionalText({ description: "is the website origin port a standalone agent daemon also treats as local." }),
   } }),
 } as const;
 

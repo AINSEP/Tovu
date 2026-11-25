@@ -8,6 +8,8 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
+import { useGridPages } from "../hooks/use-grid-pages.hooks";
+import { useMediaWrites } from "../hooks/use-media-writes.hooks";
 import { MEDIA_RESOURCE, visibleMediaError as visibleMediaErrorRule } from "@jini-ai/admin/screens/media/rules";
 
 const visibleMediaError = (input: Omit<Parameters<typeof visibleMediaErrorRule>[0], "describeApiError">) => visibleMediaErrorRule({ ...input, describeApiError });
@@ -66,7 +68,7 @@ describe("media error presentation", () => {
 describe("useMedia — injected port (no fetch stub)", () => {
   it("closing the upload dialog preserves the chosen file and alt for reopening", async () => {
     const port = createFakeMediaPort();
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "chosen.png", { type: "image/png" })] });
@@ -91,7 +93,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
 
   it("clears a previous filename when the chooser supplies no files or an empty list", async () => {
     const port = createFakeMediaPort();
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const chosen = document.createElement("input");
     Object.defineProperty(chosen, "files", { value: [new File(["pixel"], "chosen.png")] });
@@ -110,7 +112,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("prevents form submission but sends no upload when the input or chosen file is missing", async () => {
     const port = createFakeMediaPort();
     const upload = vi.spyOn(port, "uploadMedia");
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const preventDefault = vi.fn();
     await act(async () => { await result.current.upload({ preventDefault }); });
@@ -133,7 +135,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
     const pending = new Promise<void>(resolve => { release = resolve; });
     let received = false;
     port.uploadMedia = async (input, options) => { received = true; await pending; return uploadFile(input, options); };
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "chosen.png", { type: "image/png" })] });
@@ -155,7 +157,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("ignores purge when no item is selected for confirmation", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
     const remove = vi.spyOn(port, "deleteMedia");
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     await act(async () => { await result.current.purge(); });
     expect(remove).not.toHaveBeenCalled();
@@ -174,7 +176,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
       await pending;
       return uploadFile(input, options);
     };
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
@@ -205,7 +207,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
       if (++attempts === 1) throw new Error("Upload unavailable");
       return uploadFile(input, options);
     };
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
@@ -233,7 +235,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
       Object.defineProperty(this, "error", { value: new Error("File could not be read") });
       this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
     });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
@@ -270,14 +272,14 @@ describe("useMedia — injected port (no fetch stub)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
 
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     expect(result.current.media?.[0]?.id).toBe("m1");
     expect(listSpy).not.toHaveBeenCalled();
   });
 
-  it("routes trash through the injected port, and the item's status flips after the list re-reads it", async () => {
+  it("routes trash through the injected port, and the re-read All grid drops the item into the Trash count", async () => {
     const port = createFakeMediaPort({
       media: [
         {
@@ -302,26 +304,40 @@ describe("useMedia — injected port (no fetch stub)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const listMediaGrid = vi.spyOn(port, "listMediaGrid");
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
+    const readsBeforeTrash = listMediaGrid.mock.calls.length;
 
     await act(async () => {
       await result.current.trash(result.current.media![0]!);
     });
 
-    await waitFor(() => expect(result.current.media?.[0]?.status).toBe("trashed"));
+    // The server filters by tab: after the write the grid re-reads page one, so the All tab no longer
+    // holds the trashed asset and the server's counts move it to Trash.
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    expect(result.current.counts).toEqual({ all: 0, images: 0, videos: 0, trash: 1 });
+    expect(listMediaGrid.mock.calls.length).toBeGreaterThan(readsBeforeTrash);
+    expect(listMediaGrid).toHaveBeenLastCalledWith({ tab: "all", orderBy: "created" }, { limit: 50 });
+    expect(port.items[0]?.status).toBe("trashed");
   });
 
-  it("restores a trashed item through the injected port, and the re-read list shows it active", async () => {
+  it("restores a trashed item through the injected port, and the re-read Trash grid hands it back to All", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia({ id: "m1", status: "trashed" })] });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const listMediaGrid = vi.spyOn(port, "listMediaGrid");
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "trash", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
+    const readsBeforeRestore = listMediaGrid.mock.calls.length;
 
     await act(async () => {
       await result.current.restore(result.current.media![0]!);
     });
 
-    await waitFor(() => expect(result.current.media?.[0]?.status).toBe("active"));
+    // The Trash tab re-reads page one: the restored asset leaves it and the server counts it under All.
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    expect(result.current.counts).toEqual({ all: 1, images: 1, videos: 0, trash: 0 });
+    expect(listMediaGrid.mock.calls.length).toBeGreaterThan(readsBeforeRestore);
+    expect(port.items[0]?.status).toBe("active");
     expect(result.current.rowSavingId).toBeNull();
     expect(result.current.error).toBeNull();
   });
@@ -329,7 +345,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("shows the restore fallback when the Trash refuses the restore, and frees the row", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia({ id: "m1", status: "trashed" })] });
     port.restoreMedia = async () => ({ restored: false });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "trash", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     await act(async () => {
@@ -338,7 +354,9 @@ describe("useMedia — injected port (no fetch stub)", () => {
 
     await waitFor(() => expect(result.current.error).toBe("failed to restore"));
     expect(result.current.rowSavingId).toBeNull();
-    expect(result.current.media?.[0]?.status).toBe("trashed");
+    // A refused restore is not a write: the asset is still the one row of the Trash tab.
+    expect(result.current.media?.map((item) => [item.id, item.status])).toEqual([["m1", "trashed"]]);
+    expect(result.current.counts?.trash).toBe(1);
   });
 
   /**
@@ -352,7 +370,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("does not resolve `media` while the injected port's list call is still pending", () => {
     const port = createFakeMediaPort();
     port.listMedia = () => new Promise(() => {});
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     expect(result.current.media).toBeNull();
   });
 });
@@ -370,7 +388,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
 describe("useMedia — edit toggle", () => {
   it("opens a row's editor, moves it to another row, closes it on a re-click, and closes it after a save", () => {
     const port = createFakeMediaPort();
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     const a = { id: "a" } as AdminMedia;
     const b = { id: "b" } as AdminMedia;
 
@@ -402,8 +420,10 @@ describe("useMedia — trash/purge shared rowSavingId race safety", () => {
     let trashStarted = false;
     port.deleteMedia = async id => { purgeStarted = true; await deleting; return deleteMedia(id); };
     port.trashMedia = async id => { trashStarted = true; await trashing; return trashMedia(id); };
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: k => k }), { wrapper });
-    await waitFor(() => expect(result.current.media).toHaveLength(3));
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: k => k }), { wrapper });
+    // The All tab holds only the active row; the two trashed ones are the server's Trash count.
+    await waitFor(() => expect(result.current.media?.map(item => item.id)).toEqual(["new-trash"]));
+    expect(result.current.counts?.trash).toBe(2);
     act(() => result.current.setPendingPurge(trashed));
     let purging!: Promise<void>;
     let movingToTrash!: Promise<void>;
@@ -418,7 +438,9 @@ describe("useMedia — trash/purge shared rowSavingId race safety", () => {
     expect(result.current.pendingPurge).toEqual(nextConfirmation);
     expect(port.items.map(item => item.id)).toEqual(["new-trash", "next-purge"]);
     await act(async () => { releaseTrash(); await movingToTrash; });
-    await waitFor(() => expect(result.current.media?.find(item => item.id === "new-trash")?.status).toBe("trashed"));
+    // Both writes re-read the grid: the trashed row has left All, and Trash holds it plus the replacement.
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    expect(result.current.counts).toEqual({ all: 0, images: 0, videos: 0, trash: 2 });
     expect(result.current.rowSavingId).toBeNull();
     expect(result.current.pendingPurge).toEqual(nextConfirmation);
   });
@@ -443,8 +465,10 @@ describe("useMedia — trash/purge shared rowSavingId race safety", () => {
         })
     );
 
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
-    await waitFor(() => expect(result.current.media).toHaveLength(2));
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    // All shows only the active B; the trashed C is counted under Trash by the server.
+    await waitFor(() => expect(result.current.media?.map((item) => item.id)).toEqual(["mB"]));
+    expect(result.current.counts?.trash).toBe(1);
 
     // Trash B (no confirm step — reachable at any time, in flight, slow).
     act(() => {
@@ -519,7 +543,7 @@ describe("useMedia — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     // A write landing server-side outside this hook — the screen has no other way to know it happened.
@@ -533,7 +557,7 @@ describe("useMedia — content refresh bus", () => {
 
   it("refreshes on a notification that names media, and ignores one that names only other resources", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     port.items.push(fakeMedia({ id: "m2", title: "Second photo" }));
@@ -549,7 +573,7 @@ describe("useMedia — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
     const listSpy = vi.spyOn(port, "listMedia");
-    const { result, unmount } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result, unmount } = renderHook(() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     const callsWhileMounted = listSpy.mock.calls.length;

@@ -113,6 +113,8 @@ import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
 import { startDesktopCaptureBridge } from "../desktop-capture.ts";
 import { initializeStartupSecrets } from '../../../website/src/platform/secrets/startup-secrets.ts';
+// The shared boot env schema: a side-effect-free module (it imports no website server entry).
+import { readTovuBootEnv } from "../../../website/src/server/runtime/configuration/env-schema.ts";
 import { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain-host.ts";
 import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
@@ -283,6 +285,12 @@ const DESKTOP_ROOTS = resolveDesktopRoots({
   appDataDir: app.getPath("appData"),
 });
 
+// Validate this shell's launch inputs once, before the profile, toolchain, any `tovu serve` child or
+// listener: a bad value (e.g. `TOVU_DESKTOP_PORT=70000`) stops boot naming the variable, never its
+// value. Listener identity, child inheritance, and allowed origins are independent policies, so the
+// desktop reads only its own scope of the shared schema; each site child validates its own.
+const DESKTOP_BOOT_ENV = readTovuBootEnv({ env: process.env, scope: "desktop", warn: ({ message }) => console.warn(message) });
+
 // This launch's `userData`, and the E2E-only `TOVU_DESKTOP_USER_DATA_DIR` override that wins over it.
 // Must run before `app.whenReady()`; see `applyUserDataDir`'s doc (src/main/boot/boot-steps.ts) for why.
 const userDataProfile = applyUserDataDir({ env: process.env, defaultUserDataDir: DESKTOP_ROOTS.userDataDir, resolvePath: ({ dir }) => path.resolve(dir),
@@ -301,7 +309,7 @@ const NODE_TOOLCHAIN_ENV = prepareNodeToolchainEnv({ userDataDir: app.getPath("u
  * what `project-delete-guard.ts` receives as its containment root — see `packaged-paths.ts`.
  */
 const PAYLOAD_ROOT = DESKTOP_ROOTS.payloadRoot;
-const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
+const SELFTEST = DESKTOP_BOOT_ENV.TOVU_DESKTOP_SELFTEST === "1";
 
 /**
  * The site a checkout always has and a packaged app never does — `bootOwnServerMode`'s last
