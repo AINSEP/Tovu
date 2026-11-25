@@ -143,6 +143,16 @@ function staticShareInput(input: { jobId?: string; themeIds?: readonly string[] 
   return input.themeIds ? { themeIds: input.themeIds } : {};
 }
 
+/**
+ * The history pager merges `imports` arrays; a 200 body without one would throw during render and
+ * unmount the whole admin (no boundary above the tab). Refusing it here turns it into the list's
+ * load error instead. @complexity O(1).
+ */
+function requireImportPage(body: unknown, _optional: Record<string, never> = {}): SiteImportPage<SiteImport> {
+  if (!body || typeof body !== "object" || !Array.isArray((body as { imports?: unknown }).imports)) throw new Error("Imports response must contain an imports array");
+  return body as SiteImportPage<SiteImport>;
+}
+
 export const defaultSiteTransferPort: SiteTransferPort = {
   savedKeysAccess: async (_required, _optional = {}) => {
     // The roster's isOwner includes wildcard policy owners. Only the bootstrap owner has
@@ -169,9 +179,9 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   acknowledgeShare: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/acknowledge`, body: {} }),
   shareDownloadRefusal: ({ share }, _optional = {}) => readDownloadRefusal({ href: defaultSiteTransferPort.shareDownloadHref({ share }) }),
   shareDownloadHref: ({ share }, _options = {}) => authenticatedAdminUrl({ path: `${SHARES}/${encodeURIComponent(share.shareId)}/download` }),
-  listImports: ({ cursor }, _optional = {}) => {
+  listImports: async ({ cursor }, _optional = {}) => {
     const query = new URLSearchParams(cursor === undefined ? {} : { cursor });
-    return authenticatedAdminRequest({ method: "GET", path: IMPORTS + (query.size ? `?${query}` : "") });
+    return requireImportPage(await authenticatedAdminRequest<unknown>({ method: "GET", path: IMPORTS + (query.size ? `?${query}` : "") }));
   },
   // The upload route admits only `application/zip`; Windows reports `.zip` files as
   // `application/x-zip-compressed` and some browsers send no type, so the bytes are re-typed here.

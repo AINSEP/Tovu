@@ -5,7 +5,7 @@ import { tSecurity as translateSecurity } from "../../../lib/i18n-common";
 import { accessTokenProviderInfo, accessTokenRowProviderInfo, providerGroupSubtitleKeys, type AccessTokenFormFields } from "@jini-ai/admin/security/access-token-providers";
 import { providerGroupHandleLabel, tokenRowHandleLabel, ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { ACCESS_TOKEN_CATEGORIES } from "../rules";
-import { OTHER_CREDENTIAL_STORES, accessTokensCountText, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, otherCredentialStoreInfo } from "../other-credential-stores";
+import { OTHER_CREDENTIAL_STORES, accessTokensCountText, envNamesFact, maskedTailFact, mediaProviderCatalogFrom, mediaProviderLabel, otherCredentialMatchesQuery, otherCredentialStoreInfo } from "../other-credential-stores";
 import { buildCustomCredentialRows, type RawCustomCredentialSummary } from "@jini-ai/admin/security/access-token-rows";
 import { accessTokenReplaceReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, accessTokenExistingRowReadyToSave } from "../access-token-forms";
 import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS } from "./access-token-providers.fixture";
@@ -152,17 +152,29 @@ describe("accessTokensCountText", () => {
 });
 
 describe("mediaProviderLabel", () => {
+  // The live catalog body in its wire shape (`GET …/media/providers/catalog`, the Media tab's source).
+  // grok is not in the static catalog any more: the xai provider plugin contributes it at runtime.
+  const LIVE_CATALOG = mediaProviderCatalogFrom({ body: { providers: [
+    { id: "openai", label: "OpenAI", kind: "image" },
+    { id: "grok", label: "xAI Grok Imagine", kind: "image" },
+  ] } });
+
   it("resolves a known catalog id to its human label", () => {
     // Pin the display contract; a raw-id fallback must not masquerade as a catalog hit.
     const knownId = "grok";
-    const label = mediaProviderLabel({ providerId: knownId });
+    const label = mediaProviderLabel({ providerId: knownId, catalog: LIVE_CATALOG });
     expect(label.length).toBeGreaterThan(0);
     expect(label).toBe("xAI Grok Imagine");
     expect(label).not.toBe(knownId);
   });
 
   it("falls back to the raw id for a provider the catalog no longer lists", () => {
-    expect(mediaProviderLabel({ providerId: "a-removed-vendor-id" })).toBe("a-removed-vendor-id");
+    expect(mediaProviderLabel({ providerId: "a-removed-vendor-id", catalog: LIVE_CATALOG })).toBe("a-removed-vendor-id");
+  });
+
+  it("reads an unreadable catalog body as no cards, so rows keep their raw ids", () => {
+    expect(mediaProviderCatalogFrom({ body: null })).toEqual([]);
+    expect(mediaProviderCatalogFrom({ body: { providers: [{ id: "grok" }, "x"] } })).toEqual([]);
   });
 });
 describe("accessTokenRowReadyToSave (Create flow)", () => {

@@ -19,6 +19,7 @@ export const defaultOtherCredentialsPort: OtherCredentialsPort = {
   deleteAdminByokCredential: () => aiAssistantApi.deleteAdminExecutionCredential(),
 
   getMediaProviders: () => mediaApi.getMediaProviders(),
+  getMediaProviderCatalog: () => mediaApi.getMediaProviderCatalog(),
   patchMediaProvider: ({ providerId, fields }, _optional = {}) => mediaApi.patchMediaProvider({ providerId, fields }),
   removeMediaProvider: ({ providerId }, _optional = {}) => mediaApi.removeMediaProvider({ providerId }),
 
@@ -61,10 +62,11 @@ function adminByokCredentialDefaults(
 
 /** {@link createFakeOtherCredentialsPort}'s media-providers slice — see {@link siteAssistantCredentialDefaults}'s doc.
  *  @complexity O(1) — three independent `??` fallbacks. */
-function mediaProvidersDefaults(overrides: Partial<OtherCredentialsPort>): Pick<OtherCredentialsPort, "getMediaProviders" | "patchMediaProvider" | "removeMediaProvider"> {
+function mediaProvidersDefaults(overrides: Partial<OtherCredentialsPort>): Pick<OtherCredentialsPort, "getMediaProviders" | "getMediaProviderCatalog" | "patchMediaProvider" | "removeMediaProvider"> {
   const emptyMediaProviders: AdminMediaProviderMap = {};
   return {
     getMediaProviders: overrides.getMediaProviders ?? (() => Promise.resolve(emptyMediaProviders)),
+    getMediaProviderCatalog: overrides.getMediaProviderCatalog ?? (() => Promise.resolve({ providers: [] })),
     patchMediaProvider: overrides.patchMediaProvider ?? (() => Promise.reject(new Error("patchMediaProvider not stubbed for this test"))),
     removeMediaProvider: overrides.removeMediaProvider ?? (() => Promise.reject(new Error("removeMediaProvider not stubbed for this test"))),
   };

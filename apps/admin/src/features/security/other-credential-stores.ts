@@ -1,4 +1,3 @@
-import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
 import { type Translate } from '@jini-ai/core/text';
 import { type AccessTokenRowCategoryId } from "@jini-ai/admin/security/access-token-rows";
 /** A stable id for one of the four Tier-2 credential stores — `AccessTokenRow.id`'s counterpart for
@@ -118,8 +117,20 @@ export function otherCredentialMatchesQuery(
  *  back to the raw provider id for one this workspace has a stored key under but the catalog no
  *  longer lists (a removed vendor) — a stale id is still a fact worth showing, not a reason to hide
  *  the row. @complexity O(n) in the catalog's own (small, fixed) size. */
-export function mediaProviderLabel({ providerId }: { providerId: string }, _options = {}): string {
-  return MEDIA_PROVIDER_CATALOG.find((provider) => provider.id === providerId)?.label ?? providerId;
+export function mediaProviderLabel({ providerId, catalog }: { providerId: string; catalog: readonly MediaProviderCatalogEntry[] }, _options = {}): string {
+  // The LIVE catalog, not the static one: providers such as grok are contributed at runtime by plugins.
+  return catalog.find((provider) => provider.id === providerId)?.label ?? providerId;
+}
+
+/** One live-catalog card as far as a label lookup needs it. */
+export interface MediaProviderCatalogEntry { readonly id: string; readonly label: string }
+
+/** The cards of a `GET …/media/providers/catalog` body whose id and label are strings; anything else
+ *  (or an unreadable body) yields `[]`, so rows fall back to raw ids. @complexity O(p). */
+export function mediaProviderCatalogFrom({ body }: { body: { providers?: unknown } | null | undefined }, _options = {}): readonly MediaProviderCatalogEntry[] {
+  const providers: unknown = body?.providers;
+  if (!Array.isArray(providers)) return [];
+  return providers.filter((card): card is MediaProviderCatalogEntry => typeof card?.id === "string" && typeof card?.label === "string");
 }
 
 /** The masked-tail value fact for a configured single-`apiKey` row (`site-assistant`/`admin-byok`/

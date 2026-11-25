@@ -124,7 +124,8 @@ describe("site transfer port", () => {
       const headers = new Headers(init?.headers);
       const raw = init?.body;
       seen.push({ url, method: init?.method ?? "GET", contentType: headers.get("Content-Type") ?? undefined, body: raw instanceof Blob ? await raw.text() : (raw as string | undefined) });
-      return Response.json({ ok: true });
+      // The imports GET is validated as a page, so the stub answers in that shape too.
+      return Response.json({ ok: true, imports: [] });
     });
     await run();
     expect(seen).toHaveLength(1);

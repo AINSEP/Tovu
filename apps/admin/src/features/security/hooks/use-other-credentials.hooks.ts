@@ -9,7 +9,7 @@ import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-co
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { tSecurity as defaultT } from "../../../lib/i18n-common";
 import { accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "@jini-ai/admin/security/security-i18n";
-import { OTHER_CREDENTIAL_STORES, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "../other-credential-stores";
+import { OTHER_CREDENTIAL_STORES, envNamesFact, maskedTailFact, mediaProviderCatalogFrom, mediaProviderLabel, otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "../other-credential-stores";
 import { ACCESS_TOKENS_RESOURCE } from "../rules";
 import { accessTokenCategoryMatches, type AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
 import { defaultOtherCredentialsPort } from "./other-credentials-dependencies.hooks";
@@ -137,12 +137,17 @@ async function readAdminByok({ port, store, locale }: { port: OtherCredentialsPo
  *  heading split this produces). @complexity O(p) in this workspace's own (small) configured-provider
  *  count. */
 async function readMediaProviders({ port }: { port: OtherCredentialsPort }, { locale = 'en' }: { locale?: string } = {}): Promise<RawStoreItem[]> {
-  const map: AdminMediaProviderMap = await port.getMediaProviders();
+  // A catalog that cannot be read only costs the human labels (rows fall back to raw ids); it must
+  // never hide a stored credential, so its failure is not the store's failure.
+  const [map, catalogBody]: [AdminMediaProviderMap, { providers?: unknown } | null | undefined] = await Promise.all([
+    port.getMediaProviders(), port.getMediaProviderCatalog().catch(() => null),
+  ]);
+  const catalog = mediaProviderCatalogFrom({ body: catalogBody });
   return Object.entries(map)
     .filter(([, credentials]) => credentials.apiKeyConfigured)
     .map(([providerId, credentials]) => ({
       itemId: providerId,
-      name: mediaProviderLabel({ providerId }),
+      name: mediaProviderLabel({ providerId, catalog }),
       valueFact: formatCredentialHint({ hint: credentials.apiKeyHint, locale }) || maskedTailFact({ tail: credentials.apiKeyTail ?? "" }),
       updatedAt: null,
     }));
