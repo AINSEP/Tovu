@@ -21,6 +21,7 @@ import { PublishContentBundleNotFoundError } from "#src/features/publish-content
 import { importErrorResponse } from "../import-errors.js";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { createCopyCoordinator } from "../../../../../../platform/db/sqlite/copy-coordinator.js";
 
 type Reply = { status: number; body: Record<string, unknown> };
 function capturingResponse(): { res: { status(status: number): { json(body: unknown): void } }; replies: Reply[] } {
@@ -77,7 +78,7 @@ test("the real pre-publish SQLite capture reaches HTTP 507 before writing, inclu
   fs.mkdirSync(directory);
   const space = await fsp.statfs(directory);
   const probe = t.mock.method(fsp, "statfs", async () => ({ ...space, bavail: 0 }));
-  const adapter = new SqliteDbOpsAdapter({ db, filePath });
+  const adapter = new SqliteDbOpsAdapter({ db, filePath, copies: createCopyCoordinator({}, {}) });
   await assert.rejects(adapter.captureRestorePoint({ scopeId: "s" }, { directory }), error => {
     const refusal = importErrorResponse({ err: error });
     assert.equal(refusal.status, 507);

@@ -1,6 +1,12 @@
+import { lstat, readdir, unlink } from "node:fs/promises";
+import path from "node:path";
 import type { createRetentionRunner, RetentionPolicy } from "@jini-ai/platform/retention";
+import { selectDatabaseCopiesToPrune } from "@jini-ai/db/sqlite";
+import { siteMigrationCopyPorts } from "#src/platform/db/sqlite/content-db";
+import { defaultDatabaseJournalDbPath } from "./site-paths.js";
 import type { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { createShareMutex, createShareRetention, type ShareRetentionFs } from "#src/features/site-backup/share-retention";
+import { createDatabaseCopyPolicy, type DatabaseCopyPolicyRequired } from "./retention-policies/database-copies.js";
 
 export function startSiteRetention(
   { createRunner, policiesForSignal, clock, scheduler, reportError, log }: {
@@ -46,16 +52,35 @@ export function startSiteRetention(
 }
 
 /**
- * The serving process's retention policies: today only the share expiry pass (`share-files`, kind
- * `old-copy` — never a content class), and only when this site has a share catalog. Scheduled passes stay
- * measure-only (`scheduledDryRun: true`); a sweep expires nothing but links whose owner chose a date.
+ * The serving process's retention policies, both kind `old-copy` (never a content class): the share
+ * expiry pass (`share-files`, only when this site has a share catalog) and the verified pre-migration
+ * copy pass (`database-copies`, only when the host supplies its ports). Scheduled passes stay
+ * measure-only (`scheduledDryRun: true`); a sweep expires nothing but links whose owner chose a date and
+ * copies beyond the newest five behind a verified newest copy.
  */
 export function siteRetentionPolicies(
-  required: { registry: SiteShareRegistry | undefined; fs: ShareRetentionFs; clock: { now(): number }; signal: AbortSignal; reportError: (required: { error: Error; policyId?: string }, optional: Record<string, never>) => void },
+  required: { registry: SiteShareRegistry | undefined; fs: ShareRetentionFs; clock: { now(): number }; signal: AbortSignal; reportError: (required: { error: Error; policyId?: string }, optional: Record<string, never>) => void; databaseCopies?: Omit<DatabaseCopyPolicyRequired, "signal"> },
   _optional: Record<string, never> = {},
 ): RetentionPolicy[] {
-  const { registry, fs, clock, signal, reportError } = required;
-  if (!registry) return [];
-  return [createShareRetention({ registry, shareMutex: createShareMutex({}), fs, clock, signal,
-    reportError: ({ error }, {}) => reportError({ error, policyId: "share-files" }, {}) })];
+  const { registry, fs, clock, signal, reportError, databaseCopies } = required;
+  const policies: RetentionPolicy[] = [];
+  if (registry) policies.push(createShareRetention({ registry, shareMutex: createShareMutex({}), fs, clock, signal,
+    reportError: ({ error }, {}) => reportError({ error, policyId: "share-files" }, {}) }));
+  if (databaseCopies) policies.push(createDatabaseCopyPolicy({ ...databaseCopies, signal }));
+  return policies;
+}
+
+/**
+ * The real `database-copies` ports for a file-backed site: its `ops/` folder, the process copy
+ * coordinator (shared with boot migration and `dbOps`), read-only quick_check and journal protection.
+ * @complexity O(1); the returned ports do the I/O.
+ */
+export function servingDatabaseCopies(
+  { contentDbPath }: { contentDbPath: string },
+  _optional: Record<string, never> = {},
+): Omit<DatabaseCopyPolicyRequired, "signal"> | undefined {
+  if (contentDbPath === ":memory:") return undefined;
+  const { copies, verify, listProtected } = siteMigrationCopyPorts({ filePath: contentDbPath }, { journalPath: defaultDatabaseJournalDbPath({}, { contentDbPath }) });
+  return { opsDirs: [path.join(path.dirname(path.resolve(contentDbPath)), "ops")], verify, listProtected, mutex: copies,
+    fs: { readdir, lstat, unlink }, selectCopies: selectDatabaseCopiesToPrune };
 }

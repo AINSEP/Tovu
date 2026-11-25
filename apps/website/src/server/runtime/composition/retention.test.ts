@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { createRetentionRunner } from "@jini-ai/platform/retention";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
-import { siteRetentionPolicies, startSiteRetention } from "./retention.js";
+import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention } from "./retention.js";
 
 const source = (file: string) => readFileSync(new URL(file, import.meta.url), "utf8");
 
@@ -99,4 +99,14 @@ test("the only serving policy is the share expiry pass, an old-copy class, and o
     const policies = siteRetentionPolicies({ registry: new SiteShareRegistry({ directory, now: () => 0 }), ...deps });
     assert.deepEqual(policies.map(({ id, kind }) => ({ id, kind })), [{ id: "share-files", kind: "old-copy" }]);
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("database-copies registers as an old-copy class only for a file-backed site", () => {
+  const deps = { registry: undefined, fs: { stat: async () => ({ size: 0 }), unlink: async () => {} }, clock: { now: () => 0 }, signal: new AbortController().signal, reportError: () => {} };
+  assert.equal(servingDatabaseCopies({ contentDbPath: ":memory:" }), undefined);
+  const databaseCopies = servingDatabaseCopies({ contentDbPath: path.join(tmpdir(), "site", "content.db") });
+  assert.deepEqual(databaseCopies?.opsDirs, [path.join(tmpdir(), "site", "ops")]);
+  const policies = siteRetentionPolicies({ ...deps, databaseCopies });
+  assert.deepEqual(policies.map(({ id, kind }) => ({ id, kind })), [{ id: "database-copies", kind: "old-copy" }]);
+  assert.match(source("./serving-app.ts"), /databaseCopies: servingDatabaseCopies\(\{ contentDbPath: routeDeps\.siteStoragePaths\.contentDbPath \}\)/);
 });

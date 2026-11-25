@@ -6,6 +6,8 @@ import { schemaErasedKernel } from "../content-kernel.js";
 import { readKernelWatermark } from "@jini-ai/db/watermark/kernel";
 import { WRITE_WATERMARK_TABLES } from "../write-watermark-tables.js";
 import type { ContentDb } from "./content-db.js";
+import type { CopyCoordinator } from "./copy-coordinator.js";
+import path from "node:path";
 
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — the SQLite `DbOpsPort` adapter.
@@ -36,8 +38,13 @@ import type { ContentDb } from "./content-db.js";
 export class SqliteDbOpsAdapter implements DbOpsPort {
   // Online-backup, atomic replacement and restart rationale: Jini/packages/db/src/sqlite/db-ops.ts.
   private readonly inner: JiniSqliteDbOpsAdapter;
+  private readonly copies: Pick<CopyCoordinator, "withCopyPublication" | "holdCopy">;
+  private readonly filePath: string;
 
-  constructor(deps: { db: ContentDb; filePath: string }) {
+  /** `copies` is the coordinator shared with the database-copy retention pass and migration publication. */
+  constructor(deps: { db: ContentDb; filePath: string; copies: Pick<CopyCoordinator, "withCopyPublication" | "holdCopy"> }) {
+    this.copies = deps.copies;
+    this.filePath = deps.filePath;
     this.inner = new JiniSqliteDbOpsAdapter({
       // `$client` is the raw better-sqlite3 handle Drizzle already returns. The package takes the
       // driver connection directly rather than an object with a `$client` property, so Drizzle's
@@ -75,7 +82,9 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
   async captureRestorePoint(required: {
     scopeId: string;
   }, optional: { directory?: string } = {}): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
-    return this.inner.captureRestorePoint(required, optional);
+    // A capture is a publication into its folder: a pruning pass on that folder waits for it to land.
+    const opsDir = optional.directory ?? path.dirname(path.resolve(this.filePath));
+    return this.copies.withCopyPublication({ opsDir, work: () => this.inner.captureRestorePoint(required, optional) });
   }
 
   /**
@@ -90,6 +99,7 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
    * @complexity O(db size) — one file copy, one rename, two best-effort unlinks.
    */
   async restoreFromArtifact(required: { artifactRef: string }): Promise<{ restartRequired: boolean }> {
-    return this.inner.restoreFromArtifact(required);
+    // Held for the whole delegated restore (access, copy, rename), so no pruner removes the artifact mid-read.
+    return this.copies.holdCopy({ path: required.artifactRef, work: () => this.inner.restoreFromArtifact(required) });
   }
 }
