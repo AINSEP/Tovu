@@ -175,40 +175,6 @@ function readStore({ port, store, t }: { port: OtherCredentialsPort; store: Othe
   return STORE_READERS[store.id]({ port, store, t, locale });
 }
 
-/** Builds the full `{apiKey?, baseUrl?, model?}` map to PUT back for a media-provider Replace/Remove
- *  — every OTHER provider's entry is carried through with no `apiKey` (a blank `apiKey` PRESERVES the
- *  stored key, `put-providers.ts`'s own doc) but WITH its own `baseUrl`/`model`: the server writes
- *  those two from the submitted entry, not the stored row (`provider-credential-store.ts`'s
- *  `buildProviderUpsertRow`), so sending `{}` used to null them on every other provider. The target
- *  provider carries its new key plus its own `baseUrl`/`model` (Replace) or is omitted entirely
- *  (Remove). @complexity O(p) in this workspace's own (small) configured-provider count. */
-function rebuildMediaProviderMap(
-  { current, providerId, patch }: {
-    current: AdminMediaProviderMap;
-    providerId: string;
-    patch: { apiKey: string } | { remove: true };
-  },
-  _optional: Record<string, never> = {},
-): AdminMediaProviderMap {
-  const next: AdminMediaProviderMap = {};
-  for (const [id, credentials] of Object.entries(current)) {
-    if (id === providerId) continue;
-    next[id] = keptMediaProviderSettings({ credentials });
-  }
-  if (!("remove" in patch)) next[providerId] = { apiKey: patch.apiKey, ...keptMediaProviderSettings({ credentials: current[providerId] }) };
-  return next;
-}
-
-/** The writable, non-secret settings of one provider's GET view — `baseUrl`/`model` when present,
- *  never the read-only markers (`apiKeyConfigured`/`apiKeyTail`/`source`), which are view facts the
- *  PUT does not take. @complexity O(1). */
-function keptMediaProviderSettings({ credentials }: { credentials: AdminMediaProviderMap[string] | undefined }, _optional: Record<string, never> = {}): AdminMediaProviderMap[string] {
-  return {
-    ...(credentials?.baseUrl !== undefined ? { baseUrl: credentials.baseUrl } : {}),
-    ...(credentials?.model !== undefined ? { model: credentials.model } : {}),
-  };
-}
-
 /** Translates a rejected Tier-2 write into the same save-error string Tier 1 uses — no
  *  duplicate-label case here (nothing on this tier is named), so this is the plain
  *  `describeApiError`-wrapped base case only. @complexity O(1). */
@@ -346,9 +312,9 @@ function buildGroup(
 /** Re-reads one store after a successful write — Tier 2 has the same "a write can change more than
  *  the one field the form touched" reasoning `use-access-tokens.hooks.ts`'s own `removeToken`/
  *  `makeDefault` document for Tier 1, and every write here is already a full round trip (there is no
- *  optimistic splice to do instead — a media-provider Remove, for instance, has to know the CURRENT
- *  server-side map to rebuild it, so a stale local copy is not a safe base for a second consecutive
- *  write). @complexity O(1) plus whichever reader's own complexity. */
+ *  optimistic splice to do instead — the media-provider list, for instance, can hold providers another
+ *  window saved since this page loaded, which only the server's answer shows).
+ *  @complexity O(1) plus whichever reader's own complexity. */
 async function refetchOne(
   { port, store, setStoreStates, t, locale }: {
     port: OtherCredentialsPort;
@@ -383,10 +349,12 @@ async function refetchOneOrRecordFailure(
 }
 
 /** Dispatches one store's Replace write — the one place `OtherCredentialStoreId` is switched over
- *  for writes. `media-provider` rebuilds the whole map first (see {@link rebuildMediaProviderMap});
- *  every other supported store is a direct single-field PUT. `external-mcp`
- *  never reaches here (`replace` checks `supportsReplace` first). @complexity O(1) plus the
- *  media-provider rebuild's own O(p). */
+ *  for writes. Every supported store is a direct single-item write: `media-provider` patches ONLY the
+ *  named provider with ONLY the typed key, never a map rebuilt from this page's snapshot — that would
+ *  re-send every other provider as it was at load (undoing a newer save from another window) and the
+ *  server merges the target's own `baseUrl`/`model` against its CURRENT row, so echoing them from a
+ *  stale view could only overwrite something newer. `external-mcp` never reaches here (`replace`
+ *  checks `supportsReplace` first). @complexity O(1). */
 async function writeReplace(
   { port, storeId, itemId, apiKey }: {
     port: OtherCredentialsPort;
@@ -405,14 +373,15 @@ async function writeReplace(
     return;
   }
   if (storeId === "media-provider") {
-    const current = await port.getMediaProviders();
-    await port.saveMediaProviders(rebuildMediaProviderMap({ current, providerId: itemId, patch: { apiKey } }));
+    await port.patchMediaProvider({ providerId: itemId, fields: { apiKey } });
   }
 }
 
 /** Dispatches one store's Remove write — mirrors {@link writeReplace}'s dispatch, but every store
  *  here DOES support Remove (unlike Replace, §8/the owner ruling never narrows Remove to a subset).
- *  @complexity O(1) plus the media-provider rebuild's own O(p). */
+ *  `media-provider` deletes exactly the named provider: deletion is never inferred from a provider
+ *  missing in a map, which is how the old whole-map write deleted keys saved in another window.
+ *  @complexity O(1). */
 async function writeRemove(
   { port, storeId, itemId }: {
     port: OtherCredentialsPort;
@@ -430,8 +399,7 @@ async function writeRemove(
     return;
   }
   if (storeId === "media-provider") {
-    const current = await port.getMediaProviders();
-    await port.saveMediaProviders(rebuildMediaProviderMap({ current, providerId: itemId, patch: { remove: true } }));
+    await port.removeMediaProvider({ providerId: itemId });
     return;
   }
   await port.deleteExternalMcpServer({ serverId: itemId });

@@ -7,7 +7,7 @@ import { ApiError } from "../admin-http/request";
 
 /**
  * @file First direct coverage pass for `api.ts`'s media endpoints. `listMedia`, `getMediaProviders`,
- * `saveMediaProviders`, `updateMedia`, `trashMedia`, and `deleteMedia` had zero test anywhere in
+ * `updateMedia`, `trashMedia`, and `deleteMedia` had zero test anywhere in
  * this suite before this pass — `mediaOriginalUrl` was only exercised indirectly (as a URL prefix
  * substring) by `media-image-extension.unit.test.tsx`, and `uploadMedia` only had its two
  * option-branch body assertions in `api-endpoint-option-branches.unit.test.ts` (no URL/method/error
@@ -93,7 +93,7 @@ test("listMedia throws ApiError on a non-2xx response", async () => {
   expect((error as ApiError).message).toBe("database unavailable");
 });
 
-// --- getMediaProviders / saveMediaProviders ---------------------------------------------------------------
+// --- getMediaProviders / patchMediaProvider / removeMediaProvider -------------------------------------------
 
 test("getMediaProviders GETs the bare provider map (no {data} envelope)", async () => {
   const providers: AdminMediaProviderMap = { grok: { baseUrl: "https://x.example", apiKeyConfigured: true } };
@@ -103,27 +103,33 @@ test("getMediaProviders GETs the bare provider map (no {data} envelope)", async 
   expect(calls[0].init?.method).toBeUndefined();
 });
 
-test("saveMediaProviders PUTs the whole provider map as the body and resolves the authoritative copy", async () => {
-  const providers: AdminMediaProviderMap = { nanobanana: { baseUrl: "https://y.example", model: "v2" } };
+test("patchMediaProvider PATCHes one provider's fields to its own row and resolves the authoritative map", async () => {
+  const providers: AdminMediaProviderMap = { nanobanana: { baseUrl: "https://y.example", model: "v2", apiKeyConfigured: true } };
   const { calls, body } = stubFetchCapturing(okJson(providers));
-  const result = await mediaApi.saveMediaProviders(providers);
-  expect(calls[0].url).toBe(`${BASE}/media/providers`);
-  expect(calls[0].init?.method).toBe("PUT");
-  expect(body()).toEqual(providers);
+  const result = await mediaApi.patchMediaProvider({ providerId: "nanobanana", fields: { baseUrl: "https://y.example", model: "v2" } });
+  expect(calls[0].url).toBe(`${BASE}/media/providers/nanobanana`);
+  expect(calls[0].init?.method).toBe("PATCH");
+  expect(body()).toStrictEqual({ baseUrl: "https://y.example", model: "v2" });
   expect(result).toEqual(providers);
 });
 
-test("saveMediaProviders sending an empty map is how a caller clears every provider — still a plain PUT", async () => {
-  const { body } = stubFetchCapturing(okJson({}));
-  await mediaApi.saveMediaProviders({});
-  expect(body()).toEqual({});
+test("removeMediaProvider DELETEs exactly one provider's own row, with the id path-encoded and no body", async () => {
+  const { calls } = stubFetchCapturing(okJson({}));
+  await mediaApi.removeMediaProvider({ providerId: "plugin/vendor x" });
+  expect(calls[0].url).toBe(`${BASE}/media/providers/plugin%2Fvendor%20x`);
+  expect(calls[0].init?.method).toBe("DELETE");
+  expect(calls[0].init?.body).toBeUndefined();
 });
 
-test("saveMediaProviders throws ApiError on a validation failure", async () => {
+test("patchMediaProvider throws ApiError on a validation failure", async () => {
   stubFetchCapturing(errJson(400, "invalid provider config", "VALIDATION_ERROR"));
-  const error = await mediaApi.saveMediaProviders({ grok: {} }).catch((e: unknown) => e);
+  const error = await mediaApi.patchMediaProvider({ providerId: "grok", fields: {} }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("VALIDATION_ERROR");
+});
+
+test("the legacy whole-map PUT client is gone — no caller may send every provider at once", () => {
+  expect("saveMediaProviders" in mediaApi).toBe(false);
 });
 
 // --- mediaOriginalUrl ---------------------------------------------------------------

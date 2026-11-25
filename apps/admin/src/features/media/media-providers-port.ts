@@ -35,7 +35,7 @@ async function fetchMediaProviders(): Promise<MediaProviderMap | null> {
 /**
  * Saves ONE provider's fields (PATCH to its own row) and resolves the server's authoritative map.
  *
- * Per-provider rather than the whole-map `saveMediaProviders`: a whole map from this tab omits any key
+ * Per-provider rather than a whole-map PUT: a whole map from this tab omits any key
  * another window saved since it loaded, and omission deleted it. Naming one provider can never undo a
  * write to another. REJECTS on failure, unlike {@link fetchMediaProviders} — the tab renders the
  * rejection as its `save-error` state; `useMediaProvidersTab` issues one write at a time.

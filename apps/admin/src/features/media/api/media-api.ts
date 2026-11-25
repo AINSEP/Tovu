@@ -40,15 +40,6 @@ export const mediaApi = {
    *  never inferred from a provider missing in a map. Resolves the authoritative markers map. */
   removeMediaProvider: ({ providerId }: { providerId: string }, _optional: Record<string, never> = {}) =>
     request<AdminMediaProviderMap>({ path: `/workspaces/${WORKSPACE_ID}/media/providers/${encodeURIComponent(providerId)}` }, { init: { method: "DELETE" } }),
-  /** LEGACY whole-set PUT, still called only by Security → Other credentials' media Replace/Remove.
-   *  The server now refuses it (409 `MEDIA_PROVIDERS_STALE`) without GET's ETag in `If-Match`, which
-   *  this call does not send: that screen must move to {@link patchMediaProvider}/{@link removeMediaProvider}
-   *  (follow-up to sheet P8-T8.T). Do not add new callers. */
-  saveMediaProviders: (providers: AdminMediaProviderMap) =>
-    request<AdminMediaProviderMap>({ path: `/workspaces/${WORKSPACE_ID}/media/providers` }, { init: {
-      method: "PUT",
-      body: JSON.stringify(providers),
-    } }),
   /** Byte-serving URL for an asset's original file (MSG-05) — authenticated, same-origin, so a
    *  plain `<img src>`/`<video src>` sends the session cookie automatically with no `crossorigin`
    *  attribute needed. Not wrapped in `request()` like the rest of this file's methods: callers
