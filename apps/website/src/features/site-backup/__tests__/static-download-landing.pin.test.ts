@@ -1,7 +1,7 @@
 /**
  * Byte pin for the root `index.html` of every static download and repository commit, taken through the composed
  * host binding (`static-download-host.ts` -> Jini's portable layout). The template and its CSS (unprefixed `card`,
- * `badge`, `open`, ... classes) are this host's exported HTML and stay in `../static-download-landing.ts`; Jini's
+ * `badge`, `open`, ... classes) are this host's exported HTML and stay in Jini's `backup/site/static-download-landing`; the host only chooses it. Jini's
  * layout only calls the injected renderer. If the layout ever rendered the page itself (or the classes were renamed
  * in place), these bytes would move and already-exported downloads would differ from new ones.
  *
@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import type { ExportReport } from "@tovu/contracts/export-report";
 import { prepareStaticReport, STATIC_DOWNLOAD_HOST, staticDownloadLayout } from "../static-download-host.js";
-import { staticLandingPage } from "../static-download-landing.js";
+import { staticLandingPage } from "@jini-ai/devops/backup/site/static-download-landing";
 
 const LEGACY_LANDING_SHA256 = "a94ee7003d9c0e25bd0ff4bda7dbca46958341678fec4cedc01c402fd316728d";
 
@@ -32,8 +32,10 @@ function exportedLanding(): Buffer {
   return files.find(file => file.path === "index.html")!.content;
 }
 
-test("the composed host renders the landing page with this host's template", () => {
+test("host chooses the same byte-pinned landing", () => {
   assert.equal(STATIC_DOWNLOAD_HOST.renderLanding, staticLandingPage);
+  // The chosen renderer, not just its identity, is the byte-pinned one.
+  assert.equal(createHash("sha256").update(exportedLanding()).digest("hex"), LEGACY_LANDING_SHA256);
 });
 
 test("the exported landing page keeps its legacy bytes through the composed host", () => {

@@ -11,7 +11,8 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/ag
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { prepareShareContent } from "../share-preparation.js";
 import { createRuntimeShareDelivery } from "../share-hosting.js";
-import { uploadBackupPlan, initialPushProgress } from "../push-content.js";
+import { uploadBackupPlan, initialPushProgress } from "@jini-ai/devops/backup/site/push-content";
+import { backupPushUploadPolicy } from "../push-manifest.js";
 import express from "express";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -94,7 +95,7 @@ test("ZIP target uses the common plan/manifest; repository plans retain their or
   assert.equal(taken.ok, true);
   if (taken.ok) {
     assert.equal(taken.plan.repository.branch, "main");
-    const uploaded = await uploadBackupPlan({ plan: taken.plan, signal: new AbortController().signal,
+    const uploaded = await uploadBackupPlan({ plan: taken.plan, signal: new AbortController().signal, ...backupPushUploadPolicy({ plan: taken.plan }),
       progress: initialPushProgress({ plan: taken.plan }), uploadBlob: async () => assert.fail("fixture content must stay inline"),
     }, { inlineTextMaxBytes: 1_000_000 });
     assert.equal(uploaded.ok, true);
@@ -109,6 +110,26 @@ test("ZIP target uses the common plan/manifest; repository plans retain their or
   const zip = await buildShareZip({ plan: { ...common(bytes), profile: "share", target: { kind: "zip" }, bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }] }, zip: zipFolderFiles });
   assert.ok(zip.includes(Buffer.from('"profile": "share"')));
   assert.ok(zip.includes(Buffer.from('"formatVersion": 2')));
+});
+
+test("repository push manifest remains last and keeps its host name", async () => {
+  const repository = { credentialLabel: "private", owner: "owner", repo: "repo", folder: "site", commitMessage: "backup", repository: { branch: "main", parentCommitSha: "parent", baseTreeSha: "tree", htmlUrl: "https://example.test/repo", folderExists: false } };
+  const store = new SiteBackupPlanStore<SiteBackupPlanContent>({});
+  const saved = store.save({ principalId: "owner", workspaceId: "ws", content: { ...common(Buffer.from("sqlite fixture")), ...repository } });
+  const taken = store.take({ planId: saved.planId, principalId: "owner", workspaceId: "ws" });
+  assert.equal(taken.ok, true);
+  if (!taken.ok) return;
+  const policy = backupPushUploadPolicy({ plan: taken.plan });
+  assert.equal(policy.databasePath, "database/content.db");
+  const uploaded = await uploadBackupPlan({ plan: taken.plan, signal: new AbortController().signal, ...policy,
+    progress: initialPushProgress({ plan: taken.plan }), uploadBlob: async () => assert.fail("fixture content must stay inline"),
+  }, { inlineTextMaxBytes: 1_000_000 });
+  assert.equal(uploaded.ok, true);
+  if (!uploaded.ok) return;
+  assert.deepEqual(uploaded.entries.map(entry => entry.path), ["database/content.db", "tovu-backup.json"]);
+  const manifest = uploaded.entries.at(-1);
+  assert.ok(manifest && "text" in manifest, "the repository manifest is inline text");
+  assert.equal(JSON.parse(manifest.text).files.some((file: { path: string }) => file.path === "database/content.db"), true, "the manifest lists the database it follows");
 });
 
 test("fresh share projection preserves drafts/schedules/autosaves and warned credentials, excluding private runtime bytes across the WHOLE zip", async (t) => {

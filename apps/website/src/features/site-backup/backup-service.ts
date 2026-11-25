@@ -36,7 +36,8 @@ import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
-import { CANCELLED, commitBackupPlan, initialPushProgress, uploadBackupPlan } from "./push-content.js";
+import { commitBackupPlan, initialPushProgress, uploadBackupPlan } from "@jini-ai/devops/backup/site/push-content";
+import { backupPushUploadPolicy, CANCELLED } from "./push-manifest.js";
 import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import { captureDatabaseSnapshot, checkSiteBackupLimits, collectSiteBackupFiles, type SiteBackupSources } from "./sources.js";
 import { formatByteSize, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_SCOPES, skipOversizedFiles, type SiteBackupHostLimit, type SiteBackupInclude } from "@jini-ai/devops/backup/site/sources";
@@ -57,7 +58,7 @@ import { formatByteSize, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_SCOPES, skipOver
  *
  * A large backup outlasts one tool call: the push runs as a job (`push-jobs.ts`), the call waits for
  * it up to {@link PUSH_WAIT_MS} and otherwise returns its progress; calling the push again with the
- * same planId keeps waiting on the same job. The upload itself is `push-content.ts`.
+ * same planId keeps waiting on the same job. The upload itself is Jini's `backup/site/push-content`.
  *
  * Safety rules, each re-checked at push time where the world can change in between:
  * - The database is the share projection ({@link captureBackupDatabase}): content, themes and
@@ -666,7 +667,7 @@ function pushRefusal(refusal: Refusal): PushResult {
  * private, branch not moved), upload, commit on the PLAN's parent. Stopping (`signal`) takes effect
  * between files and before the commit, never half-way through one.
  *
- * @complexity O(total bytes); see `push-content.ts` for the uploads, plus a few fixed tree writes,
+ * @complexity O(total bytes); see Jini's `backup/site/push-content` for the uploads, plus a few fixed tree writes,
  *   one commit and one ref update.
  */
 async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps; plan: SiteBackupPlan; run: { signal: AbortSignal; progress: SiteBackupPushProgress } }, _optional: Record<string, never> = {}): Promise<PushResult> {
@@ -686,12 +687,12 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
 
   if (plan.credentialWarnings?.length) return pushRefusal({ ok: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." });
   const uploaded = await uploadBackupPlan({
-    plan, signal: run.signal, progress: run.progress,
+    plan, signal: run.signal, progress: run.progress, ...backupPushUploadPolicy({ plan }),
     uploadBlob: async (file, _optional = {}) => {
       const uploaded = await credential.provider.uploadBackupBlob(target, file);
       return uploaded.ok ? { ok: true, blobSha: uploaded.blob.blobSha } : providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure: uploaded });
     },
-  }, { inlineTextMaxBytes: credential.provider.backupInlineTextMaxBytes });
+  }, credential.provider.backupInlineTextMaxBytes === undefined ? {} : { inlineTextMaxBytes: credential.provider.backupInlineTextMaxBytes });
   if (!uploaded.ok) return pushRefusal(uploaded);
   if (run.signal.aborted) return pushRefusal(CANCELLED);
 
