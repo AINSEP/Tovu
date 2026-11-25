@@ -84,7 +84,7 @@ function fakeGenerateMedia(
   recorded: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }>
 ): (
   required: { request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } },
-  optional?: Record<string, never>
+  optional?: { signal?: AbortSignal }
 ) => Promise<MediaGenerationResult> {
   return async ({ request, credentials, options }) => {
     recorded.push({ request, credentials, options });
@@ -110,7 +110,7 @@ function fakeRouteDeps(
      *  the selected model's provider has no adapter registered at all). Omitted/`undefined` uses the
      *  fake, as before. */
     generateMedia?:
-      | ((required: { request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }, optional?: Record<string, never>) => Promise<MediaGenerationResult>)
+      | ((required: { request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }, optional?: { signal?: AbortSignal }) => Promise<MediaGenerationResult>)
       | null;
     /** Defaults to `{}` (no env vars at all) — deliberately NOT the real `process.env` — so no test
      *  here can pass or fail depending on what happens to be set on the machine running it. Tests
@@ -179,6 +179,62 @@ async function seedOpenAiCredential(fixture: Pick<ReturnType<typeof fakeRouteDep
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
+
+test("Stop while resolving an image credential starts no paid call and saves nothing", async (t) => {
+  await t.test("Stop during credential resolution", async (t) => {
+    const fixture = fakeRouteDeps();
+    await seedOpenAiCredential(fixture);
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const open = fixture.siteAssistantSecretSealer.open.bind(fixture.siteAssistantSecretSealer);
+    t.mock.method(fixture.siteAssistantSecretSealer, "open", async (...args: Parameters<typeof open>) => {
+      entered();
+      await gate;
+      return open(...args);
+    });
+    const put = t.mock.method(fixture.blobStore, "put");
+    const putIfAbsent = t.mock.method(fixture.blobStore, "putIfAbsent");
+    const abort = new AbortController();
+    const pending = wired("media_generate_asset", fixture.deps).handler({ ...executionContext({ prompt: "a logo", model: "gpt-image-2" }), signal: abort.signal });
+    await waiting;
+    abort.abort();
+    release();
+    await assert.rejects(pending, { name: "AbortError" });
+    assert.equal(fixture.generateCalls.length, 0);
+    assert.equal(put.mock.callCount(), 0);
+    assert.equal(putIfAbsent.mock.callCount(), 0);
+    assert.deepEqual(await fixture.mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  });
+  await t.test("a live generator observes Stop", async (t) => {
+    let entered!: () => void;
+    let release!: () => void;
+    let observed: AbortSignal | undefined;
+    const waiting = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const fixture = fakeRouteDeps({ generateMedia: async ({ options }, optional) => {
+      observed = optional?.signal;
+      entered();
+      await gate;
+      return { bytes: FAKE_PNG_BYTES, providerNote: "fake/test", providerId: options.providerId, usedStubFallback: false, warnings: [] };
+    } });
+    await seedOpenAiCredential(fixture);
+    const put = t.mock.method(fixture.blobStore, "put");
+    const putIfAbsent = t.mock.method(fixture.blobStore, "putIfAbsent");
+    const abort = new AbortController();
+    const pending = wired("media_generate_asset", fixture.deps).handler({ ...executionContext({ prompt: "a logo", model: "gpt-image-2" }), signal: abort.signal });
+    await waiting;
+    abort.abort();
+    release();
+    await assert.rejects(pending, { name: "AbortError" });
+    assert.equal(observed, abort.signal);
+    assert.equal(observed?.aborted, true);
+    assert.equal(put.mock.callCount(), 0);
+    assert.equal(putIfAbsent.mock.callCount(), 0);
+    assert.deepEqual(await fixture.mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  });
+});
 
 test("generated assets stamp the acting principal independently of the model and credit", async () => {
   const fixture = fakeRouteDeps();

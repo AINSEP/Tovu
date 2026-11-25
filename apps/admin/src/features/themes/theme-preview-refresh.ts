@@ -43,9 +43,10 @@ export function freshPreviewUrl(
   const absolute = /^[a-z][a-z\d+.-]*:/i.test(url);
   const parsed = new URL(url, "https://preview.invalid");
   const target = path === undefined ? parsed : new URL(path, parsed);
+  // $& and $1 are instructions only in a replacement string; a callback returns literal data.
   target.pathname = target.pathname.replace(
     /^\/theme-assets\//,
-    `/theme-preview-assets/${encodeURIComponent(revision)}/`,
+    () => `/theme-preview-assets/${encodeURIComponent(revision)}/`,
   );
   target.searchParams.set("__tovu_preview", revision);
   return absolute ? target.href : `${target.pathname}${target.search}${target.hash}`;

@@ -143,6 +143,24 @@ describe("site assistant tools", () => {
   });
 
   describe("output shape", () => {
+    it("search_published_entries says showing 20 of 101 and never counts hidden entries", async () => {
+      const visible = Array.from({ length: 101 }, (_, index) => row({ slug: `match-${index}`, status: "published" }));
+      const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort([
+        ...visible,
+        row({ slug: "match-draft", status: "draft" }),
+        row({ slug: "match-trash", status: "published", deletedAt: "2026-02-01" }),
+        row({ slug: "match-members", status: "published", memberAccessJson: '{"visibility":"members"}' }),
+        row({ slug: "unrelated", status: "published" }),
+      ]).port as never }));
+      const result = await tools.search_published_entries({ query: "match-" });
+      assert.deepEqual(result.entries.map(entry => entry.slug), visible.slice(0, 20).map(entry => entry.slug));
+      assert.equal(result.truncated, true);
+      assert.equal(result.more, "Showing 20 of 101 matching published entries. Narrow the search to see a different set.");
+      const complete = await tools.search_published_entries({ query: "unrelated" });
+      assert.equal(complete.truncated, false);
+      assert.equal("more" in complete, false);
+    });
+
     it("never leaks internal identifiers into anything the model sees", async () => {
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never }));
       const [first] = (await tools.search_published_entries({ query: "public post" })).entries;
