@@ -5,7 +5,7 @@ import { downloadHtmlSourceEdits } from "./download-html-source-edits.js";
 import { sharePathAlias } from "@jini-ai/devops/backup/site/share-file-policy";
 import { validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits } from "./share-policy.js";
-import { shareFileStem } from "./share-service.js";
+import { shareFileStem } from "@jini-ai/devops/backup/site/share-service";
 import { allocateStaticExportThemes } from "./static-export-selection.js";
 
 /** @file Binds Jini's static copy and portable layout to this host's parse5 edits, share path policy and limits, theme-folder allocator, file-stem rule and scratch-folder name. */

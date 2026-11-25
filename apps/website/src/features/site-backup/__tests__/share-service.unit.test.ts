@@ -10,7 +10,9 @@ import test, { type TestContext } from "node:test";
 import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { SiteShareRegistry } from "../share-registry.js";
 import { type SiteShareRecord } from "@jini-ai/devops/backup/site/share-registry";
-import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare, SHARE_DOWNLOAD_HEADERS, type ShareDelivery } from "../share-service.js";
+import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare } from "../share-service.js";
+import { SHARE_DOWNLOAD_HEADERS } from "@jini-ai/devops/backup/site/share-service";
+import type { ShareDelivery } from "@jini-ai/devops/backup/site/share-hosting";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "../share-policy.js";
 

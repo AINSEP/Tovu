@@ -7,7 +7,8 @@ import path from "node:path";
 import express from "express";
 import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { SiteShareRegistry } from "../share-registry.js";
-import { SHARE_DOWNLOAD_HEADERS, createSiteShare, revokeSiteShare } from "../share-service.js";
+import { createSiteShare, revokeSiteShare } from "../share-service.js";
+import { SHARE_DOWNLOAD_HEADERS } from "@jini-ai/devops/backup/site/share-service";
 import { createRuntimeShareDelivery } from "../share-hosting.js";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 

@@ -14,7 +14,7 @@ import type { HttpClientPort as AnonymousHttpPort, HttpRequest, HttpResponse } f
 import type { HttpClientPort as PeerHttpPort } from "#src/platform/http/index";
 import type { PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { SiteShareRegistry } from "../share-registry.js";
-import type { ShareDelivery } from "../share-service.js";
+import type { ShareDelivery } from "@jini-ai/devops/backup/site/share-hosting";
 import { createPeerShareDelivery, createRuntimeShareDelivery, resolveShareDelivery } from "../share-hosting.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 

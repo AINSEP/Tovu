@@ -9,7 +9,8 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_TOKEN } from "@jini-ai/devops/backup/site/share-registry";
-import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
+import { receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
+import { SHARE_DOWNLOAD_HEADERS } from "@jini-ai/devops/backup/site/share-service";
 
 export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } {
   const raw = body ?? {};

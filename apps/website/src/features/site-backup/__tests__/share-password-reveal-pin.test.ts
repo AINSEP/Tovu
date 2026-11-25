@@ -16,6 +16,7 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
 import type { SiteSharePlanContent } from "../plan-content.js";
 import { createSiteShareBackend } from "../share-backend.js";
+import { createSiteShare } from "../share-service.js";
 import { SiteShareRegistry } from "../share-registry.js";
 
 const SHARE_ID = "00000000-0000-0000-0000-0000000000aa";
@@ -33,7 +34,7 @@ async function sealedShare(t: TestContext) {
   const unexpected = async (): Promise<never> => { throw new Error("export must not run"); };
   const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined,
     ownerPrincipalId: Promise.resolve("owner"), savedKeys: composeSiteSavedKeys({ workspaceId: "ws", sealer }) });
-  return { registry, backend };
+  return { registry, backend, sealer, keyring };
 }
 
 const refusal = (code: string) => (error: unknown) => error instanceof SiteShareRefusal && error.code === code;
@@ -67,4 +68,15 @@ test("scope notes pass through the host redactor, including the host API-key sha
   assert.equal(result.notes?.length, 1);
   assert.equal(result.notes![0]!.includes(key.split(".")[1]!), false, "secret tail must be redacted");
   assert.match(result.notes![0]!, /\[REDACTED:tovu_api_key\]/);
+});
+
+test("a share created through the share service stores its sealed password so the owner can still reveal it", async t => {
+  const { registry, backend, sealer, keyring } = await sealedShare(t);
+  const createdId = "00000000-0000-0000-0000-0000000000bb";
+  const sealedPassword = await sealer.seal({ plaintext: "created-export-password", key: await keyring.activeKey({}), aad: JSON.stringify(["tovu-share-password", 1, "ws", createdId]) });
+  const created = await createSiteShare({ registry, site: "ws", name: "Created Site", archive: Buffer.from("zip") }, { identity: { shareId: createdId, token: "QRSTUVWXYZABCDEF" }, sealedPassword });
+  assert.equal(created.file, "created-site.tovu.zip");
+  assert.equal(created.hasEncryptedKeys, true);
+  assert.deepEqual((await registry.get({ shareId: createdId }))?.sealedPassword, sealedPassword);
+  assert.deepEqual(await backend.revealPassword({ principalId: "owner", shareId: createdId }), { password: "created-export-password" });
 });
