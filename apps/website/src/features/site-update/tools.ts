@@ -33,6 +33,8 @@ export interface SiteUpdateLockPort {
 
 export interface SiteUpdateToolDeps {
   authorize: (input: { ctx: ToolExecutionContext; permission: string }) => Promise<void>;
+  /** The installation owner's principal id: only that principal's click may start an update. */
+  readOwnerId(required: Record<string, never>, optional?: Record<string, never>): Promise<string>;
   /** Null where this host cannot update itself: the tools are then not registered at all. */
   runtime: SiteUpdateRuntime | null;
 }
@@ -101,6 +103,11 @@ async function runApproved({ deps, runtime, ctx, prepared, approvedBy }: { deps:
   const { plan, runningVersion } = prepared;
   if (!plan) return { applied: false, runningVersion, message: `You are on the latest version (${runningVersion}). Nothing was changed.` };
   await deps.authorize({ ctx, permission: "system.write" });
+  // An authorized agent acting for a system writer is not, by itself, proof of installation-owner approval: the
+  // click must be the owner's, checked here before any backup, staging or hand-off can start.
+  if (approvedBy !== await deps.readOwnerId({}).catch(() => null)) {
+    return { applied: false, outcome: "refused", runningVersion, message: "Only this site's installation owner can approve an update. Nothing was changed." };
+  }
   const guarded = async () => {
     // The card approved moving FROM the version it showed: if the site moved since, that approval is void.
     const liveVersion = await runtime.runningVersion();
