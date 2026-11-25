@@ -1,4 +1,4 @@
-import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
+import type { ChatDeleteSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";

@@ -1,3 +1,4 @@
+import type { Request } from "express";
 /**
  * @file `registerFormNotifySubscriber` — the Forms-owned outbox subscriber (SPEC-010 REQ-12,
  * ADR-PIPE-010 C-009).
@@ -32,7 +33,7 @@ export interface FormsModuleDeps {
   mailer: MailerPort;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
-  visitorAnalyticsDeliveryAllowed?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsDeliveryAllowed'];
+  visitorAnalyticsDeliveryAllowed?: import('@jini-ai/analytics/site/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsDeliveryAllowed'];
   /** Resolves each notification's From (`platform/mail/sender-identity.ts`); absent, the placeholder
    *  is used only while `mailer` is non-delivering. */
   senderIdentity?: MailSenderIdentityPort;

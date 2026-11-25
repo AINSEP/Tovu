@@ -6,7 +6,7 @@ import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } f
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { byVaultLabel, createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { credentialCreateTarget, credentialScopes } from "@jini-ai/integrations/vendor-credentials/project-scope";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import type { CustomCredentialCategoryId } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import type { CredentialSetStoreHost, CredentialSetVaultPolicy } from "@jini-ai/integrations/credentialed-http/sets";
 import { CustomCredentialSecretStoreUnconfiguredError } from "@jini-ai/integrations/credentialed-http/sets";

@@ -2,9 +2,10 @@ import { buildDomainRegistrations, indexCatalogById, ToolInputError, type Derive
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { RoutineActor, RoutineAvailability } from "@tovu/contracts/routines";
 
-import { notConfirmedResult, type HumanConfirmOutcome, type requireHumanConfirm as RequireHumanConfirm } from "../../contracts/core/human-confirm.js";
+import { notConfirmedResult, type requireHumanConfirm as RequireHumanConfirm } from "../../contracts/core/human-confirm.js";
+import { type HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { toolMetadata } from "../../contracts/core/tool-metadata/routines.js";
-import type { ChatDeleteSurfaceDeps } from "../../contracts/core/chat-delete-grant.js";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { ROUTINE_AVAILABILITY_REFUSALS, type RoutineCommands } from "./routine-commands.js";
 
 /**

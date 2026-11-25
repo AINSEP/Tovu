@@ -625,7 +625,7 @@ test("AI generation recording follows live attachment and content-policy rotatio
 });
 
 test('visitor events follow visitor proof and revocation even when owner admin telemetry is off', async () => {
-  const { captureVisitorEvent } = await import('#src/server/inbound/public-http/visitor-analytics');
+  const { captureVisitorEvent } = await import('@jini-ai/analytics/site/visitor-analytics');
   const events: import('@jini-ai/core/contracts/observability').ProductEvent[] = [];
   const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
     'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },

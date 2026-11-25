@@ -6,7 +6,7 @@ import {
   type VaultMetaParsers,
 } from "@jini-ai/core/contracts/vault";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/contracts/core/custom-credential-categories";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import { parseApiConnectionMeta } from "./vault-api-connection-meta.js";
 
 /** Tovu's host rules for vault metadata, run inside Jini's complete-shape parsers by `createTovuVaultKinds`.

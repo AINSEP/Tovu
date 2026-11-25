@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
-import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
+import type { ChatDeleteSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import assert from "node:assert/strict";
 import test from "node:test";
 

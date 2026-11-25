@@ -1,6 +1,7 @@
 import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
 import { orFallback } from '@jini-ai/core/errors/idioms';
-import { requireHumanConfirm, notConfirmedResult, toolApprovalConfirmation, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
+import { requireHumanConfirm, notConfirmedResult, toolApprovalConfirmation } from '../contracts/core/human-confirm.js';
+import { type HumanConfirmOutcome } from '@jini-ai/daemon/surface-exchanges/human-confirm';
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, directPageAction } from '../contracts/headless/index.js';

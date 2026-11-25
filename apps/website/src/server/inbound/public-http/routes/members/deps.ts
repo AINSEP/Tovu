@@ -1,6 +1,6 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
-import { captureVisitorEvent } from "../../visitor-analytics.js";
-import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
+import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 /**
  * @file Deps bundle for the new PUBLIC (unauthenticated) `members` route family
  * (ADR-PIPE-013 Decision §2-3).
@@ -36,7 +36,7 @@ import { rejectOversizedJsonBody } from "../../../shared/body-size-limit.js";
  * is the SAME instance the admin `request-magic-link.ts` route also
  * consults, so the two surfaces share one counter per email, not two.
  */
-export interface MemberPublicRouteDeps extends VisitorAnalyticsDeps {
+export interface MemberPublicRouteDeps extends VisitorAnalyticsDeps<Request> {
   credentialLifecycle?: MembersWriteServiceDeps["credentialLifecycle"];
   workspaceId: UUID;
   memberRepo: MemberRepoPort;

@@ -1,12 +1,7 @@
+import { requireChatDeleteGrant as daemonRequireChatDeleteGrant } from "@jini-ai/daemon/surface-exchanges/chat-delete-grant";
 import { ToolInputError } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { PERMANENT_DELETE_TOOLS } from "../headless/index.js";
-/** Host port carried alongside the existing authenticated human exchange. */
-export type ChatDeleteSurfaceDeps = AssistantSurfaceDeps & {
-  assertChatDeleteAllowed?: (required: { toolId: string; principalId?: string }, optional?: Record<string, never>) => Promise<void>;
-  /** Re-read the human identity before displaying and after accepting a fresh access card. */
-  assertAccessApprover?: (required: { toolId: string; principalId: string }, optional?: Record<string, never>) => Promise<void>;
-};
 /** Construct the same refusal for raw and assembled execution without another destination map.
  * @returns A safe ToolInputError containing only the tool id and canonical admin path.
  * @example throw chatDeleteRefusal({ toolId: "trash_empty" });
@@ -21,9 +16,8 @@ export function chatDeleteRefusal(required: { toolId: string }, _optional = {}):
  * @example await requireChatDeleteGrant({ surfaces, toolId: "trash_empty" });
  * @complexity O(13) lookup and one injected read, O(1) local space. */
 export async function requireChatDeleteGrant(required: { surfaces: ChatDeleteSurfaceDeps; toolId: string; principalId?: string }, _optional = {}): Promise<void> {
-  const tool = PERMANENT_DELETE_TOOLS.find(tool => tool.id === required.toolId);
-  if (!tool) return;
-  if (!required.surfaces.assertChatDeleteAllowed) throw chatDeleteRefusal({ toolId: tool.id });
-  await required.surfaces.assertChatDeleteAllowed({ toolId: tool.id,
-    ...(required.principalId === undefined ? {} : { principalId: required.principalId }) });
+  return daemonRequireChatDeleteGrant({ ...required,
+    isDeleteTool: ({ toolId }) => PERMANENT_DELETE_TOOLS.some(tool => tool.id === toolId),
+    missingGrant: chatDeleteRefusal,
+  });
 }

@@ -8,7 +8,7 @@ import { daemonRouteHost, mountJiniRoutes, NO_OPERATION_TRACKING, nodeSessionTim
 import { requestHookInput } from "#src/platform/express/request-facts";
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from "#src/server/inbound/shared/json-body-parsers";
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
-import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
+import { visitorAnalyticsProvenance } from "@jini-ai/analytics/site/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 import { createVisitorTurnDedupe, readVisitorTurnId } from "#src/assistant/site/visitor-turn-dedupe";
 import { VISITOR_TURN_DUPLICATE_CODE } from "#src/assistant/site/public-errors";

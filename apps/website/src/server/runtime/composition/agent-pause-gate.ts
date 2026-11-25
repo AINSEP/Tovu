@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
-import type { HumanConfirmOutcome } from "../../../contracts/core/human-confirm.js";
+import type { HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 
 /**
  * @file The admin assistant switch's resume hold (owner decision 11-23, H4).

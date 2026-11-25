@@ -893,3 +893,20 @@ function canonicalContextProbe(): PageHeadHook {
     },
   };
 }
+
+
+test("a marketing page keeps its own canonical through the host head contributor binding", async (t) => {
+  const theme = staticThemeWithThemed404();
+  const { server, baseUrl } = await startServer({
+    themes: [{ ...theme, pages: { ...theme.pages, about: "<html><head><title>About</title></head><body>About us</body></html>" } }],
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
+    pageHeadContributors: [canonicalContextProbe()],
+  });
+  t.after(() => closeServer(server));
+  const response = await fetch(`${baseUrl}/about`);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.ok(html.includes(`<link rel="canonical" href="${baseUrl}/about"/>`));
+  assert.ok(html.includes(`<meta property="og:url" content="${baseUrl}/about"/>`));
+  assert.ok(!html.includes(`<link rel="canonical" href="${baseUrl}/"/>`));
+});

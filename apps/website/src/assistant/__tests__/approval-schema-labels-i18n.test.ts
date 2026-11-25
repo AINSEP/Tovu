@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { toolApprovalPresentation } from '@jini-ai/ui/mcp-ui/surfaces';
-import { APPROVAL_COPY, approvalText } from '../../contracts/core/approval-i18n.js';
+import { APPROVAL_COPY, approvalText } from '@jini-ai/core/contracts/site/approval-i18n';
 import { ALL_CHAT_DELETE_TOOLS } from '../permanent-delete-tool-gate.js';
 import { realToolCatalog } from './real-tool-catalog.fixture.js';
 

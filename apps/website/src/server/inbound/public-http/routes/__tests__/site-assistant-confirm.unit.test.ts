@@ -1,29 +1,39 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from "../site-assistant-confirm.js";
+import { registerSiteAssistantConfirm } from "../site-assistant-confirm.js";
+import { SITE_ASSISTANT_CONFIRM_PATH } from "@jini-ai/daemon/surface-exchanges/site-assistant-confirm";
 
 /** Registered Express handler with DI fakes; never opens a listener. */
 function fixture(options: { enabled?: boolean; allowed?: boolean; origin?: string | null; servingOrigin?: string; fetchSite?: string | null; type?: string; accepted?: boolean; fail?: boolean; budget?: boolean } = {}) {
   let handler: (req: unknown, res: unknown) => void;
   let enabledCalls = 0;
-  const deliveries: unknown[] = [], errors: unknown[] = [], origins: string[] = [];
+  const deliveries: unknown[] = [], errors: unknown[] = [], origins: string[] = [], addresses: string[] = [];
   registerSiteAssistantConfirm({ app: { post(path: string, fn: typeof handler) { assert.equal(path, SITE_ASSISTANT_CONFIRM_PATH); handler = fn; } } as never,
     ports: {
       confirmations: { request: async () => false, confirm: async input => { deliveries.push(input); if (options.fail) throw new Error("storage failed"); return options.accepted !== false; } },
+      resolveOwner: async ({ request }) => {
+        const principalId = request.headers.get("x-test-owner");
+        return principalId ? { workspaceId: "visitor-site", principalId, tabId: `tab-${principalId}` } : null;
+      },
       enabled: async () => { enabledCalls++; return options.enabled !== false; },
       allowsOrigin: async ({ origin }) => { origins.push(origin); return origin === "https://site.test" && options.allowed !== false; },
-      limiter: { check: async () => options.budget === false ? { allowed: false, retryAfterSeconds: 60 } : { allowed: true } },
+      limiter: { check: async ({ key }) => { addresses.push(key); return options.budget === false ? { allowed: false, retryAfterSeconds: 60 } : { allowed: true }; } },
       reportError: ({ error }) => { errors.push(error); },
     } });
-  return { deliveries, errors, origins, enabledCalls: () => enabledCalls, send(body: unknown = { challengeId: "a".repeat(22), allow: true }) {
+  return { deliveries, errors, origins, addresses, enabledCalls: () => enabledCalls, send(body: unknown = { challengeId: "a".repeat(22), allow: true }, facts?: { owner: string; address: string }) {
     return new Promise<{ status: number; body: unknown; cache: string }>(resolve => {
       let status = 200, cache = "";
-      const res = { setHeader(_name: string, value: string) { cache = value; }, status(value: number) { status = value; return res; },
+      const res = { statusCode: 200,
+        on() { return res; }, off() { return res; },
+        setHeader(name: string, value: string) { if (name.toLowerCase() === "cache-control") cache = value; },
+        status(value: number) { status = value; return res; },
+        send(value: Buffer) { resolve({ status: res.statusCode, body: JSON.parse(value.toString()), cache }); },
         json(value: unknown) { resolve({ status, body: value, cache }); } };
       const serving = new URL(options.servingOrigin ?? "https://request.site.test");
       const headers = { host: serving.host, origin: options.origin === null ? undefined : options.origin ?? "https://site.test",
-        "sec-fetch-site": options.fetchSite === null ? undefined : options.fetchSite ?? "same-origin" };
-      handler!({ body, headers, method: "POST", secure: serving.protocol === "https:", query: {}, protocol: serving.protocol.slice(0, -1), get: (key: keyof typeof headers) => headers[key], is: (type: string) => type === (options.type ?? "application/json"), socket: { remoteAddress: "127.0.0.1" } }, res);
+        "sec-fetch-site": options.fetchSite === null ? undefined : options.fetchSite ?? "same-origin",
+        ...(facts ? { "x-test-owner": facts.owner, "x-forwarded-for": "203.0.113.99" } : {}) };
+      handler!({ body, headers, ip: facts?.address, method: "POST", secure: serving.protocol === "https:", query: {}, protocol: serving.protocol.slice(0, -1), get: (key: keyof typeof headers) => headers[key], is: (type: string) => type === (options.type ?? "application/json"), socket: { remoteAddress: "127.0.0.1" } }, res);
     });
   } };
 }
@@ -94,3 +104,16 @@ for (const origin of ["https://preview.site.test", "http://localhost:5174", "htt
     assert.deepEqual(legacy.origins, []);
   });
 }
+
+
+test("the request owner and trusted proxy address are bound afresh for each visitor", async () => {
+  const f = fixture();
+  const body = { challengeId: "a".repeat(22), allow: true };
+  assert.equal((await f.send(body, { owner: "visitor-a", address: "198.51.100.1" })).status, 200);
+  assert.equal((await f.send(body, { owner: "visitor-b", address: "198.51.100.2" })).status, 200);
+  assert.deepEqual(f.addresses, ["198.51.100.1", "198.51.100.2"]);
+  assert.deepEqual(f.deliveries, [
+    { ...body, owner: { workspaceId: "visitor-site", principalId: "visitor-a", tabId: "tab-visitor-a" } },
+    { ...body, owner: { workspaceId: "visitor-site", principalId: "visitor-b", tabId: "tab-visitor-b" } },
+  ]);
+});

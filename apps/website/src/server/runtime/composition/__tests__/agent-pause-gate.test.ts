@@ -9,7 +9,7 @@ import { test } from "node:test";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createAgentPauseGate, sqlAgentPauseHoldStore, type AgentPauseHoldStore } from "../agent-pause-gate.js";
-import type { HumanConfirmOutcome } from "../../../../contracts/core/human-confirm.js";
+import type { HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 
 const clock = { nowIso: () => "2026-11-24T00:00:00.000Z" };
 const gateOn = (store: AgentPauseHoldStore, assistantEnabled: boolean) =>
