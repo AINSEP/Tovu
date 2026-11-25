@@ -161,7 +161,7 @@ describe("Routines screen", () => {
 });
 
 // Loanwords many languages keep verbatim; every other key must differ from English.
-const LOANWORDS = new Set<string>(["Model", "Agent", "Prompt", "Name"]);
+const LOANWORDS = new Set<string>(["Model", "Agent", "Prompt", "Name", "Routines"]);
 
 describe("routines copy", () => {
   it("has a real translation for every key in every non-English admin locale", () => {
@@ -169,6 +169,7 @@ describe("routines copy", () => {
       for (const key of ROUTINES_KEYS) {
         const text = t({ locale: code, key });
         if (!LOANWORDS.has(key)) expect(text, `${code}: ${key}`).not.toBe(key);
+        expect(t({ locale: code, key: "This conversation is no longer available." }), `${code}: conversation gone`).not.toBe("This conversation is no longer available.");
         expect(text.match(/\{\w+\}/g)?.sort(), `${code}: ${key} placeholders`).toEqual(key.match(/\{\w+\}/g)?.sort());
       }
     }

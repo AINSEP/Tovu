@@ -4,6 +4,7 @@ import type { ChatTransport, RunHandlers } from "@jini-ai/chat/core";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { AssistantDock } from "../AssistantDock";
+import { DOCK_DEEP_LINK_OFF } from "./deep-link-off";
 
 // Exercise the actual dock wrapper, Jini composer and cancellation lifecycle. Only IO is fake.
 function mountDock(acceptance?: Promise<void>) {
@@ -33,7 +34,7 @@ function mountDock(acceptance?: Promise<void>) {
     select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn(),
     onMessagesChange: vi.fn(), persistUserTurn: async () => {}, ensureConversationId: async () => null,
   };
-  render(<AssistantDock
+  render(<AssistantDock {...DOCK_DEEP_LINK_OFF}
     useChats={() => chats} useAdminLocale={() => "en"}
     useExecutionConfig={() => execution}
     useByokRuntime={() => ({ byokRuntime: { model: "test-model", models: [] }, handleByokModelChange: vi.fn() })}

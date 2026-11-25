@@ -4,6 +4,7 @@ import type { ChatTransport } from "@jini-ai/chat/core";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { AssistantDock } from "../AssistantDock";
+import { DOCK_DEEP_LINK_OFF } from "./deep-link-off";
 
 /**
  * @file A run start the server refuses (`POST /api/runs` → 500) must not silently drop the user's
@@ -27,7 +28,7 @@ function mountDock(startRun: ChatTransport["startRun"]) {
     select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn(),
     onMessagesChange: vi.fn(), persistUserTurn: async () => {}, ensureConversationId: async () => null,
   };
-  return render(<AssistantDock
+  return render(<AssistantDock {...DOCK_DEEP_LINK_OFF}
     useChats={() => chats} useAdminLocale={() => "en"}
     useExecutionConfig={() => execution}
     useByokRuntime={() => ({ byokRuntime: { model: "test-model", models: [] }, handleByokModelChange: vi.fn() })}

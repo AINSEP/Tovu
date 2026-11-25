@@ -15,6 +15,7 @@ import { useChatDisplayPreferences as useStoredDisplayPreferences } from "@jini-
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";
 import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
+import { DOCK_DEEP_LINK_OFF } from "../AssistantDock/__tests__/deep-link-off";
 
 /**
  * @file The dock's chat display settings wiring (owner, 2026-10-11): the header gear's menu holds
@@ -117,13 +118,13 @@ afterEach(() => {
 describe("AssistantDock Chat settings", () => {
   it("keeps the server's restricted mode in picker preflight even when native permissions are ON", async () => {
     fullCliBody = { enabled: true, canEdit: true, permissionMode: "restricted" };
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
     await waitFor(() => expect(chatPaneSpy.mock.lastCall?.[0].nativeToolPolicy).toMatchObject({
       nativeToolAccess: true, cliParity: true, permissionMode: "restricted",
     }));
   });
   it("passes the effective current CLI limits to the picker before a message is sent", async () => {
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
     await waitFor(() => expect(chatPaneSpy.mock.lastCall?.[0].nativeToolPolicy).toEqual({
       nativeToolAccess: true, cliParity: true, permissionMode: "bypass", nativeCapabilities: {
         shell: true, fileWrite: true, userMcp: true, subagents: true,
@@ -141,7 +142,7 @@ describe("AssistantDock Chat settings", () => {
     };
     const useStoredDisplay = () => useStoredDisplayPreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_CHAT_DISPLAY, useFetchQuery, useInvalidate });
     const user = userEvent.setup();
-    const view = render(<AssistantDock useChats={fakeChats} useChatDisplayPreferences={useStoredDisplay} />);
+    const view = render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} useChatDisplayPreferences={useStoredDisplay} />);
     await waitFor(() => expect(latestPaneProps().toolCallDisplay).toBe("show"));
     await user.click(screen.getByRole("button", { name: "Settings" }));
     await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
@@ -155,7 +156,7 @@ describe("AssistantDock Chat settings", () => {
     await user.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("menuitemcheckbox", { name: "Thinking" })).toHaveAttribute("aria-checked", "true");
     view.unmount();
-    render(<AssistantDock useChats={fakeChats} useChatDisplayPreferences={useStoredDisplay} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} useChatDisplayPreferences={useStoredDisplay} />);
     await waitFor(() => expect(latestPaneProps()).toMatchObject({ toolCallDisplay: "hidden", showUsageLine: true, showThinking: true }));
     await user.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("menuitemradio", { name: "Hidden" })).toHaveAttribute("aria-checked", "true");
@@ -164,7 +165,7 @@ describe("AssistantDock Chat settings", () => {
 
   it("keeps quick settings and the advanced modal in sync and restores gear focus", async () => {
     const user = userEvent.setup();
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
     const gear = within(screen.getByTestId("chat-pane")).getByRole("button", { name: "Settings" });
     await user.click(gear);
     await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
@@ -183,14 +184,14 @@ describe("AssistantDock Chat settings", () => {
   });
 
   it("hands ChatPane the stored display choices from the first render", () => {
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
 
     expect(latestPaneProps()).toMatchObject({ toolCallDisplay: "collapsed", showUsageLine: true, showThinking: false });
   });
 
   it("changes the choices from the gear menu itself, reaching ChatPane at once, with no dialog", async () => {
     const user = userEvent.setup();
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
 
     await user.click(within(screen.getByTestId("chat-pane")).getByRole("button", { name: "Settings" }));
     const menu = screen.getByRole("menu", { name: "Settings" });
@@ -214,7 +215,7 @@ describe("AssistantDock Chat settings", () => {
 
   it("offers Agent plugins in the gear and More settings, and Off reaches ChatPane at once", async () => {
     const user = userEvent.setup();
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
     expect(latestPaneProps().agentPluginsMode).toBe("auto");
     const gear = within(screen.getByTestId("chat-pane")).getByRole("button", { name: "Settings" });
     await user.click(gear);
@@ -232,7 +233,7 @@ describe("AssistantDock Chat settings", () => {
   });
 
   async function openPermissions(user: ReturnType<typeof userEvent.setup>) {
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
     await user.click(within(screen.getByTestId("chat-pane")).getByRole("button", { name: "Settings" }));
     await user.click(await screen.findByRole("menuitem", { name: "More settings…" }));
     const modal = screen.getByRole("dialog", { name: "Chat settings" });

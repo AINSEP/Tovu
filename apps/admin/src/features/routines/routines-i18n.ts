@@ -306,8 +306,20 @@ function toDictionary(strings: readonly string[]): Record<string, string> {
   return Object.fromEntries(ROUTINES_KEYS.map((key, index) => [key, strings[index] as string]));
 }
 
+/** The dock's notice for a `?conversation=` link whose conversation is gone; kept beside the screen copy it belongs to. */
+const CONVERSATION_GONE = "This conversation is no longer available.";
+const CONVERSATION_GONE_TRANSLATIONS: Record<string, string> = {
+  es: "Esta conversación ya no está disponible.", id: "Percakapan ini sudah tidak tersedia.", de: "Diese Unterhaltung ist nicht mehr verfügbar.",
+  "zh-CN": "此对话已不可用。", "zh-TW": "此對話已無法使用。", "pt-BR": "Esta conversa não está mais disponível.",
+  ru: "Эта беседа больше недоступна.", fa: "این گفتگو دیگر در دسترس نیست.", ar: "هذه المحادثة لم تعد متاحة.",
+  ja: "この会話は利用できなくなりました。", ko: "이 대화는 더 이상 사용할 수 없습니다.", pl: "Ta rozmowa nie jest już dostępna.",
+  hu: "Ez a beszélgetés már nem érhető el.", fr: "Cette conversation n’est plus disponible.", uk: "Ця розмова більше недоступна.",
+  tr: "Bu konuşma artık mevcut değil.", th: "ไม่มีบทสนทนานี้อีกต่อไป", it: "Questa conversazione non è più disponibile.",
+  hi: "यह बातचीत अब उपलब्ध नहीं है।", ur: "یہ گفتگو اب دستیاب نہیں ہے۔", bn: "এই কথোপকথনটি আর উপলব্ধ নেই।",
+};
+
 const ROUTINES_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(TRANSLATIONS).map(([locale, strings]) => [locale, toDictionary(strings)]),
+  Object.entries(TRANSLATIONS).map(([locale, strings]) => [locale, { ...toDictionary(strings), [CONVERSATION_GONE]: CONVERSATION_GONE_TRANSLATIONS[locale] as string }]),
 );
 
 export const t = createDictionaryTranslator({ featureDictionary: ROUTINES_DICT }, { commonDictionary: COMMON_I18N });
