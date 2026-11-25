@@ -139,8 +139,19 @@ const ROUTINE_COPY = {
 export function approvalText({ locale, key }: { locale: string; key: string }, _optional = {}): string {
   const schemaCopy = Object.hasOwn(SCHEMA_TITLE_COPY, key) ? SCHEMA_TITLE_COPY[key] : undefined;
   if (schemaCopy) return schemaCopy[locale] ?? schemaCopy.en!;
+  return familyText({ locale, key });
+}
+
+/** Chrome, action and routine copy share one lookup: the first family that knows the key wins, an unknown key stays verbatim. */
+function familyText({ locale, key }: { locale: string; key: string }): string {
   const copy = APPROVAL_COPY[locale as keyof typeof APPROVAL_COPY] ?? APPROVAL_COPY.en;
   const actionCopy = ACTION_COPY[locale as keyof typeof ACTION_COPY] ?? ACTION_COPY.en;
   const routineCopy = ROUTINE_COPY[locale as keyof typeof ROUTINE_COPY] ?? ROUTINE_COPY.en;
-  return copy[KEYS.indexOf(key)] ?? actionCopy[ACTION_KEYS.indexOf(key)] ?? routineCopy[ROUTINE_KEYS.indexOf(key)] ?? key;
+  // One table per key family; the first family that knows the key wins, an unknown key stays verbatim.
+  const families: readonly (readonly [readonly string[], readonly string[]])[] = [[copy, KEYS], [actionCopy, ACTION_KEYS], [routineCopy, ROUTINE_KEYS]];
+  for (const [values, keys] of families) {
+    const index = keys.indexOf(key);
+    if (index >= 0) return values[index] ?? key;
+  }
+  return key;
 }
