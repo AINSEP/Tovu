@@ -1572,3 +1572,36 @@ test("a post-connect step that succeeds is handed the server id and logs nothing
   assert.deepEqual(connected, [SERVER]);
   assert.equal(warn.mock.callCount(), 0);
 });
+
+test("B272: an OAuth callback cannot apply a pending attempt to a replacement client", {
+  todo: "B272 verify-first: completeAuthorizationCallback does not bind the pending attempt to the client id it started with, so the old attempt connects the replacement client",
+}, async () => {
+  // Repro: beginConnect (client A) -> hold state -> save clientId B -> callback with held state:
+  // the row is `connected` with A's exchanged token under client B.
+  // Synthetic tokens only. The old client's attempt is held across a save that swaps the client id.
+  const { repo, sealer, keyring, clock, http, service } = await makeHarness({
+    script: [{ json: { token_type: "Bearer", access_token: "at-for-old-client", refresh_token: "rt-for-old-client", expires_in: 3600 } }],
+  });
+  const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+  const heldState = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state") ?? "";
+  assert.notEqual(heldState, "");
+
+  await saveExternalMcpServer(
+    { repo, sealer, keyring, clock },
+    {
+      workspaceId: WORKSPACE, serverId: SERVER, transport: "stdio", authMode: "oauth", enabled: true,
+      command: "npx", args: "-y higgs-mcp", allowedToolNames: "generate_image", writeAllowedToolNames: "",
+      principalId: "principal-1", oauth: { clientId: "replacement-client" },
+    },
+  );
+  assert.equal((await readRow(repo)).oauthClientId, "replacement-client");
+
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: heldState, code: "old-attempt-code" } })
+    .then(() => undefined, () => undefined);
+
+  const row = await readRow(repo);
+  assert.notEqual(row.oauthStatus, "connected", "the replacement client must not read as signed in");
+  assert.equal(row.oauthExpiresAt, null);
+  assert.equal((await openExternalMcpOAuthPayload(sealer, row)).tokens, undefined, "no token is written for the replacement client");
+  assert.equal(http.callCount(), 0, "the old attempt's code is never exchanged for the replacement client");
+});
