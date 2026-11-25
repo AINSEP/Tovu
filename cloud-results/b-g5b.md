@@ -1,4 +1,4 @@
-__FIRST_LINE__
+PARTIAL 70915fc0a 09cdf5d27: left = P10-E2.T desktop binding + origin-policy port + check:env wiring; P10-H2.T actorForMutation binding at writers (+ H2.J actor required, system kind); P10-M4.T admin half + alphabetical paging (0048); P10-M5.T2 plain-save/replace/purge-path events + outbox-in-transaction check; P10-C2.T admin live Providers catalog (publish-duplicate-card); P10-H1 host activation (deferred by sheet). All 22 sheets built or partly built; 0 untouched. (SHAs = last code commits; report commits sit on top.)
 
 # b-g5b — P10 env schema, media paging, agent-capability hardening, per-CLI folders, xAI media plugin
 
@@ -42,7 +42,7 @@ API baselines: `pnpm api:update` ran once centrally (J `fee5f83e1`). That run al
 
 | gate | merge-21 | b-g5b |
 |---|---|---|
-| Tovu `apps/desktop npm run gates` | 6/6 PASS | __DESKTOP__ |
+| Tovu `apps/desktop npm run gates` | 6/6 PASS | 6/6 PASS (final tree `70915fc0a`) |
 | Jini packages build | 0 | 0 |
 | Jini `pnpm typecheck` (strict) | — | 0 |
 | Jini `api:check` | drift (user-management) | 0 |
@@ -54,7 +54,7 @@ API baselines: `pnpm api:update` ran once centrally (J `fee5f83e1`). That run al
 | Tovu `check:hooks` / `check:boundaries` | ok / 0 errors | ok / 0 errors (143 warnings) |
 | Tovu `check:why-comments` (base merge-21) | — | ok (2 restored) |
 | Tovu `check:complexity` | — | 4 new entries, all in files this branch did not change |
-| Tovu `check:size` | — | __SIZE__ |
+| Tovu `check:size` | — | none of this branch's files listed after `70915fc0a` (Media.tsx, two media hooks and assistant-byok extracted). Remaining Worsened entries are in files this branch did not change (PageEditor, use-page-editor, use-post-editor, panels.tsx, desktop, site-assistant) |
 | Tovu node tests on changed files (28 files) | — | 506 tests: 488 pass, 3 todo, 15 fail. All 15 fail on merge-21 too: 12 in media repo contract/restart, where the merge-21 fixture lacks `captions: null` and the repo returns it; 2 in serve-command-wiring, whose source pins went stale when listen moved to `serve-listen.ts`; and `tool-registrations.contracts.test.ts`, which imports the missing `features/mail-status/delivery-agent-tools.js` |
 | Tovu admin vitest on changed files | — | 218/218 |
 
@@ -90,3 +90,4 @@ Not run as a whole: the full Tovu website node suite (combine-21 found about 255
 - C2.T admin live catalog.
 - `readDeclaredEnvKey` lives in devops; move it to a runtime package and adopt it in `mcp serve`.
 - The provider-plugins observability OTel/Sentry tests time out here (4, network); not checked on merge-21.
+- `assistant-byok.inputs-pin.test.ts` "BYOK automatic preflight keeps the prompt and logs a redacted cause" fails: the test calls `appendAutomaticPluginGuidance` (untouched here) with positional arguments. Looks older than this branch; not checked on merge-21.
