@@ -35,7 +35,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { mediaTextRoute } from "@jini-ai/cms/admin-http/routes/media/text";
 import { mediaReplaceRoute, type MediaReplacement } from "@jini-ai/cms/admin-http/routes/media/replace";
 import { mediaUploadRoute, type MediaUploadInput } from "@jini-ai/cms/admin-http/routes/media/upload";
-import { readDocumentText, replaceMediaFile, type MediaKind, type UploadMediaDeps } from "@jini-ai/cms/media";
+import { readDocumentText, replaceMediaFile, type MediaKind, type UploadMediaDeps, type VideoCodecProbePort } from "@jini-ai/cms/media";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";
@@ -179,12 +179,15 @@ const MEDIA_WRITE_FAILURE: FailureOptions = { operation: "routes/media/route-gua
 
 /** `replace`: Jini `mediaReplaceRoute` with the host's transactional file switch (50 MiB owner cap) and the
  *  stored-asset describer bound. Its hand-written check used `authorizeDirectOrRespond` (`"direct"`). */
-export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminMediaReplaceRoute(
+  { app, deps }: { app: Express; deps: MediaRouteDeps },
+  { videoCodecProbe }: { videoCodecProbe?: VideoCodecProbePort | undefined } = {},
+): void {
   const replaceDeps = {
     ...mediaPortDeps({ deps }),
     mediaRepo: deps.mediaRepo,
     ...UPLOAD_CAPS,
-    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, UPLOAD_CAPS),
+    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { ...UPLOAD_CAPS, videoCodecProbe }),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
   };
   mountAdminJsonRoute({ app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
@@ -344,7 +347,7 @@ export function createMediaModule(
       registerAdminMediaWhereUsedRoute({ app, deps });
       registerAdminMediaUploadRoute({ app, deps }, { videoImport });
       registerAdminMediaImportUrlRoute({ app, deps }, { videoImport });
-      registerAdminMediaReplaceRoute({ app, deps });
+      registerAdminMediaReplaceRoute({ app, deps }, { videoCodecProbe: videoImport?.ports.videoCodecProbe });
       registerAdminMediaUpdateRoute({ app, deps });
       registerAdminMediaTrashRoute({ app, deps });
       registerAdminMediaDeleteRoute({ app, deps });

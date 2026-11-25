@@ -179,7 +179,9 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
     Promise<Omit<MediaTable, "created_by" | "kind" | "original_filename"> & { created_by?: string | null; kind: string; original_filename: string | null }> {
     const { record } = required;
     const columns = await listColumns({ kernel: this.kernel, table: "media" });
-    return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType, ...(record.source.private ? { private: true } : {}) }),
+    // Compatibility depends on the codec, not the filename or container, so the probe result is kept beside the type.
+    return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType,
+      ...(record.source.videoCodec ? { videoCodec: record.source.videoCodec } : {}), ...(record.source.private ? { private: true } : {}) }),
       kind: record.kind ?? "media", original_filename: record.originalFilename ?? null, ...(columns.some(column => column.name === "created_by")
       ? { created_by: record.createdBy ?? null } : {}) };
   }

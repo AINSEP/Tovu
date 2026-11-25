@@ -1,5 +1,5 @@
 import { createFfmpegMediaTranscoder } from "@jini-ai/agent-plugins/ffmpeg-transcode/adapter";
-import { createFfmpegVideoFrameExtractor, createVideoExtractionLock, findVideoBinaries, runLowPriorityVideoProcess } from "@jini-ai/cms/media/node";
+import { createFfmpegVideoCodecProbe, createFfmpegVideoFrameExtractor, createVideoExtractionLock, findVideoBinaries, runLowPriorityVideoProcess } from "@jini-ai/cms/media/node";
 import { VIDEO_CONVERSION_MESSAGES, VIDEO_TRANSCODE_MAX_INPUT_BYTES, sniffContentType } from "@jini-ai/cms/media";
 import { readChatAttachmentForOwner } from "#src/features/media/index";
 import type { MediaVideoToolPorts } from "#src/features/media/view-video-tool";
@@ -30,11 +30,15 @@ export function createMediaVideoToolPorts(
  * binary-discovery environment (`FFMPEG_PATH`, `PATH`), supplied by the composition root and never
  * read from ambient state here. */
 export function createMediaConversionPorts({ env }: { env: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): MediaConversionPorts {
+  // One lock for both: a codec probe never competes with a running conversion for the same machine.
+  const lock = createVideoExtractionLock({});
   return {
+    // Compatibility depends on the codec, not the filename or container, so only ffprobe's answer is recorded.
+    videoCodecProbe: createFfmpegVideoCodecProbe({ findBinaries: findVideoBinaries, runProcess: runLowPriorityVideoProcess, lock, env }, {}),
     transcoder: createFfmpegMediaTranscoder({
       findBinaries: findVideoBinaries,
       runProcess: runLowPriorityVideoProcess,
-      lock: createVideoExtractionLock({}),
+      lock,
       sniffContentType,
       maxInputBytes: VIDEO_TRANSCODE_MAX_INPUT_BYTES,
       messages: VIDEO_CONVERSION_MESSAGES,

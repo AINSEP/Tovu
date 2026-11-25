@@ -296,7 +296,7 @@ async function requireMediaPermission(
   { entityType: "media", ...(entityId === undefined ? {} : { entityId }) });
 }
 
-function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHandler {
+function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined): ToolHandler {
   return async (ctx) => {
   const input = requireInputRecord({ input: ctx.input });
   refuseUnexpectedKeys(input, ["mediaId", "url", "root", "path"]);
@@ -323,7 +323,8 @@ function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHand
           { toolId: "media_replace_file" })
         : await readLocalReplacement({ routeDeps, input });
       ctx.signal.throwIfAborted();
-      const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, UPLOAD_CAPS);
+      const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id },
+        { ...UPLOAD_CAPS, videoCodecProbe: videoImport?.ports.videoCodecProbe, signal: ctx.signal });
       if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
       const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [saved] });
       const result = { media: { id: saved.id, slug: saved.slug, title: saved.title, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };
@@ -418,7 +419,7 @@ export function buildMediaImportRegistrations(
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     /** Authorize before fetching; the admin's shared service owns blob staging and atomic versioning. */
-    media_replace_file: createMediaReplaceFileHandler(routeDeps),
+    media_replace_file: createMediaReplaceFileHandler(routeDeps, videoImport),
     media_import_local_file: createMediaImportLocalFileHandler(routeDeps, videoImport),
     media_import_from_url: createMediaImportFromUrlHandler(routeDeps, videoImport),
 
