@@ -15,7 +15,7 @@ import { getPublishRunSnapshot, startPublishRun } from "../publish-run.js";
 import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 import { createDbPublishCredentialSource } from "../credentials.js";
 import { createPublishCredential, deletePublishCredential } from "../../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { InMemoryKeyring } from "../../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

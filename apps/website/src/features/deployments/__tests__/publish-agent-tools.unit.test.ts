@@ -20,7 +20,7 @@ import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore
 import { type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "../publish-credentials/repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";

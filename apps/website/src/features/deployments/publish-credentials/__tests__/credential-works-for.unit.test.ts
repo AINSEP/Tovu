@@ -3,7 +3,7 @@ import test from "node:test";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createCustomCredential, updateCustomCredential } from "#src/features/custom-credentials/store";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
