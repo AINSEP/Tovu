@@ -6,6 +6,7 @@ import test from "node:test";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
@@ -73,7 +74,7 @@ async function harness(fetchFn?: typeof fetch) {
     },
   );
 
-  const service = createExternalMcpOAuthService({
+  const service = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: WORKSPACE, repo, sealer, keyring, clock,
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),

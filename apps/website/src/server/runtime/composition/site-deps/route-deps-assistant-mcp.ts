@@ -25,6 +25,7 @@ import { composePluginProviderFaces } from "../agent-plugin-service-ports.js";
 import { composeVisitorToolsManagement } from "../visitor-tools-management.js";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { createExternalMcpOAuthService } from "../../../../features/external-mcp/external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../../../features/api-connections/browser-binding.js";
 import { createSiteConsentStore } from "#src/features/consent/revisions.repo";
 import { getEffective } from "#src/features/settings/index";
 import { isAdminAssistantEnabled } from "../admin-assistant-enabled.js";
@@ -161,7 +162,7 @@ export function routeDepsExternalMcpOAuth(required: RouteDepsExternalMcpOAuthReq
      * verifier and binding between the daemon and the callback, using this root's site key.
      * See `routes/types.ts`'s `externalMcpOAuthDevices` doc for the shared store's lifetime.
      */
-    externalMcpOAuth: createExternalMcpOAuthService({
+    externalMcpOAuth: createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
       httpPorts: externalMcpOAuthHttpPorts,
       workspaceId,
       repo: externalMcpServerRepo,

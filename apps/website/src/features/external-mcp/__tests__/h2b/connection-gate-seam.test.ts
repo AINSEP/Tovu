@@ -18,6 +18,7 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
+import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 import {
   createExternalMcpConnectionGate,
   createExternalMcpOAuthService,
@@ -145,7 +146,7 @@ async function signInService(makeOnConnected: (repo: InMemoryExternalMcpServerRe
   const onConnected = makeOnConnected(f.repo);
   const provider: OAuthProviderDescriptor = { providerId: "test-provider", label: "Test", supportedGrants: ["authorization_code"],
     authorizationEndpoint: "https://auth.example.com/authorize", tokenEndpoint: "https://auth.example.com/token", defaultScopes: [], usesPkce: true, clientAuth: "none" };
-  const service = createExternalMcpOAuthService({ workspaceId: WS, repo: f.repo, sealer: f.sealer, keyring: f.keyring, clock, devices: createDeviceAuthorizationStore(),
+  const service = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink, workspaceId: WS, repo: f.repo, sealer: f.sealer, keyring: f.keyring, clock, devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: async () => new Response(JSON.stringify({ token_type: "Bearer",
       access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }), { status: 200, headers: { "content-type": "application/json" } }) },
     lookupProvider: () => provider, onConnected } as never);

@@ -2,7 +2,7 @@
  * EXTRACT-S5 H2c: the hosted-MCP sign-in runs only on its injected `HostedMcpSignInPorts`.
  * - A second host with its own registration identity, links, paths, copy and FAKE flow operations signs in,
  *   and none of Tovu's vocabulary reaches its output.
- * - Tovu's binding (`tovuSignInPorts`) uses the real implementations and its hosted-port adapter, with the exact pre-H2c copy bytes.
+ * - Tovu's binding (`createTovuSignInPorts`) uses the real implementations and its hosted-port adapter, with the exact pre-H2c copy bytes.
  * - Provider canaries (token/secret/URL/path) never reach model-facing text.
  * - Canonical validation/unconfigured/reauth errors and real OAuth errors stay recognizable by the host's
  *   `isSignInRefusal`/`classifyError`, and an imitation OAuth error is not.
@@ -30,7 +30,7 @@ import {
   ExternalMcpReauthRequiredError,
   tovuRegistrationIdentity,
   tovuSealExternalMcpOAuthPayload,
-  tovuSignInPorts,
+  createTovuSignInPorts,
 } from "../../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore, createHostedMcpSignInService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 
@@ -42,6 +42,8 @@ const TOVU_WORDS = ["Settings → External MCP", "Tovu", "tovu", "TOVU_PUBLIC_UR
 const provider: OAuthProviderDescriptor = { providerId: "acme-idp", label: "Acme IdP", supportedGrants: ["authorization_code"],
   authorizationEndpoint: "https://idp.acme.example/authorize", tokenEndpoint: "https://idp.acme.example/token", defaultScopes: [], usesPkce: true, clientAuth: "none" };
 // Immutable source bytes from c3801c833; provenance.json records the original git blobs.
+// Tovu's binding as the composition root builds it: the real browser-binding sign-in link injected into the factory.
+const tovuSignInPorts = createTovuSignInPorts({ signInLink: hostedMcpSignInLink });
 const BASELINE_OAUTH = new URL("../fixtures/sign-in-copy-baseline/external-mcp-oauth.txt", import.meta.url);
 const BASELINE_SHARED = new URL("../fixtures/sign-in-copy-baseline/external-mcp-shared-oauth.txt", import.meta.url);
 

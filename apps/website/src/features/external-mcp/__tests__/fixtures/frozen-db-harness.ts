@@ -3,6 +3,7 @@ import { createTovuOAuthGuard } from "../../../../platform/oauth/endpoint-safety
 import type { ContentKernel } from "../../../../platform/db/content-kernel.js";
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { SqlExternalMcpServerRepo } from "../../external-mcp-repo.js";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../external-mcp-store.js";
@@ -57,7 +58,7 @@ export function wire({ kernel, clockIso, reply }: { kernel: ContentKernel; clock
   });
   const clock = frozenClock(clockIso);
   const server = fakeOAuthServer(reply ?? (() => ({ status: 599, json: { error: "unexpected_request" } })));
-  const service = createExternalMcpOAuthService({ workspaceId: FROZEN_WORKSPACE, repo, sealer, keyring, clock,
+  const service = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink, workspaceId: FROZEN_WORKSPACE, repo, sealer, keyring, clock,
     devices: createDeviceAuthorizationStore(), lookupProvider: () => FROZEN_PROVIDER,
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => server.fetchFn(url, init) } });
   return { io, openedAad, repo, keyring, sealer, clock, server, service, store: { repo, sealer, keyring, clock } };

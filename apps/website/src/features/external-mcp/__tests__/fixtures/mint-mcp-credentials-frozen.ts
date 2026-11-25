@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { createTovuOAuthGuard } from "../../../../platform/oauth/endpoint-safety.js";
 import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { SqlExternalMcpServerRepo } from "../../external-mcp-repo.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
@@ -48,7 +49,7 @@ async function mint(): Promise<void> {
 
   const server = fakeOAuthServer(() => ({ json: { token_type: "Bearer", access_token: FROZEN_PLAINTEXT.accessToken,
     refresh_token: FROZEN_PLAINTEXT.refreshToken, expires_in: 3600 } }));
-  const service = createExternalMcpOAuthService({ workspaceId: FROZEN_WORKSPACE, repo, sealer, keyring, clock,
+  const service = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink, workspaceId: FROZEN_WORKSPACE, repo, sealer, keyring, clock,
     devices: createDeviceAuthorizationStore(), lookupProvider: () => FROZEN_PROVIDER,
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => server.fetchFn(url, init) } });
   const started = await service.beginConnect({ serverId: FROZEN_SERVERS.oauth, redirectUri: FROZEN_REDIRECT_URI });

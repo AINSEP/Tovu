@@ -6,6 +6,7 @@ import { createAssistantServerFederation } from "../assistant-server-federation.
 import { notifyExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "#src/assistant/external-mcp-roster-change";
 import { isAssistantDaemonReady, resetAssistantDaemonSingletonForTests } from "#src/server/runtime/lifecycle/daemon-supervisor";
 import { createExternalMcpOAuthService } from "#src/features/external-mcp/external-mcp-oauth";
+import { hostedMcpSignInLink } from "../../../../../features/api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import { serverFederationFixture } from "./helpers/server-federation-fixture.js";
@@ -119,7 +120,7 @@ test("OAuth reauthentication and tool execution work with daemon stopped", async
   const fixture = serverFederationFixture({ connect: async connection => {
     tokens.push("headers" in connection.launch ? connection.launch.headers.authorization ?? "" : "");
     return session;
-  }, oauthFor: deps => createExternalMcpOAuthService({ workspaceId: deps.workspaceId,
+  }, oauthFor: deps => createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink, workspaceId: deps.workspaceId,
     repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock, devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, {}), fetchFn: async () => {

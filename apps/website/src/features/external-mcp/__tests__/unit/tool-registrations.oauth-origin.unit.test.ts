@@ -7,6 +7,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
@@ -103,7 +104,7 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
     },
   );
 
-  const externalMcpOAuth = createExternalMcpOAuthService({
+  const externalMcpOAuth = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: WORKSPACE,
     repo,
     sealer,

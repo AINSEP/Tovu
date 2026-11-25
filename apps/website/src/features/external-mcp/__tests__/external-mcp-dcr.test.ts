@@ -8,6 +8,7 @@ import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../../p
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
@@ -104,7 +105,7 @@ async function saveWithoutGrant(store: ReturnType<typeof makeStore>, options: Sa
 }
 
 function makeService(store: ReturnType<typeof makeStore>, overrides: { readonly fetchFn?: typeof fetch } = {}) {
-  return createExternalMcpOAuthService({
+  return createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: WORKSPACE,
     repo: store.repo,
     sealer: store.sealer,
