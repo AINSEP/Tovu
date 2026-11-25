@@ -8,13 +8,14 @@ import { validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits } from "./share-policy.js";
 import { shareFileStem } from "@jini-ai/devops/backup/site/share-service";
 import { allocateStaticExportThemes } from "./static-export-selection.js";
+import { staticLandingPage } from "./static-download-landing.js";
 
-/** @file Binds Jini's static copy and portable layout to this host's parse5 edits, share path policy and limits, theme-folder allocator, file-stem rule and scratch-folder name. */
+/** @file Binds Jini's static copy and portable layout to this host's parse5 edits, share path policy and limits, theme-folder allocator, landing-page template, file-stem rule and scratch-folder name. */
 
-/** Host values of the portable layout: Tovu's share path policy and limits, and the parse5-backed HTML helpers. */
+/** Host values of the portable layout: Tovu's share path policy and limits, the parse5-backed HTML helpers and the byte-pinned landing template. */
 export const STATIC_DOWNLOAD_HOST: StaticDownloadHost = {
   sourceEdits: downloadHtmlSourceEdits, validateSharePath, sharePathAlias, allocateThemes: allocateStaticExportThemes,
-  checkShareLimits, extractPlainText: extractPlainTextFromHtml,
+  checkShareLimits, extractPlainText: extractPlainTextFromHtml, renderLanding: staticLandingPage,
   exportUrlLocations, extractHtmlReferences, outputFileForUrl,
 };
 const STATIC_COPY_HOST: StaticCopyHost = { sourceEdits: downloadHtmlSourceEdits, fileStem: shareFileStem, tempPrefix: "tovu-static-copy-" };
