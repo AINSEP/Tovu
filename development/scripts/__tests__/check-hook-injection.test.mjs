@@ -18,6 +18,28 @@ test('a hook received as a REQUIRED prop (no default) is not flagged: the caller
   assert.deepEqual(scanSource('Bar.tsx', src), []);
 });
 
+test('a hook destructured from the props parameter in the body is not flagged (required)', () => {
+  const src = "export function AgentPlugins(props: P) { const { useAgentPluginsHook } = props; const c = useAgentPluginsHook(); return c; }";
+  assert.deepEqual(scanSource('A.tsx', src), []);
+});
+
+test('an aliased hook prop is not flagged, in the parameter pattern or the body', () => {
+  const body = "export function A(props: P) { const { useXHook: useY } = props; return useY(); }";
+  const param = "export function B({ useXHook: useY }: P) { return useY(); }";
+  assert.deepEqual(scanSource('A.tsx', body), []);
+  assert.deepEqual(scanSource('B.tsx', param), []);
+});
+
+test('a body binding defaulted to the real hook is not counted as injection', () => {
+  const src = "export function Alpha(props: P) { const { useXHook = useX } = props; return useXHook(); }";
+  assert.deepEqual(keys(scanSource('A.tsx', src)), ['Alpha::useXHook']);
+});
+
+test('a real local custom-hook call is flagged even beside a destructured prop hook', () => {
+  const src = "export function Alpha(props: P) { const { useXHook } = props; useXHook(); return useReal(); }";
+  assert.deepEqual(keys(scanSource('A.tsx', src)), ['Alpha::useReal']);
+});
+
 test('a non-hook-named required prop does not exempt a direct hook call', () => {
   const src = "import { useFoo } from './foo';\nexport function Bar({ label }: { label: string }) { return useFoo() + label; }";
   assert.deepEqual(keys(scanSource('Bar.tsx', src)), ['Bar::useFoo']);
@@ -101,7 +123,7 @@ test('a higher count fails and names file:line, component, hook and the fix patt
     assert.match(text, /apps\/a\/src\/Bar\.tsx:2/);
     assert.match(text, /Bar/);
     assert.match(text, /useFoo/);
-    assert.match(text, /function Bar\(\{ useFooHook = useFoo \}\)/);
+    assert.match(text, /function Bar\(\{ useFooHook \}: \{ useFooHook: typeof useFoo \}\)/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

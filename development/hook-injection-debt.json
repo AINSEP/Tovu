@@ -19,12 +19,6 @@
         "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
       ]
     },
-    "EditMediaPanel::useEditMediaPanelHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/media/Media.tsx"
-      ]
-    },
     "Media::useMediaHook": {
       "count": 1,
       "files": [
@@ -32,12 +26,6 @@
       ]
     },
     "Media::useMediaTabsHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/media/Media.tsx"
-      ]
-    },
-    "MediaPreview::useMediaPreviewHook": {
       "count": 1,
       "files": [
         "apps/admin/src/features/media/Media.tsx"

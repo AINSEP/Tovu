@@ -1,6 +1,6 @@
 /**
  * AST scan for the hook-injection rule (owner HARD rule 2026-11-16): a React component must receive every
- * custom hook as a prop defaulted to the real hook, `function X({ useFooHook = useFoo }) { useFooHook(); }`.
+ * custom hook as a required prop, `function X({ useFooHook }: { useFooHook: typeof useFoo }) { useFooHook(); }`.
  * React built-ins are exempt. Uses the TypeScript compiler API, never regex, to find component bodies.
  */
 import { readdirSync, readFileSync } from 'node:fs';
@@ -54,16 +54,38 @@ function findComponents(sf) {
   return found;
 }
 
-/** Names of destructured hook props: defaulted (`{ useFooHook = useFoo }`) or required
- *  (`{ useFooHook }`). A required hook prop is injection too — the caller must pass it — and is the
- *  owner's preferred form (P12 #6 F6.4: no default hook to drift from the host binding). */
-function injectedHooks(fn) {
-  const pattern = fn.parameters[0]?.name;
-  if (!pattern || !ts.isObjectBindingPattern(pattern)) return new Set();
-  const names = pattern.elements
+/** Local names bound to hook props by an object pattern: `{ useX }`, `{ useX: useY }`. `allowDefault` is
+ *  true only for the parameter pattern, where a `= realHook` default is the legacy form the baseline
+ *  already tolerates; in the body a defaulted binding is not counted as injection. */
+function hookBindings(pattern, allowDefault) {
+  return pattern.elements
     .filter(el => !el.dotDotDotToken && ts.isIdentifier(el.name) && HOOK_NAME.test(el.name.text))
+    .filter(el => allowDefault || !el.initializer)
     .map(el => el.name.text);
-  return new Set(names);
+}
+
+/** `const { useX, useX: useY } = props` statements in the body, where `props` is the identifier parameter. */
+function bodyDestructured(fn, propsName) {
+  const names = [];
+  const visit = node => {
+    const isFromProps = ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name)
+      && node.initializer && ts.isIdentifier(node.initializer) && node.initializer.text === propsName;
+    if (isFromProps) names.push(...hookBindings(node.name, false));
+    ts.forEachChild(node, visit);
+  };
+  if (fn.body) visit(fn.body);
+  return names;
+}
+
+/** Hook names a component receives from its caller instead of importing: required or defaulted parameter
+ *  destructuring (`function X({ useFooHook })`), and body destructuring or aliasing from the props
+ *  parameter (`const { useFooHook } = props`). Required is the owner's form (no default hook to drift
+ *  from the host binding), so the fix hint recommends it and body destructuring ignores defaults. */
+function injectedHooks(fn) {
+  const param = fn.parameters[0]?.name;
+  if (!param) return new Set();
+  if (ts.isObjectBindingPattern(param)) return new Set(hookBindings(param, true));
+  return ts.isIdentifier(param) ? new Set(bodyDestructured(fn, param.text)) : new Set();
 }
 
 function isFlaggedHookCall(node, injected) {
@@ -87,7 +109,7 @@ function hookCallsIn({ fn, component }, sf, componentFns) {
   return calls;
 }
 
-/** Every custom-hook call a React component makes without receiving that hook as a defaulted prop. */
+/** Every custom-hook call a React component makes without receiving that hook as a prop. */
 export function scanSource(fileName, text) {
   const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const components = findComponents(sf);
