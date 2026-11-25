@@ -4,7 +4,8 @@ import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
 import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
 import { startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
 import { Router, type Express } from "express";
-import { startServingRoutines, type ServingRoutines } from "./modules/serving-routines.js";
+import { ownerAccessFor, startServingRoutines, type ServingRoutines } from "./modules/serving-routines.js";
+import { servingRoutineToolOptions, settingsLocaleFor } from "./modules/serving-routine-tools.js";
 import type { RoutineRunHandler } from "@jini-ai/daemon";
 
 import { startOutboxDrainer } from "#src/contracts/core/events/outbox-drainer";
@@ -98,7 +99,11 @@ export function createServingApp(
     if (handle.bootInterruption.isLeaseOwner()) await handle.bootInterruption.whenInterrupted();
   } };
   const app = createApp(routeDeps, { assistantRoutineBoot, stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
-    mountAssistantRoutines: ({ app: routed }) => { routed.use(routineRouter); } });
+    mountAssistantRoutines: ({ app: routed }) => { routed.use(routineRouter); },
+    // Lazy: the handle composes after createApp returns, so the tools resolve it per call (P3-T4.T / T3.T).
+    ...servingRoutineToolOptions({ canRun: routinesCanRun, releaseEnabled: optional.routines?.releaseEnabled ?? false,
+      ready: () => routinesReady.then((ready) => ready), access: ownerAccessFor(routeDeps), workspaceId: routeDeps.workspaceId },
+      routeDeps.settingsRepo ? { localeFor: settingsLocaleFor({ settingsRepo: routeDeps.settingsRepo, workspaceId: routeDeps.workspaceId }) } : {}) });
   const routines = startServingRoutines({ routeDeps, router: routineRouter, desktopEligible: optional.routines?.desktopEligible ?? false,
     releaseEnabled: optional.routines?.releaseEnabled ?? false }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : { acceptanceDeps: routeDeps });
   bindRoutines(routines.ready);

@@ -516,10 +516,12 @@ async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
   { routeDeps }: { routeDeps: RouteDeps & ByokToolSurfaceDeps },
-  { toolSurface, attachmentLookup, federationConnect, routines }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
+  { toolSurface, attachmentLookup, federationConnect, routines, routineApprovalReceiptsFor }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
     federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
     /** The serving site's bound routine commands; supplied only when the routines release flag is on. Absent, no routine tool exists. */
-    routines?: RoutineToolHost } = {},
+    routines?: RoutineToolHost;
+    /** Human-confirm's receipt port for tracked routine runs (P3-T3.T): observes receipts, never answers a card. */
+    routineApprovalReceiptsFor?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["approvalReceiptsFor"] } = {},
 ): AssistantByokModuleHandle {
   // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
   // construction) calls `buildAssistantToolRegistrations`: that function reads whatever
@@ -550,7 +552,7 @@ export function createAssistantByokModule(
   let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns, routines }));
+    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns, routines, routineApprovalReceiptsFor }));
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice,
     surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges, assertAccessApprover: createAccessApprover(routeDeps) } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
@@ -611,8 +613,9 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
   };
 }
 
-function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contributions: NonNullable<Parameters<typeof createByokToolSurface>[1]>["contributions"], { federationConnect, attachmentLookup, automaticPluginRuns, routines }: {
+function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contributions: NonNullable<Parameters<typeof createByokToolSurface>[1]>["contributions"], { federationConnect, attachmentLookup, automaticPluginRuns, routines, routineApprovalReceiptsFor }: {
   routines?: RoutineToolHost;
+  routineApprovalReceiptsFor?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["approvalReceiptsFor"];
   federationConnect: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
   attachmentLookup: AttachmentLookup | undefined;
   automaticPluginRuns: () => ReturnType<typeof createAutomaticPluginRuns>;
@@ -620,6 +623,7 @@ function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contribu
   return {
       contributions,
       ...(routines ? { routineDiscovery: createRoutineToolDiscovery(routines) } : {}),
+      ...(routineApprovalReceiptsFor ? { approvalReceiptsFor: routineApprovalReceiptsFor } : {}),
       ...(federationConnect ? { federationConnect } : {}),
       // Preserve the daemon's remembered approval contract on the existing server confirmer.
       // Async call context supplies the current chat; no process-global last-chat binding.

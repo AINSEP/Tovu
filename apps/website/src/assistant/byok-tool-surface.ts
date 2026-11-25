@@ -443,6 +443,11 @@ export interface ByokToolSurfaceOptions {
    */
   readonly routineDiscovery?: RoutineDiscovery;
   /**
+   * Human-confirm's optional receipt port (P3-T3.T): trusted routine context for a tracked routine run,
+   * else undefined. Rides on the surfaces every first-party tool gets; it observes and never answers.
+   */
+  readonly approvalReceiptsFor?: import("../contracts/core/human-confirm.js").HumanConfirmSurfaceDeps["approvalReceiptsFor"];
+  /**
    * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
    * injected by the composition root (`modules/assistant-byok.ts` passes
    * `server/runtime/composition/installed-extension-tools.ts`'s `registerInstalledExtensionTools`)
@@ -607,12 +612,17 @@ function composeSurfaceExecutor(
         : { settled: true, connectFailures: [] } }, {});
 }
 
+/** Why a helper: the receipt port joins the one surfaces object every first-party tool (and human-confirm) reads; absent, cards behave as before. */
+export function surfacesWithReceipts({ surfaceExchanges }: { surfaceExchanges: SurfaceExchangeStore }, { approvalReceiptsFor }: Pick<ByokToolSurfaceOptions, "approvalReceiptsFor"> = {}) {
+  return approvalReceiptsFor ? { surfaceExchanges, approvalReceiptsFor } : { surfaceExchanges };
+}
+
 /** Register the assistant's own tools, then any the host adds after seeing them. O(t) in tools. */
 function registerSurfaceTools(
   { registry, deps, surfaceExchanges }: { registry: ReturnType<typeof createToolRegistry>; deps: AssistantToolRegistryDeps; surfaceExchanges: SurfaceExchangeStore },
-  options: Pick<ByokToolSurfaceOptions, "contributions" | "hostRegistrations"> = {},
+  options: Pick<ByokToolSurfaceOptions, "contributions" | "hostRegistrations" | "approvalReceiptsFor"> = {},
 ): void {
-  const registrations = buildAssistantToolRegistrations(deps, { surfaces: { surfaceExchanges }, options: { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } });
+  const registrations = buildAssistantToolRegistrations(deps, { surfaces: surfacesWithReceipts({ surfaceExchanges }, options), options: { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } });
   for (const registration of [...registrations, ...(options.hostRegistrations?.({ registrations }) ?? [])]) {
     registry.register(registration);
   }

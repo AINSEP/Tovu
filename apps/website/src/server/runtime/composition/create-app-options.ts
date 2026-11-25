@@ -6,6 +6,8 @@
 import type { Express } from "express";
 import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import type { createAssistantByokModule } from "./modules/assistant-byok.js";
+import type { RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
+import type { HumanConfirmSurfaceDeps } from "#src/contracts/core/human-confirm";
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
@@ -45,4 +47,10 @@ export interface CreateAppOptions {
   /** Serving boot only: mounts the routine routes' slot (P3-T1a.T) at its place among the admin assistant
    *  routes. Exporter and eager apps never pass it, so they expose no routine endpoint at all. */
   mountAssistantRoutines?: (required: { app: Express }, optional?: Record<string, never>) => void;
+  /** Serving boot only (P3-T4.T): the bound routine commands behind the four routine tools. Absent, no routine tool exists. */
+  routines?: RoutineToolHost;
+  /** The host-root `ROUTINES_RELEASE_ENABLED`; the routine tools need it on as well as `routines`. */
+  routinesReleaseEnabled?: boolean;
+  /** Serving boot only (P3-T3.T): human-confirm's receipt port for tracked routine runs. */
+  routineApprovalReceiptsFor?: HumanConfirmSurfaceDeps["approvalReceiptsFor"];
 }

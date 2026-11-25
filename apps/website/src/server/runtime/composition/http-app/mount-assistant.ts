@@ -16,15 +16,13 @@ import { trackByokBootWork } from "../site-app-boot-work.js";
 import type { Router } from "express";
 import type { siteAppBootWorkByDeps } from "../site-app-boot-work.js";
 import type { MountInput } from "./module-handles.js";
-import type { RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
 import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 
 /** Builds the BYOK assistant module once, tracks its boot pass, and mounts the admin/BYOK assistant surfaces and the daemon-facing router, in registration order. */
 export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps }: MountInput & { internalRouter: Router; bootWorkByDeps: typeof siteAppBootWorkByDeps },
-  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "assistantRoutineBoot" | "onBootWork" | "mountAssistantRoutines"> & {
-    /** The bound T1a routine commands (the instance the admin routes use). Off/absent by default: the four routine tools exist only when the host supplies it AND the release flag is on. */
-    routines?: RoutineToolHost; routinesReleaseEnabled?: boolean } = {}): void {
-  // T1a wiring supplies routines commands here
+  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "assistantRoutineBoot" | "onBootWork" | "mountAssistantRoutines"
+    | "routines" | "routinesReleaseEnabled" | "routineApprovalReceiptsFor"> = {}): void {
+  // Serving composition supplies the bound routine commands (`modules/serving-routine-tools.ts`); absent or flag off, no routine tool exists.
   const routines = (options.routinesReleaseEnabled ?? ROUTINES_RELEASE_ENABLED) ? options.routines : undefined;
   // Built ONCE, by calling `createAssistantByokModule` here (rather than at its original position
   // below) so its returned `.toolSurface` can be handed to `createAssistantModule` immediately after
@@ -36,7 +34,8 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps 
   // both fan-in and fan-out above the graph median) — this file already transitively reaches that
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
-  const byokAssistantModule = createAssistantByokModule({ routeDeps }, { toolSurface: options.assistantToolSurface, ...(routines ? { routines } : {}) });
+  const byokAssistantModule = createAssistantByokModule({ routeDeps }, { toolSurface: options.assistantToolSurface, ...(routines ? { routines } : {}),
+    ...(options.routineApprovalReceiptsFor ? { routineApprovalReceiptsFor: options.routineApprovalReceiptsFor } : {}) });
   trackByokBootWork({ routeDeps, byokAssistantModule, bootWorkByDeps }, options);
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
   byokAssistantModule.registerToolExecRoutes({ router: internalRouter });

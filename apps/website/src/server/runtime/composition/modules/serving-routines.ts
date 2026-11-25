@@ -56,7 +56,7 @@ type OwnerAuthorityDeps = Parameters<typeof holdsSiteOwnerAuthority>[0]["deps"];
 export type ServingRoutineDeps = OwnerAuthorityDeps & { workspaceId: string; adminAssistantEnabled: boolean; authorize: AdminJsonRoutePortDeps["authorize"] };
 
 /** Mounted workspace + live `*` holder, re-read per command; any lookup failure denies. */
-function ownerAccessFor(routeDeps: ServingRoutineDeps): RoutineAccess {
+export function ownerAccessFor(routeDeps: ServingRoutineDeps): RoutineAccess {
   return async ({ actor }) => {
     if (actor.workspaceId !== routeDeps.workspaceId) return false;
     try {

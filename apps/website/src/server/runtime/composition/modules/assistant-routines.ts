@@ -78,6 +78,8 @@ export interface AssistantRoutinesHandle {
   bootInterruption: { isLeaseOwner: () => boolean; whenInterrupted: () => Promise<void> };
   /** Human-confirm's optional receipt port: trusted routine context for a tracked run, else undefined. */
   approvalBindingFor: RoutineApprovalObserver["bindingFor"];
+  /** The exact command gate the admin routes use; the assistant's routine tools call it too (P3-T4.T). */
+  commands: RoutineCommands;
 }
 
 export const ROUTINE_ROUTE_BASE = "/api/admin/assistant/routines";
@@ -207,7 +209,7 @@ function mountRefusal(required: ComposeAssistantRoutinesRequired, availability: 
     onCommandCommitted: () => {}, availability: () => availability, target }, { log: required.log });
   mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, null, null), target, errorId });
   return { availability: () => availability, reconcile: async () => {}, bootInterruption: { isLeaseOwner: () => false, whenInterrupted: async () => {} },
-    approvalBindingFor: () => undefined };
+    approvalBindingFor: () => undefined, commands };
 }
 
 /** Adapts the scheduler port to `closeRoutineHost`'s setTimeout/clearTimeout pair. */
@@ -294,5 +296,5 @@ async function startRoutineHost(required: ComposeAssistantRoutinesRequired, { se
   if (enabled) await enable("start");
   await safeBeacon();
   return { availability, reconcile: (input: { reason: "wake" }) => (enabled && !closed ? service.reconcile(input, {}) : Promise.resolve()),
-    bootInterruption: { isLeaseOwner: () => !closed && service.leaseState({}, {}) === "owner", whenInterrupted: () => bootRepaired } };
+    bootInterruption: { isLeaseOwner: () => !closed && service.leaseState({}, {}) === "owner", whenInterrupted: () => bootRepaired }, commands };
 }
