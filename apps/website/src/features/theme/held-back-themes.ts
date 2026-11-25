@@ -99,7 +99,7 @@ function treeDigest(required: { dir: string; files: readonly TreeFile[] }): stri
 
 function exists(required: { file: string }): boolean {
   try { fs.lstatSync(required.file); return true; } catch (err) {
-    if (isAbsent(err)) return false;
+    if (isAbsent({ err })) return false;
     throw err;
   }
 }

@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { explainThemeTree as explainWithChecks } from "#src/features/site-backup/import-restore-placement";
 import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme } from "#src/features/theme/held-back-themes";
-import { parseHeldBackId, recordHeldBackChoice, readHeldBackChoice } from "#src/features/theme/held-back-choice";
+import { isAbsent, parseHeldBackId, recordHeldBackChoice, readHeldBackChoice } from "#src/features/theme/held-back-choice";
 import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
 /** The held-back re-check as the host binds it (`modules/theme-held-back.ts`). */
 const explainThemeTree = (required: { root: string; id: string; files: readonly string[] }) => explainWithChecks({ ...required, themeChecks: THEME_PLACEMENT_CHECKS });
@@ -153,4 +153,11 @@ test("held-back checks use code-unit file order for the approved digest", t => {
   assert.deepEqual(observed, paths.map(file => `themes/declarative/minimal-declarative/${file}`));
   assert.ok(paths.indexOf("Z.css") < paths.indexOf("a.css"));
   assert.equal(check.digest, expected.digest("hex"));
+});
+
+test("isAbsent takes one args object, so the object form works with the optional pad omitted: only a missing path counts as absent", () => {
+  assert.equal(isAbsent({ err: Object.assign(new Error("gone"), { code: "ENOENT" }) }), true);
+  assert.equal(isAbsent({ err: Object.assign(new Error("not a folder"), { code: "ENOTDIR" }) }), true);
+  assert.equal(isAbsent({ err: Object.assign(new Error("denied"), { code: "EACCES" }) }), false);
+  assert.equal(isAbsent({ err: null }), false);
 });
