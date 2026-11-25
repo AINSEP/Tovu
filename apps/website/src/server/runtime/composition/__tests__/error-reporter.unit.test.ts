@@ -81,6 +81,19 @@ test("a Tovu key in message, stack, attribute, custom field and cause never reac
   assert.deepEqual(sent.context.attributes, { route: "/admin/keys", attempt: 2, incidentId: "ERR-AAAA-BBBB-CCCC-DDDD", errorLabel: "Error", traceId: "t1", spanId: "s1" });
 });
 
+test("a clean message does not let a secret ride out on the cause or a custom field", () => {
+  // redactedError returns the original object when message and stack needed no change; the clean view must still apply.
+  const provider = recordingProvider();
+  const error = Object.assign(new Error("plain failure", { cause: new Error(`inner ${TOVU_KEY}`) }), { detail: TOVU_KEY });
+  trackerReportPort({ tracker: provider.tracker }).reportError({ error, context: { operation: "admin.keys" } });
+  assert.equal(provider.reports.length, 1);
+  const sentError = provider.reports[0]!.error as Error;
+  assert.notEqual(sentError, error);
+  assert.equal(sentError.cause, undefined);
+  assert.deepEqual(Object.keys(sentError), []);
+  assert.ok(!provider.dump().includes(TOVU_KEY_SECRET));
+});
+
 test("an attribute carrying an exact secret is dropped and the secret list itself never crosses", () => {
   const recorded = recordingTracker();
   const port = trackerReportPort({ tracker: recorded.tracker });

@@ -14,8 +14,7 @@ import type { Tracker, TrackerErrorContext } from "@jini-ai/core/contracts/site/
 import { createErrorCatalog } from "@jini-ai/core/errors/catalog";
 import { mintToolErrorId } from "@jini-ai/core/errors/error-id";
 import { createErrorReporter, type ErrorReporter } from "@jini-ai/core/errors/reporter";
-import type { Logger } from "@jini-ai/core/primitives/logger";
-import type { Clock } from "@jini-ai/core/primitives/time";
+import type { Clock, Logger } from "@jini-ai/core/primitives";
 import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import { redactSecretShapes, TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
@@ -67,7 +66,8 @@ function boundedAttributes({ context, secrets }: { context: Omit<ErrorReport["co
  */
 function cleanErrorView({ error, secrets }: { error: Error; secrets: readonly string[] }): Error {
   const view = new Error(error.message);
-  view.name = exportable({ text: error.name, secrets }) ? error.name : "Error";
+  // Non-enumerable like `Error.prototype.name`, so the view carries no own enumerable field at all.
+  Object.defineProperty(view, "name", { value: exportable({ text: error.name, secrets }) ? error.name : "Error", writable: true, configurable: true, enumerable: false });
   if (error.stack === undefined) delete view.stack;
   else view.stack = error.stack;
   return view;

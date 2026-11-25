@@ -25,7 +25,7 @@ const UNKNOWN_VERSION = "unknown";
 const CORE_PACKAGE = "@jini-ai/core";
 
 /**
- * The deployed site's version: `TOVU_VERSION`, else the image tag without a leading `v`. Deploy
+ * The running version: `TOVU_VERSION`, else the image tag without a leading `v`. Deploy
  * tooling sets these; they win over the manifest because a container image may carry a build whose
  * `package.json` was never bumped. Shared with the site-update binding so both agree on "running".
  * @complexity O(1).
