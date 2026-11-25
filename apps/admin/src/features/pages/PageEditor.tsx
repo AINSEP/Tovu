@@ -1029,6 +1029,7 @@ function PageEditorPane({
   status: "draft" | "published";
   dirty: boolean;
   contentDirty: boolean;
+  /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
   templatePreviewUrl: string;
   /** Threaded straight through to `PagePreview` (embed inspection); this dispatcher does not use it. */
   previewEmbeds: PreviewEmbeds;
