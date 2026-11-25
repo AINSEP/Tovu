@@ -1,9 +1,11 @@
-import type { Express, RequestHandler } from "express";
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { Express, Request, RequestHandler } from "express";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { nowIso } from "@jini-ai/core/primitives";
 import { memberForgotPasswordRoute } from "@jini-ai/cms/public-http/routes/members/forgot-password";
 import { memberLoginProvidersRoute } from "@jini-ai/cms/public-http/routes/members/login-providers";
 import { memberMeRoute } from "@jini-ai/cms/public-http/routes/members/me";
+import { memberPasswordSignInRoute } from "@jini-ai/cms/public-http/routes/members/password-sign-in";
 import { memberResetPasswordRoute } from "@jini-ai/cms/public-http/routes/members/reset-password";
 import { memberSetPasswordRoute } from "@jini-ai/cms/public-http/routes/members/set-password";
 import { memberSignOutRoute } from "@jini-ai/cms/public-http/routes/members/sign-out";
@@ -11,13 +13,16 @@ import { MemberLoginError, NodeSessionTokens } from "@jini-ai/user-management/se
 import { createMemberAccessResolver, resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
 import { MemberAuthError, type MemberRecord } from "@jini-ai/user-management/members/types";
 import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
-import { resetPassword, setMemberPassword } from "@jini-ai/user-management/members/password-auth";
+import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
+import type { MemberSignInResult } from "@jini-ai/user-management/members/ports";
+import { captureVisitorEvent } from "#src/server/inbound/public-http/visitor-analytics";
+import { captureMemberSignedIn, observeMemberSignInFailure } from "#src/server/inbound/public-http/routes/members/analytics";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { toPublicMemberResponse } from "#src/server/inbound/public-http/http/members";
 import { checkMemberPost, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
-import { clearedMemberSessionCookie, MEMBER_AUTH_FAILURE, MEMBER_SESSION_COOKIE, memberAuthRefusal } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
+import { clearedMemberSessionCookie, MEMBER_AUTH_FAILURE, MEMBER_SESSION_COOKIE, memberAuthRefusal, memberSessionCookie } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { memberOidcRefusal, uniqueMemberCookie, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
 import { MEMBER_SIGN_IN_FAILURE, memberSignInRefusal, reportMemberDeliveryFailure } from "#src/server/inbound/public-http/routes/members/sign-in";
 
@@ -71,12 +76,69 @@ export function registerPublicMemberSignOutRoute({ app, deps }: { app: Express; 
   });
 }
 
-type MemberLimiterName = "magicLinkCompleteAttemptLimiter" | "passwordSignInPerIpLimiter" | "passwordSetPerMemberLimiter" | "magicLinkPerEmailLimiter" | "magicLinkPerIpLimiter";
+type MemberLimiterName = "magicLinkCompleteAttemptLimiter" | "passwordSignInPerIpLimiter" | "passwordSignInPerEmailLimiter" | "passwordSetPerMemberLimiter" | "magicLinkPerEmailLimiter" | "magicLinkPerIpLimiter";
 
 /** A limiter port that reads the named shared limiter per request, as the hand-written routes did:
  * tests swap the limiter instances on `deps` after registration. O(1) plus the limiter. */
 function liveLimiter({ deps, name }: { deps: MemberPublicRouteDeps; name: MemberLimiterName }, _optional: Record<string, never> = {}): Pick<MemberPublicRouteDeps[MemberLimiterName], "check"> {
   return { check: (input) => deps[name].check(input) };
+}
+
+/** The Express request of the member sign-in POST being answered, for the visitor-analytics hooks. */
+const memberSignInRequest = new AsyncLocalStorage<Request>();
+
+/** The request `memberSignInApp` scoped this spec call to.
+ * @throws When a hook runs outside that scope — a wiring bug, refused rather than attributed to no visitor.
+ */
+function currentMemberSignInRequest(_optional: Record<string, never> = {}): Request {
+  const request = memberSignInRequest.getStore();
+  if (!request) throw new Error("member sign-in analytics hook ran outside its request scope");
+  return request;
+}
+
+/** The app view a member SIGN-IN spec is mounted on: `memberPostApp`'s gate, preceded by the refused-sign-in
+ * observer and followed by the spec running inside this request's analytics scope, in the hand-written order.
+ * @returns An `app` whose `post` still makes ONE `app.post(path, handler)` registration (route table unchanged).
+ * @complexity O(1) setup; per request as `checkMemberPost`.
+ */
+function memberSignInApp(
+  { app, deps, method }: { app: Express; deps: MemberPublicRouteDeps; method: "password" | "challenge" },
+  _optional: Record<string, never> = {},
+): Express {
+  // Visitor analytics read the whole Express request (consent cookie, provenance headers, client
+  // address), which a spec cannot see: the hooks the spec calls reach it through this request scope.
+  const view: Express = Object.create(app);
+  const post = (path: string, handler: RequestHandler) => app.post(path, (req, res, next) => {
+    observeMemberSignInFailure({ deps, request: req, response: res, method });
+    if (!checkMemberPost({ req, res, deps })) return;
+    return memberSignInRequest.run(req, () => handler(req, res, next));
+  });
+  view.post = post as unknown as Express["post"];
+  return view;
+}
+
+/** `POST …/password/sign-in`: verify unchanged password bytes behind separate strict IP and normalized-email counters. O(1) I/O. */
+export function registerPublicMemberPasswordSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({
+    app: memberSignInApp({ app, deps, method: "password" }),
+    spec: memberPasswordSignInRoute,
+    deps: {
+      workspaceId: deps.workspaceId,
+      ipLimiter: liveLimiter({ deps, name: "passwordSignInPerIpLimiter" }),
+      emailLimiter: liveLimiter({ deps, name: "passwordSignInPerEmailLimiter" }),
+      signInRequested: () => {
+        void captureVisitorEvent({ deps, request: currentMemberSignInRequest(), name: "member_sign_in_requested", properties: { method: "password", realm: "member" } });
+      },
+      signInWithPassword: (input) => signInWithPassword({ deps: toPublicMembersWriteServiceDeps(deps, { request: currentMemberSignInRequest() }), input }),
+      sessionCookie: (input) => memberSessionCookie(input),
+      // The spec hands back the very result `signInWithPassword` answered, so it is this service's record.
+      signedIn: ({ result }) => captureMemberSignedIn({ deps, request: currentMemberSignInRequest(), result: result as MemberSignInResult, method: "password", workspaceId: deps.workspaceId }),
+      toPublicMember: ({ member }) => toPublicMemberResponse(member as MemberRecord),
+      refusalFor: ({ error }) => memberAuthRefusal({ error }),
+    },
+    failure: MEMBER_AUTH_FAILURE,
+    workspaceId: deps.workspaceId,
+  });
 }
 
 /** `POST …/reset-password`: consume a link-only reset; a reset never creates a session. O(1) plus the service. */

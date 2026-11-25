@@ -11,8 +11,7 @@ import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthor
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
 import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
-import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";
-import { registerMemberLoginProvidersRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "./public-members.js";
+import { registerMemberLoginProvidersRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberPasswordSignInRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "./public-members.js";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
 /**

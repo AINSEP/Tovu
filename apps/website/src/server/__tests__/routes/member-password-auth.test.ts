@@ -23,8 +23,7 @@ import {
 import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
 import { registerPublicMemberCompleteSignInRoute } from "../../inbound/public-http/routes/members/complete-sign-in.js";
-import { registerPublicMemberPasswordSignInRoute } from "../../inbound/public-http/routes/members/password-sign-in.js";
-import { registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "#src/server/runtime/composition/modules/public-members";
+import { registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberPasswordSignInRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "#src/server/runtime/composition/modules/public-members";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
@@ -584,4 +583,27 @@ test("sign-in completion stops at its per-IP limiter with 429 before the challen
   assert.equal((await response.json() as { code: string }).code, "RATE_LIMIT_EXCEEDED");
   assert.equal(keys.length, 1);
   assert.equal((await h.deps.magicLinkRepo.findById({ workspaceId: h.deps.workspaceId, id: challenge.challengeId }))?.consumedAt, undefined);
+});
+
+test("password sign-in analytics: a refused attempt is observed once; an admitted one is requested then signed in, each on its own Express request", async t => {
+  const h = harness(); await h.seed();
+  const events: string[] = []; const paths: unknown[] = [];
+  Object.assign(h.deps, {
+    visitorTracker: { capture: async ({ name }: { name: string }) => { events.push(name); } },
+    visitorAnalyticsProof: async ({ request }: { request: { get?: unknown; originalUrl?: string } }) => {
+      paths.push(typeof request.get === "function" && request.originalUrl);
+      return { proof: "granted" };
+    },
+    visitorAnalyticsDeliveryAllowed: async () => true,
+  });
+  const base = await startTestServer(h.app, t);
+  const settle = () => new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal((await post(base, "password/sign-in", { email: "ada@example.test" })).status, 400);
+  await settle();
+  assert.deepEqual(events, ["member_sign_in_failed"]);
+  events.length = 0;
+  assert.equal((await post(base, "password/sign-in", { email: "ada@example.test", password: "x" })).status, 200);
+  await settle();
+  assert.deepEqual(events, ["member_sign_in_requested", "member_signed_in"]);
+  assert.deepEqual([...new Set(paths)], [`${BASE}/password/sign-in`]);
 });

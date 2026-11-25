@@ -1,4 +1,4 @@
-import type { Express, Response } from "express";
+import type { Express, RequestHandler, Response } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
 import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
@@ -103,6 +103,19 @@ export interface AdminJsonRouteMountOptions {
    *  request headers it declares (added to the spec's `readHeaders`, so the spec's `raw.headers` also
    *  carries them); a returned reply is written as-is, `undefined` admits the request. */
   preflight?: AdminMountPreflight;
+  /** Opt-in: the host's own body-cap 413 for a spec with `maxBodyBytes` (http-kit's `payloadTooLarge` port),
+   *  instead of the kit's core envelope. The cap still answers before the workspace 404, as a hand-written
+   *  `rejectOversizedJsonBody` middleware did. */
+  payloadTooLarge?: (args: { res: Response; maxBytes: number }) => void;
+  /** Opt-in: body parsers registered between the path and the handler of THIS route only (http-kit's
+   *  `bodyParsers`), as a hand-written route mounted its own `express.urlencoded`. A mount option, not a port. */
+  bodyParsers?: readonly RequestHandler[];
+  /** Opt-in: writes every `RouteRefusalError` (the workspace 404, the authorize 403, a spec's own refusal) instead of the
+   *  flat JSON envelope — for a route whose hand-written version answered `text/plain`. */
+  refusalWriter?: (args: { res: Response; error: RouteRefusalError }) => void;
+  /** Opt-in: writes an unexpected failure instead of `sendAdminFailure`/`adminFailureResponse`'s JSON — the host owns
+   *  the incident report and the copy (a `text/plain` 500). Refusals never reach it. */
+  failureWriter?: (args: { res: Response; error: unknown }) => void;
 }
 
 /** What a {@link AdminMountPreflight.check} is given: its declared headers (lower-cased keys, an absent
@@ -278,12 +291,15 @@ export function createAdminJsonRoutePorts(
     },
     authorize: (args, scope = {}) => authorizeWithPorts({ args, scope, options: required }),
     onError: ({ res, error }) => {
-      if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
+      if (error instanceof RouteRefusalError) { (required.refusalWriter ?? writeRefusal)({ res, error }); return; }
       if (error instanceof AdminWorkspaceRefusal) { writeWorkspaceRefusal({ res, reply: error.reply }); return; }
+      if (required.failureWriter) { required.failureWriter({ res, error }); return; }
       writeAdminFailure({ res, error, options: required });
     },
     onReturnedError: writeReturnedFailure,
     requestFacts: routeRequestFactsFor,
+    // Present only when the mount supplied one, so a default mount's ports carry no extra key.
+    ...(required.payloadTooLarge ? { payloadTooLarge: required.payloadTooLarge } : {}),
   };
 }
 
@@ -344,11 +360,11 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
   optional: AdminJsonRouteMountOptions = {},
 ): void {
-  const { forwardRejection, ...portOptions } = optional;
+  const { forwardRejection, bodyParsers, ...portOptions } = optional;
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
   const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps });
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps }, bodyParsers ? { bodyParsers } : {});
 }
 
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
@@ -359,7 +375,11 @@ function registeringThroughAsyncRoute(
   { app, method }: { app: Express; method: JsonRouteSpec<unknown, unknown, unknown>["method"] },
   _optional: Record<string, never> = {},
 ): Express {
-  const register = (path: string, handler: AsyncRouteHandler) => app[method](path, asyncRoute({ handler }));
+  // Any `bodyParsers` stay ahead of the handler, in the same registration; only the handler is wrapped.
+  const register = (path: string, ...handlers: RequestHandler[]) => {
+    const handler = handlers.pop() as unknown as AsyncRouteHandler;
+    return (app as unknown as Record<string, (path: string, ...registered: RequestHandler[]) => unknown>)[method](path, ...handlers, asyncRoute({ handler }));
+  };
   return { [method]: register } as unknown as Express;
 }
 

@@ -42,11 +42,12 @@ export function mountAdminRawRoute<Deps>(
   required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: RouteHostContext; handlerName?: string },
   optional: AdminJsonRouteMountOptions = {},
 ): void {
+  const { bodyParsers, ...portOptions } = optional;
   const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const app = required.handlerName === undefined ? required.app : registeringUnderName({ app: required.app, method: required.spec.method, name: required.handlerName });
-  const ports = adminPortsFor({ path: required.spec.path, options: optional, requireSameOrigin: required.spec.requireSameOrigin });
-  const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: optional.preflight });
-  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter });
+  const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
+  const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
+  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, bodyParsers ? { bodyParsers } : {});
 }
 
 /** The one-method app `mountRawRoute` registers on, naming the handler it is given. `mountRawRoute`
@@ -56,7 +57,11 @@ function registeringUnderName(
   { app, method, name }: { app: Express; method: RawRouteSpec<unknown>["method"]; name: string },
   _optional: Record<string, never> = {},
 ): Express {
-  const register = (path: string, handler: RequestHandler) => app[method](path, Object.defineProperty(handler, "name", { value: name }));
+  // Any `bodyParsers` keep their own names ahead of it; the one handler is named.
+  const register = (path: string, ...handlers: RequestHandler[]) => {
+    const handler = handlers.pop() as RequestHandler;
+    return (app as unknown as Record<string, (path: string, ...registered: RequestHandler[]) => unknown>)[method](path, ...handlers, Object.defineProperty(handler, "name", { value: name }));
+  };
   return { [method]: register } as unknown as Express;
 }
 

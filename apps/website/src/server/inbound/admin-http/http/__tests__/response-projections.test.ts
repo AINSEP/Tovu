@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toApiKeyIssueResponse, toApiKeyPrincipalResponse } from "../api-keys.js";
+import { toApiKeyIssueResponse, toApiKeyPrincipalResponse } from "@jini-ai/user-management/admin-http/http/api-keys";
 import { toAdminDeliveryResponse, toAdminDeliverySummary, toAdminSubscriptionResponse } from "@jini-ai/cms/admin-http/http/integrations";
 import { toAdminMediaListResponse, toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { toAdminMemberResponse } from "@jini-ai/cms/admin-http/http/members";

@@ -28,8 +28,17 @@ const MEMBER_COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax", secu
 export function setMemberSessionCookie({ res, rawToken, expiresAtIso }: {
   res: Response; rawToken: string; expiresAtIso: string;
 }, _options = {}): void {
+  res.append("Set-Cookie", memberSessionCookie({ rawToken, expiresAtIso }));
+}
+
+/** The member session `Set-Cookie` value, exactly as Express 4's
+ *  `res.cookie(MEMBER_SESSION_COOKIE, rawToken, { ...MEMBER_COOKIE_OPTIONS, maxAge })` serialized it: `maxAge` ms
+ *  until the session expiry (never negative), written as whole-second `Max-Age` and `Expires` at now + `maxAge`.
+ *  Shared by the hand-written challenge completion and the password sign-in spec's injected cookie. O(1).
+ */
+export function memberSessionCookie({ rawToken, expiresAtIso }: { rawToken: string; expiresAtIso: string }, _options: Record<string, never> = {}): string {
   const maxAge = Math.max(0, new Date(expiresAtIso).getTime() - Date.now());
-  res.cookie(MEMBER_SESSION_COOKIE, rawToken, { ...MEMBER_COOKIE_OPTIONS, maxAge });
+  return serialize(MEMBER_SESSION_COOKIE, rawToken, { ...MEMBER_COOKIE_OPTIONS, expires: new Date(Date.now() + maxAge), maxAge: Math.floor(maxAge / 1000) });
 }
 
 /** Clear exactly the attributes used to set the cookie, so sign-out removes it reliably. O(1).
