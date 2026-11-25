@@ -2,6 +2,7 @@ import {
   convertMediaVideo, shouldTranscodeOnImport, uploadMedia, VideoConversionError,
   type ConvertMediaVideoDeps, type MediaRecord, type MediaRepoPort, type UploadMediaDeps, type UploadMediaInput,
 } from "@jini-ai/cms/media";
+import type { MediaConversionNotice, MediaUploadResult } from "@jini-ai/core/contracts/site/cms-media";
 import type { Clock } from "@jini-ai/core/primitives";
 import { createDerivedMediaLink } from "./derived-media-link.js";
 import type { MediaConversionPorts } from "./tool-registrations.js";
@@ -18,7 +19,7 @@ import type { MediaConversionPorts } from "./tool-registrations.js";
 
 /** The only facts about an upload the hook reads; the host's own input type carries more. */
 interface UploadFacts { bytes: Uint8Array; contentType: string; createdByPrincipal: string }
-type StoreUpload<Input extends UploadFacts> = (input: Input) => Promise<{ media: MediaRecord }>;
+type StoreUpload<Input extends UploadFacts> = (input: Input) => Promise<MediaUploadResult<MediaRecord>>;
 
 export interface ImportVideoConversion {
   /** The upload ports plus the injected converter and the "this copy came from that video" link. */
@@ -44,33 +45,38 @@ function describeSkippedConversion({ cause }: { cause: unknown }, _optional: Rec
 /**
  * Converts the just-stored upload when it is a video over the threshold. Never throws: a missing
  * ffmpeg or a failed conversion is reported through `reportNote` and the original stays as uploaded.
+ * @returns the fixed `"web-copy-unavailable"` code when an attempted conversion failed (after the cause
+ * went to `reportNote`); `undefined` when nothing was attempted or the copy was made.
  * Side effects: on success, one converted copy plus its link (Jini rolls back a half-made copy).
  * @complexity O(1) here; the conversion itself is O(video bytes).
  */
 async function convertStoredUpload(
   required: { conversion: ImportVideoConversion; input: UploadFacts; stored: { media: MediaRecord } },
   _optional: Record<string, never> = {},
-): Promise<void> {
+): Promise<MediaConversionNotice | undefined> {
   const { conversion, input, stored } = required;
   // The sniffed type of the stored bytes wins over the declared one, so a mislabeled upload cannot dodge or trigger the rule.
   const contentType = stored.media.source.contentType ?? input.contentType;
   const threshold = conversion.thresholdBytes === undefined ? {} : { thresholdBytes: conversion.thresholdBytes };
-  if (!shouldTranscodeOnImport({ sizeBytes: input.bytes.byteLength, contentType }, threshold)) return;
+  if (!shouldTranscodeOnImport({ sizeBytes: input.bytes.byteLength, contentType }, threshold)) return undefined;
   try {
     await convertMediaVideo({
       deps: conversion.deps,
       input: { workspaceId: stored.media.workspaceId, mediaId: stored.media.id, createdByPrincipal: input.createdByPrincipal },
     });
+    return undefined;
   } catch (cause) {
     conversion.reportNote({ note: describeSkippedConversion({ cause }), cause });
+    // Only the fixed code leaves this function; the cause stays with the diagnostic sink above.
+    return "web-copy-unavailable";
   }
 }
 
 /**
  * Wraps the host's `storeUpload` so a stored video over the import threshold also gets a web-safe
  * MP4 copy. The wrapped function still returns the ORIGINAL record, so the upload response and
- * everything linked to it are unchanged. With no `conversion` (no converter injected) the store
- * function is returned as-is.
+ * everything linked to it are unchanged; when an attempted conversion failed it also carries the fixed
+ * `conversionNotice` code. With no `conversion` (no converter injected) the store function is returned as-is.
  * @returns a store function with the same signature. @complexity O(1) to build.
  */
 export function withVideoConversionOnImport<Input extends UploadFacts>(
@@ -81,8 +87,10 @@ export function withVideoConversionOnImport<Input extends UploadFacts>(
   if (!conversion) return storeUpload;
   return async (input) => {
     const stored = await storeUpload(input);
-    await convertStoredUpload({ conversion, input, stored });
-    return stored;
+    const conversionNotice = await convertStoredUpload({ conversion, input, stored });
+    // The notice belongs to the request that stored the original, not to the shared converter or the
+    // media record, so it is merged into this call's own result and never kept anywhere else.
+    return conversionNotice === undefined ? stored : { ...stored, conversionNotice };
   };
 }
 
@@ -98,8 +106,8 @@ export interface VideoImportOptions {
 
 /**
  * The note sink the production mount passes: the owner-facing sentence and the raw cause both go to the
- * operator log (the cause as a separate argument, never spliced into the sentence), because the upload
- * response has no field for the owner to read. The sentence itself never carries the cause, see
+ * operator log (the cause as a separate argument, never spliced into the sentence); the upload response
+ * carries only the fixed `conversionNotice` code, which the admin localizes. The sentence never carries the cause, see
  * `describeSkippedConversion`. `warn` is injected (the mount passes `console.warn`). @complexity O(1).
  */
 export function operatorLogVideoNote(
@@ -136,7 +144,7 @@ export function createConvertingUploader(
     mediaRepo: MediaRepoPort; clock: Clock;
   },
   optional: { video?: VideoImportOptions | undefined } = {},
-): (input: UploadMediaInput) => Promise<{ media: MediaRecord }> {
+): (input: UploadMediaInput) => Promise<MediaUploadResult<MediaRecord>> {
   const { uploadDeps, caps, mediaRepo, clock } = required;
   return withVideoConversionOnImport({
     storeUpload: (input: UploadMediaInput) => uploadMedia({ deps: uploadDeps, input }, caps),
