@@ -33,6 +33,12 @@ import { overridesThemePageFromSelectValue, overridesThemePageSelectValue } from
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import "../../styles/native-domain-dialogs.css";
 
+type ViewTabRow = { readonly key: string; readonly label: string };
+/** The view bar's tabs are keyed by `key`; the shared TabBar roving-index rule reads `id`. */
+const resolveViewTabIndex = ({ tabs, activeId, tab }: { tabs: readonly ViewTabRow[]; activeId: string; tab: ViewTabRow }): number =>
+  resolveTabBarTabIndex({ tabs: tabs.map(row => ({ id: row.key, label: row.label })), activeId, tab: { id: tab.key, label: tab.label } });
+
+
 /**
  * @file The post/page editor screen — markup only.
  *
@@ -100,7 +106,7 @@ export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPost
 
       <PostEditorNotices {...screen.notices} />
       {/* Edit/Preview toolbar and the template picker — see `PostEditorViewBar`. */}
-      <PostEditorViewBar {...screen.viewBar} DevicePreviewToggle={DevicePreviewToggle} viewTabs={VIEW_TABS} resolveTabBarTabIndex={resolveTabBarTabIndex} PostEditorToolbarEnd={PostEditorToolbarEnd} />
+      <PostEditorViewBar {...screen.viewBar} DevicePreviewToggle={DevicePreviewToggle} viewTabs={VIEW_TABS} resolveTabBarTabIndex={resolveViewTabIndex} PostEditorToolbarEnd={PostEditorToolbarEnd} />
 
       {/* Directly under the toolbar, not in the header — see `PostEditorActions`' own doc. Placed
           ABOVE the slug-collision warning so the row keeps the position the owner asked for

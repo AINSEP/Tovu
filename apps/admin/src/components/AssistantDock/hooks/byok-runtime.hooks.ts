@@ -23,7 +23,7 @@ export function useByokRuntime(
     persistWrite({ write, failureLog: "[AssistantDock] failed to save BYOK model" }), [persistWrite]);
   return useAdminByokRuntime({
     executionConfig, setExecutionConfig, createPort, useModelsHook: useModels,
-    presets: DEFAULT_PROVIDER_PRESETS, resolvePreset: resolveSelectedPreset, presetIconIds: BYOK_PRESET_ICON_IDS,
+    presets: DEFAULT_PROVIDER_PRESETS, resolvePreset: (args) => resolveSelectedPreset(args) ?? undefined, presetIconIds: BYOK_PRESET_ICON_IDS,
     applyChange: applyExecutionConfigChange, persistWrite: persistModel,
   });
 }

@@ -12,6 +12,11 @@ import { t, sinceDiscardMessage, discardCountLine, baselineUnavailableMessage, r
 import { useWiredRecovery } from "./hooks/recovery-dependencies.hooks";
 import { useWiredRestoreFlow } from "./hooks/restore-flow-dependencies.hooks";
 
+/** The shared kit slots, narrowed to the props Recovery passes (the slot type also accepts a kit hook). */
+const RecoveryI18nProvider: RecoveryProps["kit"]["I18nProvider"] = props => <I18nProvider {...props} />;
+const RecoverySettingsDialogShell: RecoveryProps["kit"]["SettingsDialogShell"] = props => <SettingsDialogShell {...props} />;
+const recoveryKit: RecoveryProps["kit"] = { DataTable, I18nProvider: RecoveryI18nProvider, SettingsDialogShell: RecoverySettingsDialogShell };
+
 /** Module-level so `useRecoveryNavigation`'s memoized handlers stay stable across renders. */
 const recoveryNavigationPort = { navigate };
 
@@ -19,7 +24,7 @@ export function Recovery({ useRecoveryHook = useWiredRecovery, useRestoreFlowHoo
   useRecoveryNavigationHook = useRecoveryNavigation, ...props }: Pick<RecoveryProps, "tabId"> & Partial<Pick<RecoveryProps, "useRecoveryHook" | "useRestoreFlowHook" | "useRecoveryNavigationHook">>) {
   return <JiniRecovery {...props} useRecoveryHook={useRecoveryHook} useRestoreFlowHook={useRestoreFlowHook}
     useRecoveryNavigationHook={useRecoveryNavigationHook} navigationPort={recoveryNavigationPort}
-    kit={{ DataTable, I18nProvider, SettingsDialogShell }} ServerLabel={ServerLabel}
+    kit={recoveryKit} ServerLabel={ServerLabel}
     dictionaries={SETTINGS_DIALOG_DICTIONARIES} viewerTimeZone={VIEWER_TIME_ZONE}
     copy={{ t, sinceDiscardMessage, discardCountLine, baselineUnavailableMessage, restorePlanReadyMessage, restoreDoneMessage,
       categoryLabel, costClassLabel, isAssertiveRecoveryBanner, recoveryBannerTone, restoreButtonAccessibleName }} />;

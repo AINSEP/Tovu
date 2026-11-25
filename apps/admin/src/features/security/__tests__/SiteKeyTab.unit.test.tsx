@@ -13,6 +13,7 @@ import type { SiteKeyController } from "@jini-ai/integrations/react/site-key/hoo
 import type { SiteKeyRecoveryController } from "@jini-ai/integrations/react/site-key/hooks/use-site-key-recovery.hooks";
 import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/core/agent-handles";
 import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
+import { useWiredSiteKey } from "@/features/security/hooks/site-key-dependencies.hooks";
 
 /**
  * @file First dedicated test file for `SiteKeyTab.tsx`. It exists because the 2026-09-09 copy
@@ -368,7 +369,7 @@ describe("SiteKeyTab — load, reveal and env-source states", () => {
       return Response.json(ACTIVE_ENV_STATUS);
     });
     try {
-      render(<SiteKeyTab useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyRecoveryHook={() => makeRecovery()} />);
+      render(<SiteKeyTab useSiteKeyHook={useWiredSiteKey} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyRecoveryHook={() => makeRecovery()} />);
       expect(await screen.findByText(/This key was set up directly on the server rather than as a file/)).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();

@@ -6,7 +6,7 @@ import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/da
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { buildCredentialCopyRegistrations, CREDENTIAL_COPY_TOOL_ID, type CredentialCopyToolDeps } from "../../../../website/src/features/custom-credentials/credential-copy-tool.js";
-import { createProjectKeys } from "#src/features/project-keys/host-bindings";
+import { createProjectKeys } from "../../../../website/src/features/project-keys/service.js";
 import { fakeAttachments, vaultRow } from "../../../../website/src/features/project-keys/__tests__/helpers.js";
 
 const turn = () => new Promise<void>(resolve => setImmediate(resolve));

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { resolveByokFooterStatusLine, type AdminByokSaveState } from "@jini-ai/integrations/react/admin-credentials/byok-footer-status";
 import { useExecutionCredential, type UseExecutionCredentialInput, type ExecutionCredentialController, type ExecutionCredentialPort, type ExecutionCredentialEffects } from "@jini-ai/ui";
 
 import type { AdminExecutionCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
@@ -7,7 +8,7 @@ import { clearLegacyLocalCredential, readLegacyLocalCredential } from "../lib/ex
 import { EXECUTION_NAMESPACE, hasTypedAdminKey } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import { hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
+import { STORED_KEY_OTHER_PROVIDER_COPY, hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 import { defaultAdminExecutionCredentialPort } from "./admin-execution-credential-dependencies.hooks";
 import type { AdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 import { storedCredentialHint } from "../lib/credential-copy";
@@ -93,4 +94,25 @@ export function useWiredAdminExecutionCredential(
 ): AdminExecutionCredentialController {
   const locale = useAdminLocale();
   return useAdminExecutionCredential({ input: { ...input, locale }, port: defaultAdminExecutionCredentialPort, useExecutionCredentialHook: useExecutionCredential }, {});
+}
+
+/**
+ * The admin's binding of the neutral footer status rule to Jini's `AdminByokKeyFooter`
+ * `resolveByokFooterStatusLine` port: the port hands the screen's `t`, the rule takes copy, so
+ * the admin's English copy is translated here once per render.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function resolveAdminByokFooterStatusLine(
+  { status, isStored }: { status: AdminByokSaveState["status"]; isStored: boolean },
+  { storedKeyIsForOtherEndpoint = false, t = (key: string) => key }: { storedKeyIsForOtherEndpoint?: boolean; t?: (key: string) => string } = {},
+): string | null {
+  const copy = {
+    saving: t("Saving…"),
+    saved: t("Saved to the server, encrypted."),
+    otherEndpoint: t(STORED_KEY_OTHER_PROVIDER_COPY),
+    stored: t("Stored on the server, encrypted. Paste a new key to replace it."),
+    enterKey: t("Paste your key, then press Save key."),
+  };
+  return resolveByokFooterStatusLine({ status, isStored, copy }, { storedKeyIsForOtherEndpoint });
 }

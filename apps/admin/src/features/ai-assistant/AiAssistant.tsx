@@ -1,5 +1,5 @@
 import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
-import { resolveByokFooterStatusLine } from "@/hooks/use-admin-execution-credential.hooks";
+import { resolveAdminByokFooterStatusLine } from "@/hooks/use-admin-execution-credential.hooks";
 import { createAiAssistantTranslator, useHostAssistantRestartAllowed } from "./AiAssistant.hooks";
 import type { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId } from "react";
@@ -289,7 +289,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
         canDiscoverModels={adminCredential.canDiscoverModels}
         describeProbeError={createProbeErrorDescriber({ t })}
-        apiKeyFooter={<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
+        apiKeyFooter={<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveAdminByokFooterStatusLine} controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
         formFooter={<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" t={t} />}
       />
       {/*
