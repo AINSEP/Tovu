@@ -126,6 +126,7 @@ async function makeWidgetAreaHost(repos: ReturnType<typeof makeSharedRepos>): Pr
     deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: new InMemoryOutbox() },
     input: {
       actorId: ACTOR.principalId,
+      actor: { id: ACTOR.principalId, kind: "user" },
       workspaceId: WORKSPACE_ID,
       type: WIDGET_AREA_CONTENT_TYPE,
       slug: `widget-area-${idCounter}`,

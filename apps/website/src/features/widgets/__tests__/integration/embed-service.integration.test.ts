@@ -178,6 +178,7 @@ async function makeHostEntry(
     deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `entry-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: new InMemoryOutbox() },
     input: {
       actorId: ACTOR.principalId,
+      actor: { id: ACTOR.principalId, kind: "user" },
       workspaceId: WORKSPACE_ID,
       type,
       slug: `host-${idCounter}`,
@@ -264,6 +265,7 @@ test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-17): a widget_area
     deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: new InMemoryOutbox() },
     input: {
       actorId: ACTOR.principalId,
+      actor: { id: ACTOR.principalId, kind: "user" },
       workspaceId: WORKSPACE_ID,
       type: WIDGET_AREA_CONTENT_TYPE,
       slug: `widget-area-footer-${idCounter}`,
@@ -504,6 +506,7 @@ test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reo
     deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: new InMemoryOutbox() },
     input: {
       actorId: ACTOR.principalId,
+      actor: { id: ACTOR.principalId, kind: "user" },
       workspaceId: WORKSPACE_ID,
       type: WIDGET_AREA_CONTENT_TYPE,
       slug: `widget-area-reorder-${idCounter}`,

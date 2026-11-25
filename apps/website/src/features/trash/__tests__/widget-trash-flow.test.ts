@@ -37,7 +37,7 @@ import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-rete
 
 const WS = "workspace-1";
 const AT = "2026-09-21T12:00:00.000Z";
-const ACTOR = { principalId: "admin-1" };
+const ACTOR = { principalId: "admin-1", kind: "user" } as const;
 
 interface Harness {
   db: ContentDb;
