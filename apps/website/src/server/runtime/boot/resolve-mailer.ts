@@ -109,6 +109,8 @@ export interface ResolveMailerDeps extends MailProviderCatalogDeps {
 export interface ResolvedMailer extends Omit<JiniResolvedMailer, "mailer"> {
   /** Tovu's purpose-scoped MailerPort (`toTovuMailer`), not Jini's. */
   mailer: MailerPort;
+  /** Jini's optional field, always present here because `createJiniResolvedMailer` supplies it. */
+  readonly effectiveProviderId: NonNullable<JiniResolvedMailer["effectiveProviderId"]>;
 }
 
 export type { MailProviderCheck } from "@jini-ai/platform/mail";
