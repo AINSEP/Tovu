@@ -24,13 +24,16 @@ export interface CacheOnlySession {
  * session, which the shell itself (and every other site's sign-in bootstrap) shares.
  *
  * @param required.siteDir the removed site's directory; the partition is `sitePartition`'s.
- * @param required.fromPartition Electron's `session.fromPartition`, injected for tests.
+ * @param required.heldSession the partition interlock's session for a partition this process already
+ *   holds, or `undefined` when it holds none (`desktop-partition-lock.ts` is the only opener, T-2a.3);
+ *   an unheld partition is skipped and left to the boot partition pass.
  * @complexity O(1) here; the clears are Chromium's own cost over the cache contents.
  */
 export async function trimRetiredSiteCacheIn(
-  { siteDir, fromPartition }: { siteDir: string; fromPartition: (partition: string) => CacheOnlySession }, _optional = {},
+  { siteDir, heldSession }: { siteDir: string; heldSession: (partition: string) => CacheOnlySession | undefined }, _optional = {},
 ): Promise<void> {
-  const target = fromPartition(sitePartition({ siteDir }));
+  const target = heldSession(sitePartition({ siteDir }));
+  if (!target) return;
   await target.clearCache();
   await target.clearCodeCaches({});
 }

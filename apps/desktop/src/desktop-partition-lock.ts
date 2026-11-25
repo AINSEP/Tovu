@@ -215,6 +215,17 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
     acquireSiteWindow: ({ siteDir }: { siteDir: string }, _opt: Record<string, never> = {}): Promise<SiteSessionAcquired> =>
       interlock.acquireSiteSession({ partition: sitePartition({ siteDir }), subjectDir: siteDir }).catch((error: unknown) => { throw partitionOpenFailure({ error }); }),
     siteSession: ({ partition }: { partition: string }, _opt: Record<string, never> = {}): S => interlock.siteSession({ partition }),
+    /**
+     * A removed site's cache trim: this process's session for `partition` only if it already holds it,
+     * else `undefined`. Never an acquire: acquiring invalidates the erase arm's retirement record
+     * (`reacquired`) and holds a removed site's jar for the rest of the run; and never a bare open,
+     * which would create a session a partition pass may be renaming away. An unheld partition's
+     * cache is left to the boot partition pass.
+     */
+    heldSiteSession: ({ partition }: { partition: string }, _opt: Record<string, never> = {}): S | undefined => {
+      try { return interlock.siteSession({ partition }); }
+      catch (error) { if (error instanceof PartitionNotHeldError) return undefined; throw error; }
+    },
     /** Before `new BrowserWindow` with a partition: Electron would create an unheld session implicitly. */
     assertPartitionHeld: ({ partition }: { partition: string | undefined }, _opt: Record<string, never> = {}): void => {
       if (partition) interlock.assertHeld({ partition });

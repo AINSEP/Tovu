@@ -50,6 +50,7 @@ function fixture(overrides: Partial<ProjectIpcDeps> = {}) {
     readRegistry, isLiveServeRow, recordSiteClosed: () => {}, deletePreview: () => {},
     serializer: { run: ({ fn }: { key: string; fn: () => unknown }) => fn() },
     removeSiteTree: async ({ root: dir }: { root: string }) => { fs.rmSync(dir, { recursive: true }); },
+    trimRetiredSiteCache: async () => {}, warn: ({ message }: { message: string }) => assert.fail(message),
     retirement: spy, ...overrides,
   } as unknown as ProjectIpcDeps;
   const site = (name: string, origin: "created" | "adopted") => {

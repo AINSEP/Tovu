@@ -168,3 +168,14 @@ test("an unregistered instance's window acquire is refused and touches no sessio
   assert.throws(() => f.binding.siteSession({ partition: sitePartition({ siteDir }) }), /used before it was acquired/, "no fallback session was handed out");
   assert.equal(f.binding.admitGuestPartition({ partition: sitePartition({ siteDir }) }), false);
 });
+
+test("heldSiteSession answers only a partition this process already holds, and never acquires", async () => {
+  const f = fixture();
+  writeProjects(f, []);
+  const siteDir = path.join(f.root, "site-trim");
+  const partition = sitePartition({ siteDir });
+  assert.equal(f.binding.heldSiteSession({ partition }), undefined);
+  assert.deepEqual(f.invalidated, [], "a lookup must not invalidate a retirement record");
+  await f.binding.acquireSite({ siteDir });
+  assert.deepEqual(f.binding.heldSiteSession({ partition }), { name: partition });
+});
