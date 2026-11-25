@@ -270,3 +270,22 @@ test("create needs no body target: the admin form sends none and composition sup
   assert.equal(malformed.ok, true, "a body target is never read, so it cannot fail the create either");
   await h.close();
 });
+
+test("passive profile: a second window never runs a routine slot while the owner holds the lease, even past a due slot", async (t) => {
+  const contentDbPath = tempSite(t);
+  const routineId = await seedRoutine(contentDbPath);
+  const owner = harness(t, { contentDbPath });
+  const ownerHost = await composeAssistantRoutines(owner.required, { monotonicNow: owner.clock.now, holderId: "window-owner" });
+  assert.equal(ownerHost.availability(), "ready");
+  // Same site file, the SAME virtual clock and timer set (one machine, one time), its own starter and lease holder.
+  const passive = harness(t, { contentDbPath, now: owner.clock.now, timers: owner.clock.timers });
+  const passiveHost = await composeAssistantRoutines(passive.required, { monotonicNow: owner.clock.now, holderId: "window-passive" });
+  assert.equal(passiveHost.availability(), "other-window");
+  // Two hours crosses the due slot (:05) and several lease retries: the owner heartbeat keeps renewing.
+  await owner.clock.advance(2 * 60 * 60_000);
+  assert.ok(owner.starts.some((start) => start.routineId === routineId), "the owner's window ran the due slot");
+  assert.deepEqual(passive.starts, [], "the other window never called runStarter");
+  assert.equal(passiveHost.availability(), "other-window");
+  await passive.close();
+  await owner.close();
+});
