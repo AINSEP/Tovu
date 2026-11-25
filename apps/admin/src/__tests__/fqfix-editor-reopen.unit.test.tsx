@@ -17,7 +17,8 @@ import { useWorkspace } from '@jini-ai/admin/screens/workspace/hooks/use-workspa
 import { describeApiError as describeWorkspaceError } from '@/features/workspace/rules';
 import { t as workspaceT } from '@/features/workspace/workspace-i18n';
 import { createFakeWorkspacePort } from '@/features/workspace/hooks/workspace-dependencies.hooks';
-import { useAgentPluginMemory } from '@/features/plugins/hooks/use-agent-plugin-memory.hooks';
+import { describeApiError } from '@/lib/admin-http/request';
+import { useAgentPluginMemory } from '@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-memory.hooks';
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks';
 
 // fq: reopen in the SAME provider, with a controlled read pending. Cold-cache tests miss this bug.
@@ -109,7 +110,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     const saved: string[] = [];
     const port: AgentPluginMemoryPort = { read: async () => state, saveNote: async input => { saved.push(input.text); return listing(input.text); } };
     let current!: ReturnType<typeof useAgentPluginMemory>;
-    function Probe() { current = useAgentPluginMemory({ pluginId: 'example', port, t }); return null; }
+    function Probe() { current = useAgentPluginMemory({ pluginId: 'example', port, t, describeApiError }); return null; }
     const view = render(<Scope><Probe /></Scope>);
     await waitFor(() => expect(current.text).toBe('Cached note'));
     view.rerender(<Scope />);
