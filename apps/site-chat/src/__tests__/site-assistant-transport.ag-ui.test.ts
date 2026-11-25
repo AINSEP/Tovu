@@ -180,6 +180,31 @@ describe("visitor AG-UI transport", () => {
     assert.equal(finishes.length, 1);
   });
 
+  it("page navigation still navigates after saving the reply", async () => {
+    const finishes: Array<{ navigation: boolean; messages?: ChatMessage[] }> = [];
+    const frontend = { headers: async () => ({ "X-Visitor-Tab": "tab-1" }), finish: (args: { navigation: boolean; messages?: ChatMessage[] }) => { finishes.push(args); } };
+    const server = controlledServer();
+    const run = makeHandlers();
+    const history = [userMessage("take me to about")];
+    await createSiteAssistantTransport({}, { fetch: server.fetch, frontend }).startRun(baseInput(history), run.handlers);
+    server.answer();
+    server.send(server.started() + text("Opening About.")
+      + frame({ type: "CUSTOM", name: "client_directive", value: { type: "navigate", target: { path: "/about", title: "About" }, auto: true } })
+      + server.finished("navigation"));
+    await run.donePromise;
+    server.close();
+    await flush();
+    assert.equal(new Headers(server.sent().init.headers).get("x-visitor-tab"), "tab-1", "frontend headers still travel");
+    assert.deepEqual(run.errors, []);
+    assert.deepEqual(run.events, [{ kind: "text", text: "Opening About." }], "the directive never enters the transcript");
+    assert.equal(finishes.length, 1);
+    assert.equal(finishes[0]!.navigation, true, "the navigation terminal releases the deferred page action");
+    const saved = finishes[0]!.messages!;
+    assert.deepEqual(saved.slice(0, 1), history);
+    assert.equal(saved[1]!.role, "assistant");
+    assert.equal(saved[1]!.content, "Opening About.");
+  });
+
   // Sheet C refusal witness, rerun against the AG-UI request: refusal behavior is unchanged.
   for (const mode of ["React transport", "vanilla host"]) {
     it(`${mode}: malformed envelopes and body I/O settle once with private evidence`, async () => {
