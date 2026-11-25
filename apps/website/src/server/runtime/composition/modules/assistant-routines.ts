@@ -13,6 +13,7 @@ import {
 } from "#src/features/routines/routine-commands";
 import { closeRoutineHost, openRoutineSidecar } from "#src/features/routines/routine-host";
 import { routinesPaths } from "#src/features/routines/routines-paths";
+import { createRoutineApprovalObserver, type RoutineApprovalObserver } from "#src/features/routines/routine-approval-observer";
 import type { OpenRoutinesSqlite } from "#src/platform/db/sqlite/routines-db";
 import type { StoreCloseRegistration } from "../site-deps/open-store.js";
 
@@ -47,7 +48,6 @@ export interface ComposeAssistantRoutinesRequired {
   assistantEnabled: boolean;
   onAssistantToggle: (listener: (enabled: boolean) => void) => () => void;
   runStarter: RoutineRunHandler;
-  approvalObserver: { observe: (...args: never[]) => Promise<void> };
   mountAdminRoute: MountRoutineAdminRoute;
   now: () => number;
   newId: () => string;
@@ -63,6 +63,8 @@ export interface ComposeAssistantRoutinesOptional {
   migrate?: (required: { kernel: unknown; runMigrations: unknown }, optional: Record<string, never>) => Promise<unknown>;
   runMigrations?: unknown;
   createService?: (required: { persistence: RoutineDurablePersistence; holderId: string }) => RoutineService;
+  /** Builds the run handler once the approval observer exists (P3-T3.T), so every accepted run can be tracked; wins over `runStarter`. */
+  createRunHandler?: (ports: { approvals: Pick<RoutineApprovalObserver, "track" | "untrack"> }) => RoutineRunHandler;
 }
 
 export interface AssistantRoutinesHandle {
@@ -71,6 +73,8 @@ export interface AssistantRoutinesHandle {
   reconcile: (input: { reason: "wake" }, optional?: Record<string, never>) => Promise<void>;
   /** Boot handoff for chat repair (`assistant-chats` `routineBoot`): only the lease owner waits for `whenInterrupted`. */
   bootInterruption: { isLeaseOwner: () => boolean; whenInterrupted: () => Promise<void> };
+  /** Human-confirm's optional receipt port: trusted routine context for a tracked run, else undefined. */
+  approvalBindingFor: RoutineApprovalObserver["bindingFor"];
 }
 
 export const ROUTINE_ROUTE_BASE = "/api/admin/assistant/routines";
@@ -176,7 +180,8 @@ function mountRefusal(required: ComposeAssistantRoutinesRequired, availability: 
   const commands = createRoutineCommands({ store: UNOPENED_STORE, service: UNOPENED_STORE as never, access: required.policy.access,
     onCommandCommitted: () => {}, availability: () => availability, target: required.policy.target ?? { mode: "create_each_run" } }, { log: required.log });
   mountRoutineRoutes({ mountAdminRoute: required.mountAdminRoute, workspaceId: required.workspaceId, portsFor: (actor) => commandPortsFor(commands, actor, null, null) });
-  return { availability: () => availability, reconcile: async () => {}, bootInterruption: { isLeaseOwner: () => false, whenInterrupted: async () => {} } };
+  return { availability: () => availability, reconcile: async () => {}, bootInterruption: { isLeaseOwner: () => false, whenInterrupted: async () => {} },
+    approvalBindingFor: () => undefined };
 }
 
 /** Adapts the scheduler port to `closeRoutineHost`'s setTimeout/clearTimeout pair. */
@@ -201,8 +206,11 @@ export async function composeAssistantRoutines(required: ComposeAssistantRoutine
   const createService = optional.createService ?? (({ persistence, holderId: holder }) => new RoutineService({ persistence },
     { now, monotonicNow, newId, timers, holderId: holder, log: (code, detail) => log({ event: code, error: detail }) }));
   const service = createService({ persistence: sidecar.persistence, holderId });
-  service.setRunHandler({ handler: required.runStarter });
-  return startRoutineHost(required, { service, sidecar, holderId });
+  // In-process projection: receipts arrive through `onReceipt`, so the watcher read hook has nothing to add.
+  const approvals = createRoutineApprovalObserver({ persistence: sidecar.store, now, readRunEvents: async () => [], policy: { workspaceId } }, { log });
+  service.setRunHandler({ handler: optional.createRunHandler?.({ approvals }) ?? required.runStarter });
+  const handle = await startRoutineHost(required, { service, sidecar, holderId });
+  return { ...handle, approvalBindingFor: approvals.bindingFor };
 }
 
 type OpenSidecar = Extract<Awaited<ReturnType<typeof openRoutineSidecar>>, { ok: true }>;
@@ -210,8 +218,6 @@ type OpenSidecar = Extract<Awaited<ReturnType<typeof openRoutineSidecar>>, { ok:
 /** Wires the open host: close hooks first (so a later throw still closes), commands, routes, then the switch. */
 async function startRoutineHost(required: ComposeAssistantRoutinesRequired, { service, sidecar, holderId }: { service: RoutineService; sidecar: OpenSidecar; holderId: string }) {
   const { policy, now, timers, log, beforeStoreClose, onStoreClose } = required;
-  // Held for T3.T's approval projection; nothing observes approvals yet.
-  void required.approvalObserver;
   let enabled = required.assistantEnabled;
   let closed = false;
   const availability = (): RoutineAvailability => (closed ? "error" : !enabled ? "assistant-off" : service.leaseState({}, {}) === "owner" ? "ready" : "other-window");

@@ -19,7 +19,7 @@
 import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delete-grant.js";
 import { nativeToolMetadata } from './tool-metadata/index.js';
 import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type AccessApprovalDescription, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
-import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
+import { ToolInputError, type ApprovalReceiptObserver, type SurfaceEmitter, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
 import type { UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
@@ -51,6 +51,25 @@ export function toolApprovalConfirmation({ descriptor, input, locale, details = 
   };
 }
 
+/**
+ * Surfaces for a confirmation, plus one OPTIONAL observe-only port (P3-T3.T). Why optional and
+ * per-call: only a trusted routine run has somewhere to project "waiting for approval", so every
+ * other run gets `undefined` and opens exactly the exchange it always did. The port can never answer:
+ * it receives the exchange's own receipts and, with `restorable: false`, refuses to restart a closed
+ * invocation after a late answer (a routine has no tab that could legitimately bring it back).
+ */
+export type HumanConfirmSurfaceDeps = ChatDeleteSurfaceDeps & {
+  approvalReceiptsFor?: (required: { ctx: Pick<ToolExecutionContext, "run" | "principal"> }, optional?: Record<string, never>) =>
+    { onApprovalReceipt: ApprovalReceiptObserver; restorable?: false } | undefined;
+};
+
+/** Keep the lease (signal, run, principal) but make its retry a no-op, so a late answer restores nothing. */
+function withoutRestore(emit: SurfaceEmitter, _optional = {}): SurfaceEmitter {
+  const lifetime = emit.exchangeLifetime;
+  if (!lifetime) return emit;
+  return Object.assign((emission: Parameters<SurfaceEmitter>[0]) => emit(emission), { exchangeLifetime: { ...lifetime, retry: async () => {} } });
+}
+
 /** The params key an alternative's `choice` rides under. */
 export const HUMAN_CONFIRM_CHOICE_PARAM = "choice";
 
@@ -70,7 +89,7 @@ export type HumanConfirmOutcome = { confirmed: true; choice?: string } | Extract
  * permanent-delete tools, plus the wait for the human.
  */
 export async function requireHumanConfirm(
-  { ctx, surfaces, spec }: { ctx: ToolExecutionContext; surfaces: ChatDeleteSurfaceDeps; spec: HumanConfirmSpec },
+  { ctx, surfaces, spec }: { ctx: ToolExecutionContext; surfaces: HumanConfirmSurfaceDeps; spec: HumanConfirmSpec },
   { emitSurface }: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
   await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
@@ -85,7 +104,12 @@ export async function requireHumanConfirm(
   // Shorthand `{ toolId }` on purpose: the allowlist completeness scan resolves the `toolId` of
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
   const { toolId } = spec;
-  const exchange = surfaces.surfaceExchanges.open({ binding: { toolId, principalId: ctx.principal.id }, emit: emitSurface });
+  // Observe-only and synchronous inside the exchange; the answer below still comes only from the card.
+  const receipts = surfaces.approvalReceiptsFor?.({ ctx });
+  const exchange = receipts
+    ? surfaces.surfaceExchanges.open({ binding: { toolId, principalId: ctx.principal.id },
+      emit: receipts.restorable === false ? withoutRestore(emitSurface) : emitSurface }, { onApprovalReceipt: receipts.onApprovalReceipt })
+    : surfaces.surfaceExchanges.open({ binding: { toolId, principalId: ctx.principal.id }, emit: emitSurface });
   const alternatives = spec.alternatives ?? [];
   const resource = renderHumanConfirmation({ spec, exchange, alternatives });
 
@@ -156,7 +180,7 @@ export function notConfirmedResult(outcome: Extract<ConfirmationOutcome, { confi
  * @complexity O(1) plus the steps and the wait for the human.
  */
 export function humanConfirmedToolHandler<TPrepared>(
-  surfaces: ChatDeleteSurfaceDeps,
+  surfaces: HumanConfirmSurfaceDeps,
   spec: {
     flag: string;
     prepare: (required: { ctx: ToolExecutionContext }) => Promise<TPrepared>;
@@ -180,7 +204,7 @@ export function humanConfirmedToolHandler<TPrepared>(
  */
 export function approvalToolHandler<TPrepared>(
   { surfaces, prepare, describe, run }: {
-    surfaces: ChatDeleteSurfaceDeps;
+    surfaces: HumanConfirmSurfaceDeps;
     prepare: (required: { ctx: ToolExecutionContext }, optional: ToolExecutionOptions) => Promise<TPrepared>;
     describe: (required: { ctx: ToolExecutionContext; prepared: TPrepared }) => HumanConfirmSpec | Promise<HumanConfirmSpec>;
     run: (required: { ctx: ToolExecutionContext; prepared: TPrepared; confirmer: HumanConfirmer; choice?: string }, optional: ToolExecutionOptions) => Promise<unknown>;

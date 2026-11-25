@@ -90,7 +90,6 @@ function harness(t: { after: (fn: () => void) => void }, overrides: Partial<Comp
       starts.push({ trigger, routineId: routine.id });
       return { projectId: "p-1", conversationId: "c-1", agentRunId: `a-${starts.length}`, completion: Promise.resolve({ status: "succeeded" as const }) };
     },
-    approvalObserver: { observe: async () => {} },
     mountAdminRoute: ({ spec }, options) => { routes.set(`${spec.method} ${spec.path}`, { spec, options }); },
     now: clock.now, newId: () => `id-${++id}`, timers: clock.timers, log: quiet, writeBeacon: async () => ({ ok: true }),
     policy: { releaseEnabled: true, access: async ({ actor }) => actor.principalId === OWNER.id && actor.workspaceId === OWNER.workspaceId },

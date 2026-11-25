@@ -80,3 +80,16 @@ authority. A write failure is a diagnostic only.
 `ops/routines.db`, `-wal`, `-shm` and the beacon sit in `ops/`, which backup (`site-backup/sources.ts`),
 portable copy (`site-dir/layout.ts`) and publish (`publish-content/backstop-policy.ts`) already exclude.
 `__tests__/routines-private-paths.unit.test.ts` pins that for root and relocated content.
+
+## Approval projection (P3-T3.T)
+
+Transport decision: **in-process projection**. The serving site hosts both the human-confirm handler
+(whose leased Jini exchange authors the T3.J approval receipts) and the routine store, so receipts never
+leave the process; a relay through the federated emitter and durable run events would add a transport
+extension and no authority. `routine-approval-observer.ts` tracks runs the run handler accepted
+(`track`/`untrack`), and human-confirm's optional `approvalReceiptsFor` port hands the exchange its
+`onApprovalReceipt` plus `restorable: false` for those runs only. `classify-routine-approval.ts` binds
+each receipt to the workspace, principal, accepted message/attempt and exchange id. The observer only
+calls `setApproval`: it never answers a card, calls a tool or restores an invocation. `approved` means
+"owner said yes", not that the effect ran. A closed routine invocation is not restarted by a late
+answer (its lease's `retry` is a no-op); nonroutine restoration is unchanged.

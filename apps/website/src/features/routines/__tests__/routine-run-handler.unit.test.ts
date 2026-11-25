@@ -41,8 +41,10 @@ function harness(options: { agents?: unknown[]; owner?: typeof OWNER | null; all
   };
   const handler = createRoutineRunHandler(deps, {});
   const row = (): RoutineRun => ({ id: "run1", routineId: "r1", trigger: "scheduled", status: "running", projectId: "", conversationId: "", agentRunId: "", startedAt: 0, completedAt: null, summary: null, error: null, errorCode: null });
-  return { handler, calls, row };
+  return { handler, calls, row, deps };
 }
+
+const depsOf = (h: { deps: RoutineRunHandlerRequired }): RoutineRunHandlerRequired => h.deps;
 
 const fire = (patch: Record<string, unknown> = {}, extra: { catchUp?: boolean; slotAt?: number | null } = {}) => ({ routine: routine(patch), trigger: "scheduled" as const, startedAt: 5, runId: "run1", ...extra });
 
@@ -187,4 +189,29 @@ test("an accepted run that the seam refuses throws a plain startup error instead
 test("chooseRoutineAgent picks the configured default and skips ineligible agents", () => {
   const picked = chooseRoutineAgent({ agentId: null, model: null, agents: [{ ...CLAUDE, id: "a", available: false }, CLAUDE, { ...CLAUDE, id: "b" }] as never }, { policy: { defaultAgentId: "b" } });
   assert.deepEqual(picked, { agentId: "b", model: null });
+});
+
+test("an accepted run is tracked for approval projection and untracked when it settles", async () => {
+  const h = harness({ owner: OWNER });
+  const tracked: unknown[] = [];
+  const untracked: unknown[] = [];
+  const handler = createRoutineRunHandler({ ...depsOf(h), approvals: { track: (run) => { tracked.push(run); }, untrack: (input) => { untracked.push(input); } } }, {});
+  const handle = await handler(fire());
+  await handle.prepare!(h.row());
+  assert.deepEqual(tracked, []);
+  await handle.start!();
+  assert.deepEqual(tracked, [{ routineRunId: "run1", agentRunId: "agent-run-1", messageId: handle.assistantMessageId, principalId: "owner-1", workspaceId: "ws-1" }]);
+  await handle.completion;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(untracked, [{ agentRunId: "agent-run-1" }]);
+});
+
+test("a refused acceptance is never tracked", async () => {
+  const h = harness({ owner: OWNER, accept: null });
+  const tracked: unknown[] = [];
+  const handler = createRoutineRunHandler({ ...depsOf(h), approvals: { track: (run) => { tracked.push(run); }, untrack: () => {} } }, {});
+  const handle = await handler(fire());
+  await handle.prepare!(h.row());
+  await assert.rejects(handle.start!());
+  assert.deepEqual(tracked, []);
 });

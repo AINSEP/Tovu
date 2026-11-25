@@ -43,6 +43,11 @@ export interface RoutineRunHandlerRequired {
   catchUpText: (required: { localTime: string }, optional?: Record<string, never>) => string;
   /** `allowCodex` is a test-only override; production leaves it unset so Codex is refused. */
   agentPolicy: { defaultAgentId?: string; allowCodex?: boolean };
+  /** P3-T3.T approval projection: an accepted run is tracked until it settles or is discarded. */
+  approvals?: {
+    track(run: { routineRunId: string; agentRunId: string; messageId: string; principalId: string; workspaceId: string }): void;
+    untrack(required: { agentRunId: string }): unknown;
+  };
 }
 
 export const CODEX_ROUTINE_REFUSAL = "Codex can't run routines yet. Choose another agent.";
@@ -111,6 +116,9 @@ export function createRoutineRunHandler(required: RoutineRunHandlerRequired, _op
         if (!run) throw new Error("The assistant could not start this routine run.");
         state.accepted = true;
         handle.agentRunId = run.runId;
+        // Tracked only after acceptance: approval can be projected for exactly this run and attempt.
+        required.approvals?.track({ routineRunId: runId, agentRunId: run.runId, messageId: assistantMessageId, principalId: actor.principalId, workspaceId: actor.workspaceId });
+        void completion.then(() => required.approvals?.untrack({ agentRunId: run.runId }));
         void watchToCompletion({ required, actor, assistantMessageId, signal: watch.signal, settle });
       },
       discard: () => {
