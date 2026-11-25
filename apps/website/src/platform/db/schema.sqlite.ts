@@ -287,6 +287,8 @@ export const postRevisions = sqliteTable(
     delegatedById: text("delegated_by_id"),
     restoredFrom: text("restored_from"),
     recordedAt: text("recorded_at").notNull(),
+    /** Migration 0050: a `RECORDED_ACTOR_KINDS` member (`@jini-ai/core/contracts/events`) qualifying `actor_id`. NULL = unknown/legacy. */
+    actorKind: text("actor_kind"),
   },
   (table) => [index("idx_post_revisions_workspace_post").on(table.workspaceId, table.postId, table.seq)]
 );
@@ -1394,6 +1396,8 @@ export const taxonomyRevisions = sqliteTable(
     previousStateJson: text("previous_state_json"),
     actorId: text("actor_id").notNull(),
     recordedAt: text("recorded_at").notNull(),
+    /** Migration 0050: a `RECORDED_ACTOR_KINDS` member (`@jini-ai/core/contracts/events`) qualifying `actor_id`. NULL = unknown/legacy. */
+    actorKind: text("actor_kind"),
   },
   (table) => [index("idx_taxonomy_revisions_workspace_taxonomy").on(table.workspaceId, table.taxonomyId, table.seq)]
 );
@@ -2425,6 +2429,10 @@ export const trashedItems = sqliteTable(
     priorMarker: text("prior_marker"),
     purgeLeaseOwner: text("purge_lease_owner"),
     purgeLeaseExpiresAt: text("purge_lease_expires_at"),
+    /** Migration 0050: typed attribution for new rows, independent of `actorPrincipalId`/`actorPluginId`
+     *  (never derived from them). NULL = unknown/legacy; no backfill. */
+    actorKind: text("actor_kind"),
+    actorId: text("actor_id"),
   },
   (table) => [
     uniqueIndex("trashed_items_identity_unique").on(table.workspaceId, table.entityType, table.entityId),

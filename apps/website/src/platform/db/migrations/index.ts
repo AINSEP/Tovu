@@ -3,6 +3,7 @@ import { mediaCaptions } from './0045_media_captions.js';
 import { mediaDescription } from './0046_media_description.js';
 import { changeSetActorKind } from './0047_change_set_actor_kind.js';
 import { blobGcJournal } from './0048_blob_gc_journal.js';
+import { ledgerActorKind } from './0050_ledger_actor_kind.js';
 import { webhookSubscriptionCreatorKind } from './0043_webhook_subscription_creator_kind.js';
 import { optimisticConcurrencyVersions } from './0042_optimistic_concurrency_versions.js';
 import { ownerPasskeys } from './0041_owner_passkeys.js';
@@ -134,6 +135,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[]
   mediaDescription({ checksum: pinned('0046_media_description') }),
   changeSetActorKind({ checksum: pinned('0047_change_set_actor_kind') }),
   blobGcJournal({ checksum: pinned('0048_blob_gc_journal') }, {}),
+  ledgerActorKind({ checksum: pinned('0050_ledger_actor_kind') }, {}),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [

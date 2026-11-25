@@ -762,6 +762,7 @@ export const postRevisions = pgTable("post_revisions", {
   delegatedById: text("delegated_by_id"),
   restoredFrom: text("restored_from"),
   recordedAt: text("recorded_at").notNull(),
+  actorKind: text("actor_kind"),
 }, (t) => [
     index("idx_post_revisions_workspace_post").on(t.workspaceId, t.postId, t.seq),
   ]);
@@ -1162,6 +1163,7 @@ export const taxonomyRevisions = pgTable("taxonomy_revisions", {
   previousStateJson: jsonText("previous_state_json"),
   actorId: text("actor_id").notNull(),
   recordedAt: text("recorded_at").notNull(),
+  actorKind: text("actor_kind"),
 }, (t) => [
     index("idx_taxonomy_revisions_workspace_taxonomy").on(t.workspaceId, t.taxonomyId, t.seq),
   ]);
@@ -1206,6 +1208,8 @@ export const trashedItems = pgTable("trashed_items", {
   priorMarker: text("prior_marker"),
   purgeLeaseOwner: text("purge_lease_owner"),
   purgeLeaseExpiresAt: text("purge_lease_expires_at"),
+  actorKind: text("actor_kind"),
+  actorId: text("actor_id"),
 }, (t) => [
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     uniqueIndex("trashed_items_identity_unique").on(t.workspaceId, t.entityType, t.entityId),

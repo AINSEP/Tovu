@@ -719,6 +719,7 @@ export interface PostRevisionsTable {
   delegated_by_id: string | null;
   restored_from: string | null;
   recorded_at: string;
+  actor_kind: string | null;
 }
 
 export interface PostsTable {
@@ -1047,6 +1048,7 @@ export interface TaxonomyRevisionsTable {
   previous_state_json: string | null;
   actor_id: string;
   recorded_at: string;
+  actor_kind: string | null;
 }
 
 export interface TermsTable {
@@ -1085,6 +1087,8 @@ export interface TrashedItemsTable {
   prior_marker: string | null;
   purge_lease_owner: string | null;
   purge_lease_expires_at: string | null;
+  actor_kind: string | null;
+  actor_id: string | null;
 }
 
 export interface WebhookDeliveriesTable {

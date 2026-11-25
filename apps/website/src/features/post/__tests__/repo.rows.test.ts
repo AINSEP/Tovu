@@ -21,6 +21,13 @@ test("ordinary revision writes NULL for every omitted delegation and restore mar
   assert.deepEqual([row.delegated_by_workspace_id, row.delegated_by_id, row.restored_from], [null, null, null]);
 });
 
+test("a typed actor kind is persisted as actor_kind beside the untouched actor_id; without one no kind is written", () => {
+  const input = { postId: "p1", workspaceId: "ws", seq: 2, op: "update" as const, stateJson: state, actorId: "owner-1", recordedAt: "2026-10-01T13:00:00.000Z" };
+  const typed = toRevisionRow({ input: { ...input, actorKind: "agent" }, id: "revision-2" });
+  assert.deepEqual([typed.actor_id, typed.actor_kind], ["owner-1", "agent"]);
+  assert.equal("actor_kind" in toRevisionRow({ input, id: "revision-2" }), false, "a writer without a typed actor leaves the column NULL");
+});
+
 test("a row whose show_author column is NULL (written before the column existed) reads as showAuthor false", () => {
   const stored = { ...toRow({ ...state, showAuthor: true }), ext: "{}", publish_at: null, featured_media_id: null } as PostRow;
   assert.equal(toRecord(stored).showAuthor, true);

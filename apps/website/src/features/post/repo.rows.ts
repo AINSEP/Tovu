@@ -249,5 +249,7 @@ export function toRevisionRow({ input, id }: { input: PostRevisionInput; id: str
     delegated_by_id: input.delegatedById ?? null,
     restored_from: input.restoredFrom ?? null,
     recorded_at: input.recordedAt,
+    // Migration 0050: only a typed kind is written; without one the column stays NULL (unknown).
+    ...(input.actorKind ? { actor_kind: input.actorKind } : {}),
   };
 }
