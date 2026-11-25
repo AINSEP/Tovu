@@ -9,6 +9,10 @@
  *  otherwise see an empty reply and no hint that anything went wrong. */
 export const NO_REPLY_REASON = "the assistant sent no reply";
 
+/** An empty reason selects {@link visitorFacingError}'s fixed recovery wording: used for a broken,
+ *  invalid or interrupted reply stream, whose own error text is never shown to visitors. */
+export const UNCLASSIFIED_FAILURE_REASON = "";
+
 /** `fetch` rejects with a bare `TypeError` on a network failure; its message is browser-specific
  *  ("Failed to fetch", "Load failed", "NetworkError when attempting to fetch resource."). */
 const NETWORK_FAILURE = /failed to fetch|load failed|networkerror/i;
