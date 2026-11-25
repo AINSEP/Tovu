@@ -21,7 +21,7 @@ const SITE_KEY_MANAGE_PERMISSION = 'admin.security.site-key.manage';
 const WRITE_GRANTS = ['system.publish', 'source-control.credentials.write', 'custom-credentials.write', 'admin.assistant.manage', 'admin.integrations.manage'] as const;
 
 /** Bind the host workspace wire to the Jini adapters. The site key keeps its `/system/site-key`
- * route and `{ siteKey }` import body; media keys keep the host's replaced-last write order.
+ * route and `{ siteKey }` import body; media keys are written one provider row at a time.
  * @example createSecurityHostPorts({ transport: mediaTransport });
  */
 export function createSecurityHostPorts({ transport }: { transport: SecurityTransportPort }, { workspaceId = WORKSPACE_ID }: { workspaceId?: string } = {}): SecurityHostPorts & { otherCredentials: OtherCredentialsPort; rootKey: RootKeyPort } {
@@ -29,7 +29,7 @@ export function createSecurityHostPorts({ transport }: { transport: SecurityTran
   const mediaLabels = Object.fromEntries(MEDIA_PROVIDER_CATALOG.map(provider => [provider.id, provider.label]));
   return {
     securityApi: createHttpSecurityApi({ transport, workspacePath }, { sharedKeys: true }),
-    otherCredentials: createHttpOtherCredentials({ transport, workspacePath }, { mediaLabels, mediaOrder: 'replaced-last', tokenHints: true }),
+    otherCredentials: createHttpOtherCredentials({ transport, workspacePath }, { mediaLabels, tokenHints: true }),
     rootKey: createHttpRootKey({ transport, workspacePath }, { path: '/system/site-key', importField: 'siteKey', reveal: true }),
   };
 }

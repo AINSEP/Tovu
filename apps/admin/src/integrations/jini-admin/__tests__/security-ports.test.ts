@@ -58,12 +58,15 @@ describe('security host ports', () => {
     expect(typeof rootKey.reveal).toBe('function');
   });
 
-  it('writes media keys in the host order (replaced-last)', async () => {
+  it('replaces or removes one media key through its own row, never a whole-map write', async () => {
     const { transport, calls } = recordingTransport({ reply: { a: { model: 'a-model' }, b: { baseUrl: 'https://b' } } });
     const { otherCredentials } = createSecurityHostPorts({ transport }, { workspaceId: 'ws-1' });
     await otherCredentials!.replace({ store: 'media-provider', id: 'a', token: 'fixture-key' });
-    const write = calls.find(call => call.method === 'PUT');
-    expect(write).toEqual({ method: 'PUT', path: '/workspaces/ws-1/media/providers', body: '{"b":{"baseUrl":"https://b"},"a":{"apiKey":"fixture-key","model":"a-model"}}' });
+    await otherCredentials!.remove({ store: 'media-provider', id: 'b' });
+    expect(calls.filter(call => call.method !== 'GET')).toEqual([
+      { method: 'PATCH', path: '/workspaces/ws-1/media/providers/a', body: '{"apiKey":"fixture-key"}' },
+      { method: 'DELETE', path: '/workspaces/ws-1/media/providers/b', body: undefined },
+    ]);
   });
 
   it("exposes exactly the host client's 11 method names", () => {
