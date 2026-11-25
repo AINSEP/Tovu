@@ -1,8 +1,7 @@
-import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
+import type { PublishContentPeerView, PublishDestinationView as AdminPublishDestinationView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPlanResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminPublishDestinationView } from "./publish-content-api.types";
 
 /** The peer-scoped prefix every publish-content push call hangs off — the peer is named in the PATH
  *  (`routes/publish-content/peer-transport.ts`), never in a body, and never as a URL or credential. */

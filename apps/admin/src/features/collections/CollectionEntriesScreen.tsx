@@ -1,6 +1,6 @@
 import { CollectionEntries as CollectionEntriesView } from "@jini-ai/admin/screens/collections/CollectionEntries";
 import { ServerLabel } from "@/components/status-labels";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks";
 
 /**

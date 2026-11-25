@@ -1,6 +1,6 @@
 import { navigateDeploymentTab } from "@jini-ai/admin/deployment/Deployment.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { useAdminLocale, useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -8,7 +8,7 @@ import { t } from "./deployment-host-i18n";
 import { OverviewTab } from "./OverviewTab";
 import { StaticSiteTab } from "./StaticSiteTab";
 import { DockerfileTab } from "./DockerfileTab";
-import { HistoryTab } from "./HistoryTab";
+import { HistoryTab } from "@jini-ai/devops/deploy/react";
 import { HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deployment-visuals";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
@@ -59,7 +59,7 @@ function deploymentTabPanel(activeTabId: DeploymentTabId) {
   if (activeTabId === "overview") return <OverviewTab />;
   if (activeTabId === "static-site") return <StaticSiteTab />;
   if (activeTabId === "dockerfile") return <DockerfileTab />;
-  return <HistoryTab />;
+  return <HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon size={22} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} />;
 }
 
 export interface DeploymentProps {

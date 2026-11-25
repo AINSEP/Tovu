@@ -2,7 +2,7 @@ import { render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PublishSectionButton } from "../PublishSectionButton";
+import { PublishSectionButton } from "../publish-section-button-binding";
 import * as publishRequestStore from "../hooks/publish-request.store";
 
 /**
@@ -60,6 +60,13 @@ describe("PublishSectionButton", () => {
     expect(requestPublishSpy).toHaveBeenCalledTimes(1);
     expect(requestPublishSpy).toHaveBeenCalledWith({}, { entityTypes: [...entityTypes] });
     expect(subscriber.result.current).toMatchObject({ criteria: {}, scope: { entityTypes: [...entityTypes] } });
+  });
+
+  it("keeps Themes' primary class override and agent label", () => {
+    render(<PublishSectionButton section="themes" className="btn-primary" usePublishSectionButtonHook={() => ({ visible: true, label: "Publish themes", onClick: vi.fn() })} />);
+    const button = screen.getByRole("button", { name: "Publish themes" });
+    expect(button).toHaveClass("btn-primary");
+    expect(button).toHaveAttribute("data-agent-label", "Publish themes to the live site");
   });
 
   it("renders the label and click handler returned by the injected usePublishSectionButtonHook", async () => {

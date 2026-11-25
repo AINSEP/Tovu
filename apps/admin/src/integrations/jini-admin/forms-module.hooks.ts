@@ -4,7 +4,7 @@ import { createElement, useMemo, type ReactElement } from 'react';
 import { forms, type FormsReactOptions } from '@jini-ai/admin/forms/react';
 import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { RecipientLabel } from '../../components/status-labels';
-import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
+import { PublishSectionButton } from '../../features/publish-content/publish-section-button-binding';
 import { createFormsTranslator } from './forms-ports';
 
 /** Compose live localization and host slots without remounting the package editor draft. */
