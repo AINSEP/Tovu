@@ -739,7 +739,7 @@ test("cache cleanup failure does not turn completed project removal into failed 
   const siteDir = writeSite(path.join(tempDir(), "private-owner-path"), "site-cache-fail");
   const warnings: string[] = [];
   const deps = baseDeps({
-    trimRetiredSiteCache: async () => { throw new Error(`EPERM: ${siteDir}/Partitions/Cache`); },
+    trimRetiredSiteCache: async () => { throw Object.assign(new Error(`EPERM: ${siteDir}/Partitions/Cache`), { code: "EPERM" }); },
     warn: ({ message }) => warnings.push(message),
   });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-cache-fail" });
@@ -751,6 +751,7 @@ test("cache cleanup failure does not turn completed project removal into failed 
   assert.equal(warnings.length, 1, "the failure reaches the host diagnostic sink");
   assert.equal(warnings[0]?.includes(siteDir), false, "no local path in the message");
   assert.equal(warnings[0]?.includes("private-owner-path"), false, "no local path in the message");
+  assert.match(warnings[0] ?? "", /Details: EPERM$/, "the redacted cause (its code, never its message) reaches the sink");
 });
 
 test("handleOpenExternal throws when the project is not currently open", async () => {

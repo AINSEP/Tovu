@@ -161,9 +161,19 @@ async function trimRetiredCache(
   { id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "trimRetiredSiteCache" | "warn"> }, _options = {},
 ): Promise<void> {
   try { await deps.trimRetiredSiteCache({ siteDir: id }, {}); }
-  catch {
-    deps.warn({ message: "tovu desktop: a removed website's browser cache could not be cleared. The website itself was removed." });
+  catch (error) {
+    deps.warn({ message: `tovu desktop: a removed website's browser cache could not be cleared. The website itself was removed. Details: ${cacheErrorCode({ error })}` });
   }
+}
+
+/** The redacted detail for a cache failure: its errno code or class name only, because the message of a
+ * file-system error quotes the partition path under the owner's tree.
+ * @complexity O(1).
+ */
+function cacheErrorCode({ error }: { error: unknown }, _options = {}): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && /^[A-Z0-9_]{1,32}$/.test(code)) return code;
+  return error instanceof Error ? error.name : "unknown";
 }
 
 /** {@link deleteProject}'s erase gate (D-08): refuse while another app or instance serves the site.

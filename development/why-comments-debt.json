@@ -14268,6 +14268,10 @@
     {
       "id": "f83b6d1159b9",
       "reason": "P8-T3.T made useMenuEditorHook a REQUIRED host injection (panels.tsx passes useRouteGuardedMenuEditor), so the old 'defaulted to the real hook, production callers pass only menuId' doc is false; the replacement doc in menu-editor-panel.tsx states the required contract."
+    },
+    {
+      "id": "83740ff1e4c1",
+      "reason": "B-VIDEO-NOTE.T: the upload response now carries the fixed conversionNotice code, so 'the upload response has no field for the owner to read' is false; the reworded doc on operatorLogVideoNote keeps the why (cause only in the operator log, never in the sentence)."
     }
   ]
 }
