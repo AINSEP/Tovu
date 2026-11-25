@@ -1376,6 +1376,21 @@ function MediaPageShell({
  *  `useMediaGridSize` live in `@jini-ai/admin/screens/media`; this product key is passed in at the call site. */
 const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
 
+/** The grid tab a screen tab reads: the Providers tab has no grid, so it reads All. @complexity O(1). */
+function gridTabFor({ activeTab }: { activeTab: MediaTabId }, _optional: Record<string, never> = {}): MediaContentTabId {
+  return activeTab === "external-providers" ? "all" : activeTab;
+}
+
+/** One badge per tab: server counts for the grid tabs, the live catalog length for Providers. @complexity O(1). */
+function mediaTabCounts(
+  { counts, providerCatalog }: { counts: Partial<Record<MediaTabId, number>> | null; providerCatalog: readonly unknown[] | null },
+  _optional: Record<string, never> = {},
+): Partial<Record<MediaTabId, number>> {
+  // The server's counts over every matching row, not the length of the loaded page.
+  const catalogCount = providerCatalog ? { "external-providers": providerCatalog.length } : {};
+  return { ...counts, ...catalogCount };
+}
+
 export function Media(props: MediaProps) {
   // No `MediaProps = {}` default on the parameter itself (same reasoning as `App.tsx`'s own
   // `AppProps` — see that file's comment): every real call site is JSX (`<Media />` in
@@ -1391,7 +1406,7 @@ export function Media(props: MediaProps) {
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
   const providerCatalog = (props.useMediaProviderCatalogHook ?? useMediaProviderCatalog)({ port: mediaProviderCatalogPort });
   // The Providers tab has no grid; it still reads page one of All for the server's tab counts.
-  const controller = useMediaHook({ tab: activeTab === "external-providers" ? "all" : activeTab, itemId: props.itemId });
+  const controller = useMediaHook({ tab: gridTabFor({ activeTab }), itemId: props.itemId });
   const { media, error, t } = controller;
   const { notFound } = useMediaItemLink({
     itemId: props.itemId,
@@ -1409,11 +1424,7 @@ export function Media(props: MediaProps) {
   // included), since the tab bar itself renders identically regardless of which tab is active.
   // "External Providers" counts the host's live provider catalog — the same array its panel maps one
   // card per entry from, so badge and cards agree; no badge while it loads or the host is unreachable.
-  const tabCounts: Partial<Record<MediaTabId, number>> = {
-    // The server's counts over every matching row, not the length of the loaded page.
-    ...controller.counts,
-    ...(providerCatalog ? { "external-providers": providerCatalog.length } : {}),
-  };
+  const tabCounts = mediaTabCounts({ counts: controller.counts, providerCatalog });
 
   // External Providers renders no grid, no filter, and has no concept of the grid's "empty" state —
   // an early return here (rather than a ternary further down) is what lets `MediaContentTabId`

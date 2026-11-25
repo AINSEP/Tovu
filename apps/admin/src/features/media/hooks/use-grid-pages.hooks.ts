@@ -77,9 +77,19 @@ function deriveGridView({ data, settled, state, itemId }: { data: MediaGridPage 
   const shown = data ?? settled;
   const more = currentMore({ data, state });
   const items = shown ? mergeRows({ first: shown, more }) : null;
-  const cursor = more ? more.cursor : data?.nextCursor ?? null;
-  const loaded = itemId !== null && (items?.some((item) => item.id === itemId) ?? false);
-  return { shown, more, items, cursor, loaded };
+  return { shown, more, items, cursor: nextCursor({ data, more }), loaded: isLoaded({ items, itemId }) };
+}
+
+/** The cursor for the next page: the more-pages cursor, else page one's own. @complexity O(1). */
+function nextCursor({ data, more }: { data: MediaGridPage | undefined; more: MorePages | null }, _optional: Record<string, never> = {}): string | null {
+  if (more) return more.cursor;
+  return data?.nextCursor ?? null;
+}
+
+/** Whether a deep-linked asset is among the loaded rows. @complexity O(n) in loaded rows. */
+function isLoaded({ items, itemId }: { items: AdminMedia[] | null; itemId: string | null }, _optional: Record<string, never> = {}): boolean {
+  if (itemId === null || items === null) return false;
+  return items.some((item) => item.id === itemId);
 }
 
 /** The exact lookup's asset, only for a deep link that is not among the loaded rows. @complexity O(1). */
@@ -89,13 +99,14 @@ function exactItemFor({ loaded, exactPage }: { loaded: boolean; exactPage: Media
 
 /** The server-answered fields the screen reads, never counted from loaded rows. @complexity O(1). */
 function summarizeGrid({ shown, more, cursor }: { shown: MediaGridPage | undefined; more: MorePages | null; cursor: string | null }, _optional: Record<string, never> = {}) {
-  return {
-    counts: shown?.counts ?? null,
-    hasUntypedActive: shown?.hasUntypedActive ?? false,
-    hasMore: cursor !== null,
-    loadingMore: more?.loading ?? false,
-    loadMoreError: more?.error ?? null,
-  };
+  const pending = more ?? NO_MORE;
+  return { ...pageSummary({ shown }), hasMore: cursor !== null, loadingMore: pending.loading, loadMoreError: pending.error };
+}
+
+/** Page one's server counts and untyped-MIME flag; none before page one lands. @complexity O(1). */
+function pageSummary({ shown }: { shown: MediaGridPage | undefined }, _optional: Record<string, never> = {}) {
+  if (!shown) return { counts: null, hasUntypedActive: false };
+  return { counts: shown.counts ?? null, hasUntypedActive: shown.hasUntypedActive ?? false };
 }
 
 /**
