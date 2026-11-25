@@ -3124,7 +3124,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* 80, not 40: this is the shared blocking-modal backdrop (confirm dialogs, media/widget pickers),
    so it must sit above `.chat-fab` (75, `styles/assistant.css`). At 40 the raised FAB would float
    over every confirm dialog and let a click open the chat behind the backdrop. */
-.settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
+.settings-dialog-backdrop, .jini-settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
 .settings-dialog, .jini-settings-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;

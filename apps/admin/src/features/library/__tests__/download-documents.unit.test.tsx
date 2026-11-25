@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { UploadTab } from '../Library';
+import { UploadTab } from '@jini-ai/admin/screens/library/Library';
 import type { LibraryController } from '@jini-ai/admin/screens/library/hooks/use-library.hooks';
 /** Unexecuted. Source RED reason: the prior extension allowlist excludes all seven formats. */
 import { describe, expect, it, vi } from 'vitest';
