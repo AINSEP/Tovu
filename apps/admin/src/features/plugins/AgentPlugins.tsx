@@ -8,6 +8,7 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { useId } from "react";
 
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
+import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { AddAgentPluginPanel } from "@jini-ai/admin/screens/plugins/AddAgentPluginPanel";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";

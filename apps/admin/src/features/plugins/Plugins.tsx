@@ -10,6 +10,7 @@ import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
 import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
 import { PluginProviderSettingsDialog } from "./PluginProviderSettingsDialog";
 import { PluginRemoveConfirmDialog } from "@jini-ai/admin/screens/plugins/PluginRemoveConfirmDialog";
+import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
