@@ -1,3 +1,4 @@
+import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
@@ -231,7 +232,7 @@ export async function persistImportedMedia(required: { routeDeps: MediaImportToo
       blobStore: routeDeps.blobStore,
     },
     input,
-  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+  }, UPLOAD_CAPS);
   // Identical recording discipline to the URL, generated-media and admin upload paths.
   const sniffed = sniffContentType({ bytes: input.bytes });
   await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
@@ -308,7 +309,7 @@ function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHand
           { toolId: "media_replace_file" })
         : await readLocalReplacement({ routeDeps, input });
       ctx.signal.throwIfAborted();
-      const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+      const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, UPLOAD_CAPS);
       if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
       const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [saved] });
       const result = { media: { id: saved.id, slug: saved.slug, title: saved.title, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };

@@ -210,7 +210,7 @@ test("media_upload_asset still rejects a file over Tovu's own TOVU_MAX_UPLOAD_BY
     () => wired("media_upload_asset", deps).handler(
       executionContext({ dataBase64: overTovuCap.toString("base64"), filename: "too-big.png", contentType: "image/png" })
     ),
-    /exceeds/
+    /the limit is 50 MB\./
   );
 });
 

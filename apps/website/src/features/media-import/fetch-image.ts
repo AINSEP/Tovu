@@ -69,7 +69,7 @@ import {
 } from "@jini-ai/cms/media/import";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { sniffContentType, type SniffedContentType } from "../media/index.js";
-import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
+import { VIDEO_UPLOAD_LIMIT_BYTES } from "@tovu/contracts/upload-limits";
 
 /**
  * The still-image and video types this tool will import, decided by magic bytes rather than by any
@@ -99,7 +99,8 @@ export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedCont
  * `maxUploadBytes` on the very next call — imported rather than restated so the two can never drift
  * into a state where this module downloads several megabytes that `uploadMedia` then throws away.
  */
-export const MEDIA_IMPORT_MAX_BYTES = TOVU_MAX_UPLOAD_BYTES;
+// The type is unknown while the bytes stream in, so the download bound is the larger (video) limit; `uploadMedia` then refuses a non-video file over 50 MiB with the plain-words sentence.
+export const MEDIA_IMPORT_MAX_BYTES = VIDEO_UPLOAD_LIMIT_BYTES;
 /** Per-request timeout. `MEDIA_IMPORT_EGRESS_POLICY.connectTimeoutMs` is a CEILING on this value,
  *  never a replacement for it (`client.ts`'s `sendWithPolicy` takes the `Math.min` of the two) —
  *  same relationship `custom-credentials`' `CREDENTIALED_REQUEST_TIMEOUT_MS` has to its own policy. */

@@ -1,3 +1,4 @@
+import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import type { Express } from "express";
 import { describeRequestFailure } from "@jini-ai/core";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
@@ -185,8 +186,8 @@ export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; de
   const replaceDeps = {
     ...mediaPortDeps({ deps }),
     mediaRepo: deps.mediaRepo,
-    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
-    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    ...UPLOAD_CAPS,
+    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, UPLOAD_CAPS),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
   };
   mountAdminJsonRoute({ app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
@@ -251,7 +252,7 @@ export function registerAdminMediaUploadRoute(
   const storeUpload = (input: MediaUploadInput) => uploadMedia({
     deps: uploadPorts,
     input: { workspaceId: deps.workspaceId, ...input },
-  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+  }, UPLOAD_CAPS);
   const uploadDeps = {
     ...mediaPortDeps({ deps }),
     // A video over the owner's import size is converted after it is stored (the original stays); see import-video-conversion.ts.
@@ -339,7 +340,7 @@ export function registerAdminMediaImportUrlRoute(
     uploadMedia: (input) => uploadMedia({
       deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
       input,
-    }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    }, UPLOAD_CAPS),
     mediaContentTypeStore: { set: (input) => deps.mediaContentTypeStore.set(input) },
     egressRefusalMessage: ({ error }) => egressRefusalMessage({ error }, { log: optional.logEgressRefusal }),
     toMediaResponse: async ({ media, contentType, byteSize }) => {

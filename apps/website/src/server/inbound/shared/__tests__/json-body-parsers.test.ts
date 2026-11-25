@@ -142,9 +142,9 @@ test("login's public parser refuses 200 KB before authentication", async () => {
   assert.equal((error as { type: string }).type, "entity.too.large");
 });
 
-test("an authenticated upload declared above 75 MB takes the JSON 413 error path", async () => {
+test("an authenticated upload declared above 700 MB takes the JSON 413 error path", async () => {
   // raw-body rejects an oversized Content-Length before buffering the advertised upload.
-  const { error } = await parseBody("/api/admin/v1/workspaces/ws/media", "{}", false, 76 * 1024 * 1024);
+  const { error } = await parseBody("/api/admin/v1/workspaces/ws/media", "{}", false, 701 * 1024 * 1024);
   assert.equal((error as { type: string }).type, "entity.too.large");
   let status: number | undefined;
   let body: unknown;

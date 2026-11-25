@@ -31,8 +31,8 @@ export const AUTHENTICATED_JSON_BODY_LIMIT = "15mb";
 /** Decoded streamed telemetry bytes, enforced before any larger authenticated parser. */
 export const TELEMETRY_JSON_BODY_LIMIT = "16kb";
 
-/** Covers `TOVU_MAX_UPLOAD_BYTES` (50 MiB) once base64 inflates it ~1.33x, plus headroom. */
-export const LARGE_UPLOAD_JSON_BODY_LIMIT = "75mb";
+/** Covers the 500 MiB video limit (`VIDEO_UPLOAD_LIMIT_BYTES`) once base64 inflates it ~1.33x (~667 MiB), plus headroom. */
+export const LARGE_UPLOAD_JSON_BODY_LIMIT = "700mb";
 
 /** Every mount prefix of `requireAdminSession` (`modules/core.ts`, `assistant*.ts`). A prefix here
  *  that has no gate would leave its routes with no parsed body at all. */

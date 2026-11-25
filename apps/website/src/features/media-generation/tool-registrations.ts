@@ -1,3 +1,4 @@
+import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { MediaProvenance } from "@jini-ai/cms/media";
@@ -372,7 +373,7 @@ async function storeGeneratedImage(
       createdByPrincipal: ctx.principal.id,
       provenance,
     },
-  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+  }, UPLOAD_CAPS);
 
   // Same "record what the bytes actually are" write `apps/website/src/server/inbound/admin-http/routes/media/upload.ts` performs
   // after every human upload — see that route's own doc for why this is sniffed rather than
