@@ -513,13 +513,13 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("#src/features/external-mcp/deps").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
-  contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
+  contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools(createMediaConversionPorts()) });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset" }) });
-  contributions.contributors.register({ contribution: contributeImageTransformTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
+  contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });

@@ -777,9 +777,9 @@ export interface AiAssistantProps extends Pick<AdminExecutionModeProps, "useAdmi
 }
 
 export function AiAssistant(props: AiAssistantProps) {
-  const { useAiAssistantHook, tabId } = props;
+  const { tabId } = props;
   const themeBoundary = props.useAdminThemeBoundaryHook({}, {});
-  const { settings, loadError, saveError, saving, setPublicEnabled, setWidget } = useAiAssistantHook();
+  const { settings, loadError, saveError, saving, setPublicEnabled, setWidget } = props.useAiAssistantHook();
   const { activeTabId, onTabChange } = props.useAiAssistantTabHook({ tabId });
 
   /**

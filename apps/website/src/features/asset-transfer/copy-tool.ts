@@ -168,6 +168,6 @@ export function buildFilesCopyRegistrations(deps: AssetToolDeps, surfaces: Assis
 }
 
 /** Composition contribution; its own key preserves the existing fs-files catalog. */
-export function contributeFilesCopyTools({ resolvePublicUrls }: Pick<AssetToolDeps, "resolvePublicUrls">, _optional = {}): ToolContributor<Omit<AssetToolDeps, "resolvePublicUrls">, AssistantSurfaceDeps> {
-  return { domain: "files-copy", build: (deps, surfaces) => buildFilesCopyRegistrations({ ...deps, resolvePublicUrls, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) }, surfaces), risk: filesCopyDerivedRisk };
+export function contributeFilesCopyTools({ resolveImportedMediaUrls }: Pick<AssetToolDeps, "resolveImportedMediaUrls">, _optional = {}): ToolContributor<Omit<AssetToolDeps, "resolveImportedMediaUrls">, AssistantSurfaceDeps> {
+  return { domain: "files-copy", build: (deps, surfaces) => buildFilesCopyRegistrations({ ...deps, resolveImportedMediaUrls, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) }, surfaces), risk: filesCopyDerivedRisk };
 }

@@ -12,7 +12,7 @@ import type { ComponentProps } from "react";
 import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
 
 // These existing scenarios exercise a local host; runtime IO remains behind the policy seam.
-function AdminExecutionMode(props: ComponentProps<typeof RealAdminExecutionMode>) {
+function AdminExecutionMode(props: Omit<ComponentProps<typeof RealAdminExecutionMode>, "useExecutionPolicy">) {
   return <RealAdminExecutionMode useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })} {...props} />;
 }
 import type { AdminExecutionModeController } from "../hooks/use-admin-execution-mode.hooks";
@@ -39,7 +39,6 @@ const requiredAdminExecutionModeHooks = {
   useAdminExecutionCredentialHook: useWiredAdminExecutionCredential,
   useAdminLocaleHook: useAdminLocale,
   useTovuSettingsExecutionHook: useTovuSettingsExecution,
-  useExecutionPolicy: useTovuExecutionPolicy,
 };
 
 /**
@@ -361,7 +360,7 @@ describe("AdminExecutionMode — local CLI save line and BYOK write-through", ()
 describe("AdminExecutionMode — deployed site", () => {
   it("explains that Local CLI is hidden on a deployed (production) site and BYOK is used", async () => {
     render(
-      <RealAdminExecutionMode
+      <RealAdminExecutionMode {...requiredAdminExecutionModeHooks}
         useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: false, loadRuntime: async () => ({ mode: "production" as const }) })}
         useAdminExecutionModeHook={() => fakeExecutionModeController()}
         useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()}

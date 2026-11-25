@@ -47,7 +47,7 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: { newId: () => "card-1" }, defaultChannel: "mcp-ui" });
   const permissions: string[] = []; const requests: HttpRequest[] = [];
   const deps: AssetToolDeps = {
-    resolvePublicUrls: resolveMediaPublicUrls,
+    resolveImportedMediaUrls: resolveMediaPublicUrls,
     workspaceId: "ws", siteBinding: { dir: site }, themesDir, resolveActiveThemeId: async () => "match",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }), clock, idGen: { newId: () => `asset-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),

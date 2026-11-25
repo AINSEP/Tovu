@@ -402,10 +402,10 @@ export interface AgentPluginsProps extends Pick<AgentPluginDetailsModalProps, "u
  *     from the default tab. Item 4's "Installed (only `enabled: true`)" scope no longer holds.
  */
 export function AgentPlugins(props: AgentPluginsProps) {
-  const { tabId, useAgentPluginsHook, agentPluginInstallPort = defaultAgentPluginInstallPort } = props;
+  const { tabId, agentPluginInstallPort = defaultAgentPluginInstallPort } = props;
   const themeBoundary = props.useAdminThemeBoundaryHook({}, {});
   const tab = props.useAgentPluginTabHook({ tabId });
-  const controller = useAgentPluginsHook();
+  const controller = props.useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
   const installController = props.useAgentPluginInstallHook({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
