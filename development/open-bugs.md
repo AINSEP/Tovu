@@ -2105,3 +2105,35 @@ New / logged (not fixed here):
 - **FIX 8 (removed-site cache trim outside P11 evidence gate):** `trimRetiredSiteCacheIn` takes the bundled Electron's `PackagedEvidence`; each clear runs only on its own `'go'` (unknown => no clear, no session resolved). The untrack (retained-folder) arm no longer trims, so it cannot race a re-add. Tests: `site-cache-trim.test.ts` (unknown evidence / per-op GO / no sign-in member) and `project-ipc.test.ts` "untracking a retained folder never trims its partition...". Mutation `M trim-bypasses-interlock`: 3 red.
 - **FIX 17 (O1.T unbound pin):** verified no Tovu production source binds `observeDeploy`; pinned in `server/runtime/composition/__tests__/deploy-observation-unbound.pin.unit.test.ts`. `g5a-o1t-blocked` stays BLOCKED. Mutation `M o1t-observer-bound`: 2 red.
 - **Still OPEN from this batch:** FIX 16 (apply registration requires a durable handoff; restart redispatch-once), FIX 11 (memory-composition recorded HTML write vs. rollback boundary), FIX 21 (pre-move legacy `sealedPassword` fixture through the combined route): not done in this worker, see the combine-23 continuation report.
+
+## Resolved in combine-23 continuation — Codex FIX 24 / FIX 25 (lanes b-g6b, b-g6c)
+
+- **b-g6b-unprefixed-admin-aliases (FIX 24, resolved).** Jini AdminShell carried unprefixed aliases
+  (`boot-screen`, `admin-topbar*`, `admin-main-col`, `admin-content`, `admin-layout`, `skip-link`,
+  `sidebar-backdrop`) and Jini CSS matched `:is(.jini-admin-*, .admin-*)`. Tovu renders its own shell
+  (App.tsx/App.chrome.tsx), so only `admin-layout` (from Jini `resolveAdminLayoutClassName`) and
+  `admin-content` (selected by Jini dashboard CSS) were live host contracts. Jini now emits/selects only
+  `jini-admin-*`; Tovu selectors, `<main>` class, e2e journeys and the desktop inner-scroller moved to
+  `.jini-admin-layout`/`.jini-admin-content` (CSS container name `admin-content` unchanged). No theme
+  (admin-themes/**, content/themes/**) selected an alias, so no owner-decision alias is kept. Tovu's own
+  `admin-topbar*`/`admin-main-col`/`skip-link`/`boot-screen`/`sidebar-backdrop` are Tovu-owned classes on
+  Tovu markup and stay. Guard: Jini `admin/src/react/shell/__tests__/no-unprefixed-shell-aliases.test.ts`.
+  `M unprefixed-alias-back`: alias in AdminShell markup 6 red; alias in `ui/src/styles/admin.css` 2 red.
+- **b-g6c tool-text / transport / ledger byte compare (FIX 25, verified).** Pre-split sources
+  (`898164e9e^`) run against the G16 recorded catalog fixtures pass (core plugin-runtime 3/3, db recovery
+  4/4, mcp external 4/4, platform email-templates 7/7, mcp federation registrations 49/49), and the
+  current code passes the same fixtures, so model-visible names/descriptions/schemas are byte-identical;
+  no drift in those files or fixtures since the split. Transport (`a03580ace`): every non-comment string
+  literal of the pre-split `transport.ts` (incl. prompt text, now in `transport-prompt.ts`) is present
+  unchanged; only identifier renames inside three URL/run-id templates. The existing pins are the
+  tool-text snapshot (`M tool-text-drift` = existing `M-tool-risk-default-allow`/fixture deep-equal, not
+  re-added).
+- **g6c-follow-durable-run-double-close (FIX 25, semantics pinned).** Pre-split `disconnected()` called the
+  port teardown without forgetting it, so a reopen or `stop()` called the same teardown again: a no-op for
+  idempotent ports (EventSource.close / abort) but a double release for a counted resource. Chosen
+  semantics: each stream torn down exactly once; stop()/abort() idempotent. New pin in Jini
+  `chat/src/core/__tests__/durable-run-subscription.unit.test.ts` ("a dropped stream stopped before
+  reconnect is released exactly once…"). `M double-close` (drop `s.stopStream = undefined`): 2 red.
+- **NOT DELIVERED, do not count:** the executor launch split (K01–K03 dependent sheet G06,
+  `daemon/src/agent-executor/launch.ts`) and the server builtin-feature split (G08 server half,
+  `server/src/builtin-features.ts`, after K04/K06) were not built by b-g6c; their size-debt rows remain.
