@@ -129,3 +129,19 @@ test("a foreign or ungranted canonical key is neither listed nor edited", async 
   await assert.rejects(deleteSourceControlCredential(store, { workspaceId: SITE_A, id: foreign.id }), SourceControlCredentialValidationError);
   assert.equal((await resolveCustomCredentialByLabel(owner, { workspaceId: SITE_B, label: "github" }))?.connection.token, secret("foreign"));
 });
+
+test("a canonical Source Control key refuses a host move or a paired field and keeps its token", async () => {
+  const opens = { count: 0 };
+  const credentials = customDeps({ opens });
+  const deps = sourceControlStore({ credentials, legacyVault: new InMemoryVaultRepo({}), opens });
+  const created = await createSourceControlCredential({ deps, input: { workspaceId: SITE_A, label: "GitHub", connection: { providerId: "github", token: secret("kept") } } });
+  const refusal = (error: unknown) => {
+    assert.ok(error instanceof SourceControlCredentialValidationError);
+    assert.equal(error.message, "This shared key holds only its provider's token. Save a new key for another host.");
+    return true;
+  };
+
+  await assert.rejects(updateSourceControlCredential({ deps, input: { workspaceId: SITE_A, id: created.id, connection: { providerId: "example-git", token: secret("moved") } } }), refusal);
+  await assert.rejects(updateSourceControlCredential({ deps, input: { workspaceId: SITE_A, id: created.id, connection: { token: secret("paired"), owner: "someone" } } }), refusal);
+  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("kept"));
+});
