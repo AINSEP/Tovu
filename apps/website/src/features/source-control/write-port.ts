@@ -28,11 +28,11 @@ export function bindSourceControlWritePort(required: {
   /** `RouteDeps.observability`: a write's raw git-host calls are outbound spans. */
   observability?: ObservabilityPort;
   /** The custom-credentials owner's target check: provider rules first, else the generic fallback. */
-  validateRepositoryTarget: (target: { owner: unknown; repo: unknown }, validateTarget?: RepositoryTargetValidator) => { owner: string; repo: string };
+  validateRepositoryTarget: (target: { owner: unknown; repo: unknown }, optional?: { validateTarget?: RepositoryTargetValidator }) => { owner: string; repo: string };
 }, _optional = {}): SourceControlWritePort {
   return {
     build: ({ workspaceId, baseUrl }) => buildSourceControlProviderForApi({ load: required.load, workspaceId, baseUrl, httpClient: required.httpClient, observability: required.observability }),
-    validateTarget: ({ provider, target }) => required.validateRepositoryTarget(target, provider.validateTarget),
+    validateTarget: ({ provider, target }) => required.validateRepositoryTarget(target, { ...(provider.validateTarget === undefined ? {} : { validateTarget: provider.validateTarget }) }),
     planFileWrite: ({ provider, input }) => provider.planFileWrite(input),
     commitFiles: ({ provider, input, plan }) => provider.commitFiles(input, plan),
   };

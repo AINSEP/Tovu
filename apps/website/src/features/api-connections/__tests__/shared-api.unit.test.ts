@@ -8,7 +8,7 @@ import type { KeyAttachments } from '@jini-ai/core/contracts/site/project-key-at
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
 import { createSharedOAuthLabels, createSharedOAuthOwnerStorage } from '../shared-owner.js';
-import { createApiConnectionVault } from '../vault-stores.js';
+import { createApiConnectionVault } from '../vault-store-binding.js';
 import { createSurfaceConnections } from '../surface-connections.js';
 import { runApiConnectionConnect, startApiConnectionSignIn } from '../connect.js';
 import { startAcmeHarness, ACME_PLUGIN } from './support/acme-harness.js';

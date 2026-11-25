@@ -15,7 +15,7 @@ import type { AdminSurfaceStateValue } from "@jini-ai/agent-plugins/admin-surfac
 
 import { createAgentPluginStateStore } from "../plugin-state.js";
 import { PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state-bindings.js";
-import { createApiConnectionVault } from "../vault-stores.js";
+import { createApiConnectionVault } from "../vault-store-binding.js";
 
 const SCOPE = { workspaceId: "ws-1", pluginId: "acme-office" };
 

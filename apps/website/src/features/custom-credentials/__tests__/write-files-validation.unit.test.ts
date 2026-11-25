@@ -4,7 +4,8 @@ import test from "node:test";
 
 import { githubValidateTarget } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { CustomCredentialValidationError } from "../store.js";
-import { normalizeWriteFilePath, validateRepositoryTarget, validateWriteFilesInput, WRITE_FILES_LIMITS } from "../write-files-validation.js";
+import { normalizeWriteFilePath, validateWriteFilesInput, WRITE_FILES_LIMITS } from "@jini-ai/integrations/custom-credentials/write-files-validation";
+import { validateRepositoryTarget } from "../repository-target.js";
 
 /**
  * @file `write-files-validation.ts` — every refusal here must fire BEFORE `custom_credential_write_files`
@@ -21,7 +22,7 @@ const github = await githubValidateTarget();
 test("a well-formed call validates and normalizes cleanly", () => {
   const result = validateWriteFilesInput(VALID);
   assert.deepEqual(result, { branch: "main", commitMessage: "deploy", files: [{ path: "example-host.toml", content: "app = 'demo'" }] });
-  assert.deepEqual(validateRepositoryTarget({ owner: "octo", repo: "demo" }, github), { owner: "octo", repo: "demo" });
+  assert.deepEqual(validateRepositoryTarget({ owner: "octo", repo: "demo" }, { validateTarget: github }), { owner: "octo", repo: "demo" });
 });
 
 // ---------------------------------------------------------------------------
@@ -29,30 +30,30 @@ test("a well-formed call validates and normalizes cleanly", () => {
 // ---------------------------------------------------------------------------
 
 test("rejects an invalid owner with the host's own text first", () => {
-  assert.throws(() => validateRepositoryTarget({ owner: "-bad-owner", repo: "demo" }, github), new CustomCredentialValidationError("invalid GitHub owner '-bad-owner'"));
-  assert.throws(() => validateRepositoryTarget({ owner: "", repo: "demo" }, github), new CustomCredentialValidationError("invalid GitHub owner ''"));
-  assert.throws(() => validateRepositoryTarget({ owner: 42, repo: "demo" }, github), new CustomCredentialValidationError("invalid owner '42'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "-bad-owner", repo: "demo" }, { validateTarget: github }), new CustomCredentialValidationError("invalid GitHub owner '-bad-owner'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "", repo: "demo" }, { validateTarget: github }), new CustomCredentialValidationError("invalid GitHub owner ''"));
+  assert.throws(() => validateRepositoryTarget({ owner: 42, repo: "demo" }, { validateTarget: github }), new CustomCredentialValidationError("invalid owner '42'"));
 });
 
 test("rejects an invalid repo with the host's own text first", () => {
-  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ".." }, github), new CustomCredentialValidationError("invalid GitHub repo '..'"));
-  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: "has spaces" }, github), new CustomCredentialValidationError("invalid GitHub repo 'has spaces'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ".." }, { validateTarget: github }), new CustomCredentialValidationError("invalid GitHub repo '..'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: "has spaces" }, { validateTarget: github }), new CustomCredentialValidationError("invalid GitHub repo 'has spaces'"));
 });
 
 // Pins write-files-validation.ts:97 — repo must be a string before host validation.
 test("rejects a numeric repo with a typed validation error", () => {
-  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: 42 }, github), new CustomCredentialValidationError("invalid repo '42'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: 42 }, { validateTarget: github }), new CustomCredentialValidationError("invalid repo '42'"));
 });
 
 // Pins write-files-validation.ts:97 — arrays must not bypass repo validation through coercion.
 test("rejects an array repo even when its string form is a valid name", () => {
-  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ["demo"] }, github), new CustomCredentialValidationError("invalid repo 'demo'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ["demo"] }, { validateTarget: github }), new CustomCredentialValidationError("invalid repo 'demo'"));
 });
 
 // Pins write-files-validation.ts:97 — an absent repo must fail the string guard.
 test("rejects a missing repo with a typed validation error", () => {
   const target = { owner: "octo" } as Parameters<typeof validateRepositoryTarget>[0];
-  assert.throws(() => validateRepositoryTarget(target, github), new CustomCredentialValidationError("invalid repo 'undefined'"));
+  assert.throws(() => validateRepositoryTarget(target, { validateTarget: github }), new CustomCredentialValidationError("invalid repo 'undefined'"));
 });
 
 // Pins write-files-validation.ts:97 — repo must be a string even without a host validator.

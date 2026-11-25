@@ -18,7 +18,7 @@ import { type PluginSdk } from '@jini-ai/core/contracts/plugin-sdk';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
-import { createApiConnectionVault } from '#src/features/api-connections/vault-stores';
+import { createApiConnectionVault } from '#src/features/api-connections/vault-store-binding';
 import { createAgentPluginStateStore } from '#src/features/api-connections/plugin-state';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import { openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';

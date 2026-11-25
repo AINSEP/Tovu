@@ -1,5 +1,5 @@
 /**
- * @file Phase-C unit tests for `vault-stores.ts`: the confined vault refuses every other
+ * @file Phase-C unit tests for `vault-store-binding.ts`: the confined vault refuses every other
  * workspace, kind, owner, principal and binding before any crypto, and never invents a row id;
  * records are served only under the key they were sealed for and CAS maps conflicts to `false`;
  * attempts are consume-once (a racing delete reads as used), malformed attempt rows read as none,
@@ -17,7 +17,7 @@ import { VaultError } from "@jini-ai/core/contracts/vault";
 import type { ApiConnectionAttempt, ApiConnectionRecord } from "@jini-ai/integrations/api-connections";
 
 import { API_CONNECTION_VAULT_KIND, apiConnectionVaultScope } from "#src/platform/secrets/vault-api-connection-meta";
-import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "../vault-stores.js";
+import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "../vault-store-binding.js";
 
 const WORKSPACE = "ws-1";
 
@@ -49,6 +49,15 @@ test("vault: every other workspace, kind, owner, principal or binding is refused
     await assert.rejects(vault.get({ ...scope, ...other, id: "record:k" }), (error: unknown) => error instanceof VaultError && error.code === "context", JSON.stringify(other));
   }
   assert.equal(scope.kind, API_CONNECTION_VAULT_KIND);
+});
+
+test("vault: scope is checked before metadata parsing", async () => {
+  const { vault, scope } = stores();
+  for (const other of [{ workspaceId: "ws-2" }, { kind: "custom" as const }, { ownerKey: "someone" }]) {
+    await assert.rejects(vault.put({ ...scope, ...other, id: "record:k", expectedRevision: null, provider: null,
+      label: "invalid", meta: { credentialFormat: "invalid-format" } }),
+    (error: unknown) => error instanceof VaultError && error.code === "context");
+  }
 });
 
 test("vault: a row is never given a generated id (every row id is derived by its store)", async () => {

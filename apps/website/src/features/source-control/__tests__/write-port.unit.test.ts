@@ -7,7 +7,7 @@ import { CustomCredentialValidationError } from "../../custom-credentials/store.
 import type { SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
 import type { LoadSourceControlProviders, SourceControlProviderRegistry } from "../provider-registry.js";
 import { bindSourceControlWritePort } from "../write-port.js";
-import { validateRepositoryTarget } from "../../custom-credentials/write-files-validation.js";
+import { validateRepositoryTarget } from "../../custom-credentials/repository-target.js";
 
 /**
  * @file The core `SourceControlWritePort` as Tovu binds it (`write-port.ts`). Real binding over the real provider

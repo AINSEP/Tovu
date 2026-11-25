@@ -460,11 +460,6 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/api-connections/vault-stores.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/comments/provider-selection.ts",
     "rule": "catch-reads-error",
     "value": 1

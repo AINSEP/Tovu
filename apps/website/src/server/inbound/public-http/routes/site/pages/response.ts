@@ -1,5 +1,10 @@
 import { addDeclaredHostsToPolicy, CSP_REPORT_ONLY_HEADER } from "@jini-ai/core/contracts/server/security-headers";
-import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
+/** Product binding: plugin admission belongs to Jini's host; placement uses the shared
+ * partial marker parser/expander. No CMS widget registry or resolver is replaced. */
+import { renderPluginWidgetPartials } from "@jini-ai/plugins/runtime/widget-partials";
+import { markersOfType, PARTIAL_MARKER_TYPE, expandPartials } from "@jini-ai/cms/widgets/markers";
+import { validateServerWidgetFragment } from "@jini-ai/cms/widgets/html";
+import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
@@ -131,7 +136,11 @@ async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Re
   html = injectExtraHeadIntoStaticPage({ html, extraHead: deps.pluginExportRender?.headHtml({}) });
   addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
   html = injectListingScript({ html });
-  if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
+  if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo, render: {
+    readNames: ({ html }) => markersOfType({ html, type: PARTIAL_MARKER_TYPE }).flatMap(marker => marker.id ? [marker.id] : []),
+    validateHtml: validateServerWidgetFragment,
+    expand: ({ html, partials, slots }) => expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html, theme: { partials: { ...partials }, manifest: { slots } } }),
+  } });
   const finished = injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   // Member sign-in needs this server's API, which an exported file never has: its header keeps the
   // theme's plain "Sign in" link.

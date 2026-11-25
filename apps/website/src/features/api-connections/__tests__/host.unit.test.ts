@@ -15,7 +15,7 @@ import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/cred
 import { type VaultRecord } from "@jini-ai/core/contracts/vault";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
-import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from "../vault-stores.js";
+import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from "../vault-store-binding.js";
 import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, acmeFixtureCopy, connectHosted, startAcmeHarness, type AcmeHarness } from "./support/acme-harness.js";
 
 let harness: AcmeHarness;

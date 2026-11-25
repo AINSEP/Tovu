@@ -6,7 +6,7 @@ import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
 import { SqliteExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-repo.sqlite.js";
 import { SqliteSiteAssistantCredentialRepo } from "#src/assistant/site-credential-repo.sqlite";
-import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
+import { createApiConnectionVault } from "#src/features/api-connections/vault-store-binding";
 import { createSiteKeyReferences } from "#src/features/project-keys/site-references";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 

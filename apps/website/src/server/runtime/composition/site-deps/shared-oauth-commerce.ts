@@ -11,7 +11,7 @@ import type { providerPluginBoot } from "./provider-identity.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { composeCommerce } from "../commerce.js";
-import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
+import { createApiConnectionVault } from "#src/features/api-connections/vault-store-binding";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { createSharedOAuthOwnerStorage } from "#src/features/api-connections/shared-owner";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";

@@ -10,7 +10,7 @@ import { freshPostgresContentDatabase, dropDatabase } from '../../../platform/db
 import { openPostgresKernel } from '../../../platform/db/kernel/drivers/postgres.js';
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
-import { createApiConnectionVault } from '../vault-stores.js';
+import { createApiConnectionVault } from '../vault-store-binding.js';
 
 const DATABASE = 'tovu_shared_oauth_binding_fixture';
 
