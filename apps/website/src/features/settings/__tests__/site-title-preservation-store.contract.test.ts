@@ -4,7 +4,7 @@ import test from "node:test";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlSiteTitlePreservationStore, type SiteTitlePreservationStorePort } from "@jini-ai/cms/settings/site/site-title-preservation";
-import { InMemorySiteTitlePreservationStore } from "../site-title.js";
+import { InMemorySiteTitlePreservationStore } from "@jini-ai/cms/settings/site/site-title";
 
 /**
  * @file SPEC-050 (NC-3 = A): both `SiteTitlePreservationStorePort` adapters honour one contract, the

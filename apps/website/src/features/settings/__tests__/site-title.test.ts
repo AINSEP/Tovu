@@ -1,6 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSettingsPrincipalLookup } from "../index.js";
 import assert from "node:assert/strict";
+import { nowIso } from "@jini-ai/core/primitives";
 import test, { type TestContext } from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
@@ -54,6 +55,7 @@ interface Ledger {
   ensureSettingDefinitions: typeof ensureSettingDefinitions;
   set: typeof set;
   resolveDefinitionRaw: typeof resolveDefinitionRaw;
+  nowIso: typeof nowIso;
   reportSiteTitleFailure: typeof siteTitlePreservationHostBindings.reportSiteTitleFailure;
   reportPreservationSummary: typeof siteTitlePreservationHostBindings.reportPreservationSummary;
 }
@@ -68,6 +70,7 @@ async function makeLedger(pendingWorkspaceIds: string[] = [], options: { registe
     ensureSettingDefinitions,
     set,
     resolveDefinitionRaw,
+    nowIso,
     ...siteTitlePreservationHostBindings,
   };
   if (options.register !== false) {
