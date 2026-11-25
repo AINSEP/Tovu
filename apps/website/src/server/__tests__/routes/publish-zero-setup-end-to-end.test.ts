@@ -27,7 +27,7 @@ import {
 } from "@jini-ai/cms/publish/trust/provisioning";
 import { PUBLISH_TRUST_ENV_VAR, PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
-import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/deploy-config-registry";
+import { deployConfigGenerators } from "#src/features/deployments/deploy-config-registry";
 import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
