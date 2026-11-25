@@ -9,9 +9,7 @@ import { memberRequestMagicLinkRoute } from "@jini-ai/cms/admin-http/routes/memb
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
-import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
-import { registerMemberLoginProvidersRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberPasswordSignInRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "./public-members.js";
+import { registerMemberLoginProvidersRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberPasswordSignInRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute, registerPublicMemberSignInRequestRoute, registerPublicMemberCompleteSignInRoute } from "./public-members.js";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
 /**

@@ -1,13 +1,15 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
-import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
-import type { Express, Response } from "express";
+import type { Response } from "express";
 import { serialize } from "cookie";
-import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError } from "@jini-ai/user-management/members/types";
-import { type MemberSignInInput } from "@jini-ai/user-management/members/ports";
-import { MEMBER_SESSION_COOKIE, toPublicMemberResponse } from "../../http/members.js";
-import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
+import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
+
+/**
+ * @file Tovu's member session cookie (name, attributes, setter, clearer) and credential refusal copy, shared by
+ * the PUBLIC member routes. The complete-sign-in route itself is the Jini spec
+ * `@jini-ai/cms/public-http/routes/members/complete-sign-in`, mounted by `registerPublicMemberCompleteSignInRoute`
+ * (`runtime/composition/modules/public-members.ts`); it sets ONLY `tovu_member_session`, never `tovu_session`.
+ */
 
 /**
  * ADR-030 §3: a DISTINCT cookie name from the admin `tovu_session` (which
@@ -73,45 +75,4 @@ export function sendMemberAuthError({ res, error }: { res: Response; error: unkn
   if (refusal) { res.status(refusal.status).json(refusal.body); return; }
   const { errorId } = reportServerFailure({ error, operation: MEMBER_AUTH_FAILURE.operation }, { tracker: res.locals.adminFailureTracker });
   res.status(500).json({ error: MEMBER_AUTH_FAILURE.visitorError, errorId });
-}
-
-/** Exactly one credential form, with no missing/empty handle passed to the repository. O(1). */
-export function completionCredential({ body, workspaceId }: { body: unknown; workspaceId: string }, _options = {}): MemberSignInInput | null {
-  const token = memberStringBody({ body, kind: "token" });
-  if (token?.token) return { workspaceId, token: token.token };
-  const { challengeId, code } = memberStringBody({ body, kind: "code" }) ?? {};
-  if (challengeId && code !== undefined && /^\d{6}$/.test(code)) return { workspaceId, challengeId, code };
-  return null;
-}
-
-/**
- * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in/complete` — the PUBLIC
- * complete-sign-in route (ADR-PIPE-013 Decision §2-3, C-013).
- *
- * Deliberately unauthenticated (no `requireAdminSession`, no `authorize()`) and gated by the
- * lighter `MAGIC_LINK_COMPLETE_ATTEMPT` per-IP profile. That limit is defense-in-depth: the
- * 256-bit raw link token makes brute force infeasible, and a six-digit code is bounded by the
- * per-challenge attempt reservation in `consumeMemberChallenge`, not by this IP counter.
- *
- * INV-NEW-01 (cookie isolation): sets ONLY `tovu_member_session`, never reads or writes
- * `tovu_session` (the admin cookie) — a request carrying only a `tovu_session` cookie (no token)
- * is still rejected by this route; the admin cookie has zero effect here.
- */
-
-/** Complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
-export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
-  app.post("/api/members/v1/workspaces/:workspaceId/sign-in/complete", async (req, res) => {
-    observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
-    try {
-      if (!checkMemberPost({ req, res, deps })) return;
-      const credential = completionCredential({ body: req.body, workspaceId: deps.workspaceId });
-      if (!credential) { res.status(400).json({ error: "expected token or challengeId and six-digit code strings" }); return; }
-      if (!await checkMemberRequestLimits({ req, res, deps, ipLimiter: deps.magicLinkCompleteAttemptLimiter })) return;
-      const result = await completeSignIn({ deps: toPublicMembersWriteServiceDeps(deps, { request: req }),
-        input: { ...credential, userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
-      setMemberSessionCookie({ res, rawToken: result.rawSessionToken, expiresAtIso: result.session.expiresAt });
-      captureMemberSignedIn({ deps: deps, request: req, result: result, method: "challenge", workspaceId: deps.workspaceId });
-      res.json({ member: toPublicMemberResponse(result.member) });
-    } catch (error) { sendMemberAuthError({ res, error }); }
-  });
 }

@@ -12,7 +12,7 @@ import { nowIso } from "@jini-ai/core/primitives";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
-import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
+import { registerPublicMemberSignInRequestRoute } from "../../runtime/composition/modules/public-members.js";
 
 /**
  * @file FEAT-013 Phase 2 (ADR-PIPE-013 Decision §2-3, ADR-030 OQ-8) —

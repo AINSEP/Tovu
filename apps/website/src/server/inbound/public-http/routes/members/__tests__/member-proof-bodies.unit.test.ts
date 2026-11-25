@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { MemberLoginError } from "@jini-ai/user-management/server";
-import { completionCredential } from "../complete-sign-in.js";
+import { memberCompletionCredential } from "@jini-ai/cms/public-http/routes/members/complete-sign-in";
 import { proofBody } from "../oidc-verify-email.js";
 
 /**
@@ -26,8 +26,8 @@ for (const [label, code, accepted] of CODES) {
     else assert.throws(() => proofBody({ body: { ...VALID, code } }), invalidLogin);
   });
   test(`sign-in completion: code ${label} is ${accepted ? "accepted" : "refused"}`, () => {
-    const credential = completionCredential({ body: { challengeId: "ch-1", code }, workspaceId: "ws" });
-    assert.deepEqual(credential, accepted ? { workspaceId: "ws", challengeId: "ch-1", code } : null);
+    const credential = memberCompletionCredential({ body: { challengeId: "ch-1", code } });
+    assert.deepEqual(credential, accepted ? { challengeId: "ch-1", code } : null);
   });
 }
 
@@ -48,8 +48,8 @@ test("verify-email proof accepts handles exactly at their caps", () => {
 });
 
 test("sign-in completion prefers a link token, and refuses a code without a challenge id", () => {
-  assert.deepEqual(completionCredential({ body: { token: "t" }, workspaceId: "ws" }), { workspaceId: "ws", token: "t" });
-  assert.equal(completionCredential({ body: { token: "" }, workspaceId: "ws" }), null);
-  assert.equal(completionCredential({ body: { challengeId: "", code: "123456" }, workspaceId: "ws" }), null);
-  assert.equal(completionCredential({ body: { code: "123456" }, workspaceId: "ws" }), null);
+  assert.deepEqual(memberCompletionCredential({ body: { token: "t" } }), { token: "t" });
+  assert.equal(memberCompletionCredential({ body: { token: "" } }), null);
+  assert.equal(memberCompletionCredential({ body: { challengeId: "", code: "123456" } }), null);
+  assert.equal(memberCompletionCredential({ body: { code: "123456" } }), null);
 });

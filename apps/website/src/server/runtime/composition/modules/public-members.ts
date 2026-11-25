@@ -6,6 +6,8 @@ import { memberForgotPasswordRoute } from "@jini-ai/cms/public-http/routes/membe
 import { memberLoginProvidersRoute } from "@jini-ai/cms/public-http/routes/members/login-providers";
 import { memberMeRoute } from "@jini-ai/cms/public-http/routes/members/me";
 import { memberPasswordSignInRoute } from "@jini-ai/cms/public-http/routes/members/password-sign-in";
+import { memberCompleteSignInRoute } from "@jini-ai/cms/public-http/routes/members/complete-sign-in";
+import { memberSignInRequestRoute } from "@jini-ai/cms/public-http/routes/members/sign-in";
 import { memberResetPasswordRoute } from "@jini-ai/cms/public-http/routes/members/reset-password";
 import { memberSetPasswordRoute } from "@jini-ai/cms/public-http/routes/members/set-password";
 import { memberSignOutRoute } from "@jini-ai/cms/public-http/routes/members/sign-out";
@@ -14,6 +16,7 @@ import { createMemberAccessResolver, resolveMemberSession } from "@jini-ai/user-
 import { MemberAuthError, type MemberRecord } from "@jini-ai/user-management/members/types";
 import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
 import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
+import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
 import type { MemberSignInResult } from "@jini-ai/user-management/members/ports";
 import { captureVisitorEvent } from "#src/server/inbound/public-http/visitor-analytics";
 import { captureMemberSignedIn, observeMemberSignInFailure } from "#src/server/inbound/public-http/routes/members/analytics";
@@ -115,6 +118,50 @@ function memberSignInApp(
   });
   view.post = post as unknown as Express["post"];
   return view;
+}
+
+/** `POST …/sign-in`: public acceptance is independent of address lookup and mail latency. Setup failures remain 503.
+ * @complexity O(1) setup I/O; address-dependent work runs detached after the response.
+ */
+export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({
+    app: memberSignInApp({ app, deps, method: "challenge" }),
+    spec: memberSignInRequestRoute,
+    deps: {
+      workspaceId: deps.workspaceId,
+      emailLimiter: liveLimiter({ deps, name: "magicLinkPerEmailLimiter" }),
+      ipLimiter: liveLimiter({ deps, name: "magicLinkPerIpLimiter" }),
+      prepareSignIn: (input) => prepareMemberChallenge({ deps: toPublicMembersWriteServiceDeps(deps, { request: currentMemberSignInRequest() }), purpose: "signin", input }),
+      signInRequested: () => {
+        void captureVisitorEvent({ deps, request: currentMemberSignInRequest(), name: "member_sign_in_requested", properties: { method: "challenge", realm: "member" } });
+      },
+      // Per-address lookup and mail latency must never delay public acceptance.
+      deliverInBackground: ({ deliver }) => { setImmediate(() => { void deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error })); }); },
+      refusalFor: ({ error }) => memberSignInRefusal({ error }),
+    },
+    failure: MEMBER_SIGN_IN_FAILURE,
+    workspaceId: deps.workspaceId,
+  });
+}
+
+/** `POST …/sign-in/complete`: complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
+export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountPublicJsonRoute({
+    app: memberSignInApp({ app, deps, method: "challenge" }),
+    spec: memberCompleteSignInRoute,
+    deps: {
+      workspaceId: deps.workspaceId,
+      attemptLimiter: liveLimiter({ deps, name: "magicLinkCompleteAttemptLimiter" }),
+      completeSignIn: (input) => completeSignIn({ deps: toPublicMembersWriteServiceDeps(deps, { request: currentMemberSignInRequest() }), input }),
+      sessionCookie: (input) => memberSessionCookie(input),
+      // The spec hands back the very result `completeSignIn` answered, so it is this service's record.
+      signedIn: ({ result }) => captureMemberSignedIn({ deps, request: currentMemberSignInRequest(), result: result as MemberSignInResult, method: "challenge", workspaceId: deps.workspaceId }),
+      toPublicMember: ({ member }) => toPublicMemberResponse(member as MemberRecord),
+      refusalFor: ({ error }) => memberAuthRefusal({ error }),
+    },
+    failure: MEMBER_AUTH_FAILURE,
+    workspaceId: deps.workspaceId,
+  });
 }
 
 /** `POST …/password/sign-in`: verify unchanged password bytes behind separate strict IP and normalized-email counters. O(1) I/O. */

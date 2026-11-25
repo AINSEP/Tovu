@@ -27,7 +27,7 @@ test("extracted rendering is byte-identical to the old route output for the same
   let output = ''; let status = 200; const headers: Record<string, string> = {};
   const response = { locals: { principal: { id: 'p' } }, statusCode: 200, on: () => response, off: () => response, vary: () => response, append: () => response, setHeader: (key: string, value: string) => { headers[key] = value; return response; }, send: (value: Buffer) => { status = response.statusCode; output = value.toString(); return response; } };
   await handler!({ method: 'GET', headers: {}, params: { workspaceId: 'w', postId: 'draft-1' }, query: { templateChoice: '' }, body: {} }, response);
-  assert.equal(status, 200); assert.equal(headers['Cache-Control'], 'no-store');
+  assert.equal(status, 200); assert.equal(headers['cache-control'], 'no-store');
   assert.equal(output, '<!doctype html><html><body><p>Saved draft</p></body></html>');
   assert.equal((await renderPostPreview({ deps, input: { post: barePost, templateChoice: '' } })).html, output);
 });

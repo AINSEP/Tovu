@@ -21,8 +21,8 @@ import {
   type RateLimiter,
 } from "#src/contracts/core/rate-limit/rate-limit";
 import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
-import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
-import { registerPublicMemberCompleteSignInRoute } from "../../inbound/public-http/routes/members/complete-sign-in.js";
+import { registerPublicMemberSignInRequestRoute } from "../../runtime/composition/modules/public-members.js";
+import { registerPublicMemberCompleteSignInRoute } from "../../runtime/composition/modules/public-members.js";
 import { registerPublicMemberForgotPasswordRoute, registerPublicMemberMeRoute, registerPublicMemberPasswordSignInRoute, registerPublicMemberResetPasswordRoute, registerPublicMemberSetPasswordRoute, registerPublicMemberSignOutRoute } from "#src/server/runtime/composition/modules/public-members";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";

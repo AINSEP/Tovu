@@ -1,55 +1,15 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
-import { observeMemberSignInFailure } from "./analytics.js";
-import { captureVisitorEvent } from "../../visitor-analytics.js";
-import type { Express, Response } from "express";
+import type { Response } from "express";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
-import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
 import { memberAuthRefusal } from "./complete-sign-in.js";
-import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**
- * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in` — the PUBLIC, visitor-initiated
- * sign-in-request route (ADR-PIPE-013 Decision §2-3, C-012).
- *
- * Deliberately unauthenticated (no `requireAdminSession`, no `authorize()` — this route family
- * must never import either, see ADR-PIPE-013 Enforcement) and rate-limited on BOTH axes before any
- * token is minted:
- *  - `MAGIC_LINK_PER_EMAIL` (keyed by the normalized target email) — bounds spam to one inbox
- *    regardless of source IP.
- *  - `MAGIC_LINK_PER_IP` (keyed by `resolveClientIp`) — bounds a single attacker's ability to
- *    enumerate many emails.
- * Both checks must pass (W-002/W-003) — this is the primary target of ADR-030 OQ-8's hard
- * pre-launch precondition; checking only one of the two would reopen the enumeration/abuse
- * surface. INV-06 (anti-enumeration) is preserved: the public response is
- * `{accepted:true, challengeId}` regardless of the address or mailer result; site-wide setup
- * failures are checked before member lookup; a `429` here is a volume signal (this email/IP was
- * queried too often), never an existence signal.
+ * @file Tovu's policy for the PUBLIC sign-in request routes: the sign-in refusal copy, the redacted 500 and the
+ * private report of a detached delivery failure. The route itself is the Jini spec
+ * `@jini-ai/cms/public-http/routes/members/sign-in`, mounted by `registerPublicMemberSignInRequestRoute`
+ * (`runtime/composition/modules/public-members.ts`).
  */
-
-/** Public acceptance is independent of address lookup and mail latency. Setup failures remain 503.
- * @complexity O(1) setup I/O; address-dependent work runs detached after the response.
- */
-export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
-  app.post("/api/members/v1/workspaces/:workspaceId/sign-in", async (req, res) => {
-    observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
-    try {
-      if (!checkMemberPost({ req, res, deps })) return;
-      const body = memberStringBody({ body: req.body, kind: "signIn" });
-      if (!body) { res.status(400).json({ error: "expected email and optional redirectPath strings" }); return; }
-      // Empty emails have no valid counter key; preserve the service's validation response.
-      if (!body.email.trim()) { res.status(400).json({ error: `'${body.email}' is not a valid email address` }); return; }
-      if (!await checkMemberRequestLimits({ req, res, deps, email: body.email,
-        emailLimiter: deps.magicLinkPerEmailLimiter, ipLimiter: deps.magicLinkPerIpLimiter })) return;
-      const prepared = await prepareMemberChallenge({ deps: toPublicMembersWriteServiceDeps(deps, { request: req }), purpose: "signin",
-        input: { workspaceId: deps.workspaceId, email: body.email, redirectPath: body.redirectPath } });
-      void captureVisitorEvent({ deps: deps, request: req, name: "member_sign_in_requested", properties: { method: "challenge", realm: "member" } });
-      res.json({ accepted: true, challengeId: prepared.challengeId });
-      // Do not await per-address I/O or reflect its outcome in this anti-enumeration response.
-      setImmediate(() => { void prepared.deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error })); });
-    } catch (error) { respondToSignInError({ error, res }); }
-  });
-}
 
 /** Detached failures remain observable through private, redacted diagnostics after acceptance. */
 export function reportMemberDeliveryFailure({ error }: { error: unknown }, _optional = {}): void {
