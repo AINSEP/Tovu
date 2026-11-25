@@ -75,13 +75,13 @@ function buildDeps(rows: StoredRows) {
 test("useAdminStoredCredential opens the CALLER'S OWN admin row and sends its stored endpoint", async () => {
   const { deps, counters } = buildDeps({ admin: { apiKey: "AIza-admin-key", baseUrl: GOOGLE } });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: GOOGLE,
     typedKey: "",
     useStoredCredential: false,
     useAdminStoredCredential: true,
     principalId: PRINCIPAL,
-  });
+  } });
 
   assert.deepEqual(result, { ok: true, apiKey: "AIza-admin-key", baseUrl: GOOGLE });
   assert.equal(counters.adminReads, 1);
@@ -95,12 +95,12 @@ test("an omitted principal cannot open a credential owned by the literal 'undefi
     admin: { apiKey: "another-principals-secret", baseUrl: GOOGLE, principalId: "undefined" },
   });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: GOOGLE,
     typedKey: "",
     useStoredCredential: false,
     useAdminStoredCredential: true,
-  });
+  } });
 
   assert.deepEqual(result, { ok: true, apiKey: "", baseUrl: GOOGLE });
   assert.deepEqual(counters, { adminReads: 0, siteReads: 0 });
@@ -112,11 +112,11 @@ test("useStoredCredential still opens the SITE row and never the admin's", async
     site: { apiKey: "AIza-site-key", baseUrl: GOOGLE },
   });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: GOOGLE,
     typedKey: "",
     useStoredCredential: true,
-  });
+  } });
 
   assert.deepEqual(result, { ok: true, apiKey: "AIza-site-key", baseUrl: GOOGLE });
   assert.equal(counters.siteReads, 1);
@@ -126,13 +126,13 @@ test("useStoredCredential still opens the SITE row and never the admin's", async
 test("a typed key still wins over the admin stored one, and no row is decrypted at all", async () => {
   const { deps, counters } = buildDeps({ admin: { apiKey: "AIza-admin-key", baseUrl: GOOGLE } });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: "https://elsewhere.example.com",
     typedKey: "AIza-typed-by-the-operator",
     useStoredCredential: false,
     useAdminStoredCredential: true,
     principalId: PRINCIPAL,
-  });
+  } });
 
   // Their own secret, typed into their own form, sent where they said — and the stored key is not
   // even opened, so there is nothing to leak on this path.
@@ -145,13 +145,13 @@ test("both stored flags select only the caller's admin row, including its endpoi
     admin: { apiKey: "admin-secret", baseUrl: GOOGLE },
     site: { apiKey: "site-secret", baseUrl: "https://attacker.example.com" },
   });
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: "https://attacker.example.com",
     typedKey: "",
     useStoredCredential: true,
     useAdminStoredCredential: true,
     principalId: PRINCIPAL,
-  });
+  } });
   assert.equal(result.ok, false);
   assert.equal(result.ok === false && result.failure.code, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
   assert.match(result.ok === false ? result.failure.error : "", /admin execution credential/);
@@ -161,13 +161,13 @@ test("both stored flags select only the caller's admin row, including its endpoi
 test("the endpoint pin applies to the admin row: a mismatched destination is a 400, not a substitution", async () => {
   const { deps } = buildDeps({ admin: { apiKey: "AIza-admin-key", baseUrl: GOOGLE } });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: "https://attacker.example.com",
     typedKey: "",
     useStoredCredential: false,
     useAdminStoredCredential: true,
     principalId: PRINCIPAL,
-  });
+  } });
 
   assert.equal(result.ok, false);
   assert.equal(result.ok === false && result.failure.code, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
@@ -181,13 +181,13 @@ test("the endpoint pin applies to the admin row: a mismatched destination is a 4
 test("a trailing slash is the same endpoint, not a mismatch", async () => {
   const { deps } = buildDeps({ admin: { apiKey: "AIza-admin-key", baseUrl: `${GOOGLE}/` } });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: GOOGLE,
     typedKey: "",
     useStoredCredential: false,
     useAdminStoredCredential: true,
     principalId: PRINCIPAL,
-  });
+  } });
 
   assert.equal(result.ok, true);
   assert.equal(result.ok === true && result.baseUrl, `${GOOGLE}/`, "the SERVER's own stored string is what goes on the wire");
@@ -196,13 +196,13 @@ test("a trailing slash is the same endpoint, not a mismatch", async () => {
 test("an admin row with no saved endpoint is a 400 naming the admin credential, not the site one", async () => {
   const { deps } = buildDeps({ admin: { apiKey: "AIza-admin-key", baseUrl: null } });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: GOOGLE,
     typedKey: "",
     useStoredCredential: false,
     useAdminStoredCredential: true,
     principalId: PRINCIPAL,
-  });
+  } });
 
   assert.equal(result.ok === false && result.failure.code, "STORED_CREDENTIAL_ENDPOINT_UNSET");
   assert.match(result.ok === false ? result.failure.error : "", /admin execution credential has no saved endpoint/);
@@ -211,13 +211,13 @@ test("an admin row with no saved endpoint is a 400 naming the admin credential, 
 test("no admin row at all falls through to an empty key, letting the provider give its own answer", async () => {
   const { deps } = buildDeps({ admin: null });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: GOOGLE,
     typedKey: "",
     useStoredCredential: false,
     useAdminStoredCredential: true,
     principalId: PRINCIPAL,
-  });
+  } });
 
   // Nothing to protect on this path — there is no secret in play — and the provider's own auth
   // error is a truer message than a synthesized one.
@@ -230,13 +230,29 @@ test("neither flag: unchanged for every pre-existing caller, and neither stored 
     site: { apiKey: "AIza-site-key", baseUrl: GOOGLE },
   });
 
-  const result = await resolveProbeCredential(deps, {
+  const result = await resolveProbeCredential({ deps, input: {
     requestedBaseUrl: GOOGLE,
     typedKey: "",
     useStoredCredential: false,
-  });
+  } });
 
   assert.deepEqual(result, { ok: true, apiKey: "", baseUrl: GOOGLE });
   assert.equal(counters.adminReads, 0);
   assert.equal(counters.siteReads, 0);
+});
+
+test("a typed key never opens either host store, even if both saved switches are set", async () => {
+  const { deps, counters } = buildDeps({ admin: { apiKey: "AIza-admin-key", baseUrl: GOOGLE }, site: { apiKey: "AIza-site-key", baseUrl: GOOGLE } });
+
+  const result = await resolveProbeCredential({ deps, input: {
+    requestedBaseUrl: "https://example.test/v1",
+    typedKey: "typed-key",
+    useStoredCredential: true,
+    useAdminStoredCredential: true,
+    principalId: PRINCIPAL,
+  } });
+
+  assert.deepEqual(result, { ok: true, apiKey: "typed-key", baseUrl: "https://example.test/v1" });
+  assert.equal(counters.adminReads, 0, "a typed key opened the admin store");
+  assert.equal(counters.siteReads, 0, "a typed key opened the site store");
 });

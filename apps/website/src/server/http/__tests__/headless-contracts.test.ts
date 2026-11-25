@@ -10,7 +10,7 @@ import type {
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
-import { toAdminPresentationResponse } from "../../inbound/admin-http/http/presentation.js";
+import { toAdminPresentationResponse } from "@jini-ai/cms/admin-http/http/presentation";
 import { toContentPostResponse } from "@jini-ai/cms/public-http/http/content/posts";
 
 const seedPost: PostRecord = {

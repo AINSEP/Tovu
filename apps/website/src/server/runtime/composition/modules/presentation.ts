@@ -10,7 +10,7 @@ import type { HeadlessThemeSummary } from "@jini-ai/core/contracts/headless/cont
 import { duplicateThemeIds, findStoredTheme, rescanThemes, ThemeStylingRequiredError, validThemeIds, writableThemeIds } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
+import { toAdminPresentationResponse } from "@jini-ai/cms/admin-http/http/presentation";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 import { registerAdminThemePreviewRoute } from "#src/server/inbound/admin-http/routes/themes/preview";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";

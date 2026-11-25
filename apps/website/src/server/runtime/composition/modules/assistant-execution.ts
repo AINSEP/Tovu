@@ -118,7 +118,7 @@ function mountOptions(
 
 /** The stored-credential chokepoint, bound to this bag (`principalId` arrives from the session via the spec). */
 function probeCredentialFor({ deps }: { deps: AssistantExecutionRouteDeps }, _optional: Record<string, never> = {}): ResolveProbeCredentialFn {
-  return (request) => resolveProbeCredential(deps, request);
+  return (input) => resolveProbeCredential({ deps, input });
 }
 
 /**
