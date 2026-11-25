@@ -31,8 +31,11 @@ let launches: string[] = [];
 let cancels: string[] = [];
 let answers: Array<{ principal: string | undefined; body: unknown }> = [];
 let lastEventIds: Array<string | undefined> = [];
-/** Daemon event streams still held open by a subscriber (decremented on the response's own close). */
+/** AG-UI segment subscriptions to the daemon event stream still held open (decremented on the
+ *  response's own close). */
 let openEventStreams = 0;
+/** Held (never-ending) streams, ended as a stopped run after each test so no subscriber outlives it. */
+const heldStreams = new Set<{ runId: string; res: import("node:http").ServerResponse }>();
 let mode: "approval" | "ordinary" = "approval";
 
 function frame(runId: string, id: number, kind: string, payload: unknown): string {
@@ -47,11 +50,16 @@ function card(runId: string, actions: string[]): unknown {
 
 function writeEvents(req: IncomingMessage, res: import("node:http").ServerResponse, runId: string): void {
   const lastEventId = req.headers["last-event-id"] as string | undefined;
-  lastEventIds.push(lastEventId);
   res.writeHead(200, { "content-type": "text/event-stream" });
-  openEventStreams++;
-  // `res`, not `req`: an IncomingMessage closes once its body is read, not when the subscriber drops.
-  res.on("close", () => { openEventStreams--; });
+  // Two Tovu subscribers follow a durable run: the AG-UI segment (`node:http`, no user agent) and the
+  // durable transcript watch (`run-daemon-http-client.ts` `openEvents`, global fetch, UA "node"),
+  // which rightly stays attached to a live run. Only the segment's subscriptions are under test.
+  if (req.headers["user-agent"] !== "node") {
+    lastEventIds.push(lastEventId);
+    openEventStreams++;
+    // `res`, not `req`: an IncomingMessage closes once its body is read, not when the subscriber drops.
+    res.on("close", () => { openEventStreams--; });
+  }
   if (mode === "ordinary") {
     res.write(frame(runId, 1, "agent", card(runId, ["submit"])));
     res.write(frame(runId, 2, "agent", { type: "text_delta", delta: "Form shown." }));
@@ -66,6 +74,9 @@ function writeEvents(req: IncomingMessage, res: import("node:http").ServerRespon
   // The held run: the card is the last frame until the human answers, so the stream stays open.
   res.write(frame(runId, 1, "agent", { type: "text_delta", delta: "Before card." }));
   res.write(frame(runId, 2, "agent", card(runId, ["confirm", "cancel"])));
+  const held = { runId, res };
+  heldStreams.add(held);
+  res.on("close", () => { heldStreams.delete(held); });
 }
 
 async function startStandInDaemon(): Promise<{ origin: string; server: Server }> {
@@ -136,7 +147,10 @@ async function boot(t: import("node:test").TestContext) {
   const scheduler = createTimeoutScheduler({});
   const approvalTimers = createVisibleScheduler();
   const approvals = createAdminAgUiApprovals({ nowMs: Date.now, scheduler: approvalTimers, newInterruptId: randomUUID, answerExchange: answerDaemonApprovalExchange });
-  t.after(() => { approvals.shutdownAdminApprovals(); });
+  t.after(() => {
+    approvals.shutdownAdminApprovals();
+    for (const { runId, res } of [...heldStreams]) res.end(frame(runId, 99, "end", { reason: "stop", status: "canceled" }));
+  });
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });
