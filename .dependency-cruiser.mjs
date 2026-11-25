@@ -455,7 +455,8 @@ const COMPOSITION_ROOTS = [
   // `storage-report.ts` (P11 ST-16) is one more CLI composition root of `adopt.ts`'s shape: its
   // `runStorageReportCli` binds the boot-only `site-databases.ts` (always called with
   // `reserveIdentity: false`) directly, because the barrel deliberately does not re-export it.
-  "^apps/website/src/cli/commands/(serve|serve-listen|init|introspect|export|adopt|storage-report)\\.ts$",
+  // `storage-maintenance.ts` (P11 ST-16 clean) binds the same resolver plus the serving root's retention policies.
+  "^apps/website/src/cli/commands/(serve|serve-listen|init|introspect|export|adopt|storage-report|storage-maintenance)\\.ts$",
 ];
 
 // Tests need concrete internals to exercise implementations. Match the architecture checker's
