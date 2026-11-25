@@ -122,7 +122,18 @@ function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, 
         return candidates;
       },
       rank: (input) => rankInstalledAgentPlugins({ query: input.query.slice(0, 16000), candidates: input.candidates, limit: input.limit }, { automatic: true }),
-      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
+      resolve: (
+        { pluginId, ...request },
+        { allowInactiveGuidance = false } = {},
+      ) => resolveAgentPluginGuidance(
+        {
+          pluginRefIds: [pluginId],
+          workspaceLayout: deps.agentPluginLayout.forWorkspace({
+            workspaceId: deps.workspaceId,
+          }),
+        },
+        { ...request, deliveryMode: 'inject', allowInactiveGuidance },
+      ),
       ask: createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, abort }, { getEntry: () => entry, approve: revisionSeq => { approvedPreferenceRevisionSeq = revisionSeq; } }),
       saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id, expectedRevisionSeq: approvedPreferenceRevisionSeq }),
       publish: async value => {
