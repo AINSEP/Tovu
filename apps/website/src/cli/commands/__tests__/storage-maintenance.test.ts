@@ -70,7 +70,7 @@ function traced(dir: string, { attached = null as DirectoryRunningRecord | null,
 test("running site → \"This website is running; clean it from its Storage screen.\"", async t => {
   const dir = await site(t);
   const run = traced(dir, { attached: record("serve") });
-  const result = await runStorageCleanCommand(run.required);
+  const result = await runStorageCleanCommand(run.required, { dryRun: false });
   assert.equal(result.exitCode, 3);
   assert.equal(run.text(), "This website is running; clean it from its Storage screen.\n");
   // An attachment owns nothing: no handle is opened and the other process's lease is not released.
@@ -80,7 +80,7 @@ test("running site → \"This website is running; clean it from its Storage scre
 test("a site another clean holds is busy, not running, and is left alone", async t => {
   const dir = await site(t);
   const run = traced(dir, { attached: record("maintenance") });
-  const result = await runStorageCleanCommand(run.required);
+  const result = await runStorageCleanCommand(run.required, { dryRun: false });
   assert.equal(result.exitCode, 3);
   assert.equal(run.text(), "This website's storage is already being cleaned; try again when that finishes.\n");
   assert.deepEqual(run.trace, ["claim:true"]);
@@ -90,7 +90,7 @@ test("clean takes the lease before any writable handle, then drains, closes and 
   const dir = await site(t);
   const policy: RetentionPolicy = { id: "share-files", kind: "old-copy", measure: async () => ({ bytes: 10 }), sweep: async () => ({ freedBytes: 10, removed: 1 }) };
   const run = traced(dir, { policies: [policy] });
-  const result = await runStorageCleanCommand(run.required);
+  const result = await runStorageCleanCommand(run.required, { dryRun: false });
   assert.equal(result.exitCode, 0);
   assert.deepEqual(run.trace, ["claim:true", "open:writable", "policies:true", "run:false", "drain", "close", "release"]);
   assert.match(run.text(), /share-files: freed 10 B, removed 1/);
@@ -120,7 +120,7 @@ test("a policy that keeps its items makes the run partial (exit 2)", async t => 
   const dir = await site(t);
   const policy: RetentionPolicy = { id: "share-files", kind: "old-copy", measure: async () => ({ bytes: null }), sweep: async () => { throw new Error("A share is busy; it was kept."); } };
   const run = traced(dir, { policies: [policy] });
-  const result = await runStorageCleanCommand(run.required, { json: true });
+  const result = await runStorageCleanCommand(run.required, { json: true, dryRun: false });
   assert.equal(result.exitCode, 2);
   const printed = JSON.parse(run.text());
   assert.equal(printed.status, "partial");
@@ -131,7 +131,7 @@ test("an unexpected failure prints its ERR- id, exits 1, and still closes then r
   const dir = await site(t);
   const run = traced(dir);
   run.required.policyFactory = () => { throw new Error("disk unavailable"); };
-  const result = await runStorageCleanCommand(run.required);
+  const result = await runStorageCleanCommand(run.required, { dryRun: false });
   assert.equal(result.exitCode, 1);
   assert.match(run.text(), /ERR-AAAA-BBBB-CCCC-DDDD/);
   assert.deepEqual(run.trace, ["claim:true", "open:writable", "close", "error:disk unavailable", "release"]);
@@ -182,4 +182,31 @@ test("capabilities --json advertises only connected operations", () => {
   const withCompact = capture();
   runStorageCapabilitiesCommand({ stdout: withCompact.stdout, compactStoppedSite: async () => ({ status: "done" }) }, { json: true });
   assert.deepEqual(JSON.parse(withCompact.text()).operations, ["report", "move", "clean", "compact"]);
+});
+
+// Codex FIX 6 — mutation `M storage-clean-default-live` (dryRun defaulting to false) must fail this test:
+// owner data is only ever deleted on an explicit opt-in, never by an unadorned `storage clean`.
+test("an unadorned storage clean is a preview: read-only handles, measured only, nothing swept", async t => {
+  const swept: string[] = [];
+  const policy: RetentionPolicy = { id: "share-files", kind: "old-copy", measure: async () => ({ bytes: 9, items: 1 }), sweep: async () => { swept.push("share-files"); return { removed: 1, freedBytes: 9 }; } };
+  const run = traced(await site(t), { policies: [policy] });
+  const result = await runStorageCleanCommand(run.required);
+  assert.equal(result.dryRun, true);
+  assert.deepEqual(swept, []);
+  assert.ok(run.trace.includes("open:read-only") && run.trace.includes("run:true"), run.trace.join(","));
+  assert.ok(!run.trace.includes("open:writable"));
+  assert.match(run.text(), /Nothing was deleted \(dry run\)\./);
+});
+
+// Codex FIX 7: the server log keeps the incident id and a redacted diagnostic, never the raw error text.
+test("storage-clean error log carries the incident id and no raw error message", t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const ports = storageCleanPorts({ claim: () => { throw new Error("unused"); }, resolvePaths: () => { throw new Error("unused"); } } as unknown as Parameters<typeof storageCleanPorts>[0]);
+  const raw = "EACCES open /home/owner/private/shares/sk-ant-api03-AAAABBBBCCCCDDDDEEEE.zip";
+  const { errorId } = ports.reportError({ error: Object.assign(new Error(raw), { code: "EACCES" }), policyId: "share-files" }, {});
+  assert.match(errorId, /^ERR-/);
+  const text = JSON.stringify(logged.mock.calls.map(call => call.arguments));
+  assert.ok(text.includes(errorId), text);
+  assert.ok(text.includes("EACCES"), text);
+  assert.ok(!text.includes("sk-ant-api03") && !text.includes("/home/owner"), text);
 });

@@ -140,10 +140,12 @@ function registerStorageCommands(program: Command): void {
     .command("clean")
     .description("remove what a STOPPED website no longer needs (expired share copies); never migrates or boots it")
     .argument("<dir>", "site directory")
-    .option("--dry-run", "only measure what would be removed; deletes nothing")
+    .option("--dry-run", "only measure what would be removed; deletes nothing (the default)")
+    .option("--apply", "really delete what the preview lists; without it, clean only previews")
     .option("--json", "print one JSON document")
-    .action(async (dir: string, options: { dryRun?: boolean; json?: boolean }) => {
-      const result = await runStorageCleanCli({ dir, stdout: process.stdout }, { dryRun: options.dryRun === true, json: options.json === true });
+    .action(async (dir: string, options: { dryRun?: boolean; apply?: boolean; json?: boolean }) => {
+      // Preview unless the owner explicitly opts in; `--dry-run` always wins over `--apply`.
+      const result = await runStorageCleanCli({ dir, stdout: process.stdout }, { dryRun: options.apply !== true || options.dryRun === true, json: options.json === true });
       process.exitCode = result.exitCode;
     });
   storage

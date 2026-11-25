@@ -12,7 +12,7 @@ import { siteRetentionPolicies } from "#src/server/runtime/composition/retention
 import type { StorageReportPaths } from "./storage-report.js";
 
 /**
- * @file `tovu storage clean <dir> [--dry-run] [--json]` and `tovu storage capabilities [--json]`
+ * @file `tovu storage clean <dir> [--apply] [--json]` (preview unless `--apply`) and `tovu storage capabilities [--json]`
  * (P11 ST-16, maintenance half). Clean runs the serving root's own retention policies once, on a
  * STOPPED site: claim the maintenance lease → open the existing handles → run one pass → drain →
  * close → release. A running site is refused; its Storage screen owns cleaning while it serves.
@@ -56,13 +56,14 @@ export const BUSY_SITE_MESSAGE = "This website's storage is already being cleane
 
 /**
  * Cleans the stopped website folder `dir` once and prints the outcome (plain lines, or one JSON document).
- * @param optional.dryRun measure only: opens nothing writable and deletes nothing.
+ * @param optional.dryRun measure only: opens nothing writable and deletes nothing. Defaults to TRUE: owner data is
+ *   deleted only when the caller explicitly passes `dryRun: false` (the CLI's `--apply`), never by an unadorned clean.
  * @returns the result whose `exitCode` the CLI exits with.
  * @complexity one retention pass over the policies.
  */
 export async function runStorageCleanCommand<H extends StoppedSiteHandles>(
   required: StorageCleanRequired<H>,
-  { dryRun = false, json = false }: { dryRun?: boolean; json?: boolean } = {},
+  { dryRun = true, json = false }: { dryRun?: boolean; json?: boolean } = {},
 ): Promise<StorageCleanResult> {
   let lease: StorageMaintenanceLease | undefined;
   let result: StorageCleanResult;
@@ -177,7 +178,9 @@ export function storageCleanPorts(
     createRunner: ({ policies, reportError }) => createRetentionRunner({ policies, reportError, clock, scheduler: { setInterval: () => undefined, clearInterval: () => {} } }),
     reportError: ({ error, policyId }) => {
       const errorId = mintToolErrorId({ randomHex: ({ bytes: count }) => randomBytes(count).toString("hex") });
-      console.error(`[storage-clean]${policyId ? ` ${policyId}` : ""}`, { errorId, message: error.message });
+      // The raw message can carry owner paths or secret-shaped names: the log keeps the incident id and a
+      // redacted diagnostic (error class and errno code) only; the id ties the console line to this record.
+      console.error(`[storage-clean]${policyId ? ` ${policyId}` : ""}`, { errorId, diagnostic: redactedDiagnostic({ error }) });
       return { errorId };
     },
   };
@@ -190,9 +193,15 @@ export function storageCleanPorts(
  */
 export async function runStorageCleanCli(
   { dir, stdout }: { dir: string; stdout: Stdout },
-  { dryRun = false, json = false }: { dryRun?: boolean; json?: boolean } = {},
+  { dryRun = true, json = false }: { dryRun?: boolean; json?: boolean } = {},
 ): Promise<StorageCleanResult> {
   // The command prints its own refusal; claimSiteRunning's "Using the site already running" line would mislead.
   const claim: StorageMaintenanceClaim = ({ dir: siteDir }) => claimSiteRunning({ dir: siteDir, app: "Web", purpose: "maintenance" }, { log: () => {} });
   return runStorageCleanCommand({ dir, stdout, ...storageCleanPorts({ claim, resolvePaths: resolveSiteDatabasePaths }) }, { dryRun, json });
+}
+
+/** The loggable shape of a failure: its class and errno code, never its message (paths, names, secrets). */
+function redactedDiagnostic({ error }: { error: Error }, _optional: Record<string, never> = {}): { name: string; code?: string } {
+  const code = (error as NodeJS.ErrnoException).code;
+  return typeof code === "string" && /^[A-Z0-9_]{1,32}$/.test(code) ? { name: error.name, code } : { name: error.name };
 }
