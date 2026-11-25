@@ -1,4 +1,5 @@
 import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
+import { HISTORY_TAB_CLASSES } from "../deployment-classes";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
@@ -25,7 +26,7 @@ import { HistoryTab } from "@jini-ai/devops/deploy/react";
 
 describe("HistoryTab", () => {
   it("renders a real empty state — no fabricated build/deploy rows", () => {
-    render(<HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon lineIcon={LINE_ICON} size={22} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} />);
+    render(<HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon lineIcon={LINE_ICON} size={22} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} classes={HISTORY_TAB_CLASSES} />);
     expect(screen.getByRole("link", { name: "See how to publish today" })).toHaveAttribute("href", "/admin/deployment?tab=static-site");
     expect(screen.getByText("No deploys yet")).toBeInTheDocument();
     expect(
@@ -39,7 +40,7 @@ describe("HistoryTab", () => {
   });
 
   it("tags the empty-state region and its publish link for the AI assistant", () => {
-    render(<HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon lineIcon={LINE_ICON} size={22} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} />);
+    render(<HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon lineIcon={LINE_ICON} size={22} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} classes={HISTORY_TAB_CLASSES} />);
     expect(document.querySelector('[data-agent-element="deployment-history-empty"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-history-publish-link"]')).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See how to publish today" })).toHaveAttribute("data-agent-element", "deployment-history-publish-link");

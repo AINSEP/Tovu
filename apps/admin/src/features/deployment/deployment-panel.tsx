@@ -1,4 +1,5 @@
 import { Deployment as DeploymentScreen } from "@jini-ai/devops/deploy/react/Deployment";
+import { HISTORY_TAB_CLASSES } from "./deployment-classes";
 import { HistoryTab } from "@jini-ai/devops/deploy/react";
 import { HistoryIcon } from "@jini-ai/devops/deploy/react/deployment-visuals";
 import { navigateDeploymentTab } from "@jini-ai/admin/deployment/Deployment.hooks";
@@ -31,7 +32,7 @@ export function downloadDockerfile({ contents }: { contents: string }, _options 
 }
 
 function DeploymentHistoryTab() {
-  return <HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon size={22} lineIcon={LINE_ICON} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} />;
+  return <HistoryTab useAdminLocaleHook={useWiredAdminLocale} t={t} historyIcon={<HistoryIcon size={22} lineIcon={LINE_ICON} />} publishHref="/admin/deployment?tab=static-site" agentHandle={agentHandle} classes={HISTORY_TAB_CLASSES} />;
 }
 
 export function Deployment({ tabId, useAdminLocaleHook = useAdminLocale }: { tabId?: string | null; useAdminLocaleHook?: typeof useAdminLocale } = {}) {

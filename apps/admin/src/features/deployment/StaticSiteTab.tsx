@@ -1,4 +1,5 @@
 import { Icon } from "@jini-ai/ui";
+import { PUBLISH_RUN_RESULT_CLASSES } from "./deployment-classes";
 import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
 import { copy } from "@/features/deployment/deployment-host-policy";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
@@ -1288,7 +1289,7 @@ function PublishTriggerAction({
           {controller.pollError}
         </p>
       ) : null}
-      {controller.run ? <PublishRunResult run={controller.run} publishedLabel={translate("Published:")} linkLabel="Open the just-published site" linkHandle="deployment-static-site-publish-result-url" /> : null}
+      {controller.run ? <PublishRunResult run={controller.run} publishedLabel={translate("Published:")} linkLabel="Open the just-published site" linkHandle="deployment-static-site-publish-result-url" classes={PUBLISH_RUN_RESULT_CLASSES} /> : null}
     </div>
   );
 }

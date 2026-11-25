@@ -72,12 +72,16 @@ function useShellAdminLocale(_required: Record<string, never>, _optional: Record
   return useAdminLocale();
 }
 
+/** The admin stylesheet classes the neutral source-control view takes (its pre-move class names). */
+const SOURCE_CONTROL_CLASSES = { page: "page", pageHeader: "page-header", pageHeaderText: "page-header-text", pageKicker: "page-kicker", pageTitle: "page-title", pageDescription: "page-description" } as const;
+
 export function SourceControl({
   useAdminLocaleHook = useShellAdminLocale, useSourceControlCredentialsHook = useWiredSourceControlCredentials, ...props }: SourceControlProps) {
   return (
     <SourceControlShell
       tabId={props.tabId}
       useAdminLocaleHook={useAdminLocaleHook}
+      classes={SOURCE_CONTROL_CLASSES}
       t={t}
       resolveActiveTabId={resolveActiveTabId}
       TabBar={TabBar}
