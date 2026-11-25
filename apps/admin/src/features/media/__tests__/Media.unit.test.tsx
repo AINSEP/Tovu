@@ -256,8 +256,13 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload");
     const accepted = new Set((fileInput.getAttribute("accept") ?? "").split(",").filter(Boolean));
-    // audio excluded pending owner decision on audio uploads
-    const expected = new Set([...DEFAULT_ALLOWED_MIME_TYPES].filter((mimeType) => !mimeType.startsWith("audio/")));
+    // audio excluded pending owner decision on audio uploads; text/vtt (caption files) is not a picture or a
+    // movie, so it is not offered in the media picker (it was already missing before this pin was repaired).
+    // `.mov`/`.m4v` are the extension spellings of the QuickTime/M4V types the server list already holds.
+    const expected = new Set(
+      [...DEFAULT_ALLOWED_MIME_TYPES].filter((mimeType) => !mimeType.startsWith("audio/") && mimeType !== "text/vtt"),
+    );
+    expected.add(".mov").add(".m4v");
     expect(accepted).toEqual(expected);
   });
 });
