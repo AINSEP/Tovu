@@ -86,9 +86,6 @@ export interface EditMediaPanelDependencies {
   locale: string;
 }
 
-/** The server sends `description` only once an asset has been described (`AdminMediaDto`). */
-type DescribedAdminMedia = AdminMedia & { description?: string | undefined };
-
 /**
  * Adds `description` to the metadata patch only when the operator edited it away from the stored
  * value. Untouched is omitted; blank over a stored description is an explicit clear (`""`); blank on
@@ -98,7 +95,7 @@ type DescribedAdminMedia = AdminMedia & { description?: string | undefined };
 export function withDescriptionPatch(
   required: { patch: MediaMetadataPatch; stored: string | undefined; edited: string | undefined },
   _optional: Record<string, never> = {},
-): MediaMetadataPatch & { description?: string } {
+): MediaMetadataPatch {
   const { patch, stored, edited } = required;
   if (edited === undefined) return patch;
   const next = edited.trim() === "" ? "" : edited;
@@ -106,8 +103,11 @@ export function withDescriptionPatch(
   return { ...patch, description: next };
 }
 
+/** The fields edited through the shared draft; `description` is tracked separately so an untouched one never reaches the patch. */
+type MediaDraft = Required<Omit<MediaMetadataPatch, "description">>;
+
 export interface EditMediaPanelController {
-  draft: Required<MediaMetadataPatch>;
+  draft: MediaDraft;
   /** The description as shown in the field: the stored text, or "" when never described. */
   description: string;
   setDescription: (value: string) => void;
@@ -167,7 +167,7 @@ export interface EditMediaPanelController {
  */
 export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale }: EditMediaPanelDependencies): EditMediaPanelController {
   const { item, onSaved, onCancel } = props;
-  const [draft, setDraft] = useState<Required<MediaMetadataPatch>>({
+  const [draft, setDraft] = useState<MediaDraft>({
     title: item.title,
     slug: item.slug,
     alt: item.alt,
@@ -181,11 +181,11 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   // Frozen at mount, exactly like `draft`'s own `useState` initializer above — `useRef(item)` only
   // reads its argument on the FIRST render, so this stays the value `draft` was seeded from even as
   // `props.item` keeps advancing underneath it. See this file's own header.
-  const baselineRef = useRef<DescribedAdminMedia>(item);
+  const baselineRef = useRef<AdminMedia>(item);
   // `undefined` until the operator types, so an untouched field never reaches the patch.
   const [editedDescription, setEditedDescription] = useState<string | undefined>(undefined);
   const saveMutation = useFetchMutation({
-    run: ({ input }: { input: { target: { id: string }; patch: MediaMetadataPatch & { description?: string } } }) => port.updateMedia(input.target, input.patch),
+    run: ({ input }: { input: { target: { id: string }; patch: MediaMetadataPatch } }) => port.updateMedia(input.target, input.patch),
   }, {
     invalidates: [KEYS.list],
   });
