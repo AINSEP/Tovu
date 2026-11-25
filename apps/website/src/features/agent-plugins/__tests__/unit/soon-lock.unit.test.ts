@@ -12,7 +12,7 @@ import { createTovuAgentPluginLifecycle, explicitRootAgentPluginActivations } fr
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { setAgentPluginEnabled } from "../../set-enabled.js";
 import { loadAgentPluginSearchCandidates } from "../../tool-registrations.js";
-import { AgentPluginNotReadyError, lockSoonAgentPlugins, readHostPluginMaturity, SOON_LOCK_ACTOR, type SoonCatalogPort } from "../../soon-lock.js";
+import { AgentPluginNotReadyError, lockSoonAgentPlugins, readHostPluginMaturity, SOON_LOCK_ACTOR, type SoonCatalogPort } from "@jini-ai/agent-plugins/site/soon-lock";
 import { restoreImportedPluginState } from "../../../site-backup/import-plugin-state.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
@@ -57,7 +57,10 @@ async function installed(t: TestContext, fixture: Fixture = {}) {
 }
 
 test("the admin switch, plugins_set_enabled and connect defaults refuse to turn a Soon plugin on, in plain words, and write nothing; off always works", async t => {
-  const { layout, isActive } = await installed(t, { maturity: "soon" });
+  const { layout, lifecycle, isActive } = await installed(t, { maturity: "soon" });
+  // The lifecycle owner's own guarded enable refuses with the public Jini error class (`@jini-ai/agent-plugins/site/soon-lock`).
+  await assert.rejects(lifecycle.setAgentPluginEnabled({ layout, workspaceId: WORKSPACE, pluginId: "notes", enabled: true, actor: "owner" }),
+    (error: unknown) => error instanceof AgentPluginNotReadyError && NOT_READY.test(error.message));
   await assert.rejects(setAgentPluginEnabled({ agentPluginLayout: layout, workspaceId: WORKSPACE, pluginId: "notes", enabled: true, actor: "owner" }),
     (error: unknown) => error instanceof AgentPluginNotReadyError && NOT_READY.test(error.message) && error.code === "AGENT_PLUGIN_NOT_READY");
   assert.equal(await isActive(), false);
@@ -87,10 +90,10 @@ test("an untested plugin is only a warning: it still switches on", async t => {
 });
 
 test("Tovu's host list marks the faces Jini ships without a flag as Soon; a manifest flag still wins", () => {
-  for (const pluginId of HOST_SOON_AGENT_PLUGINS) assert.equal(readHostPluginMaturity({ manifest: {}, pluginId }), "soon", "each host-listed plugin is Soon without a manifest flag");
-  assert.equal(readHostPluginMaturity({ manifest: {}, pluginId: "github" }), undefined);
-  assert.equal(readHostPluginMaturity({ manifest: { extensions: { jini: { maturity: "untested" } } }, pluginId: "github" }), "untested");
-  assert.equal(readHostPluginMaturity({ manifest: { extensions: { jini: { maturity: "untested" } } }, pluginId: "posthog" }), "untested");
+  for (const pluginId of HOST_SOON_AGENT_PLUGINS) assert.equal(readHostPluginMaturity({ manifest: {}, pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }), "soon", "each host-listed plugin is Soon without a manifest flag");
+  assert.equal(readHostPluginMaturity({ manifest: {}, pluginId: "github", hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }), undefined);
+  assert.equal(readHostPluginMaturity({ manifest: { extensions: { jini: { maturity: "untested" } } }, pluginId: "github", hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }), "untested");
+  assert.equal(readHostPluginMaturity({ manifest: { extensions: { jini: { maturity: "untested" } } }, pluginId: "posthog", hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }), "untested");
 });
 
 test("a host-listed plugin with no flag is refused, and the admin listing shows it as Soon", async t => {
@@ -123,7 +126,7 @@ test("boot switches off every Soon plugin that is on, as system:soon-lock, and l
   const manifests: Record<string, unknown> = { notes: { extensions: { jini: { maturity: "soon" } } }, posthog: {}, github: {}, quiet: { extensions: { jini: { maturity: "soon" } } } };
   const catalog: SoonCatalogPort = { list: async () => Object.keys(manifests).map(pluginId => ({ pluginId })), readManifest: async ({ plugin }) => JSON.stringify(manifests[plugin.pluginId]) };
   const writes: unknown[] = [];
-  const switched = await lockSoonAgentPlugins({ catalog, workspaceRoot: "/ws", activations: {
+  const switched = await lockSoonAgentPlugins({ catalog, workspaceRoot: "/ws", hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS, activations: {
     resolveAgentPluginActivation: async ({ pluginId }) => ({ verdict: pluginId === "quiet" ? "inactive" : "active" }),
     setAgentPluginActivation: async required => { writes.push(required); },
   } });
