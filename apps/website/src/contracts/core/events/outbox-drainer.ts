@@ -34,6 +34,9 @@ export { DEFAULT_OUTBOX_DRAIN_INTERVAL_MS } from "@jini-ai/infra/events/outbox";
 
 export type { OutboxDrainer } from "@jini-ai/infra/events/outbox";
 
+/** The drainer's queue-depth sampling ports, as Jini's `startOutboxDrainer` takes them. */
+export type OutboxQueueMetrics = NonNullable<NonNullable<Parameters<typeof startJiniOutboxDrainer>[1]>["queueMetrics"]>;
+
 /**
  * Starts draining `outbox` into `bus` in the background. The first drain runs on the next timer turn.
  *
@@ -44,6 +47,9 @@ export type { OutboxDrainer } from "@jini-ai/infra/events/outbox";
  * @param optional.batchSize rows claimed per drain (default 20).
  * @param optional.deliveryTimeoutMs how long one row's delivery may run (default: `processOutbox`'s own).
  * @param optional.tracker traces each delivery as an `outbox.deliver` operation (default: untraced).
+ * @param optional.queueMetrics the durable depth read and the admitted metric port; when given, each
+ *   drain samples `outbox.queue_depth` (the durable count, not the drain's claimed count).
+ *   Omitted when the host has no read or no metric admission: no gauge, nothing else changes.
  * @param optional.onError receives any error a drain throws (default: `console.error`). If it throws
  *   itself, that is swallowed, so a broken reporter can never end the loop.
  * @returns a handle whose `stop()` ends the loop.
@@ -53,7 +59,7 @@ export type { OutboxDrainer } from "@jini-ai/infra/events/outbox";
  */
 export function startOutboxDrainer(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
-  optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void; tracker?: Tracker } = {}
+  optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void; tracker?: Tracker; queueMetrics?: OutboxQueueMetrics } = {}
 ): OutboxDrainer {
   const { tracker = createNoopTracker({}), ...drainOptions } = optional;
   const args = outboxWorkerArgs({ ...required, ...createOutboxHostServices({}) });

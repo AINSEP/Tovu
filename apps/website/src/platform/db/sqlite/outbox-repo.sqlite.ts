@@ -51,3 +51,25 @@ export class SqliteOutboxAdapter extends SqlOutboxAdapter {
     super({ kernel: schemaErasedKernel({ store }), tables: OUTBOX_TABLES, claimLeaseMs: optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS }, {});
   }
 }
+
+/** Outbox rows still owed delivery: a delayed retry waits as `pending` and is still queue load. */
+const LIVE_OUTBOX_STATUSES = ["pending", "processing"] as const;
+
+/**
+ * The durable outbox depth of one workspace, for the drainer's `outbox.queue_depth` gauge: rows
+ * `pending` or `processing` (delayed retries included), never `delivered` or terminal `failed`.
+ * One aggregate query; no rows are materialized. Postgres returns the count as a string.
+ * @param required.store the connection's kernel.
+ * @param required.workspaceId the workspace whose rows count.
+ * @returns the live row count (0 when none).
+ * @complexity O(rows in the workspace) inside the database, O(1) memory here.
+ */
+export async function readOutboxQueueDepth({ store, workspaceId }: { store: ContentKernel; workspaceId: string }, _optional = {}): Promise<number> {
+  const row = await store.run((db) =>
+    db.selectFrom(OUTBOX_TABLES.outboxEvents)
+      .select((eb) => eb.fn.countAll().as("depth"))
+      .where("workspace_id", "=", workspaceId)
+      .where("status", "in", LIVE_OUTBOX_STATUSES)
+      .executeTakeFirst());
+  return Number(row?.depth ?? 0);
+}

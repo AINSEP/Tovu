@@ -7,7 +7,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "@jini-ai/infra/events/outbox";
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "../../content-kernel.js";
-import { SqliteOutboxAdapter } from "../../sqlite/outbox-repo.sqlite.js";
+import { readOutboxQueueDepth, SqliteOutboxAdapter } from "../../sqlite/outbox-repo.sqlite.js";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
@@ -88,5 +88,24 @@ describe("the SQLite binding's claim lease", () => {
     await outbox.enqueue(event("e1"));
     await outbox.claimPending({ batchSize: 1, nowIso: T0 });
     assert.equal((await outboxRows(kernel))[0]?.next_attempt_at, new Date(Date.parse(T0) + 1234).toISOString());
+  });
+});
+
+describeEachDialect("outbox queue depth (P10-O2.T)", { tables: ["outbox_events"], make: (kernel: ContentKernel) => kernel }, (makeKernel) => {
+  test("outbox queue depth counts live work in this workspace but not terminal rows (mutation: count-terminal-rows)", async () => {
+    const kernel = makeKernel();
+    const outbox = outboxOn({ kernel });
+    for (const id of ["pending", "processing", "retry", "delivered", "failed"]) await outbox.enqueue(event(id));
+    await outbox.enqueue({ ...event("other-site"), workspaceId: "ws-2" });
+    const setRow = (id: string, status: string, nextAttemptAt = T0) =>
+      kernel.run((db) => db.updateTable("outbox_events").set({ status, next_attempt_at: nextAttemptAt }).where("id", "=", id).execute());
+    await setRow("processing", "processing");
+    // A delayed retry is pending with a future next attempt: still queue load.
+    await setRow("retry", "pending", "2026-11-19T00:00:00.000Z");
+    await setRow("delivered", "delivered");
+    await setRow("failed", "failed");
+    assert.equal(await readOutboxQueueDepth({ store: kernel, workspaceId: "ws-1" }), 3);
+    assert.equal(await readOutboxQueueDepth({ store: kernel, workspaceId: "ws-2" }), 1);
+    assert.equal(await readOutboxQueueDepth({ store: kernel, workspaceId: "ws-none" }), 0);
   });
 });
