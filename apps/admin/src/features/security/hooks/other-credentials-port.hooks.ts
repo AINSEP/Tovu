@@ -1,6 +1,6 @@
 import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { AdminExecutionCredential, AdminExecutionCredentialPatch, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
-import type { AdminMediaProviderMap } from "@/features/media/api/media-api";
+import type { AdminMediaProviderMap } from "@jini-ai/admin/screens/media/api/media-api";
 
 /**
  * @file What `useOtherCredentials` needs from the outside world, as an interface rather than a

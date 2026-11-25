@@ -2,8 +2,9 @@ import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-ki
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Icon } from "@jini-ai/ui";
 import { Media } from "../Media";
-import { resolveMediaTabs } from "../Media.hooks";
+import { resolveMediaTabs } from "@jini-ai/admin/screens/media/media-tabs.hooks";
 import { mediaContentTabCounts } from "@jini-ai/admin/screens/media/rules";
 import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
@@ -96,7 +97,7 @@ describe("resolveMediaTabs — count wiring", () => {
   const t = (key: string) => key;
 
   it("attaches each tab's count from the given map, by id", () => {
-    const tabs = resolveMediaTabs({ t }, { counts: { all: 4, images: 2, videos: 1, "external-providers": 9, trash: 3 } });
+    const tabs = resolveMediaTabs({ t, Icon }, { counts: { all: 4, images: 2, videos: 1, "external-providers": 9, trash: 3 } });
     expect(tabs.find((tab) => tab.id === "all")?.count).toBe(4);
     expect(tabs.find((tab) => tab.id === "images")?.count).toBe(2);
     expect(tabs.find((tab) => tab.id === "videos")?.count).toBe(1);
@@ -105,12 +106,12 @@ describe("resolveMediaTabs — count wiring", () => {
   });
 
   it("leaves a tab's count undefined (no badge) when the map has no entry for it", () => {
-    const tabs = resolveMediaTabs({ t }, { counts: { all: 4 } });
+    const tabs = resolveMediaTabs({ t, Icon }, { counts: { all: 4 } });
     expect(tabs.find((tab) => tab.id === "images")?.count).toBeUndefined();
   });
 
   it("defaults to an empty map when called with no counts at all, unchanged from before this feature", () => {
-    const tabs = resolveMediaTabs({ t });
+    const tabs = resolveMediaTabs({ t, Icon });
     expect(tabs.every((tab) => tab.count === undefined)).toBe(true);
   });
 });

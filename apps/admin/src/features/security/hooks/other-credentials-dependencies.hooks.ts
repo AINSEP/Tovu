@@ -1,6 +1,6 @@
 import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
-import type { AdminMediaProviderMap } from "@/features/media/api/media-api";
+import type { AdminMediaProviderMap } from "@jini-ai/admin/screens/media/api/media-api";
 import { mediaApi } from "@/features/media/api/media-api";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 

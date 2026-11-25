@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { AdminExecutionCredential, SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
-import type { AdminMediaProviderMap } from "@/features/media/api/media-api";
+import type { AdminMediaProviderMap } from "@jini-ai/admin/screens/media/api/media-api";
 
 /**
  * @file Coverage for `other-credentials-dependencies.hooks.ts` — two independent surfaces:

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminMediaProviderMap } from "@/features/media/api/media-api";
+import type { AdminMediaProviderMap } from "@jini-ai/admin/screens/media/api/media-api";
 import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
