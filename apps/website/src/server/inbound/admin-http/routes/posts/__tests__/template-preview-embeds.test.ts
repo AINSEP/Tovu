@@ -68,7 +68,7 @@ test("a template-rendered youtube-nocookie iframe yields its id", async (t) => {
 
 test("a renderer-produced youtube node iframe yields its id", async (t) => {
   const bodyJson = { type: "doc", content: [{ type: "youtube", attrs: { src: `https://www.youtube.com/watch?v=${BODY_ID}` } }] };
-  const { baseUrl, embeds } = await boot(t, { kind: "post", bodyFormat: "doc", bodyHtml: null, bodyJson, templateChoice: "" });
+  const { baseUrl, embeds } = await boot(t, { kind: "page", bodyFormat: "doc", bodyHtml: null, bodyJson, templateChoice: "" });
   const res = await embeds({ cookie: await loginAsOwner(baseUrl), query: "?templateChoice=" });
   assert.deepEqual(await res.json(), { youtubeIds: [BODY_ID] });
 });
