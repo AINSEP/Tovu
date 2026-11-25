@@ -178,3 +178,17 @@ test("every newly covered shape is still idempotent, including the DSN one", () 
     assert.equal(second.redactions, 0, `re-redacted on a second pass: ${first.text}`);
   }
 });
+
+test("B066/A332: a long ordinary image path is retained while a token-shaped value is redacted", () => {
+  // Benign synthetic fixtures. The path carries the shapes a real upload path has — a long
+  // descriptive slug and a 64-hex content hash — both of which share the opaque-token alphabet.
+  const imagePath = "/srv/sites/example-site/public/uploads/2026/11/"
+    + "hero-banner-wide-descriptive-file-name_final_v2-"
+    + "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08.webp";
+  const payload = "Ab3".repeat(8);
+  const token = ["sk", "proj", ""].join("-") + payload;
+  const { text, redactions } = redactSecretShapes({ text: `image ${imagePath} failed to upload with key ${token}` });
+  assert.equal(text, `image ${imagePath} failed to upload with key [REDACTED:openai_key]`);
+  assert.equal(text.includes(payload), false);
+  assert.equal(redactions, 1);
+});
