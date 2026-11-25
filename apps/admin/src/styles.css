@@ -4098,10 +4098,6 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* One line, clamped. The full text is never lost — it is the first thing the assistant reads and
    it stays in the package's own manifest; on this screen its job is to identify the row, and a
    four-line paragraph per row is what made the old cards unscannable. */
-/* The summary line above clips this same string to one line (`.jini-agent-plugin-row-desc`,
-   `-webkit-line-clamp: 1`) — a hover tooltip covers a sighted mouse user, but expanding
-   the row is the only path assistive tech and touch have, so the full text repeats here,
-   unclamped, first — before every other per-plugin fact this panel already held. */
 .jini-agent-plugin-row-desc {
   font-size: 12.5px; line-height: 1.45; color: var(--jini-text-muted);
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;

@@ -12,6 +12,10 @@ export const SKILLS_HOST_CLASSNAMES: SkillsScreenClassNames = {
   pageDescription: "page-description", rows: "agent-plugin-rows", fieldHint: "field-hint",
   dialogBackdrop: "settings-dialog-backdrop", dialog: "settings-dialog", noticeError: "notice error", editorActions: "editor-actions",
   buttonPrimary: "btn-primary", buttonSecondary: "btn-secondary", buttonDanger: "btn-danger",
+  // The summary line above clips this same string to one line (`.jini-agent-plugin-row-desc`,
+  // `-webkit-line-clamp: 1`) — a hover tooltip covers a sighted mouse user, but expanding
+  // the row is the only path assistive tech and touch have, so the full text repeats here,
+  // unclamped, first — before every other per-plugin fact this panel already held.
   row: "jini-agent-plugin-row", rowMain: "jini-agent-plugin-row-main", rowSummary: "jini-agent-plugin-row-summary", rowGlyph: "jini-agent-plugin-row-glyph",
   rowText: "jini-agent-plugin-row-text", rowHeading: "jini-agent-plugin-row-heading", rowName: "jini-agent-plugin-row-name", rowDesc: "jini-agent-plugin-row-desc",
   iconButton: "jini-agent-plugin-icon-btn", rowActions: "jini-agent-plugin-row-actions", state: "jini-agent-plugin-state", switch: "jini-agent-plugin-switch",
