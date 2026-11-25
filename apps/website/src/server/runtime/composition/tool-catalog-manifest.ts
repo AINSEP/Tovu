@@ -589,8 +589,10 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // H4: the owner-approved resume of agent work the assistant switch paused (`agent-pause-gate.ts`).
   contributions.contributors.register({ contribution: contributeAgentPauseTools({}) });
   // Site update: absent unless the host composes a platform runtime as `siteUpdateRuntime` (desktop, self-hosted).
-  contributions.contributors.register({ contribution: { ...contributeSiteUpdateTools(), build: (deps: AssistantToolRegistryDeps & { siteUpdateRuntime?: SiteUpdateRuntime | null }, surfaces) => contributeSiteUpdateTools().build({
+  contributions.contributors.register({ contribution: { ...contributeSiteUpdateTools(), build: (deps: AssistantToolRegistryDeps & { siteUpdateRuntime?: SiteUpdateRuntime | null; ownerPrincipalId?: Promise<string> }, surfaces) => contributeSiteUpdateTools().build({
     authorize: ({ ctx, permission }) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType: "site-update" }),
+    // No owner id composed means no principal can match it, so every update approval is refused.
+    readOwnerId: async () => { if (!deps.ownerPrincipalId) throw new Error("The installation owner is not known."); return await deps.ownerPrincipalId; },
     runtime: deps.siteUpdateRuntime ?? null,
   }, surfaces) } });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });

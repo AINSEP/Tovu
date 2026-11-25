@@ -8,15 +8,18 @@ import type { DesktopAppUpdaterPort, SiteDataRestorePort, SiteHealthPort } from 
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { HttpClientPort, IdGenerator } from "@jini-ai/core/primitives";
 import { composeConfiguredSiteUpdateRuntime } from "#src/features/site-update/configured-runtime";
-import { createRestorePointBackup } from "#src/features/site-update/restore-point-backup";
+import { createRestorePointBackup, createUpdateBackupRegistry } from "#src/features/site-update/restore-point-backup";
+import { createCandidateReadiness, rehearsalUnavailable, type RehearseMigration } from "#src/features/site-update/candidate-readiness";
 import type { SiteUpdateHost } from "#src/features/site-update/host-runtime";
 import { createSelfHostedUpdateHost, type SelfHostedHostOptional } from "#src/features/site-update/self-hosted-host";
-import type { SiteUpdateRuntime } from "#src/features/site-update/tools";
+import type { SiteUpdateLockPort, SiteUpdateRuntime } from "#src/features/site-update/tools";
 
 export interface SiteUpdateBindingRequired {
   env: Readonly<Record<string, string | undefined>>;
   dbOps: Pick<DbOpsPort, "getCapabilities" | "captureRestorePoint" | "restoreFromArtifact">;
   ids: IdGenerator;
+  /** The site's one operation lock, shared with migration and restore (see `operation-update-lock.ts`). */
+  lock: SiteUpdateLockPort;
   /** JSON over the guarded outbound HTTP client; throws on a non-2xx answer. Used for the feed and the health URL. */
   getJson: (required: { url: string }, optional?: { signal?: AbortSignal | undefined }) => Promise<unknown>;
   /** Records the target tag for the operator's deploy tooling (the composition decides where). */
@@ -43,10 +46,15 @@ export interface DesktopHandoffPorts {
 export interface SiteUpdateBindingOptional extends SelfHostedHostOptional {
   /** Absent (a desktop-launched site whose main never handed the channel over) means a desktop host cannot update. */
   desktop?: DesktopHandoffPorts | undefined;
+  /**
+   * Rehearses the staged candidate on a copy of the update's backup. Absent (no host stages candidates yet) means
+   * every apply is blocked at readiness, so production apply stays unexposed until the update supervisor lands.
+   */
+  rehearseMigration?: RehearseMigration | undefined;
 }
 
 /** The host plus the running version for the environment's host kind, or null when that kind cannot update here. */
-function resolveHost({ env, getJson, recordTargetTag }: SiteUpdateBindingRequired, { desktop, ...selfHosted }: SiteUpdateBindingOptional, { data }: { data: SiteDataRestorePort }): { host: SiteUpdateHost; runningVersion: () => Promise<string> } | null {
+function resolveHost({ env, getJson, recordTargetTag }: SiteUpdateBindingRequired, { desktop, rehearseMigration: _rehearsal, ...selfHosted }: SiteUpdateBindingOptional, { data }: { data: SiteDataRestorePort }): { host: SiteUpdateHost; runningVersion: () => Promise<string> } | null {
   if (env["TOVU_UPDATE_HOST"] === "desktop") {
     if (!desktop) return null;
     // The app swap relaunches the desktop, and the new version runs its own migrations on that boot; the restore
@@ -74,11 +82,13 @@ function resolveHost({ env, getJson, recordTargetTag }: SiteUpdateBindingRequire
  * @complexity O(1); builds ports without calling them.
  */
 export function bindSiteUpdateRuntime(required: SiteUpdateBindingRequired, optional: SiteUpdateBindingOptional = {}): SiteUpdateRuntime | null {
-  const { env, dbOps, ids, getJson } = required;
-  const { backup, readiness, data } = createRestorePointBackup({ dbOps });
+  const { env, dbOps, ids, lock, getJson } = required;
+  const { checkCandidate } = createCandidateReadiness({ rehearseMigration: optional.rehearseMigration ?? rehearsalUnavailable });
+  const { backup, readiness, data } = createRestorePointBackup({ dbOps, ...createUpdateBackupRegistry({ ids }), checkCandidate });
   const resolved = resolveHost(required, optional, { data });
   if (resolved === null) return null;
-  return composeConfiguredSiteUpdateRuntime({ config: { feedUrl: env["TOVU_UPDATE_FEED_URL"] }, host: resolved.host, shared: { backup, readiness, ids, runningVersion: resolved.runningVersion }, getJson });
+  const runtime = composeConfiguredSiteUpdateRuntime({ config: { feedUrl: env["TOVU_UPDATE_FEED_URL"] }, host: resolved.host, shared: { backup, readiness, ids, runningVersion: resolved.runningVersion }, getJson });
+  return runtime && { ...runtime, lock };
 }
 
 /** JSON GET over the guarded outbound client: a non-2xx or non-JSON answer throws, so a check says "could not check". */
