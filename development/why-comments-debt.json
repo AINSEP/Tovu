@@ -13856,6 +13856,18 @@
     {
       "id": "6c7121106d73",
       "reason": "Not deleted: wct 47b1a930e restored the merge-19 original sentence verbatim (merge-19 debt) and kept the merge-20 packager point (2f6bfeed7) as the following line in the same comment (source-control-tool-wiring.test.mjs:58-60)."
+    },
+    {
+      "id": "860488efcfb8",
+      "reason": "Claim false since 0d14de593: the admin chat caps are no longer duplicated literals; they read @tovu/contracts/upload-limits (the one shared 50 MiB source), and the replacement comment in the same place says so."
+    },
+    {
+      "id": "aa4ee6e637b1",
+      "reason": "Claim false since the Jini describeUploadOverLimit change (Jini 9a9da3df3): the size-cap rejection no longer says '50 MB size cap'; this test's comment now names the plain-words sentence at the same line."
+    },
+    {
+      "id": "4e5e4ab9e70d",
+      "reason": "Reworded in place in 360541098: the test no longer hand-lists publisher ids; the new comment at the same line explains the disk-derived tovu/ vs jini/ rule."
     }
   ]
 }
