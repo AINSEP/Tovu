@@ -13,7 +13,8 @@ import {
   SITE_TIMEZONE_KEY,
   SITE_TIMEZONE_NAMESPACE,
 } from "@jini-ai/cms/settings/site/site-timezone";
-import { createSiteTimeZoneFallbackReporter } from "../site-timezone-fallback.js";
+import { createSiteTimeZoneFallbackReporter } from "@jini-ai/cms/settings/site/site-timezone-fallback";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 
 /**
  * @file Bug D (2026-10-22): `core.site.timezone`, the zone public pages format post dates in. Only a
@@ -91,7 +92,7 @@ test("an unregistered definition or a failing settings read never throws: the cr
   const originalError = console.error;
   console.error = (...args: unknown[]) => { errors.push(args); };
   try {
-    assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: createSiteTimeZoneFallbackReporter(), settingsRepo: failing, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
+    assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: createSiteTimeZoneFallbackReporter({ logger: createConsoleLogger({ prefix: "" }) }), settingsRepo: failing, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
   } finally {
     console.error = originalError;
   }

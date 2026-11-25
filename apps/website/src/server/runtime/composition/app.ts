@@ -87,7 +87,8 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
 import { getEffective } from "@jini-ai/core/settings";
-import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
+import { createSiteTimeZoneFallbackReporter } from "@jini-ai/cms/settings/site/site-timezone-fallback";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { noopStampWatermark } from "@jini-ai/cms/taxonomy";
 
 import { captureRouteError } from "../../inbound/shared/observability-middleware.js";
@@ -309,7 +310,7 @@ function createMemoryWidgets(context: ReturnType<typeof createMemoryRuntime> & R
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
   // No site directory means no creation zone; an unset `core.site.timezone` uses the server's zone.
-  const siteTimeZone = createSiteTimeZonePort({ settingsRepo, getEffective, reportFallback: createSiteTimeZoneFallbackReporter() });
+  const siteTimeZone = createSiteTimeZonePort({ settingsRepo, getEffective, reportFallback: createSiteTimeZoneFallbackReporter({ logger: createConsoleLogger({ prefix: "" }) }) });
   wireCoreResolvers({
     siteTimeZone,
     crypto: globalThis.crypto,
