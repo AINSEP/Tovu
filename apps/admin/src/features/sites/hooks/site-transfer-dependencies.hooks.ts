@@ -18,8 +18,11 @@ export interface SiteShare {
   file: string;
   bytes: number;
   url: string | null;
-  status: "active" | "revoked" | "failed";
+  status: "active" | "revoked" | "failed" | "expired";
   createdAt: string;
+  /** The link's stated end (P11 ST-12a), set only when the owner chose 7, 30 or 90 days. Absent or
+   *  null means it never expires; only `status` says a link has expired, never a missing date. */
+  expiresAt?: string | null;
   downloadUrl: string;
   hasEncryptedKeys?: boolean;
   notices?: readonly string[];

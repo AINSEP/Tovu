@@ -18,6 +18,8 @@ export function formatTransferBytes({ bytes }: { bytes: number | null | undefine
 export function shareStatusView({ status, t }: { status: SiteShare["status"]; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   if (status === "active") return { label: t("Active"), className: "status status-ok" };
   if (status === "revoked") return { label: t("Revoked"), className: "status status-neutral" };
+  // An expired link is a normal end of life the owner chose, not an error: neutral, never "Failed".
+  if (status === "expired") return { label: t("Expired"), className: "status status-neutral" };
   return { label: t("Failed"), className: "status status-error" };
 }
 
