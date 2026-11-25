@@ -42,7 +42,8 @@ Read the shared rules first either way — both jobs fail in the same places.
 ## Set expectations up front
 
 **Part B produces an editable site by default:** images in Media, real Tovu Pages, and a
-matching theme. Ask its one choice card before conversion. The static opt-out produces only a
+matching theme. Part B surveys read-only (the current homepage, menu and theme included) before its
+one choice card, and writes nothing before the card. The static opt-out produces only a
 theme; it creates no CMS Page rows. Parts A and C produce a theme unless their caller also
 imports content. Theme pages and CMS Pages share routing; published CMS entries can hide
 standalone theme pages at the same address.
@@ -489,41 +490,11 @@ section), and Publish to send the theme to the live site.
 
 # Part B — Convert an existing static site
 
-## B1 — One up-front choice
-
-Before surveying or writing, call the existing `assistant_ask_choice` once:
-
-```json
-{
-  "title": "How should I convert this website?",
-  "description": "By default, images go into Media and pages become editable Tovu Pages. Name any proposed homepage/menu move or replacement, theme switch and local publication on this card. Apply only the named changes the owner approves.",
-  "submitLabel": "Convert website",
-  "multiSelect": {
-    "label": "Optional",
-    "options": [{
-      "value": "static",
-      "label": "Keep it as a static theme — same appearance, without individual page editing"
-    }]
-  }
-}
-```
-
-Leave the checkbox unchecked. Proceed only on `submitted: true`: `selections: []` selects
-B2, and `selections: ["static"]` selects B3. Cancellation, expiry, no answer or ambiguous
-free text stops conversion without assuming consent. Never supply the answer yourself.
-This is the in-app assistant's only conversion question; the folder drop needs no new modal.
-
-## What this job converts, and what it refuses to
-
-It converts a **static, no-build, no-server-logic site** — plain `.html`/`.css`/`.js`, the
-kind you'd deploy by copying files to a bucket. It does **not** attempt to port a site with
-its own backend, database, build step (React/Vue/Astro/Next output), or server-rendered
-templating — that is a different, much larger job (a `build`-declared "compiled" theme — Part
-A — or no theme at all). If the source has a `package.json` with a real build script, a
-framework's dev server, or anything beyond static assets, say so and stop rather than
-half-converting something this procedure was never built for.
-
 ## Survey before you touch anything: pages, families, and cruft
+
+The survey is read-only and runs first: it writes nothing and asks nothing. Besides the source tree
+below, read this site's current homepage, menu and theme (`site_get_profile`, `content_read.content_post`,
+`content_read.menu`, `content_read.theme`) so the card can name the actual proposed changes.
 
 1. `fs_list_files` the source tree (or, working from a real filesystem checkout outside the
    product, list it directly). Bucket every file: `.html` → candidate pages, `.css`/`.js` →
@@ -560,7 +531,42 @@ half-converting something this procedure was never built for.
    it. Anchor rewrites to the real `<head>`/`<body>` occurrence (first match, or a line-range
    check), not a document-wide substitution, whenever a page contains copy-pasteable code.
 
-## Shared bootstrap — after surveying, before either branch writes
+## B1 — One up-front choice
+
+After the read-only survey and before any write, call the existing `assistant_ask_choice` once. Put the
+actual proposed changes from the survey in its `description`:
+
+```json
+{
+  "title": "How should I convert this website?",
+  "description": "By default, images go into Media and pages become editable Tovu Pages. Proposed changes: <the homepage address or replacement, menu placement, theme switch and local publication actions this survey found, or \"none\">. Apply only the named changes the owner approves.",
+  "submitLabel": "Convert website",
+  "multiSelect": {
+    "label": "Optional",
+    "options": [{
+      "value": "static",
+      "label": "Keep it as a static theme — same appearance, without individual page editing"
+    }]
+  }
+}
+```
+
+Replace the angle-bracket text with those real proposals; never open the card with the placeholder. Leave the checkbox unchecked. Proceed only on `submitted: true`: `selections: []` selects
+B2, and `selections: ["static"]` selects B3. Cancellation, expiry, no answer or ambiguous
+free text stops conversion without assuming consent. Never supply the answer yourself.
+This is the in-app assistant's only conversion question; the folder drop needs no new modal.
+
+## What this job converts, and what it refuses to
+
+It converts a **static, no-build, no-server-logic site** — plain `.html`/`.css`/`.js`, the
+kind you'd deploy by copying files to a bucket. It does **not** attempt to port a site with
+its own backend, database, build step (React/Vue/Astro/Next output), or server-rendered
+templating — that is a different, much larger job (a `build`-declared "compiled" theme — Part
+A — or no theme at all). If the source has a `package.json` with a real build script, a
+framework's dev server, or anything beyond static assets, say so and stop rather than
+half-converting something this procedure was never built for.
+
+## Shared bootstrap — after the submitted card, before either branch writes
 
 Reuse C1's static-theme selection: read the active theme through `site_get_profile` and use
 `content_read.theme` to select a valid static scaffold when needed. If no valid static theme
@@ -580,7 +586,7 @@ Call `agent_plugin_site_import` with `file: "host/content-mapping.md"` and read 
 § Local-folder sources. It owns slug/idempotency rules, Media mapping, Page writes, menus and links.
 Use its local-folder conventions; do not invoke the public-site crawl or scope questions.
 
-1. Complete the survey and shared bootstrap above; retain the source-path inventory and group
+1. Complete the shared bootstrap above (the survey already ran before the card); retain the source-path inventory and group
    real layout families. Import all referenced images (including logos/backgrounds) into Media
    with `media_import_local_file` in batches, retaining
    source-path → `{slug, publicUrl}` mappings. Rewrite `<img>`s to the media embed by slug (Assets
@@ -596,16 +602,22 @@ Use its local-folder conventions; do not invoke the public-site crawl or scope q
    Stage imports at free addresses. Update a verified prior import by entry ID and current version.
    Put any proposed move, replacement, theme switch and local publication on the existing choice card.
    Apply only the changes it names and the owner approves.
-   Write only inner HTML with `pages_write_html`; each top-level section gets stable
-   `data-agent-element="<handle>" data-agent-role="region"` attributes for later edits.
-   Retain the source's layout classes; fix sanitizer warnings and report unsupported behavior.
+   For a layout page, create the draft with no body. Read it with `pages_read_html { id }`, then
+   call `pages_write_html { id, html, expectedVersion }` using the returned `version`. Write only inner
+   HTML. Keep stable `data-agent-element="<handle>"` and `data-agent-role="region"` attributes on
+   top-level sections. In a batch, count the page only when that item has `ok: true` and
+   `result.written === true`. Report `written: false` and tool errors as not imported. Re-read and
+   reconcile before retrying. Report warnings separately.
+   Retain the source's layout classes, fix sanitizer warnings and report unsupported behavior.
 4. Validate/rescan the completed theme. Only after the approved theme switch, assign
    custom `template` filenames through `content_post_update`: that tool checks the active theme.
    Use each Page's current `expectedVersion`. An explicit draft/preview request prevails:
    keep Pages draft and defer any activation-dependent assignment until activation is wanted.
-5. Verify Page previews by entry ID and rendered desktop/mobile layouts against the source.
+5. Preview each draft, the homepage draft included, by entry ID with `content_post_preview { id }`
+   (it takes no `themeId`; use `themeId` only for `web_screenshot_page` of the inactive theme) and
+   verify rendered desktop/mobile layouts against the source.
    Publish locally with `content_post_update { kind: "page", id, expectedVersion, status: "published" }`
-   only when named on the approved card. Check `/` only after the agreed switch;
+   only when named on the approved card. Check `/` only after the named switch has been approved and applied;
    report unverified appearance honestly.
 
 ## B3 — Static opt-out
@@ -676,7 +688,8 @@ Create no CMS Page rows in this branch.
   Put any proposed move, replacement, theme switch and local publication on the existing choice card.
   Apply only the changes it names and the owner approves. Keep the current homepage and menu serving
   until that switch.
-- Rescan, check errors and verify Page previews by entry ID at desktop/mobile sizes.
+- Rescan, check errors and preview each draft by entry ID with `content_post_preview { id }` at
+  desktop/mobile sizes. Check `/` only after the named switch has been approved and applied.
   The submitted card authorizes only its named changes;
   ask no plugin-enabling question, second scope question or second activation approval.
   Explicit draft/preview requests prevail. Deployment to external hosting is separate.

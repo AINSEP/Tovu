@@ -9,7 +9,8 @@ and Tovu's local-folder conversion. Field names are the tools' own input names.
 
 ## Local-folder sources (Tovu Theme Part B)
 
-Load this file directly after Part B's submitted choice; do not run site-import's public-URL
+Load this file when Part B needs it, including before forming the cutover proposal for its choice
+card, without starting the public crawl; do not run site-import's public-URL
 crawl or scope questionnaire. The dropped folder remains read-only. Paths come from
 `fs_list_files { root: "custom" }`; resolve each asset relative to the HTML/CSS file that uses it,
 then normalize to a root-relative source path. Never widen roots or bypass a denied path.
@@ -83,9 +84,12 @@ yet: a separately editable excerpt remains future work.
 ## 5. Pages
 
 - **Text pages:** `content_post_create { kind: "page", title, slug, bodyJson, status: "draft" }`.
-- **Layout pages:** create the page with no body, then `pages_write_html { id, html }`. Every
-  top-level section carries `data-agent-element="<handle>" data-agent-role="region"`. A `warning`
-  in the `pages_write_html` result names any element left invisible; fix them and write again.
+- **Layout pages:** for a layout page, create the draft with no body. Read it with
+  `pages_read_html { id }`, then call `pages_write_html { id, html, expectedVersion }` using the
+  returned `version`. Keep stable `data-agent-element="<handle>"` and `data-agent-role="region"`
+  attributes on top-level sections. In a batch, count the page only when that item has `ok: true`
+  and `result.written === true`. Report `written: false` and tool errors as not imported. Re-read
+  and reconcile before retrying. Report warnings separately.
 
 ## 6. Body conversion (HTML → TipTap document)
 
