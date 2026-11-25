@@ -21,6 +21,7 @@ import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../mcp-ui-tool-calls.js";
+import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations } from "../render-ui-tool.js";
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -108,6 +109,14 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   ["features/project-keys/site-sealer.ts", new Set(["sealer.open(input, options)"])],
   // 7f97eb6f0: owner MFA unseals its stored authenticator secret; no card or exchange is involved.
   ["server/inbound/admin-http/owner-mfa-deps.ts", new Set(["secrets().open(input)"])],
+  // f82b172d6 (A04) / ab8ccf9f3: the credential stores open their injected CredentialVaultBinding,
+  // which returns a SecretsVaultService over sealed vault rows; no card or exchange is involved.
+  ["features/deployments/publish-credentials/store.ts", new Set([
+    "bound(deps).open({ ...deps, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) })",
+  ])],
+  ["features/source-control/store.ts", new Set([
+    "bound(deps).open({ ...deps, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) })",
+  ])],
   // 2b0e2d7d9: member OIDC login unseals its redirect state and emailed-code continuation.
   ["features/member-login/oidc-login.ts", new Set([
     "stateless.open({ state: input.params.state, ownerKey, providerId: config.provider.id, redirectUri: config.redirectUri })",
@@ -368,7 +377,8 @@ test("the scan finds the known exchange openers (guards against a scan that sile
     "database_transfer_set_destination",
     // The identity dialog carries the tool ID built by prepare, rather than an inline spec.
     "deployment_execute_static_publish",
-    "assistant_render_ui",
+    // assistant_render_ui is NOT a Tovu-source opener any more: 5b8586fa2 moved its exchange open into
+    // Jini (`renderA2uiSurface`, @jini-ai/agentic/render-surface). The test below pins that opener.
     // Through `humanConfirmedToolHandler`'s `dialog:` spec, not a direct call.
     "taxonomy_execute_merge_term",
     "database_execute_migrate_forward",
@@ -380,6 +390,20 @@ test("the scan finds the known exchange openers (guards against a scan that sile
   ]) {
     assert.ok(scan.toolIds.has(id), `expected the scan to find '${id}'`);
   }
+});
+
+test("assistant_render_ui's exchange opener, moved into Jini (5b8586fa2), binds its own id on the A2UI channel", async () => {
+  // The source scan cannot see an opener that lives in a package, so drive the real registration and
+  // record the binding it opens. The A2UI channel is what justifies A2UI_EXCHANGE_TOOL_IDS' carve-out.
+  const opened: unknown[] = [];
+  const surfaceExchanges = { open: (input: { binding: unknown }) => { opened.push(input.binding); throw new Error("stop after open"); } };
+  const [registration] = buildRenderUiRegistrations({ _routeDeps: undefined, surfaces: { surfaceExchanges } as never }, { rejectionGraceMs: 1 })
+    .filter((candidate) => candidate.descriptor.id === RENDER_UI_TOOL_ID);
+  assert.ok(registration, "the render-ui tool must be wired");
+  await assert.rejects(registration.handler({ executionId: "e", principal: { id: "p" }, run: { id: "r" }, signal: new AbortController().signal,
+    input: { components: [{ id: "root", component: "Text", text: "hi" }] } } as never, { emitSurface: async () => {} }), /stop after open/);
+  assert.deepEqual(opened, [{ toolId: "assistant_render_ui", principalId: "p", channel: "a2ui" }]);
+  assert.ok(A2UI_EXCHANGE_TOOL_IDS.has(RENDER_UI_TOOL_ID));
 });
 
 test("every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS", () => {

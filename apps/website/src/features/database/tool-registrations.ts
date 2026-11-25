@@ -144,18 +144,17 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
         hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
       });
     }
-function migrateForwardDialog() {
-  return ({
-        toolId: MIGRATE_TOOL_ID,
-        errorCode: "DATABASE",
-        title: "Update the database?",
-        description: "Moves this site's database forward to the current schema. It affects the whole site.",
-        details: [{ label: "Restore point", value: "Taken first" }],
-        warning: "A restore point is taken first, so you can go back to how things are now.",
-        danger: true,
-        confirmLabel: "Update database",
-      });
-}
+/** The migrate card's copy. The `dialog:` arrow below names MIGRATE_TOOL_ID inline: the MCP-UI allowlist
+ * completeness scan resolves an exchange's tool id only from an inline dialog spec, never through a call. */
+const MIGRATE_FORWARD_DIALOG_COPY = {
+  errorCode: "DATABASE",
+  title: "Update the database?",
+  description: "Moves this site's database forward to the current schema. It affects the whole site.",
+  details: [{ label: "Restore point", value: "Taken first" }],
+  warning: "A restore point is taken first, so you can go back to how things are now.",
+  danger: true,
+  confirmLabel: "Update database",
+};
 function createMigrateHooks(routeDeps: DatabaseToolDeps) {
   return ({ actorId }: { actorId: string }, _options = {}) =>
     buildMigrateForwardHooks({
@@ -190,7 +189,7 @@ const migrateHooks = createMigrateHooks(routeDeps);
         }
         return { hooks, plan, costClass };
       },
-      dialog: migrateForwardDialog,
+      dialog: () => ({ ...MIGRATE_FORWARD_DIALOG_COPY, toolId: MIGRATE_TOOL_ID }),
       run: async ({ ctx, prepared: { hooks, plan, costClass }, confirmer }) => {
         const record = await gatewayConfirm({
           deps: routeDeps.gatedMutations.gatewayDeps,
