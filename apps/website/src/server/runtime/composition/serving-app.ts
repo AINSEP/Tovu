@@ -4,7 +4,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
 import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention } from "./retention.js";
 import { createMediaBytesPolicy } from "./retention-policies/media-bytes.js";
-import { mediaBytesDeps } from "./retention-policies/media-bytes-deps.js";
+import { mediaBytesDeps, servingRecoveryArtifacts } from "./retention-policies/media-bytes-deps.js";
 import { servingStoragePaths, type SiteStoragePort } from "./modules/storage-routes.js";
 import { measureSiteStorage } from "#src/features/storage/measure";
 import { stat, unlink } from "node:fs/promises";
@@ -99,7 +99,7 @@ export function createServingApp(
       createRunner: createRetentionRunner, clock: Date, scheduler: globalThis,
       policiesForSignal: signal => siteRetentionPolicies({ registry: routeDeps.siteShareBackend?.registry, fs: { stat, unlink }, clock: { now: () => routeDeps.clock.nowMs() }, signal, reportError: reportRetentionError, databaseCopies: servingDatabaseCopies({ contentDbPath: routeDeps.siteStoragePaths.contentDbPath }) }),
       // Report-only (P11 ST-11b.T): the media-bytes policy measures on every pass and has no sweep.
-      reportOnlyForSignal: signal => routeDeps.contentKernel === undefined ? [] : [createMediaBytesPolicy(mediaBytesDeps({ workspaceId: routeDeps.workspaceId, kernel: routeDeps.contentKernel as KyselyKernel<unknown>, mediaRepo: routeDeps.mediaRepo, blobStore: routeDeps.blobStore, clock: routeDeps.clock, signal }, {}), {})],
+      reportOnlyForSignal: signal => routeDeps.contentKernel === undefined ? [] : [createMediaBytesPolicy(mediaBytesDeps({ workspaceId: routeDeps.workspaceId, kernel: routeDeps.contentKernel as KyselyKernel<unknown>, mediaRepo: routeDeps.mediaRepo, blobStore: routeDeps.blobStore, clock: routeDeps.clock, signal, shareTransfers: routeDeps.siteShareBackend, recoveryArtifacts: servingRecoveryArtifacts({ restorePoints: routeDeps.restorePointsRepo, contentDbPath: routeDeps.siteStoragePaths.contentDbPath }, {}) }, {}), {})],
       reportError: reportRetentionError,
       log: line => console.log(line),
     }, {})
