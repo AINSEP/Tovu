@@ -6,7 +6,7 @@ import { SecretInput, useAgentHandle, useMediaProvidersTab, sortProvidersByConfi
   useTabbedDialog, useCopyToClipboard, findActiveTab, resolveInitialActiveTabId, readableTextColor,
   nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning, resolveSelectedPreset, createExecutionHttpAdapter, requireExecutionResponseData,
   useExecutionCredential, useWiredCopyToClipboard, createBrowserViewerClipboard, folderPathsFromDataTransfer, useI18n, resolveAccentColor, normalizeAccentColor,
-  sourceDisplayLabel } from '@jini-ai/ui';
+  sourceDisplayLabel, RecurringSchedulePicker } from '@jini-ai/ui';
 import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
 import { ErrorNotice, useAsyncAction, useDirtyGuard, useFocusTrap, useSettlementGeneration, UNREACHABLE_RETRY_DELAYS_MS,
   LOCAL_BACKUP_PRINCIPAL_ID, useSerialWrites, hasPermission, standingDraftRecoveryMessage, createStandingDraftLocalBackup,
@@ -22,7 +22,8 @@ import { PreviewModalShell } from '@jini-ai/ui/preview-modal-shell';
 import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';
 import { useCachedLoader, useFetchMutation, useFetchQuery, useFetchQueryScope, useInvalidate } from '@jini-ai/ui/fetch-query';
-import { ConfirmDialog as AdminConfirmDialog, RowMenu } from '@jini-ai/admin/react';
+import { ConfirmDialog as AdminConfirmDialog, RowMenu, DataTable } from '@jini-ai/admin/react';
+import type { RoutinesKit } from '../features/routines/Routines';
 import { useT as useChatT, createExtEventRendererRegistry, createLastConversationStore, createAssistantChatsClient, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection,
   mcpUiSurfaceSlotKey, midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME } from '@jini-ai/chat/react';
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE, conversationTitleForDisplay, deriveConversationTitle, isTerminalRunStatus } from '@jini-ai/chat/core';
@@ -72,6 +73,9 @@ export const adminKit = {
     createChatAttachmentValidator,
     midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE },
 } satisfies AdminKit;
+
+/** The Routines screen's structural kit: Jini admin's table, row menu and confirm, plus ui's schedule picker. Binding only; no behaviour. */
+export const routinesKit = { DataTable, RowMenu, ConfirmDialog: AdminConfirmDialog, RecurringSchedulePicker } satisfies RoutinesKit;
 
 /** ui's own kit (selects and secret inputs): ui-kit's real implementations. The alias keeps ui-kit's
  *  `SecretInput` apart from ui's own component of the same name. ui-kit's `useOverlayContainer` keeps

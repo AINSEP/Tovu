@@ -66,3 +66,4 @@ export const AiAssistant = lazy(() => import("./features/ai-assistant").then(mod
 export const Playground = lazy(() => import("./features/playground").then(module => ({ default: module.Playground })));
 export const Sites = lazy(() => import("./features/sites").then(module => ({ default: module.Sites })));
 export const Media = lazy(() => import("./features/media").then(module => ({ default: module.Media })));
+export const Routines = lazy(() => import("./features/routines").then(module => ({ default: module.Routines })));
