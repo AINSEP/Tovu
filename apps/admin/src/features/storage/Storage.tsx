@@ -3,7 +3,7 @@ import { Button } from "@jini-ai/ui-kit/react";
 import { StoragePanel } from "@jini-ai/admin/screens/storage/StoragePanel";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { describeApiError } from "@/lib/admin-http/request";
-import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 
 import { storageClient, type StorageClient } from "./api/storage-api";
 import { screenshotCleanupClient, type ScreenshotCleanupClient } from "./api/screenshot-cleanup-api";
@@ -94,8 +94,11 @@ function reportStorageError({ error }: { error: unknown }): string {
   return describeApiError({ e: error, fallback: "The storage request could not finish. Try again." });
 }
 
-/** The live `/admin/storage` screen. */
-export function Storage() {
-  const locale = useAdminLocale();
+/**
+ * The live `/admin/storage` screen. The locale hook is a required prop (the panel context's
+ * `useAdminLocaleHook`) so the screen never reaches the real locale store on its own.
+ */
+export function Storage({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }) {
+  const locale = useAdminLocaleHook({}, {});
   return <StorageScreen client={storageClient} screenshotClient={screenshotCleanupClient} reportErrors={reportStorageError} now={() => Date.now()} locale={locale} useWiredStorageHook={useWiredStorage} useScreenshotCleanupHook={useScreenshotCleanup} />;
 }

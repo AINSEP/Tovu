@@ -968,7 +968,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Owner-facing maintenance next to Database and Recovery. The website's storage routes check site
     // ownership themselves (an admin session alone is refused), so this permission only gates the nav.
     anyOfPermissions: ["system.read"],
-    render: (_ctx, _options = {}) => <Storage />,
+    render: (ctx, _options = {}) => <Storage useAdminLocaleHook={ctx.useAdminLocaleHook} />,
     nav: {
       label: "Storage",
       group: "Operations",
