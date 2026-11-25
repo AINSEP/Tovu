@@ -127,6 +127,8 @@ function routineAdmissionFor({ deps, getFinalizer }: { deps: RouteDeps; getFinal
   const durable = deps.chatRunLedger.durable;
   if (!durable) return undefined;
   return createRoutineRecoveryAdmission({ store: durable, workspaceId: deps.workspaceId,
+    persistedTurns: ({ principalId, conversationId }) => deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: principalId })
+      .messages({ conversationId }, { includeEvents: false }),
     cancel: (required, optional) => cancelOwnedRun({ store: durable, recover: ({ messageId }) => getFinalizer().recover({ messageId, trigger: "browser" }, {}) }, required, optional),
     log: ({ event, error }) => console.error(`[assistant-chats] ${event}`, error) }, {});
 }

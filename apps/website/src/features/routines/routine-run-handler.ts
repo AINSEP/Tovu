@@ -2,7 +2,7 @@ import { redactUserText } from "@jini-ai/chat/core";
 import type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
 import type { RoutineRun, RoutineRunCompletion, RoutineRunHandler, RoutineRunHandlerStart } from "@jini-ai/daemon";
 import type { AgentSummary } from "@jini-ai/daemon/http";
-import type { RoutineActor, RoutineRunMarker } from "@tovu/contracts/routines";
+import { routineUserTurnId, type RoutineActor, type RoutineRunMarker } from "@tovu/contracts/routines";
 
 /**
  * @file Jini's `RoutineRunHandler` for Tovu (P3-T2.T): a routine fire is an ordinary OWNER CHAT turn.
@@ -91,7 +91,7 @@ type Settle = (completion: RoutineRunCompletion) => void;
 export function createRoutineRunHandler(required: RoutineRunHandlerRequired, _optional = {}): RoutineRunHandler {
   return async ({ routine, runId, catchUp = false, slotAt = null }) => {
     const conversationId = `routine-${runId}`;
-    const userMessageId = required.newId();
+    const userMessageId = routineUserTurnId({ marker: { runId, slotAt } }, {});
     const assistantMessageId = required.newId();
     let settle!: Settle;
     const completion = new Promise<RoutineRunCompletion>((resolve) => { settle = resolve; });

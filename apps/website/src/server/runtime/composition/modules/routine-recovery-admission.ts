@@ -1,6 +1,6 @@
 import type { ChatRunLedger } from "#src/assistant/index";
 import type { DurableRunStore } from "@jini-ai/chat/server/durable-runs";
-import { parseRoutineRunMarker } from "@tovu/contracts/routines";
+import { parseRoutineRunMarker, routineUserTurnId, type RoutineRunMarker } from "@tovu/contracts/routines";
 
 /**
  * @file Boot-repair admission for routine turns (P3-T2.T step 6).
@@ -13,7 +13,8 @@ import { parseRoutineRunMarker } from "@tovu/contracts/routines";
  * Why the decision reads the durable accepted request, not the routine DB or a browser field: this
  * must work on every serving boot that repairs chats, including web-only and a failed routine
  * sidecar, and the only trustworthy marker is the one the host wrote at acceptance. It is trusted
- * only after the stored owner, workspace, conversation and message all match this exact turn.
+ * only after the stored owner, workspace, conversation and message all match this exact turn, AND the
+ * owner's persisted chat holds the user turn the routine handler saved for that same run and slot.
  */
 
 /** The ledger's own interrupted-turn shape, derived so this file never drifts from the port. */
@@ -24,6 +25,8 @@ export type RoutineAdmission = (required: { turn: InterruptedChatTurn }, optiona
 export interface RoutineAdmissionPorts {
   store: Pick<DurableRunStore, "load">;
   workspaceId: string;
+  /** The owner's persisted turns for one conversation (owner-scoped chat history, never a browser field). */
+  persistedTurns: (required: { principalId: string; conversationId: string }, optional?: Record<string, never>) => Promise<ReadonlyArray<{ id: string; role: string }>>;
   cancel: (required: { principalId: string; workspaceId: string; conversationId: string; messageId: string }, optional: { reason: string }) => Promise<unknown>;
   log: (entry: { event: string; error: unknown }) => void;
 }
@@ -33,6 +36,13 @@ export const ROUTINE_INTERRUPTED_REASON = "routine-interrupted";
 /** Reads the marker out of the stored envelope; a malformed envelope is simply "no marker". */
 function storedMarker({ contextRef }: { contextRef: string }) {
   try { return parseRoutineRunMarker({ value: (JSON.parse(contextRef) as { routine?: unknown }).routine }); } catch { return null; }
+}
+
+/** True when the persisted history holds the user turn minted for this marker's run and slot. */
+async function persistedTurnMatches(ports: RoutineAdmissionPorts, scope: { principalId: string; conversationId: string }, marker: RoutineRunMarker) {
+  const expected = routineUserTurnId({ marker }, {});
+  const turns = await ports.persistedTurns(scope, {});
+  return turns.some((t) => t.role === "user" && t.id === expected);
 }
 
 export function createRoutineRecoveryAdmission(ports: RoutineAdmissionPorts, _optional = {}): RoutineAdmission {
@@ -45,6 +55,7 @@ export function createRoutineRecoveryAdmission(ports: RoutineAdmissionPorts, _op
     const marker = storedMarker({ contextRef: run.request.contextRef });
     // The routine handler mints `routine-<runId>`; a marker that disagrees with its own conversation is not trusted.
     if (!marker || run.conversationId !== `routine-${marker.runId}`) return "recover";
+    if (!(await persistedTurnMatches(ports, { principalId: turn.principalId, conversationId: turn.conversationId }, marker))) return "recover";
     try {
       await ports.cancel({ principalId: turn.principalId, workspaceId: ports.workspaceId, conversationId: turn.conversationId, messageId }, { reason: ROUTINE_INTERRUPTED_REASON });
     } catch (error) {

@@ -65,6 +65,15 @@ export function parseRoutineBeacon({ text }: { text: string }): RoutineBeacon | 
  */
 export type RoutineRunMarker = Readonly<{ routineId: string; runId: string; catchUp: boolean; slotAt: number | null }>;
 
+/**
+ * The id of the user turn the routine handler persists for one run and slot. Why minted from the
+ * marker: recovery admission must see the SAME run and slot in the persisted chat history, not only in
+ * the durable envelope, before it reserves a turn; a browser send gets a random id and never matches.
+ */
+export function routineUserTurnId({ marker }: { marker: Pick<RoutineRunMarker, "runId" | "slotAt"> }, _optional = {}): string {
+  return `routine-${marker.runId}-user-${marker.slotAt === null ? "now" : String(marker.slotAt)}`;
+}
+
 /** Strict decode of an untrusted marker: exact keys and types, or null (never a partial marker). */
 export function parseRoutineRunMarker({ value }: { value: unknown }, _optional = {}): RoutineRunMarker | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
