@@ -78,7 +78,6 @@
     "apps/website/src/features/media-import/tool-registrations.ts -> apps/website/src/features/media/tool-registrations.ts",
     "apps/website/src/features/media/publish-content.ts -> apps/website/src/features/publish-content/repo-handler.ts",
     "apps/website/src/features/media/publish-content.ts -> apps/website/src/features/publish-content/type-registry.ts",
-    "apps/website/src/features/media/verify-published-media.ts -> apps/website/src/features/publish-content/type-registry.ts",
     "apps/website/src/features/member-login/credentials.ts -> apps/website/src/features/custom-credentials/index.ts",
     "apps/website/src/features/member-login/providers.ts -> apps/website/src/features/agent-plugins/bundled-contribution-sources.ts",
     "apps/website/src/features/member-login/providers.ts -> apps/website/src/features/agent-plugins/lifecycle.ts",

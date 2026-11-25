@@ -615,11 +615,6 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/media/verify-published-media.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/media/view-image-tool.ts",
     "rule": "catch-reads-error",
     "value": 1
