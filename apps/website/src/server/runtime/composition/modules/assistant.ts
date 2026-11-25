@@ -79,7 +79,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { daemonFetch, getAgentDaemonUrl, fetchAgentDaemon, forwardToAgentDaemon, parkColdFrontendStream, awaitDaemonForResponse, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
-import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
+import { acceptOwnedAssistantRun, assistantRunAcceptancePorts } from "./assistant-run-acceptance.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
@@ -173,20 +173,10 @@ async function proxyAcceptedRun(
   { decoded, body, deps, res }: { decoded: Record<string, unknown>; body: { agentId?: unknown }; deps: AssistantRouteDeps; res: Response }, _optional = {},
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  const durable = deps.chatRunLedger.durable;
-  if (durable && typeof decoded.conversationId === "string" && typeof decoded.assistantMessageId === "string") {
-    const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
-    const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
-    const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
-      onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
-      launch: (required, optional) => {
-        if (!client.launch) throw new Error("assistant daemon has no launch operation");
-        return client.launch(required, optional);
-      },
-      attach: (run) => finalizer.watch({ principalId: principal.id, conversationId: run.conversationId, message: run.message }),
-    }, {});
-    const run = await acceptance.accept({ principalId: principal.id, workspaceId: deps.workspaceId,
-      conversationId: decoded.conversationId, messageId: decoded.assistantMessageId,
+  const ports = assistantRunAcceptancePorts({ deps, principalId: principal.id }, {});
+  if (ports && typeof decoded.conversationId === "string" && typeof decoded.assistantMessageId === "string") {
+    const run = await acceptOwnedAssistantRun({ principalId: principal.id, workspaceId: deps.workspaceId,
+      conversationId: decoded.conversationId, messageId: decoded.assistantMessageId, ports,
       request: { ...(typeof body.agentId === "string" ? { agentId: body.agentId } : {}), contextRef: JSON.stringify({ ...decoded, principalId: principal.id }) },
     }, {});
     if (!run) { res.status(404).json({ error: "not found" }); return true; }
