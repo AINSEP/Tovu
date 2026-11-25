@@ -33,7 +33,20 @@ vi.mock("@jini-ai/chat/react", () => ({
   },
 }));
 
-import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
+import { useContext, type ComponentProps } from "react";
+import { A2uiSurfaceCard, useT } from "@jini-ai/chat/react";
+import { RoutedA2uiSurfaceCard as JiniRoutedA2uiSurfaceCard } from "@jini-ai/chat/react/components/RoutedA2uiSurfaceCard";
+import { useRoutedA2uiSurfaceCard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-routed-a2ui-surface-card.hooks";
+import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
+
+type CardProps = ComponentProps<typeof JiniRoutedA2uiSurfaceCard>;
+/** The dock's binding (see `use-dock-renderer-registry.hooks.ts`), rebuilt here over the mocked
+ *  `@jini-ai/chat/react` card so the real routing hook drives the spy. A test may override the hook. */
+function RoutedA2uiSurfaceCard({ useRoutedA2uiSurfaceCardHook = useRoutedA2uiSurfaceCard, ...props }:
+  Omit<CardProps, "SurfaceCard" | "useTHook" | "useChartRegistryHook" | "useRoutedA2uiSurfaceCardHook"> & Partial<Pick<CardProps, "useRoutedA2uiSurfaceCardHook">>) {
+  return <JiniRoutedA2uiSurfaceCard {...props} SurfaceCard={A2uiSurfaceCard} useTHook={useT}
+    useChartRegistryHook={() => useContext(AdminChartRegistryContext)} useRoutedA2uiSurfaceCardHook={useRoutedA2uiSurfaceCardHook} />;
+}
 import {
   resetPlaygroundRenderTargetBus,
   setPlaygroundRenderTarget,
@@ -271,7 +284,7 @@ describe("RoutedA2uiSurfaceCard", () => {
       expect(forwardedProps).not.toHaveProperty("useRoutedA2uiSurfaceCardHook");
     });
 
-    it("defaults to the real useRoutedA2uiSurfaceCard hook when no override is passed", () => {
+    it("the host binding supplies the real useRoutedA2uiSurfaceCard hook when no override is passed", () => {
       // No target registered, no fake hook — the pre-existing default-behavior test above already
       // proves this indirectly; this test names the guarantee explicitly: omitting the prop must
       // not throw and must fall through to the real hook rather than leaving `undefined` called as

@@ -27,7 +27,7 @@ export interface PlaygroundCanvasController {
 
 /**
  * Registers (and unregisters) `Playground`'s own canvas container as the active
- * render-target-bus target, so `RoutedA2uiSurfaceCard.tsx` knows where to portal a drawn surface
+ * render-target-bus target, so `@jini-ai/chat`'s `RoutedA2uiSurfaceCard` knows where to portal a drawn surface
  * while this page is mounted.
  *
  * @returns {@link PlaygroundCanvasController}. `registerCanvas` is a stable ref callback: React

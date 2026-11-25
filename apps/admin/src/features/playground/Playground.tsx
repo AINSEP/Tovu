@@ -15,11 +15,11 @@ import { usePlaygroundCanvas } from "./hooks/use-playground-canvas.hooks";
  * other admin page the exact same ask still renders inline in the chat, unchanged.
  *
  * The routing itself lives entirely on the `AssistantDock` side
- * (`components/AssistantDock/RoutedA2uiSurfaceCard.tsx`) — this component's only job is to publish
+ * (`@jini-ai/chat`'s `RoutedA2uiSurfaceCard`, bound in `components/AssistantDock/hooks/use-dock-renderer-registry.hooks.ts`) — this component's only job is to publish
  * its own canvas container to `lib/playground-render-target-bus.ts` while it is mounted, and
  * unpublish it on unmount so navigating away reverts every later ask to inline rendering. That
  * register/unregister ref callback lives in `hooks/use-playground-canvas.hooks.ts`, split out the
- * same way `RoutedA2uiSurfaceCard.tsx` splits its own reading half of this same bus into
+ * same way `@jini-ai/chat`'s `RoutedA2uiSurfaceCard` splits its own reading half of this same bus into
  * `hooks/use-routed-a2ui-surface-card.hooks.ts` — this file stays props-and-JSX only and calls
  * {@link usePlaygroundCanvas} through the injectable `usePlaygroundCanvasHook` prop below, the same
  * seam shape this page's now-deleted `usePlaygroundHook` prop used to have.

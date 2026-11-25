@@ -12,7 +12,7 @@ import {
  * picker, no `usePlayground` hook — the assistant discovers and renders components itself,
  * `assistant_render_ui`, tested at that tool's own layer) plus one live piece: it publishes its own
  * canvas container to `lib/playground-render-target-bus.ts` while mounted, which is what makes
- * `RoutedA2uiSurfaceCard.tsx` land a drawn surface here instead of inline in the chat transcript
+ * `@jini-ai/chat`'s `RoutedA2uiSurfaceCard` land a drawn surface here instead of inline in the chat transcript
  * (see that component's own test for the routing decision itself — this file only proves
  * Playground holds up its half: register on mount, unregister on unmount).
  *

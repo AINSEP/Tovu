@@ -20,7 +20,7 @@
 
 /*
  * The canvas card — `Playground.tsx`'s portal target for a2ui surfaces the assistant draws while
- * this page is active (see that file's own doc, and `RoutedA2uiSurfaceCard.tsx` for the routing
+ * this page is active (see that file's own doc, and `@jini-ai/chat`'s `RoutedA2uiSurfaceCard` for the routing
  * that lands them here instead of inline in the chat transcript).
  */
 .playground-canvas {
@@ -40,7 +40,7 @@
   gap: var(--space-4);
 }
 
-/* One drawn surface, plus its dismiss button — see `RoutedA2uiSurfaceCard.tsx` for why the button
+/* One drawn surface, plus its dismiss button — see `@jini-ai/chat`'s `RoutedA2uiSurfaceCard` for why the button
  * lives here and not on `A2uiSurfaceCard` itself. Sized/positioned after `styles.css`'s
  * `.jini-toast-close`, the codebase's existing small icon-only dismiss control. */
 .playground-drawn-surface {
