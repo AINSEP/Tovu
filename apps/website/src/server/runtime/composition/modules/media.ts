@@ -329,17 +329,14 @@ async function enrichGridMedia({ deps, media }: { deps: MediaRouteDeps; media: r
 }
 
 /** GET grid (Jini spec `mediaGridRoute`): one bounded page or one exact asset, beside the full list.
- *  Like the list route it answers 404 for a foreign workspace and asks `media.read` directly. Only the
- *  newest-first order is paged: no SQL collation reproduces the admin's `localeCompare` title order,
- *  so alphabetical stays on the full list until a persisted sort key exists.
+ *  Like the list route it answers 404 for a foreign workspace and asks `media.read` directly. Both
+ *  orders page: alphabetical is decided in the repo over a bounded id + title key set, because no SQL
+ *  collation reproduces the admin's `localeCompare` title order (`media-grid-query.ts`).
  *  @complexity O(1) setup; per request one bounded page read plus the summary aggregate. */
 export const registerAdminMediaGridRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void => {
   mountAdminJsonRoute({ app, spec: mediaGridRoute, deps: {
     ...mediaPortDeps({ deps }),
-    readPage: (required, optional) => {
-      if (required.orderBy !== "created") return rejectRoute({ status: 400, error: "alphabetical order is not available in pages yet" });
-      return gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional);
-    },
+    readPage: (required, optional) => gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional),
     findItem: (required) => gridQueries({ repo: deps.mediaRepo }).findGridItem(required),
     enrichMedia: ({ media }) => enrichGridMedia({ deps, media }),
   } }, mountOptions({ operation: "routes/media/grid", authorization: "direct" }));

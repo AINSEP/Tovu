@@ -115,12 +115,25 @@ test('tabs and counts use all matching rows not the first fetched page', async (
   assert.equal(wrongTab.status, 404);
 });
 
-test('alphabetical order is refused in pages rather than ordered within one page', async (t) => {
+test('alphabetical pages match the admin comparator across case, whitespace and non-ASCII titles', async (t) => {
   const ctx = gridApp(t);
-  await seed(ctx, { id: 'a1', createdAt: new Date(Date.UTC(2026, 2, 1)).toISOString() });
+  const titles = ['banana', 'Banana', '  banana  ', '', '   ', 'apple', 'Apple', 'Zebra', 'zebra', 'Éclair', 'éclair', 'eclair', 'ÉCLAIR', 'Ångström', 'angstrom', 'ärger', 'Zürich', 'zurich', 'ñandú', 'nandu', '日本', '東京', 'Straße', 'strasse', 'İstanbul', 'istanbul'];
+  const rows = titles.map((title, index) => ({ id: `a${String((index * 7) % 50).padStart(2, '0')}`, title, createdAt: new Date(Date.UTC(2026, 2, 1, 0, index)).toISOString() }));
+  for (const row of rows) {
+    await seed(ctx, { id: row.id, createdAt: row.createdAt });
+    const saved = await ctx.repo.findById({ workspaceId: WS, id: row.id as never });
+    await ctx.repo.save({ ...(saved as MediaRecord), title: row.title });
+  }
   const listCalls = t.mock.method(ctx.repo, 'list');
-  const response = await dispatchJsonRequest(ctx.app, 'GET', `${BASE}/media/grid?tab=all&orderBy=alphabetical`);
-  assert.equal(response.status, 400);
-  assert.deepEqual(response.body, { error: 'alphabetical order is not available in pages yet' });
-  assert.equal(listCalls.mock.callCount(), 0);
+
+  // The admin's own comparator (Jini `rules.ts` `sortMediaByOrder`), restated so a drift in either side fails here.
+  const expected = [...rows].sort((a, b) => {
+    const byTitle = a.title.trim().toLocaleLowerCase().localeCompare(b.title.trim().toLocaleLowerCase());
+    return byTitle !== 0 ? byTitle : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  }).map((row) => row.id);
+  for (const limit of [1, 3, 5, 24]) {
+    const { ids } = await allPages(ctx.app, { tab: 'all', orderBy: 'alphabetical' }, limit);
+    assert.deepEqual(ids, expected, `pages of ${limit} concatenate to the admin's alphabetical order`);
+  }
+  assert.equal(listCalls.mock.callCount(), 0, 'alphabetical paging never reads the whole library');
 });
