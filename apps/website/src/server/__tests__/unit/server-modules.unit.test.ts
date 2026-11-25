@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
@@ -33,7 +34,7 @@ import type { OutboundEmail } from "@jini-ai/platform/mail";
 test("createCoreModule(deps).registerRoutes wires /health, /healthz, /readyz", async (t) => {
   setReadinessSnapshot({ ok: true, modules: [] });
   const app = express();
-  createCoreModule(createRouteDeps()).registerRoutes?.({ app });
+  createCoreModule({ deps: createRouteDeps(), errors: createRouteIncidentReporter().errors }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
 
   assert.equal((await fetch(`${baseUrl}/health`)).status, 200);

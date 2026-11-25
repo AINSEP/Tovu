@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -52,7 +53,7 @@ test("registerAdminWidgetRegionBindRoute: validation, authorization, binding and
     idGen: { newId: () => `region-bind-${++counter}` },
   } as unknown as RouteDeps;
 
-  registerAdminWidgetRegionBindRoute({ app: mockApp as any, deps });
+  registerAdminWidgetRegionBindRoute({ app: mockApp as any, deps, errors: createRouteIncidentReporter().errors });
   assert.ok(routeHandler, "route handler was registered");
 
   function createMockRes() {

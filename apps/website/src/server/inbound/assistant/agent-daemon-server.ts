@@ -4,6 +4,7 @@ import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
 import { createAtomicWriterPort } from "@jini-ai/node-adapters/fs";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { afterSettled } from "@jini-ai/core/errors/idioms";
 import { backupOriginalOnce, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
@@ -51,7 +52,7 @@ async function exitDaemon({ exitCode }: { exitCode: number }, _optional = {}): P
     // Before the store closes, which flushes and disposes the provider plugins' sinks.
     await Promise.allSettled([...scopes.values()].map(scope => scope.then(value => value.dispose({}, {}))));
     // Startup reports a failed publication; removal must still run because its record may exist.
-    await registryPublication.catch(() => undefined);
+    await afterSettled({ promise: registryPublication });
     try {
       await daemonRegistry?.removeIfCurrent({ pid: process.pid });
     } catch (error) {

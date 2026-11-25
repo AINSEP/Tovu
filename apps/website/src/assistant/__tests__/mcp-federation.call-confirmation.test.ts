@@ -24,6 +24,7 @@ import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 // This wrapper preserves Tovu's positional call contract for Jini trust policy.
@@ -425,7 +426,7 @@ test("G3 route: a federated tool call with no exchange is refused 403 and never 
   const { executor, executed } = refusingExecutor();
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, errors: createRouteIncidentReporter().errors });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -447,7 +448,7 @@ test("G3 route: Confirm on an open federated card is delivered (202) and the hel
   const { executor, executed } = refusingExecutor();
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: h.store } });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: h.store }, errors: createRouteIncidentReporter().errors });
   const baseUrl = await startTestServer(app, t);
 
   const { pending, cards } = call(h, "execute_sql", { query: "drop table g3" });

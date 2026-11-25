@@ -4,10 +4,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { FormsRouteDeps } from '../deps.js';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
-import { BASE, WS, fixture } from '#src/server/__tests__/helpers/admin-route-failures';
+import { BASE, WS, fixture, type Register } from '#src/server/__tests__/helpers/admin-route-failures';
 import { registerAdminFormsPullSubmissionsRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { createRouteIncidentReporter } from '#src/server/__tests__/helpers/route-incident-reporter';
 
 const PATH = `${BASE}/forms/submissions/pull`;
+/** The pull registrar bound to a fresh fixture reporter, as `createApp` binds it to the site's one reporter. */
+const pullRoute: Register = ({ app, deps }) => registerAdminFormsPullSubmissionsRoute({ app, deps, errors: createRouteIncidentReporter().errors });
 const REPORT: Awaited<ReturnType<NonNullable<FormsRouteDeps['formSubmissionsPull']>['pull']>> = { ran: true, message: 'No new submissions.', destinations: [], forms: [], totals: { imported: 0, alreadyImported: 0, unmapped: 0, failed: 0 } };
 
 for (const body of [undefined, null, false, 1, 'text', [], {}, { targetId: undefined }, { targetId: 'x' }, { targetId: 'x'.repeat(64) }, { targetId: ' ' }]) {
@@ -16,7 +19,7 @@ for (const body of [undefined, null, false, 1, 'text', [], {}, { targetId: undef
     const port: NonNullable<FormsRouteDeps['formSubmissionsPull']> = {
       pull: async (required, optional) => { calls.push([required, optional]); return REPORT; },
     };
-    const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: port });
+    const { app } = fixture(pullRoute, { formSubmissionsPull: port });
     assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH, body), { status: 200, body: REPORT });
     const targetId = body !== null && typeof body === 'object' && 'targetId' in body ? body.targetId : undefined;
     assert.deepEqual(calls, [[{ workspaceId: WS }, targetId === undefined ? {} : { targetId }]]);
@@ -25,7 +28,7 @@ for (const body of [undefined, null, false, 1, 'text', [], {}, { targetId: undef
 
 for (const targetId of [null, '', 7, false, {}, [], 'x'.repeat(65)]) {
   test(`pull characterization: invalid target ${JSON.stringify(targetId)} precedes unavailable port`, async () => {
-    const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: undefined });
+    const { app } = fixture(pullRoute, { formSubmissionsPull: undefined });
     assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH, { targetId }), {
       status: 400,
       body: { error: 'targetId must be a hosting target id of 1-64 characters, or omitted to pull from every published site', code: 'FORMS_FIELD_VALIDATION_ERROR',
@@ -38,7 +41,7 @@ test('pull characterization: workspace and permission gates precede body validat
   const calls: unknown[] = [];
   const port: NonNullable<FormsRouteDeps['formSubmissionsPull']> = { pull: async () => { calls.push('pull'); return REPORT; } };
   const authorize: FormsRouteDeps['authorize'] = async (input) => { calls.push(input); return { allowed: false, reason: 'no_grant' }; };
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { authorize, formSubmissionsPull: port });
+  const { app } = fixture(pullRoute, { authorize, formSubmissionsPull: port });
   assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH.replace(WS, 'other'), { targetId: '' }), {
     status: 404, body: { error: 'workspace was not found' },
   });
@@ -58,7 +61,7 @@ for (const [cause, detail] of [[stackError, 'private stack'], [messageError, 'pr
   test(`pull characterization: failure logs ${detail} under the response reference`, async (t) => {
     const logged = t.mock.method(console, 'error', () => {});
     const port: NonNullable<FormsRouteDeps['formSubmissionsPull']> = { pull: async () => { throw cause; } };
-    const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: port });
+    const { app } = fixture(pullRoute, { formSubmissionsPull: port });
     const result = await dispatchJsonRequest(app, 'POST', PATH);
     assert.equal(result.status, 500);
     const body = result.body as any;
@@ -76,7 +79,7 @@ for (const [cause, detail] of [[stackError, 'private stack'], [messageError, 'pr
 test('pull characterization: logger failure cannot prevent the private error response', async (t) => {
   const logged = t.mock.method(console, 'error', () => { throw new Error('private logger failure'); });
   const port: NonNullable<FormsRouteDeps['formSubmissionsPull']> = { pull: async () => { throw new Error('private pull failure'); } };
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: port });
+  const { app } = fixture(pullRoute, { formSubmissionsPull: port });
   const result = await dispatchJsonRequest(app, 'POST', PATH);
   const body = result.body as any;
   assert.equal(result.status, 500);
@@ -92,7 +95,7 @@ test('pull characterization: missing principal falls back before authorization',
   let authorizations = 0;
   const { app } = fixture(({ app, deps }) => {
     app.use((_req, res, next) => { delete res.locals.principal; next(); });
-    registerAdminFormsPullSubmissionsRoute({ app, deps });
+    pullRoute({ app, deps });
   }, { authorize: async () => { authorizations++; return { allowed: true }; } });
   const response = await dispatchJsonRequest(app, 'POST', PATH);
   const body = response.body as any;

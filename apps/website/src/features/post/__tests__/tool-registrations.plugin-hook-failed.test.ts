@@ -30,7 +30,7 @@ import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 const WORKSPACE_ID = "ws-post-plugin-hook";
@@ -79,7 +79,7 @@ async function call(deps: PostToolDeps, toolId: string, input: unknown) {
   const harness = { run, lifecycle, toolExecutor: createToolExecutor({ registry }), resolvePrincipal: () => ({ id: "p" }) };
   return delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input },
-    deps: { ...harness, reportInternalError: reportRouteInternalError } as never,
+    deps: { ...harness, reportInternalError: createRouteIncidentReporter().reportInternalError } as never,
   });
 }
 

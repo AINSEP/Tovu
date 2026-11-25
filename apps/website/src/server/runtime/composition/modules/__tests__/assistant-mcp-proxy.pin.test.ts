@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,14 +10,15 @@ import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
 import { createAssistantModule } from "../assistant.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** TW2 L136: correlation precedence and local-first delivery, including security refusals. */
 test("MCP proxy pins validation, explicit/param/typed correlations and authoritative daemon fallback", async t => {
   const deps = createRouteDeps();
-  const store = createByokToolSurface(deps, { installExtensions: false }).surfaceExchanges;
+  const store = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }).surfaceExchanges;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), byokSurfaceExchanges: store }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const previous = process.env.JINI_AGENT_DAEMON_URL;

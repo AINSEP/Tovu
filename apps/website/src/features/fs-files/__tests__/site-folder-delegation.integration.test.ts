@@ -7,7 +7,7 @@ import { createToolRegistry } from '@jini-ai/core';
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from '@jini-ai/daemon';
 import { delegatedToolExecuteRoute } from '@jini-ai/daemon/http';
 import { buildFsFilesRegistrations } from '../tool-registrations.js';
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from '../../../server/__tests__/helpers/route-incident-reporter.js';
 
 /** Owner s5 (2026-10-29) extends e0d811ab0's site boundary with the persisted picked-folder grant. */
 test('delegated filesystem tools read the picked folder while refusing unpicked paths', async t => {
@@ -29,7 +29,7 @@ test('delegated filesystem tools read the picked folder while refusing unpicked 
   const deps = { lifecycle, toolRegistry: registry, toolExecutor: createToolExecutor({ registry }),
     resolvePrincipal: () => ({ id: 'site-owner' }),
   };
-  const execute = (toolId: string, input: Record<string, unknown>) => delegatedToolExecuteRoute.handle({ deps: { ...deps, reportInternalError: reportRouteInternalError }, input: {
+  const execute = (toolId: string, input: Record<string, unknown>) => delegatedToolExecuteRoute.handle({ deps: { ...deps, reportInternalError: createRouteIncidentReporter().reportInternalError }, input: {
     runId: run.id, toolUseId: `probe-${toolId}-${Math.random()}`, toolId, input, requireReadOnly: true,
   } });
   for (const toolId of ['fs_read_file', 'fs_list_files']) {

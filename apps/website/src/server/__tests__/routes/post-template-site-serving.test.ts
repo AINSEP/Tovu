@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -96,7 +97,7 @@ function buildTestApp(
   const app = express();
   app.use(express.json());
   if (withAdmin) {
-    registerAuthRoutes({ app, deps });
+    registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
     createContentModule(deps as never).registerRoutes?.({ app });
   }

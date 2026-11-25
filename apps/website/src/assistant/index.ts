@@ -129,7 +129,7 @@ export {
 } from "./site/public-errors.js";
 
 export { createByokToolSurface } from "./byok-tool-surface.js";
-export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.js";
+export type { ByokToolSurface, ByokToolSurfaceDeps, ByokToolSurfaceRequired } from "./byok-tool-surface.js";
 
 // ---------------------------------------------------------------------------------------------
 // D — Admin Daemon Proxy / Process Composition

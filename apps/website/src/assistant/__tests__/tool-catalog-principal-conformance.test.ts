@@ -7,11 +7,13 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
-import { daemonRouteHost } from "../../server/runtime/composition/jini-routes.js";
+import { daemonRouteHost } from "../../platform/express/jini-routes.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "../read-only-tool-constraint.js";
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { createToolCatalogFor, discoveryPrincipalResolver } from "../tool-catalog-principal-scope.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Two-sided conformance (todos: the Strapi-suite test): a read-only principal cannot SEE a
@@ -45,11 +47,11 @@ function build() {
   } };
   const catalogFor = createToolCatalogFor({ catalog, registry, resolvePrincipal: discoveryPrincipalResolver({ runCredentials, principalByRunId }) });
   const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST" } }) };
-  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024 }) });
+  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024, errors: createRouteIncidentReporter().errors }) });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   // The production composition (agent-daemon-scope-tools.ts): the read-only gate wraps the assistant
   // stack outermost, so it holds for every tool id no matter which decorator dispatches it.
-  const assistantExecutor = createAssistantToolExecutor({ registry, surfaceExchanges, toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: "ws-conformance" } }, {});
+  const assistantExecutor = createAssistantToolExecutor({ reporter: testToolReporter(), registry, surfaceExchanges, toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: "ws-conformance" } }, {});
   const executor = withReadOnlyToolConstraint({ inner: assistantExecutor, deps: { registry } });
   const discover = async (token: string, path: string, params: Record<string, string> = {}) => {
     const route = routes.find(candidate => candidate.path === path);

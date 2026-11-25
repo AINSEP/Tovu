@@ -17,7 +17,7 @@ import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file RED regression suite (2026-10-05): the three embed tools write a post/page host through
@@ -93,7 +93,7 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 let toolUseCounter = 0;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { ...harness, reportInternalError: createRouteIncidentReporter().reportInternalError } });
 }
 
 /** A post host carrying one real embed (placed while the hook passes), then the hook switched to refuse. */

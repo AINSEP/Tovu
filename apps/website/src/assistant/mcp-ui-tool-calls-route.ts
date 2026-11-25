@@ -4,7 +4,7 @@ import type { Express } from "express";
 
 import type { ToolExecutor } from "@jini-ai/daemon";
 import { surfaceCallbackRoutes } from "@jini-ai/daemon/http";
-import type { SseSchedulerPort } from "@jini-ai/core/contracts/server";
+import type { RouteErrorPorts, SseSchedulerPort } from "@jini-ai/core/contracts/server";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
@@ -131,10 +131,10 @@ export interface McpUiToolCallsRouteDeps {
  * @complexity O(1) request handling plus the invoked tool handler's own cost.
  * @overallScore 100
  */
-export function registerMcpUiToolCallsRoute({ app, deps }: { app: Express; deps: McpUiToolCallsRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerMcpUiToolCallsRoute({ app, deps, errors }: { app: Express; deps: McpUiToolCallsRouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   mountJiniPostRoutesInPlace({ app, routes: surfaceCallbackRoutes({
     path: MCP_UI_TOOL_CALLS_PATH,
-    host: surfaceRouteHost(),
+    host: surfaceRouteHost({ errors }),
     deps: {
       toolExecutor: deps.toolExecutor,
       surfaceExchanges: deps.surfaceExchanges,

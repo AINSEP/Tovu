@@ -12,6 +12,8 @@ import { createRestorePointBackup } from "#src/features/site-update/restore-poin
 import type { SiteUpdateHost } from "#src/features/site-update/host-runtime";
 import { createSelfHostedUpdateHost, type SelfHostedHostOptional } from "#src/features/site-update/self-hosted-host";
 import type { SiteUpdateRuntime } from "#src/features/site-update/tools";
+// The running version (`TOVU_VERSION`, else the image tag without a leading `v`) is shared with incident records.
+import { runningVersionFrom } from "../build-constants.js";
 
 export interface SiteUpdateBindingRequired {
   env: Readonly<Record<string, string | undefined>>;
@@ -21,14 +23,6 @@ export interface SiteUpdateBindingRequired {
   getJson: (required: { url: string }, optional?: { signal?: AbortSignal | undefined }) => Promise<unknown>;
   /** Records the target tag for the operator's deploy tooling (the composition decides where). */
   recordTargetTag: (required: { tag: string }) => Promise<void>;
-}
-
-/** The running version: `TOVU_VERSION`, else the image tag without a leading `v`. */
-function runningVersionFrom(env: SiteUpdateBindingRequired["env"]): string | null {
-  const explicit = env["TOVU_VERSION"]?.trim();
-  if (explicit) return explicit;
-  const tag = env["TOVU_IMAGE_TAG"]?.trim();
-  return tag ? tag.replace(/^v(?=\d)/, "") : null;
 }
 
 /**

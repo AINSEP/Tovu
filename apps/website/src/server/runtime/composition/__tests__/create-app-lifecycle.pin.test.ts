@@ -5,6 +5,7 @@ import { mock, test } from "node:test";
 import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file Characterization pin (design 02, step 0): `createApp`'s lifecycle effects — what it
@@ -80,7 +81,7 @@ test("event subscriptions: a second deps object (its own bus) subscribes again, 
 
 /** A tool surface whose boot pass the test controls; everything else is the real surface. */
 function surfaceWithReady(deps: ReturnType<typeof createRouteDeps>, ready: Promise<void>) {
-  return { ...createAssistantByokModule({ routeDeps: deps }).toolSurface, ready };
+  return { ...createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }).toolSurface, ready };
 }
 
 test("boot work: the tool surface's pass is tracked on siteAppBootWorkByDeps and handed to onBootWork until it resolves", async () => {

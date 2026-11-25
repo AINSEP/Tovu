@@ -17,7 +17,15 @@ import {
   scrubTelemetryText,
   toRouteTemplate,
 } from '@jini-ai/cms/admin-http/routes/system/browser-telemetry';
+import { createTovuErrorReporter } from '#src/server/runtime/composition/error-reporter';
 import { registerAdminBrowserTelemetryRoute } from '#src/server/runtime/composition/modules/system-telemetry';
+
+/**
+ * @file Browser telemetry. Error-report ownership (P4-T5): the browser event's tracker report has its own owner
+ * (the mounted route), independent of the site error reporter and of the `http.request` unreported-5xx marker.
+ * The legacy `reportServerFailure` arm is mutually exclusive with reporter mode, and the cookie-consent
+ * `diagnostic-unavailable` catches are not proven duplicates; neither is asserted here.
+ */
 
 /** Fake ports: what reached the observability port and the analytics vendor. */
 function fakePorts() {
@@ -155,4 +163,24 @@ test('a failing provider leaves the browser action successful and logs only a fi
   assert.equal(out.status, 204);
   assert.equal(out.json, undefined);
   assert.deepEqual(logged, ['[tracker] a telemetry provider failed; application work continues']);
+});
+
+test('browser telemetry still reaches the tracker', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
+  const hostRecords: unknown[][] = [];
+  // Host-only control: the host logger writes its one record without touching the tracker under measurement.
+  const hostControl = createTovuErrorReporter({ logger: { warn: () => {}, error: (...args: unknown[]) => { hostRecords.push(args); } }, tracker: { error: () => {} },
+    clock: { nowMs: () => 0 }, versions: { app: '1.2.3', jini: '0.7.3' } });
+  const ports = fakePorts();
+  hostControl.record({ error: new Error('control'), step: 'control', operation: 'control' });
+  const before = { host: hostRecords.length, tracker: ports.errors.length, console: logged.mock.callCount() };
+  assert.deepEqual(before, { host: 1, tracker: 0, console: 0 });
+  const out = await post({ type: 'error', message: 'boom', stack: '', route: '/admin/posts/42' }, { deps: { observability: ports.observability } });
+  assert.equal(out.status, 204);
+  assert.equal(ports.errors.length - before.tracker, 1);
+  assert.equal(hostRecords.length - before.host, 0);
+  assert.equal(logged.mock.callCount() - before.console, 0);
+  assert.equal(ports.errors[0]!.context.operation, 'admin.browser.error');
+  assert.equal((ports.errors[0]!.error as Error).name, 'AdminBrowserError');
+  assert.deepEqual([logged.mock.callCount(), hostRecords.length, ports.errors.length], [0, 1, 1]);
 });

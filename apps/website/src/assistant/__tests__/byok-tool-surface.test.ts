@@ -46,6 +46,7 @@ import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -101,7 +102,7 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
 // pass is fail-open regardless (`installed-extension-tools.ts`), so omitting this would still pass
 // every test here, just with a swallowed `console.warn` and a real (empty) disk read on every call.
 function surface() {
-  return createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
+  return createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { installExtensions: false }), contributions });
 }
 
 function call(name: string, input: unknown) {
@@ -327,7 +328,7 @@ test("execute_delegated_tool refuses a non-object, non-array, non-string input (
 // notes / the coverage report for that one.
 test("execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw", async () => {
   const deniedDeps = { ...fakeRouteDeps(), authorize: async () => ({ allowed: false, reason: "no grant" }) };
-  const s = createByokToolSurface(deniedDeps, { ...( { installExtensions: false }), contributions });
+  const s = createByokToolSurface(Object.assign(deniedDeps, { reporter: testToolReporter() }), { ...( { installExtensions: false }), contributions });
   const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }) });
   assert.equal(result.isError, true);
   assert.match(textOf(result), /not authorized/);
@@ -425,7 +426,7 @@ test("READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal i
  */
 test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
   const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "workspace", limit: 5 }) });
   const { hits } = JSON.parse(textOf(result)) as { hits: ReadonlyArray<{ id: string }> };
@@ -446,7 +447,7 @@ test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with
 
 test("a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
   await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "content_read.workspace" }) });
   await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "content_read.workspace_but_invented" }) });
@@ -477,7 +478,7 @@ test("without a toolAttemptAudit option, search_tools/describe_tool behave exact
  */
 test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
   const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }) });
   assert.equal(result.isError, true, "sanity: still the same recoverable-error behavior, unchanged by adding audit");
@@ -496,7 +497,7 @@ test("a registered BYOK call settles one tool.call and the live gate suppresses 
   const started: OperationTrackingInput[] = [];
   const settled: OperationTrackingOutcome[] = [];
   let enabled = true;
-  const s = createByokToolSurface({
+  const s = createByokToolSurface({ ...{
     ...fakeRouteDeps(),
     observability: {
       ...createNoopObservabilityPort({}),
@@ -509,7 +510,7 @@ test("a registered BYOK call settles one tool.call and the live gate suppresses 
       },
     },
     observabilityEnabled: () => enabled,
-  }, { installExtensions: false, contributions });
+  }, reporter: testToolReporter() }, { installExtensions: false, contributions });
   s.registry.register(fakeAllowedRegistration("probe_observed_success", async () => ({ saved: true })));
   const observed = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_observed_success", input: {} }) });
   assert.deepEqual(JSON.parse(textOf(observed)), { saved: true }, "observation preserves the registered tool's return");
@@ -526,7 +527,7 @@ test("a registered BYOK call settles one tool.call and the live gate suppresses 
 
 test("ordinary successful and throwing delegated handlers record their complete audit trail", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
   s.registry.register(fakeAllowedRegistration("probe_audit_success", async () => ({ saved: true })));
   s.registry.register(fakeAllowedRegistration("probe_audit_failure", async () => { throw new Error("probe failure"); }));
   const success = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_audit_success", input: {} }) });
@@ -809,7 +810,7 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
 
 test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-recovery-audit" }, installExtensions: false }), contributions });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-recovery-audit" }, installExtensions: false }), contributions });
   let originalCallCount = 0;
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_audited", async () => {
@@ -903,7 +904,7 @@ test("BYOK federation: awaitFederation boots the real stored roster and resolves
   const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { ...( {
     federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
   }), contributions });
 
@@ -916,7 +917,7 @@ test("BYOK federation: after awaitFederation settles, search_tools finds the new
   const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { ...( {
     federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
   }), contributions });
   await s.awaitFederation({ timeoutMs: 1000 });
@@ -944,7 +945,7 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
       { name: "unlisted", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
     ] }, {
     onCall: () => remoteResult });
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( { federationConnect: async () => session }), contributions });
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { ...( { federationConnect: async () => session }), contributions });
   assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: { text: "hello" } }) });
   assert.notEqual(result.isError, true);
@@ -975,7 +976,7 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
 // `assistant-byok.ts` appends FEDERATION_STILL_CONNECTING_NOTE to the system prompt on `false` —
 // a no-federation surface must not tell the model that tools are on their way.
 test("BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { ...( { installExtensions: false }), contributions });
 
   assert.equal(s.federation, undefined);
   assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
@@ -1002,7 +1003,7 @@ test("BYOK federation: execute_delegated_tool for a still-registering federated 
     releaseConnect = resolve;
   });
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { ...( {
     federationConnect: async () => connectGate,
   }), contributions });
 
@@ -1035,7 +1036,7 @@ test("BYOK federation: execute_delegated_tool for a server that was never in the
     releaseConnect = resolve;
   });
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { ...( {
     federationConnect: async () => connectGate,
   }), contributions });
 
@@ -1057,7 +1058,7 @@ test("BYOK federation: execute_delegated_tool for a connection that failed to co
   const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { ...( {
     federationConnect: async () => {
       throw new Error("connect ECONNREFUSED");
     },
@@ -1082,7 +1083,7 @@ test("the BYOK discovery registry hides disallowed permanent deletes from both h
 });
 
 test('owner discovery exposes permanent deletes with the site grant off, including credential and role deletes', async () => {
-  const s = createByokToolSurface({ ...fakeRouteDeps(), ownerPrincipalId: Promise.resolve(PRINCIPAL.id) }, { installExtensions: false, contributions });
+  const s = createByokToolSurface(Object.assign({ ...fakeRouteDeps(), ownerPrincipalId: Promise.resolve(PRINCIPAL.id) }, { reporter: testToolReporter() }), { installExtensions: false, contributions });
   for (const id of ['trash_empty', 'trash_purge_item', 'media_purge_asset', 'identity_user_delete', 'identity_role_delete', 'custom_credential_delete', 'external_mcp_delete']) {
     const described = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call('describe_tool', { id }) });
     assert.notEqual(described.isError, true, id);
@@ -1099,9 +1100,9 @@ test('an owner delete executes through the assembled BYOK guard only after the c
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
-  const s = createByokToolSurface({ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
+  const s = createByokToolSurface({ ...{ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
     ownerPrincipalId: Promise.resolve(PRINCIPAL.id), externalMcpServerRepo: repo,
-  }, { installExtensions: false, contributions });
+  }, reporter: testToolReporter() }, { installExtensions: false, contributions });
   let cards = 0;
   const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call('execute_delegated_tool', {
     toolId: 'external_mcp_delete', input: { serverId: 'echo-server' },
@@ -1227,13 +1228,13 @@ test("a descriptor-confirmation tool parks until the turn's signal aborts, then 
 
 test("registerFederationPresets runs exactly once, while the surface is built", () => {
   let calls = 0;
-  createByokToolSurface(fakeRouteDeps(), { installExtensions: false, contributions, registerFederationPresets: () => { calls += 1; } });
+  createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { installExtensions: false, contributions, registerFederationPresets: () => { calls += 1; } });
   assert.equal(calls, 1);
 });
 
 test("prepareGuidance is handed to the executor and consulted for a guidance-capable tool", async () => {
   const consulted: string[] = [];
-  const s = createByokToolSurface(fakeRouteDeps(), { installExtensions: false, contributions, prepareGuidance: async ({ tool }) => { consulted.push(tool.id); return ""; } });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { installExtensions: false, contributions, prepareGuidance: async ({ tool }) => { consulted.push(tool.id); return ""; } });
   registerOutputTool(s, "branch_pin_guided_probe", { ok: true }, { metadata: { guidanceCapabilities: ["ui-design"] } });
   await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "branch_pin_guided_probe" }) });
   assert.deepEqual(consulted, ["branch_pin_guided_probe"]);
@@ -1246,7 +1247,7 @@ test("with no federation, an mcp__ id the registry does not know is reported as 
 });
 
 test("an installed-skills refresh that reports a change makes a tool it registered searchable on the next call", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
     Object.assign(registry, { refreshInstalledSkills: async () => {
       if (!s.registry.has({ toolId: "branch_pin_refreshed_skill" })) {
         s.registry.register({ descriptor: { id: "branch_pin_refreshed_skill", description: "Zyxwv refreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
@@ -1262,7 +1263,7 @@ test("an installed-skills refresh that reports a change makes a tool it register
 // refresh that registers a tool yet reports `false` still surfaces it — the explicit rebuild in
 // `executeMetaTool` is belt-and-braces, not the only path.
 test("an installed-skills refresh that reports no change still leaves a tool it registered searchable", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
     Object.assign(registry, { refreshInstalledSkills: async () => {
       if (!s.registry.has({ toolId: "branch_pin_unrefreshed_skill" })) {
         s.registry.register({ descriptor: { id: "branch_pin_unrefreshed_skill", description: "Qxjvb unrefreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
@@ -1298,7 +1299,7 @@ test("BYOK federation: a stored OAuth row's access token is resolved through the
   await repo.upsert({ ...stored, oauthStatus: "connected" });
   const resolved: string[] = [];
   const launched: ResolvedFederatedConnection[] = [];
-  const s = createByokToolSurface({ ...federationRouteDeps(repo, sealer), externalMcpOAuth: fakeExternalMcpOAuth(resolved) }, { contributions,
+  const s = createByokToolSurface(Object.assign({ ...federationRouteDeps(repo, sealer), externalMcpOAuth: fakeExternalMcpOAuth(resolved) }, { reporter: testToolReporter() }), { contributions,
     federationConnect: async (connection) => { launched.push(connection); return new InMemoryMcpSession({ tools: [{ name: "echo", inputSchema: { type: "object" } }] }); } });
   assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   assert.deepEqual(resolved, ["oauth-server"]);
@@ -1319,7 +1320,7 @@ test("BYOK federation: without a wired OAuth service a connected OAuth row is sk
   assert.ok(stored);
   await repo.upsert({ ...stored, oauthStatus: "connected" });
   const launched: ResolvedFederatedConnection[] = [];
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { contributions,
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { contributions,
     federationConnect: async (connection) => { launched.push(connection); return new InMemoryMcpSession({ tools: [] }); } });
   assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   assert.deepEqual(launched, []);
@@ -1330,7 +1331,7 @@ test("BYOK federation: a reload that admits a new server makes its tools searcha
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
-  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { contributions,
+  const s = createByokToolSurface(Object.assign(federationRouteDeps(repo, sealer), { reporter: testToolReporter() }), { contributions,
     federationConnect: async (connection) => new InMemoryMcpSession({ tools: [{ name: connection.config.connectionId === "echo-server" ? "echo" : "wobble", description: "Plexquorn wobble probe", inputSchema: { type: "object" } }] }) });
   assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   await saveExternalMcpServer({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) }, {
@@ -1346,7 +1347,7 @@ test("BYOK federation: a reload that admits a new server makes its tools searcha
 test("BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport", async () => {
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const seen: unknown[] = [];
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async ({ deps }, _optional = {}) => { seen.push(deps.surfaces?.surfaceExchanges); } });
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async ({ deps }, _optional = {}) => { seen.push(deps.surfaces?.surfaceExchanges); } });
   await s.ready;
   assert.equal(seen.length, 1);
   assert.equal(seen[0], store, "the same store the surface's MCP-UI answers are delivered to");
@@ -1510,9 +1511,9 @@ test("T2 typed permanent deletes retain the existing held-open surface and confi
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
-  const s = createByokToolSurface({ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
+  const s = createByokToolSurface({ ...{ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
     ownerPrincipalId: Promise.resolve(PRINCIPAL.id), externalMcpServerRepo: repo,
-  }, { installExtensions: false, contributions });
+  }, reporter: testToolReporter() }, { installExtensions: false, contributions });
   const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
   await turn.executeTool(call("describe_tool", { id: "external_mcp_delete" }));
   let cards = 0;
@@ -1530,7 +1531,7 @@ test("T2 typed permanent deletes retain the existing held-open surface and confi
 
 test("T2 a previously published delete loses visibility before execution when its owner grant changes", async () => {
   const deps = { ...fakeRouteDeps(), ownerPrincipalId: Promise.resolve(PRINCIPAL.id) };
-  const s = createByokToolSurface(deps, { installExtensions: false, contributions });
+  const s = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false, contributions });
   const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
   const described = await turn.executeTool(call("describe_tool", { id: "trash_empty" }));
   assert.notEqual(described.isError, true);
@@ -1607,7 +1608,7 @@ for (const outcome of ['confirm', 'cancel', 'revoked', 'inactive', 'abort'] as c
       principalRepo: { findById: async () => ({ workspaceId: 'ws-meta-tool', id: PRINCIPAL.id, kind: 'user', status: active ? 'active' : 'disabled', displayName: 'Access tester', createdAt: now }) },
       authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'permission revoked' }),
     } as unknown as ByokToolSurfaceDeps;
-    const s = createByokToolSurface(deps, { installExtensions: false, contributions });
+    const s = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false, contributions });
     const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
     const described = await turn.executeTool(call('describe_tool', { id: 'settings_set_value' }));
     assert.notEqual(described.isError, true, textOf(described));

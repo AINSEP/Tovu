@@ -13,6 +13,7 @@ import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite
 import type { ToolAttemptAuditSink, ToolAttemptEvent } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { agentToolAttempts } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file Pins the composition seam for `RouteDeps.toolAttemptAuditSink` — the port that replaced
@@ -139,7 +140,7 @@ test("app.ts's hermetic root composes the in-memory audit sink — it owns no co
   );
   await sink.append(APPENDED_EVENT);
   assert.deepEqual(sink.events, [APPENDED_EVENT]);
-  const module = createAssistantByokModule({ routeDeps: deps });
+  const module = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps });
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-04T00:00:00.000Z") });
   const result = await module.toolSurface.executeMetaTool(
     { principal: { id: "principal-memory-audit" },
@@ -187,7 +188,7 @@ test("createAssistantByokModule logs meta-tool attempts through the INJECTED sin
       },
     };
 
-    const module = createAssistantByokModule({ routeDeps: deps });
+    const module = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps });
     const result = await module.toolSurface.executeMetaTool(
       { principal: { id: "principal-byok-audit-1" },
       run: { id: "run-byok-audit-1" },

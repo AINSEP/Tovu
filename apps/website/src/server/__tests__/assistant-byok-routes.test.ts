@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { CREDENTIAL_PASTE_MODEL_NOTE } from "../../assistant/credential-guidance.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -46,6 +47,7 @@ import type { RouteDeps } from "../routes/types.js";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 
 /**
@@ -603,8 +605,8 @@ function stubByokToolSurface(options: { readonly settled: boolean; readonly refu
 async function bootWithStubSurface(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
-  createAssistantByokModule({ routeDeps: deps }, { toolSurface }).registerRoutes?.({ app });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface }).registerRoutes?.({ app });
   return bootAuthenticated(app, t);
 }
 
@@ -1048,7 +1050,7 @@ test(`${BYOK_TURN_PATH}: disconnecting a parked purge aborts the tool, closes it
   await deps.identityReady;
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 5_000, maxLifetimeMs: 5_000 });
   await grantChatDeletes(deps);
-  const surface = createByokToolSurface(deps, { surfaceExchangeStore: store, contributions: firstPartyContributions() });
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { surfaceExchangeStore: store, contributions: firstPartyContributions() });
   const createRun = surface.createRun.bind(surface);
   let toolSignal: AbortSignal | undefined;
   let resolveFinished!: () => void;
@@ -1149,7 +1151,7 @@ test(`${BYOK_TURN_PATH}: a run-bound confirmation survives short store TTLs and 
   const schedule = t.mock.method(scheduler, "schedule");
   const shortTtlStore = createSurfaceExchangeStore({ scheduler, clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 30, maxLifetimeMs: 60 });
   await grantChatDeletes(deps);
-  const toolSurface = createByokToolSurface(deps, { surfaceExchangeStore: shortTtlStore, contributions: firstPartyContributions() });
+  const toolSurface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { surfaceExchangeStore: shortTtlStore, contributions: firstPartyContributions() });
   const { baseUrl } = await bootAuthenticated(createApp(deps, { assistantToolSurface: toolSurface }), t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
@@ -1335,7 +1337,7 @@ async function grantChatDeletes(deps: ReturnType<typeof createRouteDeps>) {
 }
 test("BYOK discovery is OFF by default and updates checked tools without rebuilding the surface", async () => {
   const deps = createRouteDeps(); await deps.identityReady; await deps.settingsUiTabsReady;
-  const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { contributions: firstPartyContributions(), installExtensions: false });
   // d1c1fbd9a grants owners all deletes; the site switch still governs authorized non-owners.
   const principal = await principalWithPermissions({ deps, permissions: ["content.read"] }), run = { id: "pdel-discovery" };
   const describe = () => surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "trash_empty" } } });
@@ -1352,7 +1354,7 @@ test("BYOK discovery is OFF by default and updates checked tools without rebuild
 
 test("BYOK execute-time revocation refuses a previously discovered handler without opening a card", async () => {
   const deps = createRouteDeps(); await grantChatDeletes(deps);
-  const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { contributions: firstPartyContributions(), installExtensions: false });
   const principal = await principalWithPermissions({ deps, permissions: ["content.read"] }), run = { id: "pdel-revoke" };
   assert.equal((await surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "trash_empty" } } })).isError, undefined);
   await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
@@ -1371,7 +1373,7 @@ test("BYOK a saved-setting revoke while the human reads the card prevents perman
   await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
   const trashItemId = await trashRowFor(deps, postId);
   assert.ok(trashItemId);
-  const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { contributions: firstPartyContributions(), installExtensions: false });
   const principal = await principalWithPermissions({ deps, permissions: ["content.read", "content.write"] }), run = { id: "pdel-revoke-at-card" };
   let cards = 0;
   const result = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "execute_delegated_tool", input: { toolId: PURGE_TOOL_ID, input: { trashItemId } } } }, { signal: undefined, emitSurface: async () => {

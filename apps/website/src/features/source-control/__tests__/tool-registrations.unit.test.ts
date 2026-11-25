@@ -28,6 +28,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -144,7 +145,7 @@ async function clickDialogAction(html: string, action: "confirm" | "cancel", sur
   let route!: (req: unknown, res: unknown) => Promise<void>;
   registerMcpUiToolCallsRoute({ app: { post: (_path: string, handler: typeof route) => { route = handler; } } as never, deps: {
     scheduler: nodeIntervalScheduler, surfaceExchanges, toolExecutor: { execute: async () => { assert.fail("an exchange answer must not execute a fresh tool"); } } as never,
-  } });
+  }, errors: createRouteIncidentReporter().errors });
   const routed: Promise<void>[] = [];
   let time = 0;
   const api = {

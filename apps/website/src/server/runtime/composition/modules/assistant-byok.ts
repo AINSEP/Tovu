@@ -1,3 +1,4 @@
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { ToolAccessLoweringError } from '@jini-ai/core/tool-access-change';
 import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun } from '@jini-ai/daemon';
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
@@ -514,7 +515,7 @@ async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {
 /** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`).
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
-  { routeDeps }: { routeDeps: RouteDeps & ByokToolSurfaceDeps },
+  { routeDeps, reporter }: { routeDeps: RouteDeps & ByokToolSurfaceDeps; reporter: ErrorReporter },
   { toolSurface, attachmentLookup, federationConnect }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
     federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"] } = {},
 ): AssistantByokModuleHandle {
@@ -546,7 +547,7 @@ export function createAssistantByokModule(
   let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns }));
+    createByokToolSurface({ ...surfaceDeps, reporter }, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns }));
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice,
     surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges, assertAccessApprover: createAccessApprover(routeDeps) } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
@@ -563,10 +564,10 @@ export function createAssistantByokModule(
     sealer: routeDeps.siteAssistantSecretSealer,
   });
 
-  return byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }, serverFederation);
+  return byokModuleHandle({ routeDeps, reporter, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }, serverFederation);
 }
 
-function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }: ByokTurnContext, serverFederation: ReturnType<typeof createAssistantServerFederation>): AssistantByokModuleHandle {
+function byokModuleHandle({ routeDeps, reporter, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }: ByokTurnContext & { reporter: ErrorReporter }, serverFederation: ReturnType<typeof createAssistantServerFederation>): AssistantByokModuleHandle {
   return {
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,
@@ -579,7 +580,7 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
         return report.connections.some(connection => connection.connectionId === "tovu-desktop");
       } }, {});
     },
-    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: { daemonCalls: serverFederation.daemonCalls },
+    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, reporter, toolSurface: { daemonCalls: serverFederation.daemonCalls },
       runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps, core: routeDeps,
       plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
         pinnedPrefix: async ({ pluginRefIds }) => {

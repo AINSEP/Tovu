@@ -32,6 +32,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import { createResolvedMailer, type ResolveMailerDeps } from "#src/server/runtime/boot/resolve-mailer";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { PLUGIN, WORKSPACE, compose, connectForRef, startAcmeProvider, stopAcmeProvider } from "./fixtures/acme-provider.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const BASELINE_URL = new URL("./fixtures/cost-counters.baseline.json", import.meta.url);
 /** The acme-office fixture package `fixtures/acme-provider.ts` loads contributions from. */
@@ -82,7 +83,7 @@ after(stopAcmeProvider);
 test("counter: skill tool call (file reads, bytes) per call", async (t) => {
   const fixture = await installSupportingFilesFixture({});
   t.after(fixture.cleanup);
-  const executor = createAssistantToolExecutor({ registry: fixture.registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, {});
+  const executor = createAssistantToolExecutor({ reporter: testToolReporter(), registry: fixture.registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, {});
   const call = async (input: Record<string, unknown>) => {
     const fs = countFs(t, await fsp.realpath(fixture.root));
     const result = await executor.execute({ principal: { id: "skill-reader" }, run: { id: "run" }, toolId: "agent_plugin_ui_ux_design", input });

@@ -96,6 +96,10 @@ import { respondToOversizedBody } from "../../inbound/shared/json-body-parsers.j
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
 import type { CreateAppOptions } from "./create-app-options.js";
 import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
+import { createTovuErrorReporter } from "./error-reporter.js";
+import { processBuildConstants, type BuildVersions } from "./build-constants.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { subscribeSiteEventHandlersOnce } from "./site-event-subscriptions.js";
 import { applyPublicMiddleware, registerAdminSpa, registerSiteIdlePark } from "./http-app/public-middleware.js";
 import { mountPublicSite } from "./http-app/mount-public-site.js";
@@ -417,6 +421,30 @@ function createMemoryPublishPorts(context: Parameters<typeof createMemoryPublish
   });
 }
 
+/** One reporter per site composition. A loopback or internal-export app built from the same `routeDeps`
+ * reuses it, so the reporter's memory of already-recorded errors (and their IDs) spans that site's apps. */
+const siteReporterByDeps = new WeakMap<object, ErrorReporter>();
+/** Resolved once per process, at the first site composition, never per request. */
+let processVersions: BuildVersions | undefined;
+
+/**
+ * The site's error reporter: the host-injected one, else this site's memoized one, else a new binding
+ * over the site tracker and clock with the process console as its host record.
+ * @complexity O(1) after the first call per site; the first call reads two manifests once per process.
+ */
+function siteFailureReporter(
+  { routeDeps }: { routeDeps: Pick<NewsletterRouteDeps, "tracker" | "clock"> },
+  { errorReporter }: Pick<CreateAppOptions, "errorReporter"> = {},
+): ErrorReporter {
+  if (errorReporter) return errorReporter;
+  const known = siteReporterByDeps.get(routeDeps);
+  if (known) return known;
+  processVersions ??= processBuildConstants();
+  const reporter = createTovuErrorReporter({ logger: createConsoleLogger({ prefix: "" }), tracker: routeDeps.tracker, clock: routeDeps.clock, versions: processVersions });
+  siteReporterByDeps.set(routeDeps, reporter);
+  return reporter;
+}
+
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, options: CreateAppOptions = {}) {
   const app = express();
   // Read the lifecycle owners now: a completed job must not pin a warm child forever.
@@ -428,6 +456,11 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
   };
   registerSiteIdlePark({ app, routeDeps, hasBackgroundWork }, options);
   registerWarmSiteRetirement({ app, siteDir: routeDeps.siteBinding.dir, hasBackgroundWork });
+  // Bound once, before the public/admin split: public and admin failures alike reach the one site
+  // reporter through `res.locals`; shared inbound code reads it there and never imports composition.
+  // Request ID, ALS admission and the fallback 5xx marker stay with `applyRequestTracking`.
+  const failureReporter = siteFailureReporter({ routeDeps }, options);
+  app.use((_req, res, next) => { res.locals.failureReporter = failureReporter; next(); });
   // All admin error mappers share this request-scoped diagnostic port, including narrow route deps.
   app.use("/api/admin", (_req, res, next) => { res.locals.adminFailureTracker = routeDeps.tracker; next(); });
   const internalRouter = express.Router();
@@ -437,14 +470,14 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
 
-  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps }, { onAdminSignIn: options.onAdminSignIn });
+  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps, reporter: failureReporter }, { onAdminSignIn: options.onAdminSignIn });
 
   mountMembersNewsletter({ app, routeDeps });
 
-  mountAdminSystem({ app, routeDeps });
-  mountAdminFeatures({ app, routeDeps });
+  mountAdminSystem({ app, routeDeps, reporter: failureReporter });
+  mountAdminFeatures({ app, routeDeps, reporter: failureReporter });
 
-  mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps: siteAppBootWorkByDeps }, options);
+  mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps: siteAppBootWorkByDeps, reporter: failureReporter }, options);
 
   mountAdminData({ app, routeDeps });
 

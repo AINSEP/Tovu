@@ -13,6 +13,7 @@ import { registerAdminFormsCreateRoute } from "#src/server/runtime/composition/m
 import { registerAdminFormsAuthoringRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createFormsAdminModule } from "../../runtime/composition/modules/forms-admin.js";
+import { createRouteIncidentReporter } from "../helpers/route-incident-reporter.js";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 
 /** No route this file drives deletes a submission; reaching this is a contract change, not a pass. */
@@ -163,6 +164,6 @@ test("forms-admin composition registers the dedicated authoring endpoint", () =>
   // A registration assertion catches the easy-to-miss production wiring gap independently of HTTP fixtures.
   const paths: string[] = [];
   const app = { get: () => {}, post: () => {}, delete: () => {}, put: (path: string) => { paths.push(path); } };
-  createFormsAdminModule({} as Parameters<typeof createFormsAdminModule>[0]).registerRoutes!({ app: app as unknown as express.Express });
+  createFormsAdminModule({ deps: {} as Parameters<typeof createFormsAdminModule>[0]["deps"], errors: createRouteIncidentReporter().errors }).registerRoutes!({ app: app as unknown as express.Express });
   assert.ok(paths.includes("/api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring"));
 });

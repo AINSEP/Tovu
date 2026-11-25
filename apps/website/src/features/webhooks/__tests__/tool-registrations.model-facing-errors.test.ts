@@ -19,7 +19,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "../../../server/__tests__/helpers/route-incident-reporter.js";
 
 const WORKSPACE_ID = "ws-webhooks-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -52,8 +52,8 @@ async function buildHarness(routeDeps: IntegrationsToolDeps) {
 
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
-async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
+async function call(harness: Harness, toolId: string, input: unknown, incidents = createRouteIncidentReporter()) {
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: incidents.reportInternalError } });
 }
 
 test("webhooks_get_deliveries for an unknown subscription is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {
@@ -145,14 +145,18 @@ test("an unlisted repository error stays redacted through the delegated transpor
     throw new Error("SQL failure in /private/operator/content.db: SELECT secret FROM credentials");
   };
   const harness = await buildHarness(deps);
-  const result = await call(harness, "webhooks_list_subscriptions", {});
+  const incidents = createRouteIncidentReporter();
+  const result = await call(harness, "webhooks_list_subscriptions", {}, incidents);
   assert.equal(result.ok, false);
   if (result.ok) return;
   assert.ok("requestId" in result.error);
-  assert.match(String(result.error.requestId), /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i);
+  assert.match(String(result.error.requestId), /^ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
+  // The route's one incident: one host record, whose ERR- id is the request id.
+  assert.deepEqual(incidents.entries.map((entry) => entry.meta?.["errorId"]), [result.error.requestId]);
   assert.deepEqual(result.error, {
+    // Why: Jini's delegated transport words an unlisted fault for the model (retry guidance + the reporter's ERR- id); still no SQL/path text.
     // Why: Jini's delegated transport now words an unlisted fault for the model (retry guidance + request ID), Jini 77b3d899 / 44ae8070; still no SQL/path text.
-    code: "INTERNAL_ERROR", message: "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem.", requestId: result.error.requestId,
+    code: "INTERNAL_ERROR", message: `The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem. (error ${String(result.error.requestId)})`, requestId: result.error.requestId,
   });
 });
 

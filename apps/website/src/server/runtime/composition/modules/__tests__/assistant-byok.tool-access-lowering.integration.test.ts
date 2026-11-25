@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
@@ -12,6 +13,7 @@ import { resetAssistantDaemonSingletonForTests } from '#src/server/runtime/lifec
 import { registerAuthRoutes } from '#src/server/inbound/admin-http/dev-auth';
 import { bootAuthenticated } from '#src/server/__tests__/helpers/http-test-server';
 import { BYOK_TURN_PATH, createAssistantByokModule } from '../assistant-byok.js';
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 function frame(type: string, data: unknown): string { return `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`; }
 
@@ -33,10 +35,10 @@ test('plugin OFF aborts an affected provider stream, awaits cleanup, and preserv
   provider.listen(0, '127.0.0.1'); await once(provider, 'listening');
   t.after(() => { provider.closeAllConnections(); provider.close(); });
   const deps = createRouteDeps();
-  const surface = createByokToolSurface(deps, { installExtensions: false });
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false });
   surface.registry.register({ descriptor: { id: 'mcp__mail__read', description: 'Read mail', inputSchema: { type: 'object' }, metadata: { mcpSource: { id: 'mail', host: 'mail.example', pluginId: 'mail-plugin' } } }, policy: { authorize: async () => "allow" as const }, handler: async () => ({ ok: true }) });
-  const module = createAssistantByokModule({ routeDeps: deps }, { toolSurface: surface });
-  const app = express(); app.use(express.json()); registerAuthRoutes({ app, deps });
+  const module = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: surface });
+  const app = express(); app.use(express.json()); registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   module.registerRoutes?.({ app }); module.activateServerFederation?.({ router: app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'Please answer.' }], byok: { protocol: 'anthropic', apiKey: 'fixture-test-key', model: 'fixture', baseUrl: `http://127.0.0.1:${(provider.address() as AddressInfo).port}` } }) });

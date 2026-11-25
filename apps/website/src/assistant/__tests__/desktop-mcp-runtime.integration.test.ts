@@ -11,6 +11,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { startMcpHttpToolServer } from "@jini-ai/mcp";
 import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 import { createAssistantServerFederation } from "#src/server/runtime/composition/modules/assistant-server-federation";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 async function fixture(t: test.TestContext, { deferEndpoint = false } = {}) {
   const host = await startMcpHttpToolServer({ name: "desktop", version: "1", resolveBaseUrl: () => "", tools: [
@@ -23,7 +24,7 @@ async function fixture(t: test.TestContext, { deferEndpoint = false } = {}) {
   deps.authorize = async () => ({ allowed: true, reason: "matched" });
   const connectHttp = createDefaultConnect({ resolver: tovuStdioLaunchResolverFromEnv({}) }, { bearerToken: runtime.bearerToken });
   const stdioAttempts: string[] = [];
-  const surface = createByokToolSurface(deps, { desktopMcpRuntime: runtime, federationConnect: async connection => {
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { desktopMcpRuntime: runtime, federationConnect: async connection => {
     if ("command" in connection.launch) { stdioAttempts.push(connection.config.connectionId); throw new Error("stored stdio fixture"); }
     return connectHttp(connection);
   } });
@@ -72,7 +73,7 @@ test("a web server never launches the retired desktop bridge without a spawning 
   });
   const runtime = createDesktopMcpRuntime({ env: {} }, {});
   let attempts = 0;
-  const surface = createByokToolSurface(deps, { desktopMcpRuntime: runtime, federationConnect: async () => {
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { desktopMcpRuntime: runtime, federationConnect: async () => {
     attempts++; throw new Error("a web process cannot launch desktop tools");
   } });
   assert.deepEqual((await surface.readFederationAdmissions({}, {})).connections, []);
@@ -136,7 +137,7 @@ test("owner restart recovers without manual action", async t => {
   const connect = createDefaultConnect({ resolver: tovuStdioLaunchResolverFromEnv({}) }, { bearerToken: restarted.runtime.bearerToken });
   // A restarted owner spawns a new server over the same persistent workspace. No stored row or
   // keyring update can be required to replace the old process-local endpoint.
-  const surface = createByokToolSurface(first.deps, { desktopMcpRuntime: restarted.runtime, federationConnect: connect });
+  const surface = createByokToolSurface(Object.assign(first.deps, { reporter: testToolReporter() }), { desktopMcpRuntime: restarted.runtime, federationConnect: connect });
   const server = createAssistantServerFederation({ toolSurface: surface }, {});
   assert.ok((await server.daemonCalls.listToolsFor({ principalId: "owner" })).some(tool => tool.id === "mcp__tovu-desktop__list_sites"));
   assert.equal(await restarted.runtime.bearerToken({ url: restarted.host.url }), restarted.host.token);

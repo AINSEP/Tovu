@@ -24,7 +24,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type HtmlFormDefinitionRecord } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "../../../server/__tests__/helpers/route-incident-reporter.js";
 
 const WORKSPACE_ID = "ws-forms-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -65,7 +65,7 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 async function call(harness: Harness, toolId: string, input: unknown) {
   return delegatedToolExecuteRoute.handle({
     input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input },
-    deps: { ...harness, reportInternalError: reportRouteInternalError },
+    deps: { ...harness, reportInternalError: createRouteIncidentReporter().reportInternalError },
   });
 }
 

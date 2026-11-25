@@ -4,6 +4,7 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
 import { captureDaemonRun, daemonSource, daemonManifest } from "./helpers/daemon-source.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** ADR-070 moves federation assembly, admissions and refusal diagnosis to the server owner.
  * The daemon retains prompt delivery and discovery over the site's principal-scoped descriptors.
@@ -27,7 +28,7 @@ test("onStarted reads the site's federation refusal prefix afresh for each run",
 
 test("the server executor diagnoses a refusal introduced after construction", async () => {
   const deps = createRouteDeps();
-  const { toolSurface } = createAssistantByokModule({ routeDeps: deps });
+  const { toolSurface } = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps });
   await toolSurface.ready;
   assert.ok(toolSurface.federation);
   // Registry readiness does not settle the federation roster. Before that separate boot pass,

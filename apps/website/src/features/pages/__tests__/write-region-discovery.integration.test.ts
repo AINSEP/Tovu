@@ -7,6 +7,7 @@ import { registerInstalledExtensionTools } from "#src/server/runtime/composition
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 import { MIN_EXPECTED_TOOL_COUNT, fakeEvalRouteDeps } from "../../../../../../development/evals/tool-search-eval-registry.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file Proves `pages_write_region` is REACHABLE, not merely registered.
@@ -25,7 +26,7 @@ import { MIN_EXPECTED_TOOL_COUNT, fakeEvalRouteDeps } from "../../../../../../de
  * to beat is not a sibling: it is `pages_write_html`, which for a year has been the ONLY answer to
  * every page question and therefore the tool the model has every reason to reach for. Beating it in
  * a seven-tool fixture would prove nothing. So this composes the real
- * `createByokToolSurface(...)` — the same function `server/modules/assistant-byok.ts` composes at
+ * `createByokToolSurface(Object.assign(..., { reporter: testToolReporter() }))` — the same function `server/modules/assistant-byok.ts` composes at
  * boot — over the full installed catalog, and calls `executeMetaTool` exactly as a BYOK turn does.
  * `MIN_EXPECTED_TOOL_COUNT` is asserted first because a catalog that silently built without its
  * contributed domains would score every query against nine tools and pass this file trivially (see
@@ -59,7 +60,7 @@ function surface() {
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
-  return createByokToolSurface(fakeEvalRouteDeps() as never, { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
+  return createByokToolSurface(Object.assign(fakeEvalRouteDeps() as never, { reporter: testToolReporter() }), { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
 }
 
 async function rankedIds(query: string): Promise<SearchHit[]> {

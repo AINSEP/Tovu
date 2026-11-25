@@ -5,6 +5,7 @@ import { a2uiActionsRoutes } from "@jini-ai/daemon/http";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { surfaceRouteHost } from "./surface-route-host.js";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { mountJiniPostRoutesInPlace } from "#src/platform/express/jini-routes";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
@@ -93,10 +94,10 @@ export interface A2uiActionsRouteDeps {
  * own, which is O(1) (a `Map` lookup).
  * @overallScore 100
  */
-export function registerA2uiActionsRoute({ app, deps }: { app: Express; deps: A2uiActionsRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerA2uiActionsRoute({ app, deps, errors }: { app: Express; deps: A2uiActionsRouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   mountJiniPostRoutesInPlace({ app, routes: a2uiActionsRoutes({
     path: A2UI_ACTIONS_PATH,
-    host: surfaceRouteHost(),
+    host: surfaceRouteHost({ errors }),
     deps: { surfaceExchanges: deps.surfaceExchanges, principalHeader: RUN_PRINCIPAL_HEADER, parseRendererMessage: parseRendererToAgentMessage },
   }) }, { anonymous: true });
 }

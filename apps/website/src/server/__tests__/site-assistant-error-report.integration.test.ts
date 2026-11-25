@@ -18,6 +18,7 @@ import { createSiteAssistantModule } from "../runtime/composition/modules/site-a
 import { parsePublicJsonBody } from "../inbound/shared/json-body-parsers.js";
 import { applyRequestTracking } from "../inbound/shared/observability-middleware.js";
 import { startTestServer } from "./helpers/http-test-server.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Site-assistant failures reach `ObservabilityPort.reportError` (provider wave 2): a failure
@@ -44,7 +45,7 @@ async function boot({ t }: { t: TestContext }) {
   const app = express();
   applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.use(parsePublicJsonBody);
-  createSiteAssistantModule(deps, { env: {} }).registerRoutes?.({ app });
+  createSiteAssistantModule({ deps, reporter: createRouteIncidentReporter().reporter }, { env: {} }).registerRoutes?.({ app });
   return { reports, logs, baseUrl: await startTestServer(app, t) };
 }
 

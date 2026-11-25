@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import '../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
@@ -33,7 +34,7 @@ test('admin memory round-trips a user note, refuses learned writes/traversal, an
       } },
     });
     const deps = createRouteDeps(); const app = express(); app.use(express.json());
-    registerAuthRoutes({ app, deps }); app.use('/api/admin', requireAdminSession(deps));
+    registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors }); app.use('/api/admin', requireAdminSession(deps));
     registerAgentPluginMemoryRoutes({ app, deps }); registerAgentPluginFilesRoute({ app, deps });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const prefix = `${baseUrl}/api/admin/v1/workspaces/workspace-local/agent-plugins/example`;
@@ -103,7 +104,7 @@ async function bootMemoryApp(t: TestContext): Promise<{ prefix: string; cookie: 
     } },
   });
   const deps = createRouteDeps(); const app = express(); app.use(express.json());
-  registerAuthRoutes({ app, deps }); app.use('/api/admin', requireAdminSession(deps));
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors }); app.use('/api/admin', requireAdminSession(deps));
   registerAgentPluginMemoryRoutes({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   return { prefix: `${baseUrl}/api/admin/v1/workspaces/workspace-local/agent-plugins`, cookie };

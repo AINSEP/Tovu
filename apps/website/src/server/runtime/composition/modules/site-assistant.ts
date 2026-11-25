@@ -1,7 +1,8 @@
 import { type ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import { createVisitorPageTargets } from "../visitor-page-targets.js";
 import { createVisitorFrontendControl } from "#src/assistant/site/visitor-frontend-control";
-import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from "../../../../platform/express/jini-routes.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { daemonRouteHost, mountJiniRoutes, NO_OPERATION_TRACKING, nodeSessionTimer } from "../../../../platform/express/jini-routes.js";
 import { requestHookInput } from "#src/platform/express/request-facts";
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from "#src/server/inbound/shared/json-body-parsers";
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
@@ -565,11 +566,17 @@ async function runSiteAssistantPreflight(
   return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
 }
 
+/** The site's route deps plus the two test seams the visitor assistant reads. */
+type SiteAssistantModuleDeps = RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort };
+
 /** `siteAssistantConfirmationScheduler` owns the one timer a held visitor confirmation has: its
  *  expiry. The host passes none and gets real timeouts; a test passes its own to reach the expiry
  *  ending without waiting out the 60 s the visitor is given. */
-export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): ServerModuleHandle {
-  const context = createSiteAssistantContext(deps, env);
+export function createSiteAssistantModule(
+  { deps, reporter }: { deps: SiteAssistantModuleDeps; reporter: ErrorReporter },
+  { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
+): ServerModuleHandle {
+  const context = createSiteAssistantContext(deps, env, reporter);
   const { resolution } = context;
   return {
     name: "site-assistant",
@@ -592,7 +599,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
   };
 }
 
-function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantModule>[0], env: NodeJS.ProcessEnv) {
+function createSiteAssistantContext(deps: SiteAssistantModuleDeps, env: NodeJS.ProcessEnv, siteReporter: ErrorReporter) {
   const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
     exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}),
       // This generator is cryptographic; the site's ordinary IDs can be time ordered.
@@ -615,7 +622,9 @@ function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantM
     },
   });
 
-  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock, ports: { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput },
+  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock, ports: { mountRoutes: mountJiniRoutes,
+    // The visitor frontend routes are this site's: their incidents go to the site's one reporter.
+    routeHost: (required) => daemonRouteHost({ ...required, errors: { reporter: siteReporter, observability: NO_OPERATION_TRACKING } }), parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput },
     enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== 'off' && await isPublicAssistantEnabled(
       { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
     canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },

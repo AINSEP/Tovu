@@ -7,6 +7,7 @@ import type { ToolContributor, DerivedToolContributor } from "../index.js";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file `theme_duplicate` is reachable the way every non-Claude-Code assistant reaches a tool: through
@@ -72,7 +73,7 @@ test("BYOK: search_tools finds theme_duplicate and describe_tool returns its reg
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
-  const surface = createByokToolSurface(fakeRouteDeps(), { installExtensions: false, contributions });
+  const surface = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { installExtensions: false, contributions });
   const principal = { id: "principal-theme-duplicate" };
   const run = { id: "run-theme-duplicate" };
 

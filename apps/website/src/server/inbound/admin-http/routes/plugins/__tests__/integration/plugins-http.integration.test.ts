@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -78,7 +79,7 @@ function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps; b
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerPluginsListRoute({ app, deps: pluginDeps });
   registerPluginSetEnabledRoute({ app, deps: pluginDeps });

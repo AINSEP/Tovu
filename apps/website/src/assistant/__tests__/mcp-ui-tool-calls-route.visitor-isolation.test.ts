@@ -13,6 +13,7 @@ import { startTestServer } from "../../server/__tests__/helpers/http-test-server
 import { nodeIntervalScheduler } from "../../platform/express/jini-routes.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 function assertDedicatedVisitorStore() {
   const filename = new URL("../../server/runtime/composition/modules/site-assistant.ts", import.meta.url);
@@ -46,7 +47,7 @@ test("admin MCP-UI replies cannot deliver visitor exchanges and the site assista
   const app = express();
   app.use(express.json());
   registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler,
-    toolExecutor: createToolExecutor({ registry: createToolRegistry({}) }), surfaceExchanges: store } });
+    toolExecutor: createToolExecutor({ registry: createToolRegistry({}) }), surfaceExchanges: store }, errors: createRouteIncidentReporter().errors });
   try {
     const baseUrl = await startTestServer(app, t);
     for (const replyPrincipal of ["admin-principal", principalId]) {

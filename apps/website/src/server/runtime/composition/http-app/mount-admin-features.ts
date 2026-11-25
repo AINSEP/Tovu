@@ -28,9 +28,12 @@ import { createMediaConversionPorts } from "../media-video-ports.js";
 import { operatorLogVideoNote } from "#src/features/media/import-video-conversion";
 import { mountRoutes } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { NO_OPERATION_TRACKING } from "#src/platform/express/jini-routes";
 
-/** Comment moderation, menus, widgets, plugins, skills, webhooks admin, media, trash, external MCP, identity, settings, forms admin, redirects and database recovery modules, in registration order. */
-export function mountAdminFeatures({ app, routeDeps }: MountInput, _optional = {}): void {
+/** Comment moderation, menus, widgets, plugins, skills, webhooks admin, media, trash, external MCP, identity, settings, forms admin, redirects and database recovery modules, in registration order.
+ * @param required.reporter - The site's one reporter (`createApp`'s); the routes these modules mount directly on http-kit record through it. */
+export function mountAdminFeatures({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, _optional = {}): void {
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
@@ -43,7 +46,7 @@ export function mountAdminFeatures({ app, routeDeps }: MountInput, _optional = {
   // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.
   // `RouteDeps` already carries every dependency this module needs (`widgetBindingRepo`/
   // `entryRefsRepo`, added by this same dispatch) — no widened deps type, unlike menus.
-  mountRoutes({ app, mod: createWidgetsModule(routeDeps) });
+  mountRoutes({ app, mod: createWidgetsModule({ deps: routeDeps, errors: { reporter, observability: NO_OPERATION_TRACKING } }) });
   // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
   mountRoutes({ app, mod: createPluginsModule(routeDeps) });
   // 2026-09-09 — the `agent-plugins` server module: AGENT_PLUGINS_LIST, the admin Agent Plugins
@@ -115,7 +118,7 @@ export function mountAdminFeatures({ app, routeDeps }: MountInput, _optional = {
   // CRUD + submissions list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
   // Distinct from `createFormsModule` below, which owns the Forms-to-notify-subscriber
   // subscription, not an HTTP surface.
-  mountRoutes({ app, mod: createFormsAdminModule(routeDeps) });
+  mountRoutes({ app, mod: createFormsAdminModule({ deps: routeDeps, errors: { reporter, observability: NO_OPERATION_TRACKING } }) });
 
   // ADR-046 Phase 3 (SPEC-041): the `redirects` server module — 7 admin routes (list/get/create/
   // update/tombstone/import/hits), each gated by `admin.redirects.manage` (api.spec.md §1/§2).

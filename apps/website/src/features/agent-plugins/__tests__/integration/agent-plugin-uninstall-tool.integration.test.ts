@@ -29,7 +29,7 @@ import type { AgentPluginUninstallHostDeps as AgentPluginUninstallToolDeps } fro
 import { buildPluginsUninstallRegistration } from "../fixtures/plugins-uninstall-registration.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -304,18 +304,19 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
     const toolExecutor = createToolExecutor({ registry });
     const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
     const { run } = await lifecycle.start({ contextRef: "ctx-1" });
-    const internalErrors: unknown[] = [];
+    const incidents = createRouteIncidentReporter();
 
     const wire = await delegatedToolExecuteRoute.handle({
       input: { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: { family: "agent-plugin", pluginId: "operator-plugin" } },
-      deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }), onInternalError: (context) => internalErrors.push(context) },
+      deps: { reportInternalError: incidents.reportInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) },
     });
 
     assert.ok(wire.ok, `the model must get a result it can relay, got ${JSON.stringify(wire)}`);
     assert.equal(wire.value.result.status, "completed");
     assert.deepEqual(wire.value.result.output, activationsUnreadableOutput("operator-plugin"));
     assert.equal(JSON.stringify(wire).includes(dir), false, "no host path may reach the model");
-    assert.deepEqual(internalErrors, []);
+    assert.deepEqual(incidents.entries, [], "the route recorded no incident");
+    assert.deepEqual(incidents.reports, [], "the route reported no incident");
     assert.equal(warnings.length, 1);
     assert.match(warnings[0] ?? "", /\[agent-plugins\] 'operator-plugin': plugins_uninstall \(family agent-plugin\) refused — agent-plugin activation: activations\.json is not valid JSON/);
     assert.ok((warnings[0] ?? "").includes(activationsPath), "the server log must name the file");

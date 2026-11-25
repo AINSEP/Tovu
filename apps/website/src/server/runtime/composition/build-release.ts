@@ -32,6 +32,15 @@ export function readBuildRelease({ productRoot }: { productRoot: string }, { rea
   return `tovu@${versionOf({ value: pkg.version }) ?? 'unknown'}-dev`;
 }
 
+/** The running product's plain version (`runtime-manifest.json`'s `tovuVersion`, else source `package.json`).
+ * Why separate from {@link readBuildRelease}: incident records carry the bare version beside the Jini one;
+ * the `tovu@…+sha` label is a telemetry release name. @returns undefined when neither holds a valid version.
+ */
+export function readProductVersion({ productRoot }: { productRoot: string }, { read = readFileSync }: { read?: Read } = {}): string | undefined {
+  const manifest = documentAt({ file: path.join(productRoot, 'runtime-manifest.json'), read });
+  return versionOf({ value: manifest.tovuVersion }) ?? versionOf({ value: documentAt({ file: path.join(productRoot, 'package.json'), read }).version });
+}
+
 let release: string | undefined;
 /** Resolve once per process so live config changes cannot rewrite build identity. */
 export function processBuildRelease(_required: Record<string, never>, _optional: Record<string, never> = {}): string {

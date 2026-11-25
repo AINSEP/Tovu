@@ -9,7 +9,6 @@ import {
   readToolErrorId,
   TOOL_ERROR_ID_PATTERN,
   withRedactedToolFailures,
-  type ToolFailureRecord,
 } from "../tool-recovery-preset.js";
 
 /**
@@ -55,15 +54,18 @@ function throwingExecutor(error: unknown): ToolExecutor {
   };
 }
 
-test("an internal failure whose text holds secrets is redacted, ID-prefixed, and recorded", async () => {
-  const records: ToolFailureRecord[] = [];
+test("standalone withRedactedToolFailures still redacts and stamps an id", async (t) => {
+  // It has no reporter: recording is the daemon observation layer's job (P4-J4). Any console write
+  // here would be the removed global `[tool-failure]` sink coming back as a second, unowned record.
+  const errors = t.mock.method(console, "error", () => {});
+  const warnings = t.mock.method(console, "warn", () => {});
   const inner = fakeExecutor({
     executionId: "exec-1",
     status: "failed",
     errorKind: "internal",
     error: `request failed: key=${STRIPE_KEY} Authorization: Bearer ${GHP_TOKEN}`,
   });
-  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "custom_credential_make_request", input: {} });
 
@@ -71,29 +73,17 @@ test("an internal failure whose text holds secrets is redacted, ID-prefixed, and
   assert.equal(result.error!.includes(STRIPE_KEY), false);
   assert.equal(result.error!.includes(GHP_TOKEN), false);
   assert.equal(readToolErrorId({ result: result }, {}), FIXED_ID);
-  assert.equal(records.length, 1);
-  assert.deepEqual(records[0], {
-    errorId: FIXED_ID,
-    toolId: "custom_credential_make_request",
-    runId: "run-1",
-    principalId: "principal-1",
-    executionId: "exec-1",
-    redactions: 2,
-    message: records[0].message,
-  });
-  assert.equal(records[0].message.includes(STRIPE_KEY), false);
-  assert.equal(records[0].message.includes(GHP_TOKEN), false);
+  assert.equal(errors.mock.callCount(), 0, "the standalone adapter must not record on its own");
+  assert.equal(warnings.mock.callCount(), 0);
 });
 
-test("an internal failure with no secret gives exactly 'Error <ID>: <original>', with redactions: 0", async () => {
-  const records: ToolFailureRecord[] = [];
+test("an internal failure with no secret gives exactly 'Error <ID>: <original>'", async () => {
   const inner = fakeExecutor({ executionId: "exec-2", status: "failed", errorKind: "internal", error: "connect ECONNREFUSED 10.0.4.7:443" });
-  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
   assert.equal(result.error, `Error ${FIXED_ID}: connect ECONNREFUSED 10.0.4.7:443`);
-  assert.equal(records[0].redactions, 0);
 });
 
 test("a missing errorKind is treated as internal", async () => {
@@ -106,21 +96,19 @@ test("a missing errorKind is treated as internal", async () => {
   assert.equal(readToolErrorId({ result: result }, {}), FIXED_ID);
 });
 
-test("a validation failure is redacted with no ID minted and onFailure never called", async () => {
-  const records: ToolFailureRecord[] = [];
+test("a validation failure is redacted with no ID minted", async () => {
   const inner = fakeExecutor({
     executionId: "exec-4",
     status: "failed",
     errorKind: "validation",
     error: "MEMBERS_NOT_FOUND: member 'x' was not found",
   });
-  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
   assert.equal(result.error, "MEMBERS_NOT_FOUND: member 'x' was not found");
   assert.equal(readToolErrorId({ result: result }, {}), undefined);
-  assert.equal(records.length, 0);
 });
 
 test("a validation failure whose message holds a secret is still blanked, with no ID", async () => {
@@ -146,10 +134,9 @@ test("every non-failed status is returned strictly unchanged", async () => {
   }
 });
 
-test("the inner executor throwing is rethrown untouched, and onFailure is never called", async () => {
-  const records: ToolFailureRecord[] = [];
+test("the inner executor throwing is rethrown untouched", async () => {
   const boom = new Error("unknown tool \"typo\"");
-  const executor = withRedactedToolFailures({ inner: throwingExecutor(boom) }, { onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: throwingExecutor(boom) }, {});
 
   const thrown = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "typo", input: {} }).then(
     () => null,
@@ -157,7 +144,6 @@ test("the inner executor throwing is rethrown untouched, and onFailure is never 
   );
 
   assert.equal(thrown, boom);
-  assert.equal(records.length, 0);
 });
 
 test("with the default minter, two internal failures get two different IDs, and both match the pattern", async () => {
@@ -176,20 +162,6 @@ test("with the default minter, two internal failures get two different IDs, and 
 
 test("mintToolErrorId always matches TOOL_ERROR_ID_PATTERN", () => {
   for (let i = 0; i < 20; i += 1) assert.match(mintToolErrorId({}, {}), TOOL_ERROR_ID_PATTERN);
-});
-
-test("an onFailure that throws still returns the redacted result", async () => {
-  const inner = fakeExecutor({ executionId: "exec-7", status: "failed", errorKind: "internal", error: "boom" });
-  const executor = withRedactedToolFailures({ inner: inner }, {
-    mintErrorId: () => FIXED_ID,
-    onFailure: () => {
-      throw new Error("sink exploded");
-    },
-  });
-
-  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
-
-  assert.equal(result.error, `Error ${FIXED_ID}: boom`);
 });
 
 test("resumeConfirmation, cancel and getAuditRecord delegate straight through", () => {

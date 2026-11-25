@@ -5,14 +5,21 @@ import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, WS, fixture, invokeRouteDirectly } from '#src/server/__tests__/helpers/admin-route-failures';
 import { registerAdminFormsPullSubmissionsRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { createRouteIncidentReporter } from '#src/server/__tests__/helpers/route-incident-reporter';
+import type { Register } from '#src/server/__tests__/helpers/admin-route-failures';
 
 /** @file POST forms/submissions/pull: authorization, input, the unwired case, and the pass-through. */
 
 const PATH = `${BASE}/forms/submissions/pull`;
 
+/** The pull registrar bound to one fixture reporter, as `createApp` binds it to the site's one reporter. */
+function pullRoute(incidents = createRouteIncidentReporter()): Register {
+  return ({ app, deps }) => registerAdminFormsPullSubmissionsRoute({ app, deps, errors: incidents.errors });
+}
+
 test('forms submissions pull: authorization failure stays private with safe copyable evidence', async t => {
   t.mock.method(console, 'error', () => {});
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { authorize: async () => { throw new Error('private credential'); } });
+  const { app } = fixture(pullRoute(), { authorize: async () => { throw new Error('private credential'); } });
   const response = await dispatchJsonRequest(app, 'POST', PATH);
   assert.equal(response.status, 500);
   const body = response.body as any;
@@ -28,7 +35,7 @@ test('forms submissions pull: authorization failure stays private with safe copy
 
 test('forms submissions pull: denied permission stops before pulling', async () => {
   let calls = 0;
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { authorize: async () => { calls++; return { allowed: false, reason: 'no_grant' }; },
+  const { app } = fixture(pullRoute(), { authorize: async () => { calls++; return { allowed: false, reason: 'no_grant' }; },
     formSubmissionsPull: { pull: async () => { throw new Error('must not pull'); } } });
   const response = await dispatchJsonRequest(app, 'POST', PATH);
   assert.equal(response.status, 403);
@@ -38,7 +45,7 @@ test('forms submissions pull: denied permission stops before pulling', async () 
 
 test('forms submissions pull: workspace isolation precedes authorization', async () => {
   let calls = 0;
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { authorize: async () => { calls++; return { allowed: true }; } });
+  const { app } = fixture(pullRoute(), { authorize: async () => { calls++; return { allowed: true }; } });
   assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH.replace(BASE, '/api/admin/v1/workspaces/other')), {
     status: 404, body: { error: 'workspace was not found' },
   });
@@ -47,7 +54,7 @@ test('forms submissions pull: workspace isolation precedes authorization', async
 
 test('forms submissions pull: missing workspace parameter is refused before authorization', async () => {
   let calls = 0;
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { authorize: async () => { calls++; return { allowed: true }; } });
+  const { app } = fixture(pullRoute(), { authorize: async () => { calls++; return { allowed: true }; } });
   assert.deepEqual(await invokeRouteDirectly({ app, method: 'POST', path: PATH, req: { params: {}, query: {} } }), {
     statusCode: 404, jsonBody: { error: 'workspace was not found' },
   });
@@ -61,7 +68,7 @@ function pullSpy() {
 
 test('forms submissions pull: returns the pull report, for every destination or one target', async () => {
   const spy = pullSpy();
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: spy.port });
+  const { app } = fixture(pullRoute(), { formSubmissionsPull: spy.port });
   assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH), { status: 200, body: { message: 'Imported 3 new form submissions from 1 published site.', destinations: [] } });
   await dispatchJsonRequest(app, 'POST', PATH, { targetId: 'host-a' });
   assert.deepEqual(spy.calls, [[{ workspaceId: WS }, {}], [{ workspaceId: WS }, { targetId: 'host-a' }]]);
@@ -70,7 +77,7 @@ test('forms submissions pull: returns the pull report, for every destination or 
 for (const targetId of ['', 7, 'x'.repeat(65)]) {
   test(`forms submissions pull: targetId ${JSON.stringify(targetId).slice(0, 12)} is refused before pulling`, async () => {
     const spy = pullSpy();
-    const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: spy.port });
+    const { app } = fixture(pullRoute(), { formSubmissionsPull: spy.port });
     const result = await dispatchJsonRequest(app, 'POST', PATH, { targetId });
     assert.equal(result.status, 400);
     assert.equal((result.body as { code: string }).code, 'FORMS_FIELD_VALIDATION_ERROR');
@@ -79,7 +86,7 @@ for (const targetId of ['', 7, 'x'.repeat(65)]) {
 }
 
 test('forms submissions pull: an unwired server says so with a next step', async () => {
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: undefined });
+  const { app } = fixture(pullRoute(), { formSubmissionsPull: undefined });
   const result = await dispatchJsonRequest(app, 'POST', PATH);
   assert.equal(result.status, 503);
   assert.deepEqual(result.body, { error: "pulling form submissions is not available on this site's server; restart the site, then try again", code: 'FORMS_PULL_UNAVAILABLE' });
@@ -87,7 +94,7 @@ test('forms submissions pull: an unwired server says so with a next step', async
 
 test('forms submissions pull: a thrown pull is a private 500 that names a reference the server log repeats', async (t) => {
   const logged = t.mock.method(console, 'error', () => {});
-  const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: { pull: async () => { throw new Error('secret detail'); } } });
+  const { app } = fixture(pullRoute(), { formSubmissionsPull: { pull: async () => { throw new Error('secret detail'); } } });
   const result = await dispatchJsonRequest(app, 'POST', PATH);
   const body = result.body as any;
   assert.deepEqual({ status: result.status, code: body.code }, { status: 500, code: 'INTERNAL_ERROR' });
@@ -99,4 +106,26 @@ test('forms submissions pull: a thrown pull is a private 500 that names a refere
   assert.equal(body.details.failure.step, "forms.submissions.pull");
   assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[forms-pull]", diagnostics: [/Error: secret detail/] });
+});
+
+test('forms submissions pull: mounted in reporter mode, a failed answer write is one site incident whose ID the 500 carries', async () => {
+  const incidents = createRouteIncidentReporter();
+  const spy = pullSpy();
+  const { app } = fixture(({ app, deps }) => {
+    // The route's own answer is the first `res.json`; refusing it is a write the transport could not take.
+    app.use((_req, res, next) => {
+      const json = res.json.bind(res);
+      let refused = false;
+      res.json = (body: unknown) => { if (!refused) { refused = true; throw new Error('socket refused the body'); } return json(body); };
+      next();
+    });
+    pullRoute(incidents)({ app, deps });
+  }, { formSubmissionsPull: spy.port });
+  const result = await dispatchJsonRequest(app, 'POST', PATH);
+  const { error } = result.body as { error: { code: string; requestId: string } };
+  assert.deepEqual({ status: result.status, code: error.code }, { status: 500, code: 'INTERNAL_ERROR' });
+  assert.equal(incidents.entries.length, 1, 'exactly one record: the failed write, never a second route operation');
+  assert.match(error.requestId, /^ERR-7E57-/);
+  assert.ok(JSON.stringify(incidents.entries[0]).includes(error.requestId), 'the reply names the recorded incident');
+  assert.equal(spy.calls.length, 1, 'the pull ran once; a failed write never runs the handler again');
 });

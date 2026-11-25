@@ -43,7 +43,12 @@ import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapte
 import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { createProcessControlPort, nodeCommandShell, nodeSpawnPort } from "@jini-ai/node-adapters/process";
 import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
-import { daemonRouteHost, mountJiniRoutes } from "../../website/src/platform/express/jini-routes.ts";
+import { daemonRouteHost, mountJiniRoutes, NO_OPERATION_TRACKING } from "../../website/src/platform/express/jini-routes.ts";
+import { createTovuErrorReporter } from "../../website/src/server/runtime/composition/error-reporter.ts";
+import { processBuildConstants } from "../../website/src/server/runtime/composition/build-constants.ts";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
@@ -382,7 +387,7 @@ async function createDesktopRegistry(
 
 /** The loopback bridge: bearer-gated catalog and delegated-call routes over the registry. */
 async function startBridgeServer(
-  { credentials, registry, lifecycle, hostEnv }: { credentials: RunScopedCredentials; registry: ToolRegistry; lifecycle: RunLifecycle; hostEnv: DesktopAgentRuntimeRequired["agentRuntime"]["hostEnv"] },
+  { credentials, registry, lifecycle, hostEnv, reporter }: { credentials: RunScopedCredentials; registry: ToolRegistry; lifecycle: RunLifecycle; hostEnv: DesktopAgentRuntimeRequired["agentRuntime"]["hostEnv"]; reporter: ErrorReporter },
   _options = {},
 ) {
   const toolExecutor = createToolExecutor({ registry });
@@ -397,10 +402,10 @@ async function startBridgeServer(
   const adapter = { originPolicy: createLocalSameOriginPolicy({ port: () => portRef.current, env: hostEnv,
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   // 4 MiB: the byte size of the `express.json({ limit: "4mb" })` parser above; the lists derive their body limit from it.
-  const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 4 * 1024 * 1024 });
+  const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 4 * 1024 * 1024, errors: { reporter, observability: NO_OPERATION_TRACKING } });
   // One operator (DESKTOP_OPERATOR) is the only principal here, so the catalog is declared unscoped.
-  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: registryCatalog(registry), unscoped: true }, host: routeHost }) });
-  mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => DESKTOP_OPERATOR }, host: routeHost }) });
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: registryCatalog(registry), unscoped: true }, host: routeHost }) }, { reporter });
+  mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => DESKTOP_OPERATOR }, host: routeHost }) }, { reporter });
   const { server, url: daemonUrl } = await listenOnLoopback(app);
   portRef.current = (server.address() as AddressInfo).port;
   return { server, daemonUrl };
@@ -504,7 +509,10 @@ async function createDesktopAgentRuntime(
   });
   const gapStore = optional.toolGapStore ?? createConversationStore({ filePath: path.join(required.workDir, '..', 'desktop-chat-conversations.json') });
   const registry = await createDesktopRegistry({ required, addresseeOf, gapStore });
-  const { server, daemonUrl } = await startBridgeServer({ credentials, registry, lifecycle, hostEnv: required.agentRuntime.hostEnv });
+  // The desktop agent is its own process and composition root, so it owns its one reporter. It has no
+  // telemetry tracker by design (a local app exports nothing), so the host record is an incident's only copy.
+  const reporter = createTovuErrorReporter({ logger: createConsoleLogger({ prefix: "" }), tracker: { error: () => undefined }, clock: createSystemClock(), versions: processBuildConstants() });
+  const { server, daemonUrl } = await startBridgeServer({ credentials, registry, lifecycle, hostEnv: required.agentRuntime.hostEnv, reporter });
 
   const fullCliContext = new AsyncLocalStorage<boolean>();
   const executor = defaultAgentExecutor({ lifecycle, daemonUrl, credentials, agentRuntime: required.agentRuntime, fullCliContext }, optional);

@@ -213,6 +213,28 @@ describe("the failure notice of a finished request", () => {
     expect(publish.mock.calls[0][0]).toMatchObject({ generation });
   });
 
+  test.each([
+    { name: "approved details id", body: { errorId: "id-flat", error: { requestId: "id-request", details: { errorId: "id-details" } } }, expected: "id-details" },
+    { name: "flat id when details carry none", body: { errorId: "id-flat", error: { requestId: "id-request" } }, expected: "id-flat" },
+    { name: "request id when nothing else is sent", body: { error: { code: "INTERNAL_ERROR", message: "boom", requestId: "id-request" } }, expected: "id-request" },
+    { name: "ERR id of a flat reply", body: { error: "boom", errorId: "ERR-1A2B-3C4D-5E6F-7A8B" }, expected: "ERR-1A2B-3C4D-5E6F-7A8B" },
+  ])("a failed request over the wire shows the $name as its incident reference", async ({ body, expected }) => {
+    stubFetch(async () => json({ status: 500, body }));
+
+    await rejection({ run: () => authenticatedAdminRequest({ path: "/workspaces/workspace-local/menus", method: "POST", body: { title: "Main" } }) });
+
+    expect(adminFailureChannel.getSnapshot()?.errorId).toBe(expected);
+  });
+
+  test("a failed request over the wire with no id in the reply shows no incident reference", async () => {
+    stubFetch(async () => json({ status: 500, body: { error: "boom", code: "INTERNAL_ERROR" } }));
+
+    await rejection({ run: () => authenticatedAdminRequest({ path: "/workspaces/workspace-local/menus", method: "POST", body: { title: "Main" } }) });
+
+    expect(adminFailureChannel.getSnapshot()).not.toBeNull();
+    expect(adminFailureChannel.getSnapshot()?.errorId).toBeUndefined();
+  });
+
   test("a request that got no response is published once with status 0", async () => {
     freezeClock();
     stubFetch(async () => { throw new TypeError("Failed to fetch"); });

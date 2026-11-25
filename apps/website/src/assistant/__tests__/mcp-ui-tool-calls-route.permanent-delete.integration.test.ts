@@ -11,6 +11,7 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-t
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /** Port test, not run in Codex sandbox. Every card must reach the existing authenticated exchange
@@ -23,7 +24,7 @@ for (const spec of PERMANENT_DELETE_SPECS) {
     registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler,
       surfaceExchanges,
       toolExecutor: { execute: async () => { assert.fail("callback executed a new tool call"); } } as never,
-    } });
+    }, errors: createRouteIncidentReporter().errors });
     const baseUrl = await startTestServer(app, t);
     const post = (params: Record<string, unknown>, principalId: string) => fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
       method: "POST", headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: principalId },

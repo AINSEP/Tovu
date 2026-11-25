@@ -11,11 +11,12 @@ import {
   delegatedToolErrorDisclosure,
   describeDelegatedInternalError,
   type DelegatedInternalErrorContext,
-  type ToolFailureRecord,
 } from "../tool-recovery-preset.js";
+import { createRecordingReporter } from "@jini-ai/core/errors/testing";
+import type { LogDiagnosticRecord } from "@jini-ai/core/primitives";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createReporterRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -32,28 +33,38 @@ const FIXED_ID = "ERR-AAAA-1111-BBBB-2222";
 const STRIPE_KEY = ["sk", "live", ""].join("_") + "Ab3".repeat(8);
 const SECRET_TEXT = `lookup failed: key=${STRIPE_KEY}`;
 
+/** One recording reporter per harness: the executor stack and the route disclosure share it, as the
+ *  daemon's site scope does, so every id the model sees must be the id of a host record. */
+function recordingReporter() {
+  return createRecordingReporter({ ids: Array.from({ length: 8 }, () => FIXED_ID), iso: "2026-01-01T00:00:00.000Z" });
+}
+
+/** The ERR- ids the reporter's host records were written under, in order. */
+function hostRecordIds(entries: readonly LogDiagnosticRecord[]): unknown[] {
+  return entries.map((entry) => entry.meta?.["errorId"]);
+}
+
 interface Harness {
-  readonly records: ToolFailureRecord[];
+  readonly entries: LogDiagnosticRecord[];
   call(toolId: string, overrides?: Partial<DelegatedToolsHttpDeps>, signal?: AbortSignal): ReturnType<typeof delegatedToolExecuteRoute.handle>;
 }
 
 /** Builds the daemon's route deps over `registry`: Tovu's executor stack plus the disclosure options. */
 async function harness(registry: ToolRegistry = createToolRegistry({})): Promise<Harness> {
-  const records: ToolFailureRecord[] = [];
-  const toolFailures = { mintErrorId: () => FIXED_ID, onFailure: (record: ToolFailureRecord) => records.push(record) };
-  const toolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }), toolFailures }, {});
+  const { reporter, entries } = recordingReporter();
+  const toolFailures = { mintErrorId: () => FIXED_ID };
+  const toolExecutor = createAssistantToolExecutor({ registry, reporter, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }), toolFailures }, {});
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-disclosure" });
   return {
-    records,
+    entries,
     call: (toolId, overrides = {}, signal) =>
       delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId, input: {} }, deps: {
           lifecycle,
           toolExecutor,
           resolvePrincipal: () => PRINCIPAL,
-          onInternalError: () => undefined,
-          ...delegatedToolErrorDisclosure({}, toolFailures),
-          reportInternalError: reportRouteInternalError,
+          ...delegatedToolErrorDisclosure({ reporter }, {}),
+          reportInternalError: createReporterRouteInternalError({ reporter }),
           ...overrides,
         } }, { signal: signal }
       ),
@@ -75,7 +86,7 @@ test("ROUTE: an unknown tool id (the executor throws) reaches the model as its r
 
   // Caller input, not a server fault: a 400 with the executor's own text and no failure record.
   assert.deepEqual(result, { ok: false, error: { code: "BAD_REQUEST", message: 'ToolExecutor: unknown tool "search_components"' } });
-  assert.equal(h.records.length, 0);
+  assert.equal(h.entries.length, 0);
 });
 
 test("ROUTE: a tool that runs past its timeout says it timed out", async () => {
@@ -112,7 +123,9 @@ test("ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped val
   assert.equal(result.error.code, "INTERNAL_ERROR");
   assert.match(result.error.message, new RegExp(`^Error ${FIXED_ID}: lookup failed: key=`));
   assert.equal(JSON.stringify(result).includes(STRIPE_KEY), false, `leaked the key: ${result.error.message}`);
-  assert.equal(h.records[0]!.redactions, 1);
+  // The host record is the same incident the model was shown, and it carries no secret either.
+  assert.deepEqual(hostRecordIds(h.entries), [FIXED_ID]);
+  assert.equal(JSON.stringify(h.entries).includes(STRIPE_KEY), false, "the host record leaked the key");
 });
 
 test("ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500", async () => {
@@ -153,20 +166,21 @@ test("ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_
 });
 
 test("describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool", () => {
-  const base: DelegatedInternalErrorContext = { source: "delegated-tool-execute", runId: "r", toolId: "t", correlationId: "c", error: undefined };
-  const deps = { mintErrorId: () => FIXED_ID, onFailure: () => undefined };
+  const base: DelegatedInternalErrorContext = { source: "delegated-tool-execute", runId: "r", toolId: "t", error: undefined };
+  const deps = { reporter: recordingReporter().reporter };
 
-  assert.equal(describeDelegatedInternalError({ context: base }, deps), `Error ${FIXED_ID}: tool "t" failed`);
-  assert.equal(describeDelegatedInternalError({ context: { ...base, error: new Error("") } }, deps), `Error ${FIXED_ID}: tool "t" failed`);
-  assert.equal(describeDelegatedInternalError({ context: { ...base, error: "" } }, deps), `Error ${FIXED_ID}: tool "t" failed`);
-  assert.equal(describeDelegatedInternalError({ context: { ...base, error: "plain text" } }, deps), `Error ${FIXED_ID}: plain text`);
+  assert.equal(describeDelegatedInternalError({ context: base, ...deps }).message, `Error ${FIXED_ID}: tool "t" failed`);
+  assert.equal(describeDelegatedInternalError({ context: { ...base, error: new Error("") }, ...deps }).message, `Error ${FIXED_ID}: tool "t" failed`);
+  assert.equal(describeDelegatedInternalError({ context: { ...base, error: "" }, ...deps }).message, `Error ${FIXED_ID}: tool "t" failed`);
+  assert.equal(describeDelegatedInternalError({ context: { ...base, error: "plain text" }, ...deps }).message, `Error ${FIXED_ID}: plain text`);
 });
 
-test("describeDelegatedInternalError: the server-side record correlates to http-kit's own log line", () => {
-  const records: ToolFailureRecord[] = [];
-  describeDelegatedInternalError({ context: { source: "resolve-principal", runId: "run-9", toolId: "t", correlationId: "corr-1", error: new Error("boom") } }, { mintErrorId: () => FIXED_ID, onFailure: (record) => records.push(record) });
+test("describeDelegatedInternalError: the host record carries the same ERR- id as the model's words", () => {
+  const { reporter, entries } = recordingReporter();
+  const { message, errorId } = describeDelegatedInternalError({ context: { source: "resolve-principal", runId: "run-9", toolId: "t", error: new Error("boom") }, reporter });
+  assert.equal(errorId, FIXED_ID);
 
-  assert.deepEqual(records, [
-    { errorId: FIXED_ID, toolId: "t", runId: "run-9", principalId: "(unresolved)", executionId: "(none) correlationId=corr-1", redactions: 0, message: "boom" },
-  ]);
+  assert.equal(message, `Error ${FIXED_ID}: boom`);
+  assert.deepEqual(hostRecordIds(entries), [FIXED_ID]);
+  assert.equal((entries[0]!.meta?.["attributes"] as Record<string, unknown>)["agent.run.id"], "run-9");
 });
