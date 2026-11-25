@@ -354,7 +354,7 @@ export interface CredentialKindForbiddenBody {
 /**
  * The shared "this action must stay out of reach of a machine credential" guard
  * (`getAuthedCredentialKind`'s own doc names the rule). Two route families call this today:
- * `routes/api-keys/deps.ts`'s `rejectApiKeyCredential` (an api_key may never mint, issue, or
+ * `routes/api-keys/deps.ts`'s `sessionCredentialOnly` mount gate (`API_KEY_MOUNT_OPTIONS`) (an api_key may never mint, issue, or
  * revoke another key — SPEC-006 REQ-08) and `routes/system/site-key.ts` (an api_key may never
  * read or mint the site key, since a leaked key would then expose every other stored
  * credential). Both need the identical 403 shape, so this is the one place that shape is spelled

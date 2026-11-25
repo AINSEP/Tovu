@@ -126,7 +126,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *
  * Every verb, including `GET` status, now refuses an `api_key` credential
  * (`rejectUnlessSessionCredential` in `dev-auth.ts`, shared with `routes/api-keys/deps.ts`'s
- * `rejectApiKeyCredential`) before the workspace/permission checks run. `SITE_KEY_MANAGE_PERMISSION`
+ * the api-keys `sessionCredentialOnly` mount gate) before the workspace/permission checks run. `SITE_KEY_MANAGE_PERMISSION`
  * can be reached by any policy holding `admin.integrations.manage` (see that permission's own file
  * header) and by any API key whose issuance snapshot carries it; without this gate, a leaked API key
  * could reveal the value that decrypts every other stored credential. Reveal and generate responses
@@ -238,7 +238,7 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   // Checked first, before the workspace/permission checks below, so an api_key caller — even one
   // whose snapshot holds SITE_KEY_MANAGE_PERMISSION — learns nothing beyond "this credential type
   // is not permitted here." Same rule and same shared guard `routes/api-keys/deps.ts`'s
-  // `rejectApiKeyCredential` uses for api-key issuance/revocation: the value this route family
+  // the api-keys `sessionCredentialOnly` mount gate uses for api-key issuance/revocation: the value this route family
   // guards (the key that decrypts every other stored credential) must stay reachable only by a real
   // admin session, never by a machine credential a leaked key could replay.
   if (
