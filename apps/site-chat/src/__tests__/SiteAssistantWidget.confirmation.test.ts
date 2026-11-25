@@ -7,7 +7,20 @@ const { SiteAssistantWidget } = await import('../SiteAssistantWidget');
 const { ChatSurfacesProvider } = await import('@jini-ai/chat/react');
 const { chatSurfaces } = await import('../jini-surfaces');
 const directive = { kind: 'tool_confirmation', challengeId: 'a'.repeat(22), title: 'Allow search?', summary: 'Search published posts.' };
-const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+/** Test frames named as the legacy events, written as the AG-UI wire the transport now reads;
+ *  they echo the correlators of the latest visitor chat request, as the server does. */
+const wire = { threadId: '', runId: '' };
+const capture = (init?: RequestInit) => {
+  const body = typeof init?.body === 'string' ? JSON.parse(init.body) as { threadId?: string; runId?: string } : {};
+  if (body.runId && body.threadId) Object.assign(wire, { threadId: body.threadId, runId: body.runId });
+};
+const agui = (event: Record<string, unknown>) => `data: ${JSON.stringify(event)}\n\n`;
+const frame = (event: string, data: unknown) => {
+  const started = agui({ type: 'RUN_STARTED', ...wire });
+  if (event === 'text') return started + agui({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: (data as { delta: string }).delta });
+  if (event === 'end') return agui({ type: 'RUN_FINISHED', ...wire, result: { reason: (data as { reason?: string }).reason ?? 'stop' } });
+  return agui({ type: 'CUSTOM', name: event, value: data });
+};
 
 for (const allow of [true, false]) test(`React held turn waits for visitor click allow=${allow}, using the existing proposal strip`, async t => {
   const { dom, restore } = installDom({ html: '<div id="tovu-site-assistant-root"></div>' }, { url: 'https://site.test/' });
@@ -15,6 +28,7 @@ for (const allow of [true, false]) test(`React held turn waits for visitor click
   const requests: Array<{ url: unknown; body: unknown }> = [];
   let stream!: ReadableStreamDefaultController<Uint8Array>;
   globalThis.fetch = (async (url, options) => {
+    capture(options);
     requests.push({ url, body: JSON.parse(options?.body as string) });
     if (url === '/api/site-assistant/confirm') {
       stream.enqueue(new TextEncoder().encode(frame('text', { delta: allow ? 'Done.' : 'This tool is unavailable.' }) + frame('end', {})));

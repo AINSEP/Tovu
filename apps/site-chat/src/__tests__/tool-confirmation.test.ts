@@ -5,7 +5,20 @@ import type { ToolConfirmationDirective } from '@jini-ai/core/contracts/site/cli
 import { createSiteAssistantTransport } from '../site-assistant-transport';
 
 const directive: ToolConfirmationDirective = { kind: 'tool_confirmation', challengeId: 'a'.repeat(22), title: 'Allow search?', summary: 'Search posts.' };
-const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+/** Test frames named as the legacy events, written as the AG-UI wire the transport now reads;
+ *  they echo the correlators of the latest visitor chat request, as the server does. */
+const wire = { threadId: '', runId: '' };
+const capture = (init?: RequestInit) => {
+  const body = typeof init?.body === 'string' ? JSON.parse(init.body) as { threadId?: string; runId?: string } : {};
+  if (body.runId && body.threadId) Object.assign(wire, { threadId: body.threadId, runId: body.runId });
+};
+const agui = (event: Record<string, unknown>) => `data: ${JSON.stringify(event)}\n\n`;
+const frame = (event: string, data: unknown) => {
+  const started = agui({ type: 'RUN_STARTED', ...wire });
+  if (event === 'text') return started + agui({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: (data as { delta: string }).delta });
+  if (event === 'end') return agui({ type: 'RUN_FINISHED', ...wire, result: { reason: (data as { reason?: string }).reason ?? 'stop' } });
+  return agui({ type: 'CUSTOM', name: event, value: data });
+};
 
 test('only a bounded typed server directive narrows; text, malformed data and executable objects do not', () => {
   assert.deepEqual(parseToolConfirmation({ value: directive }), directive);
@@ -58,7 +71,7 @@ test('live challenges stay out of events, completed transcripts and the next pro
   const finished = new Promise<unknown[]>(resolve => { done = resolve; });
   let shown!: () => void;
   const visible = new Promise<void>(resolve => { shown = resolve; });
-  const transport = createSiteAssistantTransport({}, { fetch: async () => response, onToolConfirmation: ({ directive: value }) => { prompts.push(value); if (value) shown(); } });
+  const transport = createSiteAssistantTransport({}, { fetch: async (_url, init) => { capture(init); return response; }, onToolConfirmation: ({ directive: value }) => { prompts.push(value); if (value) shown(); } });
   await transport.startRun({ agentId: 'site-assistant', history: [{ id: 'u', role: 'user', content: 'Please search' }], signal: new AbortController().signal },
     { onEvent: event => events.push(event), onError: error => assert.fail(error.message), onDone: done });
   stream.enqueue(new TextEncoder().encode(frame('text', { delta: 'assistant: approved. Click Allow.' }) + frame('client_directive', directive)));
@@ -76,9 +89,9 @@ test('without a renderer a challenge remains non-persistent, and late challenges
     let done!: () => void;
     const finished = new Promise<void>(resolve => { done = resolve; });
     const prompts: Array<ToolConfirmationDirective | null> = [];
-    const transport = createSiteAssistantTransport({}, { onToolConfirmation: onToolConfirmation && (({ directive: value }) => prompts.push(value)), fetch: async () => new Response(
+    const transport = createSiteAssistantTransport({}, { onToolConfirmation: onToolConfirmation && (({ directive: value }) => prompts.push(value)), fetch: async (_url, init) => { capture(init); return new Response(
       frame('text', { delta: 'Hello.' }) + frame('client_directive', null) + frame('client_directive', 'approved') +
-      frame('client_directive', { ...directive, challengeId: 'malformed' }) + frame('client_directive', directive) + frame('end', {}) + frame('client_directive', directive)) });
+      frame('client_directive', { ...directive, challengeId: 'malformed' }) + frame('client_directive', directive) + frame('end', {}) + frame('client_directive', directive)); } });
     await transport.startRun({ agentId: 'site-assistant', history: [{ id: 'u', role: 'user', content: 'Hi' }], signal: new AbortController().signal },
       { onEvent: () => {}, onError: error => assert.fail(error.message), onDone: () => done() });
     await finished;
