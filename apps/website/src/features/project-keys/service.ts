@@ -2,7 +2,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { VaultRecord, VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { SiteKeyReferences } from "./site-references.js";
 import { attachedOnlyVault } from "./attached-vault.js";
-import type { KeyAttachments, ProjectKeyTransaction } from "./attachments.js";
+import type { KeyAttachments, ProjectKeyTransaction } from "@jini-ai/core/contracts/site/project-key-attachments";
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 
 import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";

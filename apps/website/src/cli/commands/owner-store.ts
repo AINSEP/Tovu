@@ -1,7 +1,7 @@
 import { isSharedOAuthKey, providerPluginOf } from "#src/features/project-keys/service";
 import { createSharedOAuthOwnerStorage, type SharedOAuthOwnerStorage } from '#src/features/api-connections/shared-owner';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '#src/features/project-keys/shared-oauth-disconnect';
-import type { KeyAttachments } from "#src/features/project-keys/attachments";
+import type { KeyAttachments } from "@jini-ai/core/contracts/site/project-key-attachments";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
