@@ -303,6 +303,7 @@ test("a row stamped under the old 60-day window keeps its stamped purgeAfter: th
   const client = (db as unknown as { $client: import("better-sqlite3").Database }).$client;
   const day = 24 * 60 * 60 * 1000;
   const trashedAt = new Date(Date.parse(REAL_DUE) - 40 * day).toISOString();
+  client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(REAL_WS, REAL_WS, REAL_WS, REAL_AT);
   assert.ok(Date.parse(trashedAt) + TRASH_RETENTION_DAYS * day < Date.parse(REAL_DUE), "past the current window, so a clamp would purge it");
   const repo = new SqliteTrashRepo({ store: client });
   await repo.insert({ row: {
