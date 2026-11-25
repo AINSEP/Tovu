@@ -1,87 +1,26 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { blobsProbeRoute } from "@jini-ai/cms/admin-http/routes/publish-content/blobs-probe";
+import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
-import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
-
 import type { PublishContentRouteRegistrar } from "./deps.js";
-import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
- * @file Task 6 of the publish-content (Publish Content) feature —
- * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 6.
- *
- * `POST /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe` — "which of these shas
- * do you already have?" so a peer pushing a bundle only uploads what this instance is actually
- * missing (plan §4 task 6's own description). Read-only against the blob store (`exists()` only,
- * never `put*`); gated by `publish_content.apply` per the dispatching brief — this is part of the
- * write flow (a peer preparing to push), not the export/read side's `publish_content.read`.
- *
- * Request: `{ shas: string[] }`, each a lowercase 64-hex-char sha256 digest
- * (`blob-staging.ts`'s `isValidSha256Hex`). Response: `{ missing: string[] }` — the subset of
- * `shas` this instance does NOT already hold, in the order they were requested minus any removed as
- * duplicates-of-a-hit; the client uploads exactly this list via `PUT .../blobs/:sha`.
+ * `POST .../publish-content/blobs/probe` (Task 6): the Jini spec behind the admin ports (`"guarded"`, the
+ * route's own 500 copy). The body cap stays this host's middleware in the SAME route registration, through the
+ * mount's `bodyParsers` slot (ahead of the handler): its 413 body `{ error: "Content too large to save.", code:
+ * "PAYLOAD_TOO_LARGE" }` predates the kit's envelope, it answers before the workspace 404 as before, and the
+ * route-table pin keeps its middleware-plus-handler row. The spec declares no `maxBodyBytes`, so the body is
+ * measured once. The route's rationale and the flat 400 bodies live with the spec.
  */
-
-/** Body-shape validation extracted from the handler for a single early-return gate: `shas` must be
- *  a non-empty array, within the resource-bounds cap, of strings that each look like a sha256 hex
- *  digest. Returns the validated array, or a human-readable error string to send as a 400.
- *  @complexity O(n) in the array length. */
-function validateProbeShas({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): { shas: string[] } | { error: string } {
-  const body = (rawBody ?? {}) as Record<string, unknown>;
-  const shas = body.shas;
-  if (!Array.isArray(shas) || shas.length === 0) {
-    return { error: "shas must be a non-empty array of sha256 hex digests" };
-  }
-  if (shas.length > PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS) {
-    return { error: `at most ${PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS} shas are allowed per request` };
-  }
-  for (const sha of shas) {
-    if (typeof sha !== "string" || !isValidSha256Hex({ value: sha })) {
-      return { error: `'${String(sha)}' is not a valid lowercase sha256 hex digest` };
-    }
-  }
-  return { shas: shas as string[] };
-}
-
 export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  app.post(
-    "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe",
-    rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
-    async (req, res) => {
-      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-      try {
-        const principal = getAuthedPrincipal(res);
-        if (
-          !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
-            principalId: principal.id,
-            permission: "publish_content.apply",
-            workspaceId: deps.workspaceId,
-          } }))
-        )
-          return;
-
-        const validated = validateProbeShas({ rawBody: req.body });
-        if ("error" in validated) {
-          res.status(400).json({ error: validated.error });
-          return;
-        }
-
-        const missing: string[] = [];
-        for (const sha256 of validated.shas) {
-          const storageKey = computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 });
-          const present = await deps.blobStore.exists({ storageKey });
-          if (!present) missing.push(sha256);
-        }
-
-        res.status(200).json({ missing });
-      } catch (error) {
-        sendAdminFailure({ res, error }, { operation: "routes/publish-content/blobs-probe", code: "INTERNAL_ERROR" });
-      }
-    }
+  mountAdminJsonRoute(
+    { app, spec: blobsProbeRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, blobStore: deps.blobStore, computeBlobStorageKey } },
+    {
+      authorization: "guarded",
+      failure: { operation: "routes/publish-content/blobs-probe", code: "INTERNAL_ERROR" },
+      bodyParsers: [rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES })],
+    },
   );
 };

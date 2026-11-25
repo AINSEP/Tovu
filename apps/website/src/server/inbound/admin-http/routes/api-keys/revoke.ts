@@ -1,40 +1,10 @@
+import { apiKeyRevokeRoute } from "@jini-ai/user-management/admin-http/routes/api-keys/revoke";
 import { revokeApiKey } from "@jini-ai/user-management/identity/api-key-service";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import {
-  apiKeyServiceDepsFrom,
-  rejectApiKeyCredential,
-  sendApiKeyError,
-  type ApiKeysRouteRegistrar,
-} from "./deps.js";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { API_KEY_MOUNT_OPTIONS, apiKeyMountDeps, type ApiKeysRouteRegistrar } from "./deps.js";
 
-/**
- * POST api-keys/:id/revoke — `APIKEY_REVOKE` (api.spec §1, state.spec §3 `REVOKE_API_KEY`).
- * Revocation takes effect immediately: `authenticateApiKey` reads `revokedAt` on every request, so
- * the next request presenting the key is rejected with no cache to wait out.
- *
- * Idempotent by design — re-revoking an already-revoked key is a 204, not a 409, so a client that
- * retries a timed-out revoke never has to distinguish "it worked" from "it already had".
- *
- * 204 with no body (api.spec §3), mirroring `users/reset-password.ts`.
- */
+/** POST api-keys/:id/revoke — `APIKEY_REVOKE`; the spec (and its rationale) lives in Jini.
+ * Host binding only: the service and the per-request deps bag are injected here. */
 export const registerAdminApiKeyRevokeRoute: ApiKeysRouteRegistrar = ({ app, deps }, _options = {}) => {
-  app.post("/api/admin/v1/api-keys/:id/revoke", async (req, res) => {
-    try {
-      if (!rejectApiKeyCredential(res)) return;
-      const caller = getAuthedPrincipal(res);
-
-      await revokeApiKey({
-        deps: apiKeyServiceDepsFrom(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          callerPrincipalId: caller.id,
-          keyId: String(req.params.id ?? ""),
-        },
-      });
-
-      res.status(204).end();
-    } catch (err) {
-      sendApiKeyError({ res, err });
-    }
-  });
+  mountAdminJsonRoute({ app, spec: apiKeyRevokeRoute, deps: { ...apiKeyMountDeps({ deps }), revokeApiKey } }, API_KEY_MOUNT_OPTIONS);
 };

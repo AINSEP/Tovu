@@ -3,54 +3,29 @@ import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
-import { NewsletterConfirmTokenInvalidError } from "@jini-ai/user-management/newsletter/errors";
-import { escapeHtml } from "@jini-ai/core/text";
+import { newsletterConfirmRoute } from "@jini-ai/user-management/public-http/routes/newsletter/confirm";
+import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
-import { asyncRoute } from "../../../../../platform/express/async-route.js";
+import { currentNewsletterRequest, newsletterPublicApp } from "./newsletter-public-scope.js";
 
 /**
- * @file `CONFIRM_SUBSCRIPTION` (api.spec.md §1a) — `GET /newsletter/confirm?token=...`. Public,
- * cookie-less, no-login by design (§1a's "same cookie-less, no-admin-authority origin lineage as
- * ADR-020/025/027's isolation pattern"): this route family must NEVER read or set a session cookie,
- * and must never import `requireAdminSession`/`getAuthedPrincipal` (mirrors `routes/members/
- * sign-in.ts`'s ADR-PIPE-013 Enforcement note). Renders an HTML page (a human clicks this link),
- * not JSON.
+ * `GET /newsletter/confirm?token=...` — the Jini spec (`@jini-ai/user-management/public-http/routes/newsletter/confirm`)
+ * owns the steps and the three pages; Tovu binds its confirmation service, visitor analytics and incident
+ * tracker. Public, cookie-less, no-login by design: this registrar must NEVER read or set a session cookie.
+ * Everything is read per request, as the hand-written route did: tests swap repository methods after registration.
  */
 export function registerPublicNewsletterConfirmRoute({ app, deps }: { app: Express; deps: NewsletterPublicRouteDeps }, _optional: Record<string, never> = {}): void {
-  app.get("/newsletter/confirm", asyncRoute({ handler: async (req, res) => {
-    await deps.newsletterReady;
-    const token = typeof req.query.token === "string" ? req.query.token : "";
-
-    try {
-      const result = await consumeConfirmationToken({
-        deps: toPublicConfirmationDeps(deps),
-        input: { workspaceId: deps.workspaceId, rawToken: token },
-      });
-      if (result.changed) void captureVisitorEvent({ deps, request: req, name: "newsletter_subscribed", properties: {
-        listId: result.subscription.listId, method: "double_opt_in", eventId: result.eventId,
-      } });
-      res.status(200).type("html").send(renderPage({ title: "Subscription confirmed", message: "Your subscription is confirmed. You're all set." }));
-    } catch (err) {
-      if (err instanceof NewsletterConfirmTokenInvalidError) {
-        res
-          .status(400)
-          .type("html")
-          .send(renderPage({ title: "Confirmation link invalid", message: "This confirmation link is invalid or has expired. Please request a new one." }));
-        return;
-      }
-      const { errorId } = reportServerFailure({ error: err, operation: "public:newsletter-confirm" }, { tracker: res.locals.adminFailureTracker });
-      res.status(500).type("html").send(renderPage({ title: "Subscription confirmation unavailable", message: `The site couldn’t complete subscription confirmation. Try the original action again and report this error ID if it keeps happening. Error ID: ${errorId}` }));
-    }
-  } }));
-}
-
-function renderPage({ title, message }: { title: string; message: string }, _optional = {}): string {
-  return `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><title>${escapeHtml({ text: title })}</title></head>
-<body>
-  <h1>${escapeHtml({ text: title })}</h1>
-  <p>${escapeHtml({ text: message })}</p>
-</body>
-</html>`;
+  mountPublicRawRoute({
+    app: newsletterPublicApp({ app }),
+    spec: newsletterConfirmRoute,
+    deps: {
+      ready: () => deps.newsletterReady,
+      consume: ({ rawToken }) => consumeConfirmationToken({ deps: toPublicConfirmationDeps(deps), input: { workspaceId: deps.workspaceId, rawToken } }),
+      onSubscribed: ({ listId, eventId }) => {
+        void captureVisitorEvent({ deps, request: currentNewsletterRequest().req, name: "newsletter_subscribed", properties: { listId, method: "double_opt_in", eventId } });
+      },
+      reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-confirm" }, { tracker: currentNewsletterRequest().res.locals.adminFailureTracker }),
+    },
+    failure: { operation: "public:newsletter-confirm", visitorError: "The site couldn’t complete subscription confirmation." },
+  });
 }

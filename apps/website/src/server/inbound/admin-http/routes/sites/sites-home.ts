@@ -1,26 +1,25 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /**
  * The sites-settings save route (`PUT .../system/sites/config`) and the Node directory probe the
  * settings rules inspect folders through.
  *
  * K1 (RT-K1-adm-sites-2): the settings read and the home choice are Jini specs
  * (`@jini-ai/cms/admin-http/routes/sites/sites-home`, mounted by `runtime/composition/modules/sites.ts`).
- * This route stays hand-written: it answers an unexpected failure with two different copies by
- * phase ("Could not read sites settings." before authorization, "Could not save sites settings."
- * after), and one JSON-route mount carries a single failure copy. Its folder rules are the spec's own.
+ * The save is the same family's `sitesConfigSaveRoute`, mounted here with two opt-ins: the deployment gate answers
+ * after the workspace 404 and before the session read (`afterWorkspace`), and an unexpected failure answers
+ * "Could not read sites settings." before authorization and "Could not save sites settings." after it
+ * (`failureByPhase`). This file keeps the host values: the enablement flag, the Node folder probe and the
+ * platform's settings-patch rules.
  */
 import fs from "node:fs";
 import path from "node:path";
 import type { Express } from "express";
-import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { UUID } from "@jini-ai/core/primitives";
 import { DirectoryUserConfigRefusal, validateDirectoryUserConfig } from "@jini-ai/platform/fs";
-import { parseSitesSettingsDirectory, validateSitesSettingsDirectories, type SitesDirectoryProbe } from "@jini-ai/cms/admin-http/routes/sites/sites-home";
-import { authorizeOrRespond } from "../../authorize-guard.js";
-import { getAuthedPrincipal } from "../../dev-auth.js";
+import { SITES_SETTINGS_DISABLED_MESSAGE, sitesConfigSaveRoute, type SitesDirectoryProbe } from "@jini-ai/cms/admin-http/routes/sites/sites-home";
+import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "../../admin-json-route-ports.js";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
-import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** What the settings routes read. */
 export type SitesSettingsDeps = { workspaceId: UUID; authorize: AuthorizeFn; isSiteSwitcherEnabled: () => boolean };
@@ -41,26 +40,37 @@ export const nodeSitesDirectoryProbe: SitesDirectoryProbe = {
   parentExists: ({ directory }) => fs.existsSync(path.dirname(directory)),
 };
 
-/** `PUT .../system/sites/config` — save the sites settings. @complexity O(roots) stat probes plus the config write. */
+/** The platform's refusal for a malformed settings patch is a flat 400 with its own message, wherever in the save it is thrown
+ * (the patch rules, or the write re-checking the folders). Anything else is unexpected and passes through.
+ * @complexity O(1) beyond `run`. */
+function asRouteRefusal<T>({ run }: { run: () => T }, _optional: Record<string, never> = {}): T {
+  try { return run(); } catch (error) {
+    if (error instanceof DirectoryUserConfigRefusal) rejectRoute({ status: 400, error: error.message });
+    throw error;
+  }
+}
+
+/** `PUT .../system/sites/config` — save the sites settings: mounts Jini's spec over this host's workspace, folder probe and patch rules.
+ * @complexity O(1) setup; per request as the spec. */
 export function registerSitesConfigSaveRoute({ app, deps, workspace }: { app: Express; deps: SitesSettingsDeps; workspace: SitesWorkspace }, _options = {}): void {
-  app.put("/api/admin/v1/workspaces/:workspaceId/system/sites/config", async (req, res) => {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-    if (!deps.isSiteSwitcherEnabled()) { res.status(403).json({ error: "Local sites management is disabled." }); return; }
-    try {
-      const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
-      try {
-        // Validate the shape before inspecting paths; malformed input is a refusal, not an I/O error.
-        if (req.body?.sitesHome !== undefined) parseSitesSettingsDirectory({ directory: req.body.sitesHome, directories: nodeSitesDirectoryProbe });
-        const patch = validateDirectoryUserConfig({ value: req.body });
-        validateSitesSettingsDirectories({ patch, directories: nodeSitesDirectoryProbe });
-        res.json(workspace.updateConfig({ patch }));
-      }
-      catch (error) {
-        if (error instanceof DirectoryUserConfigRefusal) { res.status(400).json({ error: error.message }); return; }
-        if (error instanceof RouteRefusalError) { res.status(error.response.status).json(error.response.body); return; }
-        sendAdminFailure({ res, error }, { operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message: "Could not save sites settings." });
-      }
-    } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message: "Could not read sites settings." }); }
-  });
+  // `authorize` is read per request so a later reassignment of `deps.authorize` is honoured.
+  const portDeps: AdminJsonRoutePortDeps = { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
+  const failure = (message: string) => ({ operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message });
+  mountAdminJsonRoute(
+    {
+      app, spec: sitesConfigSaveRoute,
+      deps: {
+        ...portDeps,
+        directories: nodeSitesDirectoryProbe,
+        validatePatch: ({ value }) => asRouteRefusal({ run: () => validateDirectoryUserConfig({ value }) }),
+        // The spec hands back the very patch `validatePatch` returned, so it is the platform's own type again here.
+        workspace: { updateConfig: ({ patch }) => asRouteRefusal({ run: () => workspace.updateConfig({ patch: patch as Parameters<SitesWorkspace["updateConfig"]>[0]["patch"] }) }) },
+      },
+    },
+    {
+      authorization: "guarded",
+      afterWorkspace: () => (deps.isSiteSwitcherEnabled() ? undefined : { status: 403, body: { error: SITES_SETTINGS_DISABLED_MESSAGE } }),
+      failureByPhase: { beforeAuthorize: failure("Could not read sites settings."), afterAuthorize: failure("Could not save sites settings.") },
+    },
+  );
 }

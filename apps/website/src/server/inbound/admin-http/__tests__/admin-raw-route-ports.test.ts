@@ -175,3 +175,25 @@ test("handlerName gives the one registered handler that function name (the route
   const response = await fetch(`${server.base}/api/admin/v1/workspaces/local/raw`, { redirect: "manual" });
   assert.equal(response.status, 302);
 });
+
+// Mutation `public-mount-drops-body-parsers`: a public wrapper that stops forwarding `bodyParsers` leaves `raw.body`
+// unread (no buffer) on both public mounts, so the route-scoped `express.raw` bytes below never arrive.
+test("public mounts register route-scoped bodyParsers ahead of the handler, and only on that route", async (t) => {
+  const express = (await import("express")).default;
+  const app = fakeAdminApp({ principal: false });
+  const bodyLength = (body: unknown) => (Buffer.isBuffer(body) ? `buffer:${body.length}` : "no-buffer");
+  const rawEcho = defineRawRoute<object>({ method: "post", path: "/hooks/raw", handle: async ({ raw }) => new Response(bodyLength(raw.body)) });
+  const rawPlain = defineRawRoute<object>({ method: "post", path: "/hooks/plain", handle: async ({ raw }) => new Response(bodyLength(raw.body)) });
+  const jsonEcho = defineJsonRoute<string, { seen: string }, object>({ method: "post", path: "/hooks/json", parse: (raw) => ok({ value: bodyLength(raw.body) }), handle: async ({ input }) => ok({ value: { seen: input } }) });
+  const bodyParsers = [express.raw({ type: () => true, limit: "1kb" })];
+  mountPublicRawRoute({ app, spec: rawEcho, deps: {}, failure: visitor }, { bodyParsers });
+  mountPublicRawRoute({ app, spec: rawPlain, deps: {}, failure: visitor });
+  mountPublicJsonRoute({ app, spec: jsonEcho, deps: {}, failure: visitor }, { bodyParsers });
+  const server = await listen({ app });
+  t.after(server.close);
+  const post = async (path: string, body?: string) => (await fetch(`${server.base}${path}`, { method: "POST", headers: { "content-type": "text/odd" }, ...(body === undefined ? {} : { body }) })).text();
+  assert.equal(await post("/hooks/raw", "abc"), "buffer:3");
+  assert.equal(await post("/hooks/raw"), "buffer:0");
+  assert.equal(await post("/hooks/plain", "abc"), "no-buffer");
+  assert.deepEqual(JSON.parse(await post("/hooks/json", "abcd")), { seen: "buffer:4" });
+});

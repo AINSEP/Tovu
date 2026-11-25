@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
-import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { apiKeyServiceDepsFrom, sendApiKeyError, type ApiKeysRouteDeps } from "../deps.js";
+import express from "express";
+import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { apiKeyServiceDepsFrom, type ApiKeysRouteDeps } from "../deps.js";
+import { registerAdminApiKeyRevokeRoute } from "../revoke.js";
 
 // F2.4/F4.3: distinct collaborator identities detect swaps as well as omitted adapters.
 test("API-key service composition preserves each identity repository and crypto/runtime port", () => {
@@ -45,10 +47,20 @@ const cases = [
   { name: "unexpected failure", error: new Error("database /private/path with secret key"), status: 500,
     body: { error: "internal error" } },
 ];
+// The ladder moved into the Jini spec (`API_KEY_ERRORS`) and the 500 into the mount's failure port; the
+// error is raised while the mounted route assembles its per-request service deps, inside the spec's
+// `try`, exactly where the hand-written `sendApiKeyError` caught it.
 for (const { name, error, status, body } of cases) {
-  test(`API-key ${name} sends its exact status and safe error envelope`, () => {
+  test(`API-key ${name} sends its exact status and safe error envelope`, async () => {
+    const deps = { workspaceId: "ws-7", get principalRepo(): never { throw error; } } as unknown as ApiKeysRouteDeps;
+    const app = express();
+    registerAdminApiKeyRevokeRoute({ app, deps });
+    const handler = extractRouteHandler(app, "post", "/api/admin/v1/api-keys/:id/revoke");
     const { res, capture } = createCapturingResponse();
-    sendApiKeyError({ res, err: error });
+    res.locals.principal = { id: "operator-9" };
+    res.locals.authCredentialKind = "session";
+    res.end = (() => res) as typeof res.end;
+    await handler({ body: {}, params: { id: "key-1" } }, res);
     assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } }, { failure: {"message":"The API key operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"API key operation"} });
   });
 }

@@ -68,9 +68,9 @@ function sitesPortDeps({ deps }: { deps: Pick<RouteDeps, "workspaceId" | "author
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
-/** Sites settings (read, save, home), authorized at the same boundary as Sites mutations. `PUT config`
- *  stays hand-written; the read and the home choice are Jini specs over this host's workspace and
- *  Node directory probe. @complexity O(1). */
+/** Sites settings (read, save, home), authorized at the same boundary as Sites mutations. All three are Jini
+ *  specs over this host's workspace and Node directory probe; the save is mounted by
+ *  `registerSitesConfigSaveRoute` with its gate and phase-aware failure copy. @complexity O(1). */
 export function registerSitesHomeRoutes(
   { app, deps, workspace }: { app: Express; deps: Omit<SitesSettingsDeps, "isSiteSwitcherEnabled"> & { isSiteSwitcherEnabled?: () => boolean }; workspace: SitesWorkspace },
   _options = {},

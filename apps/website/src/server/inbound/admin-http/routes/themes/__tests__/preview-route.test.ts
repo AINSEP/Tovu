@@ -3,8 +3,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { registerAdminThemePreviewRoute } from "../preview.js";
-import { extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { extractRouteHandler as extractMounted } from "#src/server/__tests__/helpers/http-test-server";
 import type { SitePreviewService, SitePreviewTarget } from "#src/features/sites/index";
+
+/** The mounted raw route reads a request's headers, method and query (the old handler read none): give the fake request those. */
+function extractRouteHandler(...args: Parameters<typeof extractMounted>) {
+  const handler = extractMounted(...args);
+  return (req: object, res: unknown) => handler({ headers: {}, method: "GET", query: {}, get: () => undefined, ...req }, res);
+}
 
 const ROUTE = "/api/admin/v1/workspaces/:workspaceId/themes/:themeId/preview";
 
@@ -46,7 +52,21 @@ function response() {
     locals: { principal: { id: "operator" } } as Record<string, unknown>,
     status(code: number) { capture.status = code; return res; },
     set(headers: Record<string, string>) { capture.headers = { ...capture.headers, ...headers }; return res; },
-    send(body: unknown) { capture.body = body; return res; },
+    // The raw writer sets `statusCode` and header names one by one (lower-case from a web `Response`).
+    on() { return res; },
+    off() { return res; },
+    set statusCode(code: number) { capture.status = code; },
+    setHeader(name: string, value: string) {
+      const canonical = name.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("-");
+      capture.headers = { ...capture.headers, [canonical]: value };
+      return res;
+    },
+    append() { return res; },
+    send(body: unknown) {
+      capture.body = body;
+      if (capture.headers?.["Content-Type"]?.startsWith("application/json")) capture.json = JSON.parse(String(body));
+      return res;
+    },
     json(body: unknown) { capture.json = body; return res; },
     redirect(status: number, url: string) { capture.redirect = [status, url]; return res; },
   };
