@@ -17,12 +17,14 @@ import { useT } from "@jini-ai/chat/react";
 import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { useDockRendererRegistry } from "../hooks/use-dock-renderer-registry.hooks";
 
+/** No live AG-UI interrupt: every card keeps its own route. */
+const NO_AG_UI_APPROVALS = { answersExchange: () => false, answer: async () => false };
 const eventNames = [MCP_UI_EXT_EVENT_NAME, "a2ui", "slow_running", AGENT_FAILURE_EVENT, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME];
 const resource = (uri: string) => ({ type: "resource", resource: { uri, mimeType: "text/html", text: "<p>choice</p>" } });
 
 describe("admin dock owned renderer lifecycle", () => {
   it("preserves ordinary transcript spacing and queued state in the real mid-run renderer", () => {
-    const { result } = renderHook(() => useDockRendererRegistry());
+    const { result } = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }));
     const renderer = result.current.registry.get({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME })!;
     const props = { name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, runStreaming: true, runSucceeded: false,
       transcriptRow: true, runId: "active", events: [{ id: "steering", text: "Also update the footer.", deliveryState: "queued" }] };
@@ -43,7 +45,7 @@ describe("admin dock owned renderer lifecycle", () => {
     const globalRenderer = () => null;
     const unregisterGlobals = eventNames.map(name => registerExtEventRenderer({ name, renderer: globalRenderer }));
     try {
-      const dock = renderHook(() => useDockRendererRegistry());
+      const dock = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }));
       for (const name of eventNames) {
         expect(dock.result.current.registry.get({ name })).toBeTypeOf("function");
         expect(getExtEventRenderer({ name })).toBe(globalRenderer);
@@ -61,8 +63,8 @@ describe("admin dock owned renderer lifecycle", () => {
   });
 
   it("keeps one registry across rerenders and independent registries for simultaneous docks", () => {
-    const first = renderHook(() => useDockRendererRegistry());
-    const second = renderHook(() => useDockRendererRegistry());
+    const first = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }));
+    const second = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }));
     const firstRegistry = first.result.current.registry;
     const secondRegistry = second.result.current.registry;
     const firstRenderer = firstRegistry.get({ name: MCP_UI_EXT_EVENT_NAME });
@@ -80,7 +82,7 @@ describe("admin dock owned renderer lifecycle", () => {
   });
 
   it("restores every renderer after StrictMode cleanup replay and unregisters all on unmount", () => {
-    const dock = renderHook(() => useDockRendererRegistry(), { wrapper: StrictMode });
+    const dock = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }), { wrapper: StrictMode });
     const registry = dock.result.current.registry;
     for (const name of eventNames) expect(registry.get({ name })).toBeTypeOf("function");
     dock.unmount();
@@ -91,7 +93,7 @@ describe("admin dock owned renderer lifecycle", () => {
   });
 
   it("does not let a stale dock cleanup erase a replacement registration", () => {
-    const dock = renderHook(() => useDockRendererRegistry());
+    const dock = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }));
     const registry = dock.result.current.registry;
     // A later registration may even reuse the callback, as during hot reload. Entry identity,
     // rather than callback identity, must decide which cleanup owns it.
@@ -105,7 +107,7 @@ describe("admin dock owned renderer lifecycle", () => {
   });
 
   it("reuses Jini's mid-run bubble and the dock's failure card with their original props", () => {
-    const { result } = renderHook(() => useDockRendererRegistry());
+    const { result } = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }));
     const props = { name: "ext", events: [{ id: "sent-1", text: "hello" }], runStreaming: false, runSucceeded: true, runId: "run-1" };
     const bubble = result.current.registry.get({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME })!(props);
     expect(isValidElement(bubble)).toBe(true);

@@ -10,6 +10,7 @@ import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin
 import { useConversationRefreshSignal } from "@jini-ai/admin/shell/components/AssistantDock/hooks/conversation-refresh.hooks";
 import { defaultAssistantChatsPort } from "../../hooks/assistant-chats-dependencies.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
+import { agUiApprovalPoster } from "../../lib/assistant-transport-ag-ui";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "@jini-ai/admin/screens/plugins/composer-skills.hooks";
 import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
@@ -61,7 +62,8 @@ function selectedDockAgent({ mode, agents, agentId }: {
 /** Renderer registry, WebMCP setting and the pane's translated chrome. */
 function useDockChrome({ props }: { props: DockProps }, { useChrome = useAssistantDockChrome }: { useChrome?: typeof useAssistantDockChrome } = {}) {
   const { useAdminLocale } = props;
-  const renderers = useDockRendererRegistry();
+  // The same AG-UI client the transport drives, so the card answers the interrupt that run parked.
+  const renderers = useDockRendererRegistry({ agUiApprovals: agUiApprovalPoster }, {});
   const { mcpUiToolCaller } = renderers;
   const { enabled: webMcpEnabled } = useAdminBrowserAgentSettings({});
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)

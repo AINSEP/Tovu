@@ -329,7 +329,7 @@ async function boundVisitorTab({ baseUrl, workspaceId, signal }: { baseUrl: stri
   const headers = { ...tab, "x-frontend-bind-token": attached.bindToken };
   const post = async (path: "begin" | "responses", body: Record<string, unknown>) => (await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/${attached.sessionId}/${path}`,
     { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) })).text();
-  return { headers, sessionFrames, post };
+  return { headers, sessionFrames, post, sessionId: attached.sessionId };
 }
 
 /** Reads the AG-UI `/chat` stream as a browser would, acting as the page on each delivered tool call. */
@@ -381,4 +381,82 @@ test("a refused model call never becomes a browser tool call", { timeout: 20_000
   assert.deepEqual(tab.sessionFrames.filter(frame => frame.includes('"invocation"')), [], "nothing reaches the tab's session stream either");
   assert.ok(continuation, "the provider continues after the refusal");
   assert.equal(events.at(-1)!.type, "RUN_FINISHED");
+});
+
+/** P6-T3.T: a /chat turn whose provider asks to open the seeded published post (`welcome`), which the reviewed navigation policy accepts. */
+async function navigationTurn({ t, threadId }: { t: TestContext; threadId: string }, _options = {}) {
+  const navigate = createToolNameMap({ toolIds: ["page.navigate"] }).wireNameFor({ toolId: "page.navigate" })!;
+  const requests: Record<string, unknown>[] = [];
+  const f = await boot({ t, reply: (count, body) => {
+    requests.push(body);
+    return count === 1 ? googleReply({ parts: [{ functionCall: { name: navigate, args: { slug: "welcome" }, id: "call_model_nav" } }] })
+      : googleReply({ parts: [{ text: "This continuation must never be asked for." }] });
+  } });
+  const tabAbort = new AbortController(); t.after(() => tabAbort.abort());
+  const tab = await boundVisitorTab({ baseUrl: f.baseUrl, workspaceId: f.deps.workspaceId, signal: tabAbort.signal });
+  const chatAbort = new AbortController(); t.after(() => chatAbort.abort());
+  const response = await fetch(f.baseUrl + "/api/site-assistant/chat", { method: "POST", signal: chatAbort.signal,
+    headers: { ...tab.headers, "content-type": "application/json", accept: "text/event-stream; agui=1" },
+    body: JSON.stringify({ threadId, runId: `${threadId}-run`, state: null, tools: [], context: [],
+      messages: [{ id: "m1", role: "user", content: "Open the opening hours page" }], forwardedProps: { turnId: `${threadId}-000001` } }) });
+  assert.equal(response.status, 200);
+  return { f, tab, response, requests, chatAbort };
+}
+
+type DeliveredPageAction = { runId: string; invocationId: string; capabilityId: string; input: Record<string, unknown> };
+
+test("a visitor page action begins and settles once through the AG-UI chat", { timeout: 20_000 }, async t => {
+  const { tab, response, requests } = await navigationTurn({ t, threadId: "thread-t3-settle" });
+  const delivered: Array<{ toolCallId: string; toolCallName: string; action: DeliveredPageAction }> = [];
+  const answers: Record<string, string> = {};
+  const settle = () => tab.post("responses", { invocationId: delivered[0]!.action.invocationId, ok: true, output: { navigated: true } });
+  const events = await readAgUiTurn({ response, onToolCall: async call => {
+    const action = JSON.parse(call.args) as DeliveredPageAction;
+    delivered.push({ toolCallId: call.toolCallId, toolCallName: call.toolCallName, action });
+    if (delivered.length > 1) return;
+    const claim = { sessionId: tab.sessionId, runId: action.runId, invocationId: action.invocationId };
+    // Delivery alone is not permission: a result for an invocation nobody began must not settle it.
+    answers.early = await settle();
+    answers.begin = await tab.post("begin", claim);
+    answers.beginAgain = await tab.post("begin", claim);
+    answers.settle = await settle();
+    answers.settleAgain = await settle();
+  } });
+  const wire = JSON.stringify(events);
+  assert.equal(delivered.length, 1, `exactly one browser tool call, got ${wire}`);
+  const [call] = delivered;
+  assert.equal(call!.toolCallName, "tovu.page_action");
+  assert.equal(call!.toolCallId, call!.action.invocationId, "the AG-UI tool call id is the registry invocation id");
+  assert.notEqual(call!.toolCallId, "call_model_nav", "the model's tool call id is never a browser capability");
+  assert.equal(call!.action.capabilityId, "page.navigate");
+  assert.deepEqual(answers, { early: '{"settled":false}', begin: '{"begun":true}', beginAgain: '{"begun":false}',
+    settle: '{"settled":true}', settleAgain: '{"settled":false}' });
+  assert.equal(events.filter(e => e.type === "TOOL_CALL_START").length, 1);
+  assert.doesNotMatch(wire, /call_model_nav|functionCall|tool_use/, "no provider call id or provider call on the wire");
+  assert.deepEqual(tab.sessionFrames.filter(frame => frame.includes('"invocation"')), [], "the run's action reaches only its own /chat segment");
+  // The settled navigation is what completes the turn: it ends here, and the model is not asked again.
+  assert.match(wire, /Opening the page\./);
+  assert.equal(requests.length, 1, "a navigation ends the turn: the model is not called again");
+  assert.equal(events.at(-1)!.type, "RUN_FINISHED");
+});
+
+test("a disconnected page cannot begin or settle its old invocation", { timeout: 20_000 }, async t => {
+  const { tab, response, requests, chatAbort } = await navigationTurn({ t, threadId: "thread-t3-gone" });
+  let action: DeliveredPageAction | undefined;
+  await readAgUiTurn({ response, onToolCall: async call => {
+    action = JSON.parse(call.args) as DeliveredPageAction;
+    // The page leaves (reload, closed tab, dropped connection) before it claims what it was handed.
+    chatAbort.abort();
+  } }).catch(() => undefined);
+  assert.ok(action, "the page action was delivered before the page left");
+  // Bounded wait for the server to see the close: the registry then tells the tab its action was withdrawn.
+  // The wait does not gate the refusals below, so a server that neither withdraws nor releases fails on them.
+  const withdrawn = () => tab.sessionFrames.some(frame => frame.includes('"cancelled"') && frame.includes(action!.invocationId));
+  for (let tries = 0; !withdrawn() && tries < 50; tries += 1) await new Promise(resolve => setTimeout(resolve, 20));
+  const claim = { sessionId: tab.sessionId, runId: action!.runId, invocationId: action!.invocationId };
+  assert.equal(await tab.post("begin", claim), '{"begun":false}', "the released binding cannot claim the old invocation");
+  assert.equal(await tab.post("responses", { invocationId: action!.invocationId, ok: true, output: { navigated: true } }), '{"settled":false}');
+  assert.ok(withdrawn(), "the tab is told its undelivered action was withdrawn");
+  assert.equal(requests.length, 1, "nothing about the withdrawn action reaches the model as a success");
+  assert.doesNotMatch(JSON.stringify(requests), /navigated/);
 });
