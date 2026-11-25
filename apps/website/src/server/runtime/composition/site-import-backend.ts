@@ -13,6 +13,7 @@ import type { SitesWorkspace } from "#src/platform/site-dir/index";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { createSite } from "./site-dir.js";
 import { rebuildImportDatabase, restoreStagedImport } from "./site-portability.js";
+import { THEME_PLACEMENT_CHECKS } from "./theme-placement-checks.js";
 
 /**
  * The one wiring of the site importer: the same verifier, sanitizer, guarded download and restore
@@ -44,6 +45,7 @@ export function composeSiteImportBackend(
     http: createDefaultHttpClient({ policy: SITE_IMPORT_EGRESS_POLICY }, { observability: optional.observability }),
     sanitize: rebuildImportDatabase,
     schema: runtimeSchemaVersion(),
+    themeChecks: THEME_PLACEMENT_CHECKS,
     ...(optional.tracker ? { tracker: optional.tracker } : {}),
     ...(optional.setupBase ? { setupBase: optional.setupBase } : {}),
   }, optional.report ? { report: optional.report } : {});

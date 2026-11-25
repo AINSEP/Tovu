@@ -9,7 +9,10 @@ import { FetchHttpTransportAdapter } from "@jini-ai/platform/http/guarded";
 import { createHttpClient } from "../../../platform/http/client.js";
 import { SITE_IMPORT_EGRESS_POLICY } from "../../../platform/http/egress-policies.js";
 import { downloadShareArchive as engineDownload } from "@jini-ai/devops/backup/site/import-backend-steps";
-import { SITE_IMPORT_HOST } from "../import-backend.js";
+import { createSiteImportHost } from "../import-backend.js";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
+
+const SITE_IMPORT_HOST = createSiteImportHost({ themeChecks: THEME_PLACEMENT_CHECKS });
 
 const downloadShareArchive = (required: Omit<Parameters<typeof engineDownload>[0], "host">) => engineDownload({ ...required, host: SITE_IMPORT_HOST });
 

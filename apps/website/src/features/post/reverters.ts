@@ -6,7 +6,7 @@ import type { EntityReverter, RevertRegistry } from "@jini-ai/core/contracts/sit
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { PostVersionConflictError, SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { presentScheduleFields } from "@jini-ai/cms/posts/post-write-fields";
-import type { ForgetRemovedPostFn } from "./post-trash.js";
+import type { ForgetRemovedPostFn } from "#src/platform/publish-contracts";
 import type { PostStatus } from "@jini-ai/cms/core";
 
 /**

@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
@@ -23,7 +24,7 @@ test("definition listing omits stored HTML while retaining authoring metadata", 
     formDefinitionRepo, formSubmissionRepo: new InMemoryFormSubmissionRepo(),
     outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
   };
-  const tool = buildFormsRegistrations(deps).find(item => item.descriptor.id === "forms_list_definitions");
+  const tool = buildFormsRegistrations(deps, { deriveDuplicateName }).find(item => item.descriptor.id === "forms_list_definitions");
   assert.ok(tool);
   const context: ToolExecutionContext = { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: {}, signal: new AbortController().signal };
   const result = await tool.handler(context);

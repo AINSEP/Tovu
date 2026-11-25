@@ -30,7 +30,7 @@ plugin loader are wired elsewhere (`server/runtime/composition`).
   pointers, so `replaced` is exactly what the switch displaced; the same
   transaction records `replaced` as retired until its index drop is confirmed.
   `settle` is a compare-and-swap UPDATE on the observed revision and task id.
-- `cms-search-rules.ts` — `CMS_SEARCH_RULES`: the host rules the CMS search
+- `cms-search-rules.ts` — `createCmsSearchRules({ toPostRecord })`: the host rules the CMS search
   source and access port in `@jini-ai/search/site/{cms-document-source,access}`
   require — `isLiveAt` (public publish rule), `postPublicPath`, `toSearchText`
   (`toPostSearchDocument(toRecord(row))`, the post FTS projection's extraction)

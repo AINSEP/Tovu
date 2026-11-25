@@ -10,6 +10,7 @@ import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart"
 import { deployConfigGenerators } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { COMMITTED_JSON_CODEC, createFileProvisioning, PUBLISH_TRUST_CONFIG_PATH, type PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
@@ -47,6 +48,7 @@ import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
 import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
 import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
+import { planMailDeliveryCaptureClear } from "./mail-capture-clear-planner.js";
 import { contributeServerLogsTools } from "@jini-ai/diagnostics/server-logs/tool-registrations";
 import { processServerLogSource } from "#src/features/server-logs/process-source";
 import { contributeObservabilityTools } from "@jini-ai/diagnostics/observability/tool-registrations";
@@ -99,6 +101,7 @@ import { contributeExternalMcpOperationsTools } from "@jini-ai/mcp/external/oper
 import { externalMcpOperationsHost, probeExternalMcpServer, readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-tools";
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
+import { bindAssetHost } from "./asset-tool-host.js";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
@@ -135,6 +138,7 @@ import { deriveDuplicateName } from "#src/features/content-duplication/copy-nami
 import { contributeMediaViewImageTools } from "@jini-ai/cms/media/site/view-image-tool";
 import { contributeImageTransformTools } from "#src/features/image-transform/tool";
 import { createMediaConversionPorts, createMediaVideoToolPorts } from "./media-video-ports.js";
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
 import { saveMediaCredential, contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
@@ -403,9 +407,9 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
-  installStatusAndAgentTools(contributions, () => findPublishCandidate);
+  installStatusAndAgentTools(contributions, () => findPublishCandidate, () => publishTrustProvisioning);
   const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts });
-  installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate });
+  installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate, getPublishTrustProvisioning: () => publishTrustProvisioning });
   installWebReadTools(contributions, { createHttpClient, observability });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });
@@ -418,11 +422,15 @@ export function installFirstPartyToolContributors(
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
   const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+  // The assembled committed-config port, resolved against the same root as `findPublishCandidate`
+  // and the HTTP route's own provisioning (`modules/publish-content.ts`), so an assistant-tool
+  // connect and a dialog connect never disagree about which file they wrote.
+  const publishTrustProvisioning = createFileProvisioning({ io: nodeProvisioningFileIo, codec: COMMITTED_JSON_CODEC, path: path.join(committedRoot, PUBLISH_TRUST_CONFIG_PATH) });
   installCredentialSaveTools(contributions);
   installWorkspaceToolContributors(contributions);
 }
 
-function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>) {
+function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>, getPublishTrustProvisioning: () => PublishTrustProvisioningPort) {
 
   toolSearchKeywords({}, { sources: bundledContributionSources });
   contributions.contentTargetInputs = bindContentTargetInputs;
@@ -447,7 +455,7 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   } });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeMailProviderTools() });
-  contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
+  contributions.contributors.register({ contribution: contributeMailDeliveryTools({ planCaptureClear: planMailDeliveryCaptureClear }) });
   /** Defaults to this process's captured console buffer. */
   // Now: the server-logs tool's log source is `ServerLogsToolDeps.serverLogs`, bound here to that buffer.
   contributions.contributors.register({ contribution: contributeServerLogsTools({ serverLogs: processServerLogSource }) });
@@ -459,7 +467,7 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   // header for why the two halves use different wiring seams.
   contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools() });
   contributions.contributors.register({ contribution: contributeSitesListTools() });
-  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate(), publishTrustProvisioning: deps.publishTrustProvisioning ?? getPublishTrustProvisioning() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
   contributions.contributors.register({ contribution: contributeAgentPluginSearchTools() });
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
@@ -512,17 +520,17 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("#src/features/external-mcp/deps").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
-  contributions.contributors.register({ contribution: contributeFilesCopyTools() });
-  contributions.contributors.register({ contribution: contributeFormsTools() });
+  contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
+  contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools(createMediaConversionPorts()) });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset" }) });
-  contributions.contributors.register({ contribution: contributeImageTransformTools() });
+  contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
-  contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
+  contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });
-  contributions.contributors.register({ contribution: contributeMediaImportTools({ videoImport: { ports: createMediaConversionPorts(), reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
+  contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: createMediaConversionPorts(), reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
   contributions.contributors.register({ contribution: contributeMembersTools() });
   contributions.contributors.register({ contribution: contributeMenusTools() });
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
@@ -532,7 +540,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   return bundledPluginsRoot;
 }
 
-function installPublishingAndPluginTools(contributions: AssistantToolContributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate }: { readInstallAttachment: InstallAttachmentReader; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination> }) {
+function installPublishingAndPluginTools(contributions: AssistantToolContributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate, getPublishTrustProvisioning }: { readInstallAttachment: InstallAttachmentReader; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>; getPublishTrustProvisioning: () => PublishTrustProvisioningPort }) {
 
   const plugins = contributePluginsTools();
   contributions.contributors.register({ contribution: { ...plugins, build: (deps, surfaces) => plugins.build({ ...deps,
@@ -564,7 +572,8 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // Publish dialog — see that feature's `tool-registrations.ts` header.
   // Pull planning/execution also use this domain. Inject the HTTP importer's complete projection
   // so registered content types see the same ports through either entry point.
-  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }) }) });
+  const publishContentContributor = contributePublishContentTools<AssistantToolRegistryDeps>({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }) });
+  contributions.contributors.register({ contribution: { ...publishContentContributor, build: (deps, surfaces) => publishContentContributor.build({ ...deps, publishTrustProvisioning: deps.publishTrustProvisioning ?? getPublishTrustProvisioning() }, surfaces) } });
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
   // this line the daemon's registry is empty and every publish answer is "nothing to publish".
@@ -745,8 +754,8 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   // why): each resource's "how do I copy myself" contribution, resolved into the cross-resource
   // `content_duplicate` tool `contributeContentDuplicationTools()` registered above already exposes.
   for (const contributor of [
-    ...contributePostDuplicateHandlers(),
-    ...contributeFormsDuplicateHandlers(),
+    ...contributePostDuplicateHandlers({ deriveDuplicateName }),
+    ...contributeFormsDuplicateHandlers({ deriveDuplicateName }),
     ...contributeMediaDuplicateHandlers({ deriveDuplicateName, ...UPLOAD_CAPS }),
   ]) {
     registerDuplicateResourceHandler(contributor);

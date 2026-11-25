@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -49,7 +50,7 @@ function setup(t: test.TestContext, optional: { fail?: Error } = {}) {
     thresholdBytes: 10,
   };
   async function run(toolId: string, input: Record<string, unknown>) {
-    const found = buildMediaImportRegistrations(deps, { videoImport }).find((r) => r.descriptor.id === toolId);
+    const found = buildMediaImportRegistrations(deps, { videoImport, resolvePublicUrls: resolveMediaPublicUrls }).find((r) => r.descriptor.id === toolId);
     assert.ok(found, `${toolId} must be wired`);
     const ctx: ToolExecutionContext = { input, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal };
     return await found.handler(ctx) as { media: { id: string } };

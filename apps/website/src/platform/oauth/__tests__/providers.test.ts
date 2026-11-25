@@ -4,7 +4,7 @@ import test from "node:test";
 import { assertValidOAuthProvider, buildOperatorOAuthProvider, createOAuthProviderRegistry } from "@jini-ai/oauth";
 import { createTovuOAuthGuard } from "../endpoint-safety.js";
 const guard = createTovuOAuthGuard({});
-import type { OAuthProviderDescriptor } from "../ports.js";
+import type { OAuthProviderDescriptor } from "@jini-ai/oauth";
 
 function descriptor(overrides: Partial<OAuthProviderDescriptor> = {}): OAuthProviderDescriptor {
   return {

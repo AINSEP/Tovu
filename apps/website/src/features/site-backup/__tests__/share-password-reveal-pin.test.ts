@@ -1,3 +1,5 @@
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 /**
  * Pins the share backend's host wiring across the move to `@jini-ai/devops/backup/site/share-backend`:
  * an EXISTING share password, sealed exactly as production sealed it (real AES-GCM sealer, the host's
@@ -32,7 +34,7 @@ async function sealedShare(t: TestContext) {
   await registry.put({ record: { shareId: SHARE_ID, site: "ws", token: "ABCDEFGHIJKLMNOP", file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null,
     status: "active", createdAt: "2026-10-31T00:00:00Z", revokedAt: null, hasEncryptedKeys: true, sealedPassword } });
   const unexpected = async (): Promise<never> => { throw new Error("export must not run"); };
-  const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES }), registry, site: "ws", zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined,
     ownerPrincipalId: Promise.resolve("owner"), savedKeys: composeSiteSavedKeys({ workspaceId: "ws", sealer }) });
   return { registry, backend, sealer, keyring };
 }
@@ -63,7 +65,7 @@ test("scope notes pass through the host redactor, including the host API-key sha
     database: { bytes: Buffer.from("safe projected DB"), watermarkAtCapture: 5 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], skipped: [],
     scopeNotes: { plugin: `Plugin left out; it held ${key}` }, totalBytes: 19,
     site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "one" }, tovuVersion: "test", createdAt: "2026-10-19T00:00:00Z" } as unknown as SiteSharePlanContent;
-  const backend = createSiteShareBackend({ registry: new SiteShareRegistry({ directory }), site: "ws", prepare: async () => content as never, zip: zipFolderFiles, delivery: async () => undefined });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES }), registry: new SiteShareRegistry({ directory }), site: "ws", prepare: async () => content as never, zip: zipFolderFiles, delivery: async () => undefined });
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 10000 }) as { notes?: string[] };
   assert.equal(result.notes?.length, 1);
   assert.equal(result.notes![0]!.includes(key.split(".")[1]!), false, "secret tail must be redacted");

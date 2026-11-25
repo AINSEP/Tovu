@@ -1,7 +1,7 @@
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
-import type { MediaProvenance } from "@jini-ai/cms/media";
+import type { MediaRecord, MediaProvenance } from "@jini-ai/cms/media";
 import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/media-generation';
@@ -31,14 +31,13 @@ import {
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
   type BlobStorePort,
-  type MediaRecord,
   type MediaRepoPort,
   type TransformDefinitionRepoPort,
 } from "../media/index.js";
 import type { MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
-import { resolveMediaPublicUrls } from "../media/public-urls.js";
+import type { MediaPublicUrlDeps } from "@jini-ai/cms/media/site/contracts";
 import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
 
@@ -80,6 +79,10 @@ import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-ge
  * cover it immediately.
  */
 
+type ResolvePublicUrls = (
+  required: { deps: MediaPublicUrlDeps & { workspaceId: string }; assets: readonly MediaRecord[] },
+  optional?: Record<string, never>,
+) => Promise<Map<string, string | null>>;
 export interface MediaGenerationToolDeps {
   tracker?: Tracker;
   /** Optional best-effort inline preview, using the same codec as media imports. */
@@ -430,7 +433,7 @@ function toGeneratedMediaView(required: { media: MediaRecord; publicUrl: string 
   };
 }
 
-export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationToolDeps): ToolRegistration[] {
+export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationToolDeps, { resolvePublicUrls }: { resolvePublicUrls: ResolvePublicUrls }): ToolRegistration[] {
   const registry = routeDeps.mediaProviderRegistry;
   // Construction may run over metadata-only deps (catalog/approval checks build every domain with a
   // bare fake); the published enum then falls back to the built-in projection. Every composition
@@ -464,7 +467,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
           const { media, sniffed } = await storeGeneratedImage({ routeDeps, ctx, input, prompt, generated, provenance: generatedProvenance({ model, generated }) });
 
-          const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [media] });
+          const urls = await resolvePublicUrls({ deps: routeDeps, assets: [media] });
           // `model`/`provider` let the assistant tell the user which generator it used; `provider` is
           // the vendor the engine actually ran, reported even for a placeholder (`media.placeholder`).
           const result: { media: GeneratedMediaView; model: string; provider: string } = {
@@ -492,6 +495,6 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`,
  * not by importing this module.
  */
-export function contributeMediaGenerationTools(): ToolContributor<MediaGenerationToolDeps, unknown> {
-  return { domain: DOMAIN, build: buildMediaGenerationRegistrations, risk: mediaGenerationDerivedRisk };
+export function contributeMediaGenerationTools({ resolvePublicUrls }: { resolvePublicUrls: ResolvePublicUrls }, _optional = {}): ToolContributor<MediaGenerationToolDeps, unknown> {
+  return { domain: DOMAIN, build: (d) => buildMediaGenerationRegistrations(d, { resolvePublicUrls }), risk: mediaGenerationDerivedRisk };
 }

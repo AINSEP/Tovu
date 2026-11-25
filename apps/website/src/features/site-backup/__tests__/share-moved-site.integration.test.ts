@@ -16,6 +16,11 @@ import { createSiteShareBackend } from "../share-backend.js";
 import { createRuntimeShareDelivery, resolveShareDelivery } from "../share-hosting.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { createSiteShare } from "../share-service.js";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 /** The anonymous `/_share/<token>/<file>` download as the public route answers it, from whichever catalog is live. */
 function anonymousDownloads(current: () => SiteShareRegistry): HttpClientPort {
@@ -44,7 +49,7 @@ test("a runtime-delivered share still revokes after its site folder is moved, de
 
   renameSync(before, after);
   live = new SiteShareRegistry({ directory: realpathSync(catalog(after)) });
-  const backend = createSiteShareBackend({ registry: live, site: "ws",
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: live, site: "ws",
     prepare: async () => assert.fail("revoke never prepares"), zip: async () => assert.fail("revoke never zips"),
     delivery: selection => resolveShareDelivery({ peer: async () => undefined, http, objectStore: async () => undefined, runtime }, selection) });
   const revoked = await backend.revoke({ shareId: created.shareId });

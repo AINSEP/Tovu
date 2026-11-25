@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 /**
  * @file RED regression suite for the Forms half of the 2026-09-16 "always say the real reason"
  * sweep. Drives the REAL delegated-tool-call transport end to end, the same seam
@@ -52,7 +53,7 @@ function makeRouteDeps(options: { allow?: boolean; grants?: readonly string[] } 
 
 async function buildHarness(routeDeps: FormsToolDeps) {
   const registry = createToolRegistry({});
-  for (const registration of buildFormsRegistrations(routeDeps)) registry.register(registration);
+  for (const registration of buildFormsRegistrations(routeDeps, { deriveDuplicateName })) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });

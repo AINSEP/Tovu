@@ -1,3 +1,14 @@
+import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
+import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
+import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +17,20 @@ import type { ReactElement } from "react";
 import { Media } from "../Media";
 import { renderMediaPanel } from "../../../media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+
+const requiredMediaHooks = {
+  useMediaHook: useWiredMedia,
+  useMediaTabsHook: useMediaTabs,
+  useMediaPreviewHook: useWiredMediaPreview,
+  useEditMediaPanelHook: useWiredEditMediaPanel,
+  useEditMediaModalHook: useEditMediaModal,
+  useAdminKitValuesHook: useAdminKitValues,
+  useMediaCardMetadataHook: useMediaCardMetadata,
+  useMediaCardDetailsHook: useMediaCardDetails,
+  useMediaGridSizeHook: useMediaGridSize,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useMediaItemLinkHook: useMediaItemLink,
+};
 
 /**
  * @file `/admin/media?id=<mediaId>` deep link (open-bugs 10-31 "no deep link to a single media
@@ -50,10 +75,10 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-function renderScreen(props: React.ComponentProps<typeof Media> = {}) {
+function renderScreen(props: Partial<React.ComponentProps<typeof Media>> = {}) {
   return render(
     <FetchQueryProvider>
-      <Media {...props} />
+      <Media {...requiredMediaHooks} {...props} />
     </FetchQueryProvider>,
   );
 }
@@ -92,7 +117,7 @@ describe("/admin/media?id= deep link", () => {
     expect(editDialog().hasAttribute("open")).toBe(false);
     view.rerender(
       <FetchQueryProvider>
-        <Media itemId="media-1" />
+        <Media {...requiredMediaHooks} itemId="media-1" />
       </FetchQueryProvider>,
     );
     await waitFor(() => expect(editDialog().hasAttribute("open")).toBe(true));

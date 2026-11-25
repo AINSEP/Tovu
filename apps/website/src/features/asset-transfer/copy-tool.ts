@@ -8,12 +8,10 @@ import { MAX_DOCUMENT_BYTES, MediaValidationError, validateDocumentIngress } fro
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/files-copy";
-import { isShapeRejection as isThemeShapeRejection } from "../theme/asset-operations.js";
 import { fetchImage, MEDIA_IMPORT_POLICY } from "../media-import/fetch-image.js";
 import { isImportShapeRejection, withCallerSafeEgressRefusal } from "../media-import/tool-registrations.js";
-import { THEME_IMPORT_MAX_BYTES, THEME_IMPORT_POLICY, THEME_IMPORT_ACCEPT } from "../theme/asset-operations.js";
 import { ASSET_SOURCE_SCHEMA, readAssetSource, readLocalFile, resolveAssetSource } from "./asset-sources.js";
-import { prepareAssetWrites, requireAssetDestination, writeAssetFiles, type AssetFile, type AssetToolDeps, type OverwritePolicy, type PreparedAssets } from "./asset-destinations.js";
+import { prepareAssetWrites, requireAssetDestination, writeAssetFiles, type AssetFile, type AssetHostPort, type AssetToolDeps, type OverwritePolicy, type PreparedAssets } from "./asset-destinations.js";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
 import { listFsFiles } from "../fs-files/fs-files.js";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
@@ -25,7 +23,10 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/ag
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
 const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
-export const FILES_COPY_LIMITS = { maxFiles: 50, maxFileBytes: THEME_IMPORT_MAX_BYTES, maxTotalBytes: 25 * 1024 * 1024 } as const;
+// maxFileBytes equals the theme owner's 10 MB import cap (THEME_IMPORT_MAX_BYTES); the catalog is
+// built at module load, before any host port exists, so the value is stated here and the copy-tool
+// test pins it equal to the theme cap instead of importing the theme feature.
+export const FILES_COPY_LIMITS = { maxFiles: 50, maxFileBytes: 10_000_000, maxTotalBytes: 25 * 1024 * 1024 } as const;
 const catalog: AgentToolDefinition = {
   name: "files_copy",
   description: "Copy/import assets without Bash cp or Python. sources:[{root:'picked'|'site'|'theme'|'media',path,themeId?,glob?}|{root:'url',url,path?}]. " +
@@ -49,9 +50,9 @@ const catalog: AgentToolDefinition = {
 export const filesCopyAgentToolCatalog: AgentToolDefinition[] = [catalog];
 export const filesCopyDerivedRisk: DerivedRiskByToolId = new Map([["files_copy", "mutates-durable-state"]]);
 const byId = indexCatalogById({ catalog: filesCopyAgentToolCatalog });
-const callerError = ({ error }: { error: unknown }, _optional = {}) => {
+const callerError = ({ error, deps }: { error: unknown; deps: AssetToolDeps }, _optional = {}) => {
   if (error instanceof FsFilePathError || error instanceof FsWriteInputError || error instanceof MediaValidationError) return true;
-  return isThemeShapeRejection({ error }) || isImportShapeRejection({ error });
+  return deps.assetHost.isThemeShapeRejection({ error }) || isImportShapeRejection({ error });
 };
 
 /** URL sources reuse fetchImage and its safe egress port, with the existing theme font sniffer. */
@@ -60,7 +61,7 @@ async function readUrl({ deps, source, media }: { deps: AssetToolDeps; source: R
   const url = requireString({ input: source, key: "url" });
   const fetched = await withCallerSafeEgressRefusal({ log: deps.mediaImportEgressRefusalLog ?? console.warn, work: () => fetchImage(
     { deps: { httpClient: deps.mediaImportHttpClient, plainHttpTestOrigins: deps.outboundTestOrigins }, url },
-    media ? { policy: { ...MEDIA_IMPORT_POLICY, maxBytes: FILES_COPY_LIMITS.maxFileBytes } } : { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
+    media ? { policy: { ...MEDIA_IMPORT_POLICY, maxBytes: FILES_COPY_LIMITS.maxFileBytes } } : deps.assetHost.themeImportFetch,
   ) }, { toolId: "files_copy" });
   return { bytes: Buffer.from(fetched.bytes), path: source.path === undefined ? basename(fetched.url.pathname) : requireString({ input: source, key: "path" }), sourceUrl: fetched.url.href };
 }
@@ -156,7 +157,7 @@ function appendFiles({ files, group, prefix }: { files: AssetFile[]; group: Asse
  * @returns One registration. @complexity O(1). @example buildFilesCopyRegistrations(deps, surfaces); */
 export function buildFilesCopyRegistrations(deps: AssetToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handler = approvalToolHandler<PreparedAssets>({ surfaces,
-    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: "files_copy", catalog: byId, isShapeRejection: ({ error }) => callerError({ error }), fn: () => prepare({ deps, ctx }) }),
+    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: "files_copy", catalog: byId, isShapeRejection: ({ error }) => callerError({ error, deps }), fn: () => prepare({ deps, ctx }) }),
     describe: ({ prepared }) => describeWriteBatch(prepared.batch ?? { folder: "", writes: [] }, { toolId: "files_copy" }),
     run: async ({ ctx, prepared }) => {
       if (!prepared.files.length) return { applied: false, written: [], skipped: prepared.skipped };
@@ -168,6 +169,6 @@ export function buildFilesCopyRegistrations(deps: AssetToolDeps, surfaces: Assis
 }
 
 /** Composition contribution; its own key preserves the existing fs-files catalog. */
-export function contributeFilesCopyTools(): ToolContributor<AssetToolDeps, AssistantSurfaceDeps> {
-  return { domain: "files-copy", build: (deps, surfaces) => buildFilesCopyRegistrations({ ...deps, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) }, surfaces), risk: filesCopyDerivedRisk };
+export function contributeFilesCopyTools<D extends Omit<AssetToolDeps, "resolveImportedMediaUrls" | "assetHost">>({ resolveImportedMediaUrls, bindAssetHost }: Pick<AssetToolDeps, "resolveImportedMediaUrls"> & { bindAssetHost: (deps: D) => AssetHostPort }, _optional = {}): ToolContributor<D, AssistantSurfaceDeps> {
+  return { domain: "files-copy", build: (deps, surfaces) => buildFilesCopyRegistrations({ ...deps, resolveImportedMediaUrls, assetHost: bindAssetHost(deps), documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) }, surfaces), risk: filesCopyDerivedRisk };
 }

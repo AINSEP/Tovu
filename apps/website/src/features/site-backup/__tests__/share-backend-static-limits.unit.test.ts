@@ -5,6 +5,11 @@ import path from "node:path";
 import test, { mock, type TestContext } from "node:test";
 import * as yauzl from "yauzl";
 import type { StaticSiteCopy } from "@jini-ai/devops/backup/site/static-copy";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 // Exercise the real limit policy with small buffers instead of allocating hundreds of MiB.
 mock.module("@tovu/contracts/site-share-limits", { namedExports: { SHARE_LIMITS: {
@@ -40,7 +45,7 @@ async function backendFor(t: TestContext, themeIds: string[]) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   let zips = 0;
   let archive = Buffer.alloc(0);
-  const backend = createSiteShareBackend({ registry: new SiteShareRegistry({ directory }), site: "site",
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: new SiteShareRegistry({ directory }), site: "site",
     prepare: async () => { throw new Error("unexpected backup"); }, delivery: async () => undefined,
     zip: async input => {
       zips++;

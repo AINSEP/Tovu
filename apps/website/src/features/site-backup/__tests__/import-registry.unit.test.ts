@@ -10,7 +10,10 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import { reconcileInterruptedImports, requireStagingBudget } from "@jini-ai/devops/backup/site/import-backend-steps";
-import { SITE_IMPORT_HOST } from "../import-backend.js";
+import { createSiteImportHost } from "../import-backend.js";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
+
+const SITE_IMPORT_HOST = createSiteImportHost({ themeChecks: THEME_PLACEMENT_CHECKS });
 import type { SiteImportRecord, SiteImportUpload } from "@jini-ai/devops/backup/site/import-registry";
 import { SiteImportRegistry } from "../import-registry.js";
 

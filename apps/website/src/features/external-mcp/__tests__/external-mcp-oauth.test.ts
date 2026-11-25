@@ -13,6 +13,7 @@ import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
@@ -126,7 +127,7 @@ async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: st
     },
   );
 
-  const service = createExternalMcpOAuthService({
+  const service = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: WORKSPACE,
     repo,
     sealer,
@@ -153,7 +154,7 @@ test("redirect state requires the starting browser proof, including after servic
   const start = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI, browserBinding });
   assert.equal(start.kind, 'redirect_required');
   if (start.kind !== 'redirect_required') throw new Error('Expected redirect sign-in');
-  const rebuilt = createExternalMcpOAuthService({
+  const rebuilt = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: WORKSPACE, repo: h.repo, sealer: h.sealer, keyring: h.keyring, clock: h.clock,
     devices: createDeviceAuthorizationStore(), lookupProvider: () => PROVIDER,
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => h.http.fetchFn(url, init) },
@@ -1118,7 +1119,7 @@ function serviceWithBrokenDependency(
   base: Awaited<ReturnType<typeof makeHarness>>,
   overrides: { sealer?: SecretSealerPort; keyring?: KeyringPort; repo?: ExternalMcpServerRepoPort; workspaceId?: string },
 ): ReturnType<typeof createExternalMcpOAuthService> {
-  return createExternalMcpOAuthService({
+  return createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: overrides.workspaceId ?? WORKSPACE,
     repo: overrides.repo ?? base.repo,
     sealer: overrides.sealer ?? base.sealer,
@@ -1391,7 +1392,7 @@ type Harness = Awaited<ReturnType<typeof makeHarness>>;
 
 /** A second service over the harness's own store, for the deps `makeHarness` does not expose. */
 function serviceOver(h: Harness, extra: Partial<Parameters<typeof createExternalMcpOAuthService>[0]> = {}) {
-  return createExternalMcpOAuthService({
+  return createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
     workspaceId: WORKSPACE, repo: h.repo, sealer: h.sealer, keyring: h.keyring, clock: h.clock,
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => h.http.fetchFn(url, init) },

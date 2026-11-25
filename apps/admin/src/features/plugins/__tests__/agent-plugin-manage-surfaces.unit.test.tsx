@@ -1,3 +1,6 @@
+import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -6,6 +9,12 @@ import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import type { AgentPluginDetailsModalController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
+
+const requiredAgentPluginDetailsModalHooks = {
+  useAgentPluginMemoryHook: useWiredAgentPluginMemory,
+  useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
+  useAgentPluginSurfacesHook: useAgentPluginSurfaces,
+};
 
 /**
  * @file A plugin's own admin screens ("surfaces"): the row's Manage button appears only once the
@@ -47,7 +56,7 @@ describe("AgentPluginManageButton", () => {
 
 describe("AgentPluginDetailsModal opened from Manage", () => {
   it("starts on the plugin's first screen", async () => {
-    render(<AgentPluginDetailsModal plugin={{ id: "writer", displayName: "Writer", surfaces: [SURFACE] }} onClose={vi.fn()} t={identity}
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={{ id: "writer", displayName: "Writer", surfaces: [SURFACE] }} onClose={vi.fn()} t={identity}
       useDetails={useNoFiles} surfacesPort={surfacesPort([SURFACE])} />);
     expect(await screen.findByRole("tab", { name: "Writer settings" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByTitle("Writer settings").tagName).toBe("IFRAME");

@@ -5,7 +5,7 @@ import { useEffect, useId } from "react";
 
 import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
-import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
+import type { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
 import { ProviderSettingField } from "@jini-ai/admin/screens/plugins/PluginProviderSettingField";
 import { providerSettingRequiredHere } from "./rules";
 import { interpolate } from '@jini-ai/core/text';
@@ -27,13 +27,14 @@ import "@jini-ai/admin/screens/plugins/provider-settings-dialog.css";
  */
 
 export interface PluginProviderSettingsDialogProps {
+  readonly useProviderSettingsFocusHook: typeof useProviderSettingsFocus;
   readonly plugin: Pick<AdminPluginDto, "id" | "name">;
   readonly agentHandleBase: string;
   readonly onClose: () => void;
   /** After the server accepted the values; the screen closes the card and confirms with a notice. */
   readonly onSaved: () => void;
   /** Injectable seam for tests. Defaults to the real {@link useWiredPluginProviderSettings}. */
-  readonly useSettings?: typeof useWiredPluginProviderSettings;
+  readonly useSettings: typeof useWiredPluginProviderSettings;
 }
 
 /** Field names are manifest keys (`apiKey`); agent handles allow only lowercase words joined by hyphens. */
@@ -84,20 +85,20 @@ function settingsSubtitleText({ card, t }: { card: AdminPluginProviderSettings; 
   return t("Saved to your project — not used by any site yet");
 }
 
-function useProviderSettingsFocus({ card, fieldId }: { card: AdminPluginProviderSettings | null; fieldId: string }, _options = {}) {
+export function useProviderSettingsFocus({ card, fieldId }: { card: AdminPluginProviderSettings | null; fieldId: string }, _options = {}) {
   // The native dialog focuses on open, before the card has loaded; once it has, start in its first field.
   const firstField = card?.fields[0]?.name;
   useEffect(() => { if (firstField) document.getElementById(`${fieldId}-${firstField}`)?.focus(); }, [fieldId, firstField]);
 }
 
-export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, onSaved, useSettings = useWiredPluginProviderSettings }: PluginProviderSettingsDialogProps) {
-  const { card, values, setValue, save, useSavedKey, saving, error, t } = useSettings({ pluginId: plugin.id });
+export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, onSaved, useSettings, useProviderSettingsFocusHook }: PluginProviderSettingsDialogProps) {
+  const { card, values, setValue, save, useSavedKey: selectSavedKey, saving, error, t } = useSettings({ pluginId: plugin.id });
   const fieldId = useId();
   const fields = card?.fields ?? [];
   // Presence only: a saved alternate secret satisfies the same manifest rule as an entered value.
   const effectiveValues = Object.fromEntries(fields.map(field => [field.name,
     values[field.name]?.trim() || unenteredFieldValue(field)]));
-  useProviderSettingsFocus({ card, fieldId });
+  useProviderSettingsFocusHook({ card, fieldId });
   return (
     <Dialog open title={interpolate({ template: t("{name} settings"), vars: { name: plugin.name } })} pending={saving} onClose={() => onClose()} className="settings-dialog jini-domain-dialog provider-settings-dialog">
       <SettingsSubtitle card={card} t={t} />
@@ -105,7 +106,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
         <div className="jini-dialog-body">
           <ReentryNotices card={card} t={t} />
           {card?.store === "project" && card.keyId && !card.usedByThisSite ? <Button variant="secondary" disabled={saving}
-            onPress={() => { void useSavedKey().then(accepted => { if (accepted) onSaved(); }); }}>
+            onPress={() => { void selectSavedKey().then(accepted => { if (accepted) onSaved(); }); }}>
             {t("Use the saved key for this site")}
           </Button> : null}
           {fields.map((field) => (

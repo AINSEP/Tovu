@@ -1,25 +1,28 @@
 import { restoreImportedPluginState as restore, type ImportPluginStateDeps } from "@jini-ai/devops/backup/site/import-plugin-state";
 import type { ImportedExtensionState } from "@jini-ai/devops/backup/site/import-plugin-state";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
+import type { SoonCatalogPort } from "@jini-ai/agent-plugins/site/soon-lock";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { findSoonAgentPlugin } from "@jini-ai/agent-plugins/site/soon-lock";
-import { HOST_SOON_AGENT_PLUGINS } from "#src/features/agent-plugins/bundled-catalog";
 import { bundledAgentPluginsDir, readTemplate } from "#src/platform/site-dir/index";
 import { validateSharePath } from "./share-file-policy.js";
+
+/** The host's Soon policy: the locked plugin `pluginId` names, or undefined when it may be switched on. */
+export type FindSoonAgentPlugin = (required: { catalog: SoonCatalogPort; workspaceRoot: string; pluginId: string }) => Promise<{ readonly name: string } | undefined>;
 
 /** Seed only THIS install's code before applying imported activation choices by plugin id.
  * Shipped code remains quarantined (see the devops module for the per-plugin decision).
  * @complexity O(local bundled package bytes + imported memory bytes), bounded by share caps.
  */
-export async function restoreImportedPluginState(required: { root: string; dir: string; layout: AgentPluginLayout; state: ImportedExtensionState; files: readonly string[] }, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
+export async function restoreImportedPluginState(required: { root: string; dir: string; layout: AgentPluginLayout; state: ImportedExtensionState; files: readonly string[]; findSoonAgentPlugin: FindSoonAgentPlugin }, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
+  const { findSoonAgentPlugin, ...request } = required;
   const deps: ImportPluginStateDeps = {
     sourceRoot: optional.sourceRoot ?? bundledAgentPluginsDir(),
     createLifecycle: ({ layout, sourceRoot }) => createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot }),
     // A "Soon" plugin is locked off (`agent-plugins/soon-lock.ts`, owner 2026-11-10): written off
     // rather than refused, so one locked plugin never aborts the rest of the import.
-    findSoonAgentPlugin: ({ catalog, workspaceRoot, pluginId }) => findSoonAgentPlugin({ catalog: catalog as Parameters<typeof findSoonAgentPlugin>[0]["catalog"], workspaceRoot, pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }),
+    findSoonAgentPlugin: ({ catalog, workspaceRoot, pluginId }) => findSoonAgentPlugin({ catalog: catalog as SoonCatalogPort, workspaceRoot, pluginId }),
     starterWorkspaceId: () => readTemplate({ templateId: "starter" }).seed.workspace.id,
     validatePath: validateSharePath,
   };
-  return restore({ ...required, deps });
+  return restore({ ...request, deps });
 }

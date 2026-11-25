@@ -1,3 +1,5 @@
+import { useWiredCollectionEntryEditor } from "@/features/collections/hooks/use-collection-entry-editor.hooks";
+import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
 import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,6 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
 import type { AdminContentType, AdminEntry, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
+
+const requiredCollectionEntryEditorHooks = {
+  useCollectionEntryEditorHook: useWiredCollectionEntryEditor,
+  useJsonFieldControlHook: useJsonFieldControl,
+};
 
 /**
  * @file `CollectionEntryEditor` — the render-layer branches `CollectionEntryEditor.unit.test.tsx`
@@ -110,7 +117,7 @@ beforeEach(() => {
 
 function renderEditor(overrides: Partial<CollectionEntryEditorController> = {}, entryId: string | null = null) {
   editorControllerRef.current = editorController(overrides);
-  render(<CollectionEntryEditor contentTypeKey="recipe" entryId={entryId} />);
+  render(<CollectionEntryEditor {...requiredCollectionEntryEditorHooks} contentTypeKey="recipe" entryId={entryId} />);
 }
 
 describe("loading / error / not-found states", () => {

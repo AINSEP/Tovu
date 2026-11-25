@@ -1,3 +1,6 @@
+import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
 import { act, fireEvent, waitFor } from "@testing-library/react";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +11,12 @@ import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
+
+const requiredAgentPluginDetailsModalHooks = {
+  useAgentPluginMemoryHook: useWiredAgentPluginMemory,
+  useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
+  useAgentPluginSurfacesHook: useAgentPluginSurfaces,
+};
 
 /**
  * @file Security pins for the host page's admin-surface mount (phase A): the frame is sandboxed with
@@ -288,7 +297,7 @@ describe("AgentPluginDetailsModal admin surfaces", () => {
   it("adds one view per contributed surface after Memory, titled by the plugin", async () => {
     const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
     const useDetails = (): AgentPluginDetailsModalController => ({ files: [], selectedFile: null, selectFile: vi.fn() });
-    render(<AgentPluginDetailsModal plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} surfacesPort={fakePort()} />);
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} surfacesPort={fakePort()} />);
     await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
   });
 
@@ -302,7 +311,7 @@ describe("AgentPluginDetailsModal admin surfaces", () => {
     });
     const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
     const useDetails = (): AgentPluginDetailsModalController => ({ files: [], selectedFile: null, selectFile: vi.fn() });
-    render(<AgentPluginDetailsModal plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} />);
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks} plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} />);
     await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
   });
 });

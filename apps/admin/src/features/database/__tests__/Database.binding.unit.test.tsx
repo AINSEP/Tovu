@@ -2,6 +2,18 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { Database } from "../Database";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useWiredMigrateForwardSection } from "../hooks/migrate-forward-section-dependencies.hooks";
+import { useWiredSchemaStateSection } from "../hooks/schema-state-section-dependencies.hooks";
+import { useWiredTimelineSection } from "../hooks/timeline-section-dependencies.hooks";
+
+/** The wired hooks, injected exactly as `panels.tsx` injects them. */
+const wiredHooks = {
+  useAdminLocaleHook: useAdminLocale,
+  useTimelineSectionHook: useWiredTimelineSection,
+  useMigrateForwardSectionHook: useWiredMigrateForwardSection,
+  useSchemaStateSectionHook: useWiredSchemaStateSection,
+};
 
 // The screen lives in `@jini-ai/admin`; this pins what the host binding hands it: the wired section
 // hooks over the real HTTP adapter, the admin locale hook, and the host `ServerLabel`.
@@ -22,7 +34,7 @@ function stubAdminApi() {
 
 it("renders the Jini Database screen with the wired Timeline and the host ServerLabel", async () => {
   stubAdminApi();
-  render(<Database tabId="timeline" />);
+  render(<Database {...wiredHooks} tabId="timeline" />);
   expect(screen.getByRole("heading", { name: "Database", level: 1 })).toBeInTheDocument();
   expect(await screen.findByRole("cell", { name: "core.migration" })).toBeInTheDocument();
   expect(screen.getByText("success")).toBeInTheDocument();
@@ -31,6 +43,6 @@ it("renders the Jini Database screen with the wired Timeline and the host Server
 
 it("opens the Migrate forward tab from the host-supplied tabId", async () => {
   stubAdminApi();
-  render(<Database tabId="migrate-forward" />);
+  render(<Database {...wiredHooks} tabId="migrate-forward" />);
   expect(await screen.findByRole("button", { name: "Plan migration" })).toBeInTheDocument();
 });

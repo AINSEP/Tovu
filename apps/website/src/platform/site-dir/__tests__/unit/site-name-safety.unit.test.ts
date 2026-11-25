@@ -2,7 +2,10 @@ import "../helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { importSiteSlug as engineSlug } from "@jini-ai/devops/backup/site/import-backend-steps";
-import { SITE_IMPORT_HOST } from "../../../../features/site-backup/import-backend.js";
+import { createSiteImportHost } from "../../../../features/site-backup/import-backend.js";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
+
+const SITE_IMPORT_HOST = createSiteImportHost({ themeChecks: THEME_PLACEMENT_CHECKS });
 
 const importSiteSlug = (required: { displayName: string }) => engineSlug({ ...required, host: SITE_IMPORT_HOST });
 import { isInSitesWorkspace } from "../../site-registry.js";

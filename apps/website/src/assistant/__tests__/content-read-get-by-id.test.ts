@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 /**
@@ -239,7 +240,7 @@ test("media (real handler): canonical id and mediaId select one scoped asset, in
   for (const input of [{ id: "asset-1" }, { mediaId: "asset-1" }, { id: "asset-1", mediaId: "asset-1" }, { mediaId: "asset-1", id: "asset-1" }]) {
     const result = await executeRegisteredTool({ registration, input });
     assert.equal(result.status, "completed");
-    const media = [{ id: "asset-1", createdBy: null, slug: "photo-1", title: "Photo 1", alt: "alt", caption: "caption", credit: "credit", sha256: "sha-1", status: "trashed", version: 1, cssClass: null, htmlAttributes: null, publicUrl: null }];
+    const media = [{ id: "asset-1", createdBy: null, slug: "photo-1", title: "Photo 1", alt: "alt", caption: "caption", credit: "credit", sha256: "sha-1", status: "trashed", version: 1, description: "", cssClass: null, htmlAttributes: null, publicUrl: null }];
     // The legacy selector is aliased in the gate, which reports the rename it applied.
     assert.deepEqual(result.output, "mediaId" in input ? { media, normalizationNotes: ["mediaId→id"] } : { media });
   }
@@ -291,7 +292,7 @@ function formsDeps() {
 }
 
 test("forms (real handler): read one definition by formId; a miss is the exact not-found text", async () => {
-  const formDefinition = card(buildFormsRegistrations(formsDeps() as unknown as Parameters<typeof buildFormsRegistrations>[0]), "content_read.form_definition");
+  const formDefinition = card(buildFormsRegistrations(formsDeps() as unknown as Parameters<typeof buildFormsRegistrations>[0], { deriveDuplicateName }), "content_read.form_definition");
   const result = (await formDefinition.handler(executionContext({ formId: "form-2" }))) as { definitions: Array<{ id: string; slug: string }> };
   assert.deepEqual(result.definitions.map((row) => [row.id, row.slug]), [["form-2", "signup"]]);
   await assert.rejects(formDefinition.handler(executionContext({ formId: "form-9" })), {

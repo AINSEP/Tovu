@@ -1,3 +1,28 @@
+import { useWiredTimelineSection } from "@/features/database/hooks/timeline-section-dependencies.hooks";
+import { useWiredMigrateForwardSection } from "@/features/database/hooks/migrate-forward-section-dependencies.hooks";
+import { useWiredSchemaStateSection } from "@/features/database/hooks/schema-state-section-dependencies.hooks";
+import { useWiredAgentPluginDetailsModal } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
+import { useAgentPluginUpdate } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-update.hooks";
+import { useWiredAgentPlugins } from "@/features/plugins/hooks/use-agent-plugins.hooks";
+import { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
+import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginConfirmation } from "@jini-ai/admin/screens/plugins/AgentPlugins.hooks";
+import { useWiredCollectionEntryEditor } from "@/features/collections/hooks/use-collection-entry-editor.hooks";
+import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
+import { useWiredPageEditor } from "@/features/pages/hooks/use-page-editor.hooks";
+import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { useThemePreviewFrame } from "@/features/themes/hooks/use-theme-preview-refresh.hooks";
+import { useAdminExecutionMode } from "@/features/ai-assistant/hooks/use-admin-execution-mode.hooks";
+import { useWiredAdminExecutionCredential } from "@/hooks/use-admin-execution-credential.hooks";
+import { useAdminLocale, useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useTovuSettingsExecution } from "@/hooks/use-tovu-execution-adapters.hooks";
+import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
+import { useWiredAiAssistant, useAiAssistantTab } from "@/features/ai-assistant/hooks/use-ai-assistant.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useWiredAiAssistantLocaleSync } from "@/features/ai-assistant/hooks/use-ai-assistant-locale-sync.hooks";
 import { Suspense, type ReactNode } from "react";
 import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
 import { useAddonsRedirect } from "./lib/use-addons-redirect.hooks";
@@ -194,7 +219,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `AiAssistant`'s `tabId` prop) — same `?tab=` deep-linking convention as `settings`'s and
     // `deployment`'s own entries elsewhere in this file.
-    render: (ctx, _options = {}) => <AiAssistant tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <AiAssistant useAdminExecutionModeHook={useAdminExecutionMode} useAdminExecutionCredentialHook={useWiredAdminExecutionCredential} useAdminLocaleHook={useAdminLocale} useTovuSettingsExecutionHook={useTovuSettingsExecution} useExecutionPolicy={useTovuExecutionPolicy} useAiAssistantHook={useWiredAiAssistant} useAdminThemeBoundaryHook={useAdminThemeBoundary} useAiAssistantTabHook={useAiAssistantTab} useWiredAdminLocaleHook={useWiredAdminLocale} useAiAssistantLocaleSyncHook={useWiredAiAssistantLocaleSync} tabId={ctx.query.get("tab")} />,
     nav: {
       // Fourth in the ungrouped top row (third on desktop, which hides Sites), below Overview,
       // Sites, and Import & Export (owner moved Sites above this entry 2026-09-05 — see Sites' own
@@ -225,7 +250,7 @@ const PANELS: readonly TovuAdminPanel[] = [
         // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
         // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
         // real id, so an old id-based bookmark still resolves — see that function's own doc.
-        return <PageEditor key={ctx.params.slug} slug={ctx.params.slug} />;
+        return <PageEditor usePageEditorHook={useWiredPageEditor} useTabBarKeyboardHook={useTabBarKeyboard} useThemePreviewFrameHook={useThemePreviewFrame} key={ctx.params.slug} slug={ctx.params.slug} />;
       }
       return <Pages />;
     },
@@ -315,7 +340,7 @@ const PANELS: readonly TovuAdminPanel[] = [
       switch (ctx.view) {
         case "collection-entry-editor":
           return (
-            <CollectionEntryEditor
+            <CollectionEntryEditor useCollectionEntryEditorHook={useWiredCollectionEntryEditor} useJsonFieldControlHook={useJsonFieldControl}
               key={`${contentTypeKey}:${ctx.params.entryId}`}
               contentTypeKey={contentTypeKey}
               entryId={ctx.params.entryId === "new" ? null : ctx.params.entryId}
@@ -731,7 +756,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     allowedQueryParams: {"tab": ["installed", "downloaded", "add", "marketplace"]},
     agentEntities: [{"type": "agent-plugin", "pattern": ""}],
     anyOfPermissions: ["admin.plugins.read"],
-    render: (ctx, _options = {}) => <AgentPlugins tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <AgentPlugins useDetails={useWiredAgentPluginDetailsModal} useAgentPluginMemoryHook={useWiredAgentPluginMemory} useAgentPluginDetailsViewHook={useAgentPluginDetailsView} useAgentPluginSurfacesHook={useAgentPluginSurfaces} useAgentPluginUpdateHook={useAgentPluginUpdate} useAgentPluginsHook={useWiredAgentPlugins} useAdminThemeBoundaryHook={useAdminThemeBoundary} useAgentPluginTabHook={useAgentPluginTab} useAgentPluginInstallHook={useAgentPluginInstall} useAgentPluginConfirmationHook={useAgentPluginConfirmation} tabId={ctx.query.get("tab")} />,
     nav: {
       // Sibling row alongside Plugins: surfaces the Agent Plugins open standard
       // (agent-plugins.org, published 2026-08-06) — portable skills/MCP-server bundles, distinct
@@ -932,7 +957,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `Database`'s `tabId` prop) — same `?tab=` deep-linking convention as `deployment`'s and
     // `settings`'s own entries elsewhere in this file.
-    render: (ctx, _options = {}) => <Database tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Database useAdminLocaleHook={useAdminLocale} useTimelineSectionHook={useWiredTimelineSection} useMigrateForwardSectionHook={useWiredMigrateForwardSection} useSchemaStateSectionHook={useWiredSchemaStateSection} tabId={ctx.query.get("tab")} />,
     nav: {
       // Renamed from "storage" to "database" (ADR-041 naming-correction note, 2026-07): "Storage"
       // read as ambiguous next to the Media/Assets subsystem's own file/blob storage — this

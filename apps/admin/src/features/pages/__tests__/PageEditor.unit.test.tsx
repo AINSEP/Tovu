@@ -1,3 +1,5 @@
+import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { useThemePreviewFrame } from "@/features/themes/hooks/use-theme-preview-refresh.hooks";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +10,11 @@ import type { PageEditorController } from "../hooks/use-page-editor.hooks";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/posts-host-ports";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
+
+const requiredPageEditorHooks = {
+  useTabBarKeyboardHook: useTabBarKeyboard,
+  useThemePreviewFrameHook: useThemePreviewFrame,
+};
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -184,7 +191,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
 function renderEditor(overrides: Partial<PageEditorController> = {}) {
   const ctrl = controller(overrides);
   const usePageEditorHook = () => ctrl;
-  const utils = render(<PageEditor slug="pg1" usePageEditorHook={usePageEditorHook} />);
+  const utils = render(<PageEditor {...requiredPageEditorHooks} slug="pg1" usePageEditorHook={usePageEditorHook} />);
   return { ctrl, ...utils };
 }
 
@@ -750,10 +757,10 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(screen.queryByRole("link", { name: "Watch on YouTube" }), "lookalike hosts and other embeds are excluded").toBeNull();
     ctrl.html = '<iframe src="https://www.youtube.com/embed/real-video"></iframe>';
     ctrl.view = "html";
-    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    rerender(<PageEditor {...requiredPageEditorHooks} slug="pg1" usePageEditorHook={() => ctrl} />);
     expect(screen.queryByRole("link", { name: "Watch on YouTube" }), "HTML view has no watch row").toBeNull();
     ctrl.view = "interactive";
-    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    rerender(<PageEditor {...requiredPageEditorHooks} slug="pg1" usePageEditorHook={() => ctrl} />);
     expect(screen.queryByRole("link", { name: "Watch on YouTube" }), "Interactive view has no watch row").toBeNull();
   });
 
@@ -774,7 +781,7 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const before = screen.getByTitle("Page preview");
     expect(before).toHaveAttribute("src", expect.stringContaining("/pg1/template-preview"));
     ctrl.page = { ...BASE_PAGE, version: 6 };
-    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    rerender(<PageEditor {...requiredPageEditorHooks} slug="pg1" usePageEditorHook={() => ctrl} />);
     expect(screen.getByTitle("Page preview")).not.toBe(before);
   });
 
@@ -792,7 +799,7 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(screen.getAllByText(`T:${note}`)).toHaveLength(1);
     expect(screen.getByText(`T:${note}`)).toHaveClass("field-hint", "editor-preview-note");
     ctrl.view = "html";
-    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    rerender(<PageEditor {...requiredPageEditorHooks} slug="pg1" usePageEditorHook={() => ctrl} />);
     expect(screen.queryByText(`T:${note}`)).toBeNull();
   });
 
@@ -954,7 +961,7 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(screen.queryByTestId("interactive-editor")).not.toBeInTheDocument();
 
     ctrl.canvasStyling = { status: "ready", styling: {} };
-    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    rerender(<PageEditor {...requiredPageEditorHooks} slug="pg1" usePageEditorHook={() => ctrl} />);
     expect(screen.queryByText(/loading the theme/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("interactive-editor")).toBeInTheDocument();
   });

@@ -74,7 +74,10 @@ export interface PublishContentToolDeps extends PublishContentPullDeps, PublishC
   publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["httpClient"];
   siteAssistantSecretSealer: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["sealer"];
   siteAssistantSecretKeyring: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["keyring"];
-  /** Test seam. Absent in production, where the committed-config port is composed below. */
+  /** The assembled committed-config provisioning port, bound once at the tool composition root
+   *  (`server/runtime/composition/tool-catalog-manifest.ts`) so the assistant's connect and the
+   *  HTTP dialog's connect write the same file. Tests pass a fake. Optional only because the shared
+   *  route-deps bag does not carry it; {@link requirePublishTrustProvisioning} refuses when absent. */
   publishTrustProvisioning?: PublishTrustProvisioningPort;
   /** Test seam. Absent in production, where the repo's own deploy config is read. */
   findPublishCandidate?: () => Promise<string | null>;

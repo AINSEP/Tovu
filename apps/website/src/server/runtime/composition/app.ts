@@ -82,7 +82,7 @@ import { BUILT_IN_RUNTIME_SOURCES } from "./built-in-plugin-sources.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
@@ -316,7 +316,7 @@ function createMemoryWidgets(context: ReturnType<typeof createMemoryRuntime> & R
     crypto: globalThis.crypto,
     // Defer captures: media MIME metadata is assembled later in this composition root.
     galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
-      host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: deferred.transformDefinitionRepo(), mediaContentTypeStore: deferred.mediaContentTypeStore(),
+      host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo: deferred.transformDefinitionRepo(), mediaContentTypeStore: deferred.mediaContentTypeStore(),
     } }),
     menus: { resolveMenuDoc },
     collectionList: widgetCollectionListPort,

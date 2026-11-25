@@ -1,3 +1,5 @@
+import { useStoredCredentialHint } from "@jini-ai/admin/shell/hooks/use-credential-hint.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -6,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   VisitorCredentialForm,
+  BoundVisitorCredentialForm,
   VisitorCredentialKeyActions,
   VisitorCredentialKeyFooter,
   VisitorCredentialSettingsFooter,
@@ -20,6 +23,11 @@ import { visitorPresetRules } from "../hooks/visitor-credential-form-dependencie
 import { VisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantPanel";
 import { useVisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/use-visitor-assistant-panel.hooks";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
+
+const requiredVisitorCredentialFormHooks = {
+  useStoredCredentialHintHook: useStoredCredentialHint,
+  useAdminLocaleHook: useAdminLocale,
+};
 
 /**
  * @file Direct tests for the units pulled out of `VisitorCredentialForm` in the complexity pass
@@ -280,7 +288,7 @@ describe("VisitorCredentialForm", () => {
     const credential = fakeController({ loadState: { status: "loading" } });
     const controller = { settings: { publicEnabled: true, widget: "react" as const }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
-    const { rerender } = render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
+    const { rerender } = render(<VisitorAssistantPanel controller={controller} CredentialForm={BoundVisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading saved settings…");
     expect(screen.queryByText("Needs a key")).toBeNull();
@@ -288,7 +296,7 @@ describe("VisitorCredentialForm", () => {
     expect(screen.queryByRole("switch")).toBeNull();
 
     const hydrated = fakeController({ loadState: { status: "ready" }, hasStoredKey: true, hasUsableKey: true });
-    rerender(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
+    rerender(<VisitorAssistantPanel controller={controller} CredentialForm={BoundVisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => hydrated} />);
     expect(screen.queryByText("Loading saved settings…")).toBeNull();
     expect(screen.getByText("On")).toBeInTheDocument();
@@ -300,7 +308,7 @@ describe("VisitorCredentialForm", () => {
     const credential = fakeController({ loadState: { status: "error", message: "Stored settings unavailable" } });
     const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={BoundVisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Stored settings unavailable");
     expect(screen.queryByRole("switch")).toBeNull();
@@ -311,7 +319,7 @@ describe("VisitorCredentialForm", () => {
     const setPublicEnabled = vi.fn(async () => undefined);
     const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
       saveError: "Could not save.", setPublicEnabled, setWidget: vi.fn(async () => undefined) };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={BoundVisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     expect(screen.getByText("Could not save.")).toHaveClass("jini-save-error");
     const toggle = screen.getByRole("switch");
@@ -324,7 +332,7 @@ describe("VisitorCredentialForm", () => {
     const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: false, hasUsableKey: false });
     const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={BoundVisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     const toggle = screen.getByRole("switch");
     expect(toggle).toBeDisabled();
@@ -337,7 +345,7 @@ describe("VisitorCredentialForm", () => {
     const setWidget = vi.fn(async () => undefined);
     const controller = { settings: { publicEnabled: false }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={BoundVisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     const widget = screen.getByLabelText("Widget") as HTMLSelectElement;
     // No stored widget yet: the React widget is what renders.
@@ -348,7 +356,7 @@ describe("VisitorCredentialForm", () => {
   });
 
   it("reports a failed settings read without displaying default provider fields", () => {
-    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
+    render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={() => fakeController({
       loadState: { status: "error", message: "Stored settings unavailable" },
     })} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Stored settings unavailable");
@@ -364,7 +372,7 @@ describe("VisitorCredentialForm", () => {
       const [config, setConfig] = useState(fakeController().config);
       return fakeController({ config, selectPresetById, editConfig: (next) => { editConfig(next); setConfig(next); } });
     }
-    render(<VisitorCredentialForm useVisitorCredentialFormHook={useFake} />);
+    render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={useFake} />);
 
     const keyField = document.querySelector<HTMLInputElement>('input[autocomplete="new-password"]')!;
     await user.type(keyField, "visitor-key-123");
@@ -386,7 +394,7 @@ describe("VisitorCredentialForm", () => {
       stored: { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null },
       connectionTest: { status: "error", message: "connection refused" },
     });
-    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => controller} t={(key) => key === "connection refused" ? "Translated connection failure" : key} />);
+    render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={() => controller} t={(key) => key === "connection refused" ? "Translated connection failure" : key} />);
 
     expect(screen.getByPlaceholderText("••••ab12")).toHaveValue("");
     expect(screen.getByText("Translated connection failure")).toBeInTheDocument();
@@ -399,7 +407,7 @@ describe("VisitorCredentialForm", () => {
 
   it("renders the provider select, key field and separate save actions via the injected hook", () => {
     const useFake = () => fakeController();
-    render(<VisitorCredentialForm useVisitorCredentialFormHook={useFake} />);
+    render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={useFake} />);
 
     const provider = screen.getByRole("combobox", { name: "Provider" });
     expect(within(provider).getByRole("group", { name: "Protocols" })).toBeInTheDocument();
@@ -419,7 +427,7 @@ describe("VisitorCredentialForm", () => {
 // The standalone form needs the same host catalog as ExecutionTab for foreign-key hints.
 it("warns when an Anthropic key is pasted into the standalone OpenAI form", () => {
   const preset = DEFAULT_PROVIDER_PRESETS.find((entry) => entry.id === "openai")!;
-  render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
+  render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={() => fakeController({
     preset,
     config: { protocol: "openai", providerId: "openai", baseUrl: preset.baseUrl, model: "test-model", apiKey: "sk-ant-" + "x".repeat(40) },
   })} />);
@@ -453,24 +461,24 @@ describe("in-flight and settled states of the visitor key and settings controls"
   });
 
   it("the form shows its loading line until the saved credential arrives", () => {
-    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({ loadState: { status: "loading" } })} />);
+    render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={() => fakeController({ loadState: { status: "loading" } })} />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading saved settings…");
     expect(screen.queryByRole("combobox", { name: "Provider" })).toBeNull();
   });
 
   it("offers Custom endpoint only while no catalog preset matches the config", () => {
-    const { unmount } = render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController()} />);
+    const { unmount } = render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={() => fakeController()} />);
     expect(screen.getByRole("option", { name: "Custom endpoint" })).toBeDisabled();
     unmount();
     const preset = DEFAULT_PROVIDER_PRESETS[0]!;
-    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({ preset })} />);
+    render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={() => fakeController({ preset })} />);
     expect(screen.queryByRole("option", { name: "Custom endpoint" })).toBeNull();
     expect((screen.getByRole("combobox", { name: "Provider" }) as HTMLSelectElement).value).toBe(preset.id);
   });
 
   it("marks a provider that already holds a saved key as configured", () => {
     const preset = DEFAULT_PROVIDER_PRESETS[0]!;
-    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
+    render(<VisitorCredentialForm {...requiredVisitorCredentialFormHooks} useVisitorCredentialFormHook={() => fakeController({
       preset, providerGroups: visitorProviderGroups({ configuredIds: new Set([preset.id]), presets: DEFAULT_PROVIDER_PRESETS, groupPresets: visitorPresetRules.groupPresets }),
     })} />);
     expect(screen.getByRole("option", { name: `${preset.title} (configured)` })).toBeInTheDocument();

@@ -8,8 +8,7 @@ import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FsWriteInputError } from "@jini-ai/cms/fs-files/write-files";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";
 import { ASSET_SOURCE_SCHEMA, readAssetSource } from "../asset-transfer/asset-sources.js";
-import { requireAssetDestination, prepareAssetWrites, writeAssetFiles, type AssetToolDeps, type PreparedAssets } from "../asset-transfer/asset-destinations.js";
-import { isShapeRejection as isThemeShapeRejection } from "../theme/asset-operations.js";
+import { requireAssetDestination, prepareAssetWrites, writeAssetFiles, type AssetHostPort, type AssetToolDeps, type PreparedAssets } from "../asset-transfer/asset-destinations.js";
 import { isImportShapeRejection } from "../media-import/tool-registrations.js";
 import { ImageTransformError, OUTPUT_SCHEMA, IMAGE_LIMITS, inspectImage, normalizeOutputs, renderOutputs, type RenderedImage } from "@jini-ai/cms/media/site-transform/image-ops";
 
@@ -52,9 +51,9 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: imageTransformAgentToolCatalog
 export const imageTransformDerivedRisk: DerivedRiskByToolId = new Map([[IMAGE_TRANSFORM_TOOL_ID, "mutates-durable-state"]]);
 
 interface Prepared { source: Awaited<ReturnType<typeof inspectImage>>; rendered: RenderedImage[]; assets?: PreparedAssets }
-const isCallerError = ({ error }: { error: unknown }, _optional = {}) => {
+const isCallerError = ({ error, deps }: { error: unknown; deps: AssetToolDeps }, _optional = {}) => {
   if (error instanceof ImageTransformError || error instanceof FsFilePathError || error instanceof FsWriteInputError) return true;
-  return isThemeShapeRejection({ error }) || isImportShapeRejection({ error });
+  return deps.assetHost.isThemeShapeRejection({ error }) || isImportShapeRejection({ error });
 };
 const view = (rendered: readonly RenderedImage[]) => rendered.map(({ path, format, width, height, bytes }) => ({ path, format, width, height, bytes: bytes.length }));
 
@@ -74,7 +73,7 @@ async function prepare({ routeDeps, ctx }: { routeDeps: ImageTransformToolDeps; 
 
 export function buildImageTransformRegistrations(routeDeps: ImageTransformToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handler = approvalToolHandler<Prepared>({ surfaces,
-    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: IMAGE_TRANSFORM_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isCallerError({ error }), fn: () => prepare({ routeDeps, ctx }) }),
+    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: IMAGE_TRANSFORM_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isCallerError({ error, deps: routeDeps }), fn: () => prepare({ routeDeps, ctx }) }),
     describe: ({ prepared }) => describeWriteBatch(prepared.assets?.batch ?? { folder: "", writes: [] }, { toolId: IMAGE_TRANSFORM_TOOL_ID }),
     run: async ({ ctx, prepared }) => {
       const base = { source: prepared.source, outputs: view(prepared.rendered) };
@@ -88,6 +87,6 @@ export function buildImageTransformRegistrations(routeDeps: ImageTransformToolDe
 }
 
 /** Contributes `image_transform` — registered once by `tool-catalog-manifest.ts`. */
-export function contributeImageTransformTools(): ToolContributor<ImageTransformToolDeps, AssistantSurfaceDeps> {
-  return { domain: "image-transform", build: buildImageTransformRegistrations, risk: imageTransformDerivedRisk };
+export function contributeImageTransformTools<D extends Omit<ImageTransformToolDeps, "resolveImportedMediaUrls" | "assetHost">>({ resolveImportedMediaUrls, bindAssetHost }: Pick<AssetToolDeps, "resolveImportedMediaUrls"> & { bindAssetHost: (deps: D) => AssetHostPort }, _optional = {}): ToolContributor<D, AssistantSurfaceDeps> {
+  return { domain: "image-transform", build: (deps, surfaces) => buildImageTransformRegistrations({ ...deps, resolveImportedMediaUrls, assetHost: bindAssetHost(deps) }, surfaces), risk: imageTransformDerivedRisk };
 }

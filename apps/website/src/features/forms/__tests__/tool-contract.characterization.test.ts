@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 /**
  * @file Characterization of the Forms agent-tool contract, built THROUGH THE HOST CONTRIBUTOR
  * (`contributeFormsTools().build(deps)`), so it pins what the assistant's composition root receives
@@ -87,7 +88,7 @@ async function makeFixture(): Promise<Fixture> {
 }
 
 function build(deps: FormsToolDeps): ToolRegistration[] {
-  return contributeFormsTools().build(deps, undefined);
+  return contributeFormsTools({ deriveDuplicateName }).build(deps, undefined);
 }
 
 function ctx(input: unknown): ToolExecutionContext {
@@ -117,7 +118,7 @@ test("(b) every descriptor equals the committed golden, metadata included", asyn
 });
 
 test("(c) the contributor's derived-risk map is the nine authored entries", () => {
-  assert.deepEqual([...contributeFormsTools().risk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
+  assert.deepEqual([...contributeFormsTools({ deriveDuplicateName }).risk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
 });
 
 const REFUSAL: Record<(typeof TOOL_IDS)[number], { input: unknown; permission: string }> = {
@@ -233,7 +234,7 @@ test("(j) duplicate picks the next free name and slug, copies a disabled source 
   const fixture = await makeFixture();
   await seedForm(fixture);
   const call = caller(build(fixture.deps));
-  const [contributor] = contributeFormsDuplicateHandlers();
+  const [contributor] = contributeFormsDuplicateHandlers({ deriveDuplicateName });
   assert.ok(contributor);
   const handler = contributor.build(fixture.deps);
   const first = (await handler.duplicate({ principalId: PRINCIPAL_ID, id: "id-1", overrides: {} })) as { definition: { name: string; slug: string } };
@@ -258,7 +259,7 @@ test("(k) the delivery-status limit above the cap is refused with the cap in the
 });
 
 test("(l) contributeFormsDuplicateHandlers contributes the 'form' resource gated on admin.forms.manage", async () => {
-  const contributors = contributeFormsDuplicateHandlers();
+  const contributors = contributeFormsDuplicateHandlers({ deriveDuplicateName });
   assert.deepEqual(contributors.map((contributor) => contributor.resource), ["form"]);
   assert.equal(contributors[0]!.build((await makeFixture()).deps).permission, "admin.forms.manage");
 });

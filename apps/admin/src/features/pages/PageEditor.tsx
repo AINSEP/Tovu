@@ -1,5 +1,5 @@
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
-import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import type { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
@@ -18,7 +18,7 @@ import { pagePreviewYoutubeIds } from "@jini-ai/admin/pages/lib/page-preview-you
 
 import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placeholder";
 
-import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { resolveTabBarTabIndex, type useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewToggle";
@@ -28,7 +28,7 @@ import type {
   StandingDraftAutosaveSnapshot,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { useWiredPageEditor } from "./hooks/use-page-editor.hooks";
+import type { useWiredPageEditor } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 import type { ThemeTier } from "../themes/api/themes-api.types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
@@ -79,10 +79,12 @@ import { type Translate } from '@jini-ai/core/text';
  * would fork that conversation for no gain.
  */
 export interface PageEditorProps {
+  useTabBarKeyboardHook: typeof useTabBarKeyboard;
+  useThemePreviewFrameHook: typeof useThemePreviewFrame;
   /** The page's slug, as it appears in the URL. Also accepts a legacy id — see `usePageEditor`. */
   slug: string;
   /** DI seam for tests — same convention as `Pages.tsx`'s `usePagesHook`. */
-  usePageEditorHook?: typeof useWiredPageEditor;
+  usePageEditorHook: typeof useWiredPageEditor;
 }
 
 const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
@@ -688,7 +690,7 @@ function PageEditorTemplateModalGate({
   );
 }
 
-export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEditor }: PageEditorProps) {
+export function PageEditor({ slug: routeSlug, usePageEditorHook, useTabBarKeyboardHook, useThemePreviewFrameHook }: PageEditorProps) {
   const {
     page,
     error,
@@ -761,7 +763,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
   } = usePageEditorHook({ routeSlug });
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PageEditorView) });
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboardHook({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PageEditorView) });
 
   if (error && !page) return <div className="notice error">{error}</div>;
   if (!page) return <div className="notice">{t("Loading editor…")}</div>;
@@ -845,6 +847,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
       />
 
       <PageEditorPane
+        useThemePreviewFrameHook={useThemePreviewFrameHook}
         view={view}
         canvasStyling={canvasStyling}
         bodyJson={page.bodyFormat === "doc" ? page.bodyJson : undefined}
@@ -948,6 +951,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
  * .interactiveEditorRef`'s own doc.
  */
 function PageEditorPane({
+  useThemePreviewFrameHook,
   view,
   canvasStyling,
   html,
@@ -979,6 +983,7 @@ function PageEditorPane({
   interactiveEditorRef,
   setHtmlFromCanvas,
 }: {
+  useThemePreviewFrameHook: typeof useThemePreviewFrame;
   view: PageEditorView;
   canvasStyling: ThemeCanvasStylingState;
   html: string;
@@ -1041,6 +1046,7 @@ function PageEditorPane({
   if (surface.kind === "preview") {
     return (
       <PagePreview
+        useThemePreviewFrameHook={useThemePreviewFrameHook}
         html={html}
         bodyJson={bodyJson}
         width={DEVICE_PREVIEW_WIDTHS[device]}
@@ -1166,6 +1172,7 @@ function PageEditorPane({
  * centres it; see that rule for why `auto` margins are the right tool for both regimes.
  */
 function PagePreview({
+  useThemePreviewFrameHook,
   html,
   bodyJson,
   width,
@@ -1184,6 +1191,7 @@ function PagePreview({
   onFrameLoad,
   t,
 }: {
+  useThemePreviewFrameHook: typeof useThemePreviewFrame;
   html: string;
   bodyJson?: Record<string, unknown>;
   width: number;
@@ -1245,6 +1253,7 @@ function PagePreview({
           {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
           <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
             <PagePreviewFrame
+              useThemePreviewFrameHook={useThemePreviewFrameHook}
               canShowLiveSite={canShowLiveSite}
               slug={slug}
               version={version}
@@ -1329,6 +1338,7 @@ function PagePreviewFab({ expanded, onToggle, t }: { expanded: boolean; onToggle
  * pattern `PageEditorToolbarEnd` above uses for `PageEditor`'s own render branches.
  */
 function PagePreviewFrame({
+  useThemePreviewFrameHook,
   canShowLiveSite,
   slug,
   version,
@@ -1339,6 +1349,7 @@ function PagePreviewFrame({
   onFrameLoad,
   t,
 }: {
+  useThemePreviewFrameHook: typeof useThemePreviewFrame;
   canShowLiveSite: boolean;
   slug: string;
   /** Remount the no-store authenticated GET after an assistant saves a new version. */
@@ -1353,7 +1364,7 @@ function PagePreviewFrame({
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
   t: Translate;
 }) {
-  const fresh = useThemePreviewFrame({
+  const fresh = useThemePreviewFrameHook({
     // Opaque-origin previews cannot save consent; the authenticated route already excludes its gate.
     liveUrl: templatePreviewUrl,
     templateUrl: templatePreviewUrl,

@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -35,7 +36,7 @@ function providerFixture({ allow = true }: { allow?: boolean } = {}) {
 
 async function providerHarness(deps: FormsToolDeps) {
   const registry = createToolRegistry({});
-  for (const registration of buildFormsRegistrations(deps)) registry.register(registration);
+  for (const registration of buildFormsRegistrations(deps, { deriveDuplicateName })) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: 'provider-discovery' });

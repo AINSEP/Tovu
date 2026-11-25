@@ -8,23 +8,37 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { DocumentArchiveReaderPort } from "@jini-ai/cms/media";
 import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { persistImportedMedia, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
-import { validateImageBytes } from "../media-import/fetch-image.js";
-import { saveLibraryDocument } from "../media/index.js";
-import { THEME_WRITE_PERMISSION } from "../theme/asset-operations.js";
-import { resolveThemeFilePath, writeThemeBinaryFile } from "../theme/asset-operations.js";
+import { validateImageBytes, type fetchImage } from "../media-import/fetch-image.js";
 import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
-import { assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, type ThemeToolDeps } from "../theme/asset-operations.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "@jini-ai/cms/fs-files/write-files";
 import { resolveFsFilePath } from "../fs-files/fs-files.js";
 import { preparePickedFolderBatch, type FsFilesToolDeps, type PreparedWriteBatch } from "../fs-files/tool-registrations.js";
 
-export type AssetToolDeps = FsFilesToolDeps & ThemeToolDeps & MediaImportToolDeps & { documentArchiveReader?: DocumentArchiveReaderPort };
+/** A theme as the asset tools see it: its folder and the verdict a reload returns. */
+export interface AssetTheme { readonly dir: string; readonly status: unknown; readonly errors?: unknown }
+/** The host's theme policy and Library saver for asset tools, bound once at the tool composition root.
+ * Method syntax on purpose: the host binds it over its own richer theme type. */
+export interface AssetHostPort<T extends AssetTheme = AssetTheme> {
+  readonly themeWritePermission: string;
+  /** @throws the theme owner's unknown-theme error, a caller shape error. */
+  findTheme(required: { themeId: string }): T;
+  /** Theme write scope and themes-root containment for one path; never writes. */
+  checkThemeWrite(required: { theme: T; relativePath: string }): void;
+  writeThemeFile(required: { theme: T; relativePath: string; bytes: Buffer }): void;
+  reloadTheme(required: { theme: T; themeId: string }): T;
+  sniffThemeImportType(required: { bytes: Uint8Array }): string;
+  /** The theme owner's safe-fetch byte/type policy and Accept header for URL copies into a theme. */
+  readonly themeImportFetch: NonNullable<Parameters<typeof fetchImage>[1]>;
+  isThemeShapeRejection(required: { error: unknown }): boolean;
+  saveLibraryDocument(required: { bytes: Uint8Array; name: string; principalId: string }, optional: { archiveReader?: DocumentArchiveReaderPort }): Promise<{ document: unknown }>;
+}
+export type AssetToolDeps = FsFilesToolDeps & MediaImportToolDeps & { assetHost: AssetHostPort; documentArchiveReader?: DocumentArchiveReaderPort; resolveImportedMediaUrls: Parameters<typeof persistImportedMedia>[0]["resolvePublicUrls"] };
 export interface AssetFile { path: string; bytes: Buffer; sourceUrl?: string }
 export interface AssetDestination { kind: "site" | "theme" | "media" | "library" | "picked"; themeId?: string }
 export interface PreparedAssets { destination: AssetDestination; files: AssetFile[]; skipped: string[]; batch?: PreparedWriteBatch }
 export type OverwritePolicy = "skip" | "overwrite" | "rename";
-const PERMISSION = { site: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION, picked: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION, theme: THEME_WRITE_PERMISSION, media: "media.upload", library: "media.upload" };
+const PERMISSION = { site: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION, picked: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION, theme: "", media: "media.upload", library: "media.upload" };
 
 /** Authorize the destination before reading sources. @throws ToolInputError or permission refusal.
  * @complexity O(1). @example await requireAssetDestination({ deps, ctx, input: { kind: 'theme', themeId: 'basic' } }); */
@@ -36,7 +50,7 @@ export async function requireAssetDestination({ deps, ctx, input }: { deps: Asse
   if (!Object.hasOwn(PERMISSION, kind)) throw new ToolInputError({ message: "destination.kind must be site, theme, media, library or picked" });
   const themeId = kind === "theme" ? requireString({ input: value, key: "themeId" }) : undefined;
   const entityKind = kind === "library" ? "media" : kind;
-  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: PERMISSION[kind] }, { entityType: entityKind === "picked" ? "fs-root" : entityKind, entityId: themeId ?? entityKind });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: kind === "theme" ? deps.assetHost.themeWritePermission : PERMISSION[kind] }, { entityType: entityKind === "picked" ? "fs-root" : entityKind, entityId: themeId ?? entityKind });
   return { kind, themeId };
 }
 
@@ -61,9 +75,8 @@ function choosePath({ folder, path, policy, reserved }: { folder: string; path: 
 function checkFile({ deps, destination, path, bytes }: { deps: AssetToolDeps; destination: AssetDestination; path: string; bytes: Buffer }): void {
   if (destination.kind === "theme") {
     if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
-    const theme = findThemeOrThrow({ routeDeps: deps, themeId: destination.themeId });
-    assertThemeFileWritable({ theme, relativePath: path });
-    resolveThemeFilePath({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
+    const theme = deps.assetHost.findTheme({ themeId: destination.themeId });
+    deps.assetHost.checkThemeWrite({ theme, relativePath: path });
   }
   if (destination.kind !== "media") return;
   if (path !== basename(path)) throw new ToolInputError({ message: "Media destinations use a filename, not a folder path" });
@@ -80,7 +93,7 @@ export function prepareAssetWrites({ deps, destination, files, policy = "overwri
   if (destination.kind === "site") folder = deps.siteBinding.dir;
   if (destination.kind === "theme") {
     if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
-    folder = findThemeOrThrow({ routeDeps: deps, themeId: destination.themeId }).dir;
+    folder = deps.assetHost.findTheme({ themeId: destination.themeId }).dir;
   }
   const reserved = new Set<string>();
   for (const file of files) {
@@ -114,15 +127,15 @@ export async function writeAssetFiles({ deps, ctx, prepared }: { deps: AssetTool
     const media = [];
     for (const file of files) {
       const contentType = validateImageBytes({ source: file.path, bytes: file.bytes, bytesTruncated: false });
-      media.push((await persistImportedMedia({ routeDeps: deps, actorId: ctx.principal.id, sourceUrl: file.sourceUrl ?? "", input: { workspaceId: deps.workspaceId, bytes: file.bytes, filename: file.path, contentType, createdByPrincipal: ctx.principal.id } })).media);
+      media.push((await persistImportedMedia({ routeDeps: deps, resolvePublicUrls: deps.resolveImportedMediaUrls, actorId: ctx.principal.id, sourceUrl: file.sourceUrl ?? "", input: { workspaceId: deps.workspaceId, bytes: file.bytes, filename: file.path, contentType, createdByPrincipal: ctx.principal.id } })).media);
     }
     return { written: files.map(({ path }) => path), skipped, media };
   }
   const themeId = destination.themeId;
   if (themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
-  const theme = findThemeOrThrow({ routeDeps: deps, themeId });
-  for (const file of files) writeThemeBinaryFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: file.path, bytes: file.bytes });
-  const reloaded = files.length ? reloadThemeInPlace({ routeDeps: deps, theme, themeId }) : theme;
+  const theme = deps.assetHost.findTheme({ themeId });
+  for (const file of files) deps.assetHost.writeThemeFile({ theme, relativePath: file.path, bytes: file.bytes });
+  const reloaded = files.length ? deps.assetHost.reloadTheme({ theme, themeId }) : theme;
   return { written: files.map(({ path }) => path), skipped, status: reloaded.status, errors: reloaded.errors };
 }
 
@@ -131,6 +144,6 @@ export async function writeAssetFiles({ deps, ctx, prepared }: { deps: AssetTool
  * @complexity O(total bytes) time, O(files) result metadata; at most 50 files/25 MiB. */
 async function writeLibraryFiles({ deps, ctx, files, skipped }: { deps: AssetToolDeps; ctx: ToolExecutionContext; files: AssetFile[]; skipped: string[] }, _options = {}) {
   const documents = [];
-  for (const file of files) documents.push((await saveLibraryDocument({ deps, bytes: file.bytes, name: file.path, principalId: ctx.principal.id }, { archiveReader: deps.documentArchiveReader })).document);
+  for (const file of files) documents.push((await deps.assetHost.saveLibraryDocument({ bytes: file.bytes, name: file.path, principalId: ctx.principal.id }, { archiveReader: deps.documentArchiveReader })).document);
   return { written: files.map(({ path }) => path), skipped, documents };
 }

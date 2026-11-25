@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -104,7 +105,7 @@ test("agent tools record created_by_kind 'agent': content_post_create and conten
   const { post } = (await callTool(create, { kind: "post", title: "From the agent" })) as { post: { id: string } };
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id }))?.createdByKind, "agent");
 
-  const duplicate = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, { listResourceHandlers: contributePostDuplicateHandlers }).find((r) => r.descriptor.id === "content_duplicate");
+  const duplicate = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, { listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }) }).find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(duplicate);
   const copy = (await callTool(duplicate, { resource: "post", id: post.id })) as { post: { id: string } };
   assert.notEqual(copy.post.id, post.id);

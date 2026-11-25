@@ -4,15 +4,20 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentContributor, PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, PublishContentDeps as EnginePublishContentDeps } from "@jini-ai/cms/publish/content/type-registry";
+import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { EntityReplacement, ReferenceHolder, RepointResult } from "@jini-ai/cms/publish/content/type-registry";
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMenuEntity } from "@jini-ai/cms/navigation/site/import-menu";
 import { menuHoldersReferencing, repointMenuItems } from "@jini-ai/cms/navigation/site/repoint-menu-refs";
 import type { MenuRepointReplacement } from "@jini-ai/cms/navigation/site/repoint-menu-refs";
 import { MenuConflictError, MenuNotFoundError, MenuValidationError, updateMenuTree, validateAndCloneTree } from "@jini-ai/cms/navigation/node";
 import type { MenuRepoPort, MenuStatus, NavMenuDoc, NavMenuEntry } from "@jini-ai/cms/navigation";
+
+/** The slice of the host's publish bag this file reads. The host registry (`features/publish-content/type-registry.ts`) is
+ *  instantiated with the full product bag, which satisfies this slice, so this file names no other feature. */
+type MenuBag = Pick<CmsPublishPorts, "menu">;
+type PublishContentDeps = EnginePublishContentDeps<MenuBag>;
 
 /**
  * @file `menu`'s publish-content contribution, built on `createRepoPublishHandler`
@@ -84,8 +89,8 @@ function menuRecordFromState(required: { id: string; workspaceId: string; state:
 }
 
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
-export const contributeMenusPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<NavMenuEntry, TovuPublishPorts["menu"], TovuPublishPorts>({
+export const contributeMenusPublish = (): PublishContentContributor<MenuBag> =>
+  createRepoPublishHandler<NavMenuEntry, MenuBag["menu"], MenuBag>({
     entityType: "menu",
     coversTables: ["menus", "nav_location_bindings"],
     // Menus' own write permission (`Jini/.../navigation/agent-tools.ts`, `routes/admin/content/menus/*`).

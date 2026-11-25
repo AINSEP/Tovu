@@ -1,10 +1,36 @@
+import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
+import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
+import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
+import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 
+import { cloneElement, Suspense } from "react";
+import { renderMediaPanel } from "@/media-panel";
+import type { PanelRouteContext } from "@/panel-contracts";
 import { Media } from "../Media";
 import type { MediaController } from "../hooks/use-media.hooks";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+
+const requiredMediaHooks = {
+  useMediaTabsHook: useMediaTabs,
+  useMediaPreviewHook: useWiredMediaPreview,
+  useEditMediaPanelHook: useWiredEditMediaPanel,
+  useEditMediaModalHook: useEditMediaModal,
+  useAdminKitValuesHook: useAdminKitValues,
+  useMediaCardMetadataHook: useMediaCardMetadata,
+  useMediaCardDetailsHook: useMediaCardDetails,
+  useMediaGridSizeHook: useMediaGridSize,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useMediaItemLinkHook: useMediaItemLink,
+};
 
 /**
  * @file `Media`'s screen states driven by an injected controller (no fetch): a first-load failure
@@ -77,7 +103,7 @@ function renderMedia(overrides: Partial<MediaController> = {}, tabId: string | n
   const controller = mediaController(overrides);
   const view = render(
     <FetchQueryProvider>
-      <Media useMediaHook={() => controller} tabId={tabId} />
+      <Media {...requiredMediaHooks} useMediaHook={() => controller} tabId={tabId} />
     </FetchQueryProvider>,
   );
   return { controller, ...view };
@@ -144,4 +170,13 @@ describe("Media screen states", () => {
     fireEvent.click(within(dialog).getByText("Cancel"));
     expect(controller.setEditingId).toHaveBeenCalledWith(null);
   });
+});
+
+it("the admin media mount passes a distinct injected hook state to the screen", async () => {
+  const mount = renderMediaPanel({ query: new URLSearchParams() } as PanelRouteContext);
+  const useMediaHook = vi.fn(() => mediaController({ media: null, error: "Injected mount state 731" }));
+  const { container } = render(<FetchQueryProvider><Suspense fallback={null}>{cloneElement(mount, { useMediaHook })}</Suspense></FetchQueryProvider>);
+  await screen.findByText("Injected mount state 731");
+  expect(useMediaHook).toHaveBeenCalled();
+  expect(container.textContent).toBe("Injected mount state 731");
 });

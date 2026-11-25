@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -37,7 +38,7 @@ async function fixture(t: test.TestContext) {
       alt: "keep alt", caption: "keep caption", credit: "keep credit", createdByPrincipal: "creator" } });
   await deps.assetRenditionRepo.save({ id: "old-preview", workspaceId: deps.workspaceId, assetId: media.id,
     transformName: "public", version: 1, storageKey: "old-preview-key", createdAt: media.createdAt });
-  const registration = buildMediaImportRegistrations(deps).find(tool => tool.descriptor.id === "media_replace_file")!;
+  const registration = buildMediaImportRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }).find(tool => tool.descriptor.id === "media_replace_file")!;
   const run = async (input: Record<string, unknown>) => registration.handler({ input, executionId: "exec", run: { id: "run" },
     principal: { id: "owner" }, signal: new AbortController().signal } as ToolExecutionContext,
   { emitSurface: async () => { assert.fail("replacement must not ask for deletion approval"); } }) as Promise<{ media: { id: string; slug: string; version: number; sha256: string } }>;

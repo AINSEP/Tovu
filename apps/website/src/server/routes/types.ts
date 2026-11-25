@@ -21,6 +21,7 @@ import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import type { TrashDb, TrashKindMover } from "#src/features/trash/index";
+import type { WidgetPostWrites } from "#src/features/widgets/deps";
 import type { RemoveEntity } from "@jini-ai/cms/trash/site/ports";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
@@ -29,7 +30,7 @@ import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort,
 import type { PasswordHasherPort, PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import type { RemovePostFn } from "../../features/post/index.js";
+import type { RemovePostFn } from "../../platform/publish-contracts.js";
 import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
 import type { PostRepoPort, PostRecord } from "@jini-ai/cms/posts/post";
 import type { PostSearchPort } from "@jini-ai/cms/posts/search";
@@ -1036,6 +1037,12 @@ export interface TrashDeps {
    * permanent deletion. See {@link ForgetRemovedEntity}.
    */
   forgetRemovedPost: ForgetRemovedEntity;
+  /**
+   * A14 — the live editor's post write chokepoints (`features/post` `updatePost`/
+   * `restorePostForward`), bound here so a widget embed on a post/page host writes through them
+   * without `features/widgets` importing `features/post`. See `WidgetPostWrites`.
+   */
+  widgetPostWrites: WidgetPostWrites;
   /**
    * One pass of the 60-day auto-purge backstop, pre-bound to this composition's repo and adapters.
    *

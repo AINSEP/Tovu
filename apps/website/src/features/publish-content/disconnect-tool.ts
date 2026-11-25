@@ -1,6 +1,6 @@
 import { createPublishContentDisconnectTools } from "@jini-ai/cms/publish/content/disconnect-tool";
 import { disconnectDestination, PublishTrustConnectError } from "@jini-ai/cms/publish/trust/connect";
-import { defaultProvisioning, type PublishContentToolDeps } from "./tool-registrations.js";
+import { requirePublishTrustProvisioning, type PublishContentToolDeps } from "./tool-registrations.js";
 
 /** Only the ports the admin disconnect handler uses; no HTTP handshake or secret decryption. */
 export type Deps = Pick<PublishContentToolDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "publishContentPeerRepo" | "siteAssistantSecretKeyring" | "publishTrustProvisioning" | "findPublishCandidate">;
@@ -14,7 +14,7 @@ export type Deps = Pick<PublishContentToolDeps, "workspaceId" | "authorize" | "c
 export const { buildRegistrations, contributePublishContentDisconnectTools } = createPublishContentDisconnectTools<Deps>({
   host: {
     catalogModule: "features/publish-content/disconnect-tool.ts",
-    reverseGrant: ({ deps }) => disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: deps.publishTrustProvisioning ?? defaultProvisioning(), workspaceId: deps.workspaceId } }),
+    reverseGrant: ({ deps }) => disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: requirePublishTrustProvisioning({ deps }), workspaceId: deps.workspaceId } }),
     settingsWriteFailure: {
       isInstance: ({ error }) => error instanceof PublishTrustConnectError,
       message: "Publishing settings could not be saved. Check that this project's files can be written, then disconnect again.",

@@ -6,7 +6,8 @@ import type Database from "better-sqlite3";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost, createPostReverters, deletePost, restorePostForward, SqlitePostRepo, type RemovePostFn } from "#src/features/post/index";
+import { createPost, createPostReverters, deletePost, restorePostForward, SqlitePostRepo } from "#src/features/post/index";
+import type { RemovePostFn } from "#src/platform/publish-contracts";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";

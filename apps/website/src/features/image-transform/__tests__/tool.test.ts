@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -25,7 +26,7 @@ const listing = (dir: string) => fs.readdirSync(dir, { recursive: true }).map(St
 test("catalog, risk, metadata and contributor agree", () => {
   assert.equal(imageTransformDerivedRisk.get(IMAGE_TRANSFORM_TOOL_ID), "mutates-durable-state");
   assert.deepEqual(nativeToolMetadata.byId[IMAGE_TRANSFORM_TOOL_ID]?.approval, { class: "edit", confirmation: "policy" });
-  assert.equal(contributeImageTransformTools().domain, "image-transform");
+  assert.equal(contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls }).domain, "image-transform");
 });
 
 test("inspect (no outputs) reads the source, reports sizes, and writes nothing anywhere", async (t) => {

@@ -4,8 +4,8 @@ import { ToolInputError } from "@jini-ai/core";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
+import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 
 import {
   ContentTypeNotFoundError,
@@ -20,6 +20,10 @@ import {
 } from "@jini-ai/cms/content-types";
 import { registerContentType } from "./write-service.js";
 
+/** The slice of the host's publish bag this file reads. The host registry (`features/publish-content/type-registry.ts`) is
+ *  instantiated with the full product bag, which satisfies this slice, so this file names no other feature. */
+type ContentTypeBag = Pick<CmsPublishPorts, "content-type">;
+
 /**
  * @file `content-type` (a collection's schema) on the publish factory. Addressed by its `key`.
  *
@@ -33,8 +37,8 @@ const SEEDED_KEYS = new Set(["widget", "widget_area"]);
 const seededKeyRefusal = ({ key }: { key: string }, _optional = {}): string | null =>
   SEEDED_KEYS.has(key) ? `content-type '${key}' is seeded on every instance and is never published` : null;
 
-export const contributeContentTypePublish = (): PublishContentContributor =>
-  createRepoPublishHandler<ContentTypeRecord, TovuPublishPorts["content-type"], TovuPublishPorts>({
+export const contributeContentTypePublish = (): PublishContentContributor<ContentTypeBag> =>
+  createRepoPublishHandler<ContentTypeRecord, ContentTypeBag["content-type"], ContentTypeBag>({
     entityType: "content-type",
     coversTables: ["content_types"],
     permission: "admin.collections.manage",

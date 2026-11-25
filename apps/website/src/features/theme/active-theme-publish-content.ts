@@ -4,12 +4,15 @@ import { PresentationSettingsNotFoundError, PresentationSettingsValidationError,
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
+import type { ActiveThemePublishPorts, DiscoveredThemeView } from "#src/platform/publish-contracts";
 
 import { writableThemeIds } from "./active-theme.js";
-import type { DiscoveredTheme } from "./theme.js";
 import { RENAMED_THEME_IDS, themeIdCandidates } from "#src/contracts/core/theme-ids";
+
+/** The slice of the host's publish bag this file reads. The host registry (`features/publish-content/type-registry.ts`) is
+ *  instantiated with the full product bag, which satisfies this slice, so this file names no other feature. */
+type ActiveThemeBag = { readonly "active-theme": ActiveThemePublishPorts };
 
 /**
  * @file `active-theme` on the publish factory (`features/publish-content/repo-handler.ts`): which
@@ -41,20 +44,20 @@ export interface ActiveThemeRow {
   readonly version: number;
 }
 
-type Ports = TovuPublishPorts["active-theme"];
+type Ports = ActiveThemeBag["active-theme"];
 
 /** @complexity O(themes). */
-function installedTheme({ ports, themeId }: { ports: Ports; themeId: string }, _optional = {}): DiscoveredTheme | undefined {
+function installedTheme({ ports, themeId }: { ports: Ports; themeId: string }, _optional = {}): DiscoveredThemeView | undefined {
   return ports.themes.find((t) => t.status === "valid" && themeIdCandidates({ id: themeId }).includes(t.manifest.id));
 }
 
 /** @complexity O(1). */
-function treeOf({ theme }: { theme: DiscoveredTheme | undefined }, _optional = {}): string | null {
+function treeOf({ theme }: { theme: DiscoveredThemeView | undefined }, _optional = {}): string | null {
   return theme ? `${path.basename(path.dirname(theme.dir))}/${path.basename(theme.dir)}` : null;
 }
 
 /** @complexity O(1). */
-function nameOf({ theme }: { theme: DiscoveredTheme | undefined }, _optional = {}): string | null {
+function nameOf({ theme }: { theme: DiscoveredThemeView | undefined }, _optional = {}): string | null {
   const name: unknown = theme?.manifest.name;
   return typeof name === "string" && name.trim().length > 0 ? name.trim() : null;
 }
@@ -72,8 +75,8 @@ async function findActiveTheme({ ports, workspaceId, id }: { ports: Ports; works
 /** Plain refusal, rewritten for the owner by `ui/report-rows.ts`. */
 const notInstalled = ({ themeId }: { themeId: string }, _optional = {}) => `active theme '${themeId}' is not installed at this destination`;
 
-export const contributeActiveThemePublish = (): PublishContentContributor =>
-  createRepoPublishHandler<ActiveThemeRow, Ports, TovuPublishPorts>({
+export const contributeActiveThemePublish = (): PublishContentContributor<ActiveThemeBag> =>
+  createRepoPublishHandler<ActiveThemeRow, Ports, ActiveThemeBag>({
     entityType: "active-theme",
     coversTables: ["presentation_settings"],
     permission: "theme.set",

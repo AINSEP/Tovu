@@ -1,6 +1,6 @@
 import { renderCommentsMarkers } from "@jini-ai/cms/comments/site/public-markers";
 import type { SiteChatSelection } from "../../../http/site/site-chat-markup.js";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { createPublicPostReader } from "@jini-ai/cms/posts/post-read";
@@ -176,7 +176,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
   });
   const withNestedContent = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps }), html: withTerms, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined });
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
+    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo, postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo: deps.entryRepo,
       postRepo: createPublicPostReader({ repo: deps.postRepo }),
       mediaRepo: deps.mediaRepo,

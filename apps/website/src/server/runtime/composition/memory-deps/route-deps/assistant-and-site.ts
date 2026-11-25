@@ -7,6 +7,7 @@ import { seededWorkspace } from "../../../configuration/seed.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/external-mcp-roster-change.js";
 import { readBuiltInExternalMcpServerIds } from "@jini-ai/mcp/external/built-in-connections";
 import { createExternalMcpOAuthService } from "../../../../../features/external-mcp/external-mcp-oauth.js";
+import { hostedMcpSignInLink } from "../../../../../features/api-connections/browser-binding.js";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -89,7 +90,7 @@ export function memoryMcpOAuthDeps(required: MemoryRootContext, _optional = {}) 
      * See
      * `routes/types.ts`'s `externalMcpOAuth` doc for why the field is optional at all.
      */
-    externalMcpOAuth: createExternalMcpOAuthService({
+    externalMcpOAuth: createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink,
       httpPorts: externalMcpOAuthHttpPorts,
       workspaceId: seededWorkspace.id,
       repo: externalMcpServerRepo,

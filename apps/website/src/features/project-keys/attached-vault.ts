@@ -6,8 +6,8 @@ import {
   type VaultRepoPort,
 } from '@jini-ai/core/contracts/vault';
 import type { KeyAttachments } from '@jini-ai/core/contracts/site/project-key-attachments';
+import type { SiteGrantedVault } from '../../contracts/core/site-granted-vault.js';
 
-export type SiteGrantedVault = VaultRepoPort & { findByLabel?: (input: { workspaceId: string; label: string }, options?: Record<string, never>) => Promise<VaultRecord | null> };
 function createGrantedVaultFind(vault: VaultRepoPort, siteId: string, attachments: KeyAttachments): VaultRepoPort['find'] {
   return async (input, options) => {
     try {

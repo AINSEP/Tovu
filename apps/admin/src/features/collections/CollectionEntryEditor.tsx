@@ -2,13 +2,13 @@ import { EditorContent, type Editor } from "@tiptap/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import type { ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
-import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
+import type { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
 import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useWiredTermPicker } from "../taxonomy/taxonomy-wired.hooks";
-import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
+import type { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
@@ -51,6 +51,7 @@ function readExtSiteField({ fieldsJson, name }: { fieldsJson: unknown; name: str
  * not a wrapper `<div>` around it, which `page.fill`/`page.select_option` cannot resolve into a
  * fillable control. */
 interface FieldControlProps {
+  useJsonFieldControlHook: typeof useJsonFieldControl;
   inputId: string;
   value: unknown;
   onChange: (value: unknown) => void;
@@ -112,8 +113,8 @@ function BooleanFieldControl({ inputId, value, onChange, agentHandleProps }: Fie
  * lives there, not here — see that hook's own header). `aria-invalid` flags an unparseable buffer
  * without inventing new copy for it; the last value that DID parse is what stays in `extFields`
  * and what a save sends, regardless of how the buffer currently looks. */
-function JsonFieldControl({ inputId, value, onChange, agentHandleProps, fieldName, setFieldValidity }: FieldControlProps) {
-  const { text, parseError, handleTextChange } = useJsonFieldControl({ value, onChange, fieldName, setFieldValidity });
+function JsonFieldControl({ inputId, value, onChange, agentHandleProps, fieldName, setFieldValidity, useJsonFieldControlHook }: FieldControlProps) {
+  const { text, parseError, handleTextChange } = useJsonFieldControlHook({ value, onChange, fieldName, setFieldValidity });
   return (
     <textarea
       id={inputId}
@@ -144,6 +145,7 @@ const FIELD_CONTROLS: Record<ContentTypeFieldDef["kind"], (props: FieldControlPr
 };
 
 function DynamicField(props: {
+  useJsonFieldControlHook: typeof useJsonFieldControl;
   field: ContentTypeFieldDef;
   value: unknown;
   onChange: (value: unknown) => void;
@@ -164,6 +166,7 @@ function DynamicField(props: {
         {field.required ? " *" : ""}
       </label>
       <Control
+        useJsonFieldControlHook={props.useJsonFieldControlHook}
         inputId={inputId}
         value={value}
         onChange={onChange}
@@ -328,6 +331,7 @@ function EntrySlugField(props: {
 /** The dynamic-fields section (design-spec.md §1.5) — hidden entirely when the content type
  * defines no custom fields. */
 function EntryFieldsSection(props: {
+  useJsonFieldControlHook: typeof useJsonFieldControl;
   fields: ContentTypeFieldDef[];
   entry: { fieldsJson?: unknown } | null | undefined;
   extFields: Record<string, unknown>;
@@ -351,6 +355,7 @@ function EntryFieldsSection(props: {
       <h3>{t({ key: "Fields" })}</h3>
       {fields.map((field, index) => (
         <DynamicField
+          useJsonFieldControlHook={props.useJsonFieldControlHook}
           key={field.name}
           field={field}
           value={extFields[field.name] ?? readExtSiteField({ fieldsJson: entry?.fieldsJson, name: field.name })}
@@ -364,12 +369,13 @@ function EntryFieldsSection(props: {
 }
 
 export interface CollectionEntryEditorProps {
+  useJsonFieldControlHook: typeof useJsonFieldControl;
   contentTypeKey: string;
   entryId: string | null;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    *  only `contentTypeKey`/`entryId` and behave exactly as before. */
-  useCollectionEntryEditorHook?: typeof useWiredCollectionEntryEditor;
+  useCollectionEntryEditorHook: typeof useWiredCollectionEntryEditor;
 }
 
 /**
@@ -379,15 +385,8 @@ export interface CollectionEntryEditorProps {
  * cyclomatic-complexity rule counts a default value or `??` inside a function's OWN body as one of
  * that function's own branches — a call out to a separately-scoped resolver does not.
  */
-function resolveCollectionEntryEditorHook(
-  { override }: { override: typeof useWiredCollectionEntryEditor | undefined },
-  _optional = {},
-): typeof useWiredCollectionEntryEditor {
-  return override ?? useWiredCollectionEntryEditor;
-}
-
 export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
-  const useCollectionEntryEditorHook = resolveCollectionEntryEditorHook({ override: props.useCollectionEntryEditorHook });
+  const useCollectionEntryEditorHook = props.useCollectionEntryEditorHook;
   const {
     contentType,
     entry,
@@ -481,6 +480,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
       </div>
 
       <EntryFieldsSection
+        useJsonFieldControlHook={props.useJsonFieldControlHook}
         fields={contentType.fields}
         entry={entry}
         extFields={extFields}

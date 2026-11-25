@@ -25,7 +25,7 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPost } from "../post-create.js";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "@jini-ai/cms/posts/post";
-import type { ForgetRemovedPostFn } from "../post-trash.js";
+import type { ForgetRemovedPostFn } from "#src/platform/publish-contracts";
 import { createPostRevertRegistry } from "../reverters.js";
 import { removeVia } from "./remove-post-double.js";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";

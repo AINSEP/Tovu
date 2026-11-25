@@ -14,6 +14,11 @@ import { createPeerShareDelivery, resolveShareDelivery } from "../share-hosting.
 import { SiteShareRegistry } from "../share-registry.js";
 import { createSiteShare, revokeSiteShare } from "../share-service.js";
 import { createSiteShareBackend } from "../share-backend.js";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 // RED: no peer delivery existed, no binding to live, and publishing tokens failed artifact auth.
 test("peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace and no receiver env opt-in", async t => {
@@ -92,7 +97,7 @@ test("backend revoke resolves local rows without a delivery and disables exactly
   let disables = 0;
   const disable = registry.disable.bind(registry);
   registry.disable = async input => { disables++; return disable(input); };
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => { throw new Error("not creating"); }, zip: async () => { throw new Error("not creating"); }, delivery: async () => { throw new Error("env is unset"); } });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", prepare: async () => { throw new Error("not creating"); }, zip: async () => { throw new Error("not creating"); }, delivery: async () => { throw new Error("env is unset"); } });
   assert.equal((await backend.revoke({ shareId: row.shareId })).status, "revoked");
   assert.equal(disables, 1);
   assert.equal(await registry.findToken({ token: row.token, file: row.file }), null);
@@ -121,7 +126,7 @@ test("no delivery returns a private ZIP download and a clear link-setup message"
   const directory = await mkdtemp(path.join(tmpdir(), "share-zip-only-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const registry = new SiteShareRegistry({ directory });
-  const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, delivery: async () => undefined,
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", zip: zipFolderFiles, delivery: async () => undefined,
     prepare: async () => ({ profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
       // A v2 share always carries settings.json beside content.db.
       database: { bytes: Buffer.from("projected database"), watermarkAtCapture: 42 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], skipped: [], scopeNotes: {}, totalBytes: Buffer.byteLength("projected database") + 2,

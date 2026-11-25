@@ -3,9 +3,9 @@ import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
 import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
+import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { OverwritablePrecheckRefusal } from "@jini-ai/cms/publish/content/type-registry";
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "@jini-ai/cms/media/site/import-media-entity";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
@@ -13,6 +13,10 @@ import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "@jini-ai/cms/media/site/verify-published-media";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
+
+/** The slice of the host's publish bag this file reads. The host registry (`features/publish-content/type-registry.ts`) is
+ *  instantiated with the full product bag, which satisfies this slice, so this file names no other feature. */
+type MediaBag = Pick<CmsPublishPorts, "media">;
 
 /**
  * @file `media`'s publish-content contribution, built on `createRepoPublishHandler`
@@ -119,7 +123,7 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
 
 const LIBRARY_DOCUMENT_REFUSAL = "Library documents cannot be published";
 
-type MediaPorts = TovuPublishPorts["media"];
+type MediaPorts = MediaBag["media"];
 
 /** Changed bytes require explicit review even when live still matches its last baseline.
  * @returns An overwrite offer, a hard capability refusal, or no source change. No I/O.
@@ -189,7 +193,7 @@ function importedOrThrow(
   return outcome;
 }
 
-const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"], TovuPublishPorts>>[0]['write'] = async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
+const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, MediaBag["media"], MediaBag>>[0]['write'] = async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
       await assertPublishableMedia({ ports, workspaceId, state, existing });
       const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
@@ -220,7 +224,7 @@ const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecor
       // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.
       return { blobWritten: outcome.blobWritten, version: saved?.version };
     };
-const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"], TovuPublishPorts>>[0]['validate'] = async ({ ports, workspaceId, entity, existing }) => {
+const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, MediaBag["media"], MediaBag>>[0]['validate'] = async ({ ports, workspaceId, entity, existing }) => {
       if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
       const source = entity.state.source as { sha256?: string } | undefined;
       const malformed = malformedHashRefusal({ sourceSha256: source?.sha256, requiredBlobs: entity.requiredBlobs });
@@ -235,8 +239,8 @@ const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRe
     };
 
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
-export const contributeMediaPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"], TovuPublishPorts>({
+export const contributeMediaPublish = (): PublishContentContributor<MediaBag> =>
+  createRepoPublishHandler<MediaRecord, MediaBag["media"], MediaBag>({
     entityType: "media",
     // Operational sidecars are also media-owned; raw-row fallback must not export a private
     // document's slug history or original-rendition storage key after typed pack excluded it.

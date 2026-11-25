@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import fs from "node:fs";
 import os from "node:os";
@@ -15,6 +16,7 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import type { HttpRequest } from "#src/platform/http/index";
 import type { AssetToolDeps } from "../../asset-transfer/asset-destinations.js";
 import { onTeardown } from "#src/__tests__/fixtures/teardown";
+import { bindAssetHost, type AssetHostDeps } from "#src/server/runtime/composition/asset-tool-host";
 
 /** Bounded async wait for the real approval surface in tool tests. */
 export const until = async (check: () => boolean) => { for (let i = 0; i < 200 && !check(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -45,7 +47,8 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   const clock = createSystemClock(); let ids = 0;
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: { newId: () => "card-1" }, defaultChannel: "mcp-ui" });
   const permissions: string[] = []; const requests: HttpRequest[] = [];
-  const deps: AssetToolDeps = {
+  const hostDeps: AssetHostDeps = {
+    resolveImportedMediaUrls: resolveMediaPublicUrls,
     workspaceId: "ws", siteBinding: { dir: site }, themesDir, resolveActiveThemeId: async () => "match",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }), clock, idGen: { newId: () => `asset-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
@@ -55,6 +58,7 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
     resolveRoots: () => ({ repo: base, site, custom: custom === "picked" ? picked : custom || undefined }),
     authorize: async ({ permission }) => { permissions.push(permission); return { allowed: allowed(permission), reason: "matched" }; },
   };
+  const deps: AssetToolDeps = { ...hostDeps, assetHost: bindAssetHost(hostDeps) };
   const handler = build(deps, { surfaceExchanges: store }).find((r) => r.descriptor.id === toolId)!.handler;
   const emitted: SurfaceEmission[] = [];
   const call = (input: unknown, withSurface = true) => handler(

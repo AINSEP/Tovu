@@ -17,7 +17,8 @@ import { deriveInstallationId } from "@jini-ai/cms/publish/trust/keys";
 import { set } from "#src/features/settings/index";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "@jini-ai/search/site/access";
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
-import { CMS_SEARCH_RULES } from "#src/features/site-search/cms-search-rules";
+import { createCmsSearchRules } from "#src/features/site-search/cms-search-rules";
+import { toRecord } from "#src/features/post/read-model";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
@@ -411,6 +412,8 @@ const SEARCH_INDEX_TABLES: SearchIndexTables = {
   retired: "search_index_retired",
 };
 
+const cmsSearchRules = createCmsSearchRules({ toPostRecord: toRecord });
+
 /**
  * Bind the site's content database, settings, vault, member sessions and plugin loader to the
  * runtime's ports.
@@ -424,9 +427,9 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
     workspaceId,
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.
     siteId: workspaceId,
-    sources: createCmsSearchDocumentSources({ kernel, now, ...CMS_SEARCH_RULES }),
+    sources: createCmsSearchDocumentSources({ kernel, now, ...cmsSearchRules }),
     ...createSqlSearchIndexStore({ kernel: schemaErasedKernel({ store: kernel }), now, tables: SEARCH_INDEX_TABLES }),
-    access: createCmsSearchAccessPort({ kernel, now, ...CMS_SEARCH_RULES }),
+    access: createCmsSearchAccessPort({ kernel, now, ...cmsSearchRules }),
     installId: () => deriveInstallationId({ keyring: required.keyring, workspaceId }),
     resolveCredential: async ({ label }) => {
       const resolved = await required.resolveCredentialByLabel({ workspaceId, label });

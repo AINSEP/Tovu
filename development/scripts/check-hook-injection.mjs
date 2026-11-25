@@ -65,7 +65,7 @@ export function summarize(findings, depth) {
 
 function fixPattern({ key }) {
   const [component, hook] = key.split('::');
-  return `  fix: function ${component}({ ${hook}Hook = ${hook} }) { const value = ${hook}Hook(); ... }`;
+  return `  fix: function ${component}({ ${hook}Hook }: { ${hook}Hook: typeof ${hook} }) { const value = ${hook}Hook(); ... }`;
 }
 
 function describe(violation, findings) {
@@ -86,7 +86,7 @@ function check({ file, findings, current, profile, io }) {
   const { violations, shrunk } = compareEntries(readBaseline(file), current);
   summarize(findings, profile.areaDepth).forEach(line => io.out(line));
   if (violations.length) {
-    io.err(`hook-injection: ${violations.length} new or increased entries (owner rule: hooks are injected as props defaulted to the real hook)`);
+    io.err(`hook-injection: ${violations.length} new or increased entries (owner rule: hooks are injected as required props)`);
     violations.forEach(v => describe(v, findings).forEach(line => io.err(line)));
     return 1;
   }

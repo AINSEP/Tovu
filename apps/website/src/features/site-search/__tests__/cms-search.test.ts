@@ -12,13 +12,16 @@ import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../../post/repo.js";
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
 import { createCmsSearchAccessPort } from "@jini-ai/search/site/access";
-import { CMS_SEARCH_RULES } from "../cms-search-rules.js";
+import { createCmsSearchRules } from "../cms-search-rules.js";
+import { toRecord } from "../../post/read-model.js";
 
 /**
  * @file The CMS search source and access port on SQLite and PGlite, over real `posts` rows saved by
  * the real post repo: only what the public site shows is indexable or visible, revisions order
  * every change (scheduled go-live included), and member gates become audiences.
  */
+
+const cmsSearchRules = createCmsSearchRules({ toPostRecord: toRecord });
 
 const WS = "ws-search";
 const SITE = "site-1";
@@ -38,10 +41,10 @@ function setup(kernel: ContentKernel) {
   const clock = { now: () => nowMs, set: (ms: number) => { nowMs = ms; } };
   let runs = 0;
   const counted: ContentKernel = { ...kernel, run: (fn) => { runs += 1; return kernel.run(fn); } };
-  const [posts, pages] = createCmsSearchDocumentSources({ kernel, now: clock.now, ...CMS_SEARCH_RULES }) as [SearchDocumentSource, SearchDocumentSource];
+  const [posts, pages] = createCmsSearchDocumentSources({ kernel, now: clock.now, ...cmsSearchRules }) as [SearchDocumentSource, SearchDocumentSource];
   return {
     kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), posts, pages, clock,
-    access: createCmsSearchAccessPort({ kernel: counted, now: clock.now, ...CMS_SEARCH_RULES }),
+    access: createCmsSearchAccessPort({ kernel: counted, now: clock.now, ...cmsSearchRules }),
     runs: () => runs,
     load: (source: SearchDocumentSource, documentId: string, occurredAtMs = T0, workspaceId = WS) => source.load({ siteId: SITE, workspaceId, documentId, occurredAtMs }),
   };
@@ -60,6 +63,17 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
       document: { key: key("p1"), revision: T0 * 1000 + 3, url: "/slug-p1", title: "Title p1", body: "Body of p1", visibility: { kind: "public" } },
     });
   });
+
+  for (const body of ["Projection body", ""]) {
+    test(`post projection keeps title, body and metadata (${body || "empty body"})`, async () => {
+      const s = make();
+      await s.repo.save(post("projection", { title: "Projection title", slug: "projection-slug", bodyJson: doc(body), version: 7 }));
+      assert.deepEqual(await s.load(s.posts, "projection"), {
+        key: key("projection"), revision: T0 * 1000 + 7,
+        document: { key: key("projection"), revision: T0 * 1000 + 7, url: "/projection-slug", title: "Projection title", body, visibility: { kind: "public" } },
+      });
+    });
+  }
 
   test("load: a bespoke HTML home page is stripped to text and routed at /", async () => {
     const s = make();
@@ -212,7 +226,7 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
   test("access: a collection left out of the port is never visible", async () => {
     const s = make();
     await s.repo.save(post("g1", { kind: "page" }));
-    const postsOnly = createCmsSearchAccessPort({ kernel: s.kernel, now: s.clock.now, ...CMS_SEARCH_RULES }, { collections: ["post"] });
+    const postsOnly = createCmsSearchAccessPort({ kernel: s.kernel, now: s.clock.now, ...cmsSearchRules }, { collections: ["post"] });
     assert.deepEqual(await postsOnly.visibleKeys({ siteId: SITE, keys: [key("g1", "page")], audiences: [] }), new Set());
   });
 });

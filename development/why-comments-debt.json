@@ -14616,6 +14616,18 @@
     {
       "id": "502d64d64be2",
       "reason": "x8-domains moved the peer registry's read-side refusal into @jini-ai/cms peer-registry, which refuses with the host binding's kind/ownerKey; the replacement comment directly above the two assertions (frozen-values.pins.test.ts T-FROZEN vault scope) states that the binding is the one place both literals live."
+    },
+    {
+      "id": "84300abeac10",
+      "reason": "A10 (g6): publishTrustProvisioning is no longer a test-only seam; production binds it at server/runtime/composition/tool-catalog-manifest.ts. The field's new doc comment in features/publish-content/tool-deps.ts states the binding and the refusal when absent."
+    },
+    {
+      "id": "22faf386c048",
+      "reason": "A10 (g6): same @file header, kept in features/publish-content/tool-registrations.ts; only its 'Why the provisioning port is built here' section is reworded to 'Why the provisioning port is injected' because the port is no longer composed in the feature."
+    },
+    {
+      "id": "c5c4eb8baa4b",
+      "reason": "A10 (g6): defaultProvisioning() moved to the tool composition root; its why (same committed root as the HTTP route, so the two connects never disagree about the file) moved with it as the comment above publishTrustProvisioning in server/runtime/composition/tool-catalog-manifest.ts."
     }
   ]
 }

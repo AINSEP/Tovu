@@ -9,6 +9,7 @@ import { createSharedOAuthOwnerStorage } from '../../api-connections/shared-owne
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { fakeAttachments } from '../../project-keys/__tests__/helpers.js';
 import { createExternalMcpOAuthService } from '../external-mcp-oauth.js';
+import { hostedMcpSignInLink } from "../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from '@jini-ai/integrations/api-connections/hosted-mcp';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from '../external-mcp-store.js';
@@ -58,7 +59,7 @@ async function harness() {
     await saveExternalMcpServer({ repo, keyring, sealer, clock }, { workspaceId: 'workspace-local', serverId: 'server', label: 'Shared fixture', transport: 'streamable_http',
       authMode: 'oauth', enabled: true, url: 'https://resource.example/mcp', command: '', args: '', allowedToolNames: 'read', writeAllowedToolNames: '', principalId: 'owner',
       oauth: { providerId: provider.providerId, grant, clientId, clientSecret: `${clientId}-secret`, scopes: 'read' } });
-    const service = createExternalMcpOAuthService({ workspaceId: 'workspace-local', repo, keyring, sealer, clock,
+    const service = createExternalMcpOAuthService({ signInLink: hostedMcpSignInLink, workspaceId: 'workspace-local', repo, keyring, sealer, clock,
       devices: createDeviceAuthorizationStore(), lookupProvider: id => id === 'provider-b' ? { ...provider, providerId: id, tokenEndpoint: 'https://other-auth.example/token' } : provider, httpPorts: { guard: createTovuOAuthGuard({}), fetchFn },
       shared: { ownerWorkspaceId: 'project', owner, bindings, attachments, siteId, siteName: siteId, ownerPrincipalId: 'owner', transaction } });
     return { repo, bindings, service, sealer, keyring };

@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -119,7 +120,7 @@ function statusTool(required: { workspaceId: string; plans: SqlFormDeliveryRepo;
   const authorize = async () => ({ allowed: true, reason: "matched" });
   const registration = buildFormsRegistrations({ executeCommand, authorize, workspaceId: required.workspaceId, clock, idGen: { newId: () => "tool-id" },
     changeSets: new InMemoryChangeSetRepo(), outbox: required.outbox, formDefinitionRepo: new InMemoryFormDefinitionRepo(),
-    formSubmissionRepo: new InMemoryFormSubmissionRepo(), formDeliveryStatus: required.plans }).find(entry => entry.descriptor.id === "forms_delivery_status");
+    formSubmissionRepo: new InMemoryFormSubmissionRepo(), formDeliveryStatus: required.plans }, { deriveDuplicateName }).find(entry => entry.descriptor.id === "forms_delivery_status");
   assert.ok(registration, "forms_delivery_status is registered");
   return (input: Record<string, unknown>) => {
     const ctx: ToolExecutionContext = { executionId: "exec-1", principal: { id: "owner" }, run: { id: "run-1" }, input, signal: new AbortController().signal };

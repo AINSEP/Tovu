@@ -2444,6 +2444,7 @@ All evidence local under ADS-memory/.local-artifacts/extraction-survey/2026-11-1
 - Tovu 486 rule hits: swallowed errors 123, generic error text 105, logic in .tsx components 69, lint-disables 68, 7 boot process.exit, lazy package imports 11.
 - Jini 4,078: missing jini- class prefix 1,230; Jini→Jini package imports 686; Tovu IDs/text in Jini ~1,100; Express in Jini 57; hard-coded model ids 75; per-CLI code in shared files 39.
 ### D. Structure (cloud static)
+- [x] 2026-11-25 b-g6: the 43 new cross-feature file pairs on merge-21 are fixed at source (A01–A14, Sol A07/A09/A13); `check:architecture` green without a baseline refresh. Jini G19 (AG-UI/tool-call detail) and G21 complexity splits landed; see `cloud-results/b-g6.md`.
 - Import cycles: Tovu 24 website features form ONE runtime cycle (feature level) + 21 mutual feature pairs; Jini 2 runtime module cycles, 0 package cycles. Target: zero.
 - Complexity >10: Tovu 45, Jini 37 (max 29). Functions >80 lines: 327 / 325. Files >500 lines: 163 / 113.
 - Duplication: Tovu 13.7k lines (2.7%), Jini 8k (1.8%), Tovu↔Jini 75 clone pairs.

@@ -1,4 +1,4 @@
-import { createBundledExportFilePolicy } from "./bundled-export-file-policy.js";
+import type { BundledExportFilePolicy } from "@jini-ai/devops/backup/site/bundled-export-file-policy";
 import { buildShareZip as buildJiniShareZip, buildStaticSiteZip as buildJiniStaticSiteZip, claimArchivePaths as claimJiniArchivePaths, type ShareZipHost, type ZipFolderFiles } from "@jini-ai/devops/backup/site/share-zip";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildArchiveManifest } from "./archive-manifest.js";
@@ -11,13 +11,18 @@ import { staticDownloadLayout } from "./static-download-host.js";
 
 /** @file Binds Jini's share ZIP builder to Tovu's caps, share path/secret rules, manifest codec, archive-path mapping, planned-file read, static layout and bundled-file policy. */
 
+/** No bundled-file skips: every entry goes through the secret scan. */
+const SCAN_EVERY_ENTRY: BundledExportFilePolicy = async () => "scan";
+
 /** Tovu's values for the share ZIP builder; the encoder itself is passed per call (`zip`). */
 const SHARE_ZIP_HOST: ShareZipHost = {
   limits: SHARE_LIMITS,
   archiveTooLargeMessage: "Share exceeds the 300 MiB ZIP archive cap.",
   manifestTooLargeMessage: "Share manifest exceeds 2 MiB.",
   checkShareLimits, requireShareSecretFree, claimSharePath, buildArchiveManifest, runtimeToArchivePath, archiveSecretScanPath, readPlannedFile, staticDownloadLayout,
-  defaultBundledFilePolicy: () => createBundledExportFilePolicy({}),
+  // The bundled-file policy is injected per export by the host composition root (share backend's
+  // `createBundledFilePolicy`); a caller that supplies none scans every entry, never skips one.
+  defaultBundledFilePolicy: () => SCAN_EVERY_ENTRY,
 };
 
 type Optional<F extends (required: never, optional: never) => unknown> = Parameters<F>[1];

@@ -1,3 +1,5 @@
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useTovuSettingsExecution } from "@/hooks/use-tovu-execution-adapters.hooks";
 import { readFileSync } from 'node:fs';
 import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -14,6 +16,11 @@ import { emptyComposerCapabilityProjection } from '@jini-ai/admin/screens/plugin
 import { useTovuExecutionPolicy } from '../use-tovu-execution-policy.hooks';
 import { DEPLOYED_LOCAL_CLI_NOTE } from '@/lib/tovu-execution-policy';
 import { t } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
+
+const requiredAdminExecutionModeHooks = {
+  useAdminLocaleHook: useAdminLocale,
+  useTovuSettingsExecutionHook: useTovuSettingsExecution,
+};
 
 let style: HTMLStyleElement;
 beforeEach(() => {
@@ -69,7 +76,7 @@ it('Settings AI agent hides CLI, renders BYOK and preserves saved mode on provid
 
 it('AI Assistant execution panel applies the same gate and note without detection or writes', async () => {
   const execution = slice<ExecutionConfig>(saved), port = executionPort();
-  render(<AdminExecutionMode useAdminExecutionModeHook={() => ({ port: { current: port }, execution })} useAdminExecutionCredentialHook={credential} useExecutionPolicy={useDeployed} />);
+  render(<AdminExecutionMode {...requiredAdminExecutionModeHooks} useAdminExecutionModeHook={() => ({ port: { current: port }, execution })} useAdminExecutionCredentialHook={credential} useExecutionPolicy={useDeployed} />);
   await screen.findByText(DEPLOYED_LOCAL_CLI_NOTE);
   expect(screen.queryByRole('tab', { name: /^Local CLI/ })).not.toBeInTheDocument();
   expect(screen.getByRole('tab', { name: /^BYOK/ })).toHaveAttribute('aria-selected', 'true');
@@ -79,7 +86,7 @@ it('AI Assistant execution panel applies the same gate and note without detectio
 
 it('local dev retains the CLI tab, selected agent list and discovery', async () => {
   const port = executionPort();
-  render(<AdminExecutionMode useAdminExecutionModeHook={() => ({ port: { current: port }, execution: slice<ExecutionConfig>(saved) })} useAdminExecutionCredentialHook={credential} useExecutionPolicy={useLocal} />);
+  render(<AdminExecutionMode {...requiredAdminExecutionModeHooks} useAdminExecutionModeHook={() => ({ port: { current: port }, execution: slice<ExecutionConfig>(saved) })} useAdminExecutionCredentialHook={credential} useExecutionPolicy={useLocal} />);
   const tab = await screen.findByRole('tab', { name: /^Local CLI/ });
   await waitFor(() => expect(tab).toHaveAttribute('aria-selected', 'true'));
   expect(await screen.findByText('Codex')).toBeVisible();

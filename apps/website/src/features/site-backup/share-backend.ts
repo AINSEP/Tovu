@@ -7,6 +7,7 @@ import {
   type SiteShareBackend, type SiteShareBackendOptional, type SiteShareBackendRequired, type SiteShareHost,
 } from "@jini-ai/devops/backup/site/share-backend";
 import type { StaticSitePorts } from "@jini-ai/devops/backup/site/static-copy";
+import type { BundledExportFilePolicy } from "@jini-ai/devops/backup/site/bundled-export-file-policy";
 import type { SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 import type { SiteSharePlanContent } from "./plan-content.js";
 import type { prepareShareContent } from "./share-preparation.js";
@@ -47,9 +48,17 @@ type ShareBackendRequired = {
   ownerPrincipalId?: PromiseLike<string> | string;
   savedKeys?: Pick<SiteSavedKeysPort, "reveal">;
   staticSite?: StaticSitePorts;
+  /** A fresh export-local bundled-file policy per archive (it caches resolved package roots for one export only). */
+  createBundledFilePolicy: () => BundledExportFilePolicy;
 };
 
-/** Binds the engine share backend to this host's collaborators; see `SITE_SHARE_HOST`. */
+/** Binds the engine share backend to this host's collaborators; see `SITE_SHARE_HOST`. Each backup
+ * archive gets a fresh bundled-file policy from the injected `createBundledFilePolicy`. */
 export function createSiteShareBackend(required: ShareBackendRequired, optional: SiteShareBackendOptional = {}): HostSiteShareBackend {
-  return createEngineSiteShareBackend({ ...(required as unknown as Omit<SiteShareBackendRequired, "host">), host: SITE_SHARE_HOST }, optional) as HostSiteShareBackend;
+  const { createBundledFilePolicy, ...engineRequired } = required;
+  const host: SiteShareHost = {
+    ...SITE_SHARE_HOST,
+    buildShareZip: (zipRequired, zipOptional) => buildShareZip(zipRequired as Parameters<typeof buildShareZip>[0], { ...zipOptional, bundledFilePolicy: createBundledFilePolicy() }),
+  };
+  return createEngineSiteShareBackend({ ...(engineRequired as unknown as Omit<SiteShareBackendRequired, "host">), host }, optional) as HostSiteShareBackend;
 }

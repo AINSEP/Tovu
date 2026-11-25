@@ -8,7 +8,8 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost } from "../post-create.js";
-import { deletePost, type RemovePostFn } from "../post-trash.js";
+import { deletePost } from "../post-trash.js";
+import type { RemovePostFn } from "#src/platform/publish-contracts";
 import { findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
 import { importPostEntity } from "@jini-ai/cms/posts/post-import";
 import { normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";

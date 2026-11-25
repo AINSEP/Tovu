@@ -1,3 +1,12 @@
+import { useWiredAgentPluginDetailsModal } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
+import { useAgentPluginUpdate } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-update.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
+import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginConfirmation } from "@jini-ai/admin/screens/plugins/AgentPlugins.hooks";
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -8,6 +17,18 @@ import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.
 import { useAgentPlugins, type AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
+
+const requiredAgentPluginsHooks = {
+  useDetails: useWiredAgentPluginDetailsModal,
+  useAgentPluginMemoryHook: useWiredAgentPluginMemory,
+  useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
+  useAgentPluginSurfacesHook: useAgentPluginSurfaces,
+  useAgentPluginUpdateHook: useAgentPluginUpdate,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useAgentPluginTabHook: useAgentPluginTab,
+  useAgentPluginInstallHook: useAgentPluginInstall,
+  useAgentPluginConfirmationHook: useAgentPluginConfirmation,
+};
 
 /**
  * @file The Agent Plugins "Add a plugin" tab: one `.zip` chosen or dropped, validated before upload,
@@ -46,7 +67,7 @@ function renderAddTab(port = createFakeAgentPluginInstallPort({ row: NOTE_TAKER 
     t: (key: string) => key,
     locale: "en",
   };
-  render(<AgentPlugins useAgentPluginsHook={() => controller} agentPluginInstallPort={port} />);
+  render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={() => controller} agentPluginInstallPort={port} />);
   return { port, onInstalled };
 }
 

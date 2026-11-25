@@ -1,3 +1,4 @@
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
 /** Approved round17/18 B. Baseline RED: verifier, import backend and restore seam absent.
  * Authored without execution, as required by the build dispatch.
  */
@@ -103,7 +104,7 @@ test("restore quarantines malformed, executable and unsafe compiled theme varian
   fs.mkdirSync(dir); fs.mkdirSync(path.join(dir, "themes/static/safe"), { recursive: true });
   fs.writeFileSync(path.join(dir, "themes/static/safe/stale.html"), "seed theme must be replaced as a tree");
   fs.writeFileSync(path.join(dir, "config.json"), "host configuration");
-  stageVerifiedImport({ root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: h.safe.bytes, files } });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: h.safe.bytes, files } });
   await restoreStagedImport({ root, dir, dbPath });
   for (const [tier, name] of variants) {
     assert.equal(fs.existsSync(path.join(dir, `themes/${tier}/${name}/index.html`)), false, name);

@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -29,7 +30,7 @@ async function fixture() {
 
 test("form tool requires a version and exposes conflicts and the read version", async () => {
   const { repo, deps } = await fixture();
-  const registrations = buildFormsRegistrations(deps);
+  const registrations = buildFormsRegistrations(deps, { deriveDuplicateName });
   const read = registrations.find((item) => item.descriptor.id === "forms_list_definitions");
   const write = registrations.find((item) => item.descriptor.id === "forms_update_definition");
   assert.ok(read && write);

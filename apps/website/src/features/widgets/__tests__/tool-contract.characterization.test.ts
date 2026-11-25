@@ -26,6 +26,8 @@ import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { InMemoryPostRepo } from "#src/features/post/index";
+import { updatePost } from "#src/features/post/post-update";
+import { restorePostForward } from "#src/features/post/post-trash";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { contributeWidgetsTools, type WidgetsToolDeps } from "../tool-registrations.js";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
@@ -102,6 +104,8 @@ async function makeFixture(): Promise<Fixture> {
     clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
+    // A14: the host binds the live editor's post writes (same chokepoints as production composition).
+    widgetPostWrites: { updatePost, restorePostForward },
     entryRepo: widgetTrash.entryRepo,
     removeWidget: widgetTrash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),

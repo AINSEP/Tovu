@@ -16,6 +16,11 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 async function request(app: express.Express, options: { principal?: string; credential?: string; workspace?: string; shareId?: string; origin?: string; trust?: boolean; fetchSite?: string } = {}) {
   const socket = new PassThrough(), req = new IncomingMessage(socket as unknown as Socket);
@@ -49,7 +54,7 @@ test("only the same-origin browser owner can open this share's real sealed passw
     status: "active", createdAt: "2026-10-31T00:00:00Z", revokedAt: null, hasEncryptedKeys: true, sealedPassword } });
   const unexpected = async (): Promise<never> => { throw new Error("Unrelated export/import operation invoked"); };
   const savedKeys = createSiteSavedKeys({ workspaceId: "ws", sealer, passwordAadDomain: "tovu-share-password" });
-  const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined, ownerPrincipalId: "owner", savedKeys });
+  const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry, site: "ws", zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined, ownerPrincipalId: "owner", savedKeys });
   const app = express();
   app.use((req, res, next) => {
     // This seam represents the existing session gate's output; crypto, registry and backend are real.

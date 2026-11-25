@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /**
  * @file RED regression suite (2026-10-05): `content_duplicate` over a `post`/`page` source runs
@@ -74,7 +75,7 @@ let toolUseCounter = 0;
 
 async function duplicate(deps: AssistantToolRegistryDeps, input: unknown) {
   const registry = createToolRegistry({});
-  for (const registration of buildContentDuplicationRegistrations(deps, { listResourceHandlers: contributePostDuplicateHandlers })) {
+  for (const registration of buildContentDuplicationRegistrations(deps, { listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }) })) {
     registry.register(registration);
   }
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });

@@ -1,6 +1,7 @@
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { findStoredTheme } from "./theme-discovery.js";
 import { type DiscoveredTheme } from "./theme.js";
+import type { DiscoveredThemeView } from "#src/platform/publish-contracts";
 
 /** Temporary readiness state, removed when the assistant writes the replacement stylesheet. */
 export const UNSTYLED_THEME_MARKER = "tovu:unstyled-structure-copy";
@@ -191,7 +192,7 @@ function substituteFirstTheme({ deps, activeThemeId }: { deps: ActiveThemeResolu
  * explain the addition but not the asymmetry, and the side that breaks is the one with nothing
  * written on it.
  */
-export function writableThemeIds(deps: ActiveThemeResolutionDeps, optional: { requestedThemeId?: string } = {}): string[] {
+export function writableThemeIds(deps: { readonly themes: readonly DiscoveredThemeView[] }, optional: { requestedThemeId?: string } = {}): string[] {
   const valid = deps.themes.filter(t => t.status === "valid");
   const ready = valid.filter(t => !t.css.includes(UNSTYLED_THEME_MARKER));
   if (optional.requestedThemeId && valid.some(t => t.manifest.id === optional.requestedThemeId) && !ready.some(t => t.manifest.id === optional.requestedThemeId)) {

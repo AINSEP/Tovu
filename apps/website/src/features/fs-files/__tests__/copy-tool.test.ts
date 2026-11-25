@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -6,6 +7,8 @@ import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { EgressRefusedError } from "#src/platform/http/index";
 import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerivedRisk, FILES_COPY_LIMITS } from "../../asset-transfer/copy-tool.js";
 import { assetToolHarness, until } from "./asset-tool-fixture.js";
+import { bindAssetHost } from "#src/server/runtime/composition/asset-tool-host";
+import { THEME_IMPORT_ACCEPT, THEME_IMPORT_MAX_BYTES, THEME_IMPORT_POLICY } from "#src/features/theme/asset-operations";
 
 /** Owner 2026-10-27: copy tool through actual source guards, existing destination writers and cards. */
 const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: buildFilesCopyRegistrations, toolId: "files_copy" });
@@ -20,7 +23,7 @@ function folder(dir: string, count: number, bytes: Buffer = Buffer.from("asset")
 }
 
 test("copy catalog, metadata and risk declarations register one generic recipe surface", () => {
-  assert.equal(contributeFilesCopyTools().domain, "files-copy");
+  assert.equal(contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost }).domain, "files-copy");
   assert.equal(filesCopyDerivedRisk.get("files_copy"), "mutates-durable-state");
   assert.deepEqual(nativeToolMetadata.byId.files_copy?.approval, { class: "edit", confirmation: "policy" });
 });
@@ -31,6 +34,15 @@ test("picked → theme copies exact binary bytes, checks theme.edit and reloads 
   assert.deepEqual(result.written, ["assets/logo.png"]);
   assert.deepEqual(fs.readFileSync(path.join(h.theme, "assets/logo.png")), h.png);
   assert.ok(h.permissions.includes("theme.edit"));
+  assert.equal(h.emitted.length, 0);
+});
+
+test("a disallowed theme write fails preflight before any byte is written or the theme reloads", async t => {
+  const h = await harness(t);
+  const before = fs.readdirSync(h.theme, { recursive: true }).sort();
+  await assert.rejects(() => h.call({ sources: [source], destination: { ...theme, path: ".trash" } }), /inside the trash and cannot be written to directly/);
+  assert.equal(fs.existsSync(path.join(h.theme, ".trash/logo.png")), false);
+  assert.deepEqual(fs.readdirSync(h.theme, { recursive: true }).sort(), before);
   assert.equal(h.emitted.length, 0);
 });
 
@@ -140,4 +152,13 @@ test("destination authorization fails before any source read or fetch", async t 
   const h = await harness(t, { allowed: (permission: string) => permission !== "theme.edit" });
   await assert.rejects(() => h.call({ sources: [{ root: "url", url: "https://cdn.example.test/logo.png" }], destination: theme }));
   assert.equal(h.requests.length, 0); assert.equal(h.emitted.length, 0);
+});
+
+test("files_copy's per-file cap and URL theme-fetch policy are the theme owner's, bound by the host", () => {
+  // The copy catalog states the cap itself (it is built before any host port exists); this pins it
+  // to the theme import cap so the two cannot drift, and pins the host binding to the theme policy.
+  assert.equal(FILES_COPY_LIMITS.maxFileBytes, THEME_IMPORT_MAX_BYTES);
+  const host = bindAssetHost({} as never);
+  assert.equal(host.themeImportFetch.policy, THEME_IMPORT_POLICY);
+  assert.equal(host.themeImportFetch.accept, THEME_IMPORT_ACCEPT);
 });

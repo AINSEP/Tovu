@@ -1,3 +1,11 @@
+import { useAdminExecutionMode } from "@/features/ai-assistant/hooks/use-admin-execution-mode.hooks";
+import { useWiredAdminExecutionCredential } from "@/hooks/use-admin-execution-credential.hooks";
+import { useAdminLocale, useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useTovuSettingsExecution } from "@/hooks/use-tovu-execution-adapters.hooks";
+import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
+import { useWiredAiAssistant, useAiAssistantTab } from "@/features/ai-assistant/hooks/use-ai-assistant.hooks";
+import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
+import { useWiredAiAssistantLocaleSync } from "@/features/ai-assistant/hooks/use-ai-assistant-locale-sync.hooks";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
@@ -7,6 +15,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { AiAssistant } from "../AiAssistant";
 import { t as translateAiAssistant } from "../ai-assistant-i18n";
+
+const requiredAiAssistantHooks = {
+  useAdminExecutionModeHook: useAdminExecutionMode,
+  useAdminExecutionCredentialHook: useWiredAdminExecutionCredential,
+  useAdminLocaleHook: useAdminLocale,
+  useTovuSettingsExecutionHook: useTovuSettingsExecution,
+  useExecutionPolicy: useTovuExecutionPolicy,
+  useAiAssistantHook: useWiredAiAssistant,
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useAiAssistantTabHook: useAiAssistantTab,
+  useWiredAdminLocaleHook: useWiredAdminLocale,
+  useAiAssistantLocaleSyncHook: useWiredAiAssistantLocaleSync,
+};
 
 /**
  * @file The runtime's "No API key saved. Save one to test the connection." refusal reaches
@@ -78,7 +99,7 @@ describe("ByokProviderForm's no-key connection-test message in the Tovu admin", 
       return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<AiAssistant tabId="visitor" />);
+    render(<AiAssistant {...requiredAiAssistantHooks} tabId="visitor" />);
 
     const testConnection = await screen.findByRole("button", { name: "Verbindung testen" });
     await waitFor(() => expect(testConnection).toBeEnabled());

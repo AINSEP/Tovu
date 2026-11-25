@@ -11,7 +11,7 @@
  * implementation of the Trash.
  */
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
-import type { RemovePostFn } from "../post-trash.js";
+import type { RemovePostFn } from "#src/platform/publish-contracts";
 
 /**
  * Binds `remove` to `repo.softDelete`.

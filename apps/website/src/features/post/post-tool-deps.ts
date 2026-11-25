@@ -1,4 +1,4 @@
-import type { ForgetRemovedPostFn, RemovePostFn } from "./post-trash.js";
+import type { ForgetRemovedPostFn, RemovePostFn } from "#src/platform/publish-contracts";
 import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
 import type { PostAuthorAccountPort } from "./post-create.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";

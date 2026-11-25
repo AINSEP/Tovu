@@ -10,6 +10,7 @@ import { declareDataModule } from "@jini-ai/db/data-modules";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { sanitizeShareDatabase } from "../../share-database/repo.sqlite.js";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { buildShareZip } from "../../share-zip.js";
 import { createShareArchiveReader } from "../../import-archive-reader.js";
 
@@ -37,7 +38,7 @@ for (const notNull of [false, true]) test(`sharing plugin BLOB columns retains c
   for (const row of records) insert.run(row.id, row.bytes, row.id === "vendor" ? key : "ordinary text");
   if (!notNull) insert.run("null", null, null);
   const before = source.$client.serialize();
-  const projection = await sanitizeShareDatabase({ snapshot: before, modules: [decl] });
+  const projection = await sanitizeShareDatabase({ snapshot: before, modules: [decl], searchHost: POST_SEARCH_HOST });
   // Inspect the actual DB delivered in a ZIP, not just an intermediate sanitized object.
   const archive = await buildShareZip({ plan: { target: { kind: "zip" }, profile: "share", database: { bytes: projection.bytes, watermarkAtCapture: 0 }, files: [],
     bufferedFiles: [{ path: "settings.json", content: Buffer.from('{"name":"Site"}') }],

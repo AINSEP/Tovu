@@ -28,6 +28,10 @@ const registry = createTovuVaultKinds({ policy: {
 /** Tovu's historical DTOs retain their fields; vault revisions and hints are adapter details. */
 export class TovuCredentialSetVaultAdapter<R extends Record> {
   readonly vault: VaultRepoPort;
+  /** Tovu's vault/scope/hint policy, carried by every repo the composition root builds (site and project halves
+   *  alike). `open` takes the repo it opens explicitly, never `this`: a wrapper (the abort guard around a save)
+   *  passes itself, so its guarded vault is the one written. */
+  readonly credentialVault = { open: credentialVault, scope: credentialScope, hint: credentialHint };
   constructor({ vault, kind, vendor = false }: { vault: VaultRepoPort; kind: Kind; vendor?: boolean }, _options = {}) {
     this.vault = vault;
     this.kind = kind;

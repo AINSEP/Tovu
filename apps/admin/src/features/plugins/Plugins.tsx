@@ -8,7 +8,8 @@ import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
 import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
-import { PluginProviderSettingsDialog } from "./PluginProviderSettingsDialog";
+import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
+import { PluginProviderSettingsDialog, useProviderSettingsFocus } from "./PluginProviderSettingsDialog";
 import { PluginRemoveConfirmDialog } from "@jini-ai/admin/screens/plugins/PluginRemoveConfirmDialog";
 import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
@@ -427,7 +428,7 @@ function PluginsOverlays({ controller, settingsHandle, removeHandle }: { control
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} useFiles={useWiredPluginPackageFiles} /> : null}
 
       {settingsPlugin && settingsHandle !== undefined ? (
-        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={settingsHandle} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
+        <PluginProviderSettingsDialog useSettings={useWiredPluginProviderSettings} useProviderSettingsFocusHook={useProviderSettingsFocus} plugin={settingsPlugin} agentHandleBase={settingsHandle} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
       ) : null}
       {/* A toast, like Themes' and Library's: it confirms what the owner just did and clears itself. */}
       {controller.settingsNotice ? <Toast message={controller.settingsNotice} role="status" tone="success" ttlMs={6000} onDismiss={controller.dismissSettingsNotice} /> : null}

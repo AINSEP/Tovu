@@ -1,3 +1,5 @@
+import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { useThemePreviewFrame } from "@/features/themes/hooks/use-theme-preview-refresh.hooks";
 /**
  * Owner bug (2026-10-05): a draft's Preview showed an empty frame, collapsed (white) and expanded
  * (grey). Root cause: the pending-html preview is a hidden `<form target>` POST into a named
@@ -17,6 +19,11 @@ import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+
+const requiredPageEditorHooks = {
+  useTabBarKeyboardHook: useTabBarKeyboard,
+  useThemePreviewFrameHook: useThemePreviewFrame,
+};
 
 // Same stub `PageEditor.interactive-flush.unit.test.tsx` uses: the taxonomy box fetches on its own.
 vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
@@ -55,7 +62,7 @@ afterEach(() => {
 function renderDraftEditor() {
   const port = createFakePageEditorPort({ page: DRAFT_PAGE, activeThemeTemplates: ["pages-default.html"] });
   const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
-  return render(<PageEditor slug="html-form-demo" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />);
+  return render(<PageEditor {...requiredPageEditorHooks} slug="html-form-demo" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />);
 }
 
 /** The hidden form currently in the document, and whether the iframe it targets has been filled. */

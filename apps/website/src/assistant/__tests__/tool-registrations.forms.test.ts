@@ -1,3 +1,4 @@
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { createContributionRegistry, resolveHostReadRefs, batchDescriptorFor } from "@jini-ai/core";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -39,7 +40,7 @@ const contributions = {
 
 // Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
-contributions.contributors.register({ contribution: contributeFormsTools() });
+contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";

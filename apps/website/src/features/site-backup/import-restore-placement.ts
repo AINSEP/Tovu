@@ -1,27 +1,41 @@
 import { explainThemeTree as explain, inspectThemeManifests as inspect, writeExclusive as write, type ImportPlacementChecks, type ThemeManifestFindings } from "@jini-ai/devops/backup/site/import-restore-placement";
-import { checkSourceDirContainment, loadTheme } from "#src/features/theme/catalog";
 import { validateSharePath } from "./share-file-policy.js";
 
 /**
- * @file Host binding: Tovu's theme catalog validation and share path policy behind the generic import
- * placement rules (`liveThemeTrees`/`restoreDestination` are pure and imported from devops directly).
+ * @file Host binding: the theme owner's placement checks (injected by the host composition root)
+ * and this feature's share path policy behind the generic import placement rules
+ * (`liveThemeTrees`/`restoreDestination` are pure and imported from devops directly).
  */
 
-/** The theme owner's artifact validation and the share path policy, as the placement rules need them. */
-const HOST_CHECKS: ImportPlacementChecks = { checkSourceDirContainment, loadTheme, validateSharePath };
+/**
+ * The theme owner's checks import placement reuses, bound once at the host: the compiled build's
+ * `sourceDir` containment (a non-empty list refuses the theme before any placement) and the
+ * theme loader's artifact validation.
+ */
+export type ThemePlacementChecks = Pick<ImportPlacementChecks, "checkSourceDirContainment" | "loadTheme">;
+
+/** The injected theme checks plus the share path policy, as the placement rules need them. */
+function placementChecks(required: { themeChecks: ThemePlacementChecks }): ImportPlacementChecks {
+  const { themeChecks } = required;
+  return {
+    checkSourceDirContainment: (input) => themeChecks.checkSourceDirContainment(input),
+    loadTheme: (input) => themeChecks.loadTheme(input),
+    validateSharePath,
+  };
+}
 
 /** Reads every staged static/declarative `theme.json` with the host theme checks.
  * @complexity O(themes × theme validation).
  */
-export function inspectThemeManifests(required: { root: string; files: readonly string[] }): ThemeManifestFindings {
-  return inspect({ ...required, checks: HOST_CHECKS });
+export function inspectThemeManifests(required: { root: string; files: readonly string[]; themeChecks: ThemePlacementChecks }): ThemeManifestFindings {
+  return inspect({ root: required.root, files: required.files, checks: placementChecks(required) });
 }
 
 /** Why one theme tree would be held back by import, in plain words; empty when import would place it live.
  * @complexity O(files), plus one manifest read (and a theme load for a compiled build).
  */
-export function explainThemeTree(required: { root: string; id: string; files: readonly string[] }): string[] {
-  return explain({ ...required, checks: HOST_CHECKS });
+export function explainThemeTree(required: { root: string; id: string; files: readonly string[]; themeChecks: ThemePlacementChecks }): string[] {
+  return explain({ root: required.root, id: required.id, files: required.files, checks: placementChecks(required) });
 }
 
 /** Private roots plus exclusive files prevent extraction through pre-existing links or aliases.

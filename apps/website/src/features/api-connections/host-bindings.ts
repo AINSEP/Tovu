@@ -4,12 +4,10 @@ import type { KeyringPort, SecretSealerPort, VaultRepoPort } from '@jini-ai/core
 import { startLoopbackAuthorizationReceiver } from '@jini-ai/oauth';
 import { apiConnectionOAuthCapabilities } from './oauth-bindings.js';
 import type { ApiConnectionHostPorts, ApiConnectionHostMessages, ApiConnectionRuntime, ApiConnectionSharedFactoryInput, PluginHttp } from '@jini-ai/integrations/api-connections';
-import type { LoadPluginContributions } from '../agent-plugins/lifecycle.js';
-import type { CustomCredentialSetRepoPort } from '../custom-credentials/index.js';
 import { createAdminSurfaceCallbackInbox } from '@jini-ai/agent-plugins/admin-surfaces';
 import { createAgentPluginStateStore } from './plugin-state.js';
 import { API_CONNECTION_OAUTH_CALLBACK_PATH } from './browser-binding.js';
-import { createByoCredentials } from './byo-client.js';
+import { createByoCredentials, type ByoClientCredentials } from './byo-client.js';
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-stores.js';
 import { loadDeclaredApiConnections } from './contribution.js';
 import type { ClientNamespaceFor } from '@jini-ai/core/contracts/site/integrations-api-connections';
@@ -33,12 +31,13 @@ const messages: ApiConnectionHostMessages = {
 
 export interface ApiConnectionHostDeps {
   readonly workspaceId: string;
-  readonly loadContributions: LoadPluginContributions;
+  /** The host-bound plugin contribution loader, typed by the contribution reader that consumes it (no lifecycle import). */
+  readonly loadContributions: Parameters<typeof loadDeclaredApiConnections>[0]['loadContributions'];
   /** The client-setting prefix a plugin's manifest declares; absent, every plugin uses the host's own prefix. */
   readonly clientNamespaceFor?: ClientNamespaceFor;
   readonly vaultRepo: VaultRepoPort;
   /** The site's saved custom credentials, where an admin's own OAuth client is kept (`byo-client.ts`); opened with `keyring` + `sealer`. */
-  readonly customCredentialRepo: CustomCredentialSetRepoPort;
+  readonly customCredentialRepo: ByoClientCredentials['repo'];
   readonly keyring: KeyringPort;
   readonly sealer: SecretSealerPort;
   readonly clock: Clock;

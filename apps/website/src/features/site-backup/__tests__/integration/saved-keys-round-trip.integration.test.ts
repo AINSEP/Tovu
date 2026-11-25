@@ -40,6 +40,11 @@ import { importFixture, MEDIA, OWNER_PASSWORD, reader } from "../import.fixture.
 import { verifySiteImport } from "../../import-verifier.js";
 import { rebuildImportDatabase } from "../../../../server/runtime/composition/site-portability.js";
 import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard.js";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+/** The production bundled-file policy, bound the way the host composition root binds it. */
+const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
 
 // Mutation: delete either additive-default map entry; the isolated worker refuses this archive.
 // Pins CURRENT behaviour (owner decision 2026-11-19): the verifier refuses a same-identity archive
@@ -136,7 +141,7 @@ for (const placement of ["inSite", "appData"] as const) {
     const savedKeys = composeSiteSavedKeys({ workspaceId, sealer });
     const sourceDir = path.join(h.root, "source"); fs.mkdirSync(sourceDir); fs.writeFileSync(path.join(sourceDir, "config.json"), '{"name":"Portable"}');
     const shares = new SiteShareRegistry({ directory: path.join(h.root, "shares") });
-    const backend = createSiteShareBackend({ registry: shares, site: workspaceId, ownerPrincipalId: "owner", savedKeys, zip: zipFolderFiles, delivery: async () => undefined,
+    const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy,  registry: shares, site: workspaceId, ownerPrincipalId: "owner", savedKeys, zip: zipFolderFiles, delivery: async () => undefined,
       prepare: input => prepareShareContent({ ...input, savedKeys, snapshotRoot: h.root, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia,
         sources: { siteDir: sourceDir, mediaUploadsDir: null, themesDir: path.join(sourceDir, "themes"), skillsDir: path.join(sourceDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir: sourceDir }, { env: {} }), tovuVersion: "test" },
         imageTransformer: { transform: async () => assert.fail("not raster") }, blobStore: { get: async () => MEDIA, sizeOf: async () => MEDIA.length },
