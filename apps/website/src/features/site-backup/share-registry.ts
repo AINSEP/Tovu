@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rename, statfs, unlink, writeFile } from "nod
 import path from "node:path";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "./share-policy.js";
+import { isShareExpired } from "./share-expiry.js";
 
 export interface SiteShareRecord {
   readonly shareId: string;
@@ -22,6 +23,8 @@ export interface SiteShareRecord {
   readonly needsAcknowledgement?: boolean;
   readonly notes?: readonly string[];
   readonly storage?: { readonly provider: string; readonly key: string; readonly url?: string; readonly binding?: string };
+  /** Set only at creation from the owner's choice, never changed after (P11 ST-12a). Absent or null: the link never expires. */
+  readonly expiresAt?: string | null;
 }
 const ID = /^[0-9a-f-]{36}$/;
 /** Owner decision 2026-10-25: share tokens are 16 ASCII letters (~91 bits), short enough to read
@@ -42,7 +45,12 @@ export const SHARE_FILE = /^[a-z0-9][a-z0-9-]{0,79}(?:\.tovu|-static-\d{4}-\d{2}
  */
 export class SiteShareRegistry {
   readonly directory: string;
-  constructor(required: { directory: string }, _optional: Record<string, never> = {}) { this.directory = required.directory; }
+  private readonly now: () => number;
+  /** @param required.now The host clock (epoch ms) the public lookup compares `expiresAt` against. */
+  constructor(required: { directory: string; now: () => number }, _optional: Record<string, never> = {}) {
+    this.directory = required.directory;
+    this.now = required.now;
+  }
   private meta({ id }: { id: string }, _optional: Record<string, never> = {}): string {
     if (!ID.test(id)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid shareId." });
     return path.join(this.directory, `${id}.json`);
@@ -106,7 +114,7 @@ export class SiteShareRegistry {
     try { shareId = await readFile(path.join(this.directory, `${required.token}.token`), "utf8"); }
     catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return null; } throw error; }
     const row = await this.get({ shareId });
-    return row && servesToken({ row, ...required }) ? row : null;
+    return row && servesToken({ row, ...required }) && !isShareExpired({ row, now: this.now() }) ? row : null;
   }
   async disable(required: { shareId: string; site: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord | null> {
     const row = await this.get(required);

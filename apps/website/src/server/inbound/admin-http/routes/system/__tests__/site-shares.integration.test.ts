@@ -18,7 +18,7 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 test("share routes validate sources and authorize before effects, preserve downloads, and sanitize every backend failure", async t => {
   const directory = fs.mkdtempSync(path.join(tmpdir(), "share-route-gaps-")); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory }), calls: unknown[] = [];
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() }), calls: unknown[] = [];
   let available = true, allowed = true, trusted = false, failure: unknown;
   const record = await createSiteShare({ registry, site: "ws", name: "site", archive: Buffer.from("PK ZIP artifact") });
   const backend = { registry,

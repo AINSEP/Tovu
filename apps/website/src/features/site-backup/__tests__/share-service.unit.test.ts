@@ -19,7 +19,7 @@ const URL = "https://cdn.example/share.zip";
 async function registryIn(t: TestContext): Promise<SiteShareRegistry> {
   const directory = await mkdtemp(path.join(tmpdir(), "tovu-share-service-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  return new SiteShareRegistry({ directory });
+  return new SiteShareRegistry({ directory, now: () => Date.now() });
 }
 interface StoreCalls { uploads: Parameters<ArtifactStorePort["upload"]>[0][]; deletes: string[]; verifies: Parameters<ArtifactStorePort["verify"]>[0][] }
 function store(behaviour: Partial<ArtifactStorePort> = {}): { store: ArtifactStorePort; calls: StoreCalls } {

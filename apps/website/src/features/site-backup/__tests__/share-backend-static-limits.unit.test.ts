@@ -39,7 +39,7 @@ async function backendFor(t: TestContext, themeIds: string[]) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   let zips = 0;
   let archive = Buffer.alloc(0);
-  const backend = createSiteShareBackend({ registry: new SiteShareRegistry({ directory }), site: "site",
+  const backend = createSiteShareBackend({ registry: new SiteShareRegistry({ directory, now: () => Date.now() }), site: "site",
     prepare: async () => { throw new Error("unexpected backup"); }, delivery: async () => undefined,
     zip: async input => {
       zips++;

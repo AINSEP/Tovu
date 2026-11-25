@@ -30,7 +30,7 @@ import { claimSharePath, excludedSharePath, requireShareSecretFree, validateShar
 async function shareRegistry(t: import("node:test").TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), "share-refusals-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  return new SiteShareRegistry({ directory });
+  return new SiteShareRegistry({ directory, now: () => Date.now() });
 }
 
 function fakeRemote(state: { present: boolean; deletes: number }): ShareDelivery {
@@ -262,7 +262,7 @@ test("revoke checks provider as well as binding and skips URL verification when 
 
 test("registry validates identifiers, preserves immutable claims, scopes history and sorts newest first", async t => {
   const r = await shareRegistry(t);
-  assert.deepEqual(await new SiteShareRegistry({ directory: path.join(r.directory, "missing") }).list({}), []);
+  assert.deepEqual(await new SiteShareRegistry({ directory: path.join(r.directory, "missing"), now: () => Date.now() }).list({}), []);
   assert.throws(() => r.artifactPath({ shareId: "../outside" }), { code: "INVALID_INPUT" });
   await assert.rejects(r.reserveToken({ token: "bad", shareId: newShareIdentity({}).shareId }), { code: "INVALID_INPUT" });
   assert.equal(await r.findToken({ token: "bad", file: "site.tovu.zip" }), null);
@@ -467,7 +467,7 @@ test("registry propagates broken directory/tombstone errors instead of treating 
   fs.rmSync(path.join(r.directory, row.token + ".token")); fs.mkdirSync(path.join(r.directory, row.token + ".token"));
   await assert.rejects(r.reserveToken(row), { code: "EISDIR" });
   const invalidDirectory = path.join(r.directory, "file"); fs.writeFileSync(invalidDirectory, "not a folder");
-  const broken = new SiteShareRegistry({ directory: invalidDirectory });
+  const broken = new SiteShareRegistry({ directory: invalidDirectory, now: () => Date.now() });
   await assert.rejects(broken.list({}), { code: "ENOTDIR" });
   await assert.rejects(broken.get(row), { code: "ENOTDIR" });
 });

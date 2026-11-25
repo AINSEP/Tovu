@@ -1,9 +1,10 @@
 import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
 import { createHash } from "node:crypto";
-import path from "node:path";
 import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { SiteShareRegistry, newShareIdentity, SHARE_FILE, type SiteShareRecord } from "./share-registry.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { isOwnShareFolder } from "./share-own-folder.js";
+import { SHARE_EXPIRY_COPY, requireOwnFolder } from "./share-expiry.js";
 
 export const SHARE_DOWNLOAD_HEADERS = {
   "Content-Type": "application/zip",
@@ -21,8 +22,8 @@ function privateExportMetadata(required: { sealedPassword?: SiteShareRecord["sea
 }
 
 /** The one receiver for locally generated and authenticated management-uploaded artifacts. */
-export async function receiveSiteShareArtifact(required: { registry: SiteShareRegistry; site: string; token: string; file: string; archive: Buffer }, optional: { storage?: SiteShareRecord["storage"]; shareId?: string; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
-  const row: SiteShareRecord = { shareId: optional.shareId ?? newShareIdentity({}).shareId, token: required.token, site: required.site, file: required.file, bytes: required.archive.length, sha256: createHash("sha256").update(required.archive).digest("hex"), url: null, status: "active", createdAt: new Date().toISOString(), revokedAt: null, ...(optional.storage ? { storage: optional.storage } : {}), ...privateExportMetadata(optional) };
+export async function receiveSiteShareArtifact(required: { registry: SiteShareRegistry; site: string; token: string; file: string; archive: Buffer }, optional: { storage?: SiteShareRecord["storage"]; shareId?: string; expiresAt?: string | null; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
+  const row: SiteShareRecord = { shareId: optional.shareId ?? newShareIdentity({}).shareId, token: required.token, site: required.site, file: required.file, bytes: required.archive.length, sha256: createHash("sha256").update(required.archive).digest("hex"), url: null, status: "active", createdAt: new Date().toISOString(), revokedAt: null, ...(optional.storage ? { storage: optional.storage } : {}), ...(optional.expiresAt ? { expiresAt: optional.expiresAt } : {}), ...privateExportMetadata(optional) };
   if (!SHARE_FILE.test(row.file)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid share file name." });
   await required.registry.reserveToken(row);
   try {
@@ -33,12 +34,14 @@ export async function receiveSiteShareArtifact(required: { registry: SiteShareRe
 }
 
 /** Persist before delivery; publish a URL only after an anonymous verification succeeds. O(bytes). */
-export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; signal?: AbortSignal; filename?: string; identity?: { shareId: string; token: string }; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
+export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; expiresAt?: string | null; signal?: AbortSignal; filename?: string; identity?: { shareId: string; token: string }; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
+  // The backend validated the choice before its job; the destination is re-resolved inside the job, so re-check it here.
+  if (optional.expiresAt) requireOwnFolder({ destination: optional.delivery, copy: SHARE_EXPIRY_COPY });
   const identity = optional.identity ?? newShareIdentity({});
   // The derived stem always satisfies SHARE_FILE; receiveSiteShareArtifact re-checks it before any write.
   const file = optional.filename ?? `${shareFileStem({ name: required.name })}.tovu.zip`;
   const key = `_share/${identity.token}/${file}`;
-  const row = await receiveSiteShareArtifact({ ...required, token: identity.token, file }, { shareId: identity.shareId, sealedPassword: optional.sealedPassword, notices: optional.notices, notes: optional.notes, credentialWarnings: optional.credentialWarnings, ...(optional.delivery ? { storage: deliveryStorage({ delivery: optional.delivery, key }) } : {}) });
+  const row = await receiveSiteShareArtifact({ ...required, token: identity.token, file }, { shareId: identity.shareId, expiresAt: optional.expiresAt, sealedPassword: optional.sealedPassword, notices: optional.notices, notes: optional.notes, credentialWarnings: optional.credentialWarnings, ...(optional.delivery ? { storage: deliveryStorage({ delivery: optional.delivery, key }) } : {}) });
   if (optional.signal?.aborted) await cancelReceivedShare({ registry: required.registry, row });
   if (!optional.delivery || row.needsAcknowledgement) return row;
   return deliverShare({ registry: required.registry, row, delivery: optional.delivery, key, file, archive: required.archive }, { signal: optional.signal });
@@ -51,16 +54,6 @@ export function shareFileStem(required: { name: string }, _options = {}): string
 
 function deliveryStorage(required: { delivery: ShareDelivery; key: string }): NonNullable<SiteShareRecord["storage"]> {
   return { provider: required.delivery.provider, key: required.key, ...(required.delivery.binding ? { binding: required.delivery.binding } : {}) };
-}
-
-/**
- * True when the artifact lives in this server's own share folder, so there is nothing remote. This server's
- * runtime delivery binds a share to its catalog's absolute path; a connected peer binds it to a URL. A record
- * sits in the catalog that made it, and that catalog moves with the site folder, so the path it saved may be
- * stale after a move or rename: only its shape is compared, never its value (design 2026-10-27).
- */
-export function isOwnShareFolder(required: { storage: { provider: string; binding?: string } }): boolean {
-  return required.storage.provider === "tovu-server" && required.storage.binding !== undefined && path.isAbsolute(required.storage.binding);
 }
 
 async function cancelReceivedShare(required: { registry: SiteShareRegistry; row: SiteShareRecord }): Promise<never> {

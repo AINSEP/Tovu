@@ -81,7 +81,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   await seedPluginShareData({ db: h.db });
   for (const [name, bytes] of packageFiles) h.files.set(`${packageRoot}/${name}`, bytes);
   const prepared = await h.prepareProductionShare();
-  const shareRegistry = new SiteShareRegistry({ directory: path.join(h.root, "shares") });
+  const shareRegistry = new SiteShareRegistry({ directory: path.join(h.root, "shares"), now: () => Date.now() });
   const shared = await createSiteShare({ registry: shareRegistry, site: "source-site", name: "portable", archive: prepared.archive });
   const app = express();
   registerPublicShareRoutes({ app, registry: shareRegistry });

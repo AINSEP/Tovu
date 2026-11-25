@@ -19,8 +19,8 @@ import { createSiteShareBackend } from "../share-backend.js";
 test("peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace and no receiver env opt-in", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "share-peer-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const source = new SiteShareRegistry({ directory: path.join(directory, "source") });
-  const receiver = new SiteShareRegistry({ directory: path.join(directory, ".hidden", "received") });
+  const source = new SiteShareRegistry({ directory: path.join(directory, "source"), now: () => Date.now() });
+  const receiver = new SiteShareRegistry({ directory: path.join(directory, ".hidden", "received"), now: () => Date.now() });
   const app = express();
   registerPublicShareRoutes({ app, registry: receiver });
   let apply = true;
@@ -86,7 +86,7 @@ test("delivery selection prefers connected live, falls back to object storage th
 test("backend revoke resolves local rows without a delivery and disables exactly once", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "share-local-revoke-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const row = await createSiteShare({ registry, site: "ws", name: "site", archive: Buffer.from("PK fixture") });
   await registry.put({ record: { ...row, storage: { provider: "tovu-server", binding: directory, key: `_share/${row.token}/${row.file}` } } });
   let disables = 0;
@@ -102,7 +102,7 @@ test("backend revoke resolves local rows without a delivery and disables exactly
 test("a failed peer verification removes the remote upload and keeps the source row failed", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "share-peer-cleanup-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   let deleted = 0;
   const delivery = { provider: "tovu-server", binding: "https://live.example.test", store: {
     upload: async () => ({ url: "https://live.example.test/export" }),
@@ -120,7 +120,7 @@ test("a failed peer verification removes the remote upload and keeps the source 
 test("no delivery returns a private ZIP download and a clear link-setup message", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "share-zip-only-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, delivery: async () => undefined,
     prepare: async () => ({ profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
       // A v2 share always carries settings.json beside content.db.
