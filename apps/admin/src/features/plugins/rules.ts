@@ -328,7 +328,7 @@ export function pluginRemoveAriaLabel({ plugin, locale }: { plugin: AdminPluginD
 }
 
 /** {@link buildPluginRemoveConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
- *  `features/settings/rules.ts`'s `RemoveConfirmCopy`, the precedent this dialog mirrors. */
+ *  `@jini-ai/admin/screens/settings/rules`'s `RemoveConfirmCopy`, the precedent this dialog mirrors. */
 export interface PluginRemoveConfirmCopy {
   title: string;
   body: string;
@@ -478,7 +478,7 @@ export function agentPluginToggleAriaLabel({ plugin, locale }: { plugin: { plugi
 }
 
 /** {@link buildAgentPluginDisableConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
- *  `features/settings/rules.ts`'s `RemoveConfirmCopy`, the precedent this dialog mirrors. */
+ *  `@jini-ai/admin/screens/settings/rules`'s `RemoveConfirmCopy`, the precedent this dialog mirrors. */
 export interface AgentPluginDisableConfirmCopy {
   title: string;
   body: string;
@@ -490,7 +490,7 @@ export interface AgentPluginDisableConfirmCopy {
  * Names the exact plugin in the title (an operator with several installed must see WHICH one is
  * about to stop reaching the assistant), and states in the body what disabling actually does and
  * does not do: it is reversible (the package stays on disk and can be re-enabled), unlike
- * `features/settings/rules.ts`'s `buildExternalMcpRemoveConfirmCopy` counterpart, whose "Remove"
+ * `@jini-ai/admin/screens/settings/rules`'s `buildExternalMcpRemoveConfirmCopy` counterpart, whose "Remove"
  * discards a sealed credential for good.
  *
  * `variant` is the SAME underlying operation (`AGENT_PLUGIN_SET_ENABLED` with `enabled: false`)

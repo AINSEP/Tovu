@@ -29,7 +29,7 @@ import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-confl
 import { isVersionConflict } from "@/lib/shell-collaborators";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { t as tExternalMcp } from '@jini-ai/admin/screens/settings/external-mcp-i18n';
-import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "../rules";
+import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "@jini-ai/admin/screens/settings/rules";
 
 /**
  * @file The real transport behind Settings → External MCP, replacing the empty in-memory fake that
