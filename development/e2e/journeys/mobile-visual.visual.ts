@@ -161,9 +161,9 @@ const SCREENS: Screen[] = [
 
 /** Waits until the screen stops loading: no busy region and no "Loading…" placeholder left. */
 async function settle(page: Page): Promise<void> {
-  await expect(page.locator(".admin-layout")).toBeVisible();
+  await expect(page.locator(".jini-admin-layout")).toBeVisible();
   await page.waitForFunction(() => {
-    const root = document.querySelector(".admin-content");
+    const root = document.querySelector(".jini-admin-content");
     if (!root) return false;
     if (root.querySelector('[aria-busy="true"]')) return false;
     return !/\bLoading\b/i.test((root as HTMLElement).innerText);
@@ -178,7 +178,7 @@ async function settle(page: Page): Promise<void> {
 async function tagVolatile(page: Page): Promise<void> {
   await page.evaluate(() => {
     const volatile = /\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}:\d{2}\b|\bago\b|\bjust now\b|\/var\/folders\/|\/tmp\/|tovu-journeys-mobile-|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}, \d{4}\b/i;
-    const root = document.querySelector(".admin-content");
+    const root = document.querySelector(".jini-admin-content");
     if (!root) return;
     for (const el of root.querySelectorAll("*")) {
       const own = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join("");
@@ -191,7 +191,7 @@ async function tagVolatile(page: Page): Promise<void> {
 async function withWholeContent<T>(page: Page, run: () => Promise<T>): Promise<T> {
   const base = page.viewportSize()!;
   const extra = await page.evaluate(() => {
-    const scrollers = [document.scrollingElement, document.querySelector(".admin-content")].filter(Boolean) as Element[];
+    const scrollers = [document.scrollingElement, document.querySelector(".jini-admin-content")].filter(Boolean) as Element[];
     return Math.max(0, ...scrollers.map((el) => el.scrollHeight - el.clientHeight));
   });
   if (extra > 0) await page.setViewportSize({ width: base.width, height: Math.min(base.height + extra, 6000) });
@@ -221,7 +221,7 @@ async function audit(page: Page): Promise<unknown> {
       }
       return false;
     };
-    const content = document.querySelector(".admin-content") ?? document.body;
+    const content = document.querySelector(".jini-admin-content") ?? document.body;
     const all = [...content.querySelectorAll("*")].filter(visible);
     return {
       docScroll: document.documentElement.scrollWidth > vw + 1 ? document.documentElement.scrollWidth : 0,
@@ -265,7 +265,7 @@ test.describe("admin at phone width", () => {
         "the page scrolls sideways at phone width").toBe(false);
       await tagVolatile(page);
       await withWholeContent(page, () => expect(page).toHaveScreenshot(`${screen.name}.png`, {
-        mask: [page.locator("[data-mobile-visual-mask]"), page.locator(".admin-content iframe"), ...(screen.mask?.(page) ?? [])],
+        mask: [page.locator("[data-mobile-visual-mask]"), page.locator(".jini-admin-content iframe"), ...(screen.mask?.(page) ?? [])],
       }));
     });
   }

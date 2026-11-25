@@ -164,11 +164,11 @@ test("logout initially focuses Cancel and real Escape keeps the session authenti
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(logout).toBeFocused();
-  await expect(page.locator(".admin-layout")).toBeVisible();
+  await expect(page.locator(".jini-admin-layout")).toBeVisible();
   await expect(page.locator(".login-card")).toHaveCount(0);
   // Reload checks the surviving server session as well as the current SPA's UI state.
   await page.reload();
-  await expect(page.locator(".admin-layout")).toBeVisible();
+  await expect(page.locator(".jini-admin-layout")).toBeVisible();
 });
 });
 
@@ -243,7 +243,7 @@ test.describe("admin session-expiry login kickback", () => {
     await postsNavLink(page).click();
 
     await expect(page.locator(".login-card")).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
     expect(loadEvents, "the kickback must be client-side state, not a page reload/navigation").toBe(0);
   });
 
@@ -269,7 +269,7 @@ test.describe("admin session-expiry login kickback", () => {
 
     // Wait for the screen to consume the rejected request before asserting shell state.
     await expect(page.locator(".notice.error")).toHaveText("forbidden");
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
     await expect(page.locator(".login-card")).toHaveCount(0);
   });
 });
@@ -329,7 +329,7 @@ test.describe("admin login when the API is unreachable (symptom reproduction)", 
 
     // Never reaches the authenticated shell, and stays on the login screen rather than redirecting
     // anywhere or leaving a blank page.
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
 
     // The 500 is real and observable in devtools — an operator who opens the console (rather than
     // just reading the on-page text) does get a signal, just not one that says "process not
@@ -358,7 +358,7 @@ function registerLoginCredentialPins() {
 
   test("valid credentials reach the authenticated admin shell", async ({ page }) => {
     await loginAsAdmin(page);
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
     // The session cookie itself: HttpOnly (unreadable from page JS, so this is a network-level
     // assertion, not a DOM one), Secure, and scoped to the whole origin.
     const cookies = await page.context().cookies();
@@ -375,7 +375,7 @@ function registerLoginCredentialPins() {
     expect(await (await response).json()).toEqual({ error: "invalid username or password", code: "UNAUTHENTICATED" });
     await expect(page.locator(".login-error")).toBeVisible();
     await expect(page.locator(".login-error")).toHaveText("invalid username or password");
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
     // Still on the login form, not silently redirected anywhere.
     await expect(page.locator(".login-card")).toBeVisible();
   });
@@ -387,14 +387,14 @@ function registerLoginCredentialPins() {
     expect(await (await response).json()).toEqual({ error: "invalid username or password", code: "UNAUTHENTICATED" });
     await expect(page.locator(".login-error")).toBeVisible();
     await expect(page.locator(".login-error")).toHaveText("invalid username or password");
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
   });
 
   test("session survives a full page reload", async ({ page }) => {
     await loginAsAdmin(page);
     await page.reload({ waitUntil: "domcontentloaded" });
     // `App.tsx` re-runs `api.me()` on mount; the cookie set by login must still authenticate it.
-    await expect(page.locator(".admin-layout")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".jini-admin-layout")).toBeVisible({ timeout: 10_000 });
   });
 }
 
@@ -417,7 +417,7 @@ function registerLogoutAndSessionPins() {
     // Reload also checks that App.tsx's next boot check keeps the browser signed out.
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator(".login-card")).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
   });
 
   test("direct API call with no session cookie is rejected (REQ-06 fail-closed)", async ({ request, baseURL }) => {
@@ -440,7 +440,7 @@ function registerLoginSuite() {
  *
  * Every test in this file fails loudly on any uncaught page error (see `beforeEach`/`afterEach`
  * below), specifically so that if that crash recurs it shows up as a clear assertion failure naming
- * the error, instead of the `.admin-layout` wait silently timing out with no explanation.
+ * the error, instead of the `.jini-admin-layout` wait silently timing out with no explanation.
  *
  * These are ordinary specs (not ADR-055-gated) — login is orthogonal to the destructive-path bug
  * this dispatch's second mandate reproduces.

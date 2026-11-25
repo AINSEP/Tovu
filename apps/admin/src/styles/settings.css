@@ -205,10 +205,10 @@
  * Code entry"). The fixed-height shell above is a desktop layout. At 375x667 the wrapped tab strip
  * and head left `.jini-tabbed-dialog-content` ~270px of its own scroll box. Inside the page's own
  * scroll that made a nested scroll trap: the last card was cut at the box's bottom edge with
- * `.admin-content::after`'s 88px FAB spacer as a blank band under it. The box's top edge also
+ * `.jini-admin-content::after`'s 88px FAB spacer as a blank band under it. The box's top edge also
  * sliced the Local CLI / BYOK segmented control into an empty grey bar under the tabs. Same
  * release as `.settings-ui-section--page-flow` (`styles.css`), scoped to this screen and phone
- * width only. With no inner scroller, `.admin-content::after` is the FAB clearance, so the
+ * width only. With no inner scroller, `.jini-admin-content::after` is the FAB clearance, so the
  * content drops `styles.css`'s 88px panel padding (which outranks it at (0,3,0)) back to Jini's own. */
 @media (max-width: 640px) {
   .settings-ui-section.settings-page,
@@ -230,28 +230,28 @@
 /* The wrapping half is keyed on the PANE (2026-10-11): a desktop pane squeezed by the nav + dock
  * clipped the last switch the same way. The 40px swatch floor below stays phone-only. */
 @container admin-content (max-width: 620px) {
-  .admin-content .memory-panel-head-controls {
+  .jini-admin-content .memory-panel-head-controls {
     flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
     flex-wrap: wrap;
   }
-  .admin-content .memory-panel-seg {
+  .jini-admin-content .memory-panel-seg {
     flex: 1 1 180px;
     min-width: 0;
     max-width: 100%;
   }
-  .admin-content .memory-panel-seg .jini-seg-btn {
+  .jini-admin-content .memory-panel-seg .jini-seg-btn {
     padding-inline: 8px;
     overflow-wrap: anywhere;
   }
-  .admin-content .memory-panel-head-copy { min-width: 0; overflow-wrap: anywhere; }
-  .admin-content .jini-toggle-row-text {
+  .jini-admin-content .memory-panel-head-copy { min-width: 0; overflow-wrap: anywhere; }
+  .jini-admin-content .jini-toggle-row-text {
     min-width: 0;
     overflow-wrap: anywhere;
   }
 }
-:root .admin-content :is(.jini-accent-swatch, .jini-accent-swatch-picker) {
+:root .jini-admin-content :is(.jini-accent-swatch, .jini-accent-swatch-picker) {
   flex: 0 0 24px;
   width: 24px;
   height: 24px;
@@ -265,7 +265,7 @@
 }
 @media (max-width: 640px) {
   /* SE-4: the 40px button floor and the custom colour input must use the same circular box. */
-  :root .admin-content :is(.jini-accent-swatch, .jini-accent-swatch-picker) {
+  :root .jini-admin-content :is(.jini-accent-swatch, .jini-accent-swatch-picker) {
     flex: 0 0 40px;
     width: 40px;
     height: 40px;

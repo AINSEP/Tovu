@@ -267,7 +267,7 @@ test.describe("session expiry mid-edit", () => {
 
   test("a revoked session kicks to login on save, and the typed draft is offered back after re-login", { tag: ["@unrun"] }, async ({ page }) => {
     await attemptLoginAsAdmin(page, { username: JOURNEY_ADMIN_USER, password: JOURNEY_ADMIN_PASSWORD });
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
     const { id } = await newPost(page);
     const editorUrl = page.url();
     const typed = uniq("Typed before expiry");
@@ -278,7 +278,7 @@ test.describe("session expiry mid-edit", () => {
     await expect(page.locator(".login-card")).toBeVisible();
 
     await attemptLoginAsAdmin(page, { username: JOURNEY_ADMIN_USER, password: JOURNEY_ADMIN_PASSWORD });
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
     await page.goto(editorUrl);
     const restore = page.locator('[data-agent-element="post-autosave-restore"]');
     const body = page.locator('[data-agent-element="post-body"]');

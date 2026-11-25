@@ -26,9 +26,9 @@ import { useLiveViews as useGuestLiveViews, useSiteViewPreference, type LiveView
 import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 
-/** The admin's own scroll container (`.admin-content`, apps/admin `styles.css`): its window never
+/** The admin's own scroll container (`.jini-admin-content`, apps/admin `styles.css`): its window never
  *  scrolls, so `window.scrollY` alone would restore every admin page to the top. */
-export const INNER_SCROLLER = '.admin-content';
+export const INNER_SCROLLER = '.jini-admin-content';
 
 /**
  * Runs in the GUEST, as a string: never built from a function's `toString()`, because a bundler's

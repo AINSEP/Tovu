@@ -36,20 +36,20 @@ test.describe("W1 login and session", () => {
   test("wrong password keeps the login card and shows an error", { tag: ["@unrun"] }, async ({ page }) => {
     await attemptLoginAsAdmin(page, { username: JOURNEY_ADMIN_USER, password: "definitely-wrong" });
     await expect(page.locator(".login-error")).toBeVisible();
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
   });
 
   test("login, reload keeps the session, logout returns to the login card", { tag: ["@unrun"] }, async ({ page }) => {
     await attemptLoginAsAdmin(page, { username: JOURNEY_ADMIN_USER, password: JOURNEY_ADMIN_PASSWORD });
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
     await page.reload();
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
     await expect(page.locator(".login-card")).toHaveCount(0);
     await logoutAsAdmin(page);
     // Back/forward after logout must not resurrect the authenticated shell from history.
     await page.goBack();
     await page.goForward();
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
   });
 
   test("login screen baseline", { tag: ["@unrun"] }, async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe("W1 login and session", () => {
     await page.keyboard.press("Tab");
     await page.keyboard.type(JOURNEY_ADMIN_PASSWORD);
     await page.keyboard.press("Enter");
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
   });
 });
 
@@ -102,7 +102,7 @@ test.describe("W12 every admin panel loads", () => {
         if (response.url().includes("/api/") && response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
       });
       await page.goto(`/admin${ADDONS_PANEL_PATHS[id] ?? `/${id}`}`);
-      await expect(page.locator(".admin-layout")).toBeVisible();
+      await expect(page.locator(".jini-admin-layout")).toBeVisible();
       await expect(page.locator(".login-card")).toHaveCount(0);
       await expect(page.locator("main, [role=main]").first()).not.toBeEmpty();
       expect(serverErrors).toEqual([]);

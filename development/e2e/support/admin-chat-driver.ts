@@ -181,7 +181,7 @@ function createOpen({ page, adminPath, actionTimeoutMs, dock, ui }: { page: Page
       // Never networkidle: the app holds streams open. A visible composer proves React mounted.
       await page.goto(adminPath, { waitUntil: "domcontentloaded" });
     }
-    await page.locator(".admin-layout").waitFor({ state: "visible", timeout: actionTimeoutMs });
+    await page.locator(".jini-admin-layout").waitFor({ state: "visible", timeout: actionTimeoutMs });
     if (!(await dock.isVisible())) await page.getByRole("button", { name: "Open assistant", exact: true }).click();
     await expect(dock).not.toHaveAttribute("hidden", "", { timeout: actionTimeoutMs });
     await ui.composer.waitFor({ state: "visible", timeout: actionTimeoutMs });

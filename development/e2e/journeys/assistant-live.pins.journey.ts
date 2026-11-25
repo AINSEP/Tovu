@@ -1138,7 +1138,7 @@ test("LIVE AGENT: the production surface renders a hostile title safely and Conf
     await dialog.dismiss();
   });
   await page.goto("/admin/");
-  await expect(page.locator(".admin-layout")).toBeVisible();
+  await expect(page.locator(".jini-admin-layout")).toBeVisible();
   const created = await page.request.post(POSTS_PATH, { data: { title: HOSTILE_TITLE } });
   expect(created.status()).toBe(201);
   const postId: string = (await created.json()).post.id;

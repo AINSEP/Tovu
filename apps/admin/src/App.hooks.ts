@@ -441,7 +441,7 @@ export function translateAssistantDockLabel({ locale, key }: { locale: string; k
  * from `useChatDockLayout`'s own output, factored out for the same "no derived logic in `.tsx`"
  * reason as {@link translateAssistantDockLabel} above. Bottom clearance only applies in sheet mode
  * (a *bottom* sheet), right clearance only at desktop widths (the docked panel sits beside
- * `.admin-content`, not below it) — see `UseChatDockLayout.isSheetMode`'s own doc for why the two
+ * `.jini-admin-content`, not below it) — see `UseChatDockLayout.isSheetMode`'s own doc for why the two
  * are mutually exclusive rather than both potentially nonzero.
  *
  * @example
@@ -476,7 +476,7 @@ export interface UseChatDockLayout {
   setSheetExpanded: React.Dispatch<React.SetStateAction<boolean>>;
   /** Tracks the same breakpoint as `styles.css`'s `@media (max-width: 640px)` — needed in JS so
    *  `App.tsx`'s `avoidBottomPx`/`avoidRightPx` props on `<ChatFab>` only measure/hold clearance
-   *  for a *bottom* sheet, never for the desktop docked panel (which sits beside `.admin-content`,
+   *  for a *bottom* sheet, never for the desktop docked panel (which sits beside `.jini-admin-content`,
    *  not below it, so 0 clearance is correct there regardless of the dock's own height). */
   isSheetMode: boolean;
   /** The mobile sheet's actual rendered height in px, or `0` when not applicable — feeds `App.tsx`'s

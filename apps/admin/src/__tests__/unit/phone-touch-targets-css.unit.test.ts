@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 /**
  * @file Regression (90f04f64a): the phone floor gave buttons a 40px `min-height` at a higher
  * specificity than Media's 44px action buttons, so it pulled them down to 40 on phones; modal
- * dialogs render in <body>, outside `.admin-content`, and got no floor at all (35-37px). jsdom has
+ * dialogs render in <body>, outside `.jini-admin-content`, and got no floor at all (35-37px). jsdom has
  * no layout, so this pins the rule text; the 44px result was measured in Chrome at 375px.
  */
 
 const stylesCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
-const SCOPE = ":is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen)";
+const SCOPE = ":is(.jini-admin-content, .jini-dialog, .confirm-dialog, .login-screen)";
 
 /** Declarations of `selector` inside `@media (max-width: 640px)`, last one winning. */
 function phoneDeclarations(selector: string): Record<string, string> {

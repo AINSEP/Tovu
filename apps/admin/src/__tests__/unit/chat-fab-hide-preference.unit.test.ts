@@ -28,8 +28,8 @@ function rulesFor(stylesheet: string, selector: string): { media: string | null;
 }
 
 describe("hide-while-open CSS is gated on the preference class", () => {
-  const gated = ".admin-layout.hides-fab-while-open .admin-chat-dock.is-open + .chat-fab";
-  const ungated = ".admin-layout .admin-chat-dock.is-open + .chat-fab";
+  const gated = ".jini-admin-layout.hides-fab-while-open .admin-chat-dock.is-open + .chat-fab";
+  const ungated = ".jini-admin-layout .admin-chat-dock.is-open + .chat-fab";
 
   it("hides the FAB while open on desktop only under .hides-fab-while-open", () => {
     expect(rulesFor(assistantCss, gated)).toEqual([{ media: "(width > 640px)", body: "display: none" }]);
@@ -42,7 +42,7 @@ describe("hide-while-open CSS is gated on the preference class", () => {
   });
 
   it("gives the composer footer room for the FAB only when the setting is off", () => {
-    const room = rulesFor(assistantCss, ".admin-layout:not(.hides-fab-while-open) .admin-chat-dock.is-open .jini-composer-footer");
+    const room = rulesFor(assistantCss, ".jini-admin-layout:not(.hides-fab-while-open) .admin-chat-dock.is-open .jini-composer-footer");
     expect(room).toEqual([
       {
         media: null,

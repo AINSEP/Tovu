@@ -104,14 +104,14 @@ describe("useInterfacePreferences", () => {
 
 describe("resolveAdminLayoutClassName", () => {
   it("adds the class the hide-while-open CSS rules are gated on only while the setting is on", () => {
-    expect(resolveAdminLayoutClassName(HIDE_FAB)).toBe("admin-layout hides-fab-while-open");
-    expect(resolveAdminLayoutClassName(SHOW_FAB)).toBe("admin-layout");
+    expect(resolveAdminLayoutClassName(HIDE_FAB)).toBe("jini-admin-layout hides-fab-while-open");
+    expect(resolveAdminLayoutClassName(SHOW_FAB)).toBe("jini-admin-layout");
   });
 
   it("adds the class the tab-wrapping CSS rules are gated on only while that setting is on", () => {
-    expect(resolveAdminLayoutClassName({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" })).toBe("admin-layout wraps-tabs");
+    expect(resolveAdminLayoutClassName({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" })).toBe("jini-admin-layout wraps-tabs");
     expect(resolveAdminLayoutClassName({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" })).toBe(
-      "admin-layout hides-fab-while-open wraps-tabs",
+      "jini-admin-layout hides-fab-while-open wraps-tabs",
     );
   });
 });

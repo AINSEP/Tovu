@@ -26,8 +26,8 @@ async function keepOpenDockFabVisible({ page }: { page: Page }, _options = {}): 
   });
   expect(response.ok()).toBe(true);
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator(".admin-layout")).toBeVisible();
-  await expect(page.locator(".admin-layout")).not.toHaveClass(/hides-fab-while-open/);
+  await expect(page.locator(".jini-admin-layout")).toBeVisible();
+  await expect(page.locator(".jini-admin-layout")).not.toHaveClass(/hides-fab-while-open/);
 }
 
 // Migrated from admin-fab-drag-onto-dock.spec.ts; original pin intent and why comments follow.
@@ -148,7 +148,7 @@ async function expectPinnedFabAfterReload({ page, dock, dockBoxBefore, expectAtD
       "the pinned position must still be inside the dock after a close/reopen cycle"
     ).toBeGreaterThanOrEqual(dockBoxBefore.x);
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator(".admin-layout")).not.toHaveClass(/hides-fab-while-open/);
+    await expect(page.locator(".jini-admin-layout")).not.toHaveClass(/hides-fab-while-open/);
     if (await dock.getAttribute("hidden") !== null) await page.locator("button.chat-fab").click();
     await expect(dock).not.toHaveAttribute("hidden", "");
     await expectAtDrop();
@@ -515,7 +515,7 @@ registerSelectionViewports({ test, SETTINGS });
 
 
 
-/** The shell's own contract, asserted directly: `.admin-layout` is `height: 100vh; overflow:
+/** The shell's own contract, asserted directly: `.jini-admin-layout` is `height: 100vh; overflow:
  *  hidden`, so the document has nothing to scroll. Reads the max scroll the browser will actually
  *  honour rather than comparing `scrollHeight` to `clientHeight` — an element can report a taller
  *  scrollHeight than it lets you reach, and what the owner saw was real reachable blank space, so
@@ -535,9 +535,9 @@ async function maxDocumentScrollY(page: Page): Promise<number> {
  * Appends a `.visually-hidden` span at the bottom of the content scroller, inside a wrapper that is
  * `position: static` — reproducing `.tab-bar-item`'s geometry exactly.
  *
- * Appended to `.admin-content` itself rather than nested inside a card: `.card` and several of its
+ * Appended to `.jini-admin-content` itself rather than nested inside a card: `.card` and several of its
  * children are `position: relative`, which would give the span a containing block INSIDE the scroll
- * box and mask the very bug under test. `.admin-content` is static, so the span's containing block
+ * box and mask the very bug under test. `.jini-admin-content` is static, so the span's containing block
  * resolves to the initial containing block — the condition that makes it escape the scroller.
  *
  * Returns the probe's static-position offset so the caller can assert the setup actually put it
@@ -545,8 +545,8 @@ async function maxDocumentScrollY(page: Page): Promise<number> {
  */
 async function injectVisuallyHiddenProbe(page: Page, probeId: string): Promise<number> {
   return page.evaluate((id) => {
-    const content = document.querySelector(".admin-content");
-    if (!content) throw new Error(".admin-content not found — the admin shell did not render");
+    const content = document.querySelector(".jini-admin-content");
+    if (!content) throw new Error(".jini-admin-content not found — the admin shell did not render");
     // Keep the regression reachable even on a screen whose real content fits the viewport.
     const spacer = document.createElement("div");
     spacer.style.height = `${window.innerHeight + 64}px`;
@@ -567,7 +567,7 @@ function registerHiddenSpanScrollPin({ PROBE_ID }: { PROBE_ID: string }) {
   test("a screen-reader-only span low in the content flow does not stretch the document", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/deployment?tab=static-site");
-    await expect(page.locator(".admin-content .card").first()).toBeVisible();
+    await expect(page.locator(".jini-admin-content .card").first()).toBeVisible();
 
     // Precondition: the page is genuinely taller than the viewport, so the probe's static position
     // lands below the fold and the assertion below has something real to catch.
@@ -583,7 +583,7 @@ function registerHiddenSpanScrollPin({ PROBE_ID }: { PROBE_ID: string }) {
   test("no .visually-hidden element resolves to a position below the viewport", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/deployment?tab=static-site");
-    await expect(page.locator(".admin-content .card").first()).toBeVisible();
+    await expect(page.locator(".jini-admin-content .card").first()).toBeVisible();
     const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
     expect(probeTop).toBeGreaterThan(page.viewportSize()!.height);
 
@@ -610,14 +610,14 @@ function registerRealScrollerPins() {
   test("the fix does not disable either real scroller", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/deployment?tab=static-site");
-    await expect(page.locator(".admin-content .card").first()).toBeVisible();
+    await expect(page.locator(".jini-admin-content .card").first()).toBeVisible();
 
     // Guards the obvious wrong fix. "Stop the document scrolling" is trivially satisfiable by
     // clamping the shell until nothing scrolls at all — which would make the sidebar's lower nav
     // items and the bottom of every long page permanently unreachable. Both internal scrollers must
     // still overflow their own boxes.
     const scrollers = await page.evaluate(() => {
-      const content = document.querySelector(".admin-content");
+      const content = document.querySelector(".jini-admin-content");
       const nav = document.querySelector(".cms-nav");
       return {
         contentOverflows: !!content && content.scrollHeight > content.clientHeight + 1,
@@ -626,7 +626,7 @@ function registerRealScrollerPins() {
     });
     expect(scrollers.contentOverflows).toBe(true);
     expect(scrollers.navOverflows).toBe(true);
-    for (const selector of [".admin-content", ".cms-nav"]) {
+    for (const selector of [".jini-admin-content", ".cms-nav"]) {
       const scroller = page.locator(selector);
       await scroller.evaluate((el) => {
         el.scrollTop = 0;
@@ -657,7 +657,7 @@ function registerThemesScrollPin({ PROBE_ID }: { PROBE_ID: string }) {
   test("Themes: the shared TabBar screen holds the same contract", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/themes");
-    await expect(page.locator(".admin-content").first()).toBeVisible();
+    await expect(page.locator(".jini-admin-content").first()).toBeVisible();
     await expect(page.locator(".tab-bar").first()).toBeVisible();
 
     const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
@@ -684,7 +684,7 @@ test.describe("Bug pin: admin-shell-no-document-scroll", () => {
  *
  * ## The defect
  *
- * `.admin-layout` is `height: 100vh; overflow: hidden` and `.admin-content` is the real scroller
+ * `.jini-admin-layout` is `height: 100vh; overflow: hidden` and `.jini-admin-content` is the real scroller
  * (`overflow-y: auto`), so the DOCUMENT itself must never scroll — every screen in this admin is a
  * fixed-viewport shell with two independent internal scrollers (the sidebar `.cms-nav` and the
  * content `main`). It scrolled anyway: 341px of blank page below a layout that ends at the viewport
@@ -697,7 +697,7 @@ test.describe("Bug pin: admin-shell-no-document-scroll", () => {
  * i.e. the document. `TabBar.tsx`'s accessible ", Connected" suffix on a connected publish-target
  * tab therefore computed `top: 1049.67px` and stretched `document.scrollHeight` to 1050px.
  *
- * Critically, `.admin-content`'s `overflow-y: auto` could NOT clip it: a static ancestor is not a
+ * Critically, `.jini-admin-content`'s `overflow-y: auto` could NOT clip it: a static ancestor is not a
  * containing block, so the span was never inside that scroll box in the first place. That is why
  * the obvious fix — locking `html`/`body` with `overflow: hidden` — was measured and does NOT work
  * here (document scroll stayed at 341px). The fix is `top: 0; left: 0` on `.visually-hidden`,
@@ -1073,7 +1073,7 @@ async function expectScrollablePostsList(page: Page): Promise<void> {
   await page.locator(".list-table tbody tr").first().waitFor({ state: "visible", timeout: 10_000 });
   const count = await page.locator(".list-table tbody tr").count();
   expect(count, "seed data must have more than one post to make a scrollable list").toBeGreaterThan(1);
-  const overflows = await page.locator(".admin-content").evaluate((element) => element.scrollHeight > element.clientHeight);
+  const overflows = await page.locator(".jini-admin-content").evaluate((element) => element.scrollHeight > element.clientHeight);
   expect(overflows, "the posts list must overflow before the sheet adds any spacer").toBe(true);
 }
   return expectScrollablePostsList;
@@ -1098,11 +1098,11 @@ async function expandSheet(page: Page): Promise<void> {
 }
 
 
-/** Scrolls `.admin-content` to its max and reports whether the last table row's bottom edge
+/** Scrolls `.jini-admin-content` to its max and reports whether the last table row's bottom edge
  *  cleared the sheet's top edge — the owner's own bar: "you could just scroll more up the page." */
 async function lastRowClearsSheet(page: Page): Promise<{ cleared: boolean; gap: number }> {
   const region = await page.evaluate(() => {
-    const content = document.querySelector(".admin-content") as HTMLElement;
+    const content = document.querySelector(".jini-admin-content") as HTMLElement;
     const dock = document.querySelector(".admin-chat-dock") as HTMLElement;
     const rect = content.getBoundingClientRect();
     const bottom = Math.min(rect.bottom, dock.getBoundingClientRect().top);
@@ -1123,10 +1123,10 @@ async function lastRowClearsSheet(page: Page): Promise<{ cleared: boolean; gap: 
   expect(region.max).toBeGreaterThan(region.before);
   await page.mouse.move(region.x, region.y);
   await page.mouse.wheel(0, region.max + 1000);
-  await expect.poll(() => page.locator(".admin-content").evaluate((element) => element.scrollTop), { timeout: 5_000 }).toBeGreaterThan(region.before);
-  await expect.poll(() => page.locator(".admin-content").evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop), { timeout: 5_000 }).toBeLessThanOrEqual(1);
+  await expect.poll(() => page.locator(".jini-admin-content").evaluate((element) => element.scrollTop), { timeout: 5_000 }).toBeGreaterThan(region.before);
+  await expect.poll(() => page.locator(".jini-admin-content").evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop), { timeout: 5_000 }).toBeLessThanOrEqual(1);
   return page.evaluate(() => {
-    const content = document.querySelector(".admin-content") as HTMLElement;
+    const content = document.querySelector(".jini-admin-content") as HTMLElement;
     const dock = document.querySelector(".admin-chat-dock") as HTMLElement;
     const rows = content.querySelectorAll(".list-table tbody tr");
     const lastRow = rows[rows.length - 1] as HTMLElement;
@@ -1162,7 +1162,7 @@ function registerSheetClearancePins({ expectScrollablePostsList }: { expectScrol
   test("375x667, expanded state: the padding-floor regression stays fixed", async ({ page }) => {
     await loginAsAdmin(page);
     // The exact viewport that exposed the padding-bottom box-model bug: 92vh of 667px (613.64px)
-    // plus the base 16px padding-top exceeds `.admin-content`'s entire 615px flex-allotted height.
+    // plus the base 16px padding-top exceeds `.jini-admin-content`'s entire 615px flex-allotted height.
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/admin/posts", { waitUntil: "domcontentloaded" });
     await expectScrollablePostsList(page);
@@ -1170,10 +1170,10 @@ function registerSheetClearancePins({ expectScrollablePostsList }: { expectScrol
     await openSheet(page);
     await expandSheet(page);
 
-    // Pins the mechanism, not just the symptom: `.admin-content`'s own rendered box must stay at
+    // Pins the mechanism, not just the symptom: `.jini-admin-content`'s own rendered box must stay at
     // its flex-allotted height (never taller), which is what makes the row-clearance check above
     // meaningful rather than accidental.
-    const contentHeight = await page.evaluate(() => document.querySelector(".admin-content")!.getBoundingClientRect().height);
+    const contentHeight = await page.evaluate(() => document.querySelector(".jini-admin-content")!.getBoundingClientRect().height);
     const viewportHeight = page.viewportSize()!.height;
     const topbarHeight = await page.evaluate(() => document.querySelector(".admin-topbar")!.getBoundingClientRect().height);
     expect(contentHeight).toBeLessThanOrEqual(viewportHeight - topbarHeight + 1);
@@ -1193,7 +1193,7 @@ function registerClosedSheetScrollPin({ expectScrollablePostsList }: { expectScr
     await expectScrollablePostsList(page);
 
     const naturalMaxScroll = await page.evaluate(() => {
-      const content = document.querySelector(".admin-content") as HTMLElement;
+      const content = document.querySelector(".jini-admin-content") as HTMLElement;
       return content.scrollHeight - content.clientHeight;
     });
 
@@ -1203,7 +1203,7 @@ function registerClosedSheetScrollPin({ expectScrollablePostsList }: { expectScr
     await expect(page.locator(".admin-chat-dock")).toHaveAttribute("hidden", "");
 
     const closedMaxScroll = await page.evaluate(() => {
-      const content = document.querySelector(".admin-content") as HTMLElement;
+      const content = document.querySelector(".jini-admin-content") as HTMLElement;
       return content.scrollHeight - content.clientHeight;
     });
     expect(closedMaxScroll).toBe(naturalMaxScroll);
@@ -1225,15 +1225,15 @@ test.describe("Bug pin: mobile-sheet-scroll", () => {
  * (owner repro, 2026-08-26): *"the bottom sheet AI agent wasn't allowing me to scroll... there's
  * CSS at the bottom that adjusts for when it's mobile size and when the agent chat appears."*
  *
- * The page underneath was never scroll-locked — `.admin-content` keeps its own `overflow-y: auto`.
+ * The page underneath was never scroll-locked — `.jini-admin-content` keeps its own `overflow-y: auto`.
  * The real bug: nothing was reserved below the last element, so it could never be scrolled clear
  * of the sheet (`.admin-chat-dock`, `styles.css`'s `max-width: 640px` block), which sits
  * `position: fixed` over the bottom 58vh (peek) or 92vh (expanded) of the viewport.
  *
- * The first fix reserved that space with `padding-bottom` on `.admin-content`. That broke at a
+ * The first fix reserved that space with `padding-bottom` on `.jini-admin-content`. That broke at a
  * short viewport in the expanded state: padding can never shrink a box below its own value
  * (border-box's floor), so `padding-bottom: 92vh` plus the existing padding-top forced
- * `.admin-content` taller than its flex-allotted height, pushing its true bottom edge below the
+ * `.jini-admin-content` taller than its flex-allotted height, pushing its true bottom edge below the
  * viewport and leaving the last row still ~14px under the sheet even at max scroll. The fix is an
  * `::after` spacer instead — ordinary scrollable content, which `overflow-y: auto` clips like
  * anything else, so the box never grows past its flex-determined size. `375x667` + expanded is the

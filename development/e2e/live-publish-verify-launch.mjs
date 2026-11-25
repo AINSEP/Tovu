@@ -53,7 +53,7 @@ log(`signing in as ${USERNAME}`);
 await page.getByLabel("Username").fill(USERNAME);
 await page.getByLabel("Password").fill(PASSWORD);
 await page.getByRole("button", { name: /sign in/i }).click();
-await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 20_000 });
+await page.locator(".jini-admin-layout").waitFor({ state: "visible", timeout: 20_000 });
 log("authenticated shell mounted");
 
 log("opening the assistant dock (starting a FRESH conversation via New)");

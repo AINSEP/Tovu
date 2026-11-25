@@ -815,7 +815,7 @@ function recordDossierStringLiterals({ full, jiniLits, n, lineOf, topSymbol, top
         const residue = RESIDUE_RE.test(pattern) ? "tovu" : vendorHit(pattern);
         const format = isFormatLike(pattern);
         if (residue || format) f.literals.push({ text: short(pattern, 80), line: lineOf(n.getStart()), ctx: literalContext(n), symbol: topSymbol(n), residue: residue ?? null, format });
-        // Template/script contents (RELEASE_PROBE holds 'jini:release-check', /admin, .admin-content,
+        // Template/script contents (RELEASE_PROBE holds 'jini:release-check', /admin, .jini-admin-content,
         // pilot DE #4): pull quoted strings, selectors/paths and colon ids out of long strings.
         if (pattern.length > 40 || /\n/.test(pattern)) {
           for (const m of pattern.matchAll(/['"]([^'"\s]{4,80})['"]/g)) coupling("template", m[1], n);

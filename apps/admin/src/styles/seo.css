@@ -373,7 +373,7 @@
 .jini-seo-entry-head {
   position: sticky;
   /* Sticky offsets count from inside the scroller's PADDING, so `top: 0` pinned the row 2rem below
-     `.admin-content`'s top edge with the form scrolling visibly through that gap (seen live
+     `.jini-admin-content`'s top edge with the form scrolling visibly through that gap (seen live
      2026-10-15). Pull it up by the same padding `styles.css` gives that box at each breakpoint —
      the post editor's action row does the same (`top: calc(-1 * var(--space-4))`). */
   top: -2rem;
@@ -387,7 +387,7 @@
   align-items: center;
   gap: var(--space-1);
   padding-block: var(--space-2);
-  /* The pane behind it is `.admin-layout`'s `--jini-bg`, not `--bg` — the two differ in dark mode
+  /* The pane behind it is `.jini-admin-layout`'s `--jini-bg`, not `--bg` — the two differ in dark mode
      and `--bg` painted a darker strip across the page. */
   background: var(--jini-bg);
   /* Transparent at rest so pinning adds no height and nothing shifts. */

@@ -118,7 +118,7 @@ test('live views: focusing a released tab brings it back on its last route, then
   const restores = view.scripts.filter(([id, code]) => id === 'a' && code !== RELEASE_PROBE).map(([, code]) => code);
   assert.equal(restores.length, 1, 'once per restored guest: a later reload is the operator\'s own');
   assert.match(restores[0]!, /window\.scrollTo\(0, 40\)/);
-  assert.match(restores[0]!, /document\.querySelector\("\.admin-content"\)/);
+  assert.match(restores[0]!, /document\.querySelector\("\.jini-admin-content"\)/);
   assert.match(restores[0]!, /scrollTop = 640/);
 });
 

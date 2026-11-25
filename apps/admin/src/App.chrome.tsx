@@ -197,7 +197,7 @@ export function ShellMain({ sidebarOpen, setSidebarOpen, navLocale, agentPage, s
       {/* MailStatusBanner (components/MailStatusBanner) is not mounted while email is parked
           (owner, 2026-10-23: "we aren't doing anything with email right now"); re-mount it here
           with fetchStatus={api.getMailStatus} when email work resumes (development/todos.md). */}
-      <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPage}>
+      <main id="main-content" className="jini-admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPage}>
         {/* Keep page overlays in the same allowed root and page identity as their triggers. */}
         <KitProvider kit={tovuKit} agent={tovuAgentAttrs} overlayContainer={contentEl}>
           {siteUpdateNotice}

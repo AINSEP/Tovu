@@ -616,7 +616,7 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   // Reload so `AssistantDock`'s own `useExecutionConfig` (no live subscription to the settings
   // save) picks up the just-persisted BYOK mode/credential — same reasoning as the deputy spec.
   await page.goto(ADMIN_ORIGIN_PATH, { waitUntil: "domcontentloaded" });
-  await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 15_000 });
+  await page.locator(".jini-admin-layout").waitFor({ state: "visible", timeout: 15_000 });
 
   await page.getByRole("button", { name: "Open assistant" }).click();
   const dock = page.locator('aside[aria-label="Assistant"]');
@@ -990,7 +990,7 @@ test("BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth,
     // subscription to the settings save, so this reload is what makes the just-configured BYOK
     // mode/credential visible to it. See `AssistantDock.tsx`'s `useExecutionConfig` doc.
     await page.goto(ADMIN_ORIGIN_PATH, { waitUntil: "domcontentloaded" });
-    await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 15_000 });
+    await page.locator(".jini-admin-layout").waitFor({ state: "visible", timeout: 15_000 });
 
     await page.getByRole("button", { name: "Open assistant" }).click();
     const dock = page.locator('aside[aria-label="Assistant"]');

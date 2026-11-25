@@ -308,7 +308,7 @@ async function assertFactWarningVisible(warning: import("@playwright/test").Loca
   // against the badge, content scroller, and viewport after scrolling it into view.
   const textGeometry = await warning.evaluate((badge) => {
     const rect = badge.getBoundingClientRect();
-    const content = badge.closest(".admin-content");
+    const content = badge.closest(".jini-admin-content");
     if (!content) throw new Error("Missing admin content scroller");
     const contentRect = content.getBoundingClientRect();
     const range = document.createRange();

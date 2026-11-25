@@ -304,12 +304,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 }
 
 /* Page headings + intro copy */
-.admin-content h1 { font-family: var(--font-display); font-size: 1.65rem; font-weight: 700; letter-spacing: -0.01em; color: var(--fg); margin: 0 0 0.4rem; }
-.admin-content h1 + p { color: var(--muted); font-size: 0.95rem; margin: 0 0 1.6rem; }
+.jini-admin-content h1 { font-family: var(--font-display); font-size: 1.65rem; font-weight: 700; letter-spacing: -0.01em; color: var(--fg); margin: 0 0 0.4rem; }
+.jini-admin-content h1 + p { color: var(--muted); font-size: 0.95rem; margin: 0 0 1.6rem; }
 
 /* ============================================================
    Shared page primitives (canary pass: Posts + Media adopt these now; phase 2 migrates the
-   remaining ~30 sections onto the same set instead of leaving `.admin-content h1` above as the
+   remaining ~30 sections onto the same set instead of leaving `.jini-admin-content h1` above as the
    only shared pattern). Reproduces Settings' measured qualities — kicker/title/description
    header, bordered card with real padding, restrained button hierarchy — using this file's own
    oklch tokens and the scale above, never `--jini-*`.
@@ -410,10 +410,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    note away from the list. The spacer stays when the dock is open: the FAB is gone then, but the
    scroll ↑/↓ pair still sits in the column's corner and would cover the last row. */
 @media (min-width: 641px) {
-  .admin-content::after {
+  .jini-admin-content::after {
     content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance);
   }
-  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.jini-skills-page, .agent-plugins-section) .jini-tabbed-dialog-content {
+  .jini-admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.jini-skills-page, .agent-plugins-section) .jini-tabbed-dialog-content {
     padding-bottom: var(--assistant-clearance);
   }
 }
@@ -693,12 +693,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    code box is its own scroller so the sticky gutter stays put while code scrolls under it. */
 /* Sized to the window below its own top (2026-10-11): the old `32rem` floor overrode the viewport
    term on a short window (a ~623px one gave it 512px starting ~192px down), so the page scrolled as
-   well as the box. `--theme-explore-code-offset` is the box's top plus `.admin-content`'s 2rem bottom
+   well as the box. `--theme-explore-code-offset` is the box's top plus `.jini-admin-content`'s 2rem bottom
    padding and a little slack; the `16rem` floor keeps a usable box on a short phone/window. With the
    file tray above the toolbar (2026-10-11) that top is ~300px on desktop (header, a one-row tray,
    toolbar); a narrow container wraps the header, tray and toolbar onto more rows, hence the larger
    offset in the container query below. 22rem still left the page scrolling ~54px past the box on
-   a 900px-tall desktop pane (Chrome check, 2026-10-11: `.admin-content` scrollHeight 954 vs 900), so
+   a 900px-tall desktop pane (Chrome check, 2026-10-11: `.jini-admin-content` scrollHeight 954 vs 900), so
    the desktop offset carries that measured 3.5rem too. */
 .theme-explore-code-view { --theme-explore-code-offset: 25.5rem; }
 @container theme-explore (max-width: 560px) {
@@ -895,9 +895,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   .jini-toast, .jini-toast.leaving { animation: none; }
 }
 /* Scoped under `.page-header` (not bare `.page-kicker`/`.page-title`/`.page-description`) so
-   these reliably beat the legacy `.admin-content h1` / `h1 + p` rules above on specificity
+   these reliably beat the legacy `.jini-admin-content h1` / `h1 + p` rules above on specificity
    (0,2,0 vs 0,1,1) — that legacy pair still owns every section this canary does not touch, and
-   `.page-title` is itself an `<h1>` sitting inside `.admin-content`, so both rules would
+   `.page-title` is itself an `<h1>` sitting inside `.jini-admin-content`, so both rules would
    otherwise match the same element with conflicting margins. */
 .page-header .page-kicker,
 .jini-page-header .jini-page-kicker {
@@ -974,7 +974,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 
 /* CONTAINER query, not `@media (max-width: 900px)` (replaced 2026-09-22 — same swap
    `.agent-plugin-rows` made above, same reason): 900px keyed on the VIEWPORT, and the thing that
-   actually squeezes this row is the workspace chat dock, which takes width from `.admin-content`
+   actually squeezes this row is the workspace chat dock, which takes width from `.jini-admin-content`
    while leaving the viewport exactly as wide as it was. Measured live with the chat dock open at a
    1440px viewport: `.page` renders ~560px wide — comfortably past the point the row needs to
    stack — while the media query, seeing 1440, never fired, and the back link wrapped onto four
@@ -988,7 +988,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    this header modifier pay for the new containing block, and every other `.page` is untouched.
 
    620px (not 900px): the container is `.page`'s own inline size, which is already narrower than
-   the viewport by the sidebar (232px) and `.admin-content`'s padding (2 × 2.5rem) even with the
+   the viewport by the sidebar (232px) and `.jini-admin-content`'s padding (2 × 2.5rem) even with the
    chat dock closed — the viewport figure this replaces was never the row's real budget, that
    offset was. */
 .page:has(.page-header-split),.jini-page:has(.jini-page-header-split) { container-type: inline-size; }
@@ -1413,16 +1413,16 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .jini-login-error { color: var(--danger); font-size: 0.85rem; }
 
 /* Layout */
-.admin-layout { background: var(--tovu-admin-layout-bg); display: flex; height: 100vh; overflow: hidden; }
+.jini-admin-layout { background: var(--tovu-admin-layout-bg); display: flex; height: 100vh; overflow: hidden; }
 /* Wraps the mobile topbar + <main> in a column so the topbar (hidden above the tablet
    breakpoint, see the responsive block at the bottom of this file) can stack above content
-   without disturbing `.admin-layout`'s own row of sidebar/content/chat-dock. `<main>` itself
+   without disturbing `.jini-admin-layout`'s own row of sidebar/content/chat-dock. `<main>` itself
    keeps its existing flex/overflow behavior unchanged at desktop widths. */
 /* `position: relative` (2026-09-15) is load-bearing for `styles/editor.css`'s
    `.post-preview-expanded` (Preview fullscreen, Level 1 —
    `ADS-memory/.local-artifacts/handoffs/2026-09-15-preview-fullscreen-PLAN.md`): that rule is
    `position: absolute; inset: 0`, and without a positioned ancestor here it would resolve against
-   the viewport instead of this column, escaping `.admin-content`'s scroll clip and covering
+   the viewport instead of this column, escaping `.jini-admin-content`'s scroll clip and covering
    `.admin-chat-dock`. Do not remove this without checking `.post-preview-expanded` first — it was
    removed once already (commit `09923d75`, reverting a DIFFERENT feature that also depended on it)
    and had to be restored for this one. */
@@ -1439,7 +1439,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 }
 /* With the dock open the FAB is hidden, so the pair takes the column's own corner instead of
    floating where the FAB used to be. */
-.admin-layout.hides-fab-while-open:has(.admin-chat-dock.is-open) .admin-main-col {
+.jini-admin-layout.hides-fab-while-open:has(.admin-chat-dock.is-open) .admin-main-col {
   --jini-scroll-jump-right: 16px;
   --jini-scroll-jump-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
@@ -1454,7 +1454,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    "Shot 9.41.02 PM.png" rendered "Shot 9.41.02PM.png". `pre` keeps it; file names carry no
    newlines or runs of spaces for it to expose. */
 .jini-middle-truncate__head, .jini-middle-truncate__tail { white-space: pre; }
-.admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
+.jini-admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
 /* The page's REAL width, as a named size container (2026-10-11, owner: "horrendous" with the side
    nav expanded and the dock open). Page layouts used to key their breakpoints on the VIEWPORT, but
    the width a page actually gets is viewport − nav (232px expanded / 60px rail) − dock (380px) −
@@ -1471,7 +1471,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    from `.admin-main-col` (flex stretch), never from its content, so inline-size containment
    changes nothing about how it sizes. Nearer containers (`.dashboard-page`,
    `.page:has(.page-header-split)`, the plugin lists) keep winning their own unnamed/named queries. */
-.admin-content { container-type: inline-size; container-name: admin-content; }
+.jini-admin-content { container-type: inline-size; container-name: admin-content; }
 
 /* Mobile top bar — hidden above the tablet breakpoint (desktop keeps the always-visible
    sidebar and needs no drawer toggle or page-orientation label). */
@@ -1736,7 +1736,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
     position: sticky; top: 0; z-index: 20;
   }
 
-  /* Off-canvas drawer. `position: fixed` pulls the sidebar out of `.admin-layout`'s flex row
+  /* Off-canvas drawer. `position: fixed` pulls the sidebar out of `.jini-admin-layout`'s flex row
      entirely, so `.admin-main-col` reclaims the full width instead of leaving a 232px gap.
 
      `visibility` (not just `transform`) gates the closed state: a translated-off-screen element
@@ -1766,7 +1766,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
     color: var(--faint);
   }
 
-  .admin-content { padding: var(--space-5) var(--space-4); }
+  .jini-admin-content { padding: var(--space-5) var(--space-4); }
 }
 
 @media (max-width: 640px) {
@@ -1779,7 +1779,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 
      `.admin-chat-dock`/`.chat-fab` are defined (unconditionally) in `styles/assistant.css`,
      loaded via a separate import in `AssistantDock.tsx` rather than this file — scoped under
-     `.admin-layout` here so this override wins on specificity regardless of which of the two
+     `.jini-admin-layout` here so this override wins on specificity regardless of which of the two
      stylesheets' `<style>` tag lands later in the document.
 
      Open/close itself is intentionally NOT animated (still the plain `hidden` attribute →
@@ -1789,12 +1789,12 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
      is a real feature, not a drive-by addition; disclosed as deferred in the handoff rather than
      bolted on incompletely. `hidden` already keeps the closed sheet out of the tab order and the
      accessibility tree for free (no rendering at all), which is the load-bearing requirement here. */
-  .admin-layout {
+  .jini-admin-layout {
     /* Shared with the padding-reservation rules below so the two snap heights can't drift apart. */
     --chat-sheet-peek: 58vh;
     --chat-sheet-expanded: 92vh;
   }
-  .admin-layout .admin-chat-dock {
+  .jini-admin-layout .admin-chat-dock {
     position: fixed; left: 0; right: 0; bottom: 0; top: auto;
     z-index: 55; flex: none; width: 100%; border-left: none;
     border-top: var(--jini-border-width, 1px) solid var(--jini-panel-border); border-radius: 14px 14px 0 0;
@@ -1803,23 +1803,23 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
     height: var(--chat-sheet-peek);
     transition: height 0.2s ease;
   }
-  .admin-layout .admin-chat-dock.is-expanded { height: var(--chat-sheet-expanded); }
+  .jini-admin-layout .admin-chat-dock.is-expanded { height: var(--chat-sheet-expanded); }
   @media (prefers-reduced-motion: reduce) {
-    .admin-layout .admin-chat-dock { transition: none; }
+    .jini-admin-layout .admin-chat-dock { transition: none; }
   }
 
-  .admin-content { padding: var(--space-4) var(--space-3); }
+  .jini-admin-content { padding: var(--space-4) var(--space-3); }
 
   /* FAB clearance (mobile catalog P-1, 2026-10-06): with the sheet CLOSED the 56px `.chat-fab`
      sits fixed over the bottom-right of the page, and at max scroll it covered the last ~70px —
      row icons, footnotes, and on the form editor the page's own Save button. Closed-sheet padding
      reserves the FAB plus its inset and a gap, including the device's safe area. An open sheet
      keeps the taller scrollable spacer below, which avoids growing a short flex pane. */
-  .admin-content::after { content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance); }
-  .admin-layout:not(:has(.admin-chat-dock.is-open)) .admin-content {
+  .jini-admin-content::after { content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance); }
+  .jini-admin-layout:not(:has(.admin-chat-dock.is-open)) .jini-admin-content {
     padding-bottom: calc(var(--assistant-clearance) + env(safe-area-inset-bottom, 0px));
   }
-  .admin-layout:not(:has(.admin-chat-dock.is-open)) .admin-content::after { display: none; }
+  .jini-admin-layout:not(:has(.admin-chat-dock.is-open)) .jini-admin-content::after { display: none; }
   /* Same clearance for the fixed-height tab panels that scroll on their own (Settings; Agent
      Plugins is page flow since AP-3): their last rows sat under the FAB at the panel's own max scroll, which the spacer
      above cannot reach. Page-flow panels scroll with the page, so they are left alone. */
@@ -1828,17 +1828,17 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   /* Owner repro, 2026-08-26: the sheet covers the bottom of the page with nothing left to scroll
      into, so the last elements can never clear it. An `::after` spacer (not `padding-bottom`)
      reserves that room: padding has a hard floor at its own value — on a short viewport with the
-     sheet expanded, `padding-bottom: 92vh` plus the existing padding-top exceeds `.admin-content`'s
+     sheet expanded, `padding-bottom: 92vh` plus the existing padding-top exceeds `.jini-admin-content`'s
      entire flex-allotted height, which forces the box itself taller and pushes its true bottom
      edge below the viewport (measured at 375x667: box overflowed by ~15px, leaving the last row
      still 14px under the sheet at max scroll). A spacer is ordinary scrollable content instead, so
      `overflow-y: auto` clips it like any other content and the box never grows past its own height.
-     `.admin-chat-dock` isn't a DOM sibling of `.admin-content` (it sits next to `.admin-main-col`,
-     `.admin-content`'s parent), hence `:has()` on the shared ancestor. */
-  .admin-layout:has(.admin-chat-dock.is-open) .admin-content::after {
+     `.admin-chat-dock` isn't a DOM sibling of `.jini-admin-content` (it sits next to `.admin-main-col`,
+     `.jini-admin-content`'s parent), hence `:has()` on the shared ancestor. */
+  .jini-admin-layout:has(.admin-chat-dock.is-open) .jini-admin-content::after {
     content: ""; display: block; height: var(--chat-sheet-peek);
   }
-  .admin-layout:has(.admin-chat-dock.is-open.is-expanded) .admin-content::after {
+  .jini-admin-layout:has(.admin-chat-dock.is-open.is-expanded) .jini-admin-content::after {
     height: var(--chat-sheet-expanded);
   }
 
@@ -1854,7 +1854,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
      states, so the FAB should disappear in both. Closing the sheet drops `.is-open`, so the
      ordinary bottom-right FAB reappears immediately to reopen it. Operator's choice since
      2026-10-06 (Settings → User Interface, default on = this hide); see `styles/assistant.css`. */
-  .admin-layout.hides-fab-while-open .admin-chat-dock.is-open + .chat-fab { display: none; }
+  .jini-admin-layout.hides-fab-while-open .admin-chat-dock.is-open + .chat-fab { display: none; }
 }
 
 /* Sheet chrome (drag handle, title, expand/close) — App.tsx-rendered, sitting above
@@ -1871,7 +1871,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
        also apply here (this bar is now a sibling direct child) and let the bar itself stretch to
        fill the dock's height instead of staying a fixed-size header row. Specificity (3 classes)
        beats that rule regardless of the two stylesheets' load order, same reasoning as the other
-       `.admin-layout`-scoped overrides in this section. */
+       `.jini-admin-layout`-scoped overrides in this section. */
     flex: 0 0 auto;
   }
   .chat-sheet-handle {
@@ -2733,8 +2733,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .widget-embed-node__actions { display: inline-flex; gap: 10px; margin-left: 12px; vertical-align: middle; }
 /* `font-size`/`color` made explicit here (found while measuring the real default for the toolbar's
    font-size select, 2026-08-11) — without them, the FIRST paragraph of every post's body collided
-   with the legacy `.admin-content h1 + p` rule (this file, "Page headings + intro copy"): the
-   post-title-in-document feature's `<h1 data-post-title>` sits inside `.admin-content` same as any
+   with the legacy `.jini-admin-content h1 + p` rule (this file, "Page headings + intro copy"): the
+   post-title-in-document feature's `<h1 data-post-title>` sits inside `.jini-admin-content` same as any
    dashboard page's own `<h1>`, so its immediate sibling `<p>` was unintentionally catching that
    rule's `font-size: 0.95rem`/`color: var(--muted)`/`margin: 0 0 1.6rem` meant for a page's intro
    copy, not post body text — verified live (`getComputedStyle`): the first paragraph rendered at
@@ -3052,10 +3052,10 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    document) whenever every ancestor is `position: static`. `.tab-bar-item` is exactly that case, so
    the Static Site tab's ", Connected" suffix computed `top: 1049.67px` and stretched the DOCUMENT to
    1050px tall inside a `height: 100vh` shell. The result was 341px of dead white space under a
-   layout that is supposed to be unscrollable, and `.admin-content`'s own `overflow-y: auto` could
+   layout that is supposed to be unscrollable, and `.jini-admin-content`'s own `overflow-y: auto` could
    not clip it — a static ancestor is not a containing block, so the span was never inside that
    scroll box to begin with. Measured: document scrollHeight 1061 → 720, max document scroll 341px →
-   0, with `.cms-nav` and `.admin-content` still scrolling internally exactly as before.
+   0, with `.cms-nav` and `.jini-admin-content` still scrolling internally exactly as before.
 
    Pinning to the containing block's origin instead of the static position makes that impossible for
    EVERY use of this class (22 across 8 components), rather than fixing one call site by adding
@@ -3882,7 +3882,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    `--page-flow` block, this leaves `.jini-tabbed-dialog-head` and
    `.jini-tabbed-dialog-content`'s own padding alone: this screen has no separate
    page header of its own (same as Settings), so the shell's title/subtitle strip
-   is still this page's only heading, and `.admin-content`'s existing 2rem/2.5rem
+   is still this page's only heading, and `.jini-admin-content`'s existing 2rem/2.5rem
    page padding already keeps the list off the viewport edge without help from the
    modal's internal padding. */
 .agent-plugins-section .jini-tabbed-dialog {
@@ -3914,15 +3914,15 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* Alignment fix (2026-09-10, owner report). The "Card removed" rule above only zeroed the
    MODAL's outer chrome (background/border/radius/shadow) — it deliberately left
    `.jini-tabbed-dialog-head` and `.jini-tabbed-dialog-content`'s own padding in place (see that
-   rule's comment), on the reasoning that `.admin-content`'s page padding alone already kept the
+   rule's comment), on the reasoning that `.jini-admin-content`'s page padding alone already kept the
    list off the viewport edge. That reasoning covered the edge case (nothing clips) but missed the
    ordinary one: those two `@jini-ai/ui` defaults (`padding: 24px 24px 12px` on the head,
    `padding: 16px 24px 22px` on the content — both are a floating dialog's own inset from ITS OWN
-   border, not overridden here) STACK on top of `.admin-content`'s 32px/40px page padding rather
+   border, not overridden here) STACK on top of `.jini-admin-content`'s 32px/40px page padding rather
    than replacing it. Measured live at 1440px: the "PLUGINS" eyebrow and the row-list card both
    sat 24px right of `/admin/plugins`' flush `.page-kicker`/`.plugin-rows` at the same viewport,
    and the head's own 24px top padding pushed the whole block 24px further down the page than
-   every sibling screen that renders straight into `.admin-content`.
+   every sibling screen that renders straight into `.jini-admin-content`.
 
    Same diagnosis and same fix as `.settings-ui-section--page-flow .jini-tabbed-dialog-content`'s
    "Flat variant" padding-inline rule further down this file: a dialog edge that no longer exists
@@ -3931,7 +3931,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    has no `.page-header` of its own competing with the shell's title strip, so hiding the strip —
    the other half of that variant — is not wanted here, only the padding half is).
 
-   Head's `padding-top` goes to 0 so the title block starts flush with `.admin-content`'s own
+   Head's `padding-top` goes to 0 so the title block starts flush with `.jini-admin-content`'s own
    inset instead of 24px below it; its 12px `padding-bottom` is untouched — that's the gap to the
    tab strip below, not an edge inset, and removing it would just move the crowding rather than
    fix it. Both sides zero `padding-inline` rather than only the left, matching the Flat variant's
@@ -3950,7 +3950,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    This was phone-only; on desktop the fixed-height shell kept its own nested scroller, which
    showed the list cut mid-row at the panel's bottom edge with the page scrolling only its 88px
    spacer — the two-scroller trap the `--page-flow` block documents. Same release Skills uses
-   (D-32): every shell layer takes its content height and `.admin-content` is the one scroller. */
+   (D-32): every shell layer takes its content height and `.jini-admin-content` is the one scroller. */
 .settings-ui-section.agent-plugins-section,
 .agent-plugins-section .jini-tabbed-dialog,
 .agent-plugins-section .jini-tabbed-dialog-body,
@@ -4507,14 +4507,14 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .observability-queries-scroll { max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
 /* Keyed on the pane like the settings strip below (2026-10-11). */
 @container admin-content (max-width: 620px) {
-  .admin-layout .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
-  .admin-layout.wraps-tabs .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+  .jini-admin-layout .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+  .jini-admin-layout.wraps-tabs .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
     padding-right: 0;
     mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
   }
-  .admin-layout .page:is(.ai-assistant-page, .observability-page) .jini-tabbed-dialog-nav-item { padding-inline: 6px; gap: 5px; }
-  .admin-layout .page:is(.ai-assistant-page, .observability-page) .jini-tabbed-dialog-nav-item strong { white-space: nowrap; font-size: 12px; }
+  .jini-admin-layout .page:is(.ai-assistant-page, .observability-page) .jini-tabbed-dialog-nav-item { padding-inline: 6px; gap: 5px; }
+  .jini-admin-layout .page:is(.ai-assistant-page, .observability-page) .jini-tabbed-dialog-nav-item strong { white-space: nowrap; font-size: 12px; }
 }
 
 /* Vertical separation between the tab's three blocks (switch → intro → form).
@@ -4753,7 +4753,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   .tab-bar,
   /* The Jini host sheet loads later; the admin scope keeps this mobile behavior
      above its desktop wrap rule regardless of stylesheet order. */
-  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar {
+  .jini-admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
@@ -4761,16 +4761,16 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
     scrollbar-width: none;
   }
   .tab-bar::-webkit-scrollbar,
-  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar::-webkit-scrollbar { display: none; }
+  .jini-admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar::-webkit-scrollbar { display: none; }
   /* Slightly tighter tab padding so the common three-tab strips (Plugins, Agent plugins) still
    * fit 375px whole instead of scrolling by a few pixels. */
   .tab-bar-item,
-  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar-item { padding-inline: 0.7rem; flex-shrink: 0; white-space: nowrap; }
+  .jini-admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar-item { padding-inline: 0.7rem; flex-shrink: 0; white-space: nowrap; }
   /* Settings → User Interface → "Wrap tabs instead of scrolling" (owner, 2026-10-07; class from
      `useInterfacePreferences`): the operator opted back into the wrap, every tab visible at the
      cost of a taller strip. The inset bottom rule above stays, under the last row. */
-  .admin-layout.wraps-tabs .tab-bar,
-  .admin-layout.wraps-tabs :is(.jini-page, .jini-dialog) .jini-tab-bar {
+  .jini-admin-layout.wraps-tabs .tab-bar,
+  .jini-admin-layout.wraps-tabs :is(.jini-page, .jini-dialog) .jini-tab-bar {
     flex-wrap: wrap;
     overflow: visible;
   }
@@ -4782,7 +4782,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
      at 360px Marketplace sat fully off screen with the same missing cue. On a strip that fits, the
      fade covers only the empty end padding, so it is invisible there. Agent Plugins' strip is the
      Jini tabbed-dialog one; its cue is in the `@container admin-content` rule below. */
-  .admin-layout:not(.wraps-tabs) .tab-bar {
+  .jini-admin-layout:not(.wraps-tabs) .tab-bar {
     padding-right: 32px;
     mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
   }
@@ -4807,8 +4807,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   /* The right-edge "more tabs" fade `.tab-bar` uses on phones (2026-10-17): at 360px Agent Plugins'
      Marketplace tab sat fully off screen with nothing saying the strip scrolls. Invisible on a strip
      that fits; off when the operator chose wrapping tabs. */
-  .admin-layout:not(.wraps-tabs) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
-.admin-layout:not(.wraps-tabs) .jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+  .jini-admin-layout:not(.wraps-tabs) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+.jini-admin-layout:not(.wraps-tabs) .jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     padding-right: 32px;
     mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
   }
@@ -4818,8 +4818,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
     margin-bottom: 0;
     padding-inline: 8px;
   }
-  .admin-layout.wraps-tabs .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
-.admin-layout.wraps-tabs .jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+  .jini-admin-layout.wraps-tabs .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+.jini-admin-layout.wraps-tabs .jini-settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: wrap;
     overflow: visible;
   }
@@ -6870,28 +6870,28 @@ body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
    26px tall — all well under the ~40px a fingertip needs. One floor for every button-like control
    in the page body instead of per-screen patches. Raised to 44px (2026-10-14): at 40 this floor
    out-ranked the 44px touch targets (Media's action buttons) it was meant to back up. Modal
-   dialogs render in <body>, outside `.admin-content`, so `.jini-dialog` is named too: their
+   dialogs render in <body>, outside `.jini-admin-content`, so `.jini-dialog` is named too: their
    fields and Cancel/Save buttons measured 35-37px. The sign-in screen and the shell's own confirm
    dialogs (Log out) sit outside it too and measured the same (2026-11-05). Not on `[role="switch"]`:
    the pill switches draw their own fixed-size track.
    ------------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]),
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost, a.jini-btn-primary):not([role="switch"]) {
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]),
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost, a.jini-btn-primary):not([role="switch"]) {
     min-height: 44px;
   }
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, [role="button"]):not([role="switch"]),
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(input[type="checkbox"], input[type="radio"]),
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, [role="button"]):not([role="switch"]),
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(input[type="checkbox"], input[type="radio"]),
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
 
-  /* The chrome outside `.admin-content` the floor above cannot reach, plus the 15px text link and the
+  /* The chrome outside `.jini-admin-content` the floor above cannot reach, plus the 15px text link and the
      18px radio labels inside it (measured at 390px, 2026-11-05). The link and the label grow their hit
      area, not their look: padding a matching negative margin cancels, and an invisible overlay that
      also covers the radio beside the label. */
   .admin-topbar-toggle, .cms-nav-close { width: 44px; height: 44px; }
   .cms-item, .cms-logout { min-height: 44px; }
-  .admin-content a.link-button { display: inline-block; padding-block: 15px; margin-block: -15px; }
+  .jini-admin-content a.link-button { display: inline-block; padding-block: 15px; margin-block: -15px; }
   .site-db-option-name { position: relative; }
   .site-db-option-name::after { content: ""; position: absolute; inset: -13px 0 -13px -32px; }
   /* The pair's resting spot above assumes 32px buttons; at this floor it keeps them centred on the FAB. */
@@ -6922,14 +6922,14 @@ body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
   /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
      37px against the floor buttons and selects already get; one floor for every field, the same
      44px so a field and the button beside it stay one height. */
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]),
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]),
+  :is(.jini-admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
     min-height: 44px;
   }
   /* Standalone links that sit beside 44px buttons (a panel head's "All posts"/"Change", a
      toolbar's "View site ↗" or "Regions →", an editor's "view ↗") were 15-19px tall. Padding that
      a matching negative margin cancels grows the hit area to ~44px without moving anything. */
-  .admin-content :is(.page-toolbar, .page-actions, .themes-header-side, .dash-panel-head, .editor-slug) > a:not([class*="btn"]),.admin-content :is(.page-toolbar, .jini-page-actions, .themes-header-side, .dash-panel-head, .jini-editor-slug) > a:not([class*="btn"]) {
+  .jini-admin-content :is(.page-toolbar, .page-actions, .themes-header-side, .dash-panel-head, .editor-slug) > a:not([class*="btn"]),.jini-admin-content :is(.page-toolbar, .jini-page-actions, .themes-header-side, .dash-panel-head, .jini-editor-slug) > a:not([class*="btn"]) {
     display: inline-block; padding-block: 13px; margin-block: -13px;
   }
   /* The pill switches keep their drawn 38x22 / 34x20 track; an invisible ring around it takes
@@ -7028,7 +7028,7 @@ body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
 }
 @media (max-width: 640px) {
   /* Save stays in reach while scrolling a long body: the row pins under the top bar. `top` is minus
-     `.admin-content`'s own phone padding-top, because sticky offsets count from the scroller's
+     `.jini-admin-content`'s own phone padding-top, because sticky offsets count from the scroller's
      padding edge — at `top: 0` the body scrolled visibly through a 16px strip above the row. */
   .editor-action-row { position: sticky; top: calc(-1 * var(--space-4)); z-index: 6; background: var(--bg); padding-block: 6px; }
   /* Delete moves to the row's far left, away from Save on the right (PG-5: side by side at equal

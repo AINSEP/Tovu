@@ -252,7 +252,7 @@
    `position: relative` lives), NOT `position: fixed` over the whole viewport — deliberately, so it
    is geometrically incapable of covering `.admin-chat-dock`'s separate flex column: the two boxes
    never overlap, so no z-index arithmetic against the dock is needed. `z-index: 25` matches
-   `.post-preview-expanded`'s own for the same reasons that rule records — above `.admin-content`'s
+   `.post-preview-expanded`'s own for the same reasons that rule records — above `.jini-admin-content`'s
    in-flow content, below `.chat-fab`'s 75 (`styles/assistant.css`) and below the mobile sheet
    dock's 55, so the sheet still slides up over this exactly as it does over `<main>`. */
 .page-preview-expanded { position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; background: var(--surface); }

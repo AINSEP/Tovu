@@ -44,7 +44,7 @@ export const DEFAULT_ADMIN_PASSWORD = process.env.TOVU_ADMIN_PASSWORD ?? "tovu-d
 /** Selector for the shell that only exists once `App.tsx` has resolved `api.me()` and mounted the
  *  authenticated layout (`App.tsx:360`, `if (!user) return <Login .../>` above it). Waiting on this
  *  rather than a URL change or a timeout is the real readiness signal — the SPA never navigates. */
-const ADMIN_LAYOUT_SELECTOR = ".admin-layout";
+const ADMIN_LAYOUT_SELECTOR = ".jini-admin-layout";
 const LOGIN_CARD_SELECTOR = ".login-card";
 
 /**

@@ -408,7 +408,7 @@ test.beforeAll("admin seed preflight", async ({ adminSeed }) => { void adminSeed
 function createVisualSettler({ STILL_CSS }: { STILL_CSS: string }) {
 
 async function settle(page: Page): Promise<void> {
-  await expect(page.locator(".admin-layout")).toBeVisible();
+  await expect(page.locator(".jini-admin-layout")).toBeVisible();
   await page.waitForLoadState("networkidle");
   for (const frame of page.frames()) {
     await frame.evaluate(async css => {

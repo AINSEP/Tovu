@@ -80,7 +80,7 @@ async function browserGet(page: Page, url: string): Promise<{ status(): number; 
 
 async function loginAs(page: Page, username: string): Promise<void> {
   await attemptLoginAsAdmin(page, { username, password: EDITOR_PASSWORD });
-  await expect(page.locator(".admin-layout")).toBeVisible();
+  await expect(page.locator(".jini-admin-layout")).toBeVisible();
   await expect(page.locator(".login-card")).toHaveCount(0);
 }
 
@@ -95,7 +95,7 @@ test.describe("W8 users and roles", () => {
       await expectStatus(disabled, 200, "user disable");
       await attemptLoginAsAdmin(editorSide.page, { username: editor.username, password: EDITOR_PASSWORD });
       await expect(editorSide.page.locator(".login-error")).toBeVisible();
-      await expect(editorSide.page.locator(".admin-layout")).toHaveCount(0);
+      await expect(editorSide.page.locator(".jini-admin-layout")).toHaveCount(0);
       expect(editorSide.errors).toEqual([]);
     } finally {
       await editorSide.context.close();
@@ -182,7 +182,7 @@ async function verifyEditorPermissionsAndSession(page: Page, request: APIRequest
 
       // Opening the Users screen directly must not crash the shell or kick the editor out.
       await editorSide.page.goto("/admin/users");
-      await expect(editorSide.page.locator(".admin-layout")).toBeVisible();
+      await expect(editorSide.page.locator(".jini-admin-layout")).toBeVisible();
       await expect(editorSide.page.locator(".login-card")).toHaveCount(0);
 
       await logoutAsAdmin(editorSide.page);

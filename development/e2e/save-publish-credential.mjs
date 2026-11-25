@@ -37,7 +37,7 @@ await page.locator(".login-card").waitFor({ state: "visible", timeout: 20_000 })
 await page.getByLabel("Username").fill(process.env.TOVU_ADMIN_USER ?? "admin");
 await page.getByLabel("Password").fill(process.env.TOVU_ADMIN_PASSWORD ?? "tovu-dev");
 await page.getByRole("button", { name: /sign in/i }).click();
-await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 20_000 });
+await page.locator(".jini-admin-layout").waitFor({ state: "visible", timeout: 20_000 });
 log("logged in");
 
 // Use the authenticated browser's cookies, including Secure cookies on loopback.
@@ -50,7 +50,7 @@ await page.evaluate(async (pluginId) => {
 
 // Real paths, base `/admin/` (lib/router.ts) — no hash routing.
 await page.goto(`${BASE}/admin/deployment`, { waitUntil: "domcontentloaded" });
-await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 20_000 });
+await page.locator(".jini-admin-layout").waitFor({ state: "visible", timeout: 20_000 });
 log("on the Deployment panel");
 
 await page.getByRole("tab", { name: /static site/i }).click().catch(async () => {

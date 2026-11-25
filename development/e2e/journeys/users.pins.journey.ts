@@ -158,7 +158,7 @@ return async function verifyResetPasswordLogin(page: Page) {
     //    actually matters: this can only pass if the reset really took effect server-side.
     await logoutAsAdmin(page);
     await loginAsAdmin(page, { username: USERNAME, password: NEW_PASSWORD });
-    await expect(page.locator(".admin-layout")).toBeVisible();
+    await expect(page.locator(".jini-admin-layout")).toBeVisible();
     await logoutAsAdmin(page);
 
     // 8. Control: the OLD (pre-reset) password must now be rejected for this user — proves the
@@ -166,7 +166,7 @@ return async function verifyResetPasswordLogin(page: Page) {
     //    session, a redirect that lands on the admin regardless, or a form that silently no-ops.
     await attemptLoginAsAdmin(page, { username: USERNAME, password: CREATE_PASSWORD });
     await expect(page.locator(".login-error")).toBeVisible();
-    await expect(page.locator(".admin-layout")).toHaveCount(0);
+    await expect(page.locator(".jini-admin-layout")).toHaveCount(0);
   }
 }
 

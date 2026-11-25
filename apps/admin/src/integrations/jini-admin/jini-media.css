@@ -188,7 +188,7 @@
 
 /* ============================================================
    Shared page primitives (canary pass: Posts + Media adopt these now; phase 2 migrates the
-   remaining ~30 sections onto the same set instead of leaving `.admin-content h1` above as the
+   remaining ~30 sections onto the same set instead of leaving `.jini-admin-content h1` above as the
    only shared pattern). Reproduces Settings' measured qualities — kicker/title/description
    header, bordered card with real padding, restrained button hierarchy — using this file's own
    oklch tokens and the scale above, never `--jini-*`.
@@ -251,9 +251,9 @@
 :is(.jini-page, .jini-dialog) .jini-btn-explore:hover:not(:disabled) { background: var(--fg-2); border-color: var(--fg-2); opacity: 1; }
 :is(.jini-page, .jini-dialog) .jini-btn-explore:disabled { border-color: transparent; }
 /* Scoped under `.page-header` (not bare `.page-kicker`/`.page-title`/`.page-description`) so
-   these reliably beat the legacy `.admin-content h1` / `h1 + p` rules above on specificity
+   these reliably beat the legacy `.jini-admin-content h1` / `h1 + p` rules above on specificity
    (0,2,0 vs 0,1,1) — that legacy pair still owns every section this canary does not touch, and
-   `.page-title` is itself an `<h1>` sitting inside `.admin-content`, so both rules would
+   `.page-title` is itself an `<h1>` sitting inside `.jini-admin-content`, so both rules would
    otherwise match the same element with conflicting margins. */
 :is(.jini-page, .jini-dialog) .jini-page-header .jini-page-kicker {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
@@ -638,10 +638,10 @@
    document) whenever every ancestor is `position: static`. `.tab-bar-item` is exactly that case, so
    the Static Site tab's ", Connected" suffix computed `top: 1049.67px` and stretched the DOCUMENT to
    1050px tall inside a `height: 100vh` shell. The result was 341px of dead white space under a
-   layout that is supposed to be unscrollable, and `.admin-content`'s own `overflow-y: auto` could
+   layout that is supposed to be unscrollable, and `.jini-admin-content`'s own `overflow-y: auto` could
    not clip it — a static ancestor is not a containing block, so the span was never inside that
    scroll box to begin with. Measured: document scrollHeight 1061 → 720, max document scroll 341px →
-   0, with `.cms-nav` and `.admin-content` still scrolling internally exactly as before.
+   0, with `.cms-nav` and `.jini-admin-content` still scrolling internally exactly as before.
 
    Pinning to the containing block's origin instead of the static position makes that impossible for
    EVERY use of this class (22 across 8 components), rather than fixing one call site by adding

@@ -1322,7 +1322,7 @@ describe("Edit/Preview toolbar", () => {
   // frame"), which fixed this exact gap for Pages on 2026-08-11 but was never ported to Posts. A
   // brand-new post is always a draft, so this is the very first thing an operator sees in Preview —
   // now the pending-content notice, not the retired raw-fallback one (2026-09-11) — and it must render
-  // BEFORE `.post-editor-pane`, not after: `main.admin-content`'s internal scroll container hid a
+  // BEFORE `.post-editor-pane`, not after: `main.jini-admin-content`'s internal scroll container hid a
   // notice placed after the (previously full-pane-height) fallback (confirmed live, QA dispatch
   // 2026-09-06). Asserts DOM order, not mere presence — presence alone already passed before that fix;
   // the bug was the notice being unreachable, not missing.

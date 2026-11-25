@@ -15,7 +15,7 @@ const root = resolve(process.cwd(), "src");
 const stylesheet = readFileSync(resolve(root, "styles.css"), "utf8");
 const assistantStyles = readFileSync(resolve(root, "styles/assistant.css"), "utf8");
 const bridgeStyles = readFileSync(resolve(root, "styles/admin-theme-bridge.css"), "utf8");
-const closedLayout = ".admin-layout:not(:has(.admin-chat-dock.is-open))";
+const closedLayout = ".jini-admin-layout:not(:has(.admin-chat-dock.is-open))";
 
 describe("admin scroll jump host layout", () => {
   it("anchors a horizontal pair beside the FAB within the reserved bottom band", () => {
@@ -42,7 +42,7 @@ describe("admin scroll jump host layout", () => {
   });
 
   it("moves the pair into the content column's corner when the open dock hides the FAB", () => {
-    const open = effectiveDeclarationsFor(stylesheet, ".admin-layout.hides-fab-while-open:has(.admin-chat-dock.is-open) .admin-main-col");
+    const open = effectiveDeclarationsFor(stylesheet, ".jini-admin-layout.hides-fab-while-open:has(.admin-chat-dock.is-open) .admin-main-col");
     expect(open).toContain("--jini-scroll-jump-right: 16px;");
     expect(open).toContain("--jini-scroll-jump-bottom: calc(16px + env(safe-area-inset-bottom, 0px));");
   });
@@ -52,7 +52,7 @@ describe("admin scroll jump host layout", () => {
     parse(stylesheet).walkAtRules("media", (rule) => {
       if (rule.params === query) blocks.push(rule.toString());
     });
-    const spacer = effectiveDeclarationsFor(blocks.join("\n"), ".admin-content::after");
+    const spacer = effectiveDeclarationsFor(blocks.join("\n"), ".jini-admin-content::after");
     expect(spacer).toContain('content: "";');
     expect(spacer).toContain("display: block;");
     expect(spacer).toContain("flex-shrink: 0;");
@@ -65,9 +65,9 @@ describe("admin scroll jump host layout", () => {
       if (rule.params === "(max-width: 640px)") blocks.push(rule.toString());
     });
     const phone = blocks.join("\n");
-    expect(effectiveDeclarationsFor(phone, `${closedLayout} .admin-content`))
+    expect(effectiveDeclarationsFor(phone, `${closedLayout} .jini-admin-content`))
       .toContain("padding-bottom: calc(var(--assistant-clearance) + env(safe-area-inset-bottom, 0px));");
-    expect(effectiveDeclarationsFor(phone, `${closedLayout} .admin-content::after`))
+    expect(effectiveDeclarationsFor(phone, `${closedLayout} .jini-admin-content::after`))
       .toContain("display: none;");
   });
 });
