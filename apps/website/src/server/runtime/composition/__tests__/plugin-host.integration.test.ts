@@ -12,6 +12,8 @@ import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
@@ -180,12 +182,14 @@ test('search_tools indexes a site plugin keyword and provides capability', async
 });
 
 
-// Shared plugins published by Jini carry Jini's publisher id; every other bundled plugin is Tovu's.
-const JINI_PUBLISHED_IDENTITIES: ReadonlyMap<string, string> = new Map([
-  ['ui-ux-design', 'jini/ui-ux-design'], ['charts-recharts', 'jini/charts-recharts-agent'], ['slide-design', 'jini/slide-design'],
-  ['commerce', 'jini/commerce'], ['stripe', 'jini/stripe'], ['software-engineering', 'jini/software-engineering'],
-  ['google-forms', 'jini/google-forms-agent'], ['kuinetic', 'jini/kuinetic'], ['shadcn-ui', 'jini/shadcn-ui'],
-]);
+// Tovu's own bundled plugins live in content/agent-plugins and publish as `tovu/<name>`. Everything
+// else in the bundle ships from @jini-ai/agent-plugins and must publish under Jini's `jini/` namespace
+// with the id the package itself declares. The set is read from disk, not hand-listed: a nine-row
+// map went stale as the Jini catalogue grew past thirty packages, and failed for a correct manifest.
+const TOVU_OWN_PLUGIN_IDS: ReadonlySet<string> = new Set(
+  readdirSync(fileURLToPath(new URL('../../../../../../../content/agent-plugins/', import.meta.url)), { withFileTypes: true })
+    .filter(entry => entry.isDirectory()).map(entry => entry.name),
+);
 
 test('every bundled agent and site package declares a distinct publisher identity and discovery terms', async (t) => {
   // The shipped bundle: Tovu's content/agent-plugins plus each selected @jini-ai/agent-plugins/<id>.
@@ -200,7 +204,8 @@ test('every bundled agent and site package declares a distinct publisher identit
   for (const entry of packages) {
     const value = JSON.parse(await readFile(path.join(entry.packageRoot, 'plugin.json'), 'utf8'));
     const identity = readPluginIdentity({ manifest: value, namespace: 'jini' });
-    assert.equal(identity.id, JINI_PUBLISHED_IDENTITIES.get(entry.pluginId) ?? 'tovu/' + value.name);
+    if (TOVU_OWN_PLUGIN_IDS.has(entry.pluginId)) assert.equal(identity.id, 'tovu/' + value.name);
+    else assert.match(identity.id, /^jini\/[a-z0-9-]+$/, `${entry.pluginId}: a Jini-published plugin must declare its own jini/ publisher id`);
     assert.ok(identity.keywords.length > 0);
     assert.ok(identity.provides.length > 0);
     assert.deepEqual(identity.warnings, []);

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemorySettingsRepo } from "@jini-ai/core/settings";
+import { InMemorySettingsRepo, type SettingsRepoPort } from "@jini-ai/core/settings";
 import type { MailCapturePort, MailSendLedgerPort, MailProviderSetting } from "@jini-ai/platform/mail";
 import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { SetAgentPluginEnabledInput } from "@jini-ai/core/contracts/headless/plugin-host";
@@ -379,4 +379,104 @@ test("disable cleanup recovers an inactive plugin's provider ownership after a f
   await site.ready;
   await site.setAgentPluginEnabled({ ...PLUGIN_TOGGLE, agentPluginLayout: layout });
   assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: null, bulk: 'sharedid' });
+});
+
+/** The Email page's "Send test" path: the route's purpose-gated site mailer, the real wrapper and the real plan. */
+async function testSendRig(optional: { mode: "local" | "production"; select: string | null; keySaved?: boolean; testMode?: { mode: "redirect"; to: string } | { mode: "capture" }; wrapRepo?: (repo: SettingsRepoPort) => SettingsRepoPort }) {
+  const { createCustomCredential } = await import("#src/features/custom-credentials/index");
+  const { wrapPositionalMailerWithPurposeGate } = await import("@jini-ai/platform/mail");
+  const { required, release, settingsRepo, keyring } = await rig({ capture: { capture: async () => ({ id: "kept" }) } });
+  const destinations: string[] = [];
+  required.resolve.mode = optional.mode;
+  required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => [{ pluginId: "p", descriptor: { schemaVersion: 2, id: "fake", label: "Fake", module: "a.mjs", credentialLabel: "Fake key", credentialKeys: ["token"], feedback: false }, module: {
+    id: "fake", capabilities: { hosted: true, feedback: false, domainVerification: false }, credentialKeys: ["token"],
+    create: () => ({ capabilities: () => ({ driver: "fake-driver", supportsAttachments: true, supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1 }), send: async (message: typeof MESSAGE) => { destinations.push(message.to.email); return { ok: true, providerMessageId: "m1", acceptedAt: "2026-10-22T00:00:00Z" }; }, sendBatch: async () => [] }),
+  } as never }] });
+  release(); await required.settingsReady;
+  if (optional.keySaved !== false) await createCustomCredential({ repo: required.resolve.customCredentialRepo, sealer: required.resolve.sealer, keyring, clock: required.settings.deps.clock, idGen: { newId: () => "cred" } }, { workspaceId: WS, label: "Fake key", category: "ops", baseUrl: "https://fake.example.com", connection: { token: "fake-token" } });
+  if (optional.wrapRepo) required.settings.repo = optional.wrapRepo(required.settings.repo);
+  const site = createSiteMailer(required, { durableOutboxReady: () => false });
+  if (optional.select !== null) await site.selectProvider({ id: optional.select, principalId: "owner" });
+  const setTestMode = (value: { mode: "redirect"; to: string } | { mode: "capture" }) => set({ deps: { ...required.settings.deps, repo: settingsRepo, authorize: async () => ({ allowed: true, reason: "test" }) }, input: { namespace: "core.mail", key: "testMode", scope: "workspace", workspaceId: WS, callerPrincipalId: "owner", value } });
+  if (optional.testMode) await setTestMode(optional.testMode);
+  const mailer = wrapPositionalMailerWithPurposeGate({ inner: site.mailer, mode: optional.mode, durableOutboxReady: () => false });
+  return { site, destinations, setTestMode, deps: { workspaceId: WS, mailer, ...site.operations } };
+}
+
+for (const scenario of [
+  { name: "a configured provider", mode: "production", select: "fake", sends: ["owner@example.com"] },
+  { name: "a configured provider with a redirect test mode", mode: "production", select: "fake", testMode: { mode: "redirect", to: "qa@example.com" } as const, sends: ["qa@example.com"] },
+  { name: "the local console fallback while no provider is chosen", mode: "local", select: null, sends: [] },
+  { name: "the console provider chosen on purpose", mode: "local", select: "console", sends: [] },
+  { name: "a chosen provider whose key is not saved yet (local mode prints to the console instead)", mode: "local", select: "fake", keySaved: false, sends: [] },
+] as const) {
+  test(`Send test is accepted by the delivery policy for ${scenario.name}`, async () => {
+    const { planMailTestSend, runMailTestSend } = await import("@jini-ai/platform/mail/test-send");
+    const { site, deps, destinations } = await testSendRig({ mode: scenario.mode, select: scenario.select, ...("keySaved" in scenario ? { keySaved: scenario.keySaved } : {}), ...("testMode" in scenario ? { testMode: scenario.testMode } : {}) });
+    await site.ready;
+    const owned = { ...deps, userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: WS, username: "owner", email: "owner@example.com", passwordHash: "x" }) } as never };
+    const plan = await planMailTestSend({ deps: owned, principalId: "owner" });
+    const result = await runMailTestSend({ deps: owned, principalId: "owner", plan, ref: "send-test-click" });
+    assert.notEqual(result.outcome === "failed" && result.errorCode, "MAIL_TEST_APPROVAL_CHANGED", JSON.stringify({ result, approval: plan.approval }));
+    assert.notEqual(result.outcome, "failed", JSON.stringify({ result, approval: plan.approval }));
+    assert.deepEqual(destinations, scenario.sends);
+  });
+}
+
+for (const change of ["provider", "test mode"] as const) {
+  test(`Send test is still refused by the delivery policy when the ${change} really changes after approval`, async () => {
+    const { planMailTestSend } = await import("@jini-ai/platform/mail/test-send");
+    const { site, deps, destinations, setTestMode } = await testSendRig({ mode: "production", select: "fake" });
+    await site.ready;
+    const plan = await planMailTestSend({ deps: { ...deps, userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: WS, username: "owner", email: "owner@example.com", passwordHash: "x" }) } as never }, principalId: "owner" });
+    if (change === "provider") await site.selectProvider({ id: "console", principalId: "owner" }); else await setTestMode({ mode: "redirect", to: "qa@example.com" });
+    // Straight to the mailer: the operation's own re-plan would catch this first, and this pins the second, send-time check.
+    const result = await deps.mailer.send(
+      { workspaceId: WS, to: { email: "owner@example.com" }, from: plan.approval.from, subject: "t", text: "t" },
+      { mailTestApproval: plan.approval, idempotencyKey: `pin-${change}`, workspaceId: WS, sourceContext: { module: "mail", ref: change }, purpose: "transactional", lane: "interactive" },
+    );
+    assert.equal(!result.ok && result.errorCode, "MAIL_TEST_APPROVAL_CHANGED");
+    assert.deepEqual(destinations, []);
+  });
+}
+
+/** Serves a different provider selection to exactly the Nth read of `core.mail.provider` while armed, as a
+ *  racing settings write would be seen by one read and not the next. Writes and other keys pass through. */
+function flickeringProviderRepo(flicker: { armed: boolean; reads: number; atRead: number; value: MailProviderSetting }): (repo: SettingsRepoPort) => SettingsRepoPort {
+  return (repo) => new Proxy(repo, { get(target, prop) {
+    const member = Reflect.get(target, prop) as unknown;
+    if (typeof member !== "function") return member;
+    const call = member as (this: SettingsRepoPort, query: never) => Promise<unknown>;
+    // Definitions are cached after the first lookup, so the provider setting is recognised by its value shape.
+    if (prop === "getWorkspaceValue") return async (query: never) => {
+      const record = await call.call(target, query) as { valueJson: unknown } | null;
+      if (!flicker.armed || !record || typeof record.valueJson !== "object" || record.valueJson === null || !("transactional" in record.valueJson)) return record;
+      flicker.reads++;
+      return flicker.reads === flicker.atRead ? { ...record, valueJson: flicker.value } : record;
+    };
+    return member.bind(target);
+  } });
+}
+
+test("provider selection changing between a settings read and the lane resolution plans the RESOLVED provider, with no false 'configuration changed'", async () => {
+  const { planMailTestSend, runMailTestSend } = await import("@jini-ai/platform/mail/test-send");
+  // One provider read while planning sees console; every other read (and the send) sees the saved "fake".
+  const flicker = { armed: false, reads: 0, atRead: Number.POSITIVE_INFINITY, value: { transactional: "console", bulk: "console" } as MailProviderSetting };
+  const { site, deps, destinations } = await testSendRig({ mode: "local", select: "fake", wrapRepo: flickeringProviderRepo(flicker) });
+  await site.ready;
+  const owned = { ...deps, userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: WS, username: "owner", email: "owner@example.com", passwordHash: "x" }) } as never };
+  // Calibrate: how many provider reads does one plan make? Flicker the one BEFORE the last. The last read is
+  // the one the plan's provider id is built from; an earlier read that is not that resolution must not matter.
+  flicker.armed = true;
+  await planMailTestSend({ deps: owned, principalId: "owner" });
+  assert.ok(flicker.reads >= 2, "a plan reads the provider setting more than once, so there is an earlier read to flicker");
+  flicker.atRead = flicker.reads - 1;
+  flicker.reads = 0;
+  const plan = await planMailTestSend({ deps: owned, principalId: "owner" });
+  flicker.armed = false;
+  assert.equal(plan.approval.providerId, "fake", "the approval names the provider the resolution used, not a second settings read");
+  const result = await runMailTestSend({ deps: owned, principalId: "owner", plan, ref: "flicker-click" });
+  assert.notEqual(result.outcome === "failed" && result.errorCode, "MAIL_TEST_APPROVAL_CHANGED", JSON.stringify({ result, approval: plan.approval }));
+  assert.equal(result.outcome, "accepted");
+  assert.deepEqual(destinations, ["owner@example.com"]);
 });

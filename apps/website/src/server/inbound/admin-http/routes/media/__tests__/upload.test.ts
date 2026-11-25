@@ -168,8 +168,8 @@ test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected wi
     dataBase64: oversized.toString("base64"),
   });
   assert.equal(status, 400);
-  // Jini's uploadMedia states the cap in MB (Jini 754b0ff9), e.g. "50 MB" for 50 MiB.
-  assert.equal(json.error, "uploaded file exceeds the 50 MB size cap");
+  // Jini's uploadMedia names both sizes in plain words (describeUploadOverLimit), rounding the file up to a tenth.
+  assert.equal(json.error, "That file is 50.1 MB; the limit is 50 MB.");
 });
 
 test("upload: SVG declared as image/png is sanitized before hashing and storing", async (t) => {

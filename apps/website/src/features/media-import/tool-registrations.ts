@@ -12,10 +12,11 @@ import type { ToolContributor } from "@jini-ai/core";
 // anything; see {@link isImportShapeRejection}.
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { sniffContentType, uploadMedia, type AssetBlobRepoPort, type AssetRenditionRepoPort, type BlobStorePort, type TransformDefinitionRepoPort, type UploadMediaInput } from "../media/index.js";
+import { sniffContentType, type AssetBlobRepoPort, type AssetRenditionRepoPort, type BlobStorePort, type TransformDefinitionRepoPort, type UploadMediaInput } from "../media/index.js";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/public-urls.js";
+import { createConvertingUploader, type VideoImportOptions } from "../media/import-video-conversion.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { openFsFileForRead } from "../fs-files/fs-files.js";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
@@ -222,16 +223,20 @@ export function resolveLocalImportRequest(
  * type, and returns the same media projection for either byte source. Storage failures propagate.
  * @complexity O(n) in the uploaded bytes for hashing/storage; fixed-count repository operations.
  */
-export async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string; actorId: string }, _optional: Record<string, never> = {}): Promise<{ media: ImportedMediaView }> {
+export async function persistImportedMedia(
+  required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string; actorId: string },
+  optional: { videoImport?: VideoImportOptions | undefined } = {},
+): Promise<{ media: ImportedMediaView }> {
   const { routeDeps, input, sourceUrl, actorId } = required;
-  const { media } = await uploadMedia({
-    deps: {
+  // The same store-then-convert upload as the admin routes (owner video import rule 2026-10-31).
+  const { media } = await createConvertingUploader({
+    uploadDeps: {
       clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
       blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo,
       blobStore: routeDeps.blobStore,
     },
-    input,
-  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES, mediaRepo: routeDeps.mediaRepo, clock: routeDeps.clock,
+  }, { video: optional.videoImport })(input);
   // Identical recording discipline to the URL, generated-media and admin upload paths.
   const sniffed = sniffContentType({ bytes: input.bytes });
   await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
@@ -318,7 +323,7 @@ function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHand
 };
 }
 
-function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps): ToolHandler {
+function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined): ToolHandler {
   return async (ctx): Promise<unknown> => {
   const input = requireInputRecord({ input: ctx.input });
   const root = requireString({ input, key: "root" });
@@ -348,14 +353,14 @@ function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps): Tool
           createdByPrincipal: ctx.principal.id,
         },
         sourceUrl: "",
-      });
+      }, { videoImport });
       return withChatPreview({ routeDeps, bytes, contentType, result });
     },
   });
 };
 }
 
-function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps): ToolHandler {
+function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined): ToolHandler {
   return async (ctx): Promise<unknown> => {
   const input = requireInputRecord({ input: ctx.input });
   const url = requireString({ input, key: "url" });
@@ -385,7 +390,7 @@ function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps): ToolHa
             createdByPrincipal: ctx.principal.id,
           },
           sourceUrl: fetched.url.href,
-        });
+        }, { videoImport });
         return withChatPreview({ routeDeps, bytes: fetched.bytes, contentType: fetched.contentType, result });
       } })
   });
@@ -395,12 +400,15 @@ function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps): ToolHa
 /** Builds this domain's permission-gated durable import handlers; root/path validation precedes I/O.
  * @complexity O(1) registration work; handlers are bounded by the upload cap.
  */
-export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): ToolRegistration[] {
+export function buildMediaImportRegistrations(
+  routeDeps: MediaImportToolDeps,
+  { videoImport }: { videoImport?: VideoImportOptions | undefined } = {},
+): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     /** Authorize before fetching; the admin's shared service owns blob staging and atomic versioning. */
     media_replace_file: createMediaReplaceFileHandler(routeDeps),
-    media_import_local_file: createMediaImportLocalFileHandler(routeDeps),
-    media_import_from_url: createMediaImportFromUrlHandler(routeDeps),
+    media_import_local_file: createMediaImportLocalFileHandler(routeDeps, videoImport),
+    media_import_from_url: createMediaImportFromUrlHandler(routeDeps, videoImport),
 
   };
 
@@ -418,6 +426,8 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`,
  * not by importing this module.
  */
-export function contributeMediaImportTools(): ToolContributor<MediaImportToolDeps, unknown> {
-  return { domain: DOMAIN, build: buildMediaImportRegistrations, risk: mediaImportDerivedRisk };
+export function contributeMediaImportTools(
+  { videoImport }: { videoImport?: VideoImportOptions | undefined } = {},
+): ToolContributor<MediaImportToolDeps, unknown> {
+  return { domain: DOMAIN, build: (routeDeps) => buildMediaImportRegistrations(routeDeps, { videoImport }), risk: mediaImportDerivedRisk };
 }

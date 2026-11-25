@@ -1549,7 +1549,7 @@ describe("useAttachmentUploader", () => {
     const maxFile = 50 * 1024 * 1024;
     const options = { batchId: "turn-limit", signal: new AbortController().signal };
     const { result, rerender } = renderHook(() => useAttachmentUploader());
-    await expect(result.current([sizedFile(maxFile + 1)], options)).rejects.toThrow("Each attachment must be 50 MB or smaller.");
+    await expect(result.current([sizedFile(maxFile + 1)], options)).rejects.toThrow("That file is 50.1 MB; the limit is 50 MB.");
     expect(fetchSpy).not.toHaveBeenCalled();
     await expect(result.current([sizedFile(maxFile)], options)).resolves.toEqual([attachment]);
     rerender();

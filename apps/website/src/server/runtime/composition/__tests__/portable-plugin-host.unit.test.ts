@@ -43,7 +43,16 @@ test("grant port runs after provisioning and its failure warnings, skipping exac
   const { capability, deps, servers, mcpPorts } = hostWith({ calls, failed: [{ serverKey: "b", reason: "boom" }] });
   await capability.provisionMcp({ pluginId: "p", principalId: "u" });
   assert.deepEqual(calls.map(call => call.step), ["resolve", "provision", "warn", "grant"]);
-  assert.equal(calls[1]!.detail, deps.mcp, "provisioning receives the host's same MCP port instance");
+  // The host hands provisioning one request object (Jini plugin-host: `{ deps: mcp, workspaceId, pluginId, servers, principalId, classifyTrust, messages }`),
+  // not the MCP port itself; the port rides in `deps`, and the rest is what this host configured.
+  const provision = calls[1]!.detail as { deps: unknown; workspaceId: string; pluginId: string; servers: unknown; principalId: string; classifyTrust: unknown; messages: unknown };
+  assert.equal(provision.deps, deps.mcp, "provisioning receives the host's same MCP port instance");
+  assert.equal(provision.workspaceId, "ws");
+  assert.equal(provision.pluginId, "p");
+  assert.equal(provision.servers, servers, "provisioning gets the same resolved declaration object the grant later gets");
+  assert.equal(provision.principalId, "u");
+  assert.equal(provision.classifyTrust, deps.classifyTrust);
+  assert.equal(provision.messages, deps.messages);
   const { required, optional } = calls[3]!.detail as { required: { deps: Record<string, unknown>; pluginId: string; servers: unknown }; optional: Record<string, unknown> };
   assert.equal(required.pluginId, "p");
   assert.equal(required.servers, servers, "the same resolved declaration object reaches the grant");
@@ -65,7 +74,7 @@ test("approved enable whose provisioning failed refuses with host copy before an
   const calls: Call[] = [];
   const { capability } = hostWith({ calls, failed: [{ serverKey: "b", reason: "boom" }] });
   await assert.rejects(capability.provisionMcp({ pluginId: "p", principalId: "u" }, { approvedEnable: true, approvedEnableKey: "key-1" }),
-    (error: unknown) => error instanceof ToolInputError && error.message === "other-host: other-host: p failed");
+    (error: unknown) => error instanceof ToolInputError && error.message === "other-host: p failed");
   assert.equal(calls.some(call => call.step === "grant"), false);
 });
 

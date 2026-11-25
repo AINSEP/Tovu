@@ -1,6 +1,7 @@
 import { render, renderHook, screen } from "@testing-library/react";
 import { isValidElement, StrictMode } from "react";
 import { describe, expect, it } from "vitest";
+import { formatUserFacingError } from "@jini-ai/core";
 import {
   getExtEventRenderer,
   registerExtEventRenderer,
@@ -115,7 +116,7 @@ describe("admin dock owned renderer lifecycle", () => {
     expect(isValidElement(failure)).toBe(true);
     if (!isValidElement<typeof props>(failure)) throw new Error("failure renderer did not return an element");
     expect(failure.type).toBe(AgentFailureCard);
-    // The host binds the Jini card's required translator hook, failure hook and redaction copy.
-    expect(failure.props).toEqual({ ...props, useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS });
+    // The host binds the Jini card's required translator hook, failure hook, error formatter and redaction copy.
+    expect(failure.props).toEqual({ ...props, useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, formatUserFacingError, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS });
   });
 });

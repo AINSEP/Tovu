@@ -8,7 +8,7 @@ import { t } from '../library-i18n';
 
 const extensions = ['doc', 'xls', 'rtf', 'xlsx', 'pptx', 'pages', 'key'];
 const locales = ['es', 'id', 'de', 'zh-CN', 'zh-TW', 'pt-BR', 'ru', 'fa', 'ar', 'ja', 'ko', 'pl', 'hu', 'fr', 'uk', 'tr', 'th', 'it', 'hi', 'ur', 'bn'];
-const typeLine = 'Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each';
+const typeLine = 'Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 50 MiB each';
 const packageMessage = 'Folder package: in Pages/Keynote, save as a single file, then upload again.';
 
 describe('download-only Library documents', () => {

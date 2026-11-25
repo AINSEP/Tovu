@@ -65,7 +65,7 @@ describe("useLibrary uploads", () => {
       sizedFile("blank.md", 0),
     ]));
     expect(result.current.uploads.map((row) => [row.name, row.status, row.error])).toEqual([
-      ["huge.pdf", "failed", "Larger than 10 MiB."],
+      ["huge.pdf", "failed", "That file is 50.1 MB; the limit is 50 MB."],
       ["deck.key", "failed", "Folder package: in Pages/Keynote, save as a single file, then upload again."],
       ["blank.md", "failed", "This file is empty."],
     ]);

@@ -91,7 +91,10 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   };
   const operations: SiteMailer["operations"] = {
     mailTestMode: async () => { await ready(); return readMailTestMode({ settingsRepo: settings.repo, workspaceId }); },
-    mailTestProvider: async () => { await ready(); return (await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }))?.transactional ?? null; },
+    // The id comes from the lane resolution itself (the same pass that builds the policy-wrapped mailer), never
+    // from a second settings read: a selection change between the two made the approval name a provider the
+    // send never used, and Send test refused with "Mail configuration changed".
+    mailTestProvider: async () => { await ready(); return resolved.effectiveProviderId({ lane: "transactional" }); },
     mailTestRequests: new Map(),
     // One bucket per site, so the Email page's button and the assistant's tool share it.
     mailTestSendLimiter: createMailTestSendLimiter(),

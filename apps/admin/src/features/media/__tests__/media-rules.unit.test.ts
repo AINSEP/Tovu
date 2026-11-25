@@ -4,6 +4,7 @@ import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
 import { embedPolicy } from "../../../integrations/jini-admin/embed-policy-ports";
 import {
   mediaAltText,
+  mediaUploadAccept,
   readFileAsBase64,
   resolveLightboxItem,
   type Base64FileReader,
@@ -84,5 +85,21 @@ describe("unsafe-URL scan on non-ASCII values", () => {
 
   it("still flags a scheme split by interior whitespace", () => {
     expect(parseMediaHtmlAttributes({ policy: embedPolicy, text: 'title="java\tscript:x"' }).errors).toEqual([{ reason: "unsafe-url", attribute: "title" }]);
+  });
+});
+
+describe("mediaUploadAccept (native picker)", () => {
+  // The server accepts .mov/.m4v (Jini cms sniff + upload), but the picker's `accept` only listed MP4/WebM,
+  // so an iPhone .MOV was greyed out in the OS file dialog. Extensions are listed too because some
+  // platforms report .mov with no MIME type at all.
+  const QUICKTIME_TOKENS = [".mov", ".m4v", "video/quicktime", "video/x-m4v"];
+
+  it.each(["videos", "all"] as const)("the %s tab's picker lists the .mov/.m4v tokens", (tab) => {
+    const tokens = mediaUploadAccept({ tab }).split(",");
+    for (const token of QUICKTIME_TOKENS) expect(tokens).toContain(token);
+  });
+
+  it("the images tab stays image-only", () => {
+    expect(mediaUploadAccept({ tab: "images" })).not.toMatch(/video|\.mov|\.m4v/);
   });
 });
