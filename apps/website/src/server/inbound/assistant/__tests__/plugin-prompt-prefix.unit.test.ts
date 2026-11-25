@@ -238,7 +238,9 @@ for (const agentId of ['aider', 'deepseek', 'codex', 'antigravity']) test(`${age
   const prefix = 'PINNED_BEGIN\n' + 'theme '.repeat(1000) + '\nPINNED_END';
   const captured = await captureDaemonRun({ prompt: 'USER_REQUEST', pluginRefIds: ['tovu-theme'], agentPluginState: { decision: null, excluded: [] } }, { request: { agentId }, bindings: {
     ...(agentId !== 'codex' ? { routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal') }, env: {}, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }) } : {}),
-    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: [] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix, refusalPrefix: '', pluginIds: [] }),
+      // argv-bound agents prepare through the offer path: its `prefix` carries the pins only.
+      offerPluginGuidance: async () => ({ prefix, refusalPrefix: '', pluginIds: [], offer: null }), commitPluginGuidance: async () => ({ pluginIds: [] }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
   } });
   assert.ok(captured.prompt.includes(prefix));
   assert.equal(captured.prompt.split(prefix).length - 1, 1);

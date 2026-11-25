@@ -23,6 +23,7 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 const requiredPageEditorHooks = {
   useTabBarKeyboardHook: useTabBarKeyboard,
   useThemePreviewFrameHook: useThemePreviewFrame,
+  usePreviewEmbedIds: () => [],
 };
 
 // Same stub `PageEditor.interactive-flush.unit.test.tsx` uses: the taxonomy box fetches on its own.

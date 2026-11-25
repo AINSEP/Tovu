@@ -1,4 +1,5 @@
 import type { PagesHtmlDocumentStoreDeps } from "./html-document-store.js";
+import { restoredEntryRefs, type PageHtmlInverse } from "./html-inverse.js";
 import type { PluginEmbedDiagnostic } from "../agent-plugins/exports/diagnostics.js";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
@@ -237,5 +238,27 @@ export class InMemoryPagesHtmlDocumentStore {
     await this.catchUpGoLive({ row, nowIso: updatedAt });
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs({ html });
+  }
+  /** @see SqlPagesHtmlDocumentStore.restore — verbatim, version-conditioned, no authoring hooks. */
+  async restore({ inverse, expectedVersion }: { inverse: PageHtmlInverse; expectedVersion: number }, _optional = {}): Promise<void> {
+    const conflict = () => new PageConcurrentEditError(`page '${this.scope.postId}' changed after this edit was made — the newer version was kept`);
+    const row = await this.load();
+    if (!row || isTrashed(row) || !this.allowedKinds.has(row.kind) || row.version !== expectedVersion) throw conflict();
+    if (inverse.format === "html" && row.bodyFormat === "html" && row.bodyHtml === inverse.html) return;
+    const nextVersion = expectedVersion + 1;
+    const updatedAt = clockNowIso({ clock: this.deps.clock });
+    const body = inverse.format === "html"
+      ? { bodyFormat: "html" as const, bodyHtml: inverse.html }
+      : { bodyFormat: "doc" as const, bodyJson: inverse.bodyJson, bodyHtml: null };
+    await this.deps.repo.transaction({ fn: async () => {
+      const { applied } = await this.deps.repo.saveIfVersion({ record: { ...row, ...body, version: nextVersion, updatedAt } as PostRecord, ifVersion: expectedVersion });
+      if (!applied) throw conflict();
+      await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
+    } });
+    this.lastReadVersion = nextVersion;
+    if (this.deps.entryRefsRepo) {
+      const refs = restoredEntryRefs({ inverse, workspaceId: this.scope.workspaceId, postId: this.scope.postId });
+      await this.deps.entryRefsRepo.replaceForSource({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, refs });
+    }
   }
 }

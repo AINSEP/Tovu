@@ -14,6 +14,7 @@ import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-ru
 const requiredPageEditorHooks = {
   useTabBarKeyboardHook: useTabBarKeyboard,
   useThemePreviewFrameHook: useThemePreviewFrame,
+  usePreviewEmbedIds: () => [],
 };
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
@@ -445,6 +446,16 @@ describe("version-conflict banner", () => {
     expect(container.querySelector('[data-agent-element="page-autosave-stale"]'), "the duplicate paused-autosave banner waits").toBeNull();
     await userEvent.setup().click(screen.getByRole("button", { name: "Load latest" }));
     expect(ctrl.loadExternalChange, "the direct action calls the existing reload handler").toHaveBeenCalledTimes(1);
+  });
+
+  it("Load latest carries the page conflict agent element, role and label", async () => {
+    const { ctrl } = renderEditor({ saveConflict: { ...CONFLICT } });
+    const button = screen.getByRole("button", { name: "Load latest" });
+    expect(button).toHaveAttribute("data-agent-element", "page-version-conflict-load-latest");
+    expect(button).toHaveAttribute("data-agent-role", "button");
+    expect(button).toHaveAttribute("data-agent-label", "Load latest version, discarding my unsaved edits");
+    await userEvent.setup().click(button);
+    expect(ctrl.loadExternalChange).toHaveBeenCalledTimes(1);
   });
 
   it("renders nothing at all when there is no conflict", () => {

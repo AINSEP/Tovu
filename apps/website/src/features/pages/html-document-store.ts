@@ -22,6 +22,7 @@ import { SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { PostStatus } from "@jini-ai/cms/core";
+import { restoredEntryRefs, type PageHtmlInverse } from "./html-inverse.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's `PagesHtmlDocumentStorePort`
@@ -204,6 +205,14 @@ export interface PagesHtmlDocumentStorePort {
    * edits never read the store or advance this basis.
    */
   capturedVersion(): number | null;
+  /**
+   * Restores a recorded pre-write body verbatim, conditioned on the row still being live at exactly
+   * `expectedVersion` (the reverter's compare-and-set, kept even after the revert gateway's own
+   * version preflight). Matching live HTML at that version is a successful no-op. Optional only so
+   * narrow test fakes keep compiling; the `page-html` reverter refuses a store without it.
+   * @throws {PageConcurrentEditError} When the row moved, was trashed, or is gone.
+   */
+  restore?(required: { inverse: PageHtmlInverse; expectedVersion: number }, optional?: Record<string, never>): Promise<void>;
 }
 
 /**
@@ -614,5 +623,42 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
 
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs({ html });
+  }
+  /**
+   * @see PagesHtmlDocumentStorePort.restore
+   *
+   * Restore skips authoring transformations on purpose: no marker re-quoting, widget-id stamping or
+   * plugin validation, because the inverse is the exact body that was stored, and running today's
+   * normalization over it would restore something nobody ever saved. Doc restore sets both body
+   * columns and the format in one compare-and-set, keeping the table's one-populated-body-column
+   * invariant. Unrelated metadata and `autosave_json` are left as they are.
+   * @complexity O(n) in the body's size; one indexed lookup, at most one CAS update and revision append.
+   */
+  async restore({ inverse, expectedVersion }: { inverse: PageHtmlInverse; expectedVersion: number }, _optional = {}): Promise<void> {
+    const nextVersion = expectedVersion + 1;
+    const updatedAt = clockNowIso({ clock: this.deps.clock });
+    const body: Updateable<PostsTable> = inverse.format === "html"
+      ? { body_format: "html", body_html: inverse.html, body_json: null }
+      : { body_format: "doc", body_json: JSON.stringify(inverse.bodyJson), body_html: null };
+    const runRestore = async (): Promise<"conflict" | "unchanged" | "restored"> => {
+      const current = await this.deps.kernel.run((db) =>
+        this.thisRow(db).select([...GO_LIVE_COLUMNS, "body_html", "body_format", "version"]).limit(1).executeTakeFirst()
+      );
+      if (!current || !this.allowedKinds.has(current.kind as PostKind) || current.deleted_at || current.version !== expectedVersion) return "conflict";
+      if (inverse.format === "html" && current.body_format === "html" && current.body_html === inverse.html) return "unchanged";
+      const changes = await this.updateThisRow({ ...body, version: nextVersion, updated_at: updatedAt }, { version: expectedVersion, liveHtmlOnly: true });
+      if (changes === 0) return "conflict";
+      await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
+      await this.emitUpdated({ status: current.status, version: nextVersion, occurredAt: updatedAt });
+      return "restored";
+    };
+    const outcome = await this.inTransaction({ fn: runRestore });
+    if (outcome === "conflict") throw new PageConcurrentEditError(`page '${this.scope.postId}' changed after this edit was made — the newer version was kept`);
+    if (outcome === "unchanged") return;
+    this.lastReadVersion = nextVersion;
+    if (this.deps.entryRefsRepo) {
+      const refs = restoredEntryRefs({ inverse, workspaceId: this.scope.workspaceId, postId: this.scope.postId });
+      await this.deps.entryRefsRepo.replaceForSource({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, refs });
+    }
   }
 }

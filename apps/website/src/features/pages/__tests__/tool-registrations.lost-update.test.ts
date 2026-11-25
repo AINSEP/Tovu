@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -16,11 +17,12 @@ async function harness() {
   await new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: id }, { repo, clock }).ensureHtmlFormat({ seedHtml: html });
   const registrations = buildPagesRegistrations({
     workspaceId, postRepo: repo, authorize: async () => ({ allowed: true, reason: "matched" }),
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
   });
   const call = (toolId: string, input: Record<string, unknown>) => {
     const registration = registrations.find(entry => entry.descriptor.id === toolId)!;
-    return registration.handler({ principal: { id: "editor", kind: "user" }, signal: new AbortController().signal, input } as never);
+    return registration.handler({ executionId: crypto.randomUUID(), principal: { id: "editor", kind: "user" }, signal: new AbortController().signal, input } as never);
   };
   return { call, registrations };
 }

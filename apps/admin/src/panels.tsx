@@ -41,15 +41,8 @@ import {
   Dashboard,
   ImportExport,
   CookieConsent,
-  PostEditor,
-  Posts,
-  PageEditor,
-  Pages,
-  Comments,
-  Analytics,
-  Library,
-  Menus,
-  MenuEditor,
+  PostEditor, Posts, PageEditor, Pages,
+  Comments, Analytics, Library, Menus, MenuEditor,
   IntegrationDeliveries,
   Providers,
   Users,
@@ -75,10 +68,7 @@ import {
   SourceControl,
   Security,
   Observability,
-  WidgetsLibrary,
-  WidgetInstanceEditor,
-  WidgetRegions,
-  WidgetRegionEditor,
+  WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor,
   WorkspaceRedirect,
   AiAssistant,
   Routines,
@@ -89,6 +79,7 @@ import { commentsMount, formsMount, widgetsMount } from "./integrations/jini-adm
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { t as tApp } from "./app-i18n";
 import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
+import { useLivePreviewEmbedIds } from "./features/pages/hooks/page-editor-dependencies.hooks";
 
 /**
  * @file The single declaration of every Tovu admin section — one `AdminPanel` per screen, in one
@@ -275,7 +266,7 @@ const PANELS: readonly TovuAdminPanel[] = [
         // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
         // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
         // real id, so an old id-based bookmark still resolves — see that function's own doc.
-        return <PageEditor usePageEditorHook={useWiredPageEditor} useTabBarKeyboardHook={useTabBarKeyboard} useThemePreviewFrameHook={useThemePreviewFrame} key={ctx.params.slug} slug={ctx.params.slug} />;
+        return <PageEditor usePageEditorHook={useWiredPageEditor} useTabBarKeyboardHook={useTabBarKeyboard} useThemePreviewFrameHook={useThemePreviewFrame} usePreviewEmbedIds={useLivePreviewEmbedIds} key={ctx.params.slug} slug={ctx.params.slug} />;
       }
       return <Pages />;
     },

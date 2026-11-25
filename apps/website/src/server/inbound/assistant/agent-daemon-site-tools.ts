@@ -22,6 +22,10 @@ const toolResponse = z.object({ tools: z.array(z.object({
   timeoutMs: z.number().optional(), maxOutputBytes: z.number().optional(),
 }).passthrough()) });
 const preflightResponse = z.object({ prefix: z.string().nullable(), refusalPrefix: z.string(), pluginIds: z.array(z.string()) }).strict();
+const guidanceOffer = z.object({ offerId: z.string().min(1), fullSections: z.array(z.object({ pluginId: z.string().min(1), text: z.string() }).strict()),
+  fullPrefix: z.string(), catalogPrefix: z.string() }).strict();
+const offerResponse = preflightResponse.extend({ offer: guidanceOffer.nullable() }).strict();
+const commitResponse = z.object({ pluginIds: z.array(z.string()) }).strict();
 
 type SiteCatalog = { tools: readonly ToolDescriptor[]; query: ReturnType<typeof buildToolCatalogQuery>; revision: number };
 type LiveRun = { principalId: string; revision: number; components?: ReturnType<typeof buildComponentCatalogQuery> };
@@ -51,7 +55,8 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
     describe: (required: Parameters<ReturnType<typeof buildToolCatalogQuery>["describe"]>[0]) => scopedCatalog(state).describe(required),
   };
   return { start: start.bind(undefined, state), finish: finish.bind(undefined, state),
-    withRun: <T>(input: { runId: string; fn: () => T }, options = {}) => withRun(state, input, options), registry, catalog, refreshComponents: refreshComponents.bind(undefined, state), preflight: preflight.bind(undefined, state), families: createPrefixToolFamilyPort({ registry, familyId: "content_read", selectorKeys: ["resource", "type", "entity", "kind"] }),
+    withRun: <T>(input: { runId: string; fn: () => T }, options = {}) => withRun(state, input, options), registry, catalog, refreshComponents: refreshComponents.bind(undefined, state), preflight: preflight.bind(undefined, state),
+    offerPluginGuidance: offerPluginGuidance.bind(undefined, state), commitPluginGuidance: commitPluginGuidance.bind(undefined, state), families: createPrefixToolFamilyPort({ registry, familyId: "content_read", selectorKeys: ["resource", "type", "entity", "kind"] }),
     components: {
       search: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[0], optional?: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[1]) => components(state).search(required, optional),
       describe: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["describe"]>[0]) => components(state).describe(required),
@@ -159,14 +164,48 @@ type DaemonSiteToolsState = ReturnType<typeof createDaemonSiteToolsState>;
    * @complexity O(prefix bytes), bounded to 1 MiB and ten minutes including human consent.
    */
   async function preflight(state: DaemonSiteToolsState, { runId, signal }: { runId: string; signal?: AbortSignal }, _options = {}): Promise<z.infer<typeof preflightResponse>> {
+    return preparePlugins(state, { runId, body: { runId }, schema: preflightResponse }, signal ? { signal } : {});
+  }
+
+  /** Offer mode: `prefix` carries pins only; `offer` carries optional guidance nothing has recorded yet.
+   * Same transport, bound and liveness check as `preflight`. No retries. O(prefix bytes). */
+  async function offerPluginGuidance(state: DaemonSiteToolsState, { runId }: { runId: string }, { signal }: { signal?: AbortSignal | undefined } = {}): Promise<z.infer<typeof offerResponse>> {
+    return preparePlugins(state, { runId, body: { op: "offer", runId }, schema: offerResponse }, signal ? { signal } : {});
+  }
+
+  async function preparePlugins<T>(state: DaemonSiteToolsState, { runId, body, schema }: { runId: string; body: Record<string, unknown>; schema: z.ZodType<T> }, { signal }: { signal?: AbortSignal | undefined } = {}): Promise<T> {
     const entry = live(state, { runId });
-    const { response, text } = await fetchTextWithTimeout({ url: new URL("/internal/agent-plugin-preflight", state.baseUrl), timeoutMs: 10 * 60_000,
-      init: { method: "POST", headers: { authorization: `Bearer ${state.token}`, "content-type": "application/json" },
-        body: JSON.stringify({ runId }), signal, cache: "no-store", redirect: "error" } },
-    { ...(state.optional.fetch ? { fetch: state.optional.fetch } : {}), maxResponseBytes: 1024 * 1024, strictUtf8: true });
+    const { response, text } = await postPreflight(state, { body, timeoutMs: 10 * 60_000 }, { signal });
     if (!response.ok) throw new Error("site plugin preparation is unavailable");
     if (state.runs.get(runId) !== entry) throw new Error("a live run is required for site discovery");
-    return preflightResponse.parse(JSON.parse(text));
+    return schema.parse(JSON.parse(text));
+  }
+
+  /** Record which offered ids the launched prompt actually carries. Only a lost reply is retried, at
+   * most once, with the identical run, offer and ids, and only while the run is unaborted and still the
+   * same live entry; the server's cached receipt makes that replay record nothing twice. A refusal,
+   * an aborted run or a replaced entry is never retried. O(ids).
+   */
+  async function commitPluginGuidance(state: DaemonSiteToolsState, { runId, offerId, deliveredIds }: { runId: string; offerId: string; deliveredIds: readonly string[] }, { signal }: { signal?: AbortSignal | undefined } = {}): Promise<z.infer<typeof commitResponse>> {
+    const entry = live(state, { runId });
+    const send = () => postPreflight(state, { body: { op: "commit", runId, offerId, deliveredIds: [...deliveredIds] }, timeoutMs: 60_000 }, { signal });
+    let reply: Awaited<ReturnType<typeof send>>;
+    try { reply = await send(); }
+    catch (error) {
+      if (signal?.aborted || state.runs.get(runId) !== entry) throw error;
+      reply = await send();
+    }
+    if (!reply.response.ok) throw new Error("site plugin guidance could not be recorded");
+    if (state.runs.get(runId) !== entry) throw new Error("a live run is required for site discovery");
+    return commitResponse.parse(JSON.parse(reply.text));
+  }
+
+  /** Authenticated, bounded, uncached, no-redirect POST to the one preflight path. */
+  function postPreflight(state: DaemonSiteToolsState, { body, timeoutMs }: { body: Record<string, unknown>; timeoutMs: number }, { signal }: { signal?: AbortSignal | undefined } = {}) {
+    return fetchTextWithTimeout({ url: new URL("/internal/agent-plugin-preflight", state.baseUrl), timeoutMs,
+      init: { method: "POST", headers: { authorization: `Bearer ${state.token}`, "content-type": "application/json" },
+        body: JSON.stringify(body), ...(signal ? { signal } : {}), cache: "no-store", redirect: "error" } },
+    { ...(state.optional.fetch ? { fetch: state.optional.fetch } : {}), maxResponseBytes: 1024 * 1024, strictUtf8: true });
   }
 
   /** Attribute discovery to this request's real identity, sharing only the principal's FTS index.

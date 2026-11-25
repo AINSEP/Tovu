@@ -81,13 +81,23 @@ export const registerAdminFormsGetRoute: FormsRouteRegistrar = ({ app, deps }, _
   mountAdminJsonRoute({ app, spec: formsGetRoute, deps: { ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo } }, directMountOptions("routes/forms/get-by-id"));
 };
 
+/** Plain-words copy for the ordinary PUT's versioned refusals. */
+const FORMS_VERSIONED_UPDATE_MESSAGES = {
+  mixedStatus: "Save the form and change its status as two separate actions.",
+  missingDefinition: "Send at least one form field you want to change.",
+  stale: "This form changed since you opened it. Reload it before saving.",
+};
+
 /** Guarded (`authorizeOrRespond`): a publishing credential answers from its grant. */
 export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: formsUpdateRoute, deps: {
     ...formsPortDeps({ deps }),
     formDefinitionRepo: deps.formDefinitionRepo,
     outwardErrorMessage,
-    updateFormDefinition: ({ input }) => updateFormDefinition({ deps: formWriteDeps({ deps }), input }),
+    // The options carry `expectedVersion`; the write service and repository compare-and-set is the
+    // authoritative stale check (a route pre-read could still race and cannot substitute for it).
+    updateFormDefinition: ({ input }, optional = {}) => updateFormDefinition({ deps: formWriteDeps({ deps }), input }, optional),
+    versionedUpdateMessages: FORMS_VERSIONED_UPDATE_MESSAGES,
     setFormDefinitionStatus: ({ input }) => setFormDefinitionStatus({ deps: formWriteDeps({ deps }), input }),
   } }, { failure: { operation: "routes/forms/update", code: "INTERNAL_ERROR" } });
 };

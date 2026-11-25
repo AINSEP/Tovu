@@ -85,6 +85,24 @@ describe("FORMS_DICT: cross-locale key parity", () => {
     }
   });
 
+  // The version-aware reload notice (`FormEditorReloadNotice`) and its discard confirmation come
+  // from the Jini forms editor locale slice; a locale missing any of them would show English there.
+  const RELOAD_NOTICE_KEYS = [
+    "This form changed since you opened it. Reload it to see the latest version.",
+    "Reload form",
+    "Reloading discards your unsaved changes.",
+  ];
+
+  it("all admin locales include the form reload notice and confirmation", () => {
+    for (const locale of locales) {
+      for (const key of RELOAD_NOTICE_KEYS) {
+        const value = FORMS_DICT[locale][key];
+        expect(value, `${locale} is missing ${JSON.stringify(key)}`).toBeTruthy();
+        expect(value?.trim().length, `${locale} value for ${JSON.stringify(key)} is blank`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   // T7a (2026-09-21): forms and submissions both move to the Trash now — the keys `FormsList.tsx`'s
   // `ConfirmDialog` (row delete) and `FormEditor.tsx`'s `FormSubmissionDetail` `ConfirmDialog`
   // (submission delete) both need. Added to all 21 locale blocks by hand (reusing `posts-i18n.ts`'s

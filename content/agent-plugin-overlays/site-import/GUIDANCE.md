@@ -24,13 +24,21 @@ compare screenshots and obtain the owner's approval before activation.
 Read `host/content-mapping.md` before Step 4. For a dropped local folder (Tovu Theme Part B),
 read only `host/content-mapping.md` § Local-folder sources; do not run the public-URL crawl.
 
+**Public-URL order.** Survey and classify read-only (the source, plus this site's current pages,
+homepage, menu and theme); stage away from the live homepage at free addresses; verify the draft
+with `content_post_preview { id }` and screenshots; then show the one existing cutover card naming
+the homepage address or replacement, menu placement, theme switch and publication actions. Leave `/`
+alone without the approved switch.
+
 ## Tovu tools for each job
 
 | Job | Tool |
 |---|---|
 | Read the source site | `web_fetch_page` (`format`: `raw` for robots.txt, sitemap.xml and CSS; `html` when you need the markup; `markdown` for article text) |
 | Check what already exists | `content_read.content_post` (`kind` optional; omit for posts and pages together), `content_post_search`, `content_read.taxonomy`, `content_read.menu`, `content_read.redirect`, `content_read.media_asset`, `site_get_profile`. Each `content_read.<resource>` lists without an id; add its id (`id`, `taxonomyId`, `menuId`) to read one |
-| Pages and posts | `content_post_create` (`kind` `page` or `post`), `content_post_update`, `pages_write_html` (pages whose layout matters) |
+| Pages and posts | `content_post_create` (`kind` `page` or `post`), `content_post_update`, `pages_write_html { id, html, expectedVersion }` (pages whose layout matters) |
+| Read a page's HTML and version | `pages_read_html { id }`; its `version` is the `expectedVersion` for the next `pages_write_html` |
+| Preview a draft | `content_post_preview { id }` (the entry ID, draft allowed; it takes no `themeId`) |
 | Categories and tags | `content_read.taxonomy`, `taxonomy_create_taxonomy`, `taxonomy_create_term`, `taxonomy_assign_terms` |
 | Images | `media_import_from_url` |
 | Navigation | `menus_create_menu`, `menus_update_menu_tree`, `menus_assign_location` |
@@ -38,7 +46,7 @@ read only `host/content-mapping.md` § Local-folder sources; do not run the publ
 | SEO | `seo_set_entry_overrides`, `seo_get_settings`, `seo_set_settings` |
 | Site time zone | `settings_set_value` (`namespace` `core.site`, `key` `timezone`, `scope` `workspace`). Post `publishAt` stays the original instant |
 | Theme | `load_agent_plugin` with `pluginId: "tovu-theme"` (Part C) |
-| See how pages look | `web_screenshot_page` (`{url, viewport}` for the source, `{sitePath, viewport}` for this site, plus `themeId` to see an inactive theme copy; `desktop` and `mobile`). Each capture is saved; `savedFiles` gives the paths |
+| See how pages look | `web_screenshot_page` (`{url, viewport}` for the source, `{sitePath, viewport}` for this site, plus `themeId` to see an inactive theme copy (screenshots only, not `content_post_preview`); `desktop` and `mobile`). Each capture is saved; `savedFiles` gives the paths |
 | The one question | `assistant_ask_choice`, the suggested default first |
 | Homepage check | Preview draft home by entry ID. Check `/` only after the agreed switch. `fetch_published_page` checks the local copy; `fetch_live_url` only reads THIS site's own published copy |
 

@@ -61,16 +61,18 @@ paths:
       summary: Partially update a form definition or its status
       security: [{ adminSessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/FormId' }]
-      # Drift: contrary to api.spec.md, unrecognized keys (including slug) are ignored; an empty or only-unrecognized body is a successful no-op read.
+      # Drift: contrary to api.spec.md, for LEGACY unversioned requests (no expectedVersion) unrecognized keys (including slug) are ignored; an empty or only-unrecognized body is a successful no-op read.
+      # Versioned requests (expectedVersion present) are stricter: a malformed value, a body that also sets status, or a body with no field to change is a 400, and a stale basis is a 409.
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/UpdateFormDefinitionRequest' } } }
       responses:
         '200': { description: Updated (or unchanged) definition, content: { application/json: { schema: { $ref: '#/components/schemas/FormDefinitionResponse' } } } }
-        '400': { $ref: '#/components/responses/FieldValidationError' }
+        '400': { $ref: '#/components/responses/UpdateFormValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/ForbiddenManage' }
         '404': { $ref: '#/components/responses/DefinitionOrWorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/FormVersionConflict' }
         '500': { $ref: '#/components/responses/InternalError' }
   /api/admin/v1/workspaces/{workspaceId}/forms/{formId}/submissions:
     get:
@@ -183,11 +185,16 @@ components:
         fields: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/FieldDescriptor' }, description: Replaces the list but may not remove an existing field id. }
         notify: { $ref: '#/components/schemas/NotifyConfig' }
         # Drift: an unsupported status string is ignored and returns 200, rather than being rejected.
-        status: { type: string, enum: [active, disabled] }
+        status: { type: string, enum: [active, disabled], description: Not allowed together with expectedVersion (400); send the field save and the status change as two requests. }
+        expectedVersion:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          description: Optional basis for a lost-update check, the `version` of the definition the editor loaded. When present the request must carry at least one field to change and no status; a stale value is refused with 409 and nothing is written. Omitted means the legacy unversioned behavior. A non-integer, negative, unsafe or non-number value is a 400.
       additionalProperties: true
     FormDefinition:
       type: object
-      required: [id, workspaceId, name, slug, fields, notify, status, createdAt, updatedAt]
+      required: [id, workspaceId, name, slug, fields, notify, status, createdAt, updatedAt, version]
       properties:
         id: { type: string }
         workspaceId: { type: string }
@@ -198,6 +205,7 @@ components:
         status: { type: string, enum: [active, disabled] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1, description: Increases with every saved change; send it back as expectedVersion on the next update. }
     FormDefinitionResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/FormDefinition' } } }
     FormDefinitionListResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/FormDefinition' } } } }
     FormSubmission:
@@ -236,6 +244,18 @@ components:
     DefinitionOrWorkspaceNotFound: { description: Missing definition or workspace path mismatch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     SubmissionOrWorkspaceNotFound: { description: Missing/mismatched submission or workspace path mismatch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     FieldValidationError: { description: Invalid definition or list limit, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: one or more field descriptors are invalid, code: FORMS_FIELD_VALIDATION_ERROR, details: { fieldErrors: [{ field: fields, reason: at least 1 field is required }] } } } } }
+    UpdateFormValidationError:
+      description: Invalid definition, or an invalid versioned update (malformed expectedVersion, expectedVersion together with status, or expectedVersion with no field to change)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { error: Send at least one form field you want to change., code: VALIDATION_ERROR }
+    FormVersionConflict:
+      description: The form changed since the supplied expectedVersion was read; nothing was written
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { error: This form changed since you opened it. Reload it before saving., code: VERSION_CONFLICT, details: { recordKind: form, recordId: 5f0c7a3e, expectedVersion: 1, currentVersion: 2 } }
     SlugConflict: { description: Slug already exists in the workspace, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: a form with slug contact already exists, code: FORMS_SLUG_CONFLICT, details: { slug: contact } } } } }
     SubmissionValidationError: { description: Invalid dynamic public submission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: submission failed field validation, code: FORMS_SUBMISSION_VALIDATION_ERROR, details: { fieldErrors: [{ field: email, reason: required }] } } } } }
     FormNotFound: { description: Missing or disabled form, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: form was not found, code: FORMS_DEFINITION_NOT_FOUND } } } }

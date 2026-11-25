@@ -15,6 +15,7 @@ import { postsApi } from "@/features/posts/posts-host-ports";
 const requiredPageEditorHooks = {
   useTabBarKeyboardHook: useTabBarKeyboard,
   useThemePreviewFrameHook: useThemePreviewFrame,
+  usePreviewEmbedIds: () => [],
 };
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its

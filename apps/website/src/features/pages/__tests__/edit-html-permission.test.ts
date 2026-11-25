@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
@@ -349,6 +350,7 @@ async function toolHarness() {
         Parameters<typeof buildPagesRegistrations>[0]["authorize"]
       >,
     postRepo,
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => {
       const real = new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock });
       return {

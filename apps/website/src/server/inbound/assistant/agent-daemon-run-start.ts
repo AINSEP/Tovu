@@ -29,6 +29,8 @@ import { createFrontendControl } from "@jini-ai/daemon/http";
 import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 import type { RunStartHandler } from "@jini-ai/daemon/http";
 import { assemblePromptWithPluginPrefix } from "./plugin-prompt-assembly.js";
+import { AGENT_PLUGIN_DISCOVERY_POINTER, buildPluginPromptVariants, type PluginPromptVariant } from "./agent-plugin-prompt-variants.js";
+import type { AgentPluginGuidanceOffer } from "@jini-ai/core/contracts/site/daemon";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import { resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "./assistant-system-overlay.js";
 import { createAssistantChromeProbe, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
@@ -52,7 +54,9 @@ import { releasingBrowserToo } from "./assistant-browser-lease.js";
  *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
-export type RunStartState = { agentId: string; prompt: string; attemptedResumeSessionId: string | null; startupStage: string };
+export type RunStartState = { agentId: string; prompt: string; attemptedResumeSessionId: string | null; startupStage: string;
+  /** Offered optional guidance and its argv-fit prompts; set only for an argv-bound selected adapter. */
+  pluginVariants?: { offer: AgentPluginGuidanceOffer; variants: readonly PluginPromptVariant[] } | undefined };
 export type RunStartRequired = {
   state: {
     principalByRunId: Map<string, Principal>; messageAttachmentRefsByRunId: Map<string, readonly string[]>;
@@ -329,12 +333,6 @@ async function prepareRun(ports: RunPorts, _optional = {}) {
   pluginAbort.signal.throwIfAborted();
   ports.runState.startupStage = 'Agent Plugin preparation';
   await siteTools.start({ runId: run.id, principalId: principal.id });
-  const pluginPreparation = await prepareSitePlugins(ports, {}, {});
-  if (pluginPreparation.prefix === null) {
-  await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: a selected Agent Plugin could not be loaded." }, {});
-  return;
-}
-const pluginPromptPrefix = pluginPreparation.prefix;
 
 // Serialized per conversation (`Jini packages/daemon/src/session-coordination.ts`): `resolveSessionBinding` is a
 // read-modify-write over `assistant_agent_sessions` with an `await` in the middle, so two
@@ -351,6 +349,13 @@ agentId = selectedAgent; ports.runState.agentId = agentId;
 const toolAccessRun = toolAccessRuns.get(run.id);
 if (!toolAccessRun) throw new Error("agent run has no tool access record after preparation");
 toolAccessRuns.set(run.id, { ...toolAccessRun, agentId });
+// Preparation mode follows the adapter selected above, never the originally stored request.
+ports.runState.startupStage = 'Agent Plugin preparation';
+const pluginPreparation = await prepareSitePlugins(ports, { agentId }, {});
+if (pluginPreparation.prefix === null) {
+  await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: a selected Agent Plugin could not be loaded." }, {}); return;
+}
+const pluginPromptPrefix = pluginPreparation.prefix;
 ports.runState.startupStage = 'session binding';
 const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
 if (sessionBinding === null) return;
@@ -362,7 +367,7 @@ ports.runState.startupStage = 'CLI launch';
 await launchAgentRun({ sessionBinding, attachmentRunFields, pluginIds: pluginPreparation.pluginIds }, {});
 }
 
-function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields; pluginPreparation: { refusalPrefix: string }; pluginPromptPrefix: string }, _optional = {}) {
+function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields; pluginPreparation: { refusalPrefix: string; offer?: AgentPluginGuidanceOffer | null }; pluginPromptPrefix: string }, _optional = {}) {
   const { sessionBinding, attachmentRunFields, pluginPreparation, pluginPromptPrefix, coldStartContext, pageContext, env, agentCarriesOwnMemory, buildPageContextPromptBlock, existsSync, routeDeps } = ports;
   let { prompt } = ports.runState;
   // The browser cannot know whether the daemon still has a native session to resume.
@@ -393,6 +398,9 @@ function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding
   // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
   // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
   prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: pluginPreparation.refusalPrefix });
+  // One base, built once from the final selected history; variants differ only in optional guidance.
+  const { offer } = pluginPreparation;
+  ports.runState.pluginVariants = offer ? { offer, variants: buildPluginPromptVariants({ basePrompt: prompt, offer, discoveryPointer: AGENT_PLUGIN_DISCOVERY_POINTER }, { pinnedPrefix: pluginPromptPrefix }) } : undefined;
   prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix });
   ports.runState.prompt = prompt;
 }
@@ -400,9 +408,17 @@ function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding
 /** The server owns pinned guidance and automatic consent, including later tool-triggered
  * preparation. No controller or plugin lifecycle is constructed in this process. Transport
  * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
-async function prepareSitePlugins(ports: RunPorts, _required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[] }> {
-  const { siteTools, run, pluginAbort, console, pluginRefIds } = ports;
-  try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
+async function prepareSitePlugins(ports: RunPorts, { agentId }: { agentId: string }, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[]; offer?: AgentPluginGuidanceOffer | null }> {
+  const { siteTools, run, pluginAbort, console, pluginRefIds, getAgentDef } = ports;
+  // Only an argv-bound def that takes the prompt last can try variants; a missing def stops that
+  // optional path and keeps one-shot preparation rather than guessing.
+  const def: { argvPromptPosition?: string } | undefined = getAgentDef({ id: agentId }) ?? undefined;
+  try {
+    if (def?.argvPromptPosition !== 'last') return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal });
+    const prepared = await siteTools.offerPluginGuidance({ runId: run.id }, { signal: pluginAbort.signal });
+    // Pins are always inlined in the base, so they are the only ids subagents may carry; offered ids are not delivered yet.
+    return { ...prepared, pluginIds: prepared.prefix === null ? [] : [...new Set([...prepared.pluginIds, ...pluginRefIds])] };
+  }
   catch (err) {
     let errorDiagnostic = "[diagnostic unavailable]";
     try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }

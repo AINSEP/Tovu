@@ -1,5 +1,5 @@
 import express from "express";
-import { templatePreviewGetRoute, templatePreviewPostRoute, type TemplatePreviewRouteDeps } from "@jini-ai/cms/admin-http/routes/posts/template-preview";
+import { renderAuthorizedTemplatePreview as renderSharedTemplatePreview, templatePreviewGetRoute, templatePreviewPostRoute, type TemplatePreviewRouteDeps } from "@jini-ai/cms/admin-http/routes/posts/template-preview";
 import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 
 import { getAdminPostByIdOrSlug } from "#src/features/post/index";
@@ -18,15 +18,47 @@ import type { ContentRouteRegistrar } from "#src/server/runtime/composition/modu
  * keep the `handlePreviewRequest` name, and the POST keeps its own `express.urlencoded` (15 MiB) in the same
  * registration, so the route-table pin is unchanged.
  */
-export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  type Post = Awaited<ReturnType<typeof getAdminPostByIdOrSlug>>["post"];
-  const previewDeps: TemplatePreviewRouteDeps<Post> & AdminJsonRoutePortDeps = {
+type ContentDeps = Parameters<ContentRouteRegistrar>[0]["deps"];
+type Post = Awaited<ReturnType<typeof getAdminPostByIdOrSlug>>["post"];
+
+/** The Jini spec's deps, bound to this host's post lookup and renderer. @complexity O(1). */
+function templatePreviewDeps({ deps }: { deps: ContentDeps }, _optional: Record<string, never> = {}): TemplatePreviewRouteDeps<Post> {
+  return {
     workspaceId: deps.workspaceId,
-    authorize: deps.authorize,
     getPost: ({ workspaceId, idOrSlug }) => getAdminPostByIdOrSlug({ deps: { repo: deps.postRepo }, input: { workspaceId, idOrSlug } }),
     renderPreview: ({ post, templateChoice, bodyJson, bodyHtml }) => renderPostPreview({ deps, input: { post, templateChoice, bodyJson, bodyHtml } }),
     renderFailure: ({ error }) => (error instanceof TemplatePreviewRenderError ? { status: error.status, message: error.message } : undefined),
     isNotFound: ({ error }) => error instanceof PostNotFoundError,
+  };
+}
+
+/** What {@link renderAuthorizedTemplatePreview} needs: the raw request values, never the request. */
+export interface AuthorizedTemplatePreviewInput {
+  deps: ContentDeps;
+  postId: string;
+  rawTemplateChoice: unknown;
+  body: unknown;
+}
+
+/**
+ * The one draft render both preview surfaces share: the HTML preview below and the JSON embed inspection route
+ * (`modules/content.ts`), through the Jini spec's own `renderAuthorizedTemplatePreview`, so the inspection sees exactly
+ * the document the sandboxed iframe shows. **It does not authorize**: every caller must already have passed the
+ * type-free, id-free `content.read` check.
+ * @throws PostNotFoundError, TemplatePreviewRenderError — each caller maps them to its own reply.
+ * @complexity One post lookup plus one template render.
+ */
+export async function renderAuthorizedTemplatePreview(
+  { deps, postId, rawTemplateChoice, body }: AuthorizedTemplatePreviewInput,
+  _optional: Record<string, never> = {},
+): Promise<{ html: string }> {
+  return await renderSharedTemplatePreview({ deps: templatePreviewDeps({ deps }), postId, rawTemplateChoice, body });
+}
+
+export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const previewDeps: TemplatePreviewRouteDeps<Post> & AdminJsonRoutePortDeps = {
+    ...templatePreviewDeps({ deps }),
+    authorize: deps.authorize,
   };
   const options = {
     authorization: "direct" as const,

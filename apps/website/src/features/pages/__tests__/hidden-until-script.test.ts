@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -23,6 +24,7 @@ function harness() {
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
   });
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));

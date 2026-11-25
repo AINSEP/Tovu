@@ -10,6 +10,7 @@ import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { ASSISTANT_SETTING_SOURCES } from "./assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
+import { pluginPromptSelection } from "./agent-plugin-prompt-variants.js";
 import { claimBrowserForRun, releaseBrowserForRun } from "./assistant-browser-lease.js";
 import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapters/fs";
 import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
@@ -66,7 +67,9 @@ async function launchAgentRun(ports: RunPorts,
 }
 function executeRun(ports: LaunchPorts, _optional = {}) {
   const { agentExecutor, run, sessionBinding, routeDeps, policy, resolvePermissionMode, nativeToolAccess, nativeCapabilities, pluginIds, parityEnv, subagentsEnabled, resolveAssistantDisallowedTools, env, homedir, existsSync, resolveAssistantRunSettings, model, reasoning, attachmentRunFields, pickedFolder, runtimeLaunch } = ports;
-  const { prompt } = ports.runState;
+  const { prompt, pluginVariants } = ports.runState;
+  // Prepared guidance is not delivered guidance: the executor commits only what the spawned variant carries.
+  const argvPromptVariants = pluginVariants && pluginPromptSelection({ ...pluginVariants, commit: (required, optional) => ports.siteTools.commitPluginGuidance(required, optional) });
   return agentExecutor.run({
     runId: run.id,
     agentId: sessionBinding.agentId,
@@ -80,6 +83,7 @@ function executeRun(ports: LaunchPorts, _optional = {}) {
     permissionMode: policy.permissionMode ?? resolvePermissionMode(),
     nativeToolAccess,
     nativeCapabilities,
+    ...(argvPromptVariants ? { argvPromptVariants } : {}),
     subagentStartContext: { ids: pluginIds, instructions: 'Before you start, call load_agent_plugin for every parent plugin and follow it. Discover Tovu tools with search_tools, describe before executing, honor approvals, and keep file searches inside the site.' },
     cliParity: nativeToolAccess,
     ...(parityEnv ? { env: parityEnv } : {}),
