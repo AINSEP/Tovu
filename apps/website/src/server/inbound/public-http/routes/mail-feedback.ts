@@ -30,7 +30,7 @@ function rawBody(route: MailFeedbackRoute) {
 /** The redacted 500 of an ingest failure. */
 function writeMailFeedbackFailure({ res, error }: { res: Response; error: unknown }): void {
   // Never echo internals to an unauthenticated caller; the provider retries a 5xx.
-  const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker });
+  const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
   res.status(500).json({ ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId });
 }
 

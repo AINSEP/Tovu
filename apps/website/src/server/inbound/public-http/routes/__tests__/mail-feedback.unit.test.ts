@@ -98,3 +98,37 @@ test("a handler failure is a redacted 500 whose error ID matches one redacted se
   assert.match(line, /mail-feedback\.unit\.test/, "the log keeps the stack");
   assert.ok(!line.includes(secret), "secrets are redacted from the log");
 });
+
+/** Codex FIX 4: the composed seam. With the site's reporter bound on the request, the reporter is the
+ * only sink: one incident id in the reply, one host record, one tracker report, none carrying a secret
+ * from the message, the `cause` or an own field, and the tracker never receives the original Error. */
+test("a handler failure through the composed reporter is one incident id, one host record, no secret", async (t) => {
+  const { createTovuErrorReporter } = await import("../../../../runtime/composition/error-reporter.js");
+  const key = "tovu_ak_0123456789ab.Zq9Xw8Vu7Ts6Rq5Po4Nm3Lk2";
+  const causeSecret = "cause-secret-Hh7Gg6Ff5";
+  const fieldSecret = "field-secret-Jj9Kk8Ll7";
+  const thrown = Object.assign(new Error(`store failed near ${key}`, { cause: new Error(`db said ${causeSecret}`) }), { requestBody: { token: fieldSecret } });
+  const records: unknown[][] = [];
+  const reports: Array<[{ error: Error }, unknown]> = [];
+  const consoleLines: unknown[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { consoleLines.push(args); });
+  const reporter = createTovuErrorReporter({ logger: { warn: (...a: unknown[]) => { records.push(a); }, error: (...a: unknown[]) => { records.push(a); } },
+    tracker: { error: (...a: unknown[]) => { reports.push(a as never); } }, clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" } } as never);
+  const app = express();
+  app.use((_req, res, next) => { res.locals.failureReporter = reporter; next(); });
+  registerMailFeedbackRoute({ app, route: fakeRoute(async () => { throw thrown; }) });
+  const base = await startTestServer(app, t);
+  const response = await fetch(`${base}/hooks/mail/resend`, { method: "POST", body: "{}" });
+  assert.equal(response.status, 500);
+  const { errorId } = await response.json() as { errorId: string };
+  assert.equal(records.length, 1, "one host record");
+  assert.equal(reports.length, 1, "one tracker report");
+  assert.equal(consoleLines.length, 0, "no legacy console sink");
+  const seenErr = reports[0]![0].error;
+  assert.notEqual(seenErr, thrown, "the original Error is never forwarded");
+  const serialize = (v: unknown) => JSON.stringify(v, (_k, x: unknown) => x instanceof Error ? { ...Object.fromEntries(Object.getOwnPropertyNames(x).map((k) => [k, (x as never)[k]])), cause: x.cause } : x);
+  const everything = serialize({ records, reports });
+  assert.ok(everything.includes(errorId), "the host record and tracker carry the reply's id");
+  assert.equal(new Set(everything.match(/ERR-[A-Z0-9-]+/g) ?? []).size, 1, "one incident id");
+  for (const secret of ["Zq9Xw8Vu7Ts6Rq5Po4Nm3Lk2", causeSecret, fieldSecret]) assert.ok(!everything.includes(secret), `leaked ${secret}`);
+});
