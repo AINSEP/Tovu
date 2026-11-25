@@ -2,7 +2,8 @@ import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-w
 import { createHash } from "node:crypto";
 import path from "node:path";
 import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
-import { SiteShareRegistry, newShareIdentity, SHARE_FILE, type SiteShareRecord } from "./share-registry.js";
+import { SiteShareRegistry, SHARE_FILE } from "./share-registry.js";
+import { newShareIdentity, type SiteShareRecord } from "@jini-ai/devops/backup/site/share-registry";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 
 export const SHARE_DOWNLOAD_HEADERS = {

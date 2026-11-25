@@ -7,7 +7,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { SiteShareRegistry, newShareIdentity, type SiteShareRecord } from "#src/features/site-backup/share-registry";
+import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { newShareIdentity, type SiteShareRecord } from "@jini-ai/devops/backup/site/share-registry";
 import { receiveSiteShareArtifact, revokeSiteShare } from "#src/features/site-backup/share-service";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublicShareRoutes } from "../site-share.js";

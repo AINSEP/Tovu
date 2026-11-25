@@ -1,7 +1,8 @@
 import { createShareHosting } from "@jini-ai/devops/backup/site/share-hosting";
 import { peerUrl } from "@jini-ai/cms/publish/content/peer-url";
 import { callPeer } from "../publish-content/peer-transport-binding.js";
-import { SHARE_TOKEN_PATTERN, type SiteShareRegistry } from "./share-registry.js";
+import { type SiteShareRegistry } from "./share-registry.js";
+import { SHARE_TOKEN_PATTERN } from "@jini-ai/devops/backup/site/share-registry";
 import { receiveSiteShareArtifact } from "./share-service.js";
 
 /** @file Binds Jini's share hosting to this host's peer transport, share-file naming and provider id. */

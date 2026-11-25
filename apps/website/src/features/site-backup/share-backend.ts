@@ -13,7 +13,8 @@ import type { prepareShareContent } from "./share-preparation.js";
 import { buildShareZip, buildStaticSiteZip } from "./share-zip.js";
 import { captureStaticSite } from "./static-download-host.js";
 import { createSiteShare, acknowledgeSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
-import { type SiteShareRegistry, newShareIdentity } from "./share-registry.js";
+import { type SiteShareRegistry } from "./share-registry.js";
+import { newShareIdentity } from "@jini-ai/devops/backup/site/share-registry";
 import { allocateStaticExportThemes, parseStaticExportInput } from "./static-export-selection.js";
 import { checkShareLimits } from "./share-policy.js";
 
