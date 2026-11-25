@@ -243,6 +243,8 @@ const CHAT_CLEANUP_COPY = {
 function answerAsBefore<T>({ result }: { result: Result<T> }, _optional = {}): Result<T> {
   if (result.ok) return result;
   const { code, message } = result.error;
+  // `null` means the id does not exist *or* belongs to someone else. Both answer 404, on
+  // purpose: distinguishing them would confirm the existence of another admin's chat.
   if (code === "NOT_FOUND") rejectRoute({ status: 404, error: message });
   if (code === "INVALID_INPUT" && message === CHAT_CLEANUP_COPY.expired) rejectRoute({ status: 409, error: message, code: "PREVIEW_EXPIRED" });
   if (code === "INVALID_INPUT") rejectRoute({ status: 400, error: message, code });

@@ -21,7 +21,11 @@ export type ChatBulkDeletionFor = (required: { scope: ChatOwnerScope; openConver
  */
 export function createChatBulkDeletionFor({ store, now }: { store: ChatKernel | SqliteConnectionSource; now: () => number }, _optional = {}): ChatBulkDeletionFor {
   const kernel = chatKernel({ store });
-  return ({ scope, openConversations }) => createChatBulkDeletion({ kernel, scope, now, openConversations });
+  // Tovu's chat schema is a superset of Jini's (it adds the tool-approvals table), and Kysely's
+  // kernel type is invariant in its schema. The deletion reads and writes only Jini's own chat
+  // tables, which this kernel carries unchanged, so the narrowing is safe at this one seam.
+  const jiniKernel = kernel as unknown as Parameters<typeof createChatBulkDeletion>[0]["kernel"];
+  return ({ scope, openConversations }) => createChatBulkDeletion({ kernel: jiniKernel, scope, now, openConversations });
 }
 
 /**

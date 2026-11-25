@@ -124,7 +124,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
   };
 }
 
-export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "slugChangeCapture" | "docBodyAsPageHtml" | "pagesHtmlStore" | "chatHistory" | "chatRunLedger" | "agentSessions" | "conversationToolApprovals"> {
+export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "slugChangeCapture" | "docBodyAsPageHtml" | "pagesHtmlStore" | "chatHistory" | "chatBulkDeletionFor" | "chatRunLedger" | "agentSessions" | "conversationToolApprovals"> {
   const { kernel, chat, clock, outbox, entryRefsRepo, entryRepo, tracker, postRepo, pluginExports } = required;
   return {
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's

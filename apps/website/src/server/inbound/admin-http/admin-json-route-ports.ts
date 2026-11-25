@@ -362,8 +362,9 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
 export const adminSameOriginWrites: RouteHostContext = {
   originPolicy: {
     isSameOrigin: ({ req }) => {
-      const header = (name: string): string | undefined => { const value = req.headers[name]; return Array.isArray(value) ? value[0] : value; };
-      return isSameOriginBrowserWrite({ origin: header("origin"), host: header("host"), fetchSite: header("sec-fetch-site") });
+      const headers = req.headers ?? {};
+      const text = (value: unknown): string | undefined => (typeof value === "string" ? value : Array.isArray(value) && typeof value[0] === "string" ? value[0] : undefined);
+      return isSameOriginBrowserWrite({ origin: text(headers.origin), host: text(headers.host), fetchSite: text(headers["sec-fetch-site"]) });
     },
   },
 };
