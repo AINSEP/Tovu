@@ -53,13 +53,27 @@ function siteTitleFor({ deps }: { deps: SeoRouteDeps }, _optional: Record<string
   );
 }
 
+/** Mount one document spec with `bufferedReply`: these answers were `res.send(body)` on hand-written Express routes,
+ * which gave a `Content-Length`, a weak `ETag`, a bodiless HEAD and a 304 for a fresh `If-None-Match`. The raw writer
+ * streams (chunked, no validator) unless the mount selects the buffered write, which hands the whole body to
+ * Express's own `res.send`; a crawler or CDN revalidating these documents depends on that. Pinned by
+ * `__tests__/seo-documents.wire-pins.test.ts`. Documents are small and finished, never streams.
+ * @complexity O(1) setup; per request O(n) in the document size.
+ */
+function mountDocument<Deps extends object>(
+  { app, spec, deps, failure }: { app: Parameters<typeof mountPublicRawRoute<Deps>>[0]["app"]; spec: Parameters<typeof mountPublicRawRoute<Deps>>[0]["spec"]; deps: Deps; failure: PublicRawFailureWriter },
+  _optional: Record<string, never> = {},
+): void {
+  mountPublicRawRoute({ app, spec: { ...spec, bufferedReply: true }, deps, failure });
+}
+
 /**
  * GET /sitemap.xml — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_SITEMAP`, REQ-08,
  * tasks.md T046). Registered ahead of the `/:slug` catch-all in `pages.ts`'s registration order.
  */
 export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const specDeps: SitemapRouteDeps = documentDeps({ deps, extra: { buildSitemap: (input: { workspaceId: string }, optional: { renderBaseUrl?: string | undefined }) => deps.sitemapService.buildSitemap(input, optional) } });
-  mountPublicRawRoute({ app, spec: sitemapRoute, deps: specDeps, failure: textFailure({ operation: "public:sitemap", subject: "the sitemap" }) });
+  mountDocument({ app, spec: sitemapRoute, deps: specDeps, failure: textFailure({ operation: "public:sitemap", subject: "the sitemap" }) });
 };
 
 /**
@@ -68,7 +82,7 @@ export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _optio
  */
 export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const specDeps: RobotsRouteDeps = documentDeps({ deps, extra: {} });
-  mountPublicRawRoute({ app, spec: robotsRoute, deps: specDeps, failure: textFailure({ operation: "public:robots", subject: "the crawler rules" }) });
+  mountDocument({ app, spec: robotsRoute, deps: specDeps, failure: textFailure({ operation: "public:robots", subject: "the crawler rules" }) });
 };
 
 /**
@@ -94,7 +108,7 @@ export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ app, deps }, _option
 export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   // Share sitemap/feed's serving origin; the exporter rewrites it for its destination.
   const specDeps: LlmsTxtRouteDeps = documentDeps({ deps, extra: { resolveSiteTitle: siteTitleFor({ deps }) } });
-  mountPublicRawRoute({ app, spec: llmsTxtRoute, deps: specDeps, failure: textFailure({ operation: "public:llms", subject: "the site index" }) });
+  mountDocument({ app, spec: llmsTxtRoute, deps: specDeps, failure: textFailure({ operation: "public:llms", subject: "the site index" }) });
 };
 
 /**
@@ -103,5 +117,5 @@ export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options 
  */
 export const registerFeedRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const specDeps: FeedRouteDeps = documentDeps({ deps, extra: { resolveSiteTitle: siteTitleFor({ deps }) } });
-  mountPublicRawRoute({ app, spec: feedRoute, deps: specDeps, failure: textFailure({ operation: "public:feed", subject: "the feed" }) });
+  mountDocument({ app, spec: feedRoute, deps: specDeps, failure: textFailure({ operation: "public:feed", subject: "the feed" }) });
 };
