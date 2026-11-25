@@ -99,9 +99,12 @@ export async function readMediaGridPage(
     let page = gridScope({ db, workspaceId: required.workspaceId }).where(gridTabPredicate({ tab: required.tab })).selectAll("media");
     if (after) {
       // Same-instant rows are only totally ordered by id, so the boundary must compare the pair.
-      page = page.where((eb) => eb("media.created_at", "<", after.sortValue));
+      page = page.where((eb) => eb.or([
+        eb("media.created_at", "<", after.sortValue),
+        eb.and([eb("media.created_at", "=", after.sortValue), eb("media.id", "<", after.id)]),
+      ]));
     }
-    const rows = await page.orderBy("media.created_at", "desc").limit(required.limit + 1).execute();
+    const rows = await page.orderBy("media.created_at", "desc").orderBy("media.id", "desc").limit(required.limit + 1).execute();
     return { rows: rows.map((row) => toMediaRecord(row)), ...(await readGridSummary({ db, workspaceId: required.workspaceId })) };
   });
 }
