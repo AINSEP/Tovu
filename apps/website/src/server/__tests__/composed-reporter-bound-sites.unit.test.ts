@@ -126,3 +126,4 @@ for (const [path, register] of [["/newsletter/confirm", registerPublicNewsletter
   assert.equal(response.status, 500);
   probe.assertOneIncident({ errorId: REF.exec(String(response.body))?.[1], thrown });
 });
+

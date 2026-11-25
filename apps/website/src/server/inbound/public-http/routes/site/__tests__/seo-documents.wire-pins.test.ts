@@ -9,6 +9,7 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { composedReporterProbe, secretBearingError } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 import { registerFeedRoute, registerLlmsTxtRoute, registerSeoRobotsRoute, registerSeoSitemapRoute } from "../seo-documents.js";
 
@@ -90,3 +91,20 @@ for (const { path, register, contentType } of DOCUMENTS) {
     assert.ok(stale.bodyBytes > 0);
   });
 }
+
+/** Codex FIX 4: the SEO document failure writer records through the site's composed reporter. */
+test("GET /sitemap.xml: a build failure is one composed incident", async (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const base = createRouteDeps();
+  await base.siteTitleReady;
+  const deps: SeoRouteDeps = { ...base };
+  deps.seoDeps = createSeoDeps({ deps }, {});
+  deps.sitemapService = { ...createSitemapService({ deps: deps.seoDeps }, {}), buildSitemap: async () => { throw thrown; } };
+  const app = express();
+  app.use((_req, res, next) => { res.locals.failureReporter = probe.reporter; next(); });
+  registerSeoSitemapRoute({ app, deps });
+  const url = await startTestServer(app, t);
+  const response = await fetch(`${url}/sitemap.xml`);
+  assert.equal(response.status, 500);
+  probe.assertOneIncident({ errorId: /Error ID: (ERR-[0-9A-F-]+)/.exec(await response.text())?.[1], thrown });
+});

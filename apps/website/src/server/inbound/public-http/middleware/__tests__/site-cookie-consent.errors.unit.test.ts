@@ -15,6 +15,7 @@ const readFileSync: typeof fs.readFileSync = ((file: Parameters<typeof fs.readFi
 }) as typeof fs.readFileSync;
 mock.module('node:fs', { namedExports: { ...fs, readFileSync }, defaultExport: { ...fs, readFileSync } });
 const { applySiteCookieConsent } = await import('../site-cookie-consent.js');
+const { composedReporterProbe, secretBearingError } = await import('#src/server/__tests__/helpers/composed-reporter-probe');
 
 test('consent failures retain redacted diagnostics and public incident references', async (t) => {
   const warnings: unknown[][] = []; const errors: unknown[][] = [];
@@ -73,4 +74,34 @@ test('consent failures retain redacted diagnostics and public incident reference
       assert.doesNotMatch(JSON.stringify({ body, detail }), /SECRETSECRETSECRETSECRET|PRIVATE_VISITOR_BODY/);
     }
   } finally { failAssets = false; }
+});
+
+/** Codex FIX 4: each consent failure records through the site's composed reporter: one incident per failure. */
+for (const [route, status] of [['POST /_consent', 503], ['GET /_consent/context', 503], ['GET /_consent/load.js', 503]] as const) test(`${route}: a failure is one composed incident`, async (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  t.mock.method(console, 'warn', () => {});
+  const handlers = new Map<string, (req: Request, res: Response) => Promise<void>>();
+  const app = {
+    use() {},
+    get: (path: string, handler: (req: Request, res: Response) => Promise<void>) => { handlers.set(`GET ${path}`, handler); },
+    post: (path: string, _body: unknown, handler: (req: Request, res: Response) => Promise<void>) => { handlers.set(`POST ${path}`, handler); },
+  } as unknown as Express;
+  const failRead = route.startsWith('POST');
+  const consent: SiteCookieConsentDeps = { regionResolvers: async () => { throw thrown; } };
+  const deps = {
+    cookieConsent: consent, workspaceId: 'ws', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/consent-fixture' }, clock: { nowMs: Date.now },
+    consentStore: { readPublished: async () => {
+      if (failRead) throw thrown;
+      return { id: 'published', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } };
+    } },
+    resolveActiveThemeId: async () => { throw thrown; },
+  } as unknown as RouteDeps;
+  applySiteCookieConsent({ app, deps, consent });
+  let replyStatus = 200; let body: unknown;
+  const res = { locals: { failureReporter: probe.reporter }, status(value: number) { replyStatus = value; return res; }, set() { return res; }, type() { return res; }, json(value: unknown) { body = value; return res; }, send(value: unknown) { body = value; return res; } };
+  const req = { body: Buffer.from('{}'), method: route.split(' ')[0], originalUrl: '/_consent', get: () => undefined, ip: '127.0.0.1' };
+  await handlers.get(route)!(req as unknown as Request, res as unknown as Response);
+  assert.equal(replyStatus, status);
+  const text = typeof body === 'string' ? body : JSON.stringify(body);
+  probe.assertOneIncident({ errorId: /(ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/.exec(text)?.[1], thrown });
 });
