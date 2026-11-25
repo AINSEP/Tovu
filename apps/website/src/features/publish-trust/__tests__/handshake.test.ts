@@ -13,7 +13,7 @@ import {
 } from "../challenge.js";
 import { isPublishTrustRoute, parsePublishTrustGrant, PUBLISH_TRUST_GRANT_VERSION } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
-import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "../session.js";
+import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "@jini-ai/cms/publish/trust/session";
 
 /**
  * @file End-to-end handshake proofs: challenge -> signature -> session -> use.

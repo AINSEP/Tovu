@@ -10,7 +10,7 @@ import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { issuePublishChallenge, verifyChallengeResponse, type PublishChallengeResponse, type PublishChallengeStorePort } from "#src/features/publish-trust/challenge";
 import { isGrantActive, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
-import { mintPublishSession } from "#src/features/publish-trust/session";
+import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
 import { isNoSiteKeyError } from "#src/features/webhooks/keyring.env";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 

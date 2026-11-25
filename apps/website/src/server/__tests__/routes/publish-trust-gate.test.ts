@@ -13,7 +13,7 @@ import { PUBLISH_TRUST_GRANT_VERSION, type PublishingCapability } from "@jini-ai
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { parseGrantDocument, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
-import { mintPublishSession } from "#src/features/publish-trust/session";
+import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { loginAsOwner } from "../helpers/http-test-server.js";

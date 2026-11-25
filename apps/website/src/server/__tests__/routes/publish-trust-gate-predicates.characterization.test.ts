@@ -10,7 +10,7 @@ import { createFixedKeyring } from "#src/features/publish-trust/__tests__/suppor
 import type { PublishChallengeRecord, PublishChallengeStorePort } from "#src/features/publish-trust/challenge";
 import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import type { PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
-import { mintPublishSession } from "#src/features/publish-trust/session";
+import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registerPublishTrustHandshakeRoutes } from "#src/server/runtime/composition/modules/publish-trust";
 

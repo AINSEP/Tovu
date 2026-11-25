@@ -12,7 +12,7 @@ import { fetchDestinationIdentity, PUBLISH_TRUST_HANDSHAKE_BASE, PublishTrustHan
 import { deriveInstallationId, derivePublishSigningKey, PUBLISH_PRINCIPAL_ID_PREFIX, publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
 import { PUBLISH_TRUST_CONFIG_PATH } from "@jini-ai/cms/publish/trust/provisioning";
 import { PUBLISH_TRUST_ENV_VAR } from "../host-settings.js";
-import { mintPublishSession } from "../session.js";
+import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
 import { createFixedKeyring } from "./support/fixed-keyring.js";
 
 /**
