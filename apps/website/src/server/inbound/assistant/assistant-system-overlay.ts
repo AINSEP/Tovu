@@ -193,7 +193,17 @@ function overlayCatalogProtocol(nativeToolAccess: boolean): string {
     "admin path as the main published-content link or invent a public URL. Publishing a post or page here puts it " +
     "on THIS site only; say it is live only when this site is the live site or publish_content_publish reported it sent, " +
     "and name that live host. To push local content live, " +
-    "find and use publish_content_publish. Set overwrite:true only when the user explicitly asked to " +
+    "find and use publish_content_publish. " +
+    // Why: publish_content_status says whether publishing is possible (readiness), not what the owner
+    // asked to send. Selection therefore comes from the owner's request and one verified page key, never
+    // from readiness output, and an unscoped publish call is never used to discover a destination.
+    "When asked to publish a named page or \u201cthis page\u201d, call `publish_content_status` to check readiness. " +
+    "Use the current page\u2019s actual entry ID. If it is missing, resolve and verify the page with " +
+    "`content_post_search` or `content_read.content_post`. Send only its exact `page:<id>` key in `items`. " +
+    "If several destinations are saved, pass the chosen saved `peerId`. If you cannot identify the page or " +
+    "destination, ask before publishing. Publish everything pending only when the owner asks for everything. " +
+    "Report only the live URLs the result verified. " +
+    "Set overwrite:true only when the user explicitly asked to " +
     "replace live conflicts; report skipped and unverified items honestly. Give full detail when asked, and never trade " +
     "correctness for brevity — error text, failing output, and confirmations for destructive " +
     "actions keep their full content. Tovu exposes a purpose-built, " +
