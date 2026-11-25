@@ -31,7 +31,9 @@
  *    checks `agent.abortController.signal.aborted` for that earlier-timing case.
  */
 import { HttpAgent } from "@ag-ui/client";
-import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
+import { createAgUiRunClient, type AcceptedAgUiRun, type AgUiDurableLocalCliBinding, type AgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
+import type { RunHandlers } from "@jini-ai/chat/core";
+import { browserDurableSubscriptionPorts, followDurableRun } from "./durable-run-subscription";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 /** Must match `apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH` exactly. */
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -64,9 +66,72 @@ function mintAgUiId(): string {
  *  string is all a `ChatTransport` method receives. Mirrors `BYOK_RUN_ID_PREFIX`'s exact role. */
 const AG_UI_RUN_ID_PREFIX = "agui:";
 
-const client = createAgUiRunClient({ ports: { endpoint: AG_UI_RUN_PATH, runIdPrefix: AG_UI_RUN_ID_PREFIX, customEventNames: CUSTOM_EVENT_NAMES,
- mintId: () => mintAgUiId(),
- createAgent: ({ url, threadId }) => new HttpAgent({ url, threadId, fetch: (url, init) => fetch(url, { ...init, credentials: "same-origin" }) }),
+/** The two durable operations the AG-UI binding borrows from the Local CLI lifecycle: follow the
+ *  canonical run through the existing checkpoint subscription, and the existing owned run-cancel. */
+export interface AdminAgUiDurablePorts {
+  followRun(required: AcceptedAgUiRun & { handlers: RunHandlers; signal: AbortSignal }, optional: Record<string, never>): void;
+  cancelRun(required: AcceptedAgUiRun, optional: Record<string, never>): Promise<void>;
+}
+
+/** `assistant-ag-ui.ts`'s durable-identity field: a start that carries it gets the owned durable run. */
+interface DurableRunProps { readonly conversationId: string; readonly assistantMessageId: string }
+
+function durableRunProps(forwardedProps: unknown): DurableRunProps | undefined {
+  const value = (forwardedProps as { durableRun?: Partial<DurableRunProps> } | null | undefined)?.durableRun;
+  return typeof value?.conversationId === "string" && typeof value.assistantMessageId === "string"
+    ? { conversationId: value.conversationId, assistantMessageId: value.assistantMessageId } : undefined;
+}
+
+/**
+ * Binds AG-UI starts to the durable Local CLI lifecycle. The wire request names the prepared
+ * message/conversation so the server accepts the one owned run for it; `RUN_STARTED` then names
+ * that canonical run (not this segment), and from there the saved checkpoint is the only transcript.
+ * A start without prepared identity, or a server answer that names only the segment, stays
+ * delivery-only rather than pretending to be durable.
+ * @complexity O(1). */
+export function adminAgUiDurableBinding({ ports }: { ports: AdminAgUiDurablePorts }, _optional: Record<string, never> = {}): AgUiDurableLocalCliBinding {
+  return {
+    prepareRunInput: ({ wire, launch }) => {
+      if (!launch.messageId || !launch.conversationId) return wire;
+      const forwarded = typeof wire.forwardedProps === "object" && wire.forwardedProps !== null ? wire.forwardedProps as Record<string, unknown> : {};
+      // The prepared launch's agent selection is the one the Local CLI acceptance would send.
+      return { ...wire, forwardedProps: { ...forwarded, ...(launch.agentId ? { agentId: launch.agentId } : {}),
+        durableRun: { conversationId: launch.conversationId, assistantMessageId: launch.messageId } } };
+    },
+    readAcceptedRun: ({ event, input }) => {
+      const durable = durableRunProps(input.forwardedProps);
+      if (!durable || event.runId === input.runId) return undefined;
+      return { runId: event.runId, messageId: durable.assistantMessageId, conversationId: event.threadId };
+    },
+    followAcceptedRun: (required) => ports.followRun(required, {}),
+    cancelAcceptedRun: (required) => ports.cancelRun(required, {}),
+  };
+}
+
+/** The admin's AG-UI run client over the real `HttpAgent`, with its durable ports injected.
+ * @complexity O(1). */
+export function createAdminAgUiRunClient({ durable }: { durable: AdminAgUiDurablePorts }, _optional: Record<string, never> = {}): AgUiRunClient {
+  return createAgUiRunClient({ ports: { endpoint: AG_UI_RUN_PATH, runIdPrefix: AG_UI_RUN_ID_PREFIX, customEventNames: CUSTOM_EVENT_NAMES,
+    mintId: () => mintAgUiId(),
+    createAgent: ({ url, threadId }) => new HttpAgent({ url, threadId, fetch: (url, init) => fetch(url, { ...init, credentials: "same-origin" }) }),
+    durableLocalCli: adminAgUiDurableBinding({ ports: durable }, {}),
+  } }, {});
+}
+
+/** Explicit Stop of an accepted AG-UI run: the same owned `/api/runs/:runId/cancel` the Local CLI
+ *  path posts to, with the message binding so a Stop racing acceptance still lands. */
+async function cancelAcceptedRunOverHttp({ runId, messageId, conversationId }: AcceptedAgUiRun, _optional: Record<string, never> = {}): Promise<void> {
+  const response = await fetch(`/api/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runId, messageId, conversationId }) });
+  // 404: the run is already gone, so nothing is left running to stop.
+  if (!response.ok && response.status !== 404) throw new Error(`Stopping the assistant failed (HTTP ${response.status}).`);
+}
+
+const client = createAdminAgUiRunClient({ durable: {
+  followRun: ({ runId, messageId, conversationId, handlers, signal }) => {
+    followDurableRun({ runId, handlers, signal, binding: { messageId, conversationId }, ports: browserDurableSubscriptionPorts({}, {}) }, {});
+  },
+  cancelRun: (required) => cancelAcceptedRunOverHttp(required, {}),
 } }, {});
 
 /** Share the same client with the main transport so stop reaches its in-flight run. */

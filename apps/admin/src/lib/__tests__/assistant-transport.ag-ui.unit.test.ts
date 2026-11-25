@@ -10,6 +10,8 @@ import type { RunHandlers } from "@jini-ai/chat/react";
 import {
   AG_UI_RUN_PATH,
   agUiRunClient,
+  createAdminAgUiRunClient,
+  type AdminAgUiDurablePorts,
   isAgUiTransportEnabled,
 } from "../assistant-transport-ag-ui";
 import { createTovuAssistantTransport } from "../assistant-transport";
@@ -633,6 +635,9 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
   });
 });
 
+// These pins cover the delivery-only AG-UI segment (an `agui:` id, no durable identity). A durable
+// start resolves with its canonical run id instead, and its reopen/Stop are pinned in
+// "durable AG-UI binding (Local CLI lifecycle)" below.
 describe("reattachAgUiRun / fetchAgUiRunStatus / stopAgUiRun", () => {
   test("reattachAgUiRun reports the run as simply done, with no events — there is nothing to resume", async () => {
     const h = handlers();
@@ -807,5 +812,88 @@ describe("createTovuAssistantTransport — AG-UI toggle dispatch", () => {
     // No server-side run record exists for an AG-UI id — confirms this went through
     // `fetchAgUiRunStatus` (always null), not the daemon branch's `GET /api/runs/:id`.
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("durable AG-UI binding (Local CLI lifecycle)", () => {
+  const LAUNCH = { contextRef: {}, agentId: "claude", messageId: "msg-a1", conversationId: "conv-1" };
+
+  /** A server that accepted the owned run: RUN_STARTED names the canonical run, then the live
+   *  segment streams deltas the checkpoint already holds. */
+  function acceptedSegment(): Response {
+    return new Response(streamFromChunks([
+      frame({ type: EventType.RUN_STARTED, threadId: "conv-1", runId: "run-durable-1" }),
+      frame({ type: EventType.TEXT_MESSAGE_START, messageId: "seg-m", role: "assistant" }),
+      frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "seg-m", delta: "Durable answer." }),
+      frame({ type: EventType.TEXT_MESSAGE_END, messageId: "seg-m" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "conv-1", runId: "run-durable-1" }),
+    ]), { status: 200 });
+  }
+
+  function durablePorts() {
+    const follows: string[] = [];
+    const cancels: Array<{ runId: string; messageId: string; conversationId: string }> = [];
+    const ports: AdminAgUiDurablePorts = {
+      // The existing checkpoint subscription: one authoritative transcript per follow.
+      followRun: ({ runId, handlers: h }) => {
+        follows.push(runId);
+        h.onEvent({ kind: "text", text: "Durable answer." } as AgentEvent);
+        h.onDone([{ kind: "text", text: "Durable answer." } as AgentEvent]);
+      },
+      cancelRun: async (accepted) => { cancels.push(accepted); },
+    };
+    return { ports, follows, cancels };
+  }
+
+  async function startDurable(client: ReturnType<typeof createAdminAgUiRunClient>, bindings: Array<{ runId: string }>) {
+    const h = handlers();
+    const cancel = new AbortController();
+    const detach = new AbortController();
+    const result = await client.startAgUiRun({ input: { history: HISTORY, signal: detach.signal, cancelSignal: cancel.signal },
+      handlers: h, durable: { launch: LAUNCH, bindRun: (bound) => bindings.push(bound) } }, {});
+    for (let i = 0; i < 4; i += 1) await flushMicrotasks();
+    return { h, result, cancel, detach };
+  }
+
+  test("reopening an AG-UI conversation follows its actual run without duplicate deltas", async () => {
+    fetchMock = vi.fn(async () => acceptedSegment());
+    vi.stubGlobal("fetch", fetchMock);
+    const { ports, follows } = durablePorts();
+    const client = createAdminAgUiRunClient({ durable: ports }, {});
+    const bindings: Array<{ runId: string }> = [];
+
+    const first = await startDurable(client, bindings);
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string) as { runId: string; forwardedProps: Record<string, unknown> };
+    expect(body.forwardedProps).toMatchObject({ agentId: "claude", durableRun: { conversationId: "conv-1", assistantMessageId: "msg-a1" } });
+    expect(body.runId).toMatch(/^agui:/);
+    expect(first.result.runId).toBe("run-durable-1");
+
+    const reopened = await startDurable(client, bindings);
+    expect(reopened.result.runId).toBe("run-durable-1");
+    expect(bindings).toEqual([
+      { runId: "run-durable-1", binding: { messageId: "msg-a1", conversationId: "conv-1" } },
+      { runId: "run-durable-1", binding: { messageId: "msg-a1", conversationId: "conv-1" } },
+    ]);
+    expect(follows).toEqual(["run-durable-1", "run-durable-1"]);
+    for (const { h } of [first, reopened]) {
+      const texts = h.events.filter((event) => event.kind === "text");
+      expect(texts).toEqual([{ kind: "text", text: "Durable answer." }]);
+      expect(h.errors).toEqual([]);
+    }
+  });
+
+  test("explicit Stop of an accepted AG-UI run reaches the owned cancel once; a detach never does", async () => {
+    fetchMock = vi.fn(async () => acceptedSegment());
+    vi.stubGlobal("fetch", fetchMock);
+    const { ports, cancels } = durablePorts();
+    const client = createAdminAgUiRunClient({ durable: ports }, {});
+    const { cancel, detach } = await startDurable(client, []);
+    detach.abort();
+    await flushMicrotasks();
+    expect(cancels).toEqual([], "a reload/detach is not Stop");
+    cancel.abort();
+    await client.stopAgUiRun({ runId: "run-durable-1" }, {});
+    await client.stopAgUiRun({ runId: "run-durable-1" }, {});
+    expect(cancels).toEqual([{ runId: "run-durable-1", messageId: "msg-a1", conversationId: "conv-1" }]);
   });
 });
