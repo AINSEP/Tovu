@@ -1,11 +1,12 @@
+import type { Request } from "express";
 import type { Express } from "express";
 import { siteSearchRoute, type SiteSearchRouteDeps as SiteSearchSpecDeps } from "@jini-ai/search/public-http/routes/site/search";
 
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import { mountPublicJsonRoute } from "../../../admin-http/admin-json-route-ports.js";
-import { captureVisitorEvent } from "../../visitor-analytics.js";
-import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
+import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 
 /**
@@ -23,7 +24,7 @@ const MAX_COLLECTIONS = 10;
 const SEARCH_LIMITS = { maxTextLength: SEARCH_QUERY_MAX_LENGTH, maxCollections: MAX_COLLECTIONS, maxLimit: SEARCH_ROUTE_MAX_LIMIT, maxCursorLength: MAX_CURSOR_LENGTH };
 
 /** The narrow deps this route needs. Absent `siteSearch` = this composition has no search. */
-export interface SiteSearchRouteDeps extends VisitorAnalyticsDeps {
+export interface SiteSearchRouteDeps extends VisitorAnalyticsDeps<Request> {
   readonly siteSearch?: SiteSearchRuntime;
   readonly clock?: { nowMs(): number };
 }

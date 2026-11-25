@@ -8,7 +8,7 @@ import express from "express";
 import { CONFIG_ID, CONSENT_COOKIE } from "@jini-ai/cookie-consent";
 import type { RouteDeps } from "#src/server/routes/types";
 import { CACHE_CONTROL_PUBLIC_PAGE } from "../request-policy.js";
-import { CACHE_CONTROL_PRE_CONSENT_TRACKING } from "../pre-consent-cache.js";
+import { CACHE_CONTROL_PRE_CONSENT_TRACKING } from "@jini-ai/cookie-consent/site/pre-consent-cache";
 import { sendPublicPage } from "../response.js";
 
 /**
@@ -68,4 +68,12 @@ test("a page with no consent-gated scripts stays an ordinary public page, with n
   const res = await fetch(`${base}/plain`);
   assert.equal(res.headers.get("cache-control"), CACHE_CONTROL_PUBLIC_PAGE);
   assert.ok(!varyTokens(res).includes("cookie"));
+});
+
+
+test("an invalid cookie on a page with gated scripts does not make it public-cacheable", async (t) => {
+  const base = await startServer(t);
+  const response = await fetch(`${base}/tracked`, { headers: { cookie: `${CONSENT_COOKIE}=${encodeURIComponent(JSON.stringify({ v: 1, a: "accept" }))}` } });
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.match(await response.text(), /analytics\.example\/t\.js/);
 });

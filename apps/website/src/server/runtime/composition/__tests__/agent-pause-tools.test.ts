@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { HumanConfirmOutcome } from "../../../../contracts/core/human-confirm.js";
+import type { HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { buildAgentPauseRegistrations, RESUME_AGENT_WORK_TOOL_ID } from "../agent-pause-tools.js";
 import { createAgentPauseGate, createMemoryAgentPauseHoldStore } from "../agent-pause-gate.js";
 

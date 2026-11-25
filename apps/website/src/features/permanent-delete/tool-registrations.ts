@@ -1,4 +1,4 @@
-import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/permanent-delete';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";

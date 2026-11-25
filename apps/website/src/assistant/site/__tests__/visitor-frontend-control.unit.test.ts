@@ -11,7 +11,8 @@ import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/platfor
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
-import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/server/inbound/public-http/routes/site-assistant-confirm';
+import { registerSiteAssistantConfirm } from '#src/server/inbound/public-http/routes/site-assistant-confirm';
+import { SITE_ASSISTANT_CONFIRM_PATH } from '@jini-ai/daemon/surface-exchanges/site-assistant-confirm';
 
 /** What the composition root lends the visitor control: the real mount, host and timer, so these tests go through the same path the site uses. */
 const TEST_PORTS = { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput };

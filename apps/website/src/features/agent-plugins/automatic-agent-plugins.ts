@@ -3,7 +3,7 @@ import { createAutomaticAgentPluginUse, readChatAgentPluginState, type Automatic
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, optionalString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
 import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import type { AgentPluginGuidanceAttempt, AgentPluginGuidanceOffer, PrepareToolGuidance } from '@jini-ai/core/contracts/site/daemon';
-import type { ChatDeleteSurfaceDeps } from '../../contracts/core/chat-delete-grant.js';
+import type { ChatDeleteSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from './tool-registrations.js';
 import { formatPluginToolPointer } from './bundled-catalog.js';
 import type { PluginMaturity } from '@jini-ai/agent-plugins/lifecycle/host-tools';

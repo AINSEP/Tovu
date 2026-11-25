@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/identity';
 import { withToolMetadata } from '@jini-ai/core';
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";

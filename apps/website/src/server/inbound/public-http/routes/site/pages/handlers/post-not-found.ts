@@ -1,4 +1,4 @@
-import { captureVisitorEvent } from "../../../../visitor-analytics.js";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { NextFunction, Request, Response } from "express";
 import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import type { DiscoveredTheme } from "#src/features/theme/theme";

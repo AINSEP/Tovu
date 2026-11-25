@@ -2,7 +2,7 @@ import { validateSchedule as validateRoutineSchedule, type RoutineSchedule } fro
 import { getEffective as getEffectiveSetting, LANGUAGE_NAMESPACE } from "@jini-ai/core/settings";
 import type { RoutineActor, RoutineAvailability } from "@tovu/contracts/routines";
 import { approvalText } from "#src/contracts/core/approval-i18n";
-import type { HumanConfirmSurfaceDeps } from "#src/contracts/core/human-confirm";
+import type { HumanConfirmSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { RoutineAccess, RoutineCommands } from "#src/features/routines/routine-commands";
 import type { RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
 import type { AssistantRoutinesHandle } from "./assistant-routines.js";

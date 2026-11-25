@@ -18,7 +18,7 @@ import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-
 import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
 import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
 import type { MemberSignInResult } from "@jini-ai/user-management/members/ports";
-import { captureVisitorEvent } from "#src/server/inbound/public-http/visitor-analytics";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import { captureMemberSignedIn, observeMemberSignInFailure } from "#src/server/inbound/public-http/routes/members/analytics";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";

@@ -115,3 +115,12 @@ test("the byok surfaces carry the receipt port to human-confirm only when suppli
   assert.equal((surfacesWithReceipts({ surfaceExchanges }, { approvalReceiptsFor: receipts }) as { approvalReceiptsFor?: unknown }).approvalReceiptsFor, receipts);
   assert.deepEqual(Object.keys(surfacesWithReceipts({ surfaceExchanges })), ["surfaceExchanges"]);
 });
+
+
+test("passes the existing localized desktop availability notice and only that host copy", async () => {
+  const host = servingRoutineToolOptions(base(deferred().promise), { localeFor: async () => "it" }).routines!;
+  await host.resolveOwnerActor({ principalId: OWNER });
+  assert.equal(host.copy({ key: "This routine runs only while Tovu is open and your computer is awake" }), "Questa routine viene eseguita solo mentre Tovu è aperto e il computer è attivo");
+  assert.equal(host.copy({ key: "Create routine" }), "Crea routine");
+  assert.equal(host.copy({ key: "Unknown catalog title" }), "Unknown catalog title");
+});

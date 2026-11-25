@@ -1,4 +1,4 @@
-import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
+import type { ChatDeleteSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { deployOpsToolMetadata as toolMetadata } from '../../../contracts/core/tool-metadata/index.js';
 import { bindDeploySecretCards } from './typed-secret-card.js';
 import { adaptLegacyAuthorize, requireToolPermission, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolContributor, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
