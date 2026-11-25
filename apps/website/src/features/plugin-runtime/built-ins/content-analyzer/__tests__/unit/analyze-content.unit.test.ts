@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { analyzeContent } from "../../analyze-content.js";
-import { countSyllables, type CheckId, type ContentAnalysisReport, type ContentCheck } from "@jini-ai/cms/seo/content-analysis";
+import { analyzeContentWithSiteSlug as analyzeContent, countSyllables, type CheckId, type ContentAnalysisReport, type ContentCheck } from "@jini-ai/cms/seo/content-analysis";
 import type { ContentBlock } from "@jini-ai/core/contracts/site/seo-content-analysis";
 
 /**
