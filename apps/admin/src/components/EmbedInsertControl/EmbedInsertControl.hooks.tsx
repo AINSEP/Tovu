@@ -1,31 +1,19 @@
 import { t as translateForEmbedInsertControl } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import type { WidgetPickerPort } from "@jini-ai/admin/shell/components/WidgetPickerDialog/widget-picker-port.hooks";
-import { useState } from "react";
+import {
+  createEmbedInsertControlTranslator as jiniCreateEmbedInsertControlTranslator,
+  useEmbedInsertControl as useJiniEmbedInsertControl,
+  type EmbedEditor,
+} from "@jini-ai/cms/react/widgets/EmbedInsertControl/EmbedInsertControl.hooks";
 import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 
 /**
- * @file `EmbedInsertControl`'s own state — the menu open/closed flag, the Media-picker-open flag,
- * the Widget…-mode flag, and the two pinned `useWidgetAddControl` instances (Form/Menu) — split out
- * of the component so it can be swapped for a fake via the `useEmbed` prop on
- * `EmbedInsertControlProps`, see that prop's doc comment in `EmbedInsertControl.tsx`. Same split
- * `ConfirmDialog`/`ConfirmDialog.hooks.tsx` uses in `@jini-ai/admin`, and the same one
- * `WidgetPickerDialog.tsx`/`WidgetPickerDialog.hooks.tsx` already applies in this app.
+ * @file The host binding of `@jini-ai/cms`'s `useEmbedInsertControl`: Tovu's widget add-control
+ * hook and placement-id minting, and the shared-components dictionary for its copy.
  */
 
-export interface EmbedEditor {
-  commands: {
-    // 2026-09-11: the "Media" menu item now inserts the generic `media` node (`insertMediaEmbed`,
-    // `lib/media-embed-extension.tsx`) instead of the legacy `image`-only ref node. That node's own
-    // `insertMediaRef` command is gone — deleted as dead code in 2f53240d once this control stopped
-    // calling it; `MediaImage` still RENDERS backward-compat ref content, it just has no insert
-    // command of its own any more, and the "Insert image by URL" button uses the unrelated legacy
-    // `src`-only `setImage`. See `media-embed-extension.tsx`'s header for why one dispatching node
-    // replaces a per-kind one.
-    insertMediaEmbed: (attrs: { assetId: string; transformName: string; alt?: string }) => boolean;
-    insertWidgetEmbed: (attrs: { placementId: string; widgetEntryId: string }) => boolean;
-  };
-}
+export type { EmbedEditor };
 
 /** Same placement-id minting `widget-embed-extension.tsx` uses: a bare UUID, or a `placement-`
  *  prefixed fallback id where the browser has no `crypto.randomUUID`. */
@@ -33,44 +21,12 @@ function newPlacementId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `placement-${uniqueId()}`;
 }
 
-/**
- * Owns `EmbedInsertControl`'s menu/dialog visibility state and the two pinned "shortcut"
- * `useWidgetAddControl` instances the Form/Menu menu items drive directly via `setPickerType`
- * (never through `useWidgetAddControl`'s own `selectedType`/`<Select>` step — that path is only
- * exercised by the "Widget…" full flow, via the untouched `WidgetAddControl`).
- *
- * @param input.editor - The live TipTap editor, or `null` before it's ready. Read only through
- *   `insertWidget`'s optional chaining here — the component's own `if (!editor) return null`
- *   early-return still guards the JSX, same as before this split.
- */
+/** The bound state hook; `widgetPort` and `mintPlacementId` stay injectable for tests. */
 export function useEmbedInsertControl({ editor }: { editor: EmbedEditor | null }, { widgetPort, mintPlacementId = newPlacementId }: { widgetPort?: WidgetPickerPort; mintPlacementId?: () => string } = {}) {
-  const [open, setOpen] = useState(false);
-  const [widgetMode, setWidgetMode] = useState(false);
-  const [mediaPicking, setMediaPicking] = useState(false);
-
-  // A TipTap command returns false when it cannot apply (the schema refuses the node at the current
-  // selection). Ignoring that reported a placement that never happened as a success: the picker
-  // closed and nothing appeared. Throwing hands it to `useWidgetAddControl`'s existing onResolved
-  // catch, which shows "failed to place widget" / "created but not placed" in the control's error
-  // slot. A null editor stays a no-op: the component renders nothing until the editor exists.
-  const insertWidget = ({ widgetEntryId }: { widgetEntryId: string }, _options: Record<string, never> = {}) => {
-    if (!editor) return;
-    const placed = editor.commands.insertWidgetEmbed({ placementId: mintPlacementId(), widgetEntryId });
-    if (!placed) throw new Error("the editor could not place the widget at the cursor");
-  };
-
-  const onResolved = (widgetEntryId: string) => insertWidget({ widgetEntryId });
-  const formControl = useWidgetAddControl({ triggerLabel: "Form", onResolved }, { port: widgetPort });
-  const menuControl = useWidgetAddControl({ triggerLabel: "Menu", onResolved }, { port: widgetPort });
-  const galleryControl = useWidgetAddControl({ triggerLabel: "Gallery", onResolved }, { port: widgetPort });
-
-  // `insertWidget` is returned too, not just consumed by the pinned controls above — the
-  // "Widget…" full-flow path in the component's JSX (via the untouched `WidgetAddControl`) calls it
-  // directly from its own `onResolved`, exactly as the pre-split component did inline.
-  return { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget };
+  return useJiniEmbedInsertControl({ editor, useWidgetAddControlHook: useWidgetAddControl, mintPlacementId }, widgetPort ? { widgetPort } : {});
 }
 
 /** Bind this screen's copy to the current locale. */
 export function createEmbedInsertControlTranslator({ locale }: { locale: string }, _options = {}) {
-  return ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateForEmbedInsertControl({ locale, key });
+  return jiniCreateEmbedInsertControlTranslator({ locale, translate: translateForEmbedInsertControl });
 }
