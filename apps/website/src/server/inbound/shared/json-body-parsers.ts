@@ -32,7 +32,8 @@ export const AUTHENTICATED_JSON_BODY_LIMIT = "15mb";
 /** Decoded streamed telemetry bytes, enforced before any larger authenticated parser. */
 export const TELEMETRY_JSON_BODY_LIMIT = "16kb";
 
-/** The limit for publish-content blob/bundle bodies — unchanged since before the video cap, because those routes never carry a video. */
+/** Covers `TOVU_MAX_UPLOAD_BYTES` (50 MiB) once base64 inflates it ~1.33x, plus headroom. This is the limit for publish-content
+ *  blob/bundle bodies — unchanged since before the video cap, because those routes never carry a video. */
 export const LARGE_UPLOAD_JSON_BODY_LIMIT = "75mb";
 
 /** Covers the 500 MiB video limit (`VIDEO_UPLOAD_LIMIT_BYTES`) once base64 inflates it ~1.33x (~667 MiB), plus headroom.
@@ -56,8 +57,8 @@ const AUTHENTICATED_PATH_PREFIXES = [
 /** `registerAuthRoutes` registers login/logout/boot-session under `/api/admin` BEFORE the gate. */
 const UNGATED_ADMIN_AUTH_PREFIX = "/api/admin/v1/auth/";
 
-/** Routes whose JSON carries base64 file bytes, with the limit each may buffer: media upload and replace accept a
- *  video (700 MB), publish-content blob put and bundle create never do (75 MB). */
+/** Routes whose JSON carries base64 file bytes: media upload, publish-content blob put, bundle create. Each carries the limit it
+ *  may buffer: media upload and replace accept a video (700 MB), publish-content blob put and bundle create never do (75 MB). */
 const LARGE_UPLOAD_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp; limit: string }> = [
   { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/media\/?$/, limit: MEDIA_UPLOAD_JSON_BODY_LIMIT },
   { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/media\/[^/]+\/replace\/?$/, limit: MEDIA_UPLOAD_JSON_BODY_LIMIT },

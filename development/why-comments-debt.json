@@ -14012,6 +14012,258 @@
     {
       "id": "4e5e4ab9e70d",
       "reason": "Reworded in place in 360541098: the test no longer hand-lists publisher ids; the new comment at the same line explains the disk-derived tovu/ vs jini/ rule."
+    },
+    {
+      "id": "31f22c0d0f07",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/AssistantDock/DockLeadingAccessory.tsx:16 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "d4db3563aaba",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/AssistantDock/DockLeadingAccessory.tsx:65 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "ca766d53c966",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/AssistantDock/hooks/assistant-mcp-ui.ts:24 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "6d6f1228c90b",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/resolve-composer-discovery-outcome.ts:24 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "87f4a5bdc6d9",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks.ts:43 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "355360c6f48b",
+      "reason": "Code now at Tovu apps/admin/src/lib/chat-fab-storage-key.ts:6; comment reworded in place (references updated to the new structure)."
+    },
+    {
+      "id": "ccf5497b015d",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/ChatFab/ChatFab.tsx:102 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "5fc17d901583",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/MailStatusBanner/hooks/use-mail-status-banner.hooks.ts:14 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "3b25ca68738f",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/MediaPickerDialog/media-picker-port.hooks.ts:20 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "fab5deb992f3",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/SecretInput/SecretInput.tsx:18 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "3134aa2094f7",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/SecretInput/SecretInput.tsx:35 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "11edaf437e2f",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/components/WidgetPickerDialog/widget-picker-port.hooks.ts:20 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "b09e5ceaa821",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/auth/api/auth-api.ts:33 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "d86fe0d22b63",
+      "reason": "Reworded in place at apps/admin/src/features/email/api/mail-status-api.ts:6 (now the mail-status feature over the host's request)."
+    },
+    {
+      "id": "a0b55859e19e",
+      "reason": "Header of the Email client; the file is now Jini's createEmailApi factory over injected deps (packages/admin/src/screens/email/email-api.ts), and the old header's route list named host file paths that do not exist in Jini."
+    },
+    {
+      "id": "765a400abbb5",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/email/EmailParts.tsx:12 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "070c24010778",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/import-export/api/import-export-api.ts:19 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "6be928259d16",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/integrations/hooks/use-integrations-redirect.hooks.ts:36 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "03d6c9a07d6a",
+      "reason": "The Library dictionary data moved to Jini (packages/admin/src/screens/library/library-i18n/create-library-dictionary); this file is now a host binding whose new @file header says so."
+    },
+    {
+      "id": "511687c599a3",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/media/rules.ts:40 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "419e77f22f4a",
+      "reason": "Moved with the code to Jini packages/admin/src/media/rules.ts:52; the doc was rewritten around the frozen-item contract of the new diffMediaMetadata signature, and the old text named Tovu backend specifics."
+    },
+    {
+      "id": "af11a4e9ad4c",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/media/rules.ts:120 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "32e7f382caf8",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/media/rules.ts:294 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "ab29d7a86383",
+      "reason": "Moved with the code to Jini packages/admin/src/pages/api/pages-api.ts:27 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "20da3708b47b",
+      "reason": "Moved with the code to Jini packages/admin/src/pages/api/pages-api.ts:42 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "ac4dfdf483e0",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/__tests__/plugins-rules.unit.test.ts:31 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "62fb2c0615ce",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/admin-surface-theme.ts:21 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "472d9bf68568",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/admin-surface-theme.ts:31 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "be0a086a27d8",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/AgentPluginSurfaceFrame.tsx:13 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "41d45879b54a",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/hooks/use-admin-surface-frame.hooks.ts:31 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "f5ba2af4ecc1",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/plugins-visuals.tsx:3 and reworded there (the .tovu-plugin class and 'Jini UI' wording neutralised)."
+    },
+    {
+      "id": "12a8eebc9168",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/plugins-visuals.tsx:54 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "d41c57ef48ab",
+      "reason": "The kebab-case title-casing moved into Jini's agent-plugins module (packages/admin/src/agent-plugins, rules.ts and react/hooks); the old text cited Tovu's deleted TOVU_BUNDLED_AGENT_PLUGINS catalog and host server file paths, so it no longer holds."
+    },
+    {
+      "id": "917ca7dd7f03",
+      "reason": "Moved with the code to Jini packages/admin/src/agent-plugins/rules.ts:44; the glyph-kind doc was rewritten to the neutral tiered-evidence rule, and the old text cited Tovu's deleted id allowlist (TOVU_BUNDLED_AGENT_PLUGINS)."
+    },
+    {
+      "id": "0d1755d83a74",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/rules.ts:574 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "b905aac243f2",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/rules.ts:634 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "72eab7f3dbb2",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/rules.ts:650 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "c21c83e40a6d",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/providers/AlwaysAllowPanel.tsx:12 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "b084dc1f3d40",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/providers/AlwaysAllowPanel.tsx:14 and reworded (the hook prop is now the host's wired hook; IntegrationDeliveriesProps is not in Jini)."
+    },
+    {
+      "id": "0e97c4a688d2",
+      "reason": "Code now at Tovu apps/admin/src/features/providers/hooks/use-always-allow.hooks.ts:13; comment reworded in place (references updated to the new structure)."
+    },
+    {
+      "id": "d95c75a7fd34",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/rules.ts:27 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "934796ff9dc8",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/rules.ts:93 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "276149c11164",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/rules.ts:324 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "ec555101d9c7",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/rules.ts:424 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "ab65efac9e90",
+      "reason": "The swatch-name table now lives in Tovu apps/admin/src/features/settings/AdminAppearance.tsx:73 and is documented there as the shared preset keys plus the host's gold preset; the old per-hex explanation no longer applies."
+    },
+    {
+      "id": "614a29fb53b5",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/rules.ts:499 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "5cf15e53fea2",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/trash/api/trash-api.ts:39 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "3f9daf897e94",
+      "reason": "The Trash dictionary data moved to Jini (packages/admin/src/screens/trash/trash-i18n/create-trash-dictionary); this file is now a host binding whose new @file header says so."
+    },
+    {
+      "id": "5c9d2af93fef",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/voice-input/__tests__/voice-unavailability.unit.test.ts:12 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "3aed90750a72",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/voice-input/hooks/mic-capture.ts:2 and reworded there (VoiceInputPort -> SpeechBridge, host push-to-talk hook)."
+    },
+    {
+      "id": "6cc4a22018d1",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/voice-input/hooks/mic-capture.ts:53 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "5e0a0065aa7d",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/voice-input/hooks/space-hold-config.ts:2 and reworded there (Tovu -> the host)."
+    },
+    {
+      "id": "71cd61f2de59",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/voice-input/voice-input-config.ts:18 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "82efca1c8b18",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/voice-input/voice-unavailability.ts:2 and reworded there (product and desktop file names neutralised)."
+    },
+    {
+      "id": "3375d1f62b18",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/voice-input/voice-unavailability.ts:57 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "fe36176afe02",
+      "reason": "The hook moved to Jini and the test now covers the host binding in apps/admin/src/components/__tests__/CredentialHint.unit.test.tsx:5; the Stryker L13 note concerned the deleted hook test."
+    },
+    {
+      "id": "f3d014b86d97",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/hooks/use-admin-appearance-snapshot.hooks.ts:30 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "0dcc0ebf4b6f",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/hooks/use-interface-preferences.hooks.ts:6 and reworded there (App.tsx / port names updated)."
+    },
+    {
+      "id": "07bc8618534c",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/hooks/use-interface-preferences.hooks.ts:48 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "14b8de2830ba",
+      "reason": "The descriptor-i18n entry left this test's module list when descriptor-i18n moved to Jini (packages/admin/src/shell/lib/descriptor-i18n.ts); the comment explained only that entry."
+    },
+    {
+      "id": "eb4fa899f6f7",
+      "reason": "Moved with the code to Jini packages/admin/src/shell/lib/descriptor-i18n.ts:26 and reworded there (product/host-specific names and paths neutralised or updated to the new structure); the old wording no longer applies verbatim."
+    },
+    {
+      "id": "903bc0664f7d",
+      "reason": "Reworded in place at apps/admin/src/lib/i18n-common.ts:71; the merge rule is now Jini's createCommonDictionary, so the old 'built inline rather than through an exported helper' claim is false."
+    },
+    {
+      "id": "573256b59bfc",
+      "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
     }
   ]
 }
