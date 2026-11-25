@@ -49,7 +49,8 @@ export type RebuildImportDatabaseOptions = WorkerOptions & {
   moduleUrl?: string;
 };
 
-/** Bind this build's trusted declarations, never an archive's catalogue, and the post-search host binding. @complexity O(1) binding. */
+/** Bind this build's trusted declarations, never an archive's catalogue. @complexity O(1) binding. */
+// The post-search host config is bound here too: the same POST_SEARCH_HOST live search uses.
 export function sanitizeShareDatabase(required: { snapshot: Buffer }, optional: Parameters<typeof sanitizeWithModules>[1] = {}) {
   return sanitizeWithModules({ ...required, modules: FIRST_PARTY_DATA_MODULES, searchHost: POST_SEARCH_HOST }, optional);
 }
