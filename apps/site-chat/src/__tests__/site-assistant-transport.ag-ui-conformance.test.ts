@@ -32,7 +32,7 @@ it("the visitor request is an AG-UI 1.0 RunAgentInput and the recorded server re
   const settled = new Promise<void>((resolve) => { resolveDone = resolve; });
   const handlers: RunHandlers = { onEvent: (ev) => events.push(ev), onError: (err) => errors.push(err), onDone: () => { done += 1; resolveDone(); } };
   const finishes: { navigation: boolean }[] = [];
-  const transport = createSiteAssistantTransport({}, { fetch, frontend: { headers: async () => ({}), finish: (args) => { finishes.push(args); } } });
+  const transport = createSiteAssistantTransport({}, { fetch, frontend: { headers: async () => ({}), acceptBrowserInvocation: () => {}, finish: (args) => { finishes.push(args); } } });
   await transport.startRun({ history: [
     { id: "u1", role: "user", content: "earlier question" },
     { id: "a1", role: "assistant", content: "earlier answer" },
