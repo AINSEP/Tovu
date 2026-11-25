@@ -1,7 +1,8 @@
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { usePlugins } from "../hooks/use-plugins.hooks";
+import { usePlugins } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
@@ -17,7 +18,7 @@ describe("plugin lists after assistant tool writes", () => {
     const agentPort = createFakeAgentPluginsPort();
     const siteRead = vi.spyOn(sitePort, "listPlugins").mockResolvedValue({ plugins: [] });
     const agentRead = vi.spyOn(agentPort, "listAgentPlugins").mockResolvedValue({ agentPlugins: [] });
-    const site = renderHook(() => usePlugins({ port: sitePort, locale: "en", t }));
+    const site = renderHook(() => usePlugins({ ...HOST_PLUGINS, port: sitePort, locale: "en", t }));
     const agent = renderHook(() => useAgentPlugins({ port: agentPort, locale: "en", t }));
     await waitFor(() => { expect(site.result.current.plugins).toEqual([]); expect(agent.result.current.agentPlugins).toEqual([]); });
     act(() => publishContentRefresh({ resources: ["taxonomy"] }));

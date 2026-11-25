@@ -4,13 +4,15 @@ import { AdminKitProvider } from "@jini-ai/admin/react/kit";
 import { adminKit } from "@/integrations/jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { AgentPluginRow } from "../AgentPluginRow";
+import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
 import { LINKED_PLUGIN_TIP } from "@jini-ai/admin/screens/plugins/AgentPluginLinkedLock";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { pluginRules } from "../rules";
 
 /** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
  *  mounts once at its root; each render here mounts the app's own kit the same way. */
 function render(ui: ReactElement) {
-  return renderPlain(ui, { wrapper: ({ children }) => <AdminKitProvider kit={adminKit}>{children}</AdminKitProvider> });
+  return renderPlain(ui, { wrapper: ({ children }) => <AdminKitProvider kit={adminKit}><PluginRulesProvider rules={pluginRules}>{children}</PluginRulesProvider></AdminKitProvider> });
 }
 
 it.each([
@@ -36,7 +38,7 @@ it.each([
 
   const row = screen.getByRole("listitem", { name: displayName });
   const summary = within(row).getByRole("button", { name: `${displayName} v2.7.1` });
-  const glyph = summary.querySelector(".agent-plugin-row-glyph svg");
+  const glyph = summary.querySelector(".jini-agent-plugin-row-glyph svg");
   expect(glyph).toHaveAttribute("aria-hidden", "true");
   expect(glyph).toHaveAttribute("width", "18");
   expect(glyph?.querySelector("path")).toHaveAttribute("d", expectedOutline);
@@ -73,8 +75,8 @@ it.each([
   const row = renderExpandedRow({ description: null, maturity }, onToggleExpanded);
   const trigger = within(row).getByRole("button", { name: label });
   expect(trigger.querySelector(".soon")).toHaveTextContent(label);
-  expect(trigger.closest(".agent-plugin-row-maturity")?.previousElementSibling).toHaveClass("agent-plugin-row-version");
-  expect(within(row).getByRole("button", { name: `Tovu Theme v1.0.0 ${label}` })).toHaveClass("agent-plugin-row-summary");
+  expect(trigger.closest(".jini-agent-plugin-row-maturity")?.previousElementSibling).toHaveClass("jini-agent-plugin-row-version");
+  expect(within(row).getByRole("button", { name: `Tovu Theme v1.0.0 ${label}` })).toHaveClass("jini-agent-plugin-row-summary");
   fireEvent.click(trigger);
   expect(onToggleExpanded).not.toHaveBeenCalled();
   fireEvent.mouseLeave(trigger);
@@ -95,7 +97,7 @@ it.each(["toggle", "remove-or-enable"] as const)("a Soon plugin's switch is disa
   const row = screen.getByRole("listitem", { name: "Posthog" });
   const toggle = within(row).getByRole("switch");
   expect(toggle).toBeDisabled();
-  expect(toggle).toHaveClass("agent-plugin-switch--locked");
+  expect(toggle).toHaveClass("jini-agent-plugin-switch--locked");
   fireEvent.click(toggle);
   expect(onToggleEnabled).not.toHaveBeenCalled(); expect(onEnable).not.toHaveBeenCalled();
   expect(within(row).queryByRole("button", { name: "Enable" })).toBeNull();
@@ -124,11 +126,11 @@ it("shows the human summary as paragraphs and never renders the agent-facing des
   });
 
   // The clamped one-liner identifies the row by the summary, not the jargon.
-  const line = row.querySelector(".agent-plugin-row-desc");
+  const line = row.querySelector(".jini-agent-plugin-row-desc");
   expect(line).toHaveTextContent("Builds a theme for your site.");
   expect(line).not.toHaveTextContent("apiVersion");
 
-  const summaryParagraphs = row.querySelectorAll(".agent-plugin-detail-description p");
+  const summaryParagraphs = row.querySelectorAll(".jini-agent-plugin-detail-description p");
   expect([...summaryParagraphs].map((p) => p.textContent)).toEqual([
     "Builds a theme for your site.",
     "Or turns an existing website into one.",
@@ -146,17 +148,17 @@ it("shows the human summary as paragraphs and never renders the agent-facing des
 it("without a summary, renders the description itself as paragraphs and no Technical details toggle", () => {
   const row = renderExpandedRow({ summary: null, description: "First.\nStill first.\n\nSecond." });
 
-  const paragraphs = [...row.querySelectorAll(".agent-plugin-detail-description p")];
+  const paragraphs = [...row.querySelectorAll(".jini-agent-plugin-detail-description p")];
   expect(paragraphs.map((p) => p.innerHTML)).toEqual(["First.<br>Still first.", "Second."]);
   expect(row.querySelector("details")).toBeNull();
-  expect(row.querySelector(".agent-plugin-row-desc")).toHaveAttribute("title", "First.\nStill first.\n\nSecond.");
+  expect(row.querySelector(".jini-agent-plugin-row-desc")).toHaveAttribute("title", "First.\nStill first.\n\nSecond.");
 });
 
 it("renders description text as text, never as markup", () => {
   const row = renderExpandedRow({ summary: null, description: "<img src=x onerror=alert(1)>" });
 
   expect(row.querySelector("img")).toBeNull();
-  expect(row.querySelector(".agent-plugin-detail-description p")).toHaveTextContent("<img src=x onerror=alert(1)>");
+  expect(row.querySelector(".jini-agent-plugin-detail-description p")).toHaveTextContent("<img src=x onerror=alert(1)>");
 });
 
 it("hides the Skills and MCP servers chips when their only entry just repeats the plugin's own id", () => {
@@ -171,7 +173,7 @@ it("hides the Skills and MCP servers chips when their only entry just repeats th
   expect(within(row).queryByText("Skills")).toBeNull();
   expect(within(row).queryByText("Portable components")).toBeNull();
   expect(within(row).queryByText("MCP servers")).toBeNull();
-  expect(row.querySelector(".agent-plugin-chips")).toBeNull();
+  expect(row.querySelector(".jini-agent-plugin-chips")).toBeNull();
 });
 
 it("keeps the Skills and MCP servers chips when they say something the plugin's name does not", () => {

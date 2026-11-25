@@ -1,9 +1,10 @@
+import { pluginRules } from "../rules";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import type { AgentPluginFiles } from "@jini-ai/admin/agent-plugins/models";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
-import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";
+import { useAgentPluginDetailsModal } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 
 /**
  * @file `useAgentPluginDetailsModal` — REWRITTEN 2026-09-13 with the hook itself: it reads
@@ -28,7 +29,7 @@ const SUPABASE_FILES: AgentPluginFiles = {
 describe("useAgentPluginDetailsModal", () => {
   it("lists a switched-off plugin's installed files from the port, defaulting to the first file", async () => {
     const port = createFakeAgentPluginsPort({ files: { supabase: SUPABASE_FILES } });
-    const { result } = renderHook(() => useAgentPluginDetailsModal({ pluginId: "supabase", port, t: identity }));
+    const { result } = renderHook(() => useAgentPluginDetailsModal({ rules: pluginRules, pluginId: "supabase", port, t: identity }));
 
     expect(result.current.status).toEqual({ text: "Loading package files…", role: "status" });
     await waitFor(() => expect(result.current.files.map((file) => file.relativePath)).toEqual(["plugin.json", "skills/supabase/SKILL.md"]));
@@ -41,7 +42,7 @@ describe("useAgentPluginDetailsModal", () => {
 
   it("a failed read reaches the viewer as an alert, not a silently empty list", async () => {
     const port = createFakeAgentPluginsPort();
-    const { result } = renderHook(() => useAgentPluginDetailsModal({ pluginId: "not-installed", port, t: identity }));
+    const { result } = renderHook(() => useAgentPluginDetailsModal({ rules: pluginRules, pluginId: "not-installed", port, t: identity }));
 
     await waitFor(() => expect(result.current.status?.role).toBe("alert"));
     expect(result.current.files).toEqual([]);

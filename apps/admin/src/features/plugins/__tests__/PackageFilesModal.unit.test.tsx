@@ -2,9 +2,9 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { PackageFilesModal, type PackageFilesModalProps } from "../PackageFilesModal";
-import { PluginPackageFilesModal } from "../PluginPackageFilesModal";
-import type { PluginPackageFilesController } from "../hooks/use-plugin-package-files.hooks";
+import { PackageFilesModal, type PackageFilesModalProps } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
+import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
+import type { PluginPackageFilesController } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-package-files.hooks";
 
 /**
  * @file The shared `PackageFilesModal` — the parts the Agent Plugins suites never reach because its
@@ -167,7 +167,7 @@ it("keeps folder icon pairs together and file rows free of expansion state", asy
   const row = screen.getByRole("treeitem", { name: "index.ts" });
   expect(row).not.toHaveAttribute("aria-expanded");
   expect(row).toHaveAttribute("aria-selected", "false");
-  expect(row.querySelector(".agent-plugin-source-tree-twistie")).toHaveAttribute("aria-hidden", "true");
+  expect(row.querySelector(".jini-agent-plugin-source-tree-twistie")).toHaveAttribute("aria-hidden", "true");
   expect(row.querySelector(".ri-code-s-slash-line.is-typescript")).not.toBeNull();
   await userEvent.click(row);
   expect(props.onSelectFile).toHaveBeenCalledWith("src/index.ts");

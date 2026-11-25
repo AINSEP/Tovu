@@ -6,8 +6,9 @@ import { SecretInput, useAgentHandle, useMediaProvidersTab, sortProvidersByConfi
   useTabbedDialog, useCopyToClipboard, findActiveTab, resolveInitialActiveTabId, readableTextColor,
   nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning, resolveSelectedPreset, createExecutionHttpAdapter, requireExecutionResponseData,
   useExecutionCredential, useWiredCopyToClipboard, createBrowserViewerClipboard, folderPathsFromDataTransfer, useI18n, resolveAccentColor, normalizeAccentColor,
-  sourceDisplayLabel } from '@jini-ai/ui';
+  sourceDisplayLabel, SearchableModelSelect, FileDropzone } from '@jini-ai/ui';
 import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
+import { useAgentPluginFileTree } from '@jini-ai/admin/agent-plugins/react';
 import { ErrorNotice, useAsyncAction, useDirtyGuard, useFocusTrap, useSettlementGeneration, UNREACHABLE_RETRY_DELAYS_MS,
   LOCAL_BACKUP_PRINCIPAL_ID, useSerialWrites, hasPermission, standingDraftRecoveryMessage, createStandingDraftLocalBackup,
   createFailureChannel, canAcceptRefresh, mergeSaveStates, SAVE_DEBOUNCE_MS, useSettingsSlice, useStandingDraftAutosave, retryWhileUnreachable } from '@jini-ai/ui/panel-kit';
@@ -15,7 +16,7 @@ import { useCursorPages } from '@jini-ai/ui/fetch-query';
 import { findEditorBlockOpening, isEditorSourceError } from '@jini-ai/ui/html-editor';
 import { renderMarkdownToSafeHtml } from '@jini-ai/ui/renderers';
 import { InfoTip, Lightbox, Select as WidgetSelect, useInfoTip, usePanelPosition, useSelectDropdown, openLightboxDialog,
-  closeLightboxDialog, useDebouncedHtmlPreview, resolveSelectTriggerLabel, infoTipBubbleStyle } from '@jini-ai/ui/admin-widgets';
+  closeLightboxDialog, SeeMore, useDebouncedHtmlPreview, resolveSelectTriggerLabel, infoTipBubbleStyle } from '@jini-ai/ui/admin-widgets';
 import { TabBar, useTabBarKeyboard, resolveTabBarTabIndex } from '@jini-ai/ui/tab-strip';
 import { buildSandboxProxyDataUrl } from '@jini-ai/ui/mcp-ui/surfaces';
 import { PreviewModalShell } from '@jini-ai/ui/preview-modal-shell';
@@ -23,7 +24,8 @@ import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';
 import { useCachedLoader, useFetchMutation, useFetchQuery, useFetchQueryScope, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { ConfirmDialog as AdminConfirmDialog, RowMenu } from '@jini-ai/admin/react';
-import { useT as useChatT, createExtEventRendererRegistry, createLastConversationStore, createAssistantChatsClient, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection,
+import { ChatPane, ChatSettingsDialog, JiniChatProvider, ConversationList, ChatSettingsSegmented, McpUiSurfaceCard, A2uiSurfaceCard, createDaemonAttachmentUploader,
+  useT as useChatT, createExtEventRendererRegistry, createLastConversationStore, createAssistantChatsClient, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection,
   mcpUiSurfaceSlotKey, midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME } from '@jini-ai/chat/react';
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE, conversationTitleForDisplay, deriveConversationTitle, isTerminalRunStatus } from '@jini-ai/chat/core';
 import { createA2uiActionPoster, createConditionalHistoryRead, createChatAttachmentValidator } from '@jini-ai/chat/transports/http';
@@ -42,12 +44,13 @@ import type { UiKit } from '@jini-ai/ui/react-kit';
 export const adminKit = {
   components: { Button, IconButton, TextField, TextArea, Select, Switch, Dialog, ConfirmDialog, Tabs, Menu, Notice, Spinner, Badge,
     InfoTip, Lightbox, WidgetSelect, TabBar, HtmlEditor: InteractiveHtmlEditor, ErrorNotice, Icon, SecretInput,
-    RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, PreviewModalShell },
+    RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, PreviewModalShell,
+    SeeMore, SearchableModelSelect, FileDropzone },
   // `useT` is ui's translator (Settings-dialog and panel copy). Chat's `useT` from `@jini-ai/chat/react`
   // reads a different dictionary and stays a separate binding; swapping them would mistranslate silently.
   // The host's one locale hook; App's required `useAdminLocaleHook` prop references the same function.
   hooks: { useAdminLocale: useHostAdminLocale, useAgentHandle, useFocusTrap, useDirtyGuard, useSettlementGeneration, useConfirmController, useNativeDialog, useT,
-    useTabBarKeyboard, useSerialWrites, useCodeWrap, useInfoTip, usePanelPosition, useSelectDropdown, useTabbedDialog, useCopyToClipboard,
+    useTabBarKeyboard, useSerialWrites, useCodeWrap, useAgentPluginFileTree, useInfoTip, usePanelPosition, useSelectDropdown, useTabbedDialog, useCopyToClipboard,
     useExecutionCredential, useSettingsSlice, useStandingDraftAutosave, useWiredCopyToClipboard, useCursorPages, useI18n, useDebouncedHtmlPreview },
   query: { useFetchQuery, useFetchMutation, useInvalidate, useCachedLoader, useFetchQueryScope },
   mediaProviders: { useMediaProvidersTab, rules: { sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,
@@ -69,7 +72,8 @@ export const adminKit = {
   chat: { useT: useChatT, createMidRunMessagePoster, createTypedAnswerPoster, createA2uiActionPoster,
     useFabPosition, resolveChatPaneSelection, conversationTitleForDisplay, deriveConversationTitle, mcpUiSurfaceSlotKey, isTerminalRunStatus,
     createExtEventRendererRegistry, createLastConversationStore, createAssistantChatsClient, createAgentInventorySnapshot, createConditionalHistoryRead,
-    createChatAttachmentValidator,
+    createChatAttachmentValidator, ChatPane, ChatSettingsDialog, JiniChatProvider, ConversationList, ChatSettingsSegmented, McpUiSurfaceCard, A2uiSurfaceCard,
+    createDaemonAttachmentUploader,
     midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE },
 } satisfies AdminKit;
 

@@ -107,10 +107,10 @@ return function registerDownloadedRowLayoutTest() {
     for (const { width, stacked } of [{ width: 540, stacked: false }, { width: 360, stacked: false }, { width: 280, stacked: true }]) {
       await page.locator(".plugin-rows").evaluate((list, width) => { (list as HTMLElement).style.width = `${width}px`; (list as HTMLElement).style.maxWidth = "100%"; }, width);
       await expect.poll(() => row.evaluate((element) => {
-        const name = element.querySelector(".plugin-row-name") as HTMLElement;
-        const version = element.querySelector(".plugin-row-version") as HTMLElement;
-        const summary = element.querySelector(".plugin-row-summary") as HTMLElement;
-        const actions = element.querySelector(".plugin-row-actions") as HTMLElement;
+        const name = element.querySelector(".jini-plugin-row-name") as HTMLElement;
+        const version = element.querySelector(".jini-plugin-row-version") as HTMLElement;
+        const summary = element.querySelector(".jini-plugin-row-summary") as HTMLElement;
+        const actions = element.querySelector(".jini-plugin-row-actions") as HTMLElement;
         const a = name.getBoundingClientRect(); const b = version.getBoundingClientRect();
         return { truncated: name.scrollWidth > name.clientWidth + 1,
           overlap: a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom,

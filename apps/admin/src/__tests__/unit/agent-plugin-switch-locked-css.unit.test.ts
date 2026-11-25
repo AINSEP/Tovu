@@ -10,7 +10,7 @@ import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 
 describe("locked agent-plugin switch", () => {
-  const locked = effectiveDeclarationsFor(stylesheet, ".agent-plugin-switch--locked:disabled");
+  const locked = effectiveDeclarationsFor(stylesheet, ".jini-agent-plugin-switch--locked:disabled");
 
   it("is taken out of the row flow and hidden, keeping it in the DOM", () => {
     expect(locked).toMatch(/position:\s*absolute;/);

@@ -11,7 +11,7 @@ const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8"
 
 describe("plugin row action width", () => {
   it("gives the Enable/Disable button a fixed minimum width", () => {
-    const rule = effectiveDeclarationsFor(stylesheet, ".plugin-rows .plugin-row .plugin-row-actions > button:not(.plugin-icon-btn, .plugin-settings-btn)");
+    const rule = effectiveDeclarationsFor(stylesheet, ".plugin-rows .jini-plugin-row .jini-plugin-row-actions > button:not(.jini-plugin-icon-btn, .jini-plugin-settings-btn)");
     expect(rule).toMatch(/min-width:\s*5\.5rem;/);
   });
 });

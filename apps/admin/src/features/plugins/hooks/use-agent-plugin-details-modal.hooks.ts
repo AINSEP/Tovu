@@ -1,12 +1,19 @@
-import { useCallback, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useAgentPluginDetailsModal } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
+import type { PluginPackageFilesController } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-package-files.hooks";
 
 import { tPlugins as translate } from "../../../lib/i18n-common";
+import { pluginRules } from "../rules";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
-import type { AgentPluginsPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
-import { usePluginPackageFiles, type PluginPackageFilesController } from "./use-plugin-package-files.hooks";
 
-import { type Translate } from '@jini-ai/core/text';
+/**
+ * @file The host binding of Jini's `useAgentPluginDetailsModal`: this product's
+ * `/api/.../agent-plugins/:id/files` client, the current admin locale's plugins dictionary and its
+ * bound rule functions.
+ */
+/*
+ * Original header of the pre-move hook, kept because it names host plugins (the 2026-09-13 rewrite
+ * motivation) that explain why this binding exists. */
 /**
  * @file `AgentPluginDetailsModal`'s data: one `AGENT_PLUGIN_FILES` read for the inspected plugin,
  * mapped onto the shared viewer's rows, plus which file is selected.
@@ -21,44 +28,10 @@ import { type Translate } from '@jini-ai/core/text';
  * `createFakeAgentPluginsPort`.
  */
 
-/** What `AgentPluginDetailsModal` renders from. `status`/`listNotice` are optional so a rendering
- *  test's fake can supply just a file list; absent reads as nothing to report. */
-export type AgentPluginDetailsModalController = Pick<PluginPackageFilesController, "files" | "selectedFile" | "selectFile"> &
-  Partial<Pick<PluginPackageFilesController, "status" | "listNotice">>;
-
-export interface AgentPluginDetailsModalDependencies {
-  readonly pluginId: string;
-  readonly port: Pick<AgentPluginsPort, "getAgentPluginFiles">;
-  readonly t: Translate;
-}
-
-/**
- * Loads one installed Agent Plugin's package files once per `pluginId`.
- *
- * @complexity One GET per `pluginId`; O(files) per render (capped server-side at 200) — see
- * {@link usePluginPackageFiles}.
- */
-export function useAgentPluginDetailsModal({ pluginId, port, t }: AgentPluginDetailsModalDependencies): PluginPackageFilesController {
-  return usePluginPackageFiles({ pluginId, queryRoot: "agent-plugins", port: { getPluginFiles: ({ id }, _optional = {}) => port.getAgentPluginFiles({ pluginId: id }) }, t });
-}
-
 /** Binds the real `/api/.../agent-plugins/:id/files` client and a `translatePlugins` translator for
  *  the current admin locale. */
 export function useWiredAgentPluginDetailsModal({ pluginId }: { pluginId: string }, _optional = {}): PluginPackageFilesController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return useAgentPluginDetailsModal({ pluginId, port: defaultAgentPluginsPort, t });
-}
-
-/** The shell owns the selected tab; its onView callback keeps host copy aligned with it. */
-export function useAgentPluginDetailsView(required: { displayName: string; t: Translate; memoryT: Translate }, _optional = {}) {
-  const { displayName, t, memoryT } = required;
-  const [memoryOpen, setMemoryOpen] = useState(false);
-  const onView = useCallback((viewId: string) => setMemoryOpen(viewId === "plugin-memory"), []);
-  return {
-    onView,
-    title: `${displayName} ${memoryOpen ? memoryT("Memory") : t("package files")}`,
-    // No subtitle on either tab: Package files' read-only note cost the phone header six lines, and
-    // Memory's "Edit project notes…" line followed it out (owner, 2026-10-06).
-  };
+  return useAgentPluginDetailsModal({ pluginId, port: defaultAgentPluginsPort, t, rules: pluginRules });
 }

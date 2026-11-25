@@ -2,7 +2,7 @@ import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { createElement, useState } from "react";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
-import type { PackageFilesModalProps } from "../plugins/PackageFilesModal";
+import type { PackageFilesModalProps } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
 import { packageFilesRead, packageFilesViewState } from "../plugins/rules";
 import type { PackageFilesRead } from "@jini-ai/admin/screens/plugins/rules";
 import { listSkillFiles, type SkillFiles } from "./api";

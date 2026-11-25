@@ -65,8 +65,8 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
 
   test("the conflicting plugin's row names the clash, and enabling it is refused while the other is on", { tag: ["@unrun"] }, async ({ page, request }) => {
     await page.goto("/admin/addons/plugins?tab=downloaded");
-    const row = page.locator(`li.plugin-row[aria-label="${CLASH_NAME}"]`);
-    await row.locator(".plugin-row-summary").click();
+    const row = page.locator(`li.jini-plugin-row[aria-label="${CLASH_NAME}"]`);
+    await row.locator(".jini-plugin-row-summary").click();
     await expect(row).toContainText(ROW_CONFLICT_HEADING);
     await expect(row).toContainText(/"faq" is already used by Testimonials \+ FAQ\./);
     await expect(row).toHaveScreenshot("plugin-row-conflict.png");
@@ -116,7 +116,7 @@ function registerCarouselAndConflictTests() {
   test("a second plugin declaring the same 'faq' type is flagged in the install preview", { tag: ["@unrun"] }, async ({ page }) => {
     const dialog = await previewFolder(page, CLASH_DIR);
     await expect(dialog).toContainText(CODE_FREE);
-    const conflicts = dialog.locator(".plugin-errors");
+    const conflicts = dialog.locator(".jini-plugin-errors");
     await expect(conflicts).toContainText(PREVIEW_CONFLICT_HEADING);
     await expect(conflicts.getByRole("listitem")).toContainText([/"faq" is already used by Testimonials \+ FAQ\./]);
     await expect(dialog).toHaveScreenshot("plugin-install-preview-conflict.png");
@@ -193,7 +193,7 @@ function registerCodeFreeInstallTest() {
     await expect(dialog).toContainText(CODE_FREE);
     await expect(dialog).toContainText(/Content types: .*faq/);
     await expect(dialog).toContainText("It stays off in every workspace until you turn it on.");
-    await expect(dialog.locator(".plugin-errors"), "a fresh workspace has no name conflicts").toHaveCount(0);
+    await expect(dialog.locator(".jini-plugin-errors"), "a fresh workspace has no name conflicts").toHaveCount(0);
     await expect(dialog).toHaveScreenshot("plugin-install-preview-tier1.png");
     await dialog.getByRole("button", { name: "Install (stays off)" }).click();
     await expect(dialog).toContainText(`${SAMPLE_NAME} is installed and switched off. Turn it on in Downloaded.`);

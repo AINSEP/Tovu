@@ -6,7 +6,7 @@ import type { CachedLoader } from "@jini-ai/core/fetch";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAgentsLoader, replaceAgents, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
-import { useAssistantTransport } from "../hooks/assistant-transport.hooks";
+import { useTovuAssistantTransport as useAssistantTransport } from "../hooks/assistant-transport.binding";
 
 /**
  * @file The agents inventory's deadline rules (`createAgentsLoader`, `replaceAgents`) over a plain

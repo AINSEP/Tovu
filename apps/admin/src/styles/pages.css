@@ -20,7 +20,7 @@
    The Jini post settings tab strip (`.jini-post-settings-tabs`, active = `aria-selected`) twins it. */
 .segmented,
 .jini-post-settings-tabs,
-.agent-plugin-source-modal [data-preview-modal-tabs],.jini-segmented {
+.jini-agent-plugin-source-modal [data-preview-modal-tabs],.jini-segmented {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -32,7 +32,7 @@
 
 .segmented button,
 .jini-post-settings-tabs button,
-.agent-plugin-source-modal [data-preview-modal-tabs] button,.jini-segmented button {
+.jini-agent-plugin-source-modal [data-preview-modal-tabs] button,.jini-segmented button {
   border: 0;
   background: transparent;
   padding: 0.35rem 0.75rem;
@@ -44,14 +44,14 @@
 
 .segmented button.is-active,
 .jini-post-settings-tabs button[aria-selected="true"],
-.agent-plugin-source-modal [data-preview-modal-tabs] button[aria-selected="true"],.jini-segmented button.is-active,.jini-segmented button.jini-is-active {
+.jini-agent-plugin-source-modal [data-preview-modal-tabs] button[aria-selected="true"],.jini-segmented button.is-active,.jini-segmented button.jini-is-active {
   background: var(--surface);
   color: var(--fg);
   box-shadow: var(--jini-control-shadow-segment);
 }
 
 /* The shell clips its stage; the padded Memory card must scroll when notes exceed its height. */
-.agent-plugin-source-modal [data-preview-modal-stage-custom] > .card {
+.jini-agent-plugin-source-modal [data-preview-modal-stage-custom] > .card {
   height: 100%;
   overflow: auto;
   border: 0;

@@ -7,7 +7,7 @@ import { PlainTextBlocks } from "@jini-ai/admin/shell/components/PlainTextBlocks
 import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "@jini-ai/admin/shell/components/InstallTabCard/InstallTabCard";
 import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { PackageFilesModal } from "../plugins/PackageFilesModal";
+import { PackageFilesModal } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
 import { SKILL_INSTALL_CONFIRMATION_HOST, SKILLS_HOST_CLASSNAMES } from "./skill-install-confirmation-host";
 import { SKILL_FAILURE_HOST } from "./skill-failure-host";
 import { useSkillFilesModal } from "./use-skill-files.hooks";
