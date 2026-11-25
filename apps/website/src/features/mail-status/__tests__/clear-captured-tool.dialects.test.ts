@@ -6,6 +6,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { capture, DAY, keys, MAIL_TABLES, NOW, seed, workspaces, type Db } from "../../mail/__tests__/capture-fixtures";
+import { planMailDeliveryCaptureClear } from "#src/server/runtime/composition/mail-capture-clear-planner";
 import { buildMailDeliveryRegistrations, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 
 /**
@@ -28,7 +29,7 @@ function tool(db: Db | undefined, granted = ["mail.capture.clear"]) {
   const deps = { workspaceId: "w", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async ({ permission }: { permission: string }) => ({ allowed: granted.includes(permission), reason: "fixture" }),
     ...(db ? { contentKernel: db } : {}) } as unknown as MailDeliveryToolDeps;
-  const registration = buildMailDeliveryRegistrations(deps, { surfaceExchanges: store }).find(r => r.descriptor.id === "mail_clear_captured")!;
+  const registration = buildMailDeliveryRegistrations(deps, { surfaceExchanges: store }, { planCaptureClear: planMailDeliveryCaptureClear }).find(r => r.descriptor.id === "mail_clear_captured")!;
   return { call: (options: ToolExecutionOptions) => registration.handler({ ...ctx, input: {} }, options), answer, cards };
 }
 

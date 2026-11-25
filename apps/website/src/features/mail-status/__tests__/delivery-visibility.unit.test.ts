@@ -14,6 +14,7 @@ import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
   readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,
 } from "@jini-ai/platform/mail";
+import { planMailDeliveryCaptureClear } from "#src/server/runtime/composition/mail-capture-clear-planner";
 import { buildMailDeliveryRegistrations, contributeMailDeliveryTools, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_SUPPRESSIONS_MANAGE_PERMISSION, registerMailPermissionGrants } from "@jini-ai/user-management/mail/status/permissions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDeps } from "@jini-ai/platform/mail/use-readiness";
@@ -265,7 +266,7 @@ function tools(overrides: Partial<MailDeliveryToolDeps> = {}, granted = ["*"]) {
   const { newsletterLaunchGate: _gate, ...host } = readinessDeps();
   const deps: MailDeliveryToolDeps = { ...host, authorize: grants(granted), mailActivity: memoryActivity([record("a", 1)]), listCustomCredentials, mailWebhookSecretLabels, ...overrides };
   // No card is shown by these read-only tools; the removal card is exercised in suppressions-feedback.unit.test.ts.
-  const registrations = buildMailDeliveryRegistrations(deps, {} as never);
+  const registrations = buildMailDeliveryRegistrations(deps, {} as never, { planCaptureClear: planMailDeliveryCaptureClear });
   return { registrations, call: (name: string, input: unknown = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }) };
 }
 
@@ -276,8 +277,9 @@ test("the phase-4 delivery tools are read-only with derived none risk under thei
     assert.equal(isReadOnlyTool({ descriptor: registration.descriptor }), true);
     assert.equal(mailDeliveryDerivedRisk.get(registration.descriptor.id), "none");
   }
-  const contributor = contributeMailDeliveryTools();
-  assert.deepEqual([contributor.domain, contributor.build, contributor.risk], ["system-mail-delivery", buildMailDeliveryRegistrations, mailDeliveryDerivedRisk]);
+  const contributor = contributeMailDeliveryTools({ planCaptureClear: planMailDeliveryCaptureClear });
+  assert.deepEqual([contributor.domain, contributor.risk], ["system-mail-delivery", mailDeliveryDerivedRisk]);
+  assert.deepEqual(contributor.build({} as never, {} as never).map((r) => r.descriptor.id), registrations.map((r) => r.descriptor.id));
 });
 
 test("mail_get_readiness needs admin.forms.manage; activity tools page, detail and refuse with stable codes", async () => {
