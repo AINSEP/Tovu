@@ -87,11 +87,14 @@ export async function measureTreeBytes(
     while (walk.stack.length > 0) {
       if (!(await visit({ fs, walk, maxEntries }))) return { state: "unknown", reason: `more than ${maxEntries} entries` };
     }
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException)?.code;
-    return code === "ENOENT" && walk.seen === 0 ? { state: "measured", bytes: 0 } : { state: "unknown", reason: String(code ?? error) };
-  }
+  } catch (error) { return unreadable(error, walk.seen); }
   return { state: "measured", bytes: walk.bytes };
+}
+
+/** A missing root is an empty cache; any other read failure, or one mid-walk, is unknown. */
+function unreadable(error: unknown, seen: number): SizeRead {
+  const code = (error as NodeJS.ErrnoException)?.code;
+  return code === "ENOENT" && seen === 0 ? { state: "measured", bytes: 0 } : { state: "unknown", reason: String(code ?? error) };
 }
 
 /** One entry of the walk; false once the entry cap is passed. Links are counted, never followed. */
