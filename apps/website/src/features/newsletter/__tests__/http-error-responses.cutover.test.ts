@@ -5,7 +5,7 @@ import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAdminNewsletterListListsRoute } from "#src/server/runtime/composition/modules/newsletter";
-import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps.js";
+import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import type { NewsletterErrorMapper } from "@jini-ai/cms/admin-http/http/newsletter";
 import {
   NewsletterCampaignNotEditableError,

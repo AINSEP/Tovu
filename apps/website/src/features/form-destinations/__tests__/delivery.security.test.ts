@@ -210,7 +210,7 @@ test("wrong adapter cannot open a shared credential and current label must still
   assert.equal(await port({ workspaceId: W, connectionRef: named.id, adapterId: "other" }), null);
   assert.equal(open.mock.callCount(), 0);
   const findById = deps.repo.findById.bind(deps.repo);
-  t.mock.method(deps.repo, "findById", async input => {
+  t.mock.method(deps.repo, "findById", async (input: Parameters<typeof findById>[0]) => {
     const found = await findById(input);
     return found ? { ...found, label: "Other" } : null;
   });
