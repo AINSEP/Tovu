@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { JSDOM } from "jsdom";
 
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
@@ -28,7 +27,6 @@ function sse(body: string): Response {
 }
 
 it("the live approval posts a resume to chat and keeps its nonce out of storage", async () => {
-  const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://site.example/" });
   const calls: { url: string; body: Record<string, unknown> }[] = [];
   const fetch = (async (url: string, init: RequestInit) => {
     const body = JSON.parse(String(init.body)) as Record<string, unknown> & { threadId: string; runId: string };
@@ -92,10 +90,12 @@ it("the live approval posts a resume to chat and keeps its nonce out of storage"
   assert.equal(calls.length, 2);
 
   // The host persists what the transport hands it; the nonce must reach none of it.
-  savePersistedState({ storage: dom.window.sessionStorage, state: { open: true, messages: finished.at(-1)?.messages ?? [] } });
-  dom.window.localStorage.setItem("probe", JSON.stringify(doneEvents));
-  const persisted = JSON.stringify({ events, doneEvents, finished,
-    session: Object.entries(dom.window.sessionStorage), local: Object.entries(dom.window.localStorage) });
+  // An in-memory SessionStore stands in for the tab's storage: the storage encapsulation guard keeps
+  // real storage globals out of every file but session-store.ts, and the persisted bytes are the same.
+  const saved = new Map<string, string>();
+  const store = { getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, value: string) => { saved.set(key, value); }, removeItem: (key: string) => { saved.delete(key); } };
+  savePersistedState({ storage: store, state: { open: true, messages: finished.at(-1)?.messages ?? [] } });
+  const persisted = JSON.stringify({ events, doneEvents, finished, session: [...saved] });
   assert.ok(persisted.includes("Opened it."), "the probe actually captured the transcript");
   assert.ok(!persisted.includes(CHALLENGE), "the challenge never enters events, history or storage");
   assert.ok(!persisted.includes("Open the page"), "the prompt text stays in the live card only");

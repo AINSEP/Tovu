@@ -890,7 +890,7 @@ describe("durable AG-UI binding (Local CLI lifecycle)", () => {
     const { cancel, detach } = await startDurable(client, []);
     detach.abort();
     await flushMicrotasks();
-    expect(cancels).toEqual([], "a reload/detach is not Stop");
+    expect(cancels, "a reload/detach is not Stop").toEqual([]);
     cancel.abort();
     await client.stopAgUiRun({ runId: "run-durable-1" }, {});
     await client.stopAgUiRun({ runId: "run-durable-1" }, {});
