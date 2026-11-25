@@ -41,6 +41,8 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { listPublishedPosts } from "#src/features/post/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
+import { EventEncoder } from "@ag-ui/encoder";
+import { createVisitorAgUiWriter, readVisitorChatInput, selectVisitorChatWire, type VisitorAgUiCopy, type VisitorChatWire, type VisitorTurnWriter } from "./site-assistant-ag-ui.js";
 
 /**
  * @file The PUBLIC site assistant's HTTP surface (ADR-054) — the visitor-facing chat, distinct from
@@ -226,6 +228,38 @@ function sse({ res, event, data }: { res: Response; event: string; data: unknown
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+/** The compatibility writer for widget bundles already running in open tabs (the one-release
+ *  window): exactly the legacy frames and no terminal latch, so its bytes stay pinned by the
+ *  legacy golden. `sse()` is used only here. */
+function createVisitorLegacyWriter({ res }: { res: Response }, _optional = {}): VisitorTurnWriter {
+  return {
+    start: () => {},
+    text: ({ delta }) => { sse({ res, event: "text", data: { delta } }); },
+    directive: ({ value }) => { sse({ res, event: "client_directive", data: value }); },
+    finish: ({ outcome }) => {
+      if (outcome.kind === "ok") sse({ res, event: "end", data: { reason: outcome.reason } });
+      else sse({ res, event: "error", data: { code: outcome.code, errorId: outcome.errorId, message: outcome.message } });
+    },
+    settle: () => {},
+  };
+}
+
+/** Fixed visitor copy for AG-UI terminals the server writes itself. `noReply` is the widget's own
+ *  no-reply reason (`apps/site-chat/src/site-assistant-errors.ts` `NO_REPLY_REASON`), so both wires
+ *  render the same sentence. */
+const VISITOR_AG_UI_COPY: VisitorAgUiCopy = { noReply: "the assistant sent no reply", interrupted: "the reply was interrupted" };
+/** Stateless beyond a fixed flag, so one instance serves every request (as in `assistant-ag-ui.ts`). */
+const visitorAgUiEncoder = new EventEncoder();
+
+/** The negotiated wire of one request, and its writer once the body named the turn. */
+interface VisitorTurnStream { readonly wire: VisitorChatWire; writer?: VisitorTurnWriter }
+
+function createVisitorTurnWriter({ res, deps, stream, wireIds }: { res: Response; deps: RouteDeps; stream: VisitorTurnStream; wireIds: { threadId: string; runId: string } | undefined }): VisitorTurnWriter {
+  if (stream.wire !== "ag-ui" || !wireIds) return createVisitorLegacyWriter({ res });
+  return createVisitorAgUiWriter({ ids: { next: ({ prefix }) => `${prefix}_${deps.idGen.newId()}` }, encode: (event) => visitorAgUiEncoder.encodeSSE(event),
+    write: (chunk) => { res.write(chunk); }, threadId: wireIds.threadId, runId: wireIds.runId, copy: VISITOR_AG_UI_COPY });
+}
+
 function beginStream(req: Request, res: Response): void {
   res.status(200).set({
     "content-type": "text/event-stream",
@@ -254,11 +288,11 @@ interface SiteAssistantProviderConfig {
 
 type SiteAssistantPreflight =
   | { ok: false }
-  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig };
+  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig; turnId: string | null; wireIds: { threadId: string; runId: string } | undefined };
 
 type MessageGuardResult =
   | { ok: false }
-  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[] };
+  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[]; turnId: string | null; wireIds: { threadId: string; runId: string } | undefined };
 
 /**
  * The visibility, shape, and budget gates: is the workspace's public assistant on at all, is
@@ -266,7 +300,7 @@ type MessageGuardResult =
  * window. Each one can end the request on its own before anything downstream (mode, credentials)
  * is even looked at.
  */
-async function guardMessageAndRateLimit(req: Request, res: Response, deps: RouteDeps, reportError: SiteAssistantErrorReporter): Promise<MessageGuardResult> {
+async function guardMessageAndRateLimit(req: Request, res: Response, deps: RouteDeps, reportError: SiteAssistantErrorReporter, wire: VisitorChatWire): Promise<MessageGuardResult> {
   // `public-assistant-settings.ts`'s file header spells out the contract this line exists to
   // satisfy: "publicEnabled: false means the public page ships NO assistant bundle and exposes NO
   // assistant endpoint... registers the visitor-facing assistant route(s) conditionally, or has
@@ -282,22 +316,20 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
     return { ok: false };
   }
 
-  const body = (req.body ?? {}) as { message?: unknown; history?: unknown };
-  const message = typeof body.message === "string" ? body.message.trim() : "";
-  if (message.length === 0) {
-    respondPublicError({ res, status: 400, reportError, code: "VALIDATION", diagnostic: "message must be a non-empty string" });
+  // Both wires normalize here, so the legacy body and an AG-UI `RunAgentInput` pass the same
+  // shape, length, rate-limit and dedupe gates in the same order.
+  const input = readVisitorChatInput({ body: req.body, wire, readTurnId: readVisitorTurnId, maxMessageChars: MAX_MESSAGE_CHARS });
+  if (!input.ok) {
+    respondPublicError({ res, status: input.status, reportError, code: input.code, diagnostic: input.diagnostic });
     return { ok: false };
   }
-  if (message.length > MAX_MESSAGE_CHARS) {
-    respondPublicError({ res, status: 413, reportError, code: "TOO_LARGE", diagnostic: `message exceeds ${MAX_MESSAGE_CHARS} characters` });
-    return { ok: false };
-  }
+  const { message } = input;
   // SPEC-046 REQ-3: `body.history` is client-supplied and untrusted — it can be forged, so it
   // is bounded and fail-soft (malformed shapes degrade to less context, never a 4xx) rather
   // than validated-and-rejected the way `message` above is. See `assistant/site/history.ts`'s
   // own doc for why that asymmetry is correct: `message` is the live turn the visitor is
   // actively sending; `history` is passive background context they did not just author.
-  const priorTurns = resolveBoundedHistory({ rawHistory: body.history });
+  const priorTurns = resolveBoundedHistory({ rawHistory: input.rawHistory });
 
   // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
   // budget never reaches the provider call (or its 501/503 config-error branches either) —
@@ -314,7 +346,7 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
     return { ok: false };
   }
 
-  return { ok: true, message, priorTurns };
+  return { ok: true, message, priorTurns, turnId: input.turnId, wireIds: input.wireIds };
 }
 
 /** The stored `provider` string, narrowed to a protocol this route can actually dispatch, or `null`
@@ -555,14 +587,15 @@ async function runSiteAssistantPreflight(
   env: NodeJS.ProcessEnv,
   resolution: SiteAssistantModeResolution,
   reportError: SiteAssistantErrorReporter,
+  wire: VisitorChatWire,
 ): Promise<SiteAssistantPreflight> {
-  const guard = await guardMessageAndRateLimit(req, res, deps, reportError);
+  const guard = await guardMessageAndRateLimit(req, res, deps, reportError, wire);
   if (!guard.ok) return { ok: false };
 
   const provider = await resolveProviderConfigOrRespond({ res, deps, env, resolution, reportError });
   if (!provider) return { ok: false };
 
-  return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
+  return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider, turnId: guard.turnId, wireIds: guard.wireIds };
 }
 
 /** `siteAssistantConfirmationScheduler` owns the one timer a held visitor confirmation has: its
@@ -657,12 +690,17 @@ function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof cr
       app.post(CHAT_PATH, (req: Request, res: Response) => {
         const secrets: string[] = env.GEMINI_API_KEY ? [env.GEMINI_API_KEY] : [];
         const reportError: SiteAssistantErrorReporter = required => reporter(required, { exactSecrets: secrets });
-        void handleChat(req, res, { ...context, reportError, secrets }).catch((error: unknown) => {
+        // Only the explicit AG-UI media range switches wires; the response then varies by Accept,
+        // refusals included. Legacy responses keep their pinned headers.
+        const stream: VisitorTurnStream = { wire: selectVisitorChatWire({ accept: req.get("accept") }) };
+        if (stream.wire === "ag-ui") res.vary("Accept");
+        void handleChat(req, res, { ...context, reportError, secrets, stream }).catch((error: unknown) => {
           // The stream may already be open, in which case status codes are no longer available —
           // report on the stream if we can, and never leave a visitor's connection hanging.
           const publicError = reportError({ code: "unavailable", diagnostic: error });
           if (res.headersSent) {
-            sse({ res, event: "error", data: publicError });
+            // The writer's terminal latch makes this a no-op on AG-UI when the turn already ended.
+            (stream.writer ?? createVisitorLegacyWriter({ res })).finish({ outcome: { kind: "error", ...publicError } });
             res.end();
           } else {
             const { message, ...metadata } = publicError;
@@ -672,29 +710,31 @@ function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof cr
       });
     }
 
-async function handleChat(req: Request, res: Response, context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[] }): Promise<void> {
+async function handleChat(req: Request, res: Response, context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[]; stream: VisitorTurnStream }): Promise<void> {
         const { deps, env, resolution, frontend, reportError, secrets } = context;
-        const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError);
+        const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError, context.stream.wire);
         if (!preflight.ok) return;
-        const { message, priorTurns, provider } = preflight;
+        const { message, priorTurns, provider, turnId, wireIds } = preflight;
         // Owner decision 2026-11-23: a widget retry carries the SAME turnId, and the server must not
         // bill a second provider run for it. Admitted here (after the cheap gates, before any spend);
         // a failure before `providerStarted()` releases the turn so the retry still works.
-        const turn = context.turnDedupe.admit({ scope: `${deps.workspaceId}|${resolveClientIp(req)}`, turnId: readVisitorTurnId({ body: req.body }) });
+        const turn = context.turnDedupe.admit({ scope: `${deps.workspaceId}|${resolveClientIp(req)}`, turnId });
         if (!turn.admitted) {
           respondPublicError({ res, status: 409, reportError, code: VISITOR_TURN_DUPLICATE_CODE, diagnostic: `visitor turn already ${turn.state}` });
           return;
         }
+        context.stream.writer = createVisitorTurnWriter({ res, deps, stream: context.stream, wireIds });
         try { await handleAdmittedChat({ req, res, context, preflight: { message, priorTurns, provider }, turn }); }
         finally { turn.finish({ delivered: res.writableEnded }); }
       }
 
 async function handleAdmittedChat({ req, res, context, preflight, turn }: {
-  req: Request; res: Response; context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[] };
+  req: Request; res: Response; context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[]; stream: VisitorTurnStream };
   preflight: { message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig };
   turn: { providerStarted(): void };
 }): Promise<void> {
         const { deps, frontend, reportError, secrets } = context;
+        const writer = context.stream.writer ?? createVisitorLegacyWriter({ res });
         const { message, priorTurns, provider } = preflight;
         secrets.push(provider.apiKey);
         const provenance = await visitorAnalyticsProvenance({ deps, request: req });
@@ -725,10 +765,10 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
         const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId });
         const { owner, publication, release: releaseFrontend } = binding;
         res.once('close', releaseFrontend);
-        const capabilities = await createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
-        const executeTool = createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }, navigation);
+        const capabilities = await createVisitorCapabilities({ req, writer, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
+        const executeTool = createVisitorToolExecutor({ capabilities, res, writer, releaseFrontend, abort, reportError }, navigation);
 
-        await runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted: () => turn.providerStarted() });
+        await runVisitorProviderTurn({ req, res, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted: () => turn.providerStarted() });
       }
 
 /**
@@ -746,8 +786,8 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
          * for human confirmation. The visitor delegate separately emits that summary
          * while held; its challenge is human-only and never part of this model-facing return value.
          */
-function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }: {
-  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; res: Response; releaseFrontend: () => void;
+function createVisitorToolExecutor({ capabilities, res, writer, releaseFrontend, abort, reportError }: {
+  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; res: Response; writer: VisitorTurnWriter; releaseFrontend: () => void;
   abort: AbortController; reportError: SiteAssistantErrorReporter;
 }, navigation: { terminalNavigation: boolean }): (call: ProviderToolCall) => Promise<ProviderToolResult> {
   return async (call: ProviderToolCall): Promise<ProviderToolResult> => {
@@ -756,11 +796,11 @@ function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, 
           const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
           switch (outcome.kind) {
             case "ok":
-              if (outcome.directive) sse({ res, event: "client_directive", data: outcome.directive });
+              if (outcome.directive) writer.directive({ value: outcome.directive });
               if (isTerminalVisitorAction({ name: call.name, result: outcome.result })) {
                 navigation.terminalNavigation = true;
-                sse({ res, event: 'text', data: { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' } });
-                sse({ res, event: 'end', data: { reason: 'navigation' } });
+                writer.text({ delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' });
+                writer.finish({ outcome: { kind: 'ok', reason: 'navigation' } });
                 releaseFrontend();
                 res.end();
                 abort.abort();
@@ -801,14 +841,14 @@ function visitorRunOutcome({ terminalNavigation, aborted, runOutcome }: { termin
   return aborted ? 'cancelled' : runOutcome;
 }
 
-function visitorConfirmationChannel({ confirmations, res }: { confirmations: ReturnType<typeof createVisitorConfirmations>; res: Response }) {
+function visitorConfirmationChannel({ confirmations, writer }: { confirmations: ReturnType<typeof createVisitorConfirmations>; writer: VisitorTurnWriter }) {
   // Content tools still need Ask confirmation when page credentials/publication are absent.
   // The gate binds the request to its IP and adds the authenticated owner when available.
-  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse({ res, event: 'client_directive', data: directive }); } } };
+  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { writer.directive({ value: directive }); } } };
 }
 
-async function createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
-  req: Request; res: Response; reportError: SiteAssistantErrorReporter; abort: AbortController;
+async function createVisitorCapabilities({ req, writer, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
+  req: Request; writer: VisitorTurnWriter; reportError: SiteAssistantErrorReporter; abort: AbortController;
   binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>;
   owner: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["owner"];
   publication: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["publication"];
@@ -825,7 +865,7 @@ async function createVisitorCapabilities({ req, res, reportError, abort, binding
             const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId, visitorTools: VISITOR_TOOLS_HOST });
             return { policy: snapshot.policy, revision: String(snapshot.revisionSeq) };
           },
-          ...visitorConfirmationChannel({ confirmations, res }),
+          ...visitorConfirmationChannel({ confirmations, writer }),
           ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: logicalRunId, owner: owner ?? undefined, publicationRevision: publication?.revision, clock: deps.clock,
           ids: deps.idGen, sink: { async append(event: Parameters<typeof deps.toolAttemptAuditSink.append>[0], optional?: Parameters<typeof deps.toolAttemptAuditSink.append>[1]) {
             const sink = deps.toolAttemptAuditSink as typeof deps.toolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>;
@@ -847,13 +887,14 @@ async function createVisitorCapabilities({ req, res, reportError, abort, binding
 }
 
 
-async function runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted }: {
-  req: Request; res: Response; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
+async function runVisitorProviderTurn({ req, res, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted }: {
+  req: Request; res: Response; writer: VisitorTurnWriter; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
   capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; executeTool: ReturnType<typeof createVisitorToolExecutor>;
   abort: AbortController; releaseFrontend: () => void; capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
   logicalRunId: string; reportError: SiteAssistantErrorReporter; navigation: { terminalNavigation: boolean }; providerStarted: () => void;
 }): Promise<void> {
         beginStream(req, res);
+        writer.start();
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
         // Never spread admin CLI options or read the Full CLI access setting here (K1).
         await capture({ name: "assistant_message_sent", properties: { inputKind: "text", eventId: `assistant-message:${logicalRunId}` } });
@@ -889,10 +930,10 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
             if (navigation.terminalNavigation) return;
-            if (event.type === "text_delta") sse({ res, event: "text", data: { delta: event.delta } });
-            else if (event.type === "error") { runOutcome = "failed"; sse({ res, event: "error", data: reportError({ code: "provider_error", diagnostic: event.message }) }); }
+            if (event.type === "text_delta") writer.text({ delta: event.delta });
+            else if (event.type === "error") { runOutcome = "failed"; writer.finish({ outcome: { kind: "error", ...reportError({ code: "provider_error", diagnostic: event.message }) } }); }
             else {
-              if (event.type === "end") sse({ res, event: "end", data: { reason: event.reason } });
+              if (event.type === "end") writer.finish({ outcome: { kind: "ok", reason: event.reason } });
             }
           },
         }, {
@@ -906,6 +947,7 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
         });
         } catch (error) { if (!navigation.terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
         finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation: navigation.terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }
+        if (!res.writableEnded) writer.settle();
         res.end();
       
 }

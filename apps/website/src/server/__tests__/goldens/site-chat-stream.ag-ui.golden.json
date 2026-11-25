@@ -1,0 +1,40 @@
+{
+  "plain reply": {
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "vary",
+        "Accept"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-1\",\"runId\":\"run-1\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_<uuid>\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_<uuid>\",\"delta\":\"Hello from the site.\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_<uuid>\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-1\",\"runId\":\"run-1\",\"result\":{\"reason\":\"stop\"}}\n\n"
+  },
+  "no reply": {
+    "status": 200,
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-1\",\"runId\":\"run-1\"}\n\ndata: {\"type\":\"RUN_ERROR\",\"message\":\"the assistant sent no reply\",\"code\":\"NO_REPLY\"}\n\n"
+  }
+}
