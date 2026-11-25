@@ -1,3 +1,6 @@
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
+import { resolveByokFooterStatusLine } from "@/hooks/use-admin-execution-credential.hooks";
 import { createSettingsTabChange, createSettingsUiTranslators } from "@jini-ai/admin/screens/settings/SettingsUi.hooks";
 import { t as tApp } from "../../app-i18n";
 import { tSettingsCapabilities as tCapability } from "../../lib/i18n-common";
@@ -123,7 +126,7 @@ import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-u
 import { useSettingsActiveTabScroll } from "@jini-ai/admin/screens/settings/hooks/use-settings-active-tab-scroll.hooks";
 
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
-import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "@jini-ai/integrations/react/admin-credentials/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
 import { aiAgentPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
@@ -682,7 +685,7 @@ function SettingsExecutionPanel({ adminCredential, agentPresentation, executionP
 }) {
   return (
 <>
-          <AdminByokMigrationPrompt controller={adminCredential} />
+          <AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={adminCredential} />
           {agentPresentation.warning && <p className="notice warning" role="status" aria-live="polite">{agentPresentation.warning}</p>}
           {executionPolicy.note && <p className="jini-field-hint" role="status">{executionPolicy.note}</p>}
           <ExecutionTab
@@ -709,8 +712,8 @@ function SettingsExecutionPanel({ adminCredential, agentPresentation, executionP
             apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
             canDiscoverModels={adminCredential.canDiscoverModels}
             describeProbeError={createProbeErrorDescriber({ t: tExecution })}
-            apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} t={tExecution} />}
-            formFooter={<AdminByokSettingsFooter controller={adminCredential} t={tExecution} />}
+            apiKeyFooter={<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={adminCredential} t={tExecution} />}
+            formFooter={<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={adminCredential} t={tExecution} />}
             agentHandle="settings-ai-agent"
           />
         </>

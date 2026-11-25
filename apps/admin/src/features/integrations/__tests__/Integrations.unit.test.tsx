@@ -1,12 +1,20 @@
+import { useFetchQuery, useFetchMutation, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { tIntegrations } from "@/lib/i18n-common";
+import { routinesKit } from "@/integrations/jini-kits";
+import { ServerLabel } from "@/components/status-labels";
+import { actionsForWebhookLabel, deleteWebhookBody } from "@jini-ai/admin/screens/integrations/integrations-i18n";
+import { useWiredIntegrations } from "../hooks/integrations-dependencies.hooks";
 import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
-import { Integrations } from "../Integrations";
+import { Integrations } from "@jini-ai/integrations/react/webhooks/Integrations";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
-import { useIntegrations, type IntegrationsController } from "../hooks/use-integrations.hooks";
+import { useIntegrations, type IntegrationsController } from "@jini-ai/integrations/react/webhooks/hooks/use-integrations.hooks";
 
 /**
  * @file `Integrations` — pins the MSG-03 RowMenu rollout: the row's Pause/Delete buttons moved
@@ -76,7 +84,7 @@ describe("row actions menu", () => {
       // this file — a second GET, not just the DELETE itself.
       .mockResolvedValueOnce(jsonResponse({ subscriptions: [other] }));
 
-    renderScreen(<Integrations />);
+    renderScreen(<Integrations kit={routinesKit} ServerLabel={ServerLabel} translate={tIntegrations} actionsForWebhookLabel={actionsForWebhookLabel} deleteWebhookBody={deleteWebhookBody} useIntegrationsHook={useWiredIntegrations} />);
 
     const trigger = await screen.findByRole("button", { name: /actions for webhook "my webhook"/i });
     await user.click(trigger);
@@ -86,6 +94,8 @@ describe("row actions menu", () => {
 
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(await screen.findByText(/delete webhook "my webhook"\? this cannot be undone\./i)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE")).toHaveLength(0);
 
     await user.click(screen.getByRole("button", { name: /^delete$/i }));
 
@@ -106,7 +116,7 @@ describe("row actions menu", () => {
       .mockResolvedValueOnce(jsonResponse({ subscriptions: [other, SUBSCRIPTION] }))
       .mockResolvedValueOnce(jsonResponse({ subscription: paused }))
       .mockResolvedValueOnce(jsonResponse({ subscriptions: [other, paused] }));
-    renderScreen(<Integrations />);
+    renderScreen(<Integrations kit={routinesKit} ServerLabel={ServerLabel} translate={tIntegrations} actionsForWebhookLabel={actionsForWebhookLabel} deleteWebhookBody={deleteWebhookBody} useIntegrationsHook={useWiredIntegrations} />);
 
     await user.click(await screen.findByRole("button", { name: /actions for webhook "my webhook"/i }));
     await user.click(screen.getByRole("menuitem", { name: /^pause$/i }));
@@ -123,7 +133,7 @@ describe("row actions menu", () => {
   it("withholds the menu entirely for a disabled subscription, rather than an unusable empty dropdown", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ subscriptions: [{ ...SUBSCRIPTION, status: "disabled" }] }));
 
-    renderScreen(<Integrations />);
+    renderScreen(<Integrations kit={routinesKit} ServerLabel={ServerLabel} translate={tIntegrations} actionsForWebhookLabel={actionsForWebhookLabel} deleteWebhookBody={deleteWebhookBody} useIntegrationsHook={useWiredIntegrations} />);
 
     await screen.findByText("My webhook");
     expect(screen.queryByRole("button", { name: /actions for webhook/i })).not.toBeInTheDocument();
@@ -140,9 +150,9 @@ function renderWithPort(
   overrides: Partial<IntegrationsController> = {},
 ) {
   function useHook(): IntegrationsController {
-    return { ...useIntegrations({ port: port, t: ({ key }) => key, locale: "en" }), ...overrides };
+    return { ...useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: ({ key }) => key, locale: "en" }), ...overrides };
   }
-  return renderScreen(<Integrations useIntegrationsHook={useHook} />);
+  return renderScreen(<Integrations kit={routinesKit} ServerLabel={ServerLabel} translate={tIntegrations} actionsForWebhookLabel={actionsForWebhookLabel} deleteWebhookBody={deleteWebhookBody} useIntegrationsHook={useHook} />);
 }
 
 describe("screen states", () => {
@@ -180,6 +190,7 @@ describe("create form", () => {
     const user = userEvent.setup();
     renderWithPort(createFakeIntegrationsPort());
     await user.click(await screen.findByRole("button", { name: "Add webhook" }));
+    expect(screen.getByRole("textbox", { name: "Target URL" })).toHaveAttribute("placeholder", "https://example.com/hooks");
     expect(screen.queryByRole("button", { name: "Add webhook" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("textbox", { name: "Label" })).not.toBeInTheDocument();

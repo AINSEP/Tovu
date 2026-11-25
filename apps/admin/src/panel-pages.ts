@@ -55,7 +55,7 @@ export const Trash = lazy(() => import("./features/trash").then(module => ({ def
 export const Email = lazy(() => import("./features/email").then(module => ({ default: module.Email })));
 export const EmailTemplateEditor = lazy(() => import("./features/email").then(module => ({ default: module.EmailTemplateEditor })));
 export const Database = lazy(() => import("./features/database").then(module => ({ default: module.Database })));
-export const Recovery = lazy(() => import("./features/recovery").then(module => ({ default: module.Recovery })));
+export const Recovery = lazy(() => import("./features/recovery/recovery-panel").then(module => ({ default: module.Recovery })));
 export const Storage = lazy(() => import("./features/storage").then(module => ({ default: module.Storage })));
 export const Deployment = lazy(() => import("./features/deployment").then(module => ({ default: module.Deployment })));
 export const SourceControl = lazy(() => import("./features/source-control/source-control-panel").then(module => ({ default: module.SourceControl })));

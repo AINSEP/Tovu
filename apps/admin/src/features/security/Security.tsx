@@ -1,3 +1,8 @@
+import { useWiredSiteKeyRecovery } from "./hooks/site-key-dependencies.hooks";
+import { useRevealedKeyCopy } from "@jini-ai/admin/security/host/SiteKeyTab.hooks";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
+import { siteKeyStatusBadgeLabel } from "@jini-ai/admin/security/host/hooks/site-key-status.rules";
+import { siteKeyGenerateErrorMessage } from "@jini-ai/admin/security/security-i18n";
 import { navigateSecurityTab } from "@jini-ai/admin/security/host/Security.hooks";
 import { PasskeySettings } from '@jini-ai/user-management/react';
 import { ownerPasskeySettingsPort } from '../../lib/owner-clients';
@@ -11,10 +16,10 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { tSecurity as t } from "../../lib/i18n-common";
 import { AccessTokensTab } from "./AccessTokensTab";
-import { SiteKeyTab } from "./SiteKeyTab";
+import { SiteKeyTab } from "@jini-ai/integrations/react/site-key/SiteKeyTab";
 import { AccessTokensIcon, SiteKeyIcon } from "../../integrations/jini-admin/security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
-import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
+import { useWiredSiteKey } from "./hooks/site-key-dependencies.hooks";
 import { useWiredSecurityPermissions } from "./hooks/security-permissions-dependencies.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
@@ -190,7 +195,14 @@ export function Security({ useAdminLocaleHook = useAdminLocale,
         containerHandle="security-tab-bar"
       />
       {activeTabId === ACCESS_TOKENS_TAB ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}
-      {activeTabId === "site-key" ? <SiteKeyTab useSiteKeyHook={props.useSiteKeyHook} /> : null}
+      {activeTabId === "site-key" ? <SiteKeyTab useSiteKeyHook={props.useSiteKeyHook ?? useWiredSiteKey} useSiteKeyRecoveryHook={useWiredSiteKeyRecovery} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocaleHook} kit={{ SecretInput }} copy={{
+          siteKeyEnvVarName: "TOVU_SITE_KEY",
+          scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",
+          invalidEnv: "A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.",
+          invalidFileSuffix: "isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.",
+          siteKeyStatusBadgeLabel,
+          siteKeyGenerateErrorMessage,
+      }} /> : null}
     </div>
   );
 }

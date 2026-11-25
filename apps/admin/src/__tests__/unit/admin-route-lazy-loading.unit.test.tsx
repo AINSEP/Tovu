@@ -41,7 +41,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/trash", moduleId: "trash", exports: ["Trash"] },
   { modulePath: "../../features/email", moduleId: "email", exports: ["Email", "EmailTemplateEditor"] },
   { modulePath: "../../features/database", moduleId: "database", exports: ["Database"] },
-  { modulePath: "../../features/recovery", moduleId: "recovery", exports: ["Recovery"] },
+  { modulePath: "../../features/recovery/recovery-panel", moduleId: "recovery", exports: ["Recovery"] },
   { modulePath: "../../features/deployment", moduleId: "deployment", exports: ["Deployment"] },
   { modulePath: "../../features/source-control/source-control-panel", moduleId: "source-control", exports: ["SourceControl"] },
   { modulePath: "../../features/security", moduleId: "security", exports: ["Security"] },
@@ -51,7 +51,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/playground", moduleId: "playground", exports: ["Playground"] },
   { modulePath: "../../features/sites", moduleId: "sites", exports: ["Sites"] },
   { modulePath: "../../features/media", moduleId: "media", exports: ["Media"] },
-  { modulePath: "../../features/integrations/IntegrationDeliveries", moduleId: "integrations", exports: ["IntegrationDeliveries"] },
+  { modulePath: "../../features/integrations/integration-deliveries-panel", moduleId: "integrations", exports: ["IntegrationDeliveries"] },
 ];
 
 // Render just the route inputs under test; page effects and network reads are outside this seam.

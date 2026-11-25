@@ -564,7 +564,7 @@ describe("integrations", () => {
   it("initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/subscriptions", respond: () => jsonResponse({ subscriptions: [] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredIntegrations } = await import("../features/integrations/hooks/use-integrations.hooks");
+    const { useWiredIntegrations } = await import("../features/integrations/hooks/integrations-dependencies.hooks");
     const { result } = renderHook(() => useWiredIntegrations(), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).not.toBeNull());
     await expectRequests(calls, [`GET ${WORKSPACE}/integrations/subscriptions`]);
@@ -578,7 +578,7 @@ describe("integrations", () => {
       { match: "/subscriptions", respond: () => jsonResponse({ subscriptions: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredIntegrations } = await import("../features/integrations/hooks/use-integrations.hooks");
+    const { useWiredIntegrations } = await import("../features/integrations/hooks/integrations-dependencies.hooks");
     const { result } = renderHook(() => useWiredIntegrations(), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).not.toBeNull());
     calls.length = 0;

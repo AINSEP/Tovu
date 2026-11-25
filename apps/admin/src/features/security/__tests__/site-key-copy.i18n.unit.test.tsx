@@ -1,10 +1,23 @@
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useRevealedKeyCopy } from "@jini-ai/admin/security/host/SiteKeyTab.hooks";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
+import { siteKeyGenerateErrorMessage } from "@jini-ai/admin/security/security-i18n";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
-import { SiteKeyTab } from "../SiteKeyTab";
+import { SiteKeyTab } from "@jini-ai/integrations/react/site-key/SiteKeyTab";
 import { tSecurity as t } from "../../../lib/i18n-common";
 import { siteKeyStatusBadgeLabel } from "@jini-ai/admin/security/host/hooks/site-key-status.rules";
-import type { SiteKeyController } from "../hooks/use-site-key.hooks";
-import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";
+import type { SiteKeyController } from "@jini-ai/integrations/react/site-key/hooks/use-site-key.hooks";
+import type { SiteKeyRecoveryController } from "@jini-ai/integrations/react/site-key/hooks/use-site-key-recovery.hooks";
+
+const siteKeyCopy = {
+  siteKeyEnvVarName: "TOVU_SITE_KEY",
+  scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",
+  invalidEnv: "A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.",
+  invalidFileSuffix: "isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.",
+  siteKeyStatusBadgeLabel,
+  siteKeyGenerateErrorMessage,
+};
 
 const locales = ["en", "es", "de", "fr", "it", "pt-BR", "pl", "hu", "tr", "ru", "uk", "id", "ar", "fa", "hi", "bn", "ur", "ja", "ko", "th", "zh-CN", "zh-TW"];
 const copy = [
@@ -43,7 +56,7 @@ describe("site key tab translations", () => {
       confirmText: "", setConfirmText: () => {}, canConfirmStartFresh: false, startingFresh: false,
       startFreshError: null, startFresh: async () => {}, resultMessage: null, t: translate,
     };
-    const { container } = render(<SiteKeyTab useSiteKeyHook={() => controller} useSiteKeyRecoveryHook={() => recovery} />);
+    const { container } = render(<SiteKeyTab useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyHook={() => controller} useSiteKeyRecoveryHook={() => recovery} />);
     expect(screen.getByText(translate(copy[0]))).toBeInTheDocument();
     expect(screen.getByText(translate(copy[1]))).toBeInTheDocument();
     expect(screen.getByText(translate(copy[2]))).toBeInTheDocument();

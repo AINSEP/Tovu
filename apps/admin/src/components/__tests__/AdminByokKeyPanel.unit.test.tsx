@@ -1,3 +1,6 @@
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
+import { resolveByokFooterStatusLine } from "@/hooks/use-admin-execution-credential.hooks";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -7,7 +10,7 @@ import {
   AdminByokMigrationPrompt,
   AdminByokSettingsFooter,
   resolveByokSettingsStatusLine,
-} from "../AdminByokKeyPanel";
+} from "@jini-ai/integrations/react/admin-credentials/AdminByokKeyPanel";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";
 import { t as tSettingsExecution } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
 
@@ -39,14 +42,14 @@ function controller(overrides: Partial<AdminExecutionCredentialController> = {})
 
 describe("AdminByokMigrationPrompt", () => {
   it("renders nothing when there is no legacy key to migrate", () => {
-    const { container } = render(<AdminByokMigrationPrompt controller={controller({ legacyKey: null })} />);
+    const { container } = render(<AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ legacyKey: null })} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders the prompt and wires the confirm button to migrateLegacyKey", async () => {
     const user = userEvent.setup();
     const c = controller({ legacyKey: "sk-legacy" });
-    render(<AdminByokMigrationPrompt controller={c} />);
+    render(<AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={c} />);
 
     expect(screen.getByText(/we found a saved key in this browser/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /save to my account/i }));
@@ -56,7 +59,7 @@ describe("AdminByokMigrationPrompt", () => {
   it("wires the decline button to dismissLegacyPrompt, and never calls migrateLegacyKey", async () => {
     const user = userEvent.setup();
     const c = controller({ legacyKey: "sk-legacy" });
-    render(<AdminByokMigrationPrompt controller={c} />);
+    render(<AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={c} />);
 
     await user.click(screen.getByRole("button", { name: /not now/i }));
     expect(c.dismissLegacyPrompt).toHaveBeenCalledTimes(1);
@@ -64,7 +67,7 @@ describe("AdminByokMigrationPrompt", () => {
   });
 
   it("disables both buttons while a save is in flight", () => {
-    render(<AdminByokMigrationPrompt controller={controller({ legacyKey: "sk-legacy", saveState: { status: "saving" } })} />);
+    render(<AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ legacyKey: "sk-legacy", saveState: { status: "saving" } })} />);
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /not now/i })).toBeDisabled();
   });
@@ -72,6 +75,7 @@ describe("AdminByokMigrationPrompt", () => {
   it("surfaces the error message when a migration save fails", () => {
     render(
       <AdminByokMigrationPrompt
+        useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator}
         controller={controller({ legacyKey: "sk-legacy", saveState: { status: "error", message: "no site key" } })}
       />,
     );
@@ -79,7 +83,7 @@ describe("AdminByokMigrationPrompt", () => {
   });
 
   it("never renders the raw legacy key value anywhere in the prompt", () => {
-    const { container } = render(<AdminByokMigrationPrompt controller={controller({ legacyKey: "sk-super-secret-value" })} />);
+    const { container } = render(<AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ legacyKey: "sk-super-secret-value" })} />);
     expect(screen.queryByText(/sk-super-secret-value/)).not.toBeInTheDocument();
     expect(container.innerHTML).not.toContain("sk-super-secret-value");
     for (const input of container.querySelectorAll("input, textarea")) {
@@ -90,14 +94,14 @@ describe("AdminByokMigrationPrompt", () => {
 
 describe("AdminByokKeyFooter", () => {
   it("disables Save when canSaveKey is false", () => {
-    render(<AdminByokKeyFooter controller={controller({ canSaveKey: false })} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller({ canSaveKey: false })} />);
     expect(screen.getByRole("button", { name: /save key/i })).toBeDisabled();
   });
 
   it("enables Save and wires it to saveKey when canSaveKey is true", async () => {
     const user = userEvent.setup();
     const c = controller({ canSaveKey: true });
-    render(<AdminByokKeyFooter controller={c} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={c} />);
 
     const button = screen.getByRole("button", { name: /save key/i });
     expect(button).toBeEnabled();
@@ -106,17 +110,17 @@ describe("AdminByokKeyFooter", () => {
   });
 
   it("shows the stored/encrypted status line once a credential is on the server", () => {
-    render(<AdminByokKeyFooter controller={controller({ stored: { isSet: true, masked: "••••abcd", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: null, maxTokens: null, updatedAt: "2026-08-05T00:00:00.000Z" } })} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller({ stored: { isSet: true, masked: "••••abcd", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: null, maxTokens: null, updatedAt: "2026-08-05T00:00:00.000Z" } })} />);
     expect(screen.getByText(/stored on the server, encrypted/i)).toBeInTheDocument();
   });
 
   it("shows the saved confirmation immediately after a successful save", () => {
-    render(<AdminByokKeyFooter controller={controller({ saveState: { status: "saved" } })} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller({ saveState: { status: "saved" } })} />);
     expect(screen.getByText(/saved to the server, encrypted\./i)).toBeInTheDocument();
   });
 
   it("surfaces a save error", () => {
-    render(<AdminByokKeyFooter controller={controller({ saveState: { status: "error", message: "failed to save the key" } })} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller({ saveState: { status: "error", message: "failed to save the key" } })} />);
     expect(screen.getByText("failed to save the key")).toBeInTheDocument();
   });
 
@@ -125,7 +129,7 @@ describe("AdminByokKeyFooter", () => {
    * the in-flight state the button's own label swaps to, had never been rendered.
    */
   it("shows 'Saving…' and disables the button while the save is in flight", () => {
-    render(<AdminByokKeyFooter controller={controller({ saveState: { status: "saving" }, canSaveKey: true })} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller({ saveState: { status: "saving" }, canSaveKey: true })} />);
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
 
@@ -133,6 +137,7 @@ describe("AdminByokKeyFooter", () => {
   it("asks for this provider's key, instead of reporting the stored one, when that key belongs to another endpoint", () => {
     render(
       <AdminByokKeyFooter
+        useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine}
         controller={controller({
           stored: { isSet: true, masked: "••••mw4w", protocol: "google", providerId: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, maxTokens: null, updatedAt: "2026-09-13T00:00:00.000Z" },
           storedKeyIsForOtherEndpoint: true,
@@ -144,7 +149,7 @@ describe("AdminByokKeyFooter", () => {
   });
 
   it("translates its status line through the host screen's t", () => {
-    render(<AdminByokKeyFooter controller={controller({ storedKeyIsForOtherEndpoint: true })} t={(key) => `[es] ${key}`} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller({ storedKeyIsForOtherEndpoint: true })} t={(key) => `[es] ${key}`} />);
     expect(screen.getByText("[es] Your saved key is for a different provider. Paste a key for this one.")).toBeInTheDocument();
   });
 });
@@ -153,7 +158,7 @@ describe("AdminByokSettingsFooter", () => {
   it("wires the Save settings button to saveSettings and never to saveKey", async () => {
     const user = userEvent.setup();
     const c = controller({ canSaveKey: true });
-    render(<AdminByokSettingsFooter controller={c} />);
+    render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={c} />);
 
     await user.click(screen.getByRole("button", { name: /save settings/i }));
     expect(c.saveSettings).toHaveBeenCalledTimes(1);
@@ -162,34 +167,34 @@ describe("AdminByokSettingsFooter", () => {
   });
 
   it("is enabled even with a blank key field — settings are not the key", () => {
-    render(<AdminByokSettingsFooter controller={controller({ canSaveKey: false })} />);
+    render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ canSaveKey: false })} />);
     expect(screen.getByRole("button", { name: /save settings/i })).toBeEnabled();
   });
 
   it("disables itself only while its own save is in flight, not while the key is saving", () => {
-    render(<AdminByokSettingsFooter controller={controller({ saveState: { status: "saving" } })} />);
+    render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ saveState: { status: "saving" } })} />);
     expect(screen.getByRole("button", { name: /save settings/i })).toBeEnabled();
 
-    render(<AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "saving" } })} />);
+    render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ settingsSaveState: { status: "saving" } })} />);
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
   });
 
   it("never claims a key was saved — its confirmation names the settings only", () => {
-    render(<AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "saved" } })} />);
+    render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ settingsSaveState: { status: "saved" } })} />);
     expect(screen.getByText("Settings saved.")).toBeInTheDocument();
     expect(screen.queryByText(/encrypted/i)).not.toBeInTheDocument();
   });
 
   it("surfaces its own save error", () => {
     render(
-      <AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "error", message: "boom" } })} />,
+      <AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ settingsSaveState: { status: "error", message: "boom" } })} />,
     );
     expect(screen.getByText("boom")).toBeInTheDocument();
   });
 
   it("translates its status line through the host screen's t", () => {
     render(
-      <AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "saved" } })} t={(key) => `[es] ${key}`} />,
+      <AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ settingsSaveState: { status: "saved" } })} t={(key) => `[es] ${key}`} />,
     );
     expect(screen.getByText("[es] Settings saved.")).toBeInTheDocument();
   });
@@ -197,6 +202,7 @@ describe("AdminByokSettingsFooter", () => {
   it("translates its status line with the real settings-execution dictionary, not just a key passthrough", () => {
     render(
       <AdminByokSettingsFooter
+        useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator}
         controller={controller({ settingsSaveState: { status: "saved" } })}
         t={(key) => tSettingsExecution({ locale: "es", key: key })}
       />,
@@ -211,8 +217,8 @@ describe("AdminByokSettingsFooter", () => {
     // rather than a colour, so it cannot pass with a hand-picked hex that merely looks similar —
     // `.btn-primary` is the only thing that resolves `var(--primary)`.
     const c = controller({ canSaveKey: true });
-    const { container: keyFooter } = render(<AdminByokKeyFooter controller={c} />);
-    const { container: settingsFooter } = render(<AdminByokSettingsFooter controller={c} />);
+    const { container: keyFooter } = render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={c} />);
+    const { container: settingsFooter } = render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={c} />);
 
     const saveKey = keyFooter.querySelector("button");
     const saveSettings = settingsFooter.querySelector("button");

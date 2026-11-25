@@ -1,3 +1,5 @@
+import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
+import { resolveByokFooterStatusLine } from "@/hooks/use-admin-execution-credential.hooks";
 import { createAiAssistantTranslator, useHostAssistantRestartAllowed } from "./AiAssistant.hooks";
 import type { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId } from "react";
@@ -17,7 +19,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "@jini-ai/integrations/react/admin-credentials/AdminByokKeyPanel";
 import { AdminAssistantSwitch } from "@jini-ai/admin/screens/assistant-settings/AdminAssistantSwitch";
 import { useAdminAssistantSwitch } from "@jini-ai/admin/screens/assistant-settings/use-admin-assistant-switch.hooks";
 import { AssistantDaemonRestart } from "@jini-ai/admin/screens/assistant-settings/AssistantDaemonRestart";
@@ -264,7 +266,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   return (
     <section className="assistant-execution" data-tovu-local-cli={executionPolicy.visibility}>
       {execution.loadError ? <div className="save-error">{execution.loadError}</div> : null}
-      <AdminByokMigrationPrompt controller={adminCredential} agentHandle="ai-assistant-admin-byok-migration" />
+      <AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={adminCredential} agentHandle="ai-assistant-admin-byok-migration" />
       {executionPolicy.note && <p className="muted-cell" role="status">{executionPolicy.note}</p>}
       <ExecutionTab
         presets={DEFAULT_PROVIDER_PRESETS}
@@ -287,8 +289,8 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
         canDiscoverModels={adminCredential.canDiscoverModels}
         describeProbeError={createProbeErrorDescriber({ t })}
-        apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
-        formFooter={<AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" t={t} />}
+        apiKeyFooter={<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
+        formFooter={<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" t={t} />}
       />
       {/*
         Save feedback for the ledger's OWN debounced auto-save — `SettingsUi.tsx` gets the equivalent

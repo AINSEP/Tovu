@@ -1,9 +1,12 @@
+import { routinesKit } from "@/integrations/jini-kits";
+import { ServerLabel } from "@/components/status-labels";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { displayTimestamp } from "../rules";
-import { IntegrationDeliveries } from "../IntegrationDeliveries";
-import type { IntegrationDeliveriesController } from "../hooks/use-integration-deliveries.hooks";
+import { displayTimestamp } from "@jini-ai/integrations/react/webhooks/rules";
+import { IntegrationDeliveries } from "@jini-ai/integrations/react/webhooks/IntegrationDeliveries";
+import type { IntegrationDeliveriesController } from "@jini-ai/integrations/react/webhooks/hooks/use-integration-deliveries.hooks";
 import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
@@ -35,7 +38,7 @@ function baseController(overrides: Partial<IntegrationDeliveriesController> = {}
 describe("loading and error states", () => {
   it("shows a loading placeholder before deliveries have loaded", () => {
     render(
-      <IntegrationDeliveries
+      <IntegrationDeliveries kit={routinesKit} ServerLabel={ServerLabel} viewerTimeZone={VIEWER_TIME_ZONE}
         subscriptionId="sub1"
         useIntegrationDeliveriesHook={() => baseController({ deliveries: null })}
       />,
@@ -45,7 +48,7 @@ describe("loading and error states", () => {
 
   it("shows the error message instead of the table when the load failed", () => {
     render(
-      <IntegrationDeliveries
+      <IntegrationDeliveries kit={routinesKit} ServerLabel={ServerLabel} viewerTimeZone={VIEWER_TIME_ZONE}
         subscriptionId="sub1"
         useIntegrationDeliveriesHook={() => baseController({ deliveries: null, error: "failed to load deliveries" })}
       />,
@@ -57,7 +60,7 @@ describe("loading and error states", () => {
 describe("delivery table", () => {
   it("shows the empty state when there are no deliveries yet", () => {
     render(
-      <IntegrationDeliveries
+      <IntegrationDeliveries kit={routinesKit} ServerLabel={ServerLabel} viewerTimeZone={VIEWER_TIME_ZONE}
         subscriptionId="sub1"
         useIntegrationDeliveriesHook={() => baseController({ deliveries: [] })}
       />,
@@ -67,18 +70,18 @@ describe("delivery table", () => {
 
   it("renders status, attempts, last response status, and a timestamp for each delivery", () => {
     render(
-      <IntegrationDeliveries subscriptionId="sub1" useIntegrationDeliveriesHook={() => baseController()} />,
+      <IntegrationDeliveries kit={routinesKit} ServerLabel={ServerLabel} viewerTimeZone={VIEWER_TIME_ZONE} subscriptionId="sub1" useIntegrationDeliveriesHook={() => baseController()} />,
     );
     expect(screen.getByText("Delivered")).toBeInTheDocument();
     expect(screen.getByText("200")).toBeInTheDocument();
     expect(screen.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Status", "Attempts", "Last response", "Timestamp"]);
-    expect(screen.getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["Delivered", "3", "200", displayTimestamp(DELIVERY)]);
+    expect(screen.getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["Delivered", "3", "200", displayTimestamp({ delivery: DELIVERY, viewerTimeZone: VIEWER_TIME_ZONE }, {})]);
     expect(screen.getAllByRole("cell").length).toBeGreaterThan(0);
   });
 
   it("shows the last error text under the response status when the delivery failed", () => {
     render(
-      <IntegrationDeliveries
+      <IntegrationDeliveries kit={routinesKit} ServerLabel={ServerLabel} viewerTimeZone={VIEWER_TIME_ZONE}
         subscriptionId="sub1"
         useIntegrationDeliveriesHook={() =>
           baseController({
@@ -92,7 +95,7 @@ describe("delivery table", () => {
 
   it("shows an em dash for a delivery with no response status yet (still pending)", () => {
     render(
-      <IntegrationDeliveries
+      <IntegrationDeliveries kit={routinesKit} ServerLabel={ServerLabel} viewerTimeZone={VIEWER_TIME_ZONE}
         subscriptionId="sub1"
         useIntegrationDeliveriesHook={() =>
           baseController({ deliveries: [{ ...DELIVERY, status: "pending", lastResponseStatus: null, lastError: null }] })
@@ -105,7 +108,7 @@ describe("delivery table", () => {
 
 describe("page chrome", () => {
   it("links back to the Integrations list", () => {
-    render(<IntegrationDeliveries subscriptionId="sub1" useIntegrationDeliveriesHook={() => baseController()} />);
+    render(<IntegrationDeliveries kit={routinesKit} ServerLabel={ServerLabel} viewerTimeZone={VIEWER_TIME_ZONE} subscriptionId="sub1" useIntegrationDeliveriesHook={() => baseController()} />);
     expect(screen.getByRole("link", { name: /integrations/i })).toHaveAttribute("href", "/admin/addons/integrations?tab=webhooks");
   });
 });

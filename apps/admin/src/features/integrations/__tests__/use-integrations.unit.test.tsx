@@ -1,11 +1,15 @@
+import { useFetchQuery, useFetchMutation, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { tIntegrations } from "@/lib/i18n-common";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { useIntegrations } from "../hooks/use-integrations.hooks";
+import { useIntegrations } from "@jini-ai/integrations/react/webhooks/hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
-import { WEBHOOKS_RESOURCE } from "../rules";
+import { WEBHOOKS_RESOURCE } from "@jini-ai/integrations/react/webhooks/rules";
 import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
@@ -83,7 +87,7 @@ describe("useIntegrations — injected port", () => {
   it("resumes a paused subscription through the port and refreshes its status", async () => {
     const paused = subscriptionFixture({ status: "paused" });
     const port = createFakeIntegrationsPort({ subscriptions: [paused] });
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([paused]));
 
     await act(async () => result.current.onTogglePause(paused));
@@ -96,7 +100,7 @@ describe("useIntegrations — injected port", () => {
     const subscription = subscriptionFixture();
     const port = createFakeIntegrationsPort({ subscriptions: [subscription] });
     const deleteSubscription = vi.spyOn(port, "deleteIntegrationSubscription");
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([subscription]));
 
     await act(async () => result.current.onDelete());
@@ -112,7 +116,7 @@ describe("useIntegrations — injected port", () => {
       ...createFakeIntegrationsPort(),
       createIntegrationSubscription: async () => { throw new Error("creation denied"); },
     };
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([]));
     act(() => {
       result.current.setFormOpen(true);
@@ -137,7 +141,7 @@ describe("useIntegrations — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
 
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.subscriptions).not.toBeNull());
     expect(result.current.subscriptions).toEqual([subscriptionFixture()]);
@@ -151,7 +155,7 @@ describe("useIntegrations — injected port", () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationsPort();
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([]));
 
     act(() => {
@@ -177,7 +181,7 @@ describe("useIntegrations — injected port", () => {
 
   it("onTogglePause flips status through the port", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture({ status: "active" })] });
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     await act(async () => {
@@ -191,7 +195,7 @@ describe("useIntegrations — injected port", () => {
 
   it("onDelete removes the pending subscription through the port", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     act(() => result.current.setPendingDelete(subscriptionFixture()));
@@ -220,7 +224,7 @@ describe("useIntegrations — injected t/locale are genuinely returned, not buil
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
     const distinctiveT = ({ key }: { key: string }): string => `TRANSLATED[${key}]`;
 
-    const { result } = renderHook(() => useIntegrations({ port: port, t: distinctiveT, locale: "fr" }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: distinctiveT, locale: "fr" }), { wrapper });
 
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
     expect(result.current.t({ key: "Integrations" })).toBe("TRANSLATED[Integrations]");
@@ -234,7 +238,7 @@ describe("useIntegrations — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires, so an assistant-created webhook subscription appears without a reload", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     // The assistant's `webhooks_create_subscription` call landing server-side — the screen has no
@@ -249,7 +253,7 @@ describe("useIntegrations — content refresh bus", () => {
 
   it("refreshes on a notification that names webhooks, and ignores one that names only other resources", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     port.subscriptions.push(subscriptionFixture({ id: "sub2", label: "Agent-made" }));
@@ -265,7 +269,7 @@ describe("useIntegrations — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
     const listSpy = vi.spyOn(port, "listIntegrationSubscriptions");
-    const { result, unmount } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result, unmount } = renderHook(() => useIntegrations({ queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: tIntegrations, port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     const callsWhileMounted = listSpy.mock.calls.length;

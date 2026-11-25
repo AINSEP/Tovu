@@ -1,9 +1,13 @@
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "@jini-ai/admin/security/security-i18n";
+import { readApiRefusal } from "../hooks/site-key-dependencies.hooks";
+import { useWiredSiteKey } from "../hooks/site-key-dependencies.hooks";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
-import { ApiError } from "@/lib/admin-http/request";
-import { useSiteKey, useWiredSiteKey } from "../hooks/use-site-key.hooks";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+import { useSiteKey } from "@jini-ai/integrations/react/site-key/hooks/use-site-key.hooks";
 import type { SiteKeyPort } from "@jini-ai/core/contracts/site/site-key";
 
 const t = (key: string) => key;
@@ -22,7 +26,7 @@ function makePort(overrides: Partial<SiteKeyPort> = {}): SiteKeyPort {
 }
 
 async function mount(port: SiteKeyPort, status = ACTIVE) {
-  const hook = renderHook(() => useSiteKey({ port, t, locale: "en" }));
+  const hook = renderHook(() => useSiteKey({ queryHooks: { useFetchQuery, useFetchMutation, useCachedLoader }, describeApiError, readApiRefusal, copy: { siteKeyLoadErrorMessage, siteKeyRevealErrorMessage, unknownError: "unknown error" }, port, t, locale: "en" }));
   await waitFor(() => expect(hook.result.current.status).toEqual(status));
   return hook;
 }
@@ -80,7 +84,7 @@ describe("useSiteKey", () => {
 
   it("does not reveal before status loads or when no key is active", async () => {
     const port = makePort({ status: vi.fn(async () => MISSING) });
-    const { result } = renderHook(() => useSiteKey({ port, t, locale: "en" }));
+    const { result } = renderHook(() => useSiteKey({ queryHooks: { useFetchQuery, useFetchMutation, useCachedLoader }, describeApiError, readApiRefusal, copy: { siteKeyLoadErrorMessage, siteKeyRevealErrorMessage, unknownError: "unknown error" }, port, t, locale: "en" }));
     await act(async () => result.current.reveal());
     await waitFor(() => expect(result.current.status).toEqual(MISSING));
     await act(async () => result.current.reveal());
@@ -115,7 +119,7 @@ describe("useSiteKey", () => {
     let finish!: (value: Awaited<ReturnType<SiteKeyPort["generate"]>>) => void;
     const pending = new Promise<Awaited<ReturnType<SiteKeyPort["generate"]>>>((resolve) => { finish = resolve; });
     const port = makePort({ status: vi.fn(async () => MISSING), generate: vi.fn(() => pending) });
-    const { result } = renderHook(() => useSiteKey({ port, t, locale: "en" }));
+    const { result } = renderHook(() => useSiteKey({ queryHooks: { useFetchQuery, useFetchMutation, useCachedLoader }, describeApiError, readApiRefusal, copy: { siteKeyLoadErrorMessage, siteKeyRevealErrorMessage, unknownError: "unknown error" }, port, t, locale: "en" }));
     await act(async () => result.current.generate());
     expect(port.generate).not.toHaveBeenCalled();
     await waitFor(() => expect(result.current.status).toEqual(MISSING));
@@ -135,7 +139,7 @@ describe("useSiteKey", () => {
 
   it("reports status and reveal failures without staying busy or exposing a key", async () => {
     const failedPort = makePort({ status: vi.fn(async () => { throw new Error("status unavailable"); }) });
-    const failed = renderHook(() => useSiteKey({ port: failedPort, t, locale: "en" }));
+    const failed = renderHook(() => useSiteKey({ queryHooks: { useFetchQuery, useFetchMutation, useCachedLoader }, describeApiError, readApiRefusal, copy: { siteKeyLoadErrorMessage, siteKeyRevealErrorMessage, unknownError: "unknown error" }, port: failedPort, t, locale: "en" }));
     await waitFor(() => expect(failed.result.current.loadError).toContain("status unavailable"));
     failed.unmount();
     const { result } = await mount(makePort({ reveal: vi.fn(async () => { throw new Error("reveal denied"); }) }));

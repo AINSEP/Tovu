@@ -1,8 +1,11 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { describeApiError } from "@/lib/admin-http/request";
+import { IntegrationDeliveries } from "../integration-deliveries-panel";
+import { render, screen, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useIntegrationDeliveries } from "../hooks/use-integration-deliveries.hooks";
+import { useIntegrationDeliveries } from "@jini-ai/integrations/react/webhooks/hooks/use-integration-deliveries.hooks";
 import { createFakeIntegrationDeliveriesPort } from "../hooks/integration-deliveries-dependencies.hooks";
 import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
@@ -58,7 +61,7 @@ describe("useIntegrationDeliveries — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationDeliveriesPort({ deliveries: [deliveryFixture()] });
 
-    const { result } = renderHook(() => useIntegrationDeliveries({ subscriptionId: "sub1", port: port, t: fakeT }), { wrapper });
+    const { result } = renderHook(() => useIntegrationDeliveries({ queryHooks: { useFetchQuery }, describeApiError, subscriptionId: "sub1", port: port, t: fakeT }), { wrapper });
 
     await waitFor(() => expect(result.current.deliveries).not.toBeNull());
     expect(result.current.deliveries).toEqual([deliveryFixture()]);
@@ -70,7 +73,7 @@ describe("useIntegrationDeliveries — injected port", () => {
     const port = createFakeIntegrationDeliveriesPort();
     port.listIntegrationDeliveries = () => Promise.reject(new Error("deliveries table locked"));
 
-    const { result } = renderHook(() => useIntegrationDeliveries({ subscriptionId: "sub1", port: port, t: fakeT }), { wrapper });
+    const { result } = renderHook(() => useIntegrationDeliveries({ queryHooks: { useFetchQuery }, describeApiError, subscriptionId: "sub1", port: port, t: fakeT }), { wrapper });
 
     await waitFor(() => expect(result.current.error).toBe("deliveries table locked"));
     expect(result.current.deliveries).toBeNull();
@@ -86,7 +89,7 @@ describe("useIntegrationDeliveries — injected port", () => {
       deliveries: deliveries.filter((delivery) => delivery.subscriptionId === subscriptionId),
     }));
     port.listIntegrationDeliveries = listSpy;
-    const { result, rerender } = renderHook(({ subscriptionId }) => useIntegrationDeliveries({ subscriptionId: subscriptionId, port: port, t: fakeT }), {
+    const { result, rerender } = renderHook(({ subscriptionId }) => useIntegrationDeliveries({ queryHooks: { useFetchQuery }, describeApiError, subscriptionId: subscriptionId, port: port, t: fakeT }), {
       initialProps: { subscriptionId: "sub1" },
       wrapper,
     });
@@ -112,10 +115,35 @@ describe("useIntegrationDeliveries — injected t is genuinely returned, not bui
     const port = createFakeIntegrationDeliveriesPort({ deliveries: [deliveryFixture()] });
     const distinctiveT = ({ key }: { key: string }): string => `TRANSLATED[${key}]`;
 
-    const { result } = renderHook(() => useIntegrationDeliveries({ subscriptionId: "sub1", port: port, t: distinctiveT }), { wrapper });
+    const { result } = renderHook(() => useIntegrationDeliveries({ queryHooks: { useFetchQuery }, describeApiError, subscriptionId: "sub1", port: port, t: distinctiveT }), { wrapper });
 
     await waitFor(() => expect(result.current.deliveries).not.toBeNull());
     expect(result.current.t({ key: "Delivery log" })).toBe("TRANSLATED[Delivery log]");
     expect(result.current.t).toBe(distinctiveT);
+  });
+});
+
+describe("wired delivery mount", () => {
+  it("requests and displays B after switching from A under the real cache provider", async () => {
+    const request = vi.fn(async (url: string) => {
+      const deliveries = String(url).includes("/subscriptions/sub1/deliveries")
+        ? [deliveryFixture({ lastError: "delivery for A" })]
+        : [deliveryFixture({ id: "del2", subscriptionId: "sub2", lastError: "delivery for B" })];
+      return new Response(JSON.stringify({ deliveries }), { headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", (url: string) => String(url).includes("/settings/effective")
+      ? Promise.resolve(new Response(JSON.stringify({ data: [] }), { headers: { "content-type": "application/json" } }))
+      : request(url));
+    const view = render(<IntegrationDeliveries subscriptionId="sub1" />, { wrapper });
+    expect(await screen.findByText("delivery for A")).toBeInTheDocument();
+
+    view.rerender(<IntegrationDeliveries subscriptionId="sub2" />);
+
+    expect(await screen.findByText("delivery for B")).toBeInTheDocument();
+    expect(screen.queryByText("delivery for A")).not.toBeInTheDocument();
+    expect(request.mock.calls.map(([url]) => url)).toEqual([
+      "/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/sub1/deliveries",
+      "/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/sub2/deliveries",
+    ]);
   });
 });

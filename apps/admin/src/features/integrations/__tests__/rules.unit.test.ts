@@ -1,7 +1,10 @@
+import { tIntegrations } from "@/lib/i18n-common";
+import { describeApiError } from "@/lib/admin-http/request";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminWebhookDeliveryResponse, AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
-import { displayTimestamp, integrationRowMenuItems, parseTopics, visibleIntegrationsError } from "../rules";
+import { displayTimestamp, integrationRowMenuItems, parseTopics, visibleIntegrationsError } from "@jini-ai/integrations/react/webhooks/rules";
 
 /**
  * @file Pure-logic coverage for `features/integrations/rules.ts` — the row-menu builder whose
@@ -26,33 +29,33 @@ const SUBSCRIPTION: AdminWebhookSubscriptionResponse = {
 
 describe("visibleIntegrationsError", () => {
   it("prioritizes a toggle failure over delete and initial load failures", () => {
-    expect(visibleIntegrationsError({
+    expect(visibleIntegrationsError({ translate: tIntegrations, describeApiError,
       toggleError: new Error("toggle denied"), deleteError: new Error("delete denied"),
       listError: new Error("load failed"), hasSubscriptions: false, locale: "en",
     })).toBe("toggle denied");
   });
 
   it("prioritizes a delete failure over an initial load failure", () => {
-    expect(visibleIntegrationsError({
+    expect(visibleIntegrationsError({ translate: tIntegrations, describeApiError,
       toggleError: null, deleteError: new Error("delete denied"),
       listError: new Error("load failed"), hasSubscriptions: false, locale: "en",
     })).toBe("delete denied");
   });
 
   it("keeps loaded subscriptions usable when a background refresh fails", () => {
-    expect(visibleIntegrationsError({
+    expect(visibleIntegrationsError({ translate: tIntegrations, describeApiError,
       toggleError: null, deleteError: null, listError: new Error("refresh failed"), hasSubscriptions: true, locale: "en",
     })).toBeNull();
   });
 
   it("shows an initial load failure when no subscriptions have loaded", () => {
-    expect(visibleIntegrationsError({
+    expect(visibleIntegrationsError({ translate: tIntegrations, describeApiError,
       toggleError: null, deleteError: null, listError: new Error("load failed"), hasSubscriptions: false, locale: "en",
     })).toBe("load failed");
   });
 
   it("has no banner while an initial load is pending without errors", () => {
-    expect(visibleIntegrationsError({
+    expect(visibleIntegrationsError({ translate: tIntegrations, describeApiError,
       toggleError: null, deleteError: null, listError: null, hasSubscriptions: false, locale: "en",
     })).toBeNull();
   });
@@ -81,19 +84,19 @@ describe("integrationRowMenuItems", () => {
   const handlers = { onTogglePause: vi.fn(), onDelete: vi.fn() };
 
   it("an active subscription's pause item reads Pause", () => {
-    const items = integrationRowMenuItems({ subscription: SUBSCRIPTION, handlers: handlers, locale: "en" });
+    const items = integrationRowMenuItems({ translate: tIntegrations, subscription: SUBSCRIPTION, handlers: handlers, locale: "en" });
     expect(items.find((i) => i.key === "pause")?.label).toBe("Pause");
   });
 
   it("a paused subscription's pause item reads Resume", () => {
-    const items = integrationRowMenuItems({ subscription: { ...SUBSCRIPTION, status: "paused" }, handlers: handlers, locale: "en" });
+    const items = integrationRowMenuItems({ translate: tIntegrations, subscription: { ...SUBSCRIPTION, status: "paused" }, handlers: handlers, locale: "en" });
     expect(items.find((i) => i.key === "pause")?.label).toBe("Resume");
   });
 
   it("delete is marked destructive; both items wire through to their handlers", () => {
     handlers.onTogglePause.mockClear();
     handlers.onDelete.mockClear();
-    const items = integrationRowMenuItems({ subscription: SUBSCRIPTION, handlers: handlers, locale: "en" });
+    const items = integrationRowMenuItems({ translate: tIntegrations, subscription: SUBSCRIPTION, handlers: handlers, locale: "en" });
     const del = items.find((i) => i.key === "delete")!;
     expect(del.destructive).toBe(true);
     items.find((i) => i.key === "pause")!.onSelect();
@@ -103,9 +106,9 @@ describe("integrationRowMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = integrationRowMenuItems({ subscription: SUBSCRIPTION, handlers: handlers, locale: "es" });
+    const items = integrationRowMenuItems({ translate: tIntegrations, subscription: SUBSCRIPTION, handlers: handlers, locale: "es" });
     expect(items.map((i) => i.label)).toEqual(["Pausar", "Eliminar"]);
-    const paused = integrationRowMenuItems({ subscription: { ...SUBSCRIPTION, status: "paused" }, handlers: handlers, locale: "es" });
+    const paused = integrationRowMenuItems({ translate: tIntegrations, subscription: { ...SUBSCRIPTION, status: "paused" }, handlers: handlers, locale: "es" });
     expect(paused.find((i) => i.key === "pause")?.label).toBe("Reanudar");
   });
 });
@@ -129,12 +132,12 @@ describe("displayTimestamp", () => {
 
   it("prefers deliveredAt when present", () => {
     const delivered = { ...BASE, deliveredAt: "2026-08-02T00:00:00.000Z" };
-    expect(displayTimestamp(delivered)).not.toBe(displayTimestamp(BASE));
-    expect(displayTimestamp(delivered)).toBe("2026-08-02 00:00");
+    expect(displayTimestamp({ delivery: delivered, viewerTimeZone: VIEWER_TIME_ZONE }, {})).not.toBe(displayTimestamp({ delivery: BASE, viewerTimeZone: VIEWER_TIME_ZONE }, {}));
+    expect(displayTimestamp({ delivery: delivered, viewerTimeZone: VIEWER_TIME_ZONE }, {})).toBe("2026-08-02 00:00");
   });
 
   it("falls back to createdAt when deliveredAt is null (never delivered)", () => {
-    expect(displayTimestamp(BASE)).toBeTruthy();
-    expect(displayTimestamp(BASE)).toBe("2026-08-01 00:00");
+    expect(displayTimestamp({ delivery: BASE, viewerTimeZone: VIEWER_TIME_ZONE }, {})).toBeTruthy();
+    expect(displayTimestamp({ delivery: BASE, viewerTimeZone: VIEWER_TIME_ZONE }, {})).toBe("2026-08-01 00:00");
   });
 });
