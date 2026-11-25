@@ -31,7 +31,9 @@
  *    checks `agent.abortController.signal.aborted` for that earlier-timing case.
  */
 import { HttpAgent } from "@ag-ui/client";
-import { createAgUiRunClient, type AcceptedAgUiRun, type AgUiDurableLocalCliBinding, type AgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
+import type { RunAgentInput } from "@ag-ui/core";
+import { createAgUiRunClient, type AcceptedAgUiRun, type AgUiClient, type AgUiDurableLocalCliBinding, type AgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
+import { createAgUiApprovalRelay, type AgUiApprovalPoster, type AgUiApprovalRelay } from "./ag-ui-approval-relay";
 import type { RunHandlers } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun } from "./durable-run-subscription";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
@@ -146,34 +148,69 @@ export function guardTerminalOutcome(
   };
 }
 
-/** The admin's AG-UI run client over the real `HttpAgent`, with its durable ports injected.
+/** The admin's AG-UI run client over the real `HttpAgent`, with its durable ports injected, plus
+ *  the answer seam the existing approval card uses for a live AG-UI interrupt.
  * @complexity O(1). */
-export function createAdminAgUiRunClient({ durable }: { durable: AdminAgUiDurablePorts }, _optional: Record<string, never> = {}): AgUiRunClient {
-  const shared = createSharedAdminAgUiRunClient({ durable }, {});
+export function createAdminAgUiRunClient({ durable }: { durable: AdminAgUiDurablePorts }, _optional: Record<string, never> = {}): AgUiRunClient & { approvals: AgUiApprovalPoster } {
+  // Late-bound on purpose: the relay resumes through the shared client, and the shared client's
+  // agents report their events to the relay.
+  const relay: AgUiApprovalRelay = createAgUiApprovalRelay({ ports: {
+    resume: (required, optional) => shared.resumeAgUiRun(required, optional),
+    isAccepted: ({ runId }) => shared.isAcceptedAgUiRun?.({ runId }, {}) ?? false,
+  } }, {});
+  const shared = createSharedAdminAgUiRunClient({ durable, observe: (required) => relay.observe(required, {}) }, {});
   // A Stop through `stopAgUiRun` aborts the stream without touching the start's signals, so the
   // guard also listens to it; a pending start (no run id yet) counts as the one being stopped.
   const stopped = new Set<string>();
   let stopPending = false;
-  return { ...shared,
+  return { ...shared, approvals: relay,
     startAgUiRun: async (required, optional) => {
       let runId: string | undefined;
       const { input } = required;
       const intentionalStop = () => Boolean(input.signal?.aborted || input.cancelSignal?.aborted || stopPending || (runId && stopped.has(runId)));
-      const started = await shared.startAgUiRun({ ...required, handlers: guardTerminalOutcome({ handlers: required.handlers, intentionalStop }, {}) }, optional);
+      const guarded = guardTerminalOutcome({ handlers: required.handlers, intentionalStop }, {});
+      // Without a conversation id the thread id is minted inside the shared client, so no
+      // interrupt on it could be addressed; such a turn keeps the plain one-segment handling.
+      const threadId = input.conversationId;
+      const handlers = threadId ? relay.beginTurn({ threadId, handlers: guarded, signal: input.signal }, {}) : guarded;
+      const started = await shared.startAgUiRun({ ...required, handlers }, optional);
       runId = started.runId;
+      if (threadId) relay.bindRun({ threadId, runId }, {});
       return started;
     },
     stopAgUiRun: async (required, optional) => {
       stopped.add(required.runId);
       stopPending = true;
-      try { await shared.stopAgUiRun(required, optional); } finally { stopPending = false; }
+      try {
+        // Stop while parked: the answer right ends here, and a live resume segment is stopped too.
+        const resumeRunId = relay.release({ runId: required.runId }, {});
+        if (resumeRunId) await shared.stopAgUiRun({ runId: resumeRunId }, optional);
+        await shared.stopAgUiRun(required, optional);
+      } finally { stopPending = false; }
     } };
 }
 
-function createSharedAdminAgUiRunClient({ durable }: { durable: AdminAgUiDurablePorts }, _optional: Record<string, never> = {}): AgUiRunClient {
+/** Hands every wire event of a segment to `observe` before the shared client processes it. */
+function tapAgentEvents(
+  { agent, observe }: { agent: HttpAgent; observe: (required: { event: unknown; input: RunAgentInput }) => void },
+  _optional: Record<string, never> = {},
+): AgUiClient {
+  return {
+    get abortController() { return agent.abortController; },
+    abortRun: () => agent.abortRun(),
+    run: (input) => ({ subscribe: (observer) => agent.run(input).subscribe({ ...observer,
+      next: (event) => { observe({ event, input }); observer.next(event); } }) }),
+  };
+}
+
+function createSharedAdminAgUiRunClient(
+  { durable, observe }: { durable: AdminAgUiDurablePorts; observe: (required: { threadId: string; event: unknown; input: RunAgentInput }) => void },
+  _optional: Record<string, never> = {},
+): AgUiRunClient {
   return createAgUiRunClient({ ports: { endpoint: AG_UI_RUN_PATH, runIdPrefix: AG_UI_RUN_ID_PREFIX, customEventNames: CUSTOM_EVENT_NAMES,
     mintId: () => mintAgUiId(),
-    createAgent: ({ url, threadId }) => new HttpAgent({ url, threadId, fetch: (url, init) => fetch(url, { ...init, credentials: "same-origin" }) }),
+    createAgent: ({ url, threadId }) => tapAgentEvents({ agent: new HttpAgent({ url, threadId, fetch: (url, init) => fetch(url, { ...init, credentials: "same-origin" }) }),
+      observe: ({ event, input }) => observe({ threadId, event, input }) }, {}),
     durableLocalCli: adminAgUiDurableBinding({ ports: durable }, {}),
   } }, {});
 }
@@ -195,4 +232,6 @@ const client = createAdminAgUiRunClient({ durable: {
 } }, {});
 
 /** Share the same client with the main transport so stop reaches its in-flight run. */
-export const agUiRunClient = client;
+export const agUiRunClient: AgUiRunClient = client;
+/** The same client's answer seam, for the dock's renderer composition (the existing approval card). */
+export const agUiApprovalPoster: AgUiApprovalPoster = client.approvals;
