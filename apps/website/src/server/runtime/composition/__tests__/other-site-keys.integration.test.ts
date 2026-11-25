@@ -20,6 +20,7 @@ import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { openProjectStore } from "../project-store.js";
 import { createOtherSiteKeys } from "../other-site-keys.js";
+import { composeProviderConfig } from "../site-deps/provider-identity.js";
 
 const stamp = "2026-11-08T12:00:00.000Z";
 const FAKE_TOKEN = "fake-vercel-token-not-real-1234";
@@ -223,5 +224,25 @@ test("a key id that no longer resolves is refused without touching the owner sto
     fs.rmSync(path.dirname(f.a.keyPath), { recursive: true });
     await assert.rejects(f.keysOnB.use({ keyId: `${row.keyId}x`, use: true }));
     assert.deepEqual(await f.projectRows(), []);
+  } finally { await f.close(); }
+});
+
+test("composed owner keyring cannot derive for the site", async () => {
+  const f = await fixture();
+  try {
+    let derivations = 0;
+    const owner = f.store.vault.keyring;
+    const keyring = { activeKey: owner.activeKey.bind(owner),
+      derive: async () => { derivations++; return new Uint8Array(32); },
+      deriveSigningSecret: async () => { derivations++; return new Uint8Array(32); } };
+    const store = { ...f.store, vault: { ...f.store.vault, keyring } };
+    const composed = await composeProviderConfig({ overrides: { openProjectStore: async () => store }, runtimeMode: "local",
+      onStoreClose: () => {}, site: store.config, binding: { dir: f.b.dir, name: f.b.id }, references: { set: async () => {}, has: async () => false, remove: async () => {} } });
+    const vault = composed.projectVault;
+    assert.ok(vault, "the composed project vault is present");
+    assert.deepEqual(await vault.keyring.activeKey({}), await owner.activeKey({}), "the active handle is forwarded");
+    await assert.rejects(vault.keyring.derive({ workspaceId: "project", purpose: "secrets", info: "anything" }), /private to Shared Keys/);
+    await assert.rejects(vault.keyring.deriveSigningSecret({ workspaceId: "project", subscriptionId: "sub", version: 1 }), /private to Shared Keys/);
+    assert.equal(derivations, 0, "no derivation reaches the owner keyring");
   } finally { await f.close(); }
 });
