@@ -993,6 +993,7 @@ function MediaPurgeDialog({
 }
 
 export interface MediaProps {
+  viewerTimeZone?: string;
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
@@ -1014,8 +1015,8 @@ export interface MediaProps {
  *  (owner design, 2026-11-01 — the shape and length used to be badges on the picture). Parts that
  *  do not apply are left out, so an image has no length and an unloaded one no size yet. Each part
  *  stays its own element so a part can be found by its text. */
-function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string }) {
-  const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
+function MediaCardMetadata(props: { item: AdminMedia; locale: string; viewerTimeZone: string; shape: MediaShape | null; t: (key: string) => string }) {
+  const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale, viewerTimeZone: props.viewerTimeZone });
   const parts = mediaShapeParts({ shape: props.shape, t: props.t });
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
@@ -1032,6 +1033,7 @@ function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: Med
 interface MediaCardMenuProps {
   editingId: string | null;
   locale: string;
+  viewerTimeZone: string;
   rowSavingId: string | null;
   isPhone: boolean;
   onOpenDetails: (item: AdminMedia) => void;
@@ -1083,7 +1085,7 @@ function MediaCard({ item, handle, onExpand, menu, t }: {
             items={mediaRowMenuItems({ item, editingId: menu.editingId, handlers: { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, locale: menu.locale, translate: mediaTranslate })}
           />
         </div>
-        <MediaCardMetadata item={item} locale={menu.locale} shape={preview.shape} t={t} />
+        <MediaCardMetadata item={item} locale={menu.locale} viewerTimeZone={menu.viewerTimeZone} shape={preview.shape} t={t} />
       </div>
     </div>
   );
@@ -1103,6 +1105,7 @@ function MediaGridOrEmpty({
   gridSize,
   editingId,
   locale,
+  viewerTimeZone,
   t,
   onExpand,
   onToggleEdit,
@@ -1117,6 +1120,7 @@ function MediaGridOrEmpty({
   mediaExpandHandles: string[];
   editingId: string | null;
   locale: string;
+  viewerTimeZone: string;
   t: (key: string) => string;
   onExpand: (index: number) => void;
   onToggleEdit: (item: AdminMedia) => void;
@@ -1149,7 +1153,7 @@ function MediaGridOrEmpty({
           item={item}
           handle={mediaExpandHandles[index]}
           onExpand={() => onExpand(index)}
-          menu={{ editingId, locale, rowSavingId, isPhone, onOpenDetails: openDetails, onToggleEdit, onTrash, onRestore, onRequestPurge }}
+          menu={{ editingId, locale, viewerTimeZone, rowSavingId, isPhone, onOpenDetails: openDetails, onToggleEdit, onTrash, onRestore, onRequestPurge }}
           t={t}
         />
       ))}
@@ -1191,6 +1195,7 @@ function MediaCardTitle({ item, isPhone, onOpenDetails, t }: {
 function MediaLibraryPanel(
   props: Omit<MediaController, "media"> & {
     media: AdminMedia[];
+    viewerTimeZone: string;
     activeTab: MediaContentTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
@@ -1231,6 +1236,7 @@ function MediaLibraryPanel(
     setOrderBy,
     t,
     locale,
+    viewerTimeZone,
   } = props;
   const [gridSize, setGridSize] = useMediaGridSize({ storageKey: MEDIA_GRID_SIZE_STORAGE_KEY });
 
@@ -1290,6 +1296,7 @@ function MediaLibraryPanel(
         gridSize={gridSize}
         editingId={editingId}
         locale={locale}
+        viewerTimeZone={viewerTimeZone}
         t={t}
         onExpand={setLightboxIndex}
         onToggleEdit={toggleEditing}
@@ -1486,6 +1493,8 @@ export function Media(props: MediaProps) {
   // for the complexity gate; Media is small enough to resolve them directly.
   const useMediaHook = props.useMediaHook ?? useWiredMedia;
   const useMediaTabsHook = props.useMediaTabsHook ?? useMediaTabs;
+  // The site zone controls site schedules, not how an owner sees a local upload time.
+  const viewerTimeZone = props.viewerTimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const controller = useMediaHook();
   const { media, error, t } = controller;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
@@ -1545,6 +1554,7 @@ export function Media(props: MediaProps) {
       <MediaLibraryPanel
         {...controller}
         media={media}
+        viewerTimeZone={viewerTimeZone}
         activeTab={activeTab}
         visibleMedia={visibleMedia}
         mediaExpandHandles={mediaExpandHandles}

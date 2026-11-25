@@ -15,7 +15,7 @@ import { createEmailFake } from "./email.test-helpers";
 /** @file "Clear test emails" in the Activity tab (bt2-todos clear-all-admin-ui): owner-only button, confirm card with the count, plain-words states. */
 const PLAN = { count: 3, newestAt: "2026-11-24T10:00:00Z" };
 const PREVIEW: MailCaptureClearAnswer = { cleared: false, confirmationRequired: true, plan: PLAN, revision: "3:2026-11-24T10:00:00Z" };
-const BUTTON = "Clear test emails";
+const BUTTON = "Clear captured test messages";
 
 function renderTab({ canClear, state, locale = "en" }: { canClear: boolean; state: CaptureClearState; locale?: string }) {
   const controller = createTabHooks().activity();
@@ -44,8 +44,8 @@ describe("Clear test emails, rendered", () => {
 
   it("asks on a confirm card that names the count; Clear confirms, Cancel only cancels", async () => {
     const controller = renderTab({ canClear: true, state: { kind: "confirm", plan: PLAN, revision: "3:x", error: null, pending: false } });
-    const dialog = await screen.findByRole("dialog", { name: "Clear all test emails?" });
-    expect(dialog).toHaveTextContent("Test emails kept on this machine: 3.");
+    const dialog = await screen.findByRole("dialog", { name: "Clear all captured test messages?" });
+    expect(dialog).toHaveTextContent("Captured test messages: 3. This deletes their saved copies, not Email Activity records. This cannot be undone.");
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(controller.capture.cancel).toHaveBeenCalledOnce();
     expect(controller.capture.confirm).not.toHaveBeenCalled();
@@ -59,8 +59,8 @@ describe("Clear test emails, rendered", () => {
   });
 
   it.each([
-    [{ kind: "empty" }, "status", "No test emails to clear"],
-    [{ kind: "cleared", deleted: 3 }, "status", "Cleared 3 test emails."],
+    [{ kind: "empty" }, "status", "No captured test messages to clear. Email Activity records are kept separately."],
+    [{ kind: "cleared", deleted: 3 }, "status", "Cleared 3 captured test messages."],
     [{ kind: "error", message: "The test emails changed. Review and confirm again." }, "alert", "The test emails changed. Review and confirm again."],
   ] as const)("says %j in plain words", (state, role, text) => {
     renderTab({ canClear: true, state });
@@ -70,8 +70,8 @@ describe("Clear test emails, rendered", () => {
 
   it("translates the button and the confirm card", async () => {
     renderTab({ canClear: true, state: { kind: "confirm", plan: PLAN, revision: "3:x", error: null, pending: false }, locale: "es" });
-    expect(await screen.findByRole("dialog", { name: "¿Borrar todos los correos de prueba?" })).toHaveTextContent("Correos de prueba guardados en esta máquina: 3.");
-    expect(screen.getByText("Borrar correos de prueba")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "¿Borrar todos los mensajes de prueba capturados?" })).toHaveTextContent("Mensajes de prueba capturados: 3. Esto elimina sus copias guardadas, no los registros de Actividad de correo. No se puede deshacer.");
+    expect(screen.getByText("Borrar mensajes de prueba capturados")).toBeInTheDocument();
   });
 
   it("owner end to end: preview, then the confirm carries the previewed revision; Cancel deletes nothing", async () => {
@@ -82,15 +82,15 @@ describe("Clear test emails, rendered", () => {
     }
     const view = render(<Harness permissions={["mail.capture.clear"]} />);
     await userEvent.click(await screen.findByRole("button", { name: BUTTON }));
-    let dialog = await screen.findByRole("dialog", { name: "Clear all test emails?" });
+    let dialog = await screen.findByRole("dialog", { name: "Clear all captured test messages?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(clearCaptured).toHaveBeenCalledTimes(1);
     expect(clearCaptured).toHaveBeenCalledWith();
     await userEvent.click(screen.getByRole("button", { name: BUTTON }));
-    dialog = await screen.findByRole("dialog", { name: "Clear all test emails?" });
+    dialog = await screen.findByRole("dialog", { name: "Clear all captured test messages?" });
     clearCaptured.mockResolvedValueOnce({ cleared: true, deleted: 3 });
     await userEvent.click(within(dialog).getByRole("button", { name: "Clear" }));
-    expect(await screen.findByText("Cleared 3 test emails.")).toBeInTheDocument();
+    expect(await screen.findByText("Cleared 3 captured test messages.")).toBeInTheDocument();
     expect(clearCaptured).toHaveBeenLastCalledWith({ confirm: { revision: PREVIEW.revision } });
     view.unmount();
     render(<Harness permissions={["mail.suppressions.manage"]} />);

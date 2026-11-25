@@ -10,11 +10,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/auth/hooks/use-login.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts",
     "rule": "catch-reads-error",
     "value": 4
@@ -33,16 +28,6 @@
     "file": "apps/admin/src/features/collections/hooks/use-new-content-type-dialog.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 3
-  },
-  {
-    "file": "apps/admin/src/features/deployment/deployment-i18n.tsx",
-    "rule": "no-generic-failure-text",
-    "value": 2
   },
   {
     "file": "apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts",
@@ -95,11 +80,6 @@
     "value": 4
   },
   {
-    "file": "apps/admin/src/features/media/hooks/use-remote-image-import.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/features/pages/hooks/page-editor-save.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -125,11 +105,6 @@
     "value": 3
   },
   {
-    "file": "apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
@@ -138,16 +113,6 @@
     "file": "apps/admin/src/features/providers/hooks/use-always-allow.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/roles/hooks/roles-row-actions.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
@@ -185,16 +150,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/security/security-i18n.ts",
-    "rule": "no-generic-failure-text",
-    "value": 23
-  },
-  {
-    "file": "apps/admin/src/features/security/SiteKeyTab.hooks.tsx",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -225,21 +180,6 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/features/source-control/source-control-i18n.ts",
-    "rule": "no-generic-failure-text",
-    "value": 21
-  },
-  {
-    "file": "apps/admin/src/features/taxonomy/hooks/use-new-taxonomy-form.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/taxonomy/hooks/use-new-term-form.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts",
     "rule": "no-generic-failure-text",
     "value": 1
@@ -261,11 +201,6 @@
   },
   {
     "file": "apps/admin/src/lib/widget-embed-extension.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/desktop-agent-inventory.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -415,11 +350,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/assistant/cli-probe-cache.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/assistant/content-read-tool.ts",
     "rule": "no-generic-failure-text",
     "value": 1
@@ -481,11 +411,6 @@
   },
   {
     "file": "apps/website/src/features/api-connections/vault-stores.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/comments/provider-selection.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -555,16 +480,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/form-destinations/deliver.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/form-destinations/deliver.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/form-destinations/port.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
@@ -585,11 +500,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/identity/api-key-secret.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/identity/default-credential-exposure.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -605,11 +515,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/media/analytics.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/media/read-chat-attachment.ts",
     "rule": "catch-reads-error",
     "value": 4
@@ -620,27 +525,7 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/features/media/view-image-tool.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/member-login/credentials.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/member-login/oidc-login.ts",
-    "rule": "catch-reads-error",
-    "value": 4
-  },
-  {
-    "file": "apps/website/src/features/members/member-sign-in.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/members/repo.memory.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -652,11 +537,6 @@
   {
     "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/newsletter/launch-gate.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -675,11 +555,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/post/go-live-sweep.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/post/preview-tool.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
@@ -692,11 +567,6 @@
   {
     "file": "apps/website/src/features/project-keys/attached-vault.ts",
     "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/publish-content/apply-retire.ts",
-    "rule": "failure-text-from-catalog",
     "value": 1
   },
   {
@@ -735,11 +605,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/publish-trust/keys.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/publish-trust/publish-trust-revocations.ts",
     "rule": "no-generic-failure-text",
     "value": 4
@@ -751,11 +616,6 @@
   },
   {
     "file": "apps/website/src/features/settings/settings-write-policies.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/settings/visitor-tools-write.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },
@@ -920,11 +780,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/platform/db/journal-kernel.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/platform/db/key-dependent-data.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -1045,11 +900,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
@@ -1067,11 +917,6 @@
   {
     "file": "apps/website/src/server/inbound/admin-http/routes/system/site-key.ts",
     "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/users/create.ts",
-    "rule": "failure-text-from-catalog",
     "value": 1
   },
   {
@@ -1111,11 +956,6 @@
   },
   {
     "file": "apps/website/src/server/inbound/public-http/http/site/form-feedback-policy.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/http/site/member-auth-script.ts",
     "rule": "no-generic-failure-text",
     "value": 1
   },
