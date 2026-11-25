@@ -129,8 +129,8 @@
     "@jini-ai/platform": "^0.7.3-next.2"
   },
   "dependencies": {
-    "@ag-ui/core": "0.0.58",
-    "@ag-ui/encoder": "0.0.58",
+    "@ag-ui/core": "1.0.4",
+    "@ag-ui/encoder": "1.0.4",
     "@cfworker/json-schema": "^4.1.1",
     "@electric-sql/pglite": "0.5.8",
     "@jini-ai/agent-plugins": "^0.7.3-next.2",

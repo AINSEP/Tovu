@@ -60,6 +60,12 @@ const HISTORY: ChatMessage[] = [{ id: "1", role: "user", content: "find my posts
 
 /** One AG-UI SSE frame, wire-formatted exactly as `assistant-ag-ui.ts` sends it (and exactly what
  *  `@ag-ui/client`'s own `parseSSEStream` expects): `data: <json>\n\n`, no `event:` field. */
+/** A standard event carrying extra fields, as the projection writes them on the passthrough wire;
+ *  AG-UI 1.0's generated event types are closed, so a fresh literal would be refused. */
+function extraFieldEvent<E extends AgUiEvent>(event: E): AgUiEvent {
+  return event;
+}
+
 function frame(event: AgUiEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
@@ -174,7 +180,9 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
   test("tool_result keeps isError when the server sends it as an extra field", () => {
     const state = createAgUiToAgentTranslationState({ customEventNames: CUSTOM_EVENT_NAMES }, {});
     expect(
-      translateAgUiEventToAgentEvent({ event: { type: EventType.TOOL_CALL_RESULT, messageId: "m1", toolCallId: "call-1", content: "no such post", isError: true }, state: state }, {}),
+      // AG-UI 1.0 event types are closed; the extra field rides on the passthrough wire, so the
+      // event is built as a value rather than a fresh literal.
+      translateAgUiEventToAgentEvent({ event: extraFieldEvent({ type: EventType.TOOL_CALL_RESULT, messageId: "m1", toolCallId: "call-1", content: "no such post", isError: true }), state: state }, {}),
     ).toStrictEqual([{ kind: "tool_result", toolUseId: "call-1", content: "no such post", isError: true }]);
   });
 });
@@ -308,7 +316,8 @@ describe("startAgUiRun — request shape", () => {
     };
     expect(body.runId).toBe(result.runId);
     expect(typeof body.threadId).toBe("string");
-    expect(body.state).toBeNull();
+    // AG-UI 1.0's HttpAgent omits a null `state` from the wire (state is optional in 1.0).
+    expect(body.state).toBeUndefined();
     expect(body.tools).toEqual([]);
     expect(body.context).toEqual([]);
     expect(body.forwardedProps).toEqual({});
@@ -561,10 +570,10 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
     const media = [{ type: "image" as const, mimeType: "image/png", data: "AAAA" }];
     const stream = streamFromChunks([
       frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
-      frame({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "search", toolOrigin: "bridge", bridgeCall }),
+      frame(extraFieldEvent({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "search", toolOrigin: "bridge", bridgeCall })),
       frame({ type: EventType.TOOL_CALL_ARGS, toolCallId: "call-1", delta: JSON.stringify({ q: "posts" }) }),
       frame({ type: EventType.TOOL_CALL_END, toolCallId: "call-1" }),
-      frame({ type: EventType.TOOL_CALL_RESULT, messageId: "tool_result_msg_1", toolCallId: "call-1", content: "found 3", role: "tool", isError: true, media, outcome: "unknown" }),
+      frame(extraFieldEvent({ type: EventType.TOOL_CALL_RESULT, messageId: "tool_result_msg_1", toolCallId: "call-1", content: "found 3", role: "tool", isError: true, media, outcome: "unknown" })),
       frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r", result: { reason: "stop" } }),
     ]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
