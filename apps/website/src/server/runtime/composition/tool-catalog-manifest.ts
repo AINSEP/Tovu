@@ -117,6 +117,7 @@ import { contributeContentStatsTools } from "#src/features/post/content-stats-to
 import { contributePostPreviewTools } from "#src/features/post/preview-tool";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
+import { actorForMutation } from "./mutation-actor.js";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
 import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
 import { contributePreviewSwitcherTools } from "#src/features/theme/preview-switcher-tools";
@@ -717,7 +718,11 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
       authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.read' }, { entityType: 'plugin' }),
     } }),
   } });
-  contributions.contributors.register({ contribution: contributeTaxonomyTools() });
+  // The assistant tool channel (the CLI and BYOK executors share these registrations) stamps its
+  // writes `agent`: an assistant acting for an owner does not turn the action into an owner click.
+  contributions.contributors.register({ contribution: contributeTaxonomyTools({}, {
+    mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "assistant" }),
+  }) });
   contributions.contributors.register({ contribution: contributeThemesTools() });
   // `theme_set_active` (F7a, 2026-09-24) — a SEPARATE contributor, own domain key
   // (`"theme-set-active"`), because re-registering under `contributeThemesTools()`'s own `"theme"`

@@ -17,7 +17,7 @@ import { type Clock } from "@jini-ai/core/primitives";
  */
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
 import { buildTaxonomyToolRegistrations, taxonomyDerivedRisk, type TaxonomyPackageToolDeps } from "@jini-ai/cms/taxonomy";
-import { type AuthorizeFn, type OutboxPort, type TransactionalRepoPort } from "@jini-ai/core/contracts/events";
+import { type AuthorizeFn, type MutationActor, type OutboxPort, type TransactionalRepoPort } from "@jini-ai/core/contracts/events";
 import {
   confirm as gatewayConfirm,
   execute as gatewayExecute,
@@ -75,6 +75,16 @@ export interface TaxonomyToolDeps {
    * the admin HTTP routes use. */
   stampWatermark: () => Promise<void> | void;
 }
+
+/**
+ * The tool channel's trusted attribution: the composition root binds it to the assistant origin, so
+ * an assistant acting for an owner does not turn the action into an owner click. It is a property
+ * of the channel, not of the route deps (the admin routes share that bag and bind their own `user`
+ * attribution), so it is passed beside them. Unbound, assignment events record no actor.
+ */
+export interface TaxonomyToolChannel {
+  mutationActor?: ((required: { principalId: string }) => MutationActor) | undefined;
+}
 const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
 
 /**
@@ -110,8 +120,9 @@ const confirmedMergeHandler: TaxonomyPackageToolDeps["mergeConfirmedHandler"] = 
  * root assigns after this registry is built (the authorizer, the repos) is read at call time, as
  * the handlers did when they read the route deps directly.
  */
-function toPackageDeps({ routeDeps }: { routeDeps: TaxonomyToolDeps }, _optional = {}): TaxonomyPackageToolDeps {
+function toPackageDeps({ routeDeps }: { routeDeps: TaxonomyToolDeps }, { mutationActor }: TaxonomyToolChannel = {}): TaxonomyPackageToolDeps {
   return {
+    mutationActor,
     get authorize() { return routeDeps.authorize; },
     get workspaceId() { return routeDeps.workspaceId; },
     get clock() { return routeDeps.clock; },
@@ -150,8 +161,9 @@ function toPackageDeps({ routeDeps }: { routeDeps: TaxonomyToolDeps }, _optional
 export function buildTaxonomyRegistrations(
   routeDeps: TaxonomyToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+  channel: TaxonomyToolChannel = {},
 ): ToolRegistration[] {
-  return withToolMetadata({ registrations: buildTaxonomyToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces, catalog: taxonomyAgentToolCatalog }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
+  return withToolMetadata({ registrations: buildTaxonomyToolRegistrations({ deps: toPackageDeps({ routeDeps }, channel), surfaces, catalog: taxonomyAgentToolCatalog }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**
@@ -162,6 +174,6 @@ export function buildTaxonomyRegistrations(
  * rollout — no sibling domain still statically wired through `assistant` imports `taxonomy`, so this
  * one-directional `taxonomy -> assistant` call closes no new cycle).
  */
-export function contributeTaxonomyTools(): ToolContributor<TaxonomyToolDeps, AssistantSurfaceDeps> {
-  return { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk };
+export function contributeTaxonomyTools(_required: Record<string, never> = {}, channel: TaxonomyToolChannel = {}): ToolContributor<TaxonomyToolDeps, AssistantSurfaceDeps> {
+  return { domain: "taxonomy", build: (routeDeps, surfaces) => buildTaxonomyRegistrations(routeDeps, surfaces, channel), risk: taxonomyDerivedRisk };
 }
