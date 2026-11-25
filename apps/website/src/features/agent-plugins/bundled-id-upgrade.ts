@@ -41,7 +41,9 @@ export function upgradeTovuRenamedBundledPlugins(
 }
 
 /** Jini's locked move/seed/put-back window with Tovu's rename map and wording; the host injects the
- * lock effect and the seed. @complexity as `seedWithBundledIdUpgrade`. */
+ * lock effect and the seed. If the installed-package listing fails, nothing is moved and seeding still
+ * runs. Listing failed before anything moved: seeding below reports each affected plugin itself.
+ * @complexity as `seedWithBundledIdUpgrade`. */
 export function seedWithTovuRenamedBundledPlugins<R extends { readonly outcomes: readonly { readonly pluginId: string; readonly status: string }[] }>(
   required: Omit<Parameters<typeof seedWithBundledIdUpgrade<R>>[0], "renamed" | "ledgerMismatchReason">,
   _optional: Record<string, never> = {},

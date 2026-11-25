@@ -121,7 +121,7 @@ export function PagePreview({
   status: "draft" | "published";
   dirty: boolean;
   contentDirty: boolean;
-  /** Pre-built by `usePageEditor` — see this function's own doc, branch 2. */
+  /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
   templatePreviewUrl: string;
   /** Owned by `usePageEditor` — see `PageEditorController.previewFormRef`'s own doc for why the
    *  debounced auto-submit effect that reaches through this ref lives there, not here. */
