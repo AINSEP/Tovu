@@ -5,9 +5,12 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { explainThemeTree } from "#src/features/site-backup/import-restore-placement";
+import { explainThemeTree as explainWithChecks } from "#src/features/site-backup/import-restore-placement";
 import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme } from "#src/features/theme/held-back-themes";
 import { parseHeldBackId, recordHeldBackChoice, readHeldBackChoice } from "#src/features/theme/held-back-choice";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
+/** The held-back re-check as the host binds it (`modules/theme-held-back.ts`). */
+const explainThemeTree = (required: { root: string; id: string; files: readonly string[] }) => explainWithChecks({ ...required, themeChecks: THEME_PLACEMENT_CHECKS });
 
 /**
  * @file The held-back theme service under the routes: id grammar, the link refusal, the import-time

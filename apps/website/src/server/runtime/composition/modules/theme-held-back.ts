@@ -1,5 +1,6 @@
 import { registerAdminHeldBackThemeRoutes, type HeldBackRouteDeps } from "#src/server/inbound/admin-http/routes/themes/held-back";
 import { explainThemeTree } from "#src/features/site-backup/import-restore-placement";
+import { THEME_PLACEMENT_CHECKS } from "../theme-placement-checks.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -16,7 +17,7 @@ export function createThemeHeldBackModule(deps: Omit<HeldBackRouteDeps, "explain
   return {
     name: "theme-held-back",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminHeldBackThemeRoutes({ app, deps: { ...deps, explainThemeTree } });
+      registerAdminHeldBackThemeRoutes({ app, deps: { ...deps, explainThemeTree: (required) => explainThemeTree({ ...required, themeChecks: THEME_PLACEMENT_CHECKS }) } });
     },
   };
 }

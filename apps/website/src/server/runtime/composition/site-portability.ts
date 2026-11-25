@@ -5,6 +5,7 @@ import { sanitizeShareDatabase as sanitizeWithModules } from "#src/features/site
 import { rebuildImportDatabase as rebuildWithWorker, type RebuildImportDatabaseOptions as WorkerOptions } from "#src/features/site-backup/import-database";
 import { FIRST_PARTY_DATA_MODULES } from "./data-modules.js";
 import { restoreStagedImport as restoreWithLayout } from "#src/features/site-backup/import-restore";
+import { THEME_PLACEMENT_CHECKS } from "./theme-placement-checks.js";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createSiteSavedKeys } from "@jini-ai/devops/backup/site/saved-keys";
@@ -15,9 +16,9 @@ import { recordHeldBackChoice } from "#src/features/theme/held-back-choice";
  * BEFORE restore (restore may switch it to the fallback), and `recordHeldBackChoice` decides.
  * @complexity O(restore) plus two single-row reads.
  */
-export async function restoreStagedImport(required: Omit<Parameters<typeof restoreWithLayout>[0], "pluginLayout" | "openContent">, optional: Parameters<typeof restoreWithLayout>[1] = {}): Promise<void> {
+export async function restoreStagedImport(required: Omit<Parameters<typeof restoreWithLayout>[0], "pluginLayout" | "openContent" | "themeChecks">, optional: Parameters<typeof restoreWithLayout>[1] = {}): Promise<void> {
   const chosen = await readActiveThemeId({ filePath: path.join(required.root, "database/content.db") }).then(value => ({ value }), (error: unknown) => ({ error }));
-  await restoreWithLayout({ ...required, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>({ filePath }), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }) }, optional);
+  await restoreWithLayout({ ...required, themeChecks: THEME_PLACEMENT_CHECKS, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>({ filePath }), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }) }, optional);
   // Restore copies and reads this same database, so it fails first, at its own point and with its
   // own cleanup, whenever the early read did; this rethrow only guards that assumption.
   if ("error" in chosen) throw chosen.error;

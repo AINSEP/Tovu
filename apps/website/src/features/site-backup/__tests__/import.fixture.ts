@@ -41,6 +41,7 @@ import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
 import type { SiteSharePlanContent } from "../plan-content.js";
 import { jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";
 import { onTeardown } from "#src/__tests__/fixtures/teardown";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
 
 export const OWNER_PASSWORD = "recipient-only-password";
 export const MEDIA = Buffer.from("import-media-fixture");
@@ -139,7 +140,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   const plan = fixtureArchivePlan({ plan: runtimePlan });
   const registry = new SiteImportRegistry({ directory: path.join(root, "private") });
   const started: string[] = [];
-  const backendPorts = { registry, workspace, reader, createSite, restoreStagedImport, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+  const backendPorts = { registry, workspace, reader, createSite, restoreStagedImport, sanitize: rebuildImportDatabase, themeChecks: THEME_PLACEMENT_CHECKS, schema: runtimeSchemaVersion(),
     http: { send: async () => { throw new Error("unexpected network"); } },
     startSite: async ({ name }: { name: string }) => { started.push(name); return { adminUrl: "http://localhost:3101/admin", status: "running" }; },
     creationOptions: options,

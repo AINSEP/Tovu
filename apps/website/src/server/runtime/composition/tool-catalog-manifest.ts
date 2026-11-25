@@ -48,6 +48,7 @@ import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
 import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
 import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
+import { planMailDeliveryCaptureClear } from "./mail-capture-clear-planner.js";
 import { contributeServerLogsTools } from "@jini-ai/diagnostics/server-logs/tool-registrations";
 import { processServerLogSource } from "#src/features/server-logs/process-source";
 import { contributeObservabilityTools } from "@jini-ai/diagnostics/observability/tool-registrations";
@@ -453,7 +454,7 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   } });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeMailProviderTools() });
-  contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
+  contributions.contributors.register({ contribution: contributeMailDeliveryTools({ planCaptureClear: planMailDeliveryCaptureClear }) });
   /** Defaults to this process's captured console buffer. */
   // Now: the server-logs tool's log source is `ServerLogsToolDeps.serverLogs`, bound here to that buffer.
   contributions.contributors.register({ contribution: contributeServerLogsTools({ serverLogs: processServerLogSource }) });

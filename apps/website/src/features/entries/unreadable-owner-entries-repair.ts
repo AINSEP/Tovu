@@ -1,7 +1,6 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "@jini-ai/cms/widgets/site/declared-content-type-owners";
-import { buildTrashRegistry } from "../trash/registry.js";
 import { TRASH_TABLES } from "../trash/index.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import type { TrashEntry } from "@jini-ai/cms/trash";
@@ -45,11 +44,16 @@ const LOCK_KEY = "boot_repair_unreadable_owner_entries";
  * row's own refs and revisions; the local one also drops a region binding to it (a `widget_area`
  * row's `widget_region_bindings`, a derived index).
  *
+ * @param required.registeredTypes - The host's Trash registrations (bound at the boot-repair composition).
+ *
  * @complexity O(r) in the registry's fixed handful of entries.
  */
-export function ownerEntryRemovalFor(required: { kernel: ContentKernel; type: string }, _optional: Record<string, never> = {}): OwnerEntryRemoval {
-  const { kernel, type } = required;
-  const registered = [...buildTrashRegistry().values()].find(
+export function ownerEntryRemovalFor(
+  required: { kernel: ContentKernel; type: string; registeredTypes: () => Iterable<TrashEntry> },
+  _optional: Record<string, never> = {}
+): OwnerEntryRemoval {
+  const { kernel, type, registeredTypes } = required;
+  const registered = [...registeredTypes()].find(
     (entry) => entry.table === "entries" && entry.scope?.column === "type" && entry.scope.equals === type
   );
   const entry: TrashEntry = registered ?? {
@@ -112,6 +116,7 @@ async function writeRepairMarker(required: { kernel: ContentKernel; at: string; 
  * from scratch. Each removal re-checks the version it classified, so a row edited in between fails
  * the run rather than being removed.
  *
+ * @param required.registeredTypes - The host's Trash registrations, threaded into the default removal.
  * @param optional.removalFor - Which adapter removes a type (tests inject a failing one).
  * @param optional.log - Where the removal lines go (ids and types only), after commit.
  * @param optional.now - The hide timestamp and the marker's `completedAt`.
@@ -119,11 +124,11 @@ async function writeRepairMarker(required: { kernel: ContentKernel; at: string; 
  * @complexity O(n) in the declared-owner types' live rows, once per site; each removal O(1) statements.
  */
 export async function removeUnreadableOwnerEntries(
-  required: { kernel: ContentKernel; stampWatermark: () => Promise<void> },
+  required: { kernel: ContentKernel; stampWatermark: () => Promise<void>; registeredTypes: () => Iterable<TrashEntry> },
   optional: { removalFor?: (type: string) => OwnerEntryRemoval; log?: (line: string) => void; now?: () => string } = {}
 ): Promise<{ ran: boolean; removed: RemovedOwnerEntry[] }> {
-  const { kernel } = required;
-  const { removalFor = (type: string) => ownerEntryRemovalFor({ kernel, type }), log = console.log, now = () => new Date().toISOString() } = optional;
+  const { kernel, registeredTypes } = required;
+  const { removalFor = (type: string) => ownerEntryRemovalFor({ kernel, type, registeredTypes }), log = console.log, now = () => new Date().toISOString() } = optional;
   const result = await kernel.transaction(async () => {
     await kernel.lockKey(LOCK_KEY);
     if (await repairMarkerIsSet({ kernel })) return { ran: false, removed: [] };

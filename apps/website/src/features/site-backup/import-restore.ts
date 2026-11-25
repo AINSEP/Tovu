@@ -7,16 +7,16 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import { readTemplate } from "#src/platform/site-dir/index";
 import type { VerifiedSiteImport } from "./import-verifier.js";
 import { restoreImportedPluginState, type ImportedExtensionState } from "./import-plugin-state.js";
-import { inspectThemeManifests, liveThemeTrees, restoreDestination, writeExclusive } from "./import-restore-placement.js";
+import { inspectThemeManifests, liveThemeTrees, restoreDestination, writeExclusive, type ThemePlacementChecks } from "./import-restore-placement.js";
 import { keepImportedCodeOff, unrecognisedThemes } from "./import-keep-off.js";
 
 /** Persist only verified, freshly projected data; the stage is private and never served. */
-export function stageVerifiedImport(required: { root: string; verified: VerifiedSiteImport }, _options: Record<string, never> = {}): void {
+export function stageVerifiedImport(required: { root: string; verified: VerifiedSiteImport; themeChecks: ThemePlacementChecks }, _options: Record<string, never> = {}): void {
   fs.mkdirSync(required.root, { mode: 0o700 });
   writeExclusive({ root: required.root, relative: "database/content.db", bytes: required.verified.database });
   for (const [relative, bytes] of required.verified.files) writeExclusive({ root: required.root, relative, bytes });
   if (required.verified.encryptedKeys) writeExclusive({ root: required.root, relative: ".saved-keys.json", bytes: required.verified.encryptedKeys });
-  const keptOff = keptOffUnits({ root: required.root, verified: required.verified });
+  const keptOff = keptOffUnits({ root: required.root, verified: required.verified, themeChecks: required.themeChecks });
   fs.writeFileSync(path.join(required.root, ".archive-state.json"), JSON.stringify({ plugins: required.verified.plugins, trustedPlugins: required.verified.trustedPlugins, modified: [...required.verified.modified], keptOff, warnings: required.verified.warnings }), { flag: "wx", mode: 0o600 });
   fs.writeFileSync(path.join(required.root, ".inventory.json"), JSON.stringify([...required.verified.files.keys()]), { flag: "wx", mode: 0o600 });
 }
@@ -28,9 +28,9 @@ export function stageVerifiedImport(required: { root: string; verified: Verified
  * manifests, so it runs after the files are written.
  * @complexity O(files + staged theme validation).
  */
-function keptOffUnits(required: { root: string; verified: VerifiedSiteImport }): string[] {
+function keptOffUnits(required: { root: string; verified: VerifiedSiteImport; themeChecks: ThemePlacementChecks }): string[] {
   const files = [...required.verified.files.keys()];
-  const live = liveThemeTrees({ files, findings: inspectThemeManifests({ root: required.root, files }) });
+  const live = liveThemeTrees({ files, findings: inspectThemeManifests({ root: required.root, files, themeChecks: required.themeChecks }) });
   const recognised = new Set([...required.verified.modified, ...required.verified.trustedPlugins.map(plugin => "agent-plugins/" + plugin.id)]);
   const units = new Set(files.map(file => stagedCodeUnit({ file, live })));
   return [...units].filter((unit): unit is string => unit !== undefined && !recognised.has(unit));
@@ -49,10 +49,10 @@ function stagedCodeUnit(required: { file: string; live: ReadonlySet<string> }): 
  * executable themes and overrides remain preserved under the unserved quarantine directory.
  * @complexity O(files + bytes), capped by the verified inventory (2,000 entries/300 MiB).
  */
-export async function restoreStagedImport(required: { root: string; dir: string; dbPath: string; siteId?: string; savedKeys?: Pick<SiteSavedKeysPort, "restore">; pluginLayout: Parameters<typeof restoreImportedPluginState>[0]["layout"]; openContent: (required: { filePath: string }) => KyselyKernel<ContentDatabase> }, optional: { pluginSourceRoot?: string; savedKeysPassword?: string; signal?: AbortSignal } = {}): Promise<void> {
+export async function restoreStagedImport(required: { root: string; themeChecks: ThemePlacementChecks; dir: string; dbPath: string; siteId?: string; savedKeys?: Pick<SiteSavedKeysPort, "restore">; pluginLayout: Parameters<typeof restoreImportedPluginState>[0]["layout"]; openContent: (required: { filePath: string }) => KyselyKernel<ContentDatabase> }, optional: { pluginSourceRoot?: string; savedKeysPassword?: string; signal?: AbortSignal } = {}): Promise<void> {
   const files = JSON.parse(fs.readFileSync(path.join(required.root, ".inventory.json"), "utf8")) as string[];
   const state = JSON.parse(fs.readFileSync(path.join(required.root, ".archive-state.json"), "utf8")) as ImportedExtensionState;
-  const findings = inspectThemeManifests({ root: required.root, files });
+  const findings = inspectThemeManifests({ root: required.root, files, themeChecks: required.themeChecks });
   const liveThemes = liveThemeTrees({ files, findings });
   for (const id of liveThemes) if (state.modified.includes("themes/" + id.split("/").at(-1))) liveThemes.delete(id);
   const fallback = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;

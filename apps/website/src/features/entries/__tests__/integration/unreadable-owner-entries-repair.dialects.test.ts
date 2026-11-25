@@ -1,5 +1,6 @@
 import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
 import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
+import { buildTrashRegistry } from "#src/features/trash/registry";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -24,6 +25,8 @@ import type { OwnerEntryRemoval } from "@jini-ai/cms/entries/site/unreadable-own
  */
 
 const WS = "ws-repair";
+/** The host binding `boot-data-repairs.ts` supplies: the live Trash registrations. */
+const registeredTypes = () => buildTrashRegistry().values();
 const OTHER_WS = "ws-repair-other";
 const AT = "2026-10-04T00:00:00.000Z";
 const NOW = "2026-10-05T00:00:00.000Z";
@@ -104,7 +107,7 @@ for (const dialect of eachDialect({ tables: TABLES, make: (kernel) => kernel }))
     await prepare(kernel);
     await insertEntry(kernel, "readable", "widget", { ext: { widget: { payload: "{}" } } });
     const before = await snapshot(kernel);
-    assert.deepEqual(await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }), { ran: true, removed: [] });
+    assert.deepEqual(await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }), { ran: true, removed: [] });
     const marker = await readMarker(kernel) as { completedAt: string; removed: unknown[]; hardDeleteReason: string };
     assert.equal(new Date(marker.completedAt).toISOString(), marker.completedAt);
     assert.deepEqual(marker.removed, []);
@@ -127,7 +130,7 @@ for (const dialect of eachDialect({ tables: TABLES, make: (kernel) => kernel }))
     await kernel.run((db) => db.insertInto("widget_region_bindings").values({ workspace_id: WS, region_key: "sidebar", area_entry_id: "probe-area", updated_at: AT }).execute());
     const lines: string[] = [];
 
-    const result = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { log: (line) => lines.push(line), now: () => NOW });
+    const result = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { log: (line) => lines.push(line), now: () => NOW });
 
     const removed = [
       { workspaceId: WS, id: "probe-area", type: "widget_area", via: "hard-delete" },
@@ -149,14 +152,14 @@ for (const dialect of eachDialect({ tables: TABLES, make: (kernel) => kernel }))
   test(`[${dialect.name}] the marker makes every later boot a no-op, even with a new mismatched row`, async () => {
     const kernel = dialect.make();
     await prepare(kernel);
-    const first = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { log: () => {}, now: () => NOW });
+    const first = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { log: () => {}, now: () => NOW });
     assert.deepEqual(first, { ran: true, removed: [] });
     assert.deepEqual(await readMarker(kernel), { completedAt: NOW, removed: [], hardDeleteReason: UNREADABLE_OWNER_ENTRIES_HARD_DELETE_REASON });
     assert.equal(await watermark(kernel), 0, "no removal, no stamp");
     await insertEntry(kernel, "late-probe", "widget", { ext: { site: { payload: PAYLOAD } } });
     const lines: string[] = [];
 
-    const second = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { log: (line) => lines.push(line), now: () => "later" });
+    const second = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { log: (line) => lines.push(line), now: () => "later" });
 
     assert.deepEqual(second, { ran: false, removed: [] });
     assert.equal((await snapshot(kernel)).entries.length, 1, "the late row is not touched");
@@ -177,16 +180,16 @@ for (const dialect of eachDialect({ tables: TABLES, make: (kernel) => kernel }))
       unhide: async () => assert.fail("never restores"),
       purge: async () => assert.fail("never purges after a refused hide"),
     };
-    const failSecond = (type: string): OwnerEntryRemoval => (++calls === 2 ? { adapter: refusing, via: "trash-purge" } : ownerEntryRemovalFor({ kernel, type }));
+    const failSecond = (type: string): OwnerEntryRemoval => (++calls === 2 ? { adapter: refusing, via: "trash-purge" } : ownerEntryRemovalFor({ kernel, type, registeredTypes }));
 
-    await assert.rejects(removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { removalFor: failSecond, log: () => {}, now: () => NOW }), {
+    await assert.rejects(removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { removalFor: failSecond, log: () => {}, now: () => NOW }), {
       message: "boot repair: entry probe-b (type widget) changed since it was classified (version-changed); nothing was removed, the next boot retries",
     });
     assert.deepEqual(await snapshot(kernel), before, "probe-a's removal rolled back with the failure");
     assert.equal(await readMarker(kernel), undefined);
     assert.equal(await watermark(kernel), 0);
 
-    const retry = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { log: () => {}, now: () => NOW });
+    const retry = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { log: () => {}, now: () => NOW });
     assert.deepEqual(retry.removed.map((row) => row.id), ["probe-a", "probe-b"]);
     assert.deepEqual((await snapshot(kernel)).entries, []);
   });
@@ -203,7 +206,7 @@ for (const dialect of eachDialect({ tables: TABLES, make: (kernel) => kernel }))
     };
 
     await assert.rejects(
-      removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { removalFor: () => ({ adapter: notPurging, via: "trash-purge" }), log: () => {}, now: () => NOW }),
+      removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { removalFor: () => ({ adapter: notPurging, via: "trash-purge" }), log: () => {}, now: () => NOW }),
       { message: "boot repair: entry probe-a (type widget) was not purged (already-gone); nothing was removed, the next boot retries" }
     );
     assert.equal(await readMarker(kernel), undefined);
@@ -212,11 +215,20 @@ for (const dialect of eachDialect({ tables: TABLES, make: (kernel) => kernel }))
   test(`[${dialect.name}] the default removal refuses a row whose version moved since it was read`, async () => {
     const kernel = dialect.make();
     await insertEntry(kernel, "probe-a", "widget", { ext: { site: { payload: PAYLOAD } } }, { version: 2 });
-    const { adapter, via } = ownerEntryRemovalFor({ kernel, type: "widget" });
+    const { adapter, via } = ownerEntryRemovalFor({ kernel, type: "widget", registeredTypes });
     assert.equal(via, "trash-purge");
     assert.deepEqual(await adapter.hide({ workspaceId: WS, entityId: "probe-a", at: NOW, expectedVersion: 1 }), { ok: false, reason: "version-changed" });
     assert.equal((await snapshot(kernel)).entries[0]?.deleted_at, null);
-    assert.equal(ownerEntryRemovalFor({ kernel, type: "widget_area" }).via, "hard-delete");
+    assert.equal(ownerEntryRemovalFor({ kernel, type: "widget_area", registeredTypes }).via, "hard-delete");
+  });
+
+  test(`[${dialect.name}] the removal follows the injected registrations: a registered type purges through its entry, an unregistered one hard-deletes`, async () => {
+    const kernel = dialect.make();
+    const widgetEntry = [...registeredTypes()].find((entry) => entry.table === "entries" && entry.scope?.equals === "widget")!;
+    const asArea = { ...widgetEntry, scope: { column: "type", equals: "widget_area" } };
+    assert.equal(ownerEntryRemovalFor({ kernel, type: "widget_area", registeredTypes: () => [asArea] }).via, "trash-purge");
+    assert.equal(ownerEntryRemovalFor({ kernel, type: "widget", registeredTypes: () => [] }).via, "hard-delete");
+    assert.equal(ownerEntryRemovalFor({ kernel, type: "widget", registeredTypes: () => [{ ...widgetEntry, table: "posts" }] }).via, "hard-delete");
   });
 }
 
@@ -227,7 +239,7 @@ test("[sqlite] a row whose fields_json is not JSON is left alone (jsonb cannot h
   await insertEntry(kernel, "garbled", "widget", "{not json");
   const before = await snapshot(kernel);
 
-  const result = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel }, { log: () => {}, now: () => NOW });
+  const result = await removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }), kernel, registeredTypes }, { log: () => {}, now: () => NOW });
 
   assert.deepEqual(result, { ran: true, removed: [] });
   assert.deepEqual(await snapshot(kernel), before);

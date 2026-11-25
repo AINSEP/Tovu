@@ -1,8 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { validateSharePath } from "./share-file-policy.js";
-import { checkSourceDirContainment } from "#src/features/theme/catalog";
-import { loadTheme } from "#src/features/theme/catalog";
 
 /**
  * @file Where each staged import file may land: the live site, or the unserved
@@ -18,7 +16,17 @@ export interface ThemeManifestFindings {
 /** A quarantine verdict carries its reason in plain words, so the held-back re-check can say why. */
 type ThemeManifestVerdict = { kind: "plain" } | { kind: "quarantine"; problem: string } | { kind: "compiled"; sourcePrefix: string };
 /** The manifest's `build` exactly as staged; its fields are re-checked before use. */
-type CompiledBuild = Parameters<typeof checkSourceDirContainment>[0]["build"];
+type CompiledBuild = { readonly source?: unknown; readonly sourceDir?: unknown; readonly [field: string]: unknown };
+
+/**
+ * The theme owner's checks import placement reuses, bound once at the host: the compiled build's
+ * `sourceDir` containment (a non-empty list refuses the theme before any placement) and the
+ * theme loader's artifact validation.
+ */
+export interface ThemePlacementChecks {
+  checkSourceDirContainment(required: { build: CompiledBuild; schemaVersion: 2 }): readonly unknown[];
+  loadTheme(required: { themeDir: string; id: string; source: "site" }): { status: string };
+}
 const PLAIN: ThemeManifestVerdict = { kind: "plain" };
 const quarantine = (problem: string): ThemeManifestVerdict => ({ kind: "quarantine", problem });
 const UNREADABLE = quarantine("Its theme.json could not be read or checked.");
@@ -37,33 +45,34 @@ const STATIC_ASSETS = [
  * unreadable manifest, or an unsafe/invalid compiled build quarantines the theme.
  * @complexity O(themes × theme validation).
  */
-export function inspectThemeManifests(required: { root: string; files: readonly string[] }): ThemeManifestFindings {
+export function inspectThemeManifests(required: { root: string; files: readonly string[]; themeChecks: ThemePlacementChecks }): ThemeManifestFindings {
   const quarantinedThemes = new Set<string>();
   const compiledSources = new Map<string, string>();
   for (const file of required.files) {
     const match = THEME_MANIFEST.exec(file);
     if (!match) continue;
     const id = match[1] + "/" + match[2];
-    const verdict = inspectThemeManifest({ root: required.root, file, tier: match[1]!, name: match[2]! });
+    const verdict = inspectThemeManifest({ root: required.root, file, tier: match[1]!, name: match[2]!, themeChecks: required.themeChecks });
     if (verdict.kind === "quarantine") quarantinedThemes.add(id);
     if (verdict.kind === "compiled") compiledSources.set(id, verdict.sourcePrefix);
   }
   return { quarantinedThemes, compiledSources };
 }
 
-function inspectThemeManifest(required: { root: string; file: string; tier: string; name: string }): ThemeManifestVerdict {
+function inspectThemeManifest(required: { root: string; file: string; tier: string; name: string; themeChecks: ThemePlacementChecks }): ThemeManifestVerdict {
   try {
     const manifest = JSON.parse(fs.readFileSync(path.join(required.root, required.file), "utf8"));
     const folderTier = required.tier.split("/").at(-1);
     if (manifest.tier !== folderTier) return quarantine(`Its theme.json says it is a ${String(manifest.tier)} theme, but it sits in the ${folderTier} folder.`);
     if (manifest.build?.source !== "compiled") return PLAIN;
-    return inspectCompiledTheme({ root: required.root, id: required.tier + "/" + required.name, name: required.name, manifest });
+    return inspectCompiledTheme({ root: required.root, id: required.tier + "/" + required.name, name: required.name, manifest, themeChecks: required.themeChecks });
   } catch { return UNREADABLE; }
 }
 
 /** @throws whatever the share path policy or theme loader throws; the caller quarantines on it. */
-function inspectCompiledTheme(required: { root: string; id: string; name: string; manifest: { tier: unknown; build: CompiledBuild } }): ThemeManifestVerdict {
+function inspectCompiledTheme(required: { root: string; id: string; name: string; manifest: { tier: unknown; build: CompiledBuild }; themeChecks: ThemePlacementChecks }): ThemeManifestVerdict {
   const { build } = required.manifest;
+  const { checkSourceDirContainment, loadTheme } = required.themeChecks;
   if (required.manifest.tier !== "static" || typeof build.sourceDir !== "string" || checkSourceDirContainment({ build, schemaVersion: 2 }).length) return BAD_BUILD;
   // A trailing '/' is an empty segment, so this refusal also guarantees `sourcePrefix` below.
   validateSharePath({ path: build.sourceDir });
@@ -108,22 +117,22 @@ function isStaticAsset(relative: string): boolean {
  * @param required.root folder holding `themes/<id>/...`; `files` are root-relative.
  * @complexity O(files), plus one manifest read (and a theme load for a compiled build).
  */
-export function explainThemeTree(required: { root: string; id: string; files: readonly string[] }): string[] {
-  const { root, id, files } = required;
-  const findings = inspectThemeManifests({ root, files });
-  const problems = themeTreeProblems({ root, id, files, findings });
+export function explainThemeTree(required: { root: string; id: string; files: readonly string[]; themeChecks: ThemePlacementChecks }): string[] {
+  const { root, id, files, themeChecks } = required;
+  const findings = inspectThemeManifests({ root, files, themeChecks });
+  const problems = themeTreeProblems({ root, id, files, findings, themeChecks });
   if (!liveThemeTrees({ files, findings }).has(id) && !problems.length) problems.push("It did not pass the import safety checks.");
   return problems;
 }
 
-function themeTreeProblems(required: { root: string; id: string; files: readonly string[]; findings: ThemeManifestFindings }): string[] {
-  const { root, id, files, findings } = required;
+function themeTreeProblems(required: { root: string; id: string; files: readonly string[]; findings: ThemeManifestFindings; themeChecks: ThemePlacementChecks }): string[] {
+  const { root, id, files, findings, themeChecks } = required;
   const manifest = "themes/" + id + "/theme.json";
   const slash = id.lastIndexOf("/");
   const problems: string[] = [];
   if (!files.includes(manifest)) problems.push("It has no theme.json file.");
   else if (findings.quarantinedThemes.has(id)) {
-    const verdict = inspectThemeManifest({ root, file: manifest, tier: id.slice(0, slash), name: id.slice(slash + 1) });
+    const verdict = inspectThemeManifest({ root, file: manifest, tier: id.slice(0, slash), name: id.slice(slash + 1), themeChecks });
     if (verdict.kind === "quarantine") problems.push(verdict.problem);
   }
   const relative = files.map(file => file.slice(("themes/" + id + "/").length));

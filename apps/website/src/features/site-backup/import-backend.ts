@@ -13,6 +13,7 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { verifySiteImport } from "./import-verifier.js";
 import { stageVerifiedImport, stagedImportWarnings } from "./import-restore.js";
+import type { ThemePlacementChecks } from "./import-restore-placement.js";
 import {
   consumeUpload, deadlineSignal, downloadShareArchive, importSiteSlug, parseImportInput, reconcileInterruptedImports, refusal,
   requireFreeSpace, requireOwnerSetup, requireStagingBudget, siteImportView, startImportedSite,
@@ -40,6 +41,8 @@ export function parseSiteImportInput(required: { input: unknown }, _options: Rec
 type ImportBackendRequired = {
   registry: SiteImportRegistry; workspace: SitesWorkspace; reader: AgentPluginArchiveReaderPort; http: HttpClientPort;
   sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string };
+  /** The theme owner's placement checks staging reuses for its kept-off notices (bound at the host). */
+  themeChecks: ThemePlacementChecks;
   startSite: (required: { name: string }) => Promise<{ adminUrl: string | null; status: string }>;
   tracker?: Tracker;
   createSite: CreateSitePort;
@@ -94,7 +97,7 @@ async function verifyAndStage({ ctx, input }: { ctx: ImportBackendContext; input
     const archive = await fetchArchive({ ctx, input: { parsed: input.parsed, principalId: input.row.principalId, importId: input.row.importId, signal: input.signal, consumed: ({ uploadId }, _optional = {}) => { consumedUpload = uploadId; } } });
     const verified = await verifySiteImport({ archive, reader: ctx.required.reader, sanitize: ctx.required.sanitize, schema: ctx.required.schema }, { signal: input.signal });
     input.signal.throwIfAborted();
-    stageVerifiedImport({ root: ctx.registry.stagePath(input.row), verified });
+    stageVerifiedImport({ root: ctx.registry.stagePath(input.row), verified, themeChecks: ctx.required.themeChecks });
     row = { ...row, displayName: input.parsed.displayName ?? verified.name, status: "needs-owner", hasEncryptedKeys: Boolean(verified.encryptedKeys), credentialWarnings: verified.credentialWarnings ?? [], warnings: stagedImportWarnings({ root: ctx.registry.stagePath(row) }) };
     ctx.put(row);
     return ctx.view(row);

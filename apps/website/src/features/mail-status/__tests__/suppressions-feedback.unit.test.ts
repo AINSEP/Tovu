@@ -6,6 +6,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
 
 import type { PositionalMailer as MailerPort, MailProviderConfiguration } from "@jini-ai/platform/mail";
+import { planMailDeliveryCaptureClear } from "#src/server/runtime/composition/mail-capture-clear-planner";
 import { buildMailDeliveryRegistrations, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "@jini-ai/platform/mail/feedback-setup";
 import { listCustomCredentials } from "../../custom-credentials/index.js";
@@ -151,7 +152,7 @@ function tools(list = ["*"], removed: unknown[] = [], overrides: Partial<MailDel
     ...feedbackDeps(), ownerPrincipalId: Promise.resolve("owner"), workspaceId: "ws", authorize: grants.authorize, mailer: { capabilities: () => ({ driver: "smtp" }) } as unknown as MailerPort,
     mailSuppressionAdmin: memoryRepo([entry("a@x.test", 1, { reason: "complained", scope: "bulk" }), entry("z@x.test", 0)], removed), ...overrides,
   } as MailDeliveryToolDeps;
-  const registrations = buildMailDeliveryRegistrations(d, { surfaceExchanges: store });
+  const registrations = buildMailDeliveryRegistrations(d, { surfaceExchanges: store }, { planCaptureClear: planMailDeliveryCaptureClear });
   const call = (name: string, input: unknown = {}, options: ToolExecutionOptions = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { call, answer, cards, revoke: (permission: string) => grants.allowed.delete(permission) };
 }

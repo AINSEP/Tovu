@@ -28,6 +28,7 @@ import { readBundledPackageFiles } from "../../package-file-inventory.js";
 import { stageVerifiedImport, stagedImportWarnings } from "../../import-restore.js";
 import { restoreStagedImport } from "#src/server/runtime/composition/site-portability";
 import { jiniSitePlugins, sitePluginManifest } from "../fixtures/site-plugin.fixture.js";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const stamp = "2026-10-26T00:00:00Z";
 const reader = createShareArchiveReader({ yauzl });
@@ -125,7 +126,7 @@ async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<s
     const verified = await verify(archive);
     const stage = path.join(root, name + "-stage"), dir = path.join(root, name);
     fs.mkdirSync(dir);
-    stageVerifiedImport({ root: stage, verified });
+    stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: stage, verified });
     await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: sourceRoot });
     return { verified, dir };
   };
@@ -282,7 +283,7 @@ for (const enabled of [false, true]) test(`a different build carries the plugin'
   assert.deepEqual(verified.trustedPlugins, [], "the source build's code gains no execution trust");
   const stage = path.join(h.root, "skew-stage"), dir = path.join(h.root, "skew");
   fs.mkdirSync(dir);
-  stageVerifiedImport({ root: stage, verified });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: stage, verified });
   await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
   const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundled });
@@ -307,7 +308,7 @@ test("an enabled plugin absent from this build stays quarantined and the import 
   const verified = await verifySiteImport({ archive: h.archive, reader, sanitize: sanitizeShareDatabase, schema: runtimeSchemaVersion() }, { packageFiles: new Map() });
   const stage = path.join(h.root, "unavailable-stage"), dir = path.join(h.root, "unavailable");
   fs.mkdirSync(dir);
-  stageVerifiedImport({ root: stage, verified });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: stage, verified });
   await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
   const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundled });
   const workspaceRoot = layout.forWorkspace({ workspaceId: readTemplate({ templateId: "starter" }).seed.workspace.id }).root;
