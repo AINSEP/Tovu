@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { guardUserText } from "@jini-ai/chat/core";
 import { CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
-import { resolveMessages, toWireSurfacePayload } from "../assistant-byok.js";
+import { toWireSurfacePayload } from "../assistant-byok.js";
+import { resolveMessages } from "../assistant-byok-history.js";
 
 /** BYOK request shaping: client history is validated fail-soft and bounded; surface emissions are
  * re-keyed to the wire shape, with only `mcp-ui` carrying the tool-use id. */

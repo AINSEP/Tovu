@@ -131,6 +131,16 @@ export interface MediaController {
 }
 
 /**
+ * The operator-facing text for a failed upload, or `null` when there is no failure. A typed size
+ * refusal gets the owner copy; every other failure keeps the generic description. @complexity O(1).
+ */
+function describeUploadFailure({ failure, locale }: { failure: unknown; locale: string }, _optional: Record<string, never> = {}): string | null {
+  if (!failure) return null;
+  return sizeRefusalFromError({ t: (key) => translate({ locale, key }), error: failure })
+    ?? translate({ locale, key: describeApiError({ e: failure, fallback: "upload failed" }) });
+}
+
+/**
  * @complexity Time/space: O(1) per call — one list round trip on mount, one per mutation.
  */
 export function useMedia({ port, locale, t }: MediaDependencies): MediaController {
@@ -287,11 +297,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   }
 
   const media = list.data?.media ?? null;
-  const uploadFailure = readError ?? uploadMutation.error;
   // Local FileReader errors bypass the mutation; translate known copy while retaining diagnostics.
-  // A typed size refusal gets the owner copy; every other failure keeps the generic description.
-  const uploadError = uploadFailure ? (sizeRefusalFromError({ t: (key) => translate({ locale, key }), error: uploadFailure })
-    ?? translate({ locale, key: describeApiError({ e: uploadFailure, fallback: "upload failed" }) })) : null;
+  const uploadError = describeUploadFailure({ failure: readError ?? uploadMutation.error, locale });
   const error = visibleMediaError({
     trashError: trashMutation.error,
     purgeError: purgeMutation.error,

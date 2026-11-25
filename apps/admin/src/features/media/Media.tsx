@@ -1,5 +1,6 @@
+import { ChromePlaybackNote } from "./chrome-playback-note";
+import { EyeIcon, ExpandIcon, PlaceholderIcon, PlayIcon, UploadIcon } from "./media-icons";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import { MAX_UPLOAD_BYTES } from "@tovu/contracts/upload-limits";
 import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
@@ -132,57 +133,6 @@ const IMPORT_DIALOG_KIT = { Button, Dialog, TextField } satisfies ImportDialogKi
  * `Roles.tsx` incident (see that component's own doc comment), and a future caller mounting a
  * second `MediaLightbox` elsewhere should not have to rediscover that the hard way.
  */
-
-/** Generic "file" glyph for an asset that fails both the image and video probe — stroke-based,
- *  matching `nav.ts`'s icon convention elsewhere in this app (viewBox 0 0 18 18, currentColor). */
-function PlaceholderIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M5 2h6l3 3v11H5V2z" strokeLinejoin="round" />
-      <path d="M11 2v3h3" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** "Edit metadata" glyph for the card's own eye-icon trigger (owner's chosen affordance for
- *  reaching `EditMediaModal` — see this file's header) — an open-eye shape, same stroke style as
- *  this file's other icons. */
-function EyeIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M1.5 9S4.5 3.5 9 3.5 16.5 9 16.5 9 13.5 14.5 9 14.5 1.5 9 1.5 9Z" strokeLinejoin="round" />
-      <circle cx="9" cy="9" r="2.25" />
-    </svg>
-  );
-}
-
-/** "View larger" glyph for the lightbox trigger overlaid on a card's preview (four open corners —
- *  the conventional expand/fullscreen affordance), same stroke style as this file's other icons. */
-function ExpandIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M6 2H2v4M12 2h4v4M6 16H2v-4M12 16h4v-4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** Upload glyph for the toolbar's icon button (tray with an up arrow), same stroke style as the others. */
-function UploadIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M9 12V3M5.5 6.5 9 3l3.5 3.5M3 12v2.5h12V12" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** "Play" cue on a video card's still frame — the card no longer carries the player itself. */
-function PlayIcon() {
-  return (
-    <svg className="media-card-play" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
-      <path d="M6 3.5v11l9-5.5-9-5.5z" />
-    </svg>
-  );
-}
 
 interface MediaPreviewProps {
   item: AdminMedia;
@@ -956,6 +906,22 @@ function MediaSizeControl({ size, setSize, t }: { size: MediaGridSize; setSize: 
   );
 }
 
+/** The "Order by" and "Size" dropdowns side by side, split out of `MediaLibraryPanel`'s toolbar row. */
+function MediaOrderControls({ orderBy, setOrderBy, size, setSize, t }: {
+  orderBy: MediaOrderBy;
+  setOrderBy: (value: MediaOrderBy) => void;
+  size: MediaGridSize;
+  setSize: (value: MediaGridSize) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="media-order-controls">
+      <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
+      <MediaSizeControl size={size} setSize={setSize} t={t} />
+    </div>
+  );
+}
+
 /** The purge-confirmation dialog — extracted out of `Media` for the same reason as
  *  `MediaToolbar`: its `pendingPurge`-derived `body`/`pending` expressions were two more of that
  *  component's independent branches. */
@@ -1021,27 +987,13 @@ function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: Med
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
   const date = metadata.uploadDate ? <time dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time> : null;
-  const note = showsChromePlaybackNote({ item: props.item }) ? <p className="media-card-note">{props.t(CHROME_PLAYBACK_NOTE)}</p> : null;
-  if (parts.length === 0 && !date) return note;
+  if (parts.length === 0 && !date) return null;
   return (
-    <>
-      <p className="media-card-size">
-        <span className="media-card-specs">{parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]))}</span>
-        {date}
-      </p>
-      {note}
-    </>
+    <p className="media-card-size">
+      <span className="media-card-specs">{parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]))}</span>
+      {date}
+    </p>
   );
-}
-
-/** The card note for a video Chrome may refuse to play (its key is the English text). */
-const CHROME_PLAYBACK_NOTE = "This video may not play in Chrome.";
-
-/** Whether a card shows {@link CHROME_PLAYBACK_NOTE}: a probed HEVC video at or under the ordinary limit,
- *  which is stored as-is (a larger one is converted). @complexity O(1). */
-export function showsChromePlaybackNote({ item }: { item: Pick<AdminMedia, "videoCodec" | "byteSize"> }, _optional: Record<string, never> = {}): boolean {
-  // Compatibility depends on the codec, not the filename or container.
-  return item.videoCodec === "hevc" && typeof item.byteSize === "number" && item.byteSize <= MAX_UPLOAD_BYTES;
 }
 
 interface MediaCardMenuProps {
@@ -1099,6 +1051,7 @@ function MediaCard({ item, handle, onExpand, menu, t }: {
           />
         </div>
         <MediaCardMetadata item={item} locale={menu.locale} shape={preview.shape} t={t} />
+        <ChromePlaybackNote item={item} t={t} />
       </div>
     </div>
   );
@@ -1255,10 +1208,7 @@ function MediaLibraryPanel(
       {/* One row: "Order by" on the left, the two entry points (owner item #9, 2026-10-13) pushed to
           the right edge. Each button owns its dialog. */}
       <div className="toolbar media-order-row">
-        <div className="media-order-controls">
-          <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
-          <MediaSizeControl size={gridSize} setSize={setGridSize} t={t} />
-        </div>
+        <MediaOrderControls orderBy={orderBy} setOrderBy={setOrderBy} size={gridSize} setSize={setGridSize} t={t} />
         <div className="media-actions">
           <MediaToolbar
             fileInputRef={fileInputRef}

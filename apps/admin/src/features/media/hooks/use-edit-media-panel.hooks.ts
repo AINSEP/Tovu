@@ -106,6 +106,21 @@ export function withDescriptionPatch(
 /** The fields edited through the shared draft; `description` is tracked separately so an untouched one never reaches the patch. */
 type MediaDraft = Required<Omit<MediaMetadataPatch, "description">>;
 
+/** The shared draft seeded from the stored item (everything but `description`, which is tracked apart). @complexity O(1). */
+function initialMediaDraft({ item }: { item: AdminMedia }, _optional: Record<string, never> = {}): MediaDraft {
+  return {
+    title: item.title,
+    slug: item.slug,
+    alt: item.alt,
+    caption: item.caption,
+    credit: item.credit,
+    width: item.width,
+    height: item.height,
+    cssClass: item.cssClass,
+    htmlAttributes: item.htmlAttributes,
+  };
+}
+
 export interface EditMediaPanelController {
   draft: MediaDraft;
   /** The description as shown in the field: the stored text, or "" when never described. */
@@ -167,17 +182,7 @@ export interface EditMediaPanelController {
  */
 export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale }: EditMediaPanelDependencies): EditMediaPanelController {
   const { item, onSaved, onCancel } = props;
-  const [draft, setDraft] = useState<MediaDraft>({
-    title: item.title,
-    slug: item.slug,
-    alt: item.alt,
-    caption: item.caption,
-    credit: item.credit,
-    width: item.width,
-    height: item.height,
-    cssClass: item.cssClass,
-    htmlAttributes: item.htmlAttributes,
-  });
+  const [draft, setDraft] = useState<MediaDraft>(() => initialMediaDraft({ item }));
   // Frozen at mount, exactly like `draft`'s own `useState` initializer above — `useRef(item)` only
   // reads its argument on the FIRST render, so this stays the value `draft` was seeded from even as
   // `props.item` keeps advancing underneath it. See this file's own header.
