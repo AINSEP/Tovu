@@ -20,7 +20,10 @@ import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/
 import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
 import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { ConfirmActionDialog } from "@jini-ai/admin/shell/components/ConfirmActionDialog";
-import { ExternalMcpToolsModal } from "./ExternalMcpToolsModal";
+import { ExternalMcpToolsModal } from "@jini-ai/admin/screens/settings/ExternalMcpToolsModal";
+import { useExternalMcpToolsModalEscape } from "@jini-ai/admin/screens/settings/ExternalMcpToolsModal.hooks";
+import { useT as useKitT } from "@jini-ai/admin/react/kit";
+import { EXTERNAL_MCP_PICKER_COLLABORATORS } from "./hooks/use-external-mcp-tool-picker.hooks";
 import { parseSavedToolNames } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
 import {
   buildAllowWritePatch,
@@ -384,6 +387,10 @@ function ExternalMcpSourceRow({ useConnect = useHostExternalMcpOAuthConnect, ...
           writeAllowedToolNames={source.fields["writeAllowedToolNames"]}
           saving={list.isPending(source.id, "update")}
           onSave={(fields) => void list.update(source.id, { fields })}
+          useExternalMcpToolsModalEscapeHook={useExternalMcpToolsModalEscape}
+          useTHook={useKitT}
+          useExternalMcpDriftCopyHook={useExternalMcpDriftCopy}
+          pickerCollaborators={EXTERNAL_MCP_PICKER_COLLABORATORS}
         />
       ) : null}
     </div>
