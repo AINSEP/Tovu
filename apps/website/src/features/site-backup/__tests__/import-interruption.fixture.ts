@@ -23,7 +23,8 @@ const die = () => {
   fs.writeFileSync(path.join(root, "interruption.json"), JSON.stringify(registry.get({ importId, principalId: "recipient" })));
   process.kill(process.pid, "SIGKILL");
 };
-const backend = createSiteImportBackend({ registry, workspace, createSite, restoreStagedImport, reader: createShareArchiveReader({ yauzl }), sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(), creationOptions: options,
+// No index authority in this child: nothing is refused and there is no snapshot to retire.
+const backend = createSiteImportBackend({ authority: { refusal: () => undefined, retire: () => ({ removed: 0, finished: true }) }, registry, workspace, createSite, restoreStagedImport, reader: createShareArchiveReader({ yauzl }), sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(), creationOptions: options,
   http: { send: async () => { throw new Error("unexpected download"); } }, startSite: async () => { throw new Error("must stop before supervisor"); },
 }, { createSite: async (input, creation) => {
   const result = await createSite(input, { ...creation,
