@@ -24,8 +24,14 @@ export interface SourceControlProps {
   useAdminLocaleHook?: (required: Record<string, never>, optional?: Record<string, never>) => string;
 }
 
+/** Adapts the host locale hook (optional port positional arg) to the Jini shell's
+ *  `(required, optional?)` hook contract, so the real hook is still the injected default. */
+function useShellAdminLocale(_required: Record<string, never>, _optional: Record<string, never> = {}): string {
+  return useAdminLocale();
+}
+
 export function SourceControl({
-  useAdminLocaleHook = () => useAdminLocale(), ...props }: SourceControlProps) {
+  useAdminLocaleHook = useShellAdminLocale, ...props }: SourceControlProps) {
   return (
     <SourceControlShell
       tabId={props.tabId}
