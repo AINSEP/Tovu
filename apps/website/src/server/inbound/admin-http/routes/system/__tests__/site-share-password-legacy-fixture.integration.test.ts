@@ -36,6 +36,7 @@ import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 const LEGACY_ROOT_KEY_HEX = "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f";
 const LEGACY_SHARE_ID = "00000000-0000-4000-8000-00000000c0de";
@@ -74,7 +75,7 @@ async function legacyRoute(t: TestContext, { shareId = LEGACY_SHARE_ID }: { shar
     zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined, ownerPrincipalId: Promise.resolve("owner"), savedKeys: composeSiteSavedKeys({ workspaceId: "ws", sealer }) }, { now });
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }), siteShareBackend } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }), siteShareBackend } as unknown as RouteDeps });
   return { app, registry, clock, url: `/api/admin/v1/workspaces/ws/site-shares/${shareId}/password` };
 }
 

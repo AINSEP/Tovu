@@ -19,6 +19,7 @@ import { respondToSignInError, reportMemberDeliveryFailure } from "../inbound/pu
 import { sendMemberAuthError } from "../inbound/public-http/routes/members/complete-sign-in.js";
 import { createPublicJsonRoutePorts } from "../inbound/admin-http/admin-json-route-ports.js";
 import { registerAdminSiteUpdateStatusRoute } from "../runtime/composition/http-app/mount-admin-system.js";
+import { registerAdminSiteShareRoutes } from "../runtime/composition/modules/system-site-shares.js";
 import { registerPublicNewsletterConfirmRoute } from "../inbound/public-http/routes/site/newsletter-confirm.js";
 import { registerPublicNewsletterUnsubscribeRoute } from "../inbound/public-http/routes/site/newsletter-unsubscribe.js";
 import type { NewsletterPublicRouteDeps } from "../inbound/public-http/routes/site/newsletter-deps.js";
@@ -234,4 +235,19 @@ test("daemon tool-access lowering: a failed stop records through the injected re
   const response = await dispatchHttpRequest({ app, method: "post", url: TOOL_ACCESS_LOWERING_PATH, body: { agentIds: ["a"] } });
   assert.equal(response.status, 500);
   probe.assertOneIncident({ errorId: REF.exec(String(response.body))?.[1], thrown });
+});
+
+// FIX 4: the share JSON routes answer through a stand-in `res` (the Jini spec's `failureReply`), not the
+// request's own, so the composed reporter is injected at registration rather than read from `res.locals`.
+test("site shares: a failure is one composed incident", async (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const fail = async (): Promise<never> => { throw thrown; };
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
+  registerAdminSiteShareRoutes({ app, reporter: probe.reporter, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    siteShareBackend: { list: fail, registry: { list: fail } as never } }) });
+  const response = await dispatchHttpRequest({ app, method: "get", url: "/api/admin/v1/workspaces/ws/site-shares" });
+  assert.equal(response.status, 500);
+  assert.doesNotMatch(JSON.stringify(response.body), /Zq9Xw8Vu7Ts6Rq5Po4Nm3Lk2|cause-secret|field-secret/);
+  probe.assertOneIncident({ errorId: REF.exec(JSON.stringify(response.body))?.[1], thrown });
 });

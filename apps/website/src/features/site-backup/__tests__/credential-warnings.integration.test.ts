@@ -24,6 +24,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import type { RouteDeps } from "#src/server/routes/types";
 import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 /** The production bundled-file policy, bound the way the host composition root binds it. */
 const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
@@ -96,7 +97,7 @@ test("export keeps database values and complete plugin packages; download requir
   let allowed = false;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "fixture" }), siteShareBackend: backend } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "fixture" }), siteShareBackend: backend } as unknown as RouteDeps });
   const root = `/api/admin/v1/workspaces/ws/site-shares/${created.shareId}`;
   assert.equal((await dispatchJsonRequest(app, "POST", root + "/acknowledge", {})).status, 403);
   assert.equal((await registry.get({ shareId: created.shareId }))?.needsAcknowledgement, true);

@@ -18,6 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 /** The production bundled-file policy, bound the way the host composition root binds it. */
 const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
@@ -63,7 +64,7 @@ test("only the same-origin browser owner can open this share's real sealed passw
     if (req.get("x-trust") === "yes") res.locals.publishTrust = { sourceInstallationId: "peer", capabilities: [] };
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
   for (const options of [{ principal: "admin" }, { credential: "api_key" }, { credential: "publish_key" }, { credential: "tool" }, { credential: "connected_computer" }, { trust: true }, { origin: "https://localhost" }, { origin: "null" }, { fetchSite: "cross-site" }]) {
     const response = await request(app, options);
     assert.equal(response.status, 403);

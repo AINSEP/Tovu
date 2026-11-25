@@ -202,7 +202,7 @@ function mountSiteAdmin({ app, routeDeps, reporter }: MountInput & { reporter: E
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
   registerAdminExportSiteRoutes({ app, deps: routeDeps });
-  registerAdminSiteShareRoutes({ app, deps: routeDeps });
+  registerAdminSiteShareRoutes({ app, deps: routeDeps, reporter });
   registerAdminSiteImportRoutes({ app, deps: routeDeps });
   registerAdminSiteBackupRoutes({ app, deps: routeDeps });
   // Admin site-update notice: the same read as `site_update_check`, below the authenticated shell.

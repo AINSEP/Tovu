@@ -7,6 +7,7 @@ import { PassThrough } from "node:stream";
 import type { Socket } from "node:net";
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import type { RouteDeps } from "#src/server/routes/types";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 async function request(app: express.Express, url: string, origin = "http://localhost", body: unknown = {}, fetchSite = "same-origin") {
   const socket = new PassThrough(), req = new IncomingMessage(socket as unknown as Socket);
@@ -31,7 +32,7 @@ test("password reveal denies other principals, workspaces, origins, tools and ma
     if (trusted) res.locals.publishTrust = { sourceInstallationId: "peer", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 };
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }),
+  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true }),
     siteShareBackend: { revealPassword: async () => { reveals++; return { password: "private-export-password" }; }, create: async () => ({ ok: true }) },
   } as unknown as RouteDeps });
   const root = "/api/admin/v1/workspaces/ws/site-shares", endpoint = root + "/00000000-0000-0000-0000-000000000000/password";

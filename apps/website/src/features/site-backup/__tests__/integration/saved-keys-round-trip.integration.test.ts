@@ -42,6 +42,7 @@ import { rebuildImportDatabase } from "../../../../server/runtime/composition/si
 import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard.js";
 import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 /** The production bundled-file policy, bound the way the host composition root binds it. */
 const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
@@ -152,7 +153,7 @@ for (const placement of ["inSite", "appData"] as const) {
     });
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-    registerAdminSiteShareRoutes({ app, deps: { workspaceId, ownerPrincipalId: "owner", siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
+    registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId, ownerPrincipalId: "owner", siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
     const endpoint = `/api/admin/v1/workspaces/${workspaceId}/site-shares`;
     let exported = await shareRequest(app, endpoint, {});
     while (exported.jobId) exported = await shareRequest(app, endpoint, { jobId: exported.jobId });

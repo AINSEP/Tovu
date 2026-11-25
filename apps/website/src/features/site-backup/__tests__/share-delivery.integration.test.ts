@@ -16,6 +16,7 @@ import { createSiteShare, revokeSiteShare } from "../share-service.js";
 import { createSiteShareBackend } from "../share-backend.js";
 import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 /** The production bundled-file policy, bound the way the host composition root binds it. */
 const bundledFilePolicy = () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES });
@@ -35,7 +36,7 @@ test("peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace 
     res.locals.publishTrust = { sourceInstallationId: "source", capabilities: apply ? ["publish_content.apply"] : ["publish_content.read"], entityTypes: [], generation: 1 };
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "remote-ws", authorize: async () => { throw new Error("Publishing sessions cannot use RBAC"); }, siteShareBackend: { registry: receiver } } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "remote-ws", authorize: async () => { throw new Error("Publishing sessions cannot use RBAC"); }, siteShareBackend: { registry: receiver } } as unknown as RouteDeps });
   const local = await startTestServer(app, t);
   const baseUrl = "https://deployed.example.test/tovu";
   const requests: { method: string; path: string; authorized: boolean }[] = [];

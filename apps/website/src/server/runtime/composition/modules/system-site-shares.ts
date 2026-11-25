@@ -6,6 +6,7 @@ import {
 } from "@jini-ai/cms/admin-http/routes/system/site-shares";
 import type { RouteBodyRefusal } from "@jini-ai/core/contracts/server";
 import type { RouteDeps } from "#src/server/routes/types";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { mountAdminRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import type { AdminJsonRouteMountOptions } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { adminPublishTrustFor } from "#src/server/inbound/admin-http/admin-request-facts";
@@ -25,7 +26,7 @@ import type { HostSiteShareBackend as SiteShareBackend } from "#src/features/sit
  * (`res.sendFile` + a mid-stream socket destroy) and the saved-keys password reveal stay host routes.
  * The registrar binds what the specs cannot import: the share backend, the input parsers, the
  * registry's token/file rules, the publish-trust lookup and `sendSiteShareFailure`'s copy and
- * incident reporting (with `deps.tracker`, as before). Wire kept from the hand-written routes
+ * incident reporting (through the composed reporter injected at registration: the stand-in reply is not the request's `res`). Wire kept from the hand-written routes
  * (`site-shares.wire.test.ts`): the step's own `NOT_FOUND` workspace refusal (`workspaceRefusal`),
  * a missing session reaching the spec's failure reply (`deferMissingPrincipal`), and the pinned order.
  */
@@ -47,7 +48,7 @@ const STEP_BY_ROUTE = new Map<SiteShareRoute, string>([
 /** `sendSiteShareFailure`'s reply, captured: the same copy, status and tracker report the hand-written
  * routes wrote, with the request facts its route-derived copy reads.
  * @complexity The shared failure lifecycle. */
-function siteShareFailureReply({ deps, args }: { deps: RouteDeps; args: SiteShareFailureArgs }, _optional: Record<string, never> = {}): { status: number; body: unknown } {
+function siteShareFailureReply({ args, reporter }: { args: SiteShareFailureArgs; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): { status: number; body: unknown } {
   const { error, step, method, path, authenticated } = args;
   const reason = error instanceof SiteShareUploadRefusal ? PARSER_TYPE_BY_REFUSAL[error.refusal.reason] : undefined;
   const message = error instanceof Error ? error.message : String(error);
@@ -55,10 +56,12 @@ function siteShareFailureReply({ deps, args }: { deps: RouteDeps; args: SiteShar
   const reply = { status: 500, body: undefined as unknown };
   const res = {
     status: (status: number) => ({ json: (body: unknown) => { reply.status = status; reply.body = body; } }),
-    locals: authenticated ? { principal: true } : {}, req: { method, route: { path } },
+    // The stand-in is not the request's `res`, so it carries the site reporter `createApp` bound there;
+    // without it `sendAdminFailure` falls back to the legacy console + tracker pair, a second, unbound record.
+    locals: { ...(authenticated ? { principal: true } : {}), failureReporter: reporter }, req: { method, route: { path } },
   };
   // Only `status().json()`, `locals` and `req.method/route` are read (`admin-failure.ts` `FailureResponse`).
-  sendSiteShareFailure({ res: res as unknown as Response, error: failure, tracker: deps.tracker }, { step });
+  sendSiteShareFailure({ res: res as unknown as Response, error: failure }, { step });
   return reply;
 }
 
@@ -74,7 +77,7 @@ async function removeSiteShareArtifact({ backend, site, token, file }: { backend
 
 /** The specs' deps, built from `RouteDeps` (never passed whole). `siteShareBackend` is read per request.
  * @complexity O(1). */
-function siteShareRouteDeps({ deps }: { deps: RouteDeps }, _optional: Record<string, never> = {}): SiteShareRouteDeps & { authorize: RouteDeps["authorize"] } {
+function siteShareRouteDeps({ deps, reporter }: { deps: RouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): SiteShareRouteDeps & { authorize: RouteDeps["authorize"] } {
   return {
     workspaceId: deps.workspaceId,
     authorize: (params) => deps.authorize(params),
@@ -87,7 +90,7 @@ function siteShareRouteDeps({ deps }: { deps: RouteDeps }, _optional: Record<str
     receiveArtifact: ({ backend, token, file, archive }: { backend: SiteShareBackend; token: string; file: string; archive: Uint8Array }) =>
       receiveSiteShareArtifact({ registry: backend.registry, site: deps.workspaceId, token, file, archive: Buffer.from(archive.buffer, archive.byteOffset, archive.byteLength) }),
     removeArtifact: ({ backend, token, file }: { backend: SiteShareBackend; token: string; file: string }) => removeSiteShareArtifact({ backend, site: deps.workspaceId, token, file }),
-    failureReply: (args) => siteShareFailureReply({ deps, args }),
+    failureReply: (args) => siteShareFailureReply({ args, reporter }),
     maxArchiveBytes: SHARE_LIMITS.maxArchiveBytes,
   };
 }
@@ -104,9 +107,9 @@ function mountSiteShareRoute({ app, spec, routeDeps }: { app: Express; spec: Sit
 }
 
 /** Authenticated management and ZIP-only download. Mounted under the existing admin session gate. */
-export function registerAdminSiteShareRoutes(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
-  const { app, deps } = required;
-  const routeDeps = siteShareRouteDeps({ deps });
+export function registerAdminSiteShareRoutes(required: { app: Express; deps: RouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
+  const { app, deps, reporter } = required;
+  const routeDeps = siteShareRouteDeps({ deps, reporter });
   for (const spec of [siteShareListRoute, siteShareCreateRoute, siteShareStaticOptionsRoute, siteShareStaticCreateRoute]) mountSiteShareRoute({ app, spec, routeDeps });
   app.post("/api/admin/v1/workspaces/:workspaceId/site-shares/:shareId/password", createSiteSharePasswordHandler({ deps }));
   mountSiteShareRoute({ app, spec: siteShareAcknowledgeRoute, routeDeps });

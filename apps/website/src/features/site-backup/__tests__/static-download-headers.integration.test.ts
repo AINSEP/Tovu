@@ -9,6 +9,7 @@ import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/mo
 import type { RouteDeps } from "#src/server/routes/types";
 import { SiteShareRegistry } from "../share-registry.js";
 import { createSiteShare } from "../share-service.js";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 for (const filename of ["site-static-2026-10-30-1015.zip", "site.tovu.zip"]) {
   test(`authenticated download exposes ${filename} in Content-Disposition`, async t => {
@@ -25,7 +26,7 @@ for (const filename of ["site-static-2026-10-30-1015.zip", "site.tovu.zip"]) {
       res.on("finish", () => { headers = res.getHeaders(); });
       next();
     });
-    registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteShareBackend: { registry } } as unknown as RouteDeps });
+    registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteShareBackend: { registry } } as unknown as RouteDeps });
     const response = await dispatchJsonRequest(app, "GET", `/api/admin/v1/workspaces/ws/site-shares/${row.shareId}/download`);
     assert.equal(response.status, 200);
     assert.equal(headers["content-disposition"], `attachment; filename="${filename}"`);

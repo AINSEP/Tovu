@@ -12,6 +12,7 @@ import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { createSiteShare } from "#src/features/site-backup/share-service";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 /**
  * w4-routes K (RT-K1-adm-system-13): the exact wire of every admin site-share route, captured through
@@ -36,7 +37,9 @@ function normalize(text: string): unknown {
 async function serve(t: test.TestContext) {
   const directory = fs.mkdtempSync(path.join(tmpdir(), "share-wire-")); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
-  const state = { principal: true, trusted: false, allowed: true, available: true, failure: undefined as unknown, permissions: [] as string[], tracked: [] as unknown[] };
+  // `tracked`/`records` are the composed reporter's tracker reports and host records (it replaced `deps.tracker`).
+  const sinks = recordingComposedReporter();
+  const state = { principal: true, trusted: false, allowed: true, available: true, failure: undefined as unknown, permissions: [] as string[], tracked: sinks.reports as unknown[], records: sinks.records };
   const answer = async <T>(value: T): Promise<T> => { if (state.failure) throw state.failure; return value; };
   const backend = {
     registry,
@@ -47,7 +50,7 @@ async function serve(t: test.TestContext) {
     revoke: (input: { shareId: string }) => answer({ revoked: input.shareId }),
   };
   const deps = {
-    workspaceId: "ws", tracker: { error: (report: unknown) => { state.tracked.push(report); } },
+    workspaceId: "ws",
     authorize: async (input: { permission: string }) => { state.permissions.push(input.permission); return { allowed: state.allowed, reason: "test" }; },
     get siteShareBackend() { return state.available ? backend : undefined; },
   } as unknown as RouteDeps;
@@ -57,7 +60,7 @@ async function serve(t: test.TestContext) {
     if (state.trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 };
     next();
   });
-  registerAdminSiteShareRoutes({ app, deps });
+  registerAdminSiteShareRoutes({ app, reporter: sinks.reporter, deps });
   const base = await startTestServer(app, t);
   const call = async (method: string, suffix: string, init: { body?: unknown; type?: string; workspace?: string } = {}): Promise<Wire> => {
     const url = `${base}${ROOT.replace("/ws/", `/${init.workspace ?? "ws"}/`)}${suffix}`;
@@ -155,8 +158,9 @@ test("site-shares wire: backend refusals keep their status and step; unexpected 
   assert.deepEqual(await call("POST", `/${UUID}/acknowledge`), wire(404, { code: "NOT_FOUND", message: "Export acknowledgement failed: this export was not found." }));
   state.failure = new SiteShareRefusal({ code: "FORBIDDEN", message: "no." });
   assert.deepEqual(await call("DELETE", `/${UUID}`), wire(403, { code: "FORBIDDEN", message: "Export revocation failed: no." }));
-  state.failure = new Error("disk exploded");
   for (const [method, suffix, step] of ROUTES.filter(([, , step]) => !step.startsWith("Share artifact") && step !== "Export download")) {
+    // A fresh failure per request: the composed reporter records one error object once (its dedupe mark).
+    state.failure = new Error("disk exploded");
     const got = await call(method, suffix);
     assert.equal(got.status, 500, step); assert.equal(got.cache, "no-store"); assert.equal(got.type, json);
     const body = got.body as { code: string; message: string; details: { failure: { step: string; action: string } } };
@@ -165,6 +169,7 @@ test("site-shares wire: backend refusals keep their status and step; unexpected 
     assert.equal(body.details.failure.step, step);
   }
   assert.equal(state.tracked.length, 6);
+  assert.equal(state.records.length, 6);
 });
 
 test("site-shares wire: download refusals, acknowledgement and the ZIP itself", async (t) => {
