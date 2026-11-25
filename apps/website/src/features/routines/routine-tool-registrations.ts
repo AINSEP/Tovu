@@ -49,7 +49,7 @@ const DETAIL = { sideEffects: "mutates-durable-state" as const, authorization: {
 
 const catalog = indexCatalogById({ catalog: [
   { name: ROUTINE_LIST_TOOL_ID, description: `Lists the owner's routines with their current revision. ${ROUTINE_BLURB}`,
-    sideEffects: "read-only" as const, authorization: { permission: PERMISSION }, inputSchema: { type: "object", additionalProperties: false, properties: {} } },
+    sideEffects: "none" as const, authorization: { permission: PERMISSION }, inputSchema: { type: "object", additionalProperties: false, properties: {} } },
   { name: ROUTINE_CREATE_TOOL_ID, ...DETAIL, description: `Creates a routine after the owner confirms a card. ${ROUTINE_BLURB} Hourly schedules pick a minute past the hour; daily, weekdays and weekly schedules require a timezone.`,
     inputSchema: { type: "object", additionalProperties: false, required: ["name", "prompt", "schedule"],
       properties: { name: { type: "string" }, prompt: { type: "string" }, schedule: SCHEDULE_SCHEMA, agentId: { type: "string" }, model: { type: "string" } } } },
@@ -60,7 +60,7 @@ const catalog = indexCatalogById({ catalog: [
     inputSchema: { type: "object", additionalProperties: false, required: ["id", "revision"], properties: { id: { type: "string" }, revision: { type: "integer" } } } },
 ] });
 export const routineDerivedRisk: DerivedRiskByToolId = new Map([
-  [ROUTINE_LIST_TOOL_ID, "read-only"], [ROUTINE_CREATE_TOOL_ID, "mutates-durable-state"],
+  [ROUTINE_LIST_TOOL_ID, "none"], [ROUTINE_CREATE_TOOL_ID, "mutates-durable-state"],
   [ROUTINE_SET_ENABLED_TOOL_ID, "mutates-durable-state"], [ROUTINE_DELETE_TOOL_ID, "mutates-durable-state"],
 ]);
 
@@ -261,7 +261,7 @@ export function contributeRoutineTools(required: RoutineToolsRequired, _optional
       return buildDomainRegistrations({
         domain: DOMAIN, catalogModule: "features/routines/routine-tool-registrations.ts", catalog, derivedRisk: routineDerivedRisk, metadata: toolMetadata,
         handlers: Object.fromEntries(Object.entries(handlers).map(([id, handler]) =>
-          [id, async (ctx: ToolExecutionContext, options: ToolExecutionOptions) => {
+          [id, async (ctx: ToolExecutionContext, options: ToolExecutionOptions = {}) => {
             if (!ctx.principal?.id) throw new ToolInputError({ message: `${id}: no signed-in principal.` });
             return handler(tools, { ctx, options });
           }])),

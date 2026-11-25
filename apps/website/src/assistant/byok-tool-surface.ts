@@ -487,7 +487,7 @@ export async function routineIdsHiddenFrom({ discovery, principalId }: { discove
 }
 
 /** The catalog with `hidden` ids removed from search and describe, so they cannot be found or promoted. */
-export function withoutHiddenTools({ catalog, hidden }: { catalog: ReturnType<typeof buildToolCatalogQuery>; hidden: ReadonlySet<string> }, _optional = {}): ReturnType<typeof buildToolCatalogQuery> {
+export function withoutHiddenTools<C extends ToolCatalogQuery>({ catalog, hidden }: { catalog: C; hidden: ReadonlySet<string> }, _optional = {}): C {
   if (hidden.size === 0) return catalog;
   return {
     ...catalog,
