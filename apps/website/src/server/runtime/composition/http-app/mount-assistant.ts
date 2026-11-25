@@ -21,7 +21,7 @@ import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 
 /** Builds the BYOK assistant module once, tracks its boot pass, and mounts the admin/BYOK assistant surfaces and the daemon-facing router, in registration order. */
 export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps }: MountInput & { internalRouter: Router; bootWorkByDeps: typeof siteAppBootWorkByDeps },
-  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "onBootWork" | "mountAssistantRoutines"> & {
+  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "assistantRoutineBoot" | "onBootWork" | "mountAssistantRoutines"> & {
     /** The bound T1a routine commands (the instance the admin routes use). Off/absent by default: the four routine tools exist only when the host supplies it AND the release flag is on. */
     routines?: RoutineToolHost; routinesReleaseEnabled?: boolean } = {}): void {
   // T1a wiring supplies routines commands here
@@ -69,6 +69,7 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps 
     mountRoutes({ app, mod: createAssistantChatsModule(routeDeps, {
       recoverInterrupted: options.recoverAssistantChatRuns,
       onBootWork: options.onBootWork,
+      ...(options.assistantRoutineBoot ? { routineBoot: options.assistantRoutineBoot } : {}),
     }) });
   }
 

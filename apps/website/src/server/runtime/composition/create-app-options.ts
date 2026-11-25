@@ -17,6 +17,8 @@ export interface CreateAppOptions {
   assistantToolSurface?: ReturnType<typeof createAssistantByokModule>["toolSurface"];
   /** Serving boot only; exporter/eager apps do not own recovery of assistant turns. */
   recoverAssistantChatRuns?: boolean;
+  /** Serving boot only: the routines boot barrier, so chat repair leaves turns the routine lease owner still owns (P3-T2.T). */
+  assistantRoutineBoot?: { isLeaseOwner: () => boolean; whenInterrupted: () => Promise<void> };
   /**
    * Receives each background pass `createApp` starts and returns before it finishes — today the BYOK
    * tool surface's installed-extension pass, which reads the plugin catalog and plugin activations

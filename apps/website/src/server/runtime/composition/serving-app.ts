@@ -88,10 +88,20 @@ export function createServingApp(
   // Routines (P3-T1a.T): the slot is placed inside createApp's admin routes; the host composes into it
   // after createApp returns. Absent `optional.routines` (tests, hermetic roots) means ineligible and dark.
   const routineRouter = Router();
-  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
+  // The routines handle exists only after createApp returns, so chat repair waits on a deferred barrier:
+  // only when routines can run at all, and then only while this boot's routine lease owner is interrupting.
+  let bindRoutines: (ready: ServingRoutines["ready"]) => void = () => {};
+  const routinesReady = new Promise<ServingRoutines["ready"]>((resolve) => { bindRoutines = resolve; });
+  const routinesCanRun = (optional.routines?.desktopEligible ?? false) && (optional.routines?.releaseEnabled ?? false);
+  const assistantRoutineBoot = { isLeaseOwner: () => routinesCanRun, whenInterrupted: async () => {
+    const handle = await (await routinesReady);
+    if (handle.bootInterruption.isLeaseOwner()) await handle.bootInterruption.whenInterrupted();
+  } };
+  const app = createApp(routeDeps, { assistantRoutineBoot, stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
     mountAssistantRoutines: ({ app: routed }) => { routed.use(routineRouter); } });
   const routines = startServingRoutines({ routeDeps, router: routineRouter, desktopEligible: optional.routines?.desktopEligible ?? false,
-    releaseEnabled: optional.routines?.releaseEnabled ?? false }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : {});
+    releaseEnabled: optional.routines?.releaseEnabled ?? false }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : { acceptanceDeps: routeDeps });
+  bindRoutines(routines.ready);
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker }

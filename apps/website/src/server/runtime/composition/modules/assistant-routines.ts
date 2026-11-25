@@ -64,7 +64,7 @@ export interface ComposeAssistantRoutinesOptional {
   runMigrations?: unknown;
   createService?: (required: { persistence: RoutineDurablePersistence; holderId: string }) => RoutineService;
   /** Builds the run handler once the approval observer exists (P3-T3.T), so every accepted run can be tracked; wins over `runStarter`. */
-  createRunHandler?: (ports: { approvals: Pick<RoutineApprovalObserver, "track" | "untrack"> }) => RoutineRunHandler;
+  createRunHandler?: (ports: { approvals: Pick<RoutineApprovalObserver, "track" | "untrack">; updateRun: RoutineDurablePersistence["updateRun"] }) => RoutineRunHandler;
 }
 
 export interface AssistantRoutinesHandle {
@@ -208,7 +208,7 @@ export async function composeAssistantRoutines(required: ComposeAssistantRoutine
   const service = createService({ persistence: sidecar.persistence, holderId });
   // In-process projection: receipts arrive through `onReceipt`, so the watcher read hook has nothing to add.
   const approvals = createRoutineApprovalObserver({ persistence: sidecar.store, now, readRunEvents: async () => [], policy: { workspaceId } }, { log });
-  service.setRunHandler({ handler: optional.createRunHandler?.({ approvals }) ?? required.runStarter });
+  service.setRunHandler({ handler: optional.createRunHandler?.({ approvals, updateRun: (args) => sidecar.persistence.updateRun(args) }) ?? required.runStarter });
   const handle = await startRoutineHost(required, { service, sidecar, holderId });
   return { ...handle, approvalBindingFor: approvals.bindingFor };
 }

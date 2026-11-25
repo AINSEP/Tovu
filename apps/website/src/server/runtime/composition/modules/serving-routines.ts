@@ -8,10 +8,13 @@ import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/in
 import { holdsSiteOwnerAuthority } from "#src/server/inbound/admin-http/dev-auth";
 import type { RoutineAccess } from "#src/features/routines/routine-commands";
 import { installRoutineWakeReceiver, type RoutineWakeChannel } from "#src/features/routines/routine-wake-receiver";
+import { createRoutineRunHandler } from "#src/features/routines/routine-run-handler";
+import { listAssistantAgents } from "#src/assistant/agents";
+import { ownerChatAcceptanceFor, type AssistantAcceptanceRouteDeps } from "./assistant-run-acceptance.js";
 import { siteStoreHooksFor, type SiteStoreHooks } from "../site-deps/store-close-hooks.js";
 import {
   composeAssistantRoutines, ROUTINE_ROUTE_BASE,
-  type AssistantRoutinesHandle, type ComposeAssistantRoutinesRequired, type MountRoutineAdminRoute, type RoutineTimers,
+  type AssistantRoutinesHandle, type ComposeAssistantRoutinesOptional, type ComposeAssistantRoutinesRequired, type MountRoutineAdminRoute, type RoutineTimers,
 } from "./assistant-routines.js";
 
 /**
@@ -78,8 +81,10 @@ export interface ServingRoutinesRequired {
 }
 
 export interface ServingRoutinesOptional {
-  /** T2.T's owner-chat starter replaces the not-ready fallback here. */
+  /** Test override for the run handler; production builds the owner-chat handler from `acceptanceDeps`. */
   runStarter?: RoutineRunHandler;
+  /** The serving deps owner-chat acceptance needs (P3-T2.T); without a durable run store the not-ready fallback stays. */
+  acceptanceDeps?: AssistantAcceptanceRouteDeps;
   channel?: RoutineWakeChannel;
   storeHooks?: SiteStoreHooks;
   /** Test seam for the clock, timers and opener; production uses the real ones. */
@@ -91,6 +96,30 @@ export interface ServingRoutines {
   ready: Promise<AssistantRoutinesHandle>;
   /** Removes the wake receiver; the sidecar itself closes through the store's own close hooks. */
   stop: () => Promise<void>;
+}
+
+/** Catch-up copy prepended to a late run's prompt; the slot time is the owner's locale time. */
+export const routineCatchUpText = ({ localTime }: { localTime: string }, _optional = {}): string => `Tovu was closed or asleep at ${localTime}.`;
+
+/**
+ * The real owner-chat run handler (P3-T2.T) when the serving deps carry a durable run store; otherwise
+ * nothing, so `runStarter` (the not-ready fallback) answers. Codex stays refused (`agentPolicy: {}`).
+ */
+export function ownerChatRunHandler({ routeDeps, access }: { routeDeps: ServingRoutineDeps; access: RoutineAccess },
+  optional: Pick<ServingRoutinesOptional, "runStarter" | "acceptanceDeps"> = {}): Pick<ComposeAssistantRoutinesOptional, "createRunHandler"> {
+  const deps = optional.acceptanceDeps;
+  const runStarter = optional.runStarter === undefined && deps ? ownerChatAcceptanceFor({ deps }, {}) : undefined;
+  if (!deps || !runStarter) return {};
+  const workspaceId = routeDeps.workspaceId;
+  return { createRunHandler: ({ approvals, updateRun }) => createRoutineRunHandler({
+    owners: { resolveCurrentOwner: async ({ creatorId }) => {
+      const actor = { principalId: creatorId, workspaceId };
+      return (await access({ actor })) ? actor : null;
+    } },
+    agents: { list: () => listAssistantAgents() }, chatHistory: deps.chatHistory, runStarter, updateRun,
+    now: Date.now, newId: randomUUID, localeTime: ({ at }) => new Date(at).toLocaleString(), catchUpText: routineCatchUpText,
+    agentPolicy: {}, approvals,
+  }) };
 }
 
 /** Composes routines for one serving boot. No owning store (in-memory/static) is never eligible. */
@@ -110,10 +139,10 @@ export function startServingRoutines(required: ServingRoutinesRequired, optional
     launch: { desktopEligible }, workspaceId: routeDeps.workspaceId, contentDbPath: hooks?.dbPath ?? "", openSqlite: openNativeSqlite,
     beforeStoreClose: hooks?.beforeStoreClose ?? (() => {}), onStoreClose: hooks?.onStoreClose ?? (() => {}),
     assistantEnabled: routeDeps.adminAssistantEnabled, onAssistantToggle: () => () => {},
-    runStarter: optional.runStarter ?? createRoutinesNotReadyStarter(), approvalObserver: { observe: async () => {} },
+    runStarter: optional.runStarter ?? createRoutinesNotReadyStarter(),
     mountAdminRoute, now: Date.now, newId: randomUUID, timers: nodeRoutineTimers, log: logRoutineEvent, writeBeacon: writeRoutineBeaconAtomically,
     policy: { releaseEnabled, access: ownerAccessFor(routeDeps) }, ...optional.composeOverrides,
-  }).then((handle) => {
+  }, ownerChatRunHandler({ routeDeps, access: ownerAccessFor(routeDeps) }, optional)).then((handle) => {
     if (!stopped) removeReceiver = installRoutineWakeReceiver({ channel: optional.channel ?? parentChannel(), reconcile: handle.reconcile,
       eligible: desktopEligible && releaseEnabled, log: ({ event, error }) => logRoutineEvent({ event, error }) });
     return handle;
