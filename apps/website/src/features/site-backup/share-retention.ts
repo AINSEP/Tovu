@@ -92,7 +92,7 @@ async function settleOne(required: ShareRetentionRequired & { shareId: string; n
   if (!row) return 0;
   const action = actionFor({ row, now: required.now });
   if (action === null) return 0;
-  if (action === "expire" && provesExpiry({ row, now: required.now })) await required.registry.markExpired({ shareId: row.shareId, expiresAt: row.expiresAt });
+  if (action === "expire" && typeof row.expiresAt === "string" && provesExpiry({ row, now: required.now })) await required.registry.markExpired({ shareId: row.shareId, expiresAt: row.expiresAt });
   return removeZip(required);
 }
 
