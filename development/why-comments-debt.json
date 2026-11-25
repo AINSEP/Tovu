@@ -2,6 +2,10 @@
   "version": 1,
   "allow": [
     {
+      "id": "babd2086a336",
+      "reason": "Documented cannotHaveDollar/NUMERIC_NAME in bug-class-audit check 6; sheet P10-S4.T deleted that exemption (it hid real nonliteral replacements), and the check-6 header now states the remaining literal and proven-callback exclusions."
+    },
+    {
       "id": "010687fc2a46",
       "reason": "Moved to Jini @jini-ai/cookie-consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
     },

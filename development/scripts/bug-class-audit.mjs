@@ -553,7 +553,7 @@ function checkReplace(ctx) {
       for (let scope = b.parent; scope; scope = scope.parent) {
         const matches = bindings.get(scope)?.get(b.text);
         if (!matches) continue;
-        if (matches.length === 1 && matches[0]) return;
+        if (matches.length === 1 && matches[0]) return; // a same-file replacer function
         break;
       }
     }
