@@ -41,14 +41,17 @@ const operationsOf = async (deps: StorageSheetActionsRequired): Promise<Readonly
   return read.state === "ok" ? read.operations : new Set();
 };
 
+/** A running site cleans only through its owner's preview token; no token means refused, never the CLI. */
+async function stageRunningClean(deps: StorageSheetActionsRequired, dir: string): Promise<Pending | "refused"> {
+  const preview = await deps.ownerHttp({ dir, body: { dryRun: true } });
+  return preview.state === "ok" && preview.previewToken ? { mode: "running-clean", previewToken: preview.previewToken } : "refused";
+}
+
 async function stage(deps: StorageSheetActionsRequired, action: "clean" | "compact", dir: string): Promise<Pending | "refused" | undefined> {
   const state = await deps.runningLease({ dir });
   if (state === "unknown") return undefined;
   if (action === "compact") return state === "stopped" ? { mode: "compact" } : undefined;
-  if (state === "running") {
-    const preview = await deps.ownerHttp({ dir, body: { dryRun: true } });
-    return preview.state === "ok" && preview.previewToken ? { mode: "running-clean", previewToken: preview.previewToken } : "refused";
-  }
+  if (state === "running") return stageRunningClean(deps, dir);
   const dryRun = await deps.runCli({ cliArgs: ["storage", "clean", dir, "--json"] });
   return dryRun.state === "exited" && dryRun.code === 0 ? { mode: "stopped-clean" } : undefined;
 }

@@ -61,23 +61,43 @@ function capReasons(readings: ProbeReadings, limit: number): string[] {
  * @param optional.tolerance allowed overshoot of the configured cap (default 1.25).
  * @complexity O(partitions).
  */
+/** Preconditions that void the whole run: wrong build, wrong platform, unproven profile or control. */
+function blockingReasons(
+  { readings, expected }: { readings: ProbeReadings; expected: { electronVersion: string; platform: string } },
+): string[] {
+  const checks: readonly [boolean, string][] = [
+    [readings.electronVersion !== expected.electronVersion, "unexpected Electron version"],
+    [readings.platform !== expected.platform, "unexpected platform"],
+    [!readings.profileVerified, "disposable profile identity not verified"],
+    [readings.negativeControlDetectedLoss !== true, "negative control did not detect storage loss"],
+  ];
+  return checks.filter(([failed]) => failed).map(([, reason]) => reason);
+}
+
+/** Each clear op is GO only on a clean run where both its API case and its disk case survived. */
+function survivalVerdict({ survival, clean }: { survival: ProbeReadings["survival"]; clean: boolean }) {
+  const cacheGo = clean && survived(survival.clearCache) && survived(survival.diskCache);
+  const codeGo = clean && survived(survival.clearCodeCaches) && survived(survival.diskCodeCache);
+  const survivalReasons = [
+    ...(cacheGo ? [] : ["Cache survival not proven by both API and disk cases"]),
+    ...(codeGo ? [] : ["Code Cache survival not proven by both API and disk cases"]),
+  ];
+  return { cacheGo, codeGo, survivalReasons };
+}
+
+const goOrNoGo = (ok: boolean): "go" | "no-go" => (ok ? "go" : "no-go");
+
 export function probeVerdict(
   { readings, expected }: { readings: ProbeReadings; expected: { electronVersion: string; platform: string } },
   { tolerance = 1.25 }: { tolerance?: number } = {},
 ): ProbeVerdict {
-  const blocking: string[] = [];
-  if (readings.electronVersion !== expected.electronVersion) blocking.push("unexpected Electron version");
-  if (readings.platform !== expected.platform) blocking.push("unexpected platform");
-  if (!readings.profileVerified) blocking.push("disposable profile identity not verified");
-  if (readings.negativeControlDetectedLoss !== true) blocking.push("negative control did not detect storage loss");
+  const blocking = blockingReasons({ readings, expected });
   const capProblems = capReasons(readings, readings.capBytes * tolerance);
-  const { clearCache, clearCodeCaches, diskCache, diskCodeCache } = readings.survival;
-  const cacheGo = blocking.length === 0 && survived(clearCache) && survived(diskCache);
-  const codeGo = blocking.length === 0 && survived(clearCodeCaches) && survived(diskCodeCache);
+  const clean = blocking.length === 0;
+  const { cacheGo, codeGo, survivalReasons } = survivalVerdict({ survival: readings.survival, clean });
   return {
-    cap: blocking.length === 0 && capProblems.length === 0 ? "go" : "no-go",
-    clearOps: { clearCache: cacheGo ? "go" : "no-go", clearCodeCaches: codeGo ? "go" : "no-go" },
-    reasons: [...blocking, ...capProblems, ...(cacheGo ? [] : ["Cache survival not proven by both API and disk cases"]),
-      ...(codeGo ? [] : ["Code Cache survival not proven by both API and disk cases"])],
+    cap: goOrNoGo(clean && capProblems.length === 0),
+    clearOps: { clearCache: goOrNoGo(cacheGo), clearCodeCaches: goOrNoGo(codeGo) },
+    reasons: [...blocking, ...capProblems, ...survivalReasons],
   };
 }
