@@ -716,8 +716,8 @@ test("project removal clears only the retired site's web caches after untracking
     const deps = baseDeps();
     const recorder = recordCacheTrims({ projectsPath: deps.projectsPath });
     deps.trimRetiredSiteCache = recorder.trimRetiredSiteCache;
-    trackSite({ projectsPath: deps.projectsPath, siteDir: removed }, branch === "erased" ? { origin: SITE_ORIGIN.created, siteId: "site-removed" } : { origin: SITE_ORIGIN.adopted });
-    trackSite({ projectsPath: deps.projectsPath, siteDir: kept }, { origin: SITE_ORIGIN.created, siteId: "site-kept" });
+    trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: removed }, branch === "erased" ? { origin: SITE_ORIGIN.created, siteId: "site-removed" } : { origin: SITE_ORIGIN.adopted });
+    trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: kept }, { origin: SITE_ORIGIN.created, siteId: "site-kept" });
 
     await handleDelete({ id: removed, deps });
 
@@ -733,7 +733,7 @@ test("a refused erase never touches the site's partition cache", async () => {
   const deps = baseDeps({ removeSiteTree: async () => { throw Object.assign(new Error("resource busy"), { code: "EBUSY" }); } });
   const recorder = recordCacheTrims({ projectsPath: deps.projectsPath });
   deps.trimRetiredSiteCache = recorder.trimRetiredSiteCache;
-  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-busy" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-busy" });
 
   await assert.rejects(() => handleDelete({ id: siteDir, deps }), /Its card has been kept/);
 
@@ -748,7 +748,7 @@ test("cache cleanup failure does not turn completed project removal into failed 
     trimRetiredSiteCache: async () => { throw Object.assign(new Error(`EPERM: ${siteDir}/Partitions/Cache`), { code: "EPERM" }); },
     warn: ({ message }) => warnings.push(message),
   });
-  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-cache-fail" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-cache-fail" });
 
   await assert.doesNotReject(() => handleDelete({ id: siteDir, deps }));
 
@@ -2785,7 +2785,7 @@ test("routines: Stop records the session withdrawal before the asynchronous stop
   });
   const queue = deps.serializer;
   deps.serializer = { ...queue, run: (input: Parameters<typeof queue.run>[0]) => { order.push("queued"); return queue.run(input); } } as typeof queue;
-  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: "/sites/a" });
   deps.openSites.set("/sites/a", { server: { port: 4321, stop: async () => { order.push("drain"); } } });
   await handleStop({ id: "/sites/a", deps });
   assert.deepEqual(order, ["withdraw /sites/a", "queued", "drain"]);
