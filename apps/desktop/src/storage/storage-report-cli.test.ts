@@ -25,7 +25,9 @@ test("an odd report is unknown, never a guess", () => {
 });
 
 test("T-18.7 capabilities are strict: unknown shape or operation means no action", () => {
-  assert.deepEqual([...(parseStorageCapabilities({ stdout: '{"operations":["report","move","clean"]}' }) as { operations: Set<string> }).operations], ["report", "move", "clean"]);
+  const read = parseStorageCapabilities({ stdout: '{"operations":["report","move","clean"]}' });
+  assert.ok(read.state === "ok");
+  assert.deepEqual([...read.operations], ["report", "move", "clean"]);
   for (const bad of ['{"clean":true,"compact":true}', '{"operations":["clean","vacuum"]}', '{"operations":["compact"],"version":2}', "", "null"]) {
     assert.deepEqual(parseStorageCapabilities({ stdout: bad }), { state: "unknown" });
   }
