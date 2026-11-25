@@ -8,7 +8,7 @@ import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../../custom-c
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
-import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext } from '@jini-ai/core';
+import { type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext } from '@jini-ai/core';
 
 /** Context overrides a call may pass; `emitSurface` travels as a handler option, not on the context. */
 type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
