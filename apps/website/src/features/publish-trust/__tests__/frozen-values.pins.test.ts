@@ -9,7 +9,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
 import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
 import { PUBLISH_TRUST_ROUTES, isPublishTrustRoute } from "@jini-ai/cms/publish/trust/grant";
-import { fetchDestinationIdentity, PUBLISH_TRUST_HANDSHAKE_BASE, PublishTrustHandshakeError } from "../handshake-client.js";
+import { fetchDestinationIdentity, PUBLISH_TRUST_HANDSHAKE_BASE, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import { deriveInstallationId, derivePublishSigningKey, PUBLISH_PRINCIPAL_ID_PREFIX, publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
 import { PUBLISH_TRUST_CONFIG_PATH } from "@jini-ai/cms/publish/trust/provisioning";
 import { PUBLISH_TRUST_ENV_VAR } from "../host-settings.js";
@@ -99,7 +99,7 @@ test("T-FROZEN: the handshake wire path", async () => {
     },
   };
 
-  await fetchDestinationIdentity({ deps: { httpClient }, input: { baseUrl: "https://d.example" } });
+  await fetchDestinationIdentity({ deps: { protocol: PUBLISH_TRUST_WIRE, httpClient }, input: { baseUrl: "https://d.example" } });
 
   assert.equal(PUBLISH_TRUST_HANDSHAKE_BASE, "/api/publish-trust/v1");
   assert.deepEqual(urls, ["https://d.example/api/publish-trust/v1/identity"]);
@@ -109,7 +109,7 @@ test("T-FROZEN: the failure code callers switch on when the other side is not a 
   const httpClient: HttpClientPort = { send: async () => ({ status: 404, headers: {}, bodyText: "" }) };
 
   await assert.rejects(
-    fetchDestinationIdentity({ deps: { httpClient }, input: { baseUrl: "https://d.example" } }),
+    fetchDestinationIdentity({ deps: { protocol: PUBLISH_TRUST_WIRE, httpClient }, input: { baseUrl: "https://d.example" } }),
     (error: unknown) => error instanceof PublishTrustHandshakeError && error.failure === "not-a-tovu-site"
   );
 });

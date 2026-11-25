@@ -2,7 +2,10 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { backstopGrantAllows, DEFAULT_PUBLISHING_CAPABILITIES, parsePublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
-import { connectDestination, disconnectDestination, findCandidateDestination, type ConnectDeps } from "../connect.js";
+import { connectDestination, disconnectDestination, type ConnectDeps } from "@jini-ai/cms/publish/trust/connect";
+import { nowIso } from "@jini-ai/core/primitives";
+import { findCandidateDestination } from "../connect.js";
+import { PUBLISH_TRUST_WIRE } from "../host-settings.js";
 import { COMMITTED_JSON_CODEC, createFileProvisioning, type ProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning";
 
 test("backstop requires a separate capability AND an explicit raw entity type", () => {
@@ -23,7 +26,7 @@ test("connecting never grants backstop, even when callers include raw types", as
   let written: unknown;
   await connectDestination({
                              deps: {
-      workspaceId: "source-ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") },
+      workspaceId: "source-ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") }, nowIso, protocol: PUBLISH_TRUST_WIRE,
       keyring: { derive: async () => new Uint8Array(32).fill(7) } as never,
       httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: JSON.stringify({
         installationId: "dest", workspaceId: "dest-ws", origin: "https://dest.example",
@@ -49,6 +52,8 @@ function connectionFixture() {
   const deps: ConnectDeps = {
     workspaceId: "source-ws",
     clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") },
+    nowIso,
+    protocol: PUBLISH_TRUST_WIRE,
     keyring: {
       activeKey: async () => ({ keyId: "v1" }),
       deriveSigningSecret: async () => { throw new Error("Webhook signing is not used when connecting a destination"); },
