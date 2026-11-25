@@ -1,3 +1,4 @@
+import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 import { formatUserFacingError } from '@jini-ai/core';
 import { createElement, useLayoutEffect, useState } from "react";
 import {
@@ -20,7 +21,7 @@ import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDo
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
-import { buildAssistantMcpUiSandboxProxyUrl } from "./assistant-mcp-ui";
+import { buildAssistantMcpUiSandboxProxyUrl } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-mcp-ui";
 import { openMcpUiLink } from "@jini-ai/admin/shell/components/AssistantDock/hooks/open-mcp-ui-link";
 
 /**
@@ -67,7 +68,7 @@ const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/
  * `useMcpUiHost.ts`). `globalThis.location.origin` does not change for the life of this tab, so
  * hoisting to a plain module-scope constant is exact, not an approximation.
  */
-const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin: globalThis.location.origin });
+const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin: globalThis.location.origin, buildSandboxProxyDataUrl });
 /** The A2UI agent-action relay; see the `"a2ui"` registration below. Module scope like the two above. */
 const postA2uiAction = createA2uiActionPoster({ baseUrl: "" }, { path: "/api/admin/v1/a2ui/actions" });
 /** Tovu is the host, so the dock owns the system clock handed to every A2UI card. */

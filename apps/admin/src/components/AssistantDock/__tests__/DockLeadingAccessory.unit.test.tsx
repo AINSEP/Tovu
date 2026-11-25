@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockLeadingAccessory, type DockLeadingAccessoryProps } from "../DockLeadingAccessory";
+import { DockLeadingAccessory, type DockLeadingAccessoryProps } from "@jini-ai/admin/shell/components/AssistantDock/DockLeadingAccessory";
 
 /**
  * @file `DockLeadingAccessory` — what the dock puts in `ChatPane`'s `leadingAccessory` slot —
@@ -18,6 +18,7 @@ const SKILL_CHIP = { pluginRefId: "tool-1", label: "Summarise · Skill" };
 function accessoryProps(overrides: Partial<DockLeadingAccessoryProps> = {}): DockLeadingAccessoryProps {
   return {
     note: null,
+    folderWindowNoteKey: "Folder window opened on the computer running Tovu",
     warning: null,
     folderDrop: { notice: null, dismiss: vi.fn(), retry: vi.fn() },
     pluginChips: [],

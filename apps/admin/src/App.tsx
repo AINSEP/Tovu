@@ -43,7 +43,7 @@ import { useAgentScreenRoute } from "@jini-ai/admin/shell/hooks/use-agent-screen
 import { adminTelemetry } from "./lib/browser-telemetry";
 import { useSidebarEmptyClickToggle } from "@jini-ai/admin/shell/hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
-import { DockHeaderTip } from "./components/AssistantDock/DockHeaderTip";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import { ChatFab } from "@jini-ai/admin/shell/components/ChatFab/ChatFab";
 import { FAB_POSITION_STORAGE_KEY } from "./lib/chat-fab-storage-key";
 import { useListTableCellLabels } from "@jini-ai/admin/shell/hooks/use-list-table-cell-labels.hooks";

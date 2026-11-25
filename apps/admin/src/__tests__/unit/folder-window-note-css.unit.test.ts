@@ -12,7 +12,7 @@ const assistantStyles = readFileSync(resolve(process.cwd(), "src/styles/assistan
 
 describe("folder window note", () => {
   it("is a compact status line with no padding or seam of its own", () => {
-    const note = effectiveDeclarationsFor(assistantStyles, ".jini-folder-drop-notice.tovu-folder-window-note");
+    const note = effectiveDeclarationsFor(assistantStyles, ".jini-folder-drop-notice.jini-folder-window-note");
     expect(note).toContain("padding: 0;");
     expect(note).toContain("border-bottom: 0;");
     expect(note).toContain("color: var(--jini-chat-muted);");

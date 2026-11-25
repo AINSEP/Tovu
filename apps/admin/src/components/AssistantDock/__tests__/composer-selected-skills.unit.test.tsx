@@ -6,7 +6,7 @@ import { Composer, useComposer, ChatPane, useT, type ChatPaneComposerHandle } fr
 import { deriveConversationTitle } from "@jini-ai/chat/core";
 import { projectComposerCapabilities } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { useComposerDiscoverySelect } from "../hooks/composer-discovery.hooks";
-import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "../hooks/composer-skills.hooks";
+import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "@jini-ai/admin/screens/plugins/composer-skills.hooks";
 import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
 import { FakeEventSource } from "@/lib/__tests__/assistant-transport.test-helpers";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";

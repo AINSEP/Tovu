@@ -2,8 +2,8 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, type AssistantRuntimePreferences } from "../assistant-runtime-preferences";
-import { CHAT_DISPLAY_NAMESPACE } from "../chat-display-preferences";
+import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, type AssistantRuntimePreferences } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
+import { CHAT_DISPLAY_NAMESPACE } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import { useAssistantRuntimePreferences, type AssistantRuntimePreferencesPort } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-runtime-preferences.hooks";
 
 /** The runtime hook's existing port: no HTTP or daemon process is involved. */

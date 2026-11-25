@@ -6,12 +6,12 @@ import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-
 import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDock/SubagentsIndicator";
 import { useWiredAssistantSubagentsSettings } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
-import { DockHeaderTip } from "./DockHeaderTip";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
 import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections, type DockRuntimeSwitches } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
-import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
-import { REPLY_LENGTH_OPTIONS } from "./assistant-runtime-preferences";
+import { CHAT_TOOL_CALL_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { renameActiveConversation } from "./assistant-dock-props";
 import type { ChatDisplayPreferencesController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";

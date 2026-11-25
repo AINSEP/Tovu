@@ -3,13 +3,13 @@ import { onTovuSecretRedacted } from "../../lib/shell-collaborators";
 import { subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
-import { DockLeadingAccessory } from "./DockLeadingAccessory";
+import { DockLeadingAccessory } from "@jini-ai/admin/shell/components/AssistantDock/DockLeadingAccessory";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
-import { chatPaneDisplayProps, CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
+import { chatPaneDisplayProps, CHAT_TOOL_CALL_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
 import { SKILL_INSTALL_CONFIRMATION_HOST } from "../../features/skills/skill-install-confirmation-host";
-import { REPLY_LENGTH_OPTIONS } from "./assistant-runtime-preferences";
+import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { ChatPane, ChatSettingsDialog, JiniChatProvider, createMidRunMessagePoster } from "@jini-ai/chat/react";
 import type { ComponentProps } from "react";
 import { createAdminTypedAnswerPoster } from "../../lib/shell-collaborators";
@@ -194,6 +194,7 @@ function chatPaneComposerProps(dock: DockState) {
         // why it is a fragment (no DOM node of its own).
         leadingAccessory: <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop} canPickFolder={folderPicker.available}
             folderWindowOpenElsewhere={folderWindowOpenElsewhere({ picking: folderPicker.picking })}
+            folderWindowNoteKey="Folder window opened on the computer running Tovu"
             pluginChips={selectedPluginChips} onRemovePlugin={removePluginRef} skills={selectedSkills} skillOnlySend={skillOnlySend} />
         ,
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written

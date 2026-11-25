@@ -5,13 +5,13 @@ import { nativeFolderPickerDeps } from "../../features/fs-files/api/fs-files-api
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
 import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";
-import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport } from "./assistant-runtime-preferences";
+import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "@jini-ai/admin/shell/components/AssistantDock/hooks/conversation-refresh.hooks";
 import { defaultAssistantChatsPort } from "../../hooks/assistant-chats-dependencies.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
-import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
+import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "@jini-ai/admin/screens/plugins/composer-skills.hooks";
 import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks";
 import { selectedAgentWarning } from "../../features/settings/ai-agent-presentation";

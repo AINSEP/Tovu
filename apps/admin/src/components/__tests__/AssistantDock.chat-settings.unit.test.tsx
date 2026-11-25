@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AssistantDock as RealAssistantDock } from "../AssistantDock/AssistantDock";
-import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../AssistantDock/chat-display-preferences";
+import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import type { ChatDisplayPreferences, ChatDisplayPreferencesController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { ChatAgentPlugins } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DockHeader, type DockHeaderProps } from "../DockHeader";
 import { createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 import { CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
-import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 
 /**
  * @file `DockHeader` — the dock's replacement for `ChatPane`'s default header — rendered on its
