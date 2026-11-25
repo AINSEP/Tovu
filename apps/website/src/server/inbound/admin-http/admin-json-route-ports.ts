@@ -403,7 +403,7 @@ export function createPublicJsonRoutePorts(
     } }),
     onError: ({ res, error }) => {
       if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
-      const { errorId } = reportServerFailure({ error, operation: required.operation }, { tracker: res.locals.adminFailureTracker });
+      const { errorId } = reportServerFailure({ error, operation: required.operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
       res.status(required.status ?? 500).json({ error: required.visitorError, errorId });
     },
     onReturnedError: writeReturnedFailure,

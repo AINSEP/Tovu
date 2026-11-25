@@ -55,7 +55,7 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
       res.locals.commerceStatus = status;
       storefront(req, res, next);
     } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "commerce:storefront" }, { tracker: res.locals.adminFailureTracker });
+      const { errorId } = reportServerFailure({ error, operation: "commerce:storefront" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
       res.status(503).type("html").send(`<h1>The shop catalog is temporarily unavailable.</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
     }
   });

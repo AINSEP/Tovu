@@ -1,5 +1,6 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
 import { memberAuthRefusal } from "./complete-sign-in.js";
@@ -12,8 +13,8 @@ import { memberAuthRefusal } from "./complete-sign-in.js";
  */
 
 /** Detached failures remain observable through private, redacted diagnostics after acceptance. */
-export function reportMemberDeliveryFailure({ error }: { error: unknown }, _optional = {}): void {
-  reportServerFailure({ error, operation: "public:member-delivery" });
+export function reportMemberDeliveryFailure({ error, reporter }: { error: unknown; reporter: Pick<ErrorReporter, "record"> }, _optional = {}): void {
+  reportServerFailure({ error, operation: "public:member-delivery" }, { reporter });
 }
 
 /** Setup errors are site-wide; validation is independent of account existence.
@@ -23,7 +24,7 @@ export function reportMemberDeliveryFailure({ error }: { error: unknown }, _opti
 export function respondToSignInError({ error, res }: { error: unknown; res: Response }, _options = {}): void {
   const refusal = memberSignInRefusal({ error });
   if (refusal) { res.status(refusal.status).json(refusal.body); return; }
-  const { errorId } = reportServerFailure({ error, operation: MEMBER_SIGN_IN_FAILURE.operation }, { tracker: res.locals.adminFailureTracker });
+  const { errorId } = reportServerFailure({ error, operation: MEMBER_SIGN_IN_FAILURE.operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
   res.status(500).json({ error: MEMBER_SIGN_IN_FAILURE.visitorError, errorId });
 }
 

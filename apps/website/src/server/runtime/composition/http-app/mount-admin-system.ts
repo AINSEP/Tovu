@@ -128,7 +128,7 @@ export function mountAdminSystem({ app, routeDeps, reporter }: MountInput & { re
     adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize }, origin: adminSameOriginWrites } }, {});
   mountObservability({ app, routeDeps });
   mountMail({ app, routeDeps });
-  mountSiteAdmin({ app, routeDeps });
+  mountSiteAdmin({ app, routeDeps, reporter });
   mountCredentialsAndFiles({ app, routeDeps });
 }
 
@@ -176,7 +176,7 @@ function mountMail({ app, routeDeps }: MountInput, _optional = {}): void {
 }
 
 /** Assistant daemon/subagents/permanent deletes, deployment, sites, profile, export, share, import and backup routes. */
-function mountSiteAdmin({ app, routeDeps }: MountInput, _optional = {}): void {
+function mountSiteAdmin({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, _optional = {}): void {
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
   // locally-spawned agent daemon, sibling to the on-demand recovery `apps/website/src/server/runtime/composition/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
@@ -206,7 +206,7 @@ function mountSiteAdmin({ app, routeDeps }: MountInput, _optional = {}): void {
   registerAdminSiteImportRoutes({ app, deps: routeDeps });
   registerAdminSiteBackupRoutes({ app, deps: routeDeps });
   // Admin site-update notice: the same read as `site_update_check`, below the authenticated shell.
-  registerAdminSiteUpdateStatusRoute({ app, deps: routeDeps });
+  registerAdminSiteUpdateStatusRoute({ app, deps: routeDeps, reporter });
 }
 
 /** The read half of the platform runtime, copied port by port so the write ports never travel with it. */
@@ -227,11 +227,11 @@ function lastAttemptReader(runtime: SiteUpdateCheckRuntime | null | undefined, _
  * @complexity O(1) setup; per request one version read plus one feed request.
  */
 export function registerAdminSiteUpdateStatusRoute(
-  required: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize" | "siteUpdateRuntime"> },
+  required: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize" | "siteUpdateRuntime">; reporter: Pick<ErrorReporter, "record"> },
   _optional = {},
 ): void {
-  const { app, deps } = required;
-  const reportFailure = ({ error }: { error: unknown }) => void reportServerFailure({ error, operation: "site-update:status" });
+  const { app, deps, reporter } = required;
+  const reportFailure = ({ error }: { error: unknown }) => void reportServerFailure({ error, operation: "site-update:status" }, { reporter });
   mountAdminJsonRoute<Record<string, never>, SiteUpdateStatusReply, SiteUpdateStatusRouteDeps>({
     app,
     spec: {

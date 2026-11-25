@@ -73,6 +73,6 @@ export function memberAuthRefusal({ error }: { error: unknown }, options: { rese
 export function sendMemberAuthError({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void {
   const refusal = memberAuthRefusal({ error }, options);
   if (refusal) { res.status(refusal.status).json(refusal.body); return; }
-  const { errorId } = reportServerFailure({ error, operation: MEMBER_AUTH_FAILURE.operation }, { tracker: res.locals.adminFailureTracker });
+  const { errorId } = reportServerFailure({ error, operation: MEMBER_AUTH_FAILURE.operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
   res.status(500).json({ error: MEMBER_AUTH_FAILURE.visitorError, errorId });
 }

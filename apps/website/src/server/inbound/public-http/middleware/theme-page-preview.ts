@@ -88,7 +88,7 @@ async function renderTemplatedPreview(required: { req: Request; res: Response; d
     const templateId = String(req.params.templateId ?? "");
     sendPreview(res, await templatedThemePagePreview({ themeId, templateId, deps: templatedPreviewDeps(deps) }));
   } catch (error) {
-    const { errorId } = reportServerFailure({ error, operation: "theme-preview:render" }, { tracker: res.locals.adminFailureTracker });
+    const { errorId } = reportServerFailure({ error, operation: "theme-preview:render" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
     sendPreview(res, templatedPreviewFailureResponse({ errorId }));
   }
 }

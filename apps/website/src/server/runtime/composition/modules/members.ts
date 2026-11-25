@@ -1,4 +1,5 @@
 import { createReadyLoginProviderList } from "#src/features/member-login/index";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { memberDeleteRoute } from "@jini-ai/cms/admin-http/routes/members/delete";
 import { memberDisableRoute } from "@jini-ai/cms/admin-http/routes/members/disable";
@@ -143,8 +144,8 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = ({ app, 
  * with unrelated memory members. Tests inject complete route deps at the HTTP boundary.
  * @complexity O(1) construction; providers/credentials are re-admitted on each protocol leg.
  */
-export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; public: MemberPublicRouteDeps }, _options = {}): MemberOidcRouteDeps | undefined {
-  const { admin, public: members } = required;
+export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; public: MemberPublicRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _options = {}): MemberOidcRouteDeps | undefined {
+  const { admin, public: members, reporter } = required;
   const kernel = admin.contentKernel;
   if (!kernel || !members.origin) return undefined;
   const credentials = { repo: admin.customCredentialSetRepo, sealer: admin.siteAssistantSecretSealer };
@@ -161,7 +162,7 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
     links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })),
       transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key),
       // The visitor gets only the fixed LOGIN_UNAVAILABLE code; the redacted cause goes to the server log.
-      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } } };
+      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }, { reporter }); } } };
 }
 
 /** Register the public-only dependency bundle. No admin capability reaches an OIDC handler.
@@ -221,6 +222,8 @@ function registerOidcRoutes({ app, deps, members }: { app: Express; deps?: Membe
 export function createMembersModule(deps: {
   admin: MembersRouteDeps;
   public: MemberPublicRouteDeps;
+  /** The site's composed failure reporter: the detached delivery and login-link failures have no request to read it from. */
+  reporter: Pick<ErrorReporter, "record">;
 }, options: { oidc?: MemberOidcRouteDeps } = {}): ServerModuleHandle {
   const oidc = options.oidc ?? createMemberOidcRouteDeps(deps);
   return {
@@ -231,10 +234,10 @@ export function createMembersModule(deps: {
       registerAdminMemberDisableRoute({ app, deps: deps.admin });
       registerAdminMemberDeleteRoute({ app, deps: deps.admin });
       registerAdminMemberRequestMagicLinkRoute({ app, deps: deps.admin });
-      registerPublicMemberSignInRequestRoute({ app, deps: deps.public });
+      registerPublicMemberSignInRequestRoute({ app, deps: deps.public, reporter: deps.reporter });
       registerPublicMemberCompleteSignInRoute({ app, deps: deps.public });
       registerPublicMemberPasswordSignInRoute({ app, deps: deps.public });
-      registerPublicMemberForgotPasswordRoute({ app, deps: deps.public });
+      registerPublicMemberForgotPasswordRoute({ app, deps: deps.public, reporter: deps.reporter });
       registerPublicMemberResetPasswordRoute({ app, deps: deps.public });
       registerPublicMemberSetPasswordRoute({ app, deps: deps.public });
       registerPublicMemberMeRoute({ app, deps: deps.public }, { login: oidc });

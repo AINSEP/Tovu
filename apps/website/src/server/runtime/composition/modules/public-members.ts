@@ -27,6 +27,7 @@ import { toPublicMemberResponse } from "#src/server/inbound/public-http/http/mem
 import { checkMemberPost, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import { clearedMemberSessionCookie, MEMBER_AUTH_FAILURE, MEMBER_SESSION_COOKIE, memberAuthRefusal, memberSessionCookie } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { memberOidcRefusal, uniqueMemberCookie, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { MEMBER_SIGN_IN_FAILURE, memberSignInRefusal, reportMemberDeliveryFailure } from "#src/server/inbound/public-http/routes/members/sign-in";
 
 /**
@@ -123,7 +124,7 @@ function memberSignInApp(
 /** `POST …/sign-in`: public acceptance is independent of address lookup and mail latency. Setup failures remain 503.
  * @complexity O(1) setup I/O; address-dependent work runs detached after the response.
  */
-export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerPublicMemberSignInRequestRoute({ app, deps, reporter }: { app: Express; deps: MemberPublicRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
   mountPublicJsonRoute({
     app: memberSignInApp({ app, deps, method: "challenge" }),
     spec: memberSignInRequestRoute,
@@ -136,7 +137,7 @@ export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Exp
         void captureVisitorEvent({ deps, request: currentMemberSignInRequest(), name: "member_sign_in_requested", properties: { method: "challenge", realm: "member" } });
       },
       // Per-address lookup and mail latency must never delay public acceptance.
-      deliverInBackground: ({ deliver }) => { setImmediate(() => { void deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error })); }); },
+      deliverInBackground: ({ deliver }) => { setImmediate(() => { void deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error, reporter })); }); },
       refusalFor: ({ error }) => memberSignInRefusal({ error }),
     },
     failure: MEMBER_SIGN_IN_FAILURE,
@@ -234,7 +235,7 @@ export function registerPublicMemberSetPasswordRoute({ app, deps }: { app: Expre
 /** `POST …/forgot-password`: link-only reset requests share the magic-link counters and the detached
  * delivery owner. O(1) setup I/O.
  */
-export function registerPublicMemberForgotPasswordRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerPublicMemberForgotPasswordRoute({ app, deps, reporter }: { app: Express; deps: MemberPublicRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
   mountPublicJsonRoute({
     app: memberPostApp({ app, deps }),
     spec: memberForgotPasswordRoute,
@@ -244,7 +245,7 @@ export function registerPublicMemberForgotPasswordRoute({ app, deps }: { app: Ex
       ipLimiter: liveLimiter({ deps, name: "magicLinkPerIpLimiter" }),
       prepareReset: (input) => prepareMemberChallenge({ deps: toPublicMembersWriteServiceDeps(deps), purpose: "password_reset", input }),
       // Per-address lookup and mail latency must never delay public acceptance.
-      deliverInBackground: ({ deliver }) => { setImmediate(() => { void deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error })); }); },
+      deliverInBackground: ({ deliver }) => { setImmediate(() => { void deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error, reporter })); }); },
       refusalFor: ({ error }) => memberSignInRefusal({ error }),
     },
     failure: MEMBER_SIGN_IN_FAILURE,

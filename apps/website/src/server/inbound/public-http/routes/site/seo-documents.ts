@@ -26,7 +26,7 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  */
 function textFailure({ operation, subject }: { operation: string; subject: string }, _optional: Record<string, never> = {}): PublicRawFailureWriter {
   return ({ res, error }) => {
-    const { errorId } = reportServerFailure({ error, operation }, { tracker: res.locals.adminFailureTracker });
+    const { errorId } = reportServerFailure({ error, operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
     res.status(500).type("text/plain").send(`The site couldn’t load ${subject}. Reload this page and report this error ID if it keeps happening. Error ID: ${errorId}`);
   };
 }

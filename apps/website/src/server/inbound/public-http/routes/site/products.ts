@@ -102,7 +102,7 @@ export const registerProductRoutes = ({ app, deps }: { app: import("express").IR
       const html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
       await sendStorefrontPage({ req, res, deps, html });
     } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "products:catalog" }, { tracker: res.locals.adminFailureTracker });
+      const { errorId } = reportServerFailure({ error, operation: "products:catalog" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
       res.status(500).type("html").send(`<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
     }
   });
@@ -124,7 +124,7 @@ export const registerProductRoutes = ({ app, deps }: { app: import("express").IR
         productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus });
       await sendStorefrontPage({ req, res, deps, html });
     } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "products:detail" }, { tracker: res.locals.adminFailureTracker });
+      const { errorId } = reportServerFailure({ error, operation: "products:detail" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
       res.status(500).type("html").send(`<h1>This product could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
     }
   });

@@ -48,7 +48,7 @@ export function registerFederationReloadRoute({ app, deps }: { app: Express; dep
       const result = await deps.reload();
       res.status(200).json({ ok: true, newlyAdmittedConnectionIds: result.newlyAdmittedConnectionIds });
     } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "agent-daemon:mcp-federation:reload" }, { tracker: res.locals.adminFailureTracker });
+      const { errorId } = reportServerFailure({ error, operation: "agent-daemon:mcp-federation:reload" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
       res.status(500).json({ ok: false, error: "The assistant connections could not be reloaded. Restart the site or app and report this error ID if it keeps happening.", errorId });
     }
   });

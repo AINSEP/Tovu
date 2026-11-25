@@ -471,7 +471,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
 
   const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps, reporter: failureReporter }, { onAdminSignIn: options.onAdminSignIn });
 
-  mountMembersNewsletter({ app, routeDeps });
+  mountMembersNewsletter({ app, routeDeps, reporter: failureReporter });
 
   mountAdminSystem({ app, routeDeps, reporter: failureReporter }, { onShutdown: options.onShutdown, ...(options.siteStorage ? { siteStorage: options.siteStorage } : {}) });
   mountAdminFeatures({ app, routeDeps, reporter: failureReporter });

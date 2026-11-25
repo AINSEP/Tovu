@@ -12,10 +12,11 @@ import type { MembersRouteDeps } from "../../../inbound/admin-http/routes/member
 import type { MemberPublicRouteDeps } from "../../../inbound/public-http/routes/members/deps.js";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, LOGIN_STRICT, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { mountRoutes } from "./module-handles.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { MountInput } from "./module-handles.js";
 
 /** The members and newsletter modules, each with its admin and public deps objects, in registration order. */
-export function mountMembersNewsletter({ app, routeDeps }: MountInput, _optional = {}): void {
+export function mountMembersNewsletter({ app, routeDeps, reporter }: MountInput & { reporter: Pick<ErrorReporter, "record"> }, _optional = {}): void {
   // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
   // MAGIC_LINK_PER_EMAIL limiter instance consulted by BOTH the admin
   // request-magic-link route and the new public sign-in route (C-015: one
@@ -36,7 +37,7 @@ export function mountMembersNewsletter({ app, routeDeps }: MountInput, _optional
   const memberPublicDeps = memberPublicDepsFor({ routeDeps, magicLinkPerEmailLimiter, magicLinkPerIpLimiter, magicLinkCompleteAttemptLimiter });
   // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
-  mountRoutes({ app, mod: createMembersModule({ admin: membersDeps, public: memberPublicDeps }) });
+  mountRoutes({ app, mod: createMembersModule({ admin: membersDeps, public: memberPublicDeps, reporter }) });
 
   // SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin routes
   // (inside the `/api/admin` gate mounted by `createCoreModule` above) + 2 public, cookie-less,

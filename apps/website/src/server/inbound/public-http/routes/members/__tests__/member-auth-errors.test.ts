@@ -31,8 +31,10 @@ for (const send of [respondToSignInError, sendMemberAuthError]) test(`${send.nam
 
 test("post-acceptance delivery failure reports privately without changing acceptance", t => {
   const logs = t.mock.method(console, "error", () => {});
-  reportMemberDeliveryFailure({ error: new Error("delivery context password=DELIVERY_CANARY") });
-  assert.equal(logs.mock.calls.length, 1);
-  assert.match(JSON.stringify(logs.mock.calls), /delivery context/);
-  assert.doesNotMatch(JSON.stringify(logs.mock.calls), /DELIVERY_CANARY/);
+  const recorded: unknown[] = [];
+  reportMemberDeliveryFailure({ error: new Error("delivery context password=DELIVERY_CANARY"), reporter: { record: (...args: unknown[]) => { recorded.push(args); return { errorId: "ERR-0000-0000-0000-0001" }; } } });
+  // The composed reporter is the only sink (it redacts); the legacy console line is gone.
+  assert.equal(logs.mock.calls.length, 0);
+  assert.equal(recorded.length, 1);
+  assert.match(JSON.stringify(recorded), /public:member-delivery/);
 });

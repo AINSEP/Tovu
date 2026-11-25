@@ -107,7 +107,7 @@ function mountReceipts({ app, deps }: { app: Express; deps: RouteDeps }, _option
       res.status(response.status).set(Object.fromEntries(response.headers)).send(await response.text());
     } catch (error) {
       let errorId: string | undefined;
-      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:save' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:save' }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter })); } catch { /* Keep the original failure path if diagnostics fail. */
         console.error('[consent] save failed', '[diagnostic unavailable]');
       }
       res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.', ...(errorId ? { errorId } : {}) });
@@ -331,7 +331,7 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
       res.json({ enabled, policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' });
     } catch (error) {
       let errorId: string | undefined;
-      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:public-context' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:public-context' }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter })); } catch { /* Keep the original failure path if diagnostics fail. */
         console.error('[consent] public context unavailable', '[diagnostic unavailable]');
       }
       res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.', ...(errorId ? { errorId } : {}) });
@@ -369,7 +369,7 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
     })();`);
     } catch (error) {
       let errorId: string | undefined;
-      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:static-loader' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:static-loader' }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter })); } catch { /* Keep the original failure path if diagnostics fail. */
         console.error('[consent] static loader unavailable', '[diagnostic unavailable]');
       }
       res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send(`/* Cookie preferences could not be loaded. Wait a minute, then reload to try again.${errorId ? ` Reference: ${errorId}` : ''} */`);

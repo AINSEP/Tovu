@@ -53,7 +53,7 @@ function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: M
   const app = express();
   app.use(express.json());
   if (upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
-  registerPublicMemberSignInRequestRoute({ app, deps });
+  registerPublicMemberSignInRequestRoute({ app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
   registerPublicMemberCompleteSignInRoute({ app, deps });
   return { app, deps };
 }

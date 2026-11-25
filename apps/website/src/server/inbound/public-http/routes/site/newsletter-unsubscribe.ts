@@ -17,7 +17,7 @@ export function registerPublicNewsletterUnsubscribeRoute({ app, deps }: { app: E
   const routeDeps = {
     ready: () => deps.newsletterReady,
     unsubscribe: ({ rawToken }: { rawToken: string }) => processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken } }),
-    reportFailure: ({ error }: { error: unknown }) => reportServerFailure({ error, operation: "public:newsletter-unsubscribe" }, { tracker: currentNewsletterRequest().res.locals.adminFailureTracker }),
+    reportFailure: ({ error }: { error: unknown }) => reportServerFailure({ error, operation: "public:newsletter-unsubscribe" }, { tracker: currentNewsletterRequest().res.locals.adminFailureTracker, reporter: currentNewsletterRequest().res.locals.failureReporter }),
   };
   const failure = { operation: "public:newsletter-unsubscribe", visitorError: "The site couldn’t complete unsubscription." };
   const scoped = newsletterPublicApp({ app });

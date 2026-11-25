@@ -145,7 +145,7 @@ const CASES: readonly ModuleCase[] = [
   },
   {
     name: "members",
-    create: () => createMembersModule({ admin: noDeps, public: noDeps }, { oidc: noDeps }),
+    create: () => createMembersModule({ admin: noDeps, public: noDeps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } }, { oidc: noDeps }),
     routes: [
       `GET ${W}/members`,
       `GET ${W}/members/:memberId`,
