@@ -146,6 +146,7 @@ test("a root with a live marker from another process is kept", { timeout: 30_000
       child.once("message", message => resolve((message as { root: string }).root));
       child.once("exit", () => reject(new Error("The import parent exited before staging its database.")));
     });
+    // A live owner remains protected even when its lock timestamp is old.
     for (const file of [root, root + ".owner", root + ".lock"]) fs.utimesSync(file, OLD, OLD);
     return { root, kill: async () => { child.kill("SIGKILL"); await closed; } };
   };

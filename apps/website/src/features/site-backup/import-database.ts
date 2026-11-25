@@ -55,6 +55,7 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
   const { limits = SHARE_LIMITS, statfs: readSpace = statfs, fork = childProcess.fork, tempRoot = siteTempRoot({ prefix: SITE_TEMP_PREFIXES.importDatabase }) } = optional;
   optional.signal?.throwIfAborted();
   if (required.snapshot.length > limits.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Import database exceeds 300 MiB." });
+  // No staging directory exists until this parent owns its sibling lock.
   // The owned root takes its lock before the folder exists and keeps it through the helper's exit and
   // every read below, so the temp-root tidy never sees an unowned or abandoned-looking live root.
   return tempRoot({ work: async ({ root }) => {
