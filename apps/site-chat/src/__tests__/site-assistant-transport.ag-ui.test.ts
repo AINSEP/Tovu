@@ -99,6 +99,8 @@ describe("visitor AG-UI transport", () => {
     const server = controlledServer();
     const run = makeHandlers();
     await createSiteAssistantTransport({}, { idleTimeoutMs: 100, fetch: server.fetch }).startRun(baseInput([userMessage("hi")]), run.handlers);
+    // The page-header step settles a few microtasks before the chat POST is made.
+    await flush();
     server.answer();
     const reply = server.started() + text("Hello there");
     server.send(reply.slice(0, 40));
@@ -137,6 +139,8 @@ describe("visitor AG-UI transport", () => {
     const cut = controlledServer();
     const cutRun = makeHandlers();
     await createSiteAssistantTransport({}, { fetch: cut.fetch, frontend }).startRun(baseInput([userMessage("hi")]), cutRun.handlers);
+    // The page-header step settles a few microtasks before the chat POST is made.
+    await flush();
     cut.answer();
     const partial = cut.started() + frame({ type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" }) + frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "Half an ans" });
     cut.send(partial.slice(0, 25));
@@ -154,6 +158,8 @@ describe("visitor AG-UI transport", () => {
     const stopRun = makeHandlers();
     const stopTransport = createSiteAssistantTransport({}, { fetch: stopped.fetch, frontend });
     const { runId } = await stopTransport.startRun(baseInput([userMessage("hi")]), stopRun.handlers);
+    // The page-header step settles a few microtasks before the chat POST is made.
+    await flush();
     stopped.answer();
     stopped.send(stopped.started() + text("partial"));
     await flush();
@@ -167,6 +173,8 @@ describe("visitor AG-UI transport", () => {
     const done = controlledServer();
     const doneRun = makeHandlers();
     await createSiteAssistantTransport({}, { fetch: done.fetch, frontend }).startRun(baseInput([userMessage("hi")]), doneRun.handlers);
+    // The page-header step settles a few microtasks before the chat POST is made.
+    await flush();
     done.answer();
     done.send(done.started() + text("Full answer") + done.finished());
     await doneRun.donePromise;
@@ -187,6 +195,8 @@ describe("visitor AG-UI transport", () => {
     const run = makeHandlers();
     const history = [userMessage("take me to about")];
     await createSiteAssistantTransport({}, { fetch: server.fetch, frontend }).startRun(baseInput(history), run.handlers);
+    // The page-header step settles a few microtasks before the chat POST is made.
+    await flush();
     server.answer();
     server.send(server.started() + text("Opening About.")
       + frame({ type: "CUSTOM", name: "client_directive", value: { type: "navigate", target: { path: "/about", title: "About" }, auto: true } })

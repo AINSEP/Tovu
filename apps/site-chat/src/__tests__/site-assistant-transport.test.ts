@@ -10,6 +10,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 import { createSiteAssistantTransport } from "../site-assistant-transport";
+import { createVisitorPageControl } from "../visitor-page-control";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
@@ -622,6 +623,124 @@ describe("createSiteAssistantTransport", () => {
       assert.equal(doneCount(), 1);
     });
 
+    describe("B192: losing the page channel", () => {
+      const PAGE_HTML = '<script id="tovu-visitor-publication" type="application/json">{"revision":"reviewed","elements":[]}</script><main data-visitor-page-root data-agent-publication="reviewed"></main>';
+      const attachedStream = (token: string) => new Response(new ReadableStream<Uint8Array>({ start(controller) {
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "attached", sessionId: "s1", bindToken: token })}\n\n`));
+      } }));
+      /** The chat endpoint, recording each POST's page headers before answering with one reply. */
+      const recordingChat = (posts: Headers[]) => (async (url: string, init: RequestInit) => {
+        posts.push(new Headers(init.headers));
+        return answering((w) => [w.started(), w.text("We open at nine."), w.finished()])(url, init);
+      }) as typeof fetch;
+      const pageHeaderNames = (headers: Headers) => ["x-frontend-tab", "x-frontend-bind-token", "x-visitor-publication"].filter((name) => headers.has(name));
+      const answeredText = (events: AgentEvent[]) => events.map((ev) => (ev.kind === "text" ? ev.text : "")).join("");
+
+      it("attach failure still answers the question", async () => {
+        const dom = new JSDOM(PAGE_HTML, { url: "https://example.test/" });
+        let credentialCalls = 0;
+        const send = (async (url: string) => {
+          if (String(url).endsWith("/credentials")) {
+            credentialCalls += 1;
+            if (credentialCalls === 1) throw new TypeError("Failed to fetch");
+            return Response.json({ tabCredential: "tab" });
+          }
+          if (String(url).includes("/stream?")) return attachedStream("fresh-token");
+          throw new Error(`unexpected page request ${String(url)}`);
+        }) as typeof fetch;
+        const frontend = createVisitorPageControl({ document: dom.window.document, beforeNavigate() {} }, { fetch: send, assign() {} });
+        const posts: Headers[] = [];
+        const injected = createSiteAssistantTransport({}, { fetch: recordingChat(posts), frontend });
+        try {
+          const first = makeHandlers();
+          await injected.startRun(baseInput([userMessage("when do you open?")]), first.handlers);
+          await first.donePromise;
+          assert.equal(posts.length, 1, "exactly one chat POST for the turn");
+          assert.deepEqual(pageHeaderNames(posts[0]!), [], "no page binding headers after a failed attach");
+          assert.deepEqual(first.errors, []);
+          assert.equal(answeredText(first.events), "We open at nine.");
+          // The next turn is eligible to attach again, and then carries the whole binding.
+          const second = makeHandlers();
+          await injected.startRun(baseInput([userMessage("and on sunday?")]), second.handlers);
+          await second.donePromise;
+          assert.equal(credentialCalls, 2);
+          assert.equal(posts[1]!.get("x-frontend-bind-token"), "fresh-token");
+          assert.deepEqual(second.errors, []);
+        } finally { frontend.close(); dom.window.close(); }
+      });
+
+      it("a failed rebind drops the stale page binding and still answers", async () => {
+        const dom = new JSDOM(PAGE_HTML, { url: "https://example.test/" });
+        const streams: ReadableStreamDefaultController<Uint8Array>[] = [];
+        let streamOpens = 0;
+        const send = (async (url: string) => {
+          if (String(url).endsWith("/credentials")) return Response.json({ tabCredential: "tab" });
+          if (String(url).includes("/stream?")) {
+            streamOpens += 1;
+            if (streamOpens === 2) throw new TypeError("Failed to fetch");
+            return new Response(new ReadableStream<Uint8Array>({ start(controller) {
+              streams.push(controller);
+              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "attached", sessionId: "s1", bindToken: `token-${streamOpens}` })}\n\n`));
+            } }));
+          }
+          throw new Error(`unexpected page request ${String(url)}`);
+        }) as typeof fetch;
+        const frontend = createVisitorPageControl({ document: dom.window.document, beforeNavigate() {} }, { fetch: send, assign() {} });
+        const posts: Headers[] = [];
+        const injected = createSiteAssistantTransport({}, { fetch: recordingChat(posts), frontend });
+        // This file's React harness installs jsdom's `Event` globally, but the bridge dispatches it on
+        // Node's own `EventTarget` when a stream ends; a browser has one `Event`, so use Node's here.
+        const harnessEvent = Object.getOwnPropertyDescriptor(globalThis, "Event")!;
+        Object.defineProperty(globalThis, "Event", { configurable: true, writable: true, value: Object.getPrototypeOf(MessageEvent) });
+        try {
+          const first = makeHandlers();
+          await injected.startRun(baseInput([userMessage("hi")]), first.handlers);
+          await first.donePromise;
+          assert.equal(posts[0]!.get("x-frontend-bind-token"), "token-1");
+          streams[0]!.close();
+          await flushStream();
+          const second = makeHandlers();
+          await injected.startRun(baseInput([userMessage("when do you open?")]), second.handlers);
+          await second.donePromise;
+          assert.equal(posts.length, 2);
+          assert.deepEqual(pageHeaderNames(posts[1]!), [], "the dropped binding's token must not travel");
+          assert.deepEqual(frontend.currentHeaders(), {});
+          assert.deepEqual(second.errors, []);
+          assert.equal(answeredText(second.events), "We open at nine.");
+          const third = makeHandlers();
+          await injected.startRun(baseInput([userMessage("thanks")]), third.handlers);
+          await third.donePromise;
+          assert.equal(posts[2]!.get("x-frontend-bind-token"), "token-3");
+        } finally { frontend.close(); dom.window.close(); Object.defineProperty(globalThis, "Event", harnessEvent); }
+      });
+
+      it("Stop racing attach prevents the POST", async () => {
+        const dom = new JSDOM(PAGE_HTML, { url: "https://example.test/" });
+        let failCredentials!: (error: Error) => void;
+        const send = (async (url: string) => {
+          if (String(url).endsWith("/credentials")) return new Promise<Response>((_resolve, reject) => { failCredentials = reject; });
+          throw new Error(`unexpected page request ${String(url)}`);
+        }) as typeof fetch;
+        const frontend = createVisitorPageControl({ document: dom.window.document, beforeNavigate() {} }, { fetch: send, assign() {} });
+        const posts: Headers[] = [];
+        const injected = createSiteAssistantTransport({}, { fetch: recordingChat(posts), frontend });
+        try {
+          const { handlers, errors, doneCount, donePromise } = makeHandlers();
+          const { runId } = await injected.startRun(baseInput([userMessage("hi")]), handlers);
+          await flushStream();
+          await injected.stopRun(runId);
+          // Stop ends the turn at once; it does not wait out the attachment.
+          await Promise.race([donePromise, sleep(500)]);
+          assert.equal(doneCount(), 1);
+          failCredentials(new TypeError("Failed to fetch"));
+          await flushStream();
+          assert.equal(posts.length, 0, "a stopped turn never falls back to a page-less chat POST");
+          assert.deepEqual(errors, []);
+          assert.equal(doneCount(), 1);
+        } finally { frontend.close(); dom.window.close(); }
+      });
+    });
+
     it("does not re-arm or fire the idle timer for chunks received after end", async (t) => {
       t.mock.timers.enable({ apis: ["setTimeout"] });
       const schedule = t.mock.method(globalThis, "setTimeout");
@@ -679,7 +798,7 @@ describe("createSiteAssistantTransport", () => {
         const confirmation = t.mock.fn();
         const injected = createSiteAssistantTransport({}, {
           fetch: stream.fetch,
-          frontend: { headers: async () => ({}), finish: frontendFinish },
+          frontend: { headers: async () => ({}), finish: frontendFinish, acceptBrowserInvocation: () => {} },
           onToolConfirmation: confirmation,
         });
         const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
