@@ -13,9 +13,9 @@ import type { MediaRecord } from "@jini-ai/cms/media";
  * emits and what the query-time access port lets through, so a lagging index can never show what
  * `load` would refuse.
  *
- * Change events: {@link withMediaSearchEvents} wraps the media repo so a committed write
- * (description change, trash, restore — all CAS saves — and purge) enqueues one
- * {@link MEDIA_SEARCH_CHANGED_EVENT}. The event only names the asset; delivery re-reads current
+ * Change events: {@link createMediaSearchChangeSink} is the media repo's change sink, so every
+ * committed write (save, CAS save, file replace or restore, insert, trash marker, purge) enqueues one
+ * {@link MEDIA_SEARCH_CHANGED_EVENT} through the outbox in the SAME transaction as the write. The event only names the asset; delivery re-reads current
  * state, so redelivery and an older event arriving after a newer change converge.
  */
 
@@ -128,15 +128,6 @@ export function unionSearchAccessPorts(required: { readonly ports: readonly Sear
   };
 }
 
-/** The repo slice the change-event wrapper intercepts. */
-export interface MediaSearchEventRepo {
-  findById(required: { workspaceId: string; id: string }): Promise<MediaRecord | null>;
-  list(required: { workspaceId: string }): Promise<MediaRecord[]>;
-  save(record: MediaRecord): Promise<void>;
-  saveIfVersion(required: { record: MediaRecord; ifVersion: number }): Promise<{ applied: boolean }>;
-  remove(required: { workspaceId: string; id: string }): Promise<void>;
-}
-
 /** Ids are deterministic per committed write, so a retried enqueue of the same write is one event. */
 function changeEvent(required: { workspaceId: string; mediaId: string; marker: string; occurredAt: string }, _optional: Record<string, never> = {}): DomainEvent {
   const { workspaceId, mediaId, marker, occurredAt } = required;
@@ -146,31 +137,29 @@ function changeEvent(required: { workspaceId: string; mediaId: string; marker: s
   } as DomainEvent;
 }
 
+/** The outbox slice the sink writes through; its `enqueue` must join the caller's transaction. */
+export interface MediaSearchOutbox {
+  enqueue(event: DomainEvent): Promise<void>;
+}
+
 /**
- * Wrap a media repo so each committed CAS save (description change, trash, restore) and each purge
- * enqueues a media-change event AFTER the write succeeded. A thrown or rejected (`applied: false`)
- * write enqueues nothing; Library documents never emit. The wrapper keeps the repo's prototype, so
- * every other method (and `this`) behaves exactly as before.
- * @complexity O(1) per write.
+ * The media repo's change sink for site search: each committed description change, restore, trash
+ * or purge of ordinary media enqueues one {@link MEDIA_SEARCH_CHANGED_EVENT}. The repo calls it
+ * INSIDE the write's transaction and `outbox` runs on the same kernel, so the event row commits or
+ * rolls back with the media write: a failed write leaves no event, and a failed enqueue undoes the
+ * write. Library documents never emit. The event only names the asset; delivery re-reads current state.
+ * @complexity O(1) per change.
  */
-export function withMediaSearchEvents<R extends MediaSearchEventRepo>(
-  required: { readonly repo: R; readonly outbox: { enqueue(event: DomainEvent): Promise<void> }; readonly nowIso: () => string },
+export function createMediaSearchChangeSink(
+  required: { readonly outbox: MediaSearchOutbox; readonly nowIso: () => string },
   _optional: Record<string, never> = {},
-): R {
-  const { repo, outbox, nowIso } = required;
-  const wrapped = Object.create(repo) as R;
-  wrapped.saveIfVersion = async (input) => {
-    const result = await repo.saveIfVersion(input);
-    const { record } = input;
-    if (result.applied && record.kind !== "document") {
-      await outbox.enqueue(changeEvent({ workspaceId: record.workspaceId, mediaId: record.id, marker: `v${record.version}`, occurredAt: nowIso() }));
-    }
-    return result;
+): { changed(required: { workspaceId: string; mediaId: string; kind: string; marker: string }): Promise<void> } {
+  const { outbox, nowIso } = required;
+  return {
+    async changed({ workspaceId, mediaId, kind, marker }) {
+      // A file an admin can read is not necessarily a public search document.
+      if (kind === "document") return;
+      await outbox.enqueue(changeEvent({ workspaceId, mediaId, marker, occurredAt: nowIso() }));
+    },
   };
-  wrapped.remove = async (input) => {
-    await repo.remove(input);
-    const occurredAt = nowIso();
-    await outbox.enqueue(changeEvent({ workspaceId: input.workspaceId, mediaId: input.id, marker: `removed:${occurredAt}`, occurredAt }));
-  };
-  return wrapped;
 }

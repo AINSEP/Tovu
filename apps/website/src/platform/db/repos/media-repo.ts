@@ -128,10 +128,37 @@ function slugLockKey(workspaceId: UUID): string {
   return `media_slugs:${workspaceId}`;
 }
 
+/**
+ * A committed media row change, reported from INSIDE the write's own transaction (P10-M5.T2). The
+ * marker is deterministic per committed write (`v<version>:<updatedAt>`, or `removed:` for a purge),
+ * so a retried report of the same write is the same change.
+ */
+export interface MediaChangeSink {
+  /** Runs after the write's rows, inside its transaction: what it writes (an outbox row) commits or
+   *  rolls back with the media write, and a throw rolls the media write back. */
+  changed(required: { workspaceId: string; mediaId: string; kind: string; marker: string }): Promise<void>;
+}
+
+/** The deterministic per-write marker a {@link MediaChangeSink} receives. @complexity O(1). */
+export function mediaChangeMarker({ version, updatedAt }: { version: number; updatedAt: string }, _optional: Record<string, never> = {}): string {
+  return `v${version}:${updatedAt}`;
+}
+
 export class SqlMediaRepo implements VersionedMediaRepoPort {
   protected readonly kernel: ContentKernel;
-  constructor(kernel: ContentKernel) {
+  private readonly changes: MediaChangeSink | undefined;
+  /** @param optional.changes told of every committed row change inside that write's transaction. */
+  constructor(kernel: ContentKernel, optional: { changes?: MediaChangeSink } = {}) {
     this.kernel = kernel;
+    this.changes = optional.changes;
+  }
+
+  /** Reports a committed write to the sink; called last inside the write's transaction. @complexity O(1) plus the sink. */
+  private async reportChange(required: { record: Pick<MediaRecord, "workspaceId" | "id" | "kind" | "version" | "updatedAt"> }, _optional: Record<string, never> = {}): Promise<void> {
+    const { record } = required;
+    // A file an admin can read is not necessarily a public search document: the sink, not this
+    // repo, decides which changes matter; the repo only guarantees the report commits with the write.
+    await this.changes?.changed({ workspaceId: record.workspaceId, mediaId: record.id, kind: record.kind ?? "media", marker: mediaChangeMarker(record) });
   }
 
   /** Creation stamps provenance/MIME, privacy kind and original filename. Metadata/Trash
@@ -261,6 +288,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           }
           if (claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
           await retireSlug({ db, workspaceId: record.workspaceId, mediaId: record.id, oldSlug: existingRow?.slug ?? null, newSlug: record.slug, retiredAt: record.updatedAt });
+          await this.reportChange({ record });
         });
       });
     } catch (err) {
@@ -306,6 +334,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           if (updated.length === 0) return { applied: false };
           if (claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
           await retireSlug({ db, workspaceId: record.workspaceId, mediaId: record.id, oldSlug: existingRow.slug, newSlug: record.slug, retiredAt: record.updatedAt });
+          await this.reportChange({ record });
           return { applied: true };
         });
       });
@@ -354,6 +383,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           await db.insertInto('asset_renditions').values({ id: required.originalRenditionId,
             workspace_id: required.workspaceId, asset_id: required.id, transform_name: 'original',
             version: 1, storage_key: required.storageKey, created_at: required.updatedAt }).execute();
+          await this.reportChange({ record: updated });
           return { applied: true };
         });
       });
@@ -402,6 +432,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           // already taken) must leave `media_slug_history` exactly as it was, same "no partial
           // effect on a refused write" rule every other branch here follows.
           if (inserted.length > 0 && claimant) await deleteHistoryRow({ db, workspaceId: record.workspaceId, slug: record.slug });
+          if (inserted.length > 0) await this.reportChange({ record });
           return { applied: inserted.length > 0 };
         });
       });
@@ -415,8 +446,14 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
   async remove(required: { workspaceId: UUID; id: UUID }): Promise<void> {
     await this.kernel.transaction(async () => {
       await this.kernel.run(async (db) => {
-        await db.deleteFrom("media").where("workspace_id", "=", required.workspaceId).where("id", "=", required.id).execute();
+        const removed = await db.deleteFrom("media").where("workspace_id", "=", required.workspaceId).where("id", "=", required.id)
+          .returning(["kind", "version", "updated_at"]).executeTakeFirst();
         await db.deleteFrom("media_slug_history").where("workspace_id", "=", required.workspaceId).where("media_id", "=", required.id).execute();
+        // Only a row that was actually deleted is a purge; the marker names the removed version.
+        if (removed) {
+          await this.changes?.changed({ workspaceId: required.workspaceId, mediaId: required.id, kind: removed.kind,
+            marker: `removed:${mediaChangeMarker({ version: Number(removed.version), updatedAt: removed.updated_at })}` });
+        }
       });
     });
   }

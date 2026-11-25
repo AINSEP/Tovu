@@ -30,6 +30,12 @@ export interface MediaTrashAdapterDeps {
    * an asset that is no longer there rather than throwing, so a sweeper retry is free.
    */
   purgeAsset(required: { workspaceId: string; entityId: string }): Promise<void>;
+  /**
+   * Told of each committed trash or restore INSIDE the marker flip's transaction (P10-M5.T2), so what
+   * it writes (an outbox row) commits or rolls back with the flip. Purge reports through the media
+   * repo's own sink, since `purgeAsset` deletes the row there.
+   */
+  changes?: { changed(required: { workspaceId: string; mediaId: string; kind: string; marker: string }): Promise<void> };
 }
 
 /** @complexity O(1) to build. */
@@ -44,11 +50,30 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
     return row ? Number(row.version) : null;
   }
 
+  /**
+   * The marker flip and its change report as ONE transaction (nested `transaction()` joins). Only a
+   * flip that moved the row reports; the marker names the version and time it wrote.
+   * @complexity O(1) plus the sink.
+   */
+  async function flipAndReport(required: { at: string; flip: () => Promise<TrashMarkerResult>; workspaceId: string; entityId: string }, _optional = {}): Promise<TrashMarkerResult> {
+    const k = kernel();
+    return k.transaction(async () => {
+      const result = await required.flip();
+      if (!result.ok || !deps.changes) return result;
+      const row = await k.run((db) => db.selectFrom("media").select(["kind", "version", "updated_at"])
+        .where("workspace_id", "=", required.workspaceId).where("id", "=", required.entityId).executeTakeFirst());
+      if (row && row.updated_at === required.at) {
+        await deps.changes.changed({ workspaceId: required.workspaceId, mediaId: required.entityId, kind: row.kind, marker: `v${Number(row.version)}:${row.updated_at}` });
+      }
+      return result;
+    });
+  }
+
   return {
     entityType: MEDIA_ENTITY_TYPE,
 
     async hide(required): Promise<TrashMarkerResult> {
-      return flipMarker({
+      return flipAndReport({ at: required.at, workspaceId: required.workspaceId, entityId: required.entityId, flip: () => flipMarker({
         kernel: kernel(),
         table: MEDIA_TABLE,
         set: { status: MEDIA_HIDDEN_STATUS, updated_at: required.at },
@@ -56,11 +81,11 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
-      });
+      }) });
     },
 
     async unhide(required): Promise<TrashMarkerResult> {
-      return flipMarker({
+      return flipAndReport({ at: required.at, workspaceId: required.workspaceId, entityId: required.entityId, flip: () => flipMarker({
         kernel: kernel(),
         table: MEDIA_TABLE,
         set: { status: MEDIA_LIVE_STATUS, updated_at: required.at },
@@ -68,7 +93,7 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
-      });
+      }) });
     },
 
     /**
