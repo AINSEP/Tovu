@@ -111,3 +111,32 @@ test("an unrelated publisher's revision in the same slot stays in place and is n
   assert.deepEqual(after.map(plugin => plugin.id), ["acme/cloudflare"], "a third-party revision is never moved");
   assert.deepEqual(result.idUpgrades, [{ status: "held", pluginId: "cloudflare", to: "jini/cloudflare", reason: "its installed copy is published as 'acme/cloudflare', not 'tovu/cloudflare'" }]);
 });
+
+test("a site with legacy and portable pre-rename github revisions upgrades every copy and keeps its owner state", async t => {
+  const { layout, lifecycle } = await boundLifecycle(t);
+  const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
+  for (const revision of ["legacy", "portable"]) {
+    await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE,
+      sourceRoot: path.join(import.meta.dirname, "../fixtures/pre-rename-github", revision) });
+  }
+  const before = (await lifecycle.listInstalledPlugins({ workspaceRoot })).filter(plugin => plugin.pluginId === "github");
+  assert.deepEqual(before.map(plugin => plugin.id), ["tovu/github", "tovu/github"]);
+  const ledger = await lifecycle.readBundledAgentPluginDigests({ workspaceRoot });
+  assert.equal(before.filter(plugin => plugin.archiveDigest === ledger.get("github")).length, 1);
+  await explicitRootAgentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: "github", enabled: true, actor: "owner" });
+  const activation = await explicitRootAgentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId: "github" });
+  await writeFile(path.join(workspaceRoot, "github", "data", "owner-setting.json"), "{\"kept\":true}");
+  await writeFile(path.join(workspaceRoot, "github", "memory", "notes", "owner.md"), "kept note");
+
+  const canonical = await selectedPluginSourceRoot({ pluginIds: ["github"] });
+  t.after(() => canonical.dispose());
+  const result = await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE, sourceRoot: canonical.root });
+  const after = (await lifecycle.listInstalledPlugins({ workspaceRoot })).filter(plugin => plugin.pluginId === "github");
+  assert.deepEqual(after.map(plugin => plugin.id), ["jini/github"]);
+  const upgrade = result.idUpgrades?.find(outcome => outcome.pluginId === "github");
+  assert.ok(upgrade?.status === "upgraded");
+  assert.deepEqual(upgrade.moved.map(revision => revision.packageRoot).sort(), before.map(plugin => plugin.packageRoot).sort());
+  assert.deepEqual(await explicitRootAgentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId: "github" }), activation);
+  assert.equal(await readFile(path.join(workspaceRoot, "github", "data", "owner-setting.json"), "utf8"), "{\"kept\":true}");
+  assert.equal(await readFile(path.join(workspaceRoot, "github", "memory", "notes", "owner.md"), "utf8"), "kept note");
+});
