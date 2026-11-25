@@ -9,7 +9,8 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
-import { reconcileInterruptedImports, requireStagingBudget } from "../import-backend-steps.js";
+import { reconcileInterruptedImports, requireStagingBudget } from "@jini-ai/devops/backup/site/import-backend-steps";
+import { SITE_IMPORT_HOST } from "../import-backend.js";
 import type { SiteImportRecord, SiteImportUpload } from "@jini-ai/devops/backup/site/import-registry";
 import { SiteImportRegistry } from "../import-registry.js";
 
@@ -239,8 +240,8 @@ test("T25: interrupted verification and orphaned payloads release the staging bu
   const space = fs.statfsSync(registry.directory);
   t.mock.method(fs, "statfsSync", () => ({ ...space, bsize: 4096, bavail: 1_000_000 }));
   const recover = () => restarted.exclusive({ run: async () => {
-    await reconcileInterruptedImports({ registry: restarted, workspace, put: row => restarted.put({ row }) });
-    assert.doesNotThrow(() => requireStagingBudget({ registry: restarted }),
+    await reconcileInterruptedImports({ registry: restarted, workspace, put: row => restarted.put({ row }), host: SITE_IMPORT_HOST });
+    assert.doesNotThrow(() => requireStagingBudget({ registry: restarted, host: SITE_IMPORT_HOST }),
       "crash leftovers must not permanently exhaust the four-payload staging budget");
   } });
 

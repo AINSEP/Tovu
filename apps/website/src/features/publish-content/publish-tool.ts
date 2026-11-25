@@ -1,237 +1,30 @@
-import { ToolInputError } from "@jini-ai/core";
-import type { PublishContentToolDeps } from "./tool-deps.js";
-import { resolvePublishDestinationCredential } from "./destination-credential.js";
-import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
-import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "@jini-ai/cms/publish/content/live-site-policy";
+import { createPublishContentFromTool } from "@jini-ai/cms/publish/content/publish-tool";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { planPublishToPeer } from "./push-plan.js";
+import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { confirmPeerImport, executePeerImport } from "./peer-transport-binding.js";
-import {
-  applyPublishCriteria,
-  parsePublishContentToolInput,
-  preparePublishConfirmation,
-  toPublishReportRows,
-} from "./ui/index.js";
-import {
-  canConfirmPlan,
-  overwriteReplanIsConsistent,
-  selectableRowKeys,
-  type PublishContentPlanResult,
-  type PublishContentReport,
-  type PublishCriteria,
-} from "@jini-ai/cms/publish/content/ui";
+import { planPublishToPeer } from "./push-plan.js";
+import type { PublishContentToolDeps } from "./tool-deps.js";
+import type { TovuPublishPorts } from "./tovu-publish-ports.js";
+import { PUBLISH_CONTENT_CAPABILITY } from "./ui/index.js";
+import { applyPublishCriteria, parsePublishContentToolInput, preparePublishConfirmation, toPublishReportRows } from "./ui/index.js";
 
-/** Strict tool boundary: misspelled filters must never widen an autonomous publish. */
-function readCriteria(input: Record<string, unknown>): PublishCriteria & { readonly excludeItems?: readonly string[] } {
-  for (const key of ["types", "items", "excludeItems"] as const) {
-    const value = input[key];
-    if (value !== undefined && (!Array.isArray(value) || value.length > 1000 ||
-      !value.every(item => typeof item === "string" && item.trim().length > 0))) {
-      throw new ToolInputError({ message: `'${key}' must be an array of at most 1000 non-empty strings.` });
-    }
-  }
-  try {
-    return { ...parsePublishContentToolInput({ input }), ...(input.excludeItems === undefined ? {} : { excludeItems: input.excludeItems as string[] }) };
-  } catch (error) {
-    throw new ToolInputError({ message: error instanceof Error ? error.message.replace(/^admin\.publish_content:/, "publish_content_publish:") : "Invalid publish selection." });
-  }
-}
-
-/** The remote report is untrusted; refuse malformed/refused plans before any confirm call. */
-function readReport({ value }: { value: unknown }, _optional = {}): PublishContentReport {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new ToolInputError({ message: "The live site returned no publish report." });
-  const report = value as PublishContentReport;
-  const outcomes = new Set(["created", "applied", "forced", "unchanged", "conflict", "blocked"]);
-  if (typeof report.refused !== "boolean" || !Array.isArray(report.rows) || !report.rows.every(row => validReportRow({ row, outcomes }))) {
-    throw new ToolInputError({ message: "The live site returned an invalid publish report." });
-  }
-  if (report.refused) throw new ToolInputError({ message: report.refusalReason ?? "The live site refused this publish." });
-  return report;
-}
-
-/** A remote row's write flag must agree with its outcome before it can be reported as published.
- * @complexity O(1) time and space per row. */
-function validReportRow(
-  { row, outcomes }: { row: PublishContentReport["rows"][number]; outcomes: ReadonlySet<string> },
-  _options: Record<string, never> = {},
-): boolean {
-  if (!row || typeof row.entityType !== "string" || typeof row.entityId !== "string") return false;
-  return typeof row.writes === "boolean" && outcomes.has(row.outcome) &&
-    row.writes === ["created", "applied", "forced"].includes(row.outcome);
-}
-
-/** CMS-specific autonomous push. Ports supply credential resolution, export and peer HTTP; no
- * model mocks or second importer. The dialog shares push-plan and preparePublishConfirmation.
- * Only explicit overwrite:true selects conflict keys, then the exact same keys travel to execute.
- * Results describe actual apply outcomes: race-time conflicts must never be called published. */
-export async function publishContentFromTool(
-  required: { deps: PublishContentToolDeps; principalId: string },
-  input: Record<string, unknown> = {},
-) {
-  const criteria = readCriteria(input);
-  if (!canPublishToLive({ resolveRuntimeMode })) throw new ToolInputError({ message: PUBLISH_FROM_LIVE_SITE_ERROR });
-  const { deps, principalId } = required;
-  const credential = await destinationCredential({ deps, input });
-  const { peer, contentDeps } = planningDeps({ deps, credential });
-  const plan = (selection: PlanSelection = {}) => planForTool({ context: { deps, peer, contentDeps, principalId }, selection });
-  const initial = await plan();
-  const selectionRows = toPublishReportRows({ report: initial.details }).map(row => ({ ...row, names: initial.itemNames[row.key] ?? [] }));
-  const selection = applyPublishCriteria({ rows: selectionRows.map(row => ({ ...row, selectable: true })), criteria });
-  const skipped = excludedBySelection({ selectionRows, selection });
-  const chosen = await choosePlan({ initial, selection, plan });
-  // Nothing selected: never re-stage an empty bundle on live, and never confirm `chosen`, which
-  // still holds every row.
-  const nothingSelected = selectableRowKeys({ rows: toPublishReportRows({ report: chosen.details }) }).every(key => selection.deselectedKeys.has(key));
-  const confirmed = await confirmationPlan({ chosen, nothingSelected, selection, plan });
-  const urls = (confirmed as typeof initial).publicUrls ?? chosen.publicUrls;
-  const summary = { initial, confirmed, selection, skipped, urls };
-  let execution: Record<string, unknown> | null = null;
-  let actual = confirmed.details;
-  if (!nothingSelected && canConfirmPlan({ kind: "planned", plan: confirmed })) {
-    execution = await confirmAndExecute({ peer, confirmed });
-    // Old live builds omit per-item outcomes. A successful HTTP response alone cannot prove every
-    // planned row landed: apply can downgrade a concurrent edit to a conflict after token checking.
-    // Keep the completed run and explicitly report uncertainty instead of fabricating success.
-    if (execution.report === undefined) return legacyResult({ summary, selectionRows, execution });
-    actual = readReport({ value: execution.report });
-  }
-  return completedResult({ summary, actual, execution, baseUrl: credential.baseUrl });
-}
-
-type PlanSelection = { selectedEntityKeys?: readonly string[]; overwriteEntityKeys?: readonly string[] };
-type ToolPlanContext = { deps: PublishContentToolDeps; peer: ReturnType<typeof planningDeps>["peer"]; contentDeps: ReturnType<typeof planningDeps>["contentDeps"]; principalId: string };
-type ToolPlan = Awaited<ReturnType<typeof planForTool>>;
-type ToolPlanner = (selection?: PlanSelection) => Promise<ToolPlan>;
-type ToolSelection = ReturnType<typeof applyPublishCriteria>;
-type ToolReportRow = ReturnType<typeof toPublishReportRows>[number];
-type SkippedItem = { entityKey: string; title: string | null; reason: string };
-/** What the final result builders share: the first plan, the plan that was confirmed, and what was skipped. */
-type PublishSummary = { initial: ToolPlan; confirmed: PublishContentPlanResult & { notSupportedByLive?: unknown }; selection: ToolSelection; skipped: SkippedItem[]; urls: Record<string, string> };
-
-/** Source items the peer's build cannot hold never reached it, so it cannot report them: they come back as blocked rows. */
-function heldBackRows({ raw }: { raw: Awaited<ReturnType<typeof planPublishToPeer>> }) {
-  const unsupported = new Set(raw.notSupportedByLive.map(item => item.entityType));
-  return Object.entries(raw.itemNames).flatMap(([key, names]) => {
-    const separator = key.indexOf(":");
-    const entityType = key.slice(0, separator);
-    if (!unsupported.has(entityType)) return [];
-    return [{
-      entityType, entityId: key.slice(separator + 1), entityLabel: names[0] ?? null,
-      outcome: "blocked" as const, writes: false, canOverwrite: false,
-      reason: "The live site's build does not support this kind of content yet."
-    }];
-  });
-}
-
-async function planForTool({ context, selection }: { context: ToolPlanContext; selection: PlanSelection }, _optional: Record<string, never> = {}) {
-  const { deps, peer, contentDeps, principalId } = context;
-  const raw = await planPublishToPeer({ deps: { ...deps, publishContentDeps: contentDeps }, peer, principalId }, selection);
-  if (typeof raw.planId !== "string" || typeof raw.planHash !== "string") throw new ToolInputError({ message: "The live site returned an invalid publish plan." });
-  const details = readReport({ value: raw.details });
-  // Unsupported source items never reached the peer, so it cannot report them. Preserve each
-  // title in the tool's skipped results, just as the dialog preserves its type-level notice.
-  const heldBack = heldBackRows({ raw });
-  return { ...raw, planId: raw.planId, planHash: raw.planHash, details: { ...details, rows: [...details.rows, ...heldBack] } };
-}
-
-/** Every unmatched row is deselected (so it is filtered out of the result lists), but only
- * one that would otherwise have been written is worth naming as excluded. */
-function excludedBySelection({ selectionRows, selection }: { selectionRows: readonly ToolReportRow[]; selection: ToolSelection }): SkippedItem[] {
-  return selectionRows.filter(row => selection.deselectedKeys.has(row.key) && row.disposition === "publish").map(row => ({
-    entityKey: row.key, title: row.entityLabel, reason: "Excluded by the requested selection."
-  }));
-}
-
-async function choosePlan({ initial, selection, plan }: { initial: ToolPlan; selection: ToolSelection; plan: ToolPlanner }, _optional: Record<string, never> = {}) {
-  let chosen = initial;
-  if (selection.overwriteKeys.size > 0) {
-    if (!initial.liveCanOverwrite) throw new ToolInputError({ message: "The live site cannot overwrite content yet. Update it before trying again." });
-    chosen = await plan({ overwriteEntityKeys: [...selection.overwriteKeys] });
-    if (!overwriteReplanIsConsistent({ shown: initial.details, next: chosen.details, tickedKeys: selection.overwriteKeys, changing: selection.overwriteKeys })) {
-      throw new ToolInputError({ message: "The live site changed while publishing was being planned. Check the list again." });
-    }
-  }
-  return chosen;
-}
-
-async function confirmationPlan({ chosen, nothingSelected, selection, plan }: { chosen: ToolPlan; nothingSelected: boolean; selection: ToolSelection; plan: ToolPlanner }, _optional: Record<string, never> = {}) {
-  let confirmed: PublishContentPlanResult = chosen;
-  try {
-    if (!nothingSelected) confirmed = await preparePublishConfirmation({ plan: chosen, deselectedKeys: selection.deselectedKeys, planPublish: plan });
-  } catch (error) {
-    throw new ToolInputError({ message: error instanceof Error ? error.message : "Could not plan this publish." });
-  }
-  return confirmed;
-}
-
-async function confirmAndExecute({ peer, confirmed }: { peer: ToolPlanContext["peer"]; confirmed: PublishContentPlanResult }): Promise<Record<string, unknown>> {
-  const { confirmationToken } = await confirmPeerImport({ deps: peer, required: { planId: confirmed.planId, planHash: confirmed.planHash } });
-  return executePeerImport({
-                             deps: peer,
-                             required: {
-      bundleId: confirmed.bundleId, confirmationToken,
-      ...(confirmed.overwriteEntityKeys?.length ? { overwriteEntityKeys: confirmed.overwriteEntityKeys } : {})
-    }
-                           });
-}
-
-function legacyResult({ summary, selectionRows, execution }: { summary: PublishSummary; selectionRows: readonly ToolReportRow[]; execution: Record<string, unknown> }, _optional: Record<string, never> = {}) {
-  const { confirmed, selection, skipped, urls } = summary;
-  skipped.push(...selectionRows.filter(row => row.disposition === "skipped" && !selection.deselectedKeys.has(row.key) && !selection.overwriteKeys.has(row.key)).map(row => ({ entityKey: row.key, title: row.entityLabel, reason: row.reason ?? "The live site skipped this item." })));
-  return {
-    published: [], skipped, unverified: confirmed.details.rows.filter(row => row.writes).map(row => ({
-      entityKey: `${row.entityType}:${row.entityId}`, title: row.entityLabel, publicUrl: urls[`${row.entityType}:${row.entityId}`] ?? null
-    })),
-    runId: execution.runId, message: "The publish run completed, but this live site's version did not return per-item results. I could not verify which items landed. Update the live site to receive those results.",
-    unmatchedItems: selection.unmatchedItems, unknownTypes: selection.unknownTypes, verificationProblems: execution.verificationProblems ?? []
-  };
-}
-
-function completedResult({ summary, actual, execution, baseUrl }: { summary: PublishSummary; actual: PublishContentReport; execution: Record<string, unknown> | null; baseUrl: string }, _optional: Record<string, never> = {}) {
-  const { initial, confirmed, selection, skipped, urls } = summary;
-  const rows = toPublishReportRows({ report: actual });
-  const published = execution ? rows.filter(row => row.appliesOnExecute).map(row => ({
-    entityKey: row.key, title: row.entityLabel, outcome: row.outcome, publicUrl: urls[row.key] ?? null
-  })) : [];
-  // Locally skipped pack units and unsupported types never reached live's apply report.
-  const known = new Set(rows.map(row => row.key));
-  const omitted = toPublishReportRows({ report: initial.details }).filter(row => !row.appliesOnExecute && !known.has(row.key) && !selection.deselectedKeys.has(row.key));
-  skipped.push(...[...rows, ...omitted].filter(row => row.disposition === "skipped" && !selection.deselectedKeys.has(row.key)).map(row => ({ entityKey: row.key, title: row.entityLabel, reason: row.reason ?? "The live site skipped this item." })));
-  const publishedItemLabel = published.length === 1 ? "item" : "items";
-  return {
-    published, skipped, unchanged: [...rows, ...omitted].filter(row => row.disposition === "unchanged" && !selection.deselectedKeys.has(row.key)).map(row => ({ entityKey: row.key, title: row.entityLabel })),
-    unmatchedItems: selection.unmatchedItems, unknownTypes: selection.unknownTypes, notSupportedByLive: confirmed.notSupportedByLive ?? [],
-    runId: execution?.runId ?? null, verificationProblems: execution?.verificationProblems ?? [],
-    message: published.length ? `Published ${published.length} ${publishedItemLabel} to ${baseUrl}. Skipped ${skipped.length}.` : `Published nothing. Skipped ${skipped.length}.`
-  };
-}
-
-async function destinationCredential({ deps, input }: { deps: PublishContentToolDeps; input: Record<string, unknown> }, _optional: Record<string, never> = {}) {
-  const peers = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  if (input.peerId !== undefined && (typeof input.peerId !== "string" || !input.peerId.trim())) {
-    throw new ToolInputError({ message: "'peerId' must be a non-empty string." });
-  }
-  const peerId = typeof input.peerId === "string" ? input.peerId : defaultPeerId({ peers });
-  if (!peerId) throw new ToolInputError({ message: peers.length ? "Several destinations are saved. Choose a peerId before publishing." : "No live destination is connected. Connect this computer with publish_content_connect, then publish again." });
-  return resolvePublishDestinationCredential({ deps: {
-    repo: deps.publishContentPeerRepo,
-    sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient
+/**
+ * @file Host binding for `@jini-ai/cms`'s autonomous `publishContentFromTool`: supplies this app's
+ * runtime-mode resolver, its destination-credential resolution (sealed key or connected handshake,
+ * with the deps this app names them), its bound plan builder and peer transport, its publish-dialog
+ * policy, and the `admin.publish_content` capability id its criteria errors are prefixed with. The
+ * selection, plan, confirm and execute logic lives in the package.
+ */
+export const publishContentFromTool = createPublishContentFromTool<PublishContentToolDeps, TovuPublishPorts>({
+  host: {
+    resolveRuntimeMode,
+    resolveCredential: ({ deps, input }) => resolvePublishDestinationCredential({ deps: {
+      repo: deps.publishContentPeerRepo,
+      sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient,
+    }, input }),
+    planPublishToPeer,
+    peerTransport: { confirmPeerImport, executePeerImport },
+    ui: { applyPublishCriteria, parsePublishContentToolInput, preparePublishConfirmation, toPublishReportRows },
+    criteriaCapabilityId: PUBLISH_CONTENT_CAPABILITY.id,
   },
-    input: { workspaceId: deps.workspaceId, id: peerId } });
-}
-
-function defaultPeerId({ peers }: { peers: Awaited<ReturnType<PublishContentToolDeps["publishContentPeerRepo"]["listByWorkspace"]>> }, _optional: Record<string, never> = {}) {
-  return (selectConnectedDestination({ rows: peers }) ?? (peers.length === 1 ? peers[0] : null))?.id;
-}
-
-function planningDeps({ deps, credential }: { deps: PublishContentToolDeps; credential: Awaited<ReturnType<typeof resolvePublishDestinationCredential>> }, _optional: Record<string, never> = {}) {
-  const peer = {
-    credential, httpClient: deps.publishContentPeerHttpClient,
-    ...(deps.publishHistoryStore ? { publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock, triggeredBy: "agent_tool" as const } } : {})
-  };
-  const contentDeps = deps.makePublishContentDeps?.() ?? {
-    workspaceId: deps.workspaceId, clock: deps.clock,
-    idGen: deps.idGen, ports: deps.publishContentPorts ?? {}
-  };
-  return { peer, contentDeps };
-}
+});

@@ -6,7 +6,7 @@ import { parseRequestObject, readStdinRequestLine, type RequestLineStream } from
 import { leaveSavedKeysOut } from "@jini-ai/devops/backup/site/saved-keys";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
-import type { SiteImportBackend, SiteImportSource, SiteImportView } from "#src/features/site-backup/import-backend";
+import { type SiteImportBackend, type SiteImportSource, type SiteImportView } from "@jini-ai/devops/backup/site/import-backend";
 import { createSitesWorkspace, ValidationError, type SitesWorkspace } from "#src/platform/site-dir/index";
 import { composeSiteImportBackend } from "#src/server/runtime/composition/site-import-backend";
 

@@ -17,7 +17,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { createSitePluginPolicy } from "#src/features/plugin-runtime/install";
-import type { SiteImportBackend } from "#src/features/site-backup/import-backend";
+import { type SiteImportBackend } from "@jini-ai/devops/backup/site/import-backend";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerContentAnalytics } from "../../runtime/composition/content-events.js";
 import { withToolUseEvents } from "../../runtime/composition/tool-use-events.js";

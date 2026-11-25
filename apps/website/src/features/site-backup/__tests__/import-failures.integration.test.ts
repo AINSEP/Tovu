@@ -3,7 +3,8 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { createSiteImportBackend, parseSiteImportInput } from "../import-backend.js";
+import { createSiteImportBackend } from "../import-backend.js";
+import { parseSiteImportInput } from "@jini-ai/devops/backup/site/import-backend";
 import type { SiteImportRecord } from "@jini-ai/devops/backup/site/import-registry";
 import { importFixture, OWNER_PASSWORD } from "./import.fixture.js";
 

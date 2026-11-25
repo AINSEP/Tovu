@@ -31,7 +31,7 @@ import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, Sourc
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/index.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
-import type { SiteImportBackend } from "./import-backend.js";
+import { type SiteImportBackend } from "@jini-ai/devops/backup/site/import-backend";
 import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { type ShareDatabaseSanitizer } from "./share-policy.js";

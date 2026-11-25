@@ -1,7 +1,7 @@
 import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { siteBackupToolMetadata as toolMetadata } from "../../contracts/core/tool-metadata/index.js";
-import { parseSiteImportInput } from "./import-backend.js";
+import { parseSiteImportInput } from "@jini-ai/devops/backup/site/import-backend";
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
