@@ -7,7 +7,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMediaProviderCatalogRoute, registerAdminMediaPutProvidersRoute } from "#src/server/runtime/composition/modules/media";
+import { registerAdminMediaGetProvidersRoute, registerAdminMediaProviderCatalogRoute, registerAdminMediaPutProvidersRoute } from "#src/server/runtime/composition/modules/media";
 import type { MediaProviderRouteDeps } from "../deps.js";
 import { mediaProviderDefinition, type MediaProviderContribution, type MediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
@@ -45,6 +45,7 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
     next();
   });
   registerAdminMediaProviderCatalogRoute({ app, deps });
+  registerAdminMediaGetProvidersRoute({ app, deps });
   registerAdminMediaPutProvidersRoute({ app, deps });
   return app;
 }
@@ -54,6 +55,16 @@ async function call(t: import("node:test").TestContext, app: express.Express, pa
   const res = await fetch(`${baseUrl}${path}`, init);
   const text = await res.text();
   return { status: res.status, text, json: JSON.parse(text || "{}") as unknown };
+}
+
+/** GET the stored provider set and return its ETag: the basis every whole-set PUT must name. */
+async function providersEtag(t: import("node:test").TestContext, app: express.Express): Promise<string> {
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}${PROVIDERS}`);
+  assert.equal(res.status, 200, await res.clone().text());
+  const etag = res.headers.get("etag");
+  assert.ok(etag, "GET providers answers an ETag");
+  return etag;
 }
 
 /** A legacy-spelled plugin build that still registers the old public id `grok`. */
@@ -75,15 +86,20 @@ test("boot lists one xAI provider without leaking a key or raw provider error", 
   registry.providers.contribute({ definition: mediaProviderDefinition({ contribution: legacyGrokContribution() }), pluginId: "legacy-grok" });
   registry.providers.contribute({ definition: { id: "broken_vendor", label: "Broken", provider: throwingContribution() }, pluginId: "broken" });
   const app = buildApp({ mediaProviderRegistry: registry });
-  const saved = await call(t, app, PROVIDERS, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ "xai-grok-imagine": { apiKey: SECRET_KEY } }) });
+  // Jini d8b2d7403: the whole-set PUT must carry GET's ETag in If-Match (missing/stale is 409), so this
+  // client reads first exactly as the Providers tab does.
+  // 18f87e53d: `grok` is the persisted xAI id and `xai-grok-imagine` only a lookup alias, so the
+  // save names `grok` and the one card the catalog lists carries it.
+  const etag = await providersEtag(t, app);
+  const saved = await call(t, app, PROVIDERS, { method: "PUT", headers: { "content-type": "application/json", "if-match": etag }, body: JSON.stringify({ grok: { apiKey: SECRET_KEY } }) });
   assert.equal(saved.status, 200, saved.text);
 
   const { status, text, json } = await call(t, app, CATALOG);
   assert.equal(status, 200, text);
   const ids = (json as CatalogBody).providers.map((provider) => provider.id);
-  assert.deepEqual(ids.filter((id) => /grok|xai/i.test(id)), ["xai-grok-imagine"], "one xAI card for both aliases");
+  assert.deepEqual(ids.filter((id) => /grok|xai/i.test(id)), ["grok"], "one xAI card for both aliases");
   assert.equal(new Set(ids).size, ids.length, "every card id is unique, so the tab count is one per provider");
-  const xai = (json as CatalogBody).providers.find((provider) => provider.id === "xai-grok-imagine");
+  const xai = (json as CatalogBody).providers.find((provider) => provider.id === "grok");
   assert.ok((xai?.models ?? []).length > 0, "model choices come from the live contribution");
   for (const leak of [SECRET_KEY, "SECRET", RAW_ERROR, "RAW-TOKEN", "apiKey"]) assert.ok(!text.includes(leak), `catalog leaked ${leak}`);
 });
