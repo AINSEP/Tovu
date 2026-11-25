@@ -8,8 +8,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import * as adapters from "@jini-ai/devops/static-export/node";
-import { captureStaticSite } from "../../site-backup/static-copy.js";
-import { staticDownloadLayout } from "../../site-backup/static-download-layout.js";
+import { captureStaticSite } from "../../site-backup/static-download-host.js";
+import { staticDownloadLayout } from "../../site-backup/static-download-host.js";
 
 // Reuse the engine's app-factory port; each export has its own in-memory transport address.
 const apps = new Map<string, RequestListener>();

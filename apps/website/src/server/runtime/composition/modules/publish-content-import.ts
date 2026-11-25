@@ -11,16 +11,16 @@ import {
   type OverwriteEntityKeys,
 } from "@jini-ai/cms/admin-http/routes/publish-content/import";
 import { executePublishContentImport } from "@jini-ai/cms/publish/content/execute-import";
-import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
+import { buildConfirmOnlyHooks, planHashOf, resolveActorClassIdentity } from "#src/contracts/core/gated-mutations/composition";
 import { authorizeForHooks, confirm, execute, plan } from "#src/contracts/core/gated-mutations/gateway";
 import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { buildBackstopPreview } from "@jini-ai/cms/publish/content/backstop-preview";
 import { BACKSTOP_RAW_POLICY } from "#src/features/publish-content/backstop-policy";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
-import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
+import { buildPublishContentImportHooks } from "@jini-ai/cms/publish/content/gated-hooks";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { getPublishContentRunStatus } from "@jini-ai/cms/publish/content/run-repo";
-import { registeredPublishTypePermissions, type PackedEntity } from "#src/features/publish-content/type-registry";
+import { buildPublishContentCatalog, registeredPublishTypePermissions, type PackedEntity } from "#src/features/publish-content/type-registry";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { adminPublishTrustFor, adminRequestFactsFor } from "#src/server/inbound/admin-http/admin-request-facts";
 import { gatedPrincipalKindFor, type OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
@@ -63,6 +63,7 @@ function buildHooks({ deps, context, bundleId, overwriteEntityKeys }: { deps: Pu
   const publishContentDeps = toPublishContentDeps(deps);
   return buildPublishContentImportHooks({
     workspaceId: deps.workspaceId, bundleId, actorId: context.id, clock: deps.clock, idGen: deps.idGen,
+    planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     // The apply loop authorizes each entity against its TYPE's own write permission. For a human
     // that is RBAC, unchanged. For a publishing credential it has to be the grant, or the
     // ceremony fails at execute — see `withPublishTrustContentAuthorize`'s own doc.

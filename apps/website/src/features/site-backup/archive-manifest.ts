@@ -2,7 +2,7 @@ import { SiteShareRefusal, archiveRefusalName } from "@jini-ai/devops/backup/sit
 import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE } from "./share-policy.js";
 import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
-import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
+import { isStaticSitePath, type StaticSiteMetadata } from "@jini-ai/devops/backup/site/static-copy";
 
 import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR } from "@jini-ai/devops/backup/site/saved-keys-port";
 import { isBundledSchemaIdentity } from "#src/platform/site-dir/index";

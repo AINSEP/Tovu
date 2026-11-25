@@ -108,7 +108,7 @@ import type { ExportEngine } from "@jini-ai/devops/deploy/site/export-run";
 import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
-import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
+import type { PublishContentApplyPort } from "@jini-ai/cms/publish/content/gated-hooks";
 import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";

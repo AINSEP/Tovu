@@ -6,8 +6,10 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { readTemplate } from "#src/platform/site-dir/index";
 import type { VerifiedSiteImport } from "./import-verifier.js";
-import { restoreImportedPluginState, type ImportedExtensionState } from "./import-plugin-state.js";
-import { inspectThemeManifests, liveThemeTrees, restoreDestination, writeExclusive } from "./import-restore-placement.js";
+import type { ImportedExtensionState } from "@jini-ai/devops/backup/site/import-plugin-state";
+import { restoreImportedPluginState } from "./import-plugin-state.js";
+import { liveThemeTrees, restoreDestination } from "@jini-ai/devops/backup/site/import-restore-placement";
+import { inspectThemeManifests, writeExclusive } from "./import-restore-placement.js";
 import { keepImportedCodeOff, unrecognisedThemes } from "./import-keep-off.js";
 
 /** Persist only verified, freshly projected data; the stage is private and never served. */

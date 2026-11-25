@@ -8,8 +8,8 @@ import { Duplex } from "node:stream";
 import * as yauzl from "yauzl";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
-import { captureStaticSite } from "../static-copy.js";
-import { staticDownloadLayout } from "../static-download-layout.js";
+import { captureStaticSite } from "../static-download-host.js";
+import { staticDownloadLayout } from "../static-download-host.js";
 import { claimSharePath, sharePathAlias } from "../share-file-policy.js";
 import { buildStaticSiteZip } from "../share-zip.js";
 import { createShareArchiveReader } from "../import-archive-reader.js";

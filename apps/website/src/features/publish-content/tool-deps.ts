@@ -2,7 +2,9 @@ import type { PublishHistoryRecorder } from "./peer-transport.js";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { requireToolPermission } from "@jini-ai/cms/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
-import type { BuildPublishContentImportHooksInput } from "./gated-hooks.js";
+import type { BuildPublishContentImportHooksInput as EngineImportHooksInput } from "@jini-ai/cms/publish/content/gated-hooks";
+/** The import-hooks input, instantiated with this site's publish port bag. */
+type BuildPublishContentImportHooksInput = EngineImportHooksInput<TovuPublishPorts>;
 import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPullDeps } from "./pull.js";
 import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";

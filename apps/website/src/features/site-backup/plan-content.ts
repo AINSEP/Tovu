@@ -44,7 +44,7 @@ export interface SiteSharePlanContent extends SiteBackupCommonContent {
   readonly media?: readonly import("./archive-manifest.js").ArchiveMedia[];
   readonly plugins?: readonly import("./archive-manifest.js").ArchivePlugin[];
   readonly bufferedFiles?: readonly { readonly path: string; readonly content: Buffer }[];
-  readonly staticSite?: import("./static-copy.js").StaticSiteMetadata;
+  readonly staticSite?: import("@jini-ai/devops/backup/site/static-copy").StaticSiteMetadata;
   readonly staticSiteOmitted?: string;
 }
 

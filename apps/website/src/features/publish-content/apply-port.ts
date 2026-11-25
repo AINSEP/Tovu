@@ -1,4 +1,4 @@
-import type { PublishContentApplyPort } from "./gated-hooks.js";
+import type { PublishContentApplyPort } from "@jini-ai/cms/publish/content/gated-hooks";
 import { applyPublishContentReport } from "./apply-report.js";
 import type { CreatePublishContentApplyPortInput } from "@jini-ai/cms/publish/content/apply-run";
 import type { PublishContentDeps } from "./type-registry.js";

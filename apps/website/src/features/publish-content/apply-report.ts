@@ -16,8 +16,8 @@ import {
 import { readBackstopMetadata } from "./backstop-service.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import { PublishContentBundleNotFoundError } from "./gated-hooks.js";
-import type { PublishContentApplyPort } from "./gated-hooks.js";
+import { PublishContentBundleNotFoundError } from "@jini-ai/cms/publish/content/gated-hooks";
+import type { PublishContentApplyPort } from "@jini-ai/cms/publish/content/gated-hooks";
 import { publishContentItemIdempotencyKey } from "@jini-ai/cms/publish/content/idempotency";
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";

@@ -6,7 +6,7 @@ import { validateSharePath, excludedSharePath, requireShareSecretFree, claimShar
 import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, parseArchiveManifest, requireArchiveFileRecord, type ArchiveManifest } from "./archive-manifest.js";
 import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
 import { SAVED_KEYS_PATH } from "@jini-ai/devops/backup/site/saved-keys-port";
-import { isStaticSitePath } from "./static-copy.js";
+import { isStaticSitePath } from "@jini-ai/devops/backup/site/static-copy";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 /**

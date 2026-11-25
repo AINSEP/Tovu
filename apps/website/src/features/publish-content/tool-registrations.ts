@@ -17,7 +17,8 @@ import type { ToolContributor } from "@jini-ai/core";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute, ForbiddenError, PlanStaleError, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
-import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
+import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "@jini-ai/cms/publish/content/gated-hooks";
+import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 import { executePublishContentImport, RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import { entityKey, type PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
@@ -59,7 +60,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { publishContentFromTool } from "./publish-tool.js";
 import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
 
-import { listPublishContentContributors } from "./type-registry.js";
+import { buildPublishContentCatalog, listPublishContentContributors } from "./type-registry.js";
 import type { PublishContentDeps } from "./type-registry.js";
 import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
@@ -461,6 +462,7 @@ function pullHooks({ deps, bundleId, actorId }: { deps: PublishContentToolDeps; 
   };
   return buildPublishContentImportHooks({
     workspaceId: deps.workspaceId, bundleId, actorId, clock: deps.clock, idGen: deps.idGen,
+    planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { ...contentDeps, authorize: deps.authorize }, bundleRepo: deps.publishContentBundleRepo,
     baselineRepo: deps.publishContentBaselineRepo, blobStore: deps.blobStore, dbOps: deps.dbOps,
     restorePointsRepo: deps.restorePointsRepo, applyPort: deps.publishContentApplyPort,
