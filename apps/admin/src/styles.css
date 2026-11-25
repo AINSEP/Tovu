@@ -3124,7 +3124,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* 80, not 40: this is the shared blocking-modal backdrop (confirm dialogs, media/widget pickers),
    so it must sit above `.chat-fab` (75, `styles/assistant.css`). At 40 the raised FAB would float
    over every confirm dialog and let a click open the chat behind the backdrop. */
-.settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
+.settings-dialog-backdrop, .jini-settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
 .settings-dialog, .jini-settings-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
@@ -6936,7 +6936,7 @@ body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
 @container admin-content (max-width: 620px) {
   /* TR-2: bulk actions only take space once there is a selection; busy selected actions stay
      visible and disabled, so their progress does not cause the toolbar to jump. */
-  .trash-toolbar[data-selection-empty="true"] .trash-bulk-action { display: none; }
+  .jini-trash-toolbar[data-selection-empty="true"] .jini-trash-bulk-action { display: none; }
 
   /* DB-1/AI-4/FO-4: short desktop rows become labelled, full-width fields on phones. */
   .database-filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }

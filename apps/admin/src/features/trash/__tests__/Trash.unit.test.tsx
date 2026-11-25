@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { Trash } from "../Trash";
-import { useTrash, type TrashController } from "../hooks/use-trash.hooks";
+import { useTrash, type TrashController } from "@jini-ai/admin/screens/trash/hooks/use-trash.hooks";
+import { t } from "../trash-i18n";
+import { trashHostDeps } from "../hooks/use-trash.hooks";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
@@ -57,6 +59,7 @@ function controller(overrides: Partial<TrashController> = {}): TrashController {
     refresh: vi.fn(),
     refreshing: false,
     actorUsernames: new Map<string, string>(),
+    t,
     locale: "en",
     ...overrides,
   };
@@ -70,7 +73,7 @@ describe("Trash screen", () => {
     expect(screen.queryByText("The Trash is empty.")).not.toBeInTheDocument();
   });
   function renderRealTrash(port: ReturnType<typeof createFakeTrashPort>) {
-    render(<FetchQueryProvider><Trash useTrashHook={() => useTrash({ port, locale: "en" })} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Trash useTrashHook={() => useTrash({ port, locale: "en", ...trashHostDeps })} /></FetchQueryProvider>);
   }
 
   it("opens confirmation from the toolbar and purges only after Confirm, never after Cancel", async () => {
@@ -133,7 +136,7 @@ describe("Trash screen", () => {
   it("shows one short subtitle and a closed info tip beside the title on empty Trash", () => {
     const { container } = render(<Trash useTrashHook={() => controller({ items: [] })} />);
 
-    const descriptions = container.querySelectorAll(".page-header .page-description");
+    const descriptions = container.querySelectorAll(".jini-page-header .jini-page-description");
     expect(descriptions).toHaveLength(1);
     expect(descriptions[0]).toHaveTextContent("Deleted items are kept for 30 days.");
     const info = within(screen.getByRole("heading", { level: 1 })).getByLabelText(
@@ -196,7 +199,7 @@ describe("Trash screen", () => {
 
   it.each([["en", "Page"], ["es", "Página"]])("labels canonical post rows using the page display kind in %s", (locale, label) => {
     const port = createFakeTrashPort({ items: [item({ entityType: "post", displayKind: "page", title: "Deleted about page" })] });
-    render(<FetchQueryProvider><Trash useTrashHook={() => useTrash({ port, locale })} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Trash useTrashHook={() => useTrash({ port, locale, ...trashHostDeps })} /></FetchQueryProvider>);
     return screen.findByRole("row", { name: /Deleted about page/ }).then((row) => {
       expect(within(row).getByRole("cell", { name: label })).toBeInTheDocument();
     });
@@ -307,7 +310,7 @@ describe("Trash — row subtitle and default wiring", () => {
   it("renders a row with no subtitle as just its title", () => {
     render(<Trash useTrashHook={() => controller({ items: [item({ subtitle: null })] })} />);
     const title = screen.getByText("A deleted post");
-    expect(title.parentElement!.querySelector(".muted-cell")).toBeNull();
+    expect(title.parentElement!.querySelector(".jini-muted-cell")).toBeNull();
   });
 
   it("wires the real Trash controller by default and lists what the server returns", async () => {
