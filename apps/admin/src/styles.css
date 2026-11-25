@@ -5333,12 +5333,12 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   margin-top: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border);
 }
 
-/* `OverflowAwareMcpUiSurfaceCard.tsx` — the small "Show in modal" trigger under an MCP-UI surface
-   that overflows its own box. `.mcpui-surface-overflow-wrap` gets no layout rules of its own
+/* `OverflowAwareMcpUiSurfaceCard.tsx` (Jini admin) — the small "Show in modal" trigger under an MCP-UI surface
+   that overflows its own box. `.jini-mcpui-surface-overflow-wrap` gets no layout rules of its own
    beyond the width cap (`assistant.css`'s `.mcpui-surface-card` rule already covers the card it
    wraps); this is purely the trigger button's own look, styled like the pane's other small
    secondary actions (`.jini-chat-pane__new-thread`) rather than a new visual language. */
-.mcpui-surface-overflow-expand {
+.jini-mcpui-surface-overflow-expand {
   margin-top: 6px;
   padding: 4px 10px;
   border: 1px solid var(--border);
@@ -5348,7 +5348,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   font-size: 12px;
   cursor: pointer;
 }
-.mcpui-surface-overflow-expand:hover { border-color: var(--border-strong); }
+.jini-mcpui-surface-overflow-expand:hover { border-color: var(--border-strong); }
 
 /* Agent Plugin package inspector — Jini's exported `PreviewModalShell` supplies the accessible
    dialog/Escape/close behaviour and `CodeWithLines` supplies the read-only line-number pane. Tovu
