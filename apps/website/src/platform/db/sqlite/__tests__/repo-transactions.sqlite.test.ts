@@ -81,6 +81,7 @@ test("change sets: insert survives another caller's rollback", async () => {
     id: "cs-1",
     workspaceId: WORKSPACE,
     actorId: "user-1",
+    actor: { id: "user-1", kind: "user" as const },
     status: "applied" as const,
     summary: "test change set",
     createdAt: NOW,

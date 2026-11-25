@@ -11,7 +11,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { registerAdminChangeSetGetRoute } from "#src/server/runtime/composition/modules/change-sets";
 import { registerAdminChangeSetListRoute } from "#src/server/runtime/composition/modules/change-sets";
 import type { RouteDeps } from "../../routes/types.js";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
+import type { ChangeSetItemRecord, NewChangeSetRecord } from "@jini-ai/core/contracts/events";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
@@ -36,8 +36,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-function changeSet(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
+function changeSet(overrides: Partial<NewChangeSetRecord> = {}): NewChangeSetRecord {
   return {
+    actorId: "principal-1",
+    actor: { id: "principal-1", kind: "user" },
     id: "cs-get-1",
     workspaceId: WS,
     status: "applied",
@@ -86,7 +88,7 @@ test("change-sets get: an unknown change set id is 404 CHANGE_SET_NOT_FOUND", as
 test("change-sets get: returns the header and every item as DTOs — revertible is derived and the inverse payload is never sent", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  await deps.changeSets.insert({ record: changeSet({ actorId: "principal-7", intentRef: "intent-9" }), items: [
+  await deps.changeSets.insert({ record: changeSet({ actorId: "principal-7", actor: { id: "principal-7", kind: "user" }, intentRef: "intent-9" }), items: [
     item(),
     item({ id: "csi-2", entityId: "entity-2", operation: "create", inversePayload: undefined, entityVersionAtApply: undefined, position: 1 }),
   ] });

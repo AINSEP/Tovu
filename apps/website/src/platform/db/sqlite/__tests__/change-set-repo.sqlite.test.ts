@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
+import type { ChangeSetItemRecord, NewChangeSetRecord } from "@jini-ai/core/contracts/events";
 
 /**
  * @file Direct unit coverage of `change-set-repo.sqlite.ts` — no dedicated unit test file existed
@@ -28,17 +28,23 @@ import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contrac
 
 const WORKSPACE = "workspace-1";
 
-function record(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
+function record(overrides: Partial<NewChangeSetRecord> = {}): NewChangeSetRecord {
   return {
     id: "cs-1",
     workspaceId: WORKSPACE,
     actorId: "user-1",
+    actor: { id: "user-1", kind: "user" },
     status: "applied",
     summary: "test change set",
     createdAt: "2026-09-04T00:00:00.000Z",
     appliedAt: "2026-09-04T00:00:00.000Z",
     ...overrides,
   };
+}
+
+function historicalHeader(): Omit<NewChangeSetRecord, "actor" | "actorId"> {
+  const { actor: _actor, actorId: _actorId, ...rest } = record();
+  return rest;
 }
 
 function item(overrides: Partial<ChangeSetItemRecord> = {}): ChangeSetItemRecord {
@@ -59,9 +65,18 @@ function openRepo(): SqliteChangeSetRepo {
   return new SqliteChangeSetRepo({ store: openContentDb(":memory:") });
 }
 
+/** A change set written before provenance was recorded: new inserts must name an actor, so the
+ *  actor-less historical row is seeded at the read-fixture boundary rather than cast past the insert contract. */
+async function seedHistoricalActorless(): Promise<SqliteChangeSetRepo> {
+  const db = openContentDb(":memory:");
+  const repo = new SqliteChangeSetRepo({ store: db });
+  await repo.insert({ record: record(), items: [item()] });
+  db.$client.prepare("UPDATE change_sets SET actor_id = NULL, actor_kind = NULL WHERE id = 'cs-1'").run();
+  return repo;
+}
+
 test("actorId round-trips as undefined (not null) when the change set has no actor — the null side of `row.actorId ?? undefined`, never hit by any other suite's always-actored fixtures", async () => {
-  const repo = openRepo();
-  await repo.insert({ record: record({ actorId: undefined }), items: [item()] });
+  const repo = await seedHistoricalActorless();
 
   const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
     assert.ok(found, "an actorless change set must still exist");
@@ -70,7 +85,7 @@ test("actorId round-trips as undefined (not null) when the change set has no act
       idempotencyKey: undefined,
       intentRef: undefined,
       revertedAt: undefined,
-      ...record({ actorId: undefined }),
+      ...historicalHeader(),
     });
     assert.deepEqual(found.items, [{
       beforeRevisionId: undefined,

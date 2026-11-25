@@ -12,7 +12,7 @@ import { registerAdminChangeSetRevertRoute } from "#src/server/runtime/compositi
 import { createRevertRegistry } from "@jini-ai/cms/core/commands";
 import type { EntityReverter } from "@jini-ai/core/contracts/site/core-commands";
 import type { RouteDeps } from "../../routes/types.js";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
+import type { ChangeSetItemRecord, NewChangeSetRecord } from "@jini-ai/core/contracts/events";
 import type { PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
@@ -64,8 +64,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-function seededChangeSet(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
+function seededChangeSet(overrides: Partial<NewChangeSetRecord> = {}): NewChangeSetRecord {
   return {
+    actorId: "principal-1",
+    actor: { id: "principal-1", kind: "user" },
     id: "cs-1",
     workspaceId: WS,
     status: "applied",
