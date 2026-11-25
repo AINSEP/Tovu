@@ -24,12 +24,14 @@ test('retaining a sealed owner row cannot bypass a later site revocation', async
 test('a site receives only an active owner key handle and cannot derive owner key bytes', async () => {
   let derivations = 0;
   const keyring = ownerKeyHandleOnly({ keyring: { activeKey: async (...args: unknown[]) => {
-    assert.equal(args.length, 0, 'the host keyring uses its existing zero-argument ABI');
+    // combine-22 (KeyringPort split, bug c): the one owner type is core `KeyringPort.activeKey(_required)`;
+    // the handle-only wrapper must forward the caller's options object unchanged, not drop it.
+    assert.deepEqual(args, [{}], 'the handle-only keyring forwards the one-owner activeKey({}) ABI');
     return { keyId: 'v1' };
   },
     derive: async () => { derivations++; return new Uint8Array(32); },
     deriveSigningSecret: async () => { derivations++; return new Uint8Array(32); } } });
-  assert.deepEqual(await keyring.activeKey(), { keyId: 'v1' });
+  assert.deepEqual(await keyring.activeKey({}), { keyId: 'v1' });
   await assert.rejects(keyring.derive({ workspaceId: 'project', purpose: 'secrets', info: 'anything' }));
   assert.equal(derivations, 0);
 });
