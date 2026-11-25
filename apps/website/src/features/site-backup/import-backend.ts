@@ -8,7 +8,7 @@ import type { CreateSitePort } from "#src/platform/site-dir/index";
 import type { CreateSiteResult } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
-import { importSourceDigest, withoutQuery, type SiteImportRegistry, type SiteImportRecord } from "./import-registry.js";
+import { importSourceDigest, withoutQuery, type SiteImportRegistry, type SiteImportRecord } from "@jini-ai/devops/backup/site/import-registry";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { verifySiteImport } from "./import-verifier.js";

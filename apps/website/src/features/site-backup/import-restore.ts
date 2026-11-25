@@ -5,7 +5,7 @@ import path from "node:path";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { readTemplate } from "#src/platform/site-dir/index";
-import type { VerifiedSiteImport } from "./import-verifier.js";
+import type { VerifiedSiteImport } from "@jini-ai/devops/backup/site/import-verifier";
 import type { ImportedExtensionState } from "@jini-ai/devops/backup/site/import-plugin-state";
 import { restoreImportedPluginState } from "./import-plugin-state.js";
 import { liveThemeTrees, restoreDestination } from "@jini-ai/devops/backup/site/import-restore-placement";

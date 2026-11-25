@@ -17,7 +17,7 @@ import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { MAX_SECRET_SCAN_BYTES } from "#src/features/publish-content/file-tree-policy";
+import { MAX_SECRET_SCAN_BYTES } from "@jini-ai/cms/publish/content/file-tree-policy";
 import { MIGRATION_STAGING_DIR_PREFIX } from "../theme-discovery.js";
 
 function makeThemesDir(): string {

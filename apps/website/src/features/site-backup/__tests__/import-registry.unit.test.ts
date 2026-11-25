@@ -10,7 +10,8 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import { reconcileInterruptedImports, requireStagingBudget } from "../import-backend-steps.js";
-import { SiteImportRegistry, type SiteImportRecord, type SiteImportUpload } from "../import-registry.js";
+import type { SiteImportRecord, SiteImportUpload } from "@jini-ai/devops/backup/site/import-registry";
+import { SiteImportRegistry } from "../import-registry.js";
 
 const NOW = Date.UTC(2026, 0, 1);
 const HOUR = 3_600_000;

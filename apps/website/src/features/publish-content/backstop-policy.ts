@@ -1,4 +1,4 @@
-import { checkTreePath, credentialBaseName, normalizeMode } from "./file-tree-policy.js";
+import { checkTreePath, credentialBaseName, normalizeMode } from "@jini-ai/cms/publish/content/file-tree-policy";
 import type { RawBackstopPolicy, RawFilePolicy } from "@jini-ai/cms/publish/content/backstop-refusal";
 import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 

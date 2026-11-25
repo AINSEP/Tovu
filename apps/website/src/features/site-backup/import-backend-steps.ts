@@ -5,7 +5,7 @@ import { FetchTimeoutError } from "@jini-ai/platform/fetch-with-timeout";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
-import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
+import type { SiteImportRegistry, SiteImportRecord } from "@jini-ai/devops/backup/site/import-registry";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "./share-policy.js";
 

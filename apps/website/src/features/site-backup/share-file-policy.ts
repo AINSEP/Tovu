@@ -1,6 +1,6 @@
 import { createShareFilePolicy } from "@jini-ai/devops/backup/site/share-file-policy";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import { checkTreePath } from "../publish-content/file-tree-policy.js";
+import { checkTreePath } from "@jini-ai/cms/publish/content/file-tree-policy";
 import { SHARE_LIMITS } from "./share-policy.js";
 
 /** The engine share file policy bound to Tovu's secret shapes (incl. the host API-key rule),
