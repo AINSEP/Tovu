@@ -409,7 +409,7 @@ function PageVersionConflictBanner({
     >
       <p>{pageVersionConflictMessage({ t, ...saveConflict })}</p>
       <p>{t("Loading the latest version discards your unsaved edits.")}</p>
-      <button type="button" className="btn-secondary" onClick={onLoadLatest}>{t("Load latest")}</button>
+      <button type="button" className="btn-secondary" onClick={onLoadLatest} {...agentHandle({ handle: "page-version-conflict-load-latest" }, { role: "button", label: "Load latest version, discarding my unsaved edits" })}>{t("Load latest")}</button>
       <button
         type="button"
         className="btn-secondary"
