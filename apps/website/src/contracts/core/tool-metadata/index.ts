@@ -50,7 +50,7 @@ import { createSiteBackupToolMetadata } from '@jini-ai/core/tool-metadata/site-b
 import { toolMetadata as site_evidence } from '@jini-ai/core/tool-metadata/site-evidence';
 import { createSiteGuideToolMetadata } from '@jini-ai/core/tool-metadata/site-guide';
 import { toolMetadata as site_inspection } from '@jini-ai/core/tool-metadata/site-inspection';
-import { toolMetadata as site_update } from './site-update.js';
+import { toolMetadata as site_update } from '@jini-ai/core/tool-metadata/site-update';
 import { toolMetadata as sites } from '@jini-ai/core/tool-metadata/sites';
 import { toolMetadata as skills } from '@jini-ai/core/tool-metadata/skills';
 import { toolMetadata as source_control } from '@jini-ai/core/tool-metadata/source-control';

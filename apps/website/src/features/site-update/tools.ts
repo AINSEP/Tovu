@@ -8,7 +8,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import { checkForUpdateFromFeed, runSiteUpdate, type MigrationReadinessPort, type ReleaseFeedPort, type SiteBackupPort, type SiteUpdatePlan, type SiteUpdatePort } from "@jini-ai/devops/deploy";
 import { approvalToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import type { IdGenerator } from "@jini-ai/core/primitives";
-import { toolMetadata } from "../../contracts/core/tool-metadata/site-update.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/site-update";
 
 export const SITE_UPDATE_CHECK_TOOL_ID = "site_update_check";
 export const SITE_UPDATE_APPLY_TOOL_ID = "site_update_apply";
