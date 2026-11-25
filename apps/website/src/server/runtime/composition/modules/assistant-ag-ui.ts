@@ -198,6 +198,7 @@ async function handleDurableAgUiRun(
     conversationId: identity.conversationId, messageId: identity.assistantMessageId,
     request: { ...(run.agentId ? { agentId: run.agentId } : {}), contextRef: agUiContextRef({ run, principalId }, { identity }) } }, {});
   if (!accepted) { res.status(404).json({ error: "not found", code: "NOT_FOUND" }); return; }
+  if (accepted.message.runStatus === "canceled") { answerStoppedAgUiRun({ req, res, run, accepted }, {}); return; }
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let detached = false;
   res.on("close", () => { detached = true; reader?.cancel().catch(() => undefined); });
@@ -209,6 +210,20 @@ async function handleDurableAgUiRun(
   writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: accepted.conversationId, runId: accepted.runId });
   await drainRunFramesToAgUi({ reader: subscribed, threadId: accepted.conversationId, runId: accepted.runId, state: createAgUiTranslationState(AG_UI_TRANSLATION),
     notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE, failureMessage: AG_UI_FAILURE_MESSAGE });
+  res.end();
+}
+
+/** A Stop that beat acceptance (by message id) leaves a terminal tombstone the acceptance replays
+ *  without launching anything, so there is no daemon stream to follow. Answer it as the ordinary
+ *  end of an intentionally stopped run — never as an error banner — and let the client read the
+ *  saved "Stopped." message from the existing checkpoint.
+ * @complexity O(1). */
+function answerStoppedAgUiRun(
+  { req, res, run, accepted }: { req: Request; res: Response; run: AgUiRunInput; accepted: { runId: string; conversationId: string } }, _optional = {},
+): void {
+  beginAgUiStream(req, res, run.requestId);
+  writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: accepted.conversationId, runId: accepted.runId });
+  writeAgUiEvent(res, { type: EventType.RUN_FINISHED, threadId: accepted.conversationId, runId: accepted.runId });
   res.end();
 }
 

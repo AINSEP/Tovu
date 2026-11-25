@@ -6,6 +6,8 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import express from "express";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/index.js";
 import { resetAssistantDaemonSingletonForTests, startAssistantDaemon } from "../runtime/lifecycle/daemon-supervisor.js";
@@ -16,15 +18,20 @@ import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
  * @file The AG-UI durable start against the REAL acceptance and the in-memory root's real SQLite
  * run ledger — only the daemon process is a stand-in. Proves the server half of the resume gate:
  * one accepted run per assistant message, one daemon launch, and `RUN_STARTED` naming the durable
- * run id rather than the client's per-request segment id; plus the detach half of Stop: a durable
- * reader's disconnect closes only its subscription.
+ * run id rather than the client's per-request segment id; plus both halves of Stop: a durable
+ * reader's disconnect closes only its subscription, while an explicit Stop through the real
+ * `/api/runs/:runId/cancel` route (by message id before or during acceptance, by run id after)
+ * cancels the owned daemon run exactly once. The stand-in daemon, like the real one, has no event
+ * stream for a run it never launched, so an orphan subscribe cannot pass as a stopped run.
  */
 
 const TOKEN = "e".repeat(64);
+const launched = new Set<string>();
 let launches: Array<{ runId?: string; idempotencyKey?: string; contextRef?: string }> = [];
 let cancels: string[] = [];
-let eventsMode: "answer" | "stays-open" = "answer";
+let eventsMode: "answer" | "stays-open" | "held" = "answer";
 let subscribed: (() => void) | null = null;
+let release: (() => void) | null = null;
 
 function frame(runId: string, kind: string, payload: unknown): string {
   return `event: ${kind}\ndata: ${JSON.stringify({ runId, eventId: "e", opaqueCursor: "0", protocolVersion: 1, ts: 0, kind, payload, durability: "durable" })}\n\n`;
@@ -39,14 +46,18 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
       if (req.method === "POST" && url === "/api/runs") {
         const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { runId?: string; idempotencyKey?: string; contextRef?: string };
         launches.push(body);
+        if (body.runId) launched.add(body.runId);
         res.writeHead(201, { "content-type": "application/json" }).end(JSON.stringify({ run: { id: body.runId } }));
         return;
       }
       const events = url.match(/^\/api\/runs\/([^/?]+)\/events/);
       if (events) {
         const runId = decodeURIComponent(events[1]!);
+        // Like the real daemon, a run that was never launched has no event stream.
+        if (!launched.has(runId)) { res.writeHead(404, { "content-type": "application/json" }).end(JSON.stringify({ error: "run not found" })); return; }
         res.writeHead(200, { "content-type": "text/event-stream" });
         subscribed?.();
+        if (eventsMode === "held" && !release) { res.flushHeaders(); release = () => res.end(frame(runId, "end", { reason: "cancelled", status: "canceled" })); return; }
         if (eventsMode === "stays-open") { res.write(frame(runId, "agent", { type: "text_delta", delta: "Still working." })); return; }
         res.write(frame(runId, "agent", { type: "text_delta", delta: "Durable answer." }));
         res.end(frame(runId, "end", { reason: "stop", status: "succeeded" }));
@@ -87,13 +98,18 @@ async function boot(t: import("node:test").TestContext) {
   app.use(express.json());
   registerAuthRoutes({ app, deps });
   createAssistantAgUiModule(deps).registerRoutes?.({ app });
+  // The real owned Stop route the admin dock posts to, so Stop is proven against the same ledger.
+  const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
+  const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
+  createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }),
+    byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
-  launches = []; cancels = []; eventsMode = "answer"; subscribed = null;
+  launches = []; cancels = []; eventsMode = "answer"; subscribed = null; release = null;
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
   // The owner's conversation exists first, as the admin chat creates it before any run starts.
   const history = deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: me.user.id });
-  for (const id of ["conv-durable-1", "conv-durable-2"]) await history.create({ id });
+  for (const id of ["conv-durable-1", "conv-durable-2", "conv-stop-1", "conv-stop-2", "conv-stop-3", "conv-stop-4"]) await history.create({ id });
   return { baseUrl, cookie, deps };
 }
 
@@ -147,4 +163,92 @@ test("a durable AG-UI reader disconnect is a detach: it closes its subscription 
   assert.deepEqual(cancels, [], "a disconnect is not an explicit Stop");
   const run = await deps.chatRunLedger.durable!.load({ messageId: "msg-durable-2" }, {});
   assert.equal(run?.cancelReason ?? null, null, "the owned run is not cancelled by a detach");
+});
+
+async function stopRun({ baseUrl, cookie }: { baseUrl: string; cookie: string }, { runId = "pending", messageId, conversationId }: { runId?: string; messageId?: string; conversationId?: string } = {}) {
+  return fetch(`${baseUrl}/api/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify(messageId && conversationId ? { messageId, conversationId } : {}) });
+}
+
+function postDurable({ baseUrl, cookie }: { baseUrl: string; cookie: string }, { conversationId, messageId, signal }: { conversationId: string; messageId: string; signal?: AbortSignal }) {
+  return fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, { method: "POST", headers: { "content-type": "application/json", cookie },
+    body: durableBody({ conversationId, messageId }), ...(signal ? { signal } : {}) });
+}
+
+async function readUntilStarted(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+  let text = "";
+  while (!/RUN_STARTED/.test(text)) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    text += new TextDecoder().decode(chunk.value);
+  }
+  return String(parse(text).find((e) => e.type === "RUN_STARTED")?.runId ?? "");
+}
+
+test("Stop reaches an AG-UI run before headers, during subscribe, streaming and parked approval", { timeout: 60_000 }, async (t) => {
+  const ctx = await boot(t);
+  const ledger = ctx.deps.chatRunLedger.durable!;
+
+  await t.test("before acceptance: Stop by message id leaves no orphan start and no error", async () => {
+    assert.equal((await stopRun(ctx, { messageId: "msg-stop-1", conversationId: "conv-stop-1" })).status, 200);
+    const res = await postDurable(ctx, { conversationId: "conv-stop-1", messageId: "msg-stop-1" });
+    assert.equal(res.status, 200, await res.clone().text());
+    const events = parse(await res.text());
+    assert.equal(launches.length, 0, "a Stop that beat acceptance launches nothing");
+    assert.equal(events.filter((e) => e.type === "RUN_ERROR").length, 0, "an intentional Stop is not an error banner");
+    assert.equal(events.at(-1)?.type, "RUN_FINISHED");
+    assert.equal((await ledger.load({ messageId: "msg-stop-1" }, {}))?.message.runStatus, "canceled");
+  });
+
+  await t.test("during subscribe: Stop by message id cancels the accepted run once", async () => {
+    eventsMode = "held";
+    const subscribing = new Promise<void>((resolve) => { subscribed = resolve; });
+    const pending = postDurable(ctx, { conversationId: "conv-stop-2", messageId: "msg-stop-2" });
+    await subscribing;
+    assert.equal((await stopRun(ctx, { messageId: "msg-stop-2", conversationId: "conv-stop-2" })).status, 200);
+    release?.();
+    const events = parse(await (await pending).text());
+    const run = await ledger.load({ messageId: "msg-stop-2" }, {});
+    assert.equal(run?.cancelReason, "user-stop");
+    assert.deepEqual(cancels, [run?.runId], "the daemon run is cancelled exactly once");
+    assert.equal(launches.length, 1);
+    assert.equal(events.filter((e) => e.type === "RUN_ERROR").length, 0);
+  });
+
+  await t.test("streaming: Stop by durable run id cancels the daemon run, not just the reader", async () => {
+    cancels = []; launches = []; eventsMode = "stays-open";
+    const controller = new AbortController();
+    const res = await postDurable(ctx, { conversationId: "conv-stop-3", messageId: "msg-stop-3", signal: controller.signal });
+    const reader = res.body!.getReader();
+    const runId = await readUntilStarted(reader);
+    assert.equal((await stopRun(ctx, { runId })).status, 200);
+    controller.abort();
+    await reader.cancel().catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.deepEqual(cancels, [runId], "explicit Stop reaches the daemon run once; the reader close adds nothing");
+    assert.equal((await ledger.load({ messageId: "msg-stop-3" }, {}))?.cancelReason, "user-stop");
+  });
+});
+
+test("Stop after reopen cancels the owned run once", { timeout: 60_000 }, async (t) => {
+  const ctx = await boot(t);
+  eventsMode = "stays-open";
+  const first = new AbortController();
+  const firstReader = (await postDurable(ctx, { conversationId: "conv-stop-4", messageId: "msg-stop-4", signal: first.signal })).body!.getReader();
+  const runId = await readUntilStarted(firstReader);
+  first.abort();
+  await firstReader.cancel().catch(() => undefined);
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.deepEqual(cancels, [], "a physical reload is a detach, not a Stop");
+
+  const reopened = new AbortController();
+  const reopenedReader = (await postDurable(ctx, { conversationId: "conv-stop-4", messageId: "msg-stop-4", signal: reopened.signal })).body!.getReader();
+  assert.equal(await readUntilStarted(reopenedReader), runId, "reopen follows the same owned run");
+  assert.equal((await stopRun(ctx, { runId })).status, 200);
+  reopened.abort();
+  await reopenedReader.cancel().catch(() => undefined);
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.deepEqual(cancels, [runId], "Stop after reopen cancels the owned run exactly once");
+  assert.equal(launches.length, 1, "neither reopen nor Stop launches another executor");
+  assert.equal((await ctx.deps.chatRunLedger.durable!.load({ messageId: "msg-stop-4" }, {}))?.cancelReason, "user-stop");
 });
