@@ -20,7 +20,7 @@ import {
   type StaticPublishProjectNameCopy,
 } from "../rules";
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
-import type { StaticPublishPort } from "./static-publish-port.hooks";
+import type { StaticPublishPort } from "@jini-ai/core/contracts/site/deployment-admin";
 
 import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "The publish service returned no explanation. Check publish status before trying again, and report this message if the problem continues.";
@@ -141,7 +141,7 @@ const PUBLISH_POLL_INTERVAL_MS = 1500;
  *  {@link StaticPublishController.pollError} instead of retrying forever. */
 const PUBLISH_POLL_FAILURE_LIMIT = 3;
 
-export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort; t: Translate; locale: string }, _options = {}): StaticPublishController {
+export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort<AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminPublishRunSnapshot>; t: Translate; locale: string }, _options = {}): StaticPublishController {
   const targetsQuery = useFetchQuery({ key: ["deployment", "publish-targets"], fetch: () => port.listPublishTargets() });
   // The host's own text in the viewer's locale, once, so every consumer (this form, the credential
   // rows built from these targets) renders it translated.

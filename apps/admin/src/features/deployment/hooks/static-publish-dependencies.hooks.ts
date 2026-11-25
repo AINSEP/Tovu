@@ -1,10 +1,10 @@
-import type { AdminPublishRunSnapshot, AdminStaticPublishPreview } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import type { AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { deploymentApi } from "@/features/deployment/deployment-host-ports";
-import type { StaticPublishPort } from "./static-publish-port.hooks";
+import type { StaticPublishPort } from "@jini-ai/core/contracts/site/deployment-admin";
 
 /** The live implementation, as a module-level singleton — matches
  *  `static-export-dependencies.hooks.ts`'s `defaultStaticExportPort`. */
-export const defaultStaticPublishPort: StaticPublishPort = {
+export const defaultStaticPublishPort: StaticPublishPort<AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminPublishRunSnapshot> = {
   listPublishTargets: () => deploymentApi.getPublishTargets(),
   getPublishPreview: (config, _options = {}) => deploymentApi.getPublishPreview(config),
   triggerPublish: (input, _options = {}) => deploymentApi.triggerPublish(input),
@@ -17,12 +17,12 @@ export const defaultStaticPublishPort: StaticPublishPort = {
  *  test supplies exactly the ones it exercises. */
 export function createFakeStaticPublishPort(
   overrides: {
-    listPublishTargets?: StaticPublishPort["listPublishTargets"];
-    getPublishPreview?: StaticPublishPort["getPublishPreview"];
-    triggerPublish?: StaticPublishPort["triggerPublish"];
+    listPublishTargets?: StaticPublishPort<AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminPublishRunSnapshot>["listPublishTargets"];
+    getPublishPreview?: StaticPublishPort<AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminPublishRunSnapshot>["getPublishPreview"];
+    triggerPublish?: StaticPublishPort<AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminPublishRunSnapshot>["triggerPublish"];
     getPublishStatus?: () => Promise<AdminPublishRunSnapshot>;
   } = {}
-): StaticPublishPort {
+): StaticPublishPort<AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminPublishRunSnapshot> {
   const idlePreview: AdminStaticPublishPreview = {
     target: "example-host",
     valid: false,

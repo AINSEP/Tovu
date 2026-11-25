@@ -1,3 +1,4 @@
+import { shouldRetryAfterReconnect } from "@jini-ai/admin/browser/server-reconnect";
 import { decodeApiError } from "@jini-ai/protocol";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { createAdminHttp } from "@jini-ai/admin/shell/lib/admin-http/request";
@@ -5,7 +6,7 @@ import type { AdminHttpOptions } from "@jini-ai/core/admin-runtime";
 
 import { adminFailureChannel, isPageWideFailure, publishAdminFailure } from "../admin-failure-channel";
 import { isPageUnloading } from "@jini-ai/admin/shell/lib/page-lifecycle";
-import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE } from "../server-reconnect";
+import { serverReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE } from "../server-reconnect";
 import { BASE } from "@jini-ai/admin/shell/lib/admin-http/config";
 
 

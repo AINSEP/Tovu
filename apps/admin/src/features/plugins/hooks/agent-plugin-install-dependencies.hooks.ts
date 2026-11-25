@@ -1,21 +1,14 @@
+import { createAgentPluginInstallPort } from "@jini-ai/agent-plugins/react/agent-plugin-install-port";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import type { AgentPluginInstallPort, AgentPluginInstallResult } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 
 /** The live upload, through the shared authenticated request seam (session expiry, API prefix). */
-export const defaultAgentPluginInstallPort: AgentPluginInstallPort = {
-  installZip: ({ file, sha256, replace = false, update }) =>
-    authenticatedAdminRequest<AgentPluginInstallResult>({
-      path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${update ? encodeURIComponent(update.pluginId) + "/update/zip" : "install/zip"}?${new URLSearchParams({ expectedSha256: sha256, replace: String(replace), ...(update ? { expectedOldDigest: update.expectedOldDigest } : {}) })}`,
-      method: "POST",
-      body: file.slice(0, file.size, "application/zip"),
-    }),
-  sha256: async ({ file }) => {
-    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  },
-};
+export const defaultAgentPluginInstallPort = createAgentPluginInstallPort<AgentPluginInstallResult>({
+  request: authenticatedAdminRequest, workspaceId: WORKSPACE_ID,
+  digest: (algorithm, data) => crypto.subtle.digest(algorithm, data),
+}, {}) satisfies AgentPluginInstallPort;
 
 /** An in-memory {@link AgentPluginInstallPort}: answers with `row` (and `warnings`), or rejects
  *  with `failWith`. An update's target is recorded with its upload. */

@@ -3,7 +3,7 @@ import type { PostCoverImageBindings } from "@jini-ai/cms/react/posts/PostCoverI
 import { defaultMediaPickerPort } from "@/components/MediaPickerDialog/media-picker-dependencies.hooks";
 import { defaultFeaturedImageRenditionUrl } from "./post-editor-dependencies.hooks";
 import { adminKit } from "@/integrations/jini-kits";
-import { MediaPickerDialog } from "@/components/MediaPickerDialog/MediaPickerDialog";
+import { MediaPickerDialog } from "@/components/MediaPickerDialog/media-picker-host";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
 

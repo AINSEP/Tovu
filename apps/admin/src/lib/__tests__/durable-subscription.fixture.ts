@@ -1,5 +1,6 @@
+import type { DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
+import { followDurableRun } from "../durable-run-subscription";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 export function durableSubscriptionFixture(

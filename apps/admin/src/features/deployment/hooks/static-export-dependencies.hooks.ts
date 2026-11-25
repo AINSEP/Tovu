@@ -1,6 +1,6 @@
 import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 import { importExportApi } from "@/features/import-export/api/import-export-api";
-import type { StaticExportPort } from "./static-export-port.hooks";
+import type { StaticExportPort } from "@jini-ai/core/contracts/site/deployment-admin";
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */

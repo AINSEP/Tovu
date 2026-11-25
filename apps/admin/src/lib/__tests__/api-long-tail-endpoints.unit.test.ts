@@ -7,7 +7,7 @@ import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
 import { collectionsApi } from "../../features/collections/collections-host-ports";
 import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { authApi } from "../../features/auth/api/auth-api";
-import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
+import { publishContentApi } from "../../features/publish-content/hooks/publish-content-dependencies.hooks";
 import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { pagesApi } from "../../features/pages/api/pages-api";

@@ -1,4 +1,4 @@
-import { parsePublishContentToolInput, PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
+import { parsePublishContentToolInput, PUBLISH_CONTENT_CAPABILITY, PUBLISH_CRITERIA_QUERY_PARAM, decodePublishCriteriaFromQuery } from "@tovu/publish-content-ui";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
@@ -31,7 +31,7 @@ import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/owner-clients";
-import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
+import { takePublishCriteriaFromQuery } from "@jini-ai/cms/react/publish-content/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import { readPublishToLiveAvailability } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import {
@@ -231,7 +231,7 @@ export function usePublishCriteriaDeepLink(
   useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
-    const criteria = takePublishCriteriaFromQuery({ location: window.location, history: window.history });
+    const criteria = takePublishCriteriaFromQuery({ location: window.location, history: window.history, parameter: PUBLISH_CRITERIA_QUERY_PARAM, decode: decodePublishCriteriaFromQuery });
     if (criteria !== null) void request(criteria);
   }, [request]);
 }

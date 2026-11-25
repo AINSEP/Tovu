@@ -8,7 +8,7 @@ import { Seo } from '@jini-ai/admin/screens/seo';
 import { AdminModulesContext, createHostAdminScope, useModulePanel, bindModuleLoading } from '../modules.hooks';
 import { seoEvents } from '../seo-ports';
 import { SeoMediaPickerSlot, SeoModuleLoading } from '../seo-module.hooks';
-import { MediaPickerDialog } from '../../../components/MediaPickerDialog/MediaPickerDialog';
+import { MediaPickerDialog } from '../../../components/MediaPickerDialog/media-picker-host';
 import { tovuKit } from '../kit';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';

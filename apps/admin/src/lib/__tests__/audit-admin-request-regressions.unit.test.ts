@@ -1,14 +1,15 @@
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { afterEach, expect, it, vi } from "vitest";
-import { ApiError, onUnauthenticated } from "../admin-http/request";
+import { ApiError, onUnauthenticated, authenticatedAdminRequest } from "../admin-http/request";
 import { listSkills, enableSkill, loadSkillDraft } from "../../features/skills/api";
-import { createInstalledSkillsComposerCapabilitySource } from "../../features/plugins/installed-skills-composer-source";
+import { createInstalledSkillsComposerCapabilitySource } from "@jini-ai/agent-plugins/react/installed-skills-composer-source";
 import { reloadThemePreviews } from "../../features/themes/theme-preview-refresh";
 
 afterEach(() => vi.unstubAllGlobals());
 
 for (const [name, call, degrades] of [
   ["skills API", () => listSkills(), false],
-  ["installed skills composer", () => createInstalledSkillsComposerCapabilitySource().list(), true],
+  ["installed skills composer", () => createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {}).list(), true],
   ["theme preview reload", () => reloadThemePreviews(), false],
 ] as const) {
   it(`${name} invalidates an expired admin session`, async () => {

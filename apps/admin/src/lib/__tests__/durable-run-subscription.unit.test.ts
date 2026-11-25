@@ -1,6 +1,8 @@
+import { browserDurableSubscriptionPorts as createBrowserPorts } from "@jini-ai/chat/transports/http";
+import type { DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 import { expect, test, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { browserDurableSubscriptionPorts, followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
+import { browserDurableSubscriptionPorts, followDurableRun } from "../durable-run-subscription";
 import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
 import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
@@ -210,7 +212,7 @@ test("browser durable ports recover by message identity, read a checkpoint witho
     new Response("{}", { status: 503 }),
     new Response(JSON.stringify({ message: { id: "plain", role: "assistant", content: "" } }), { status: 200 }),
   ];
-  const ports = browserDurableSubscriptionPorts({}, { request: async (url, init) => { requests.push([String(url), init!]); return replies.shift()!; } });
+  const ports = createBrowserPorts({ runPath: ({ runId }) => `/api/runs/${encodeURIComponent(runId)}`, open: url => new EventSource(url), schedule: () => () => {}, request: async (url, init) => { requests.push([String(url), init!]); return replies.shift()!; } });
   expect(await ports.read({ runId: "run/1", messageId: "answer" }, {})).toEqual({ id: "answer", role: "assistant", content: "saved" });
   expect(await ports.read({ runId: "run/1", messageId: "answer" }, { recover: false })).toBe("gone");
   expect(await ports.read({ runId: "run/1", messageId: "a b" }, { recover: false })).toBeNull();
@@ -226,7 +228,7 @@ test("browser durable ports recover by message identity, read a checkpoint witho
 test("browser durable ports stream frames after the cursor, and an empty native error closes and reports a drop", () => {
   const opened: string[] = [];
   const sources: ReturnType<typeof fakeSource>[] = [];
-  const ports = browserDurableSubscriptionPorts({}, { open: (url) => { opened.push(url); const fake = fakeSource(); sources.push(fake); return fake.source; } });
+  const ports = createBrowserPorts({ runPath: ({ runId }) => `/api/runs/${encodeURIComponent(runId)}`, request: fetch, schedule: () => () => {}, open: (url) => { opened.push(url); const fake = fakeSource(); sources.push(fake); return fake.source; } });
   const frames: [string, string, string][] = [];
   let drops = 0;
   const stop = ports.stream({ runId: "run 1", cursor: "c/9", frame: (kind, data, id) => frames.push([kind, data, id]), dropped: () => { drops++; } }, {});
@@ -246,7 +248,7 @@ test("browser durable ports stream frames after the cursor, and an empty native 
 test("browser durable ports delegate scheduling, and the defaults use EventSource and a cancellable timer", () => {
   const scheduled: number[] = [];
   const cancel = () => {};
-  const injected = browserDurableSubscriptionPorts({}, { schedule: ({ delayMs }) => { scheduled.push(delayMs); return cancel; } });
+  const injected = createBrowserPorts({ runPath: ({ runId }) => `/api/runs/${encodeURIComponent(runId)}`, request: fetch, open: url => new EventSource(url), schedule: ({ delayMs }) => { scheduled.push(delayMs); return cancel; } });
   expect(injected.schedule({ work: () => {}, delayMs: 250 }, {})).toBe(cancel);
   expect(scheduled).toEqual([250]);
 
@@ -288,7 +290,7 @@ test('routine polls send the prior ETag and skip JSON parsing on unchanged repli
   const parse = vi.spyOn(unchanged, 'json');
   const message = { id: 'answer', role: 'assistant', content: 'saved' };
   const replies = [Response.json({ message }, { headers: { ETag: '"boot:12:1"' } }), unchanged];
-  const ports = browserDurableSubscriptionPorts({}, { request: async (_url, init) => { reads.push(init!); return replies.shift()!; } });
+  const ports = createBrowserPorts({ runPath: ({ runId }) => `/api/runs/${encodeURIComponent(runId)}`, open: url => new EventSource(url), schedule: () => () => {}, request: async (_url, init) => { reads.push(init!); return replies.shift()!; } });
   expect(await ports.read({ runId: 'run', messageId: 'answer' }, { recover: false })).toEqual(message);
   expect(await ports.read({ runId: 'run', messageId: 'answer' }, { recover: false })).toBeNull();
   expect(reads[1]?.headers).toEqual({ 'If-None-Match': '"boot:12:1"' });

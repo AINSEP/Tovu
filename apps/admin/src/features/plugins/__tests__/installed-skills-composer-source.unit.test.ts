@@ -1,6 +1,8 @@
+import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createInstalledSkillsComposerCapabilitySource } from "../installed-skills-composer-source";
+import { createInstalledSkillsComposerCapabilitySource } from "@jini-ai/agent-plugins/react/installed-skills-composer-source";
 
 /**
  * @file Regression coverage for the installed-skills `ComposerCapabilitySource`
@@ -33,7 +35,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
       .mockResolvedValueOnce(jsonResponse({ skills: [{ ...skill, description: "Changed" }] }, { headers: { ETag: 'W/"two"' } }))
       .mockResolvedValueOnce(jsonResponse({ skills: [{ ...skill, description: "Changed" }] }, { headers: { ETag: 'W/"two"' } }));
     vi.stubGlobal("fetch", fetchMock);
-    const source = createInstalledSkillsComposerCapabilitySource();
+    const source = createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {});
     const first = await source.list();
     expect(first).toHaveLength(1);
     expect(await source.list()).toBe(first);
@@ -55,7 +57,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
       .mockResolvedValueOnce(jsonResponse({ error: "unavailable" }, { status: 500 }))
       .mockResolvedValueOnce(jsonResponse({ skills: [{ toolId: "skill_recovered", name: "Recovered", description: "Ready" }] }));
     vi.stubGlobal("fetch", fetchMock);
-    const source = createInstalledSkillsComposerCapabilitySource();
+    const source = createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {});
     for (let attempt = 0; attempt < 3; attempt++) expect(await source.list()).toEqual([]);
     expect((await source.list())[0]?.item.id).toBe("installed-skill:skill_recovered");
     expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -68,7 +70,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
       .mockResolvedValueOnce(jsonResponse({ error: "unavailable" }, { status: 500 }))
       .mockResolvedValueOnce(new Response(null, { status: 304 }));
     vi.stubGlobal("fetch", fetchMock);
-    const source = createInstalledSkillsComposerCapabilitySource();
+    const source = createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {});
     const first = await source.list();
     expect(await source.reload()).toBe(first);
     expect(await source.reload()).toBe(first);
@@ -82,7 +84,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
       .mockImplementationOnce(() => new Promise<Response>(resolve => { release = resolve; }))
       .mockResolvedValueOnce(jsonResponse({ skills: [{ toolId: "skill_new", name: "New", description: "Current" }] }, { headers: { ETag: 'W/"new"' } }));
     vi.stubGlobal("fetch", fetchMock);
-    const source = createInstalledSkillsComposerCapabilitySource();
+    const source = createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {});
     const initial = source.list();
     expect(source.list()).toBe(initial);
     await initial;
@@ -100,7 +102,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     const cancellation = new DOMException("request cancelled: the page is unloading", "AbortError");
     const request = vi.fn(async () => { throw cancellation; });
-    const source = createInstalledSkillsComposerCapabilitySource({}, { request });
+    const source = createInstalledSkillsComposerCapabilitySource({ request, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {});
 
     await expect(source.list()).resolves.toEqual([]);
     expect(request).toHaveBeenCalledExactlyOnceWith({ path: "/workspaces/workspace-local/skills", method: "GET" }, {
@@ -112,7 +114,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
   it("still reports a genuine enumeration failure while preserving the bundled-catalog fallback", async () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     const failure = new TypeError("fetch failed");
-    const source = createInstalledSkillsComposerCapabilitySource({}, {
+    const source = createInstalledSkillsComposerCapabilitySource({ path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error),
       request: async () => { throw failure; },
     });
 
@@ -138,7 +140,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const capabilities = await createInstalledSkillsComposerCapabilitySource().list();
+    const capabilities = await createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {}).list();
 
     expect(capabilities).toHaveLength(1);
     const [capability] = capabilities;
@@ -168,7 +170,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
   it("degrades to an empty list on a non-2xx response, rather than throwing", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ error: "nope" }, { ok: false, status: 500 })));
 
-    await expect(createInstalledSkillsComposerCapabilitySource().list()).resolves.toEqual([]);
+    await expect(createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {}).list()).resolves.toEqual([]);
   });
 
   it("degrades to an empty list on a network failure, rather than rejecting", async () => {
@@ -178,13 +180,13 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     // `projectComposerCapabilities` runs every source through one `Promise.all`, so a
     // rejection here would take the bundled catalog down with it (see this source's own
     // module doc).
-    await expect(createInstalledSkillsComposerCapabilitySource().list()).resolves.toEqual([]);
+    await expect(createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {}).list()).resolves.toEqual([]);
   });
 
   it("degrades to an empty list on a malformed body — no 'skills' array — rather than throwing", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ notSkills: [] })));
 
-    await expect(createInstalledSkillsComposerCapabilitySource().list()).resolves.toEqual([]);
+    await expect(createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {}).list()).resolves.toEqual([]);
   });
 
   it("filters out a malformed individual entry rather than letting it corrupt the whole batch", async () => {
@@ -201,7 +203,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
       ),
     );
 
-    const capabilities = await createInstalledSkillsComposerCapabilitySource().list();
+    const capabilities = await createInstalledSkillsComposerCapabilitySource({ request: authenticatedAdminRequest, path: `/workspaces/${WORKSPACE_ID}/skills`, isNotModified: error => error instanceof ApiError && error.status === 304, reportFailure: (message, error) => console.error(message, error) }, {}).list();
 
     expect(capabilities).toHaveLength(1);
     expect(capabilities[0]?.item.id).toBe("installed-skill:skill_incident_response");
