@@ -3,6 +3,7 @@ import { onTovuSecretRedacted } from "../../lib/shell-collaborators";
 import { subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
+import { useDockChatCleanup } from "@/hooks/assistant-chats-dependencies.hooks";
 import { DockLeadingAccessory } from "@jini-ai/admin/shell/components/AssistantDock/DockLeadingAccessory";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
@@ -111,7 +112,7 @@ function chatPaneChromeProps(dock: DockState) {
          */
         header: <DockHeader chats={chats} activeTitle={activeTitle} mode={executionConfig.mode} agentId={localCliSelection.agentId}
             locale={locale} t={t} chatI18n={chatI18n} conversationDelete={conversationDelete} chatDisplay={chatDisplay}
-            agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} />
+            agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} useChatCleanup={useDockChatCleanup} />
         ,
         title: t({ key: "Tovu assistant" }),
         placeholder: t({ key: "Ask the assistant to do something…" }),

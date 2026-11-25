@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DockHeader, type DockHeaderProps } from "../DockHeader";
+import { defaultConversationListHooks } from "@jini-ai/chat/react";
+import { chatCleanupCopy } from "../chat-cleanup-copy";
 import { createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 import { CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
 import { DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
@@ -32,6 +34,10 @@ function headerProps(overrides: Partial<DockHeaderProps> = {}): DockHeaderProps 
     agentPlugins: { mode: "auto", update: vi.fn(), saveFailed: false },
     onMoreSettings: undefined,
     empty: false,
+    useChatCleanup: () => ({ listHooks: defaultConversationListHooks, kit: { Button: "button" }, copy: chatCleanupCopy({ t: ({ key }) => key, locale: "en", untitled: "Untitled" }),
+      open: false, setOpen: vi.fn(), olderThanDays: 90, setOlderThanDays: vi.fn(), selectedIds: [], select: vi.fn(), togglePin: vi.fn(),
+      visibleConversations: ({ conversations }) => conversations, deleteSelected: vi.fn(), error: null,
+      useDialog: () => ({ state: "preview", count: 0, bytes: 0, kept: [], preview: vi.fn(), choose: vi.fn(), apply: vi.fn() }) }),
     ...overrides,
   };
 }
