@@ -6,6 +6,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createFakeSiteUpdate, type FakeSiteUpdateOptions, type SiteRelease } from "@jini-ai/devops/deploy";
+import { createOperationLock } from "@jini-ai/db/recovery/operation-lock";
+import { createOperationUpdateLock } from "../operation-update-lock.js";
 import { buildSiteUpdateRegistrations, type SiteUpdateToolDeps } from "../tools.js";
 
 /** @file `site_update_apply`: never runs without the owner's card; the approval is for exactly the version shown. */
@@ -18,6 +20,7 @@ function setup(options: FakeSiteUpdateOptions = {}, latest: SiteRelease = { vers
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps: SiteUpdateToolDeps = {
     authorize: async () => {},
+    readOwnerId: async () => OWNER,
     runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => fake.state.liveVersion },
   };
   const tool = buildSiteUpdateRegistrations(deps, { surfaceExchanges } as never).find((r) => r.descriptor.id === APPLY)!;
@@ -175,4 +178,39 @@ test("the version is re-read under the update lock, and the whole apply runs ins
   await pending;
   assert.deepEqual(events, ["lock-in", "read-version", "lock-out"]);
   assert.equal(fake.calls.some((c) => c.startsWith("applyUpdate")), true);
+});
+
+test("a system writer who is not the installation owner cannot approve an update", async () => {
+  const { tool, fake, surfaceExchanges, deps } = setup();
+  const events: string[] = [];
+  deps.authorize = async ({ permission }) => void events.push(`authorize:${permission}`);
+  deps.readOwnerId = async () => { events.push("read-owner"); return "installation-owner"; };
+  const { ui, pending } = await raiseCard(tool);
+  answer(surfaceExchanges, ui!, "confirm");
+  const result = (await pending) as { applied: boolean; outcome: string; message: string };
+  assert.equal(result.applied, false);
+  assert.equal(result.outcome, "refused");
+  assert.equal(result.message, "Only this site's installation owner can approve an update. Nothing was changed.");
+  assert.deepEqual(fake.calls, [], "a non-owner's click must not back up, stage or deploy anything");
+  assert.deepEqual(events.slice(-2), ["authorize:system.write", "read-owner"], "the owner is checked after system.write is re-checked at redemption");
+});
+
+test("a second approved update cannot capture another backup while the first owns the site", async () => {
+  const { tool, surfaceExchanges, deps } = setup();
+  const runtime = deps.runtime!;
+  const inner = runtime.backup;
+  let captures = 0;
+  let releaseFirst!: () => void;
+  const firstHeld = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  runtime.backup = { createBackup: async (required, optional) => { captures += 1; if (captures === 1) await firstHeld; return inner.createBackup(required, optional); } };
+  runtime.lock = createOperationUpdateLock({ lock: createOperationLock({}, {}), siteId: "site-1", clock: createSystemClock() });
+  const first = await raiseCard(tool);
+  const second = await raiseCard(tool);
+  answer(surfaceExchanges, first.ui!, "confirm");
+  while (captures === 0) await new Promise((resolve) => setImmediate(resolve));
+  answer(surfaceExchanges, second.ui!, "confirm");
+  await assert.rejects(second.pending, /Another update, migration or restore is running on this site\. Nothing was changed\./);
+  releaseFirst();
+  assert.equal(((await first.pending) as { applied: boolean }).applied, true);
+  assert.equal(captures, 1, "only the update that owns the site may capture a backup");
 });

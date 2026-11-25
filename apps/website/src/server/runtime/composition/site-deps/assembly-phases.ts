@@ -39,6 +39,8 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { wireFormsAndSearch } from "./after-assembly-forms-search.js";
 import { bindSiteUpdateRuntime, createHttpJsonGetter, createTargetTagRecorder } from "./site-update-binding.js";
+import { createOperationUpdateLock } from "#src/features/site-update/operation-update-lock";
+import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { compositionCommerce } from "./shared-oauth-commerce.js";
 import { createTovuPluginHost } from "../plugin-host.js";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
@@ -245,7 +247,9 @@ export function assembleRouteDepsPhase(required: AssembleRouteDepsPhaseRequired,
 
   // Self-hosted update tools: bound only when the operator opted in by environment (see site-update-binding.ts).
   routeDeps.siteUpdateRuntime = bindSiteUpdateRuntime({
-    env: process.env, dbOps, ids: idGen, getJson: createHttpJsonGetter({ client: guardedOutboundHttpClient }),
+    // Fence writes before capture so rollback cannot discard later acknowledged writes: in-process that is the shared
+    // operation lock; across processes it is the update supervisor's durable lease, which this tree does not have yet.
+    env: process.env, dbOps, ids: idGen, lock: createOperationUpdateLock({ lock: { acquireOperationLock, releaseOperationLock }, siteId: workspaceId, clock }), getJson: createHttpJsonGetter({ client: guardedOutboundHttpClient }),
     recordTargetTag: createTargetTagRecorder({ directory: path.dirname(dbPath), writeFile: (file, text) => writeFile(file, text, "utf8") }),
   });
 
