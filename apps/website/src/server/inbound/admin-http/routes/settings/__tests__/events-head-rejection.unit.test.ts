@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import express from "express";
+import express, { type Response } from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { captureRouteError } from "#src/server/inbound/shared/observability-middleware";
 import { registerAdminSettingsEventsRoute, type SettingsEventsDeps } from "../events.js";
@@ -60,4 +60,32 @@ test("a failed ledger head read sends one error event in plain words before the 
   assert.match(body, /event: error\n/);
   assert.match(body, /Live settings updates stopped/);
   assert.equal(body.includes("revision head read failed"), false, "the raw cause must stay in the server log");
+});
+
+
+test("the HTTP head precedes a rejected ledger read and no timer is left behind", async t => {
+  t.mock.method(console, "error", () => {});
+  let response: Response | undefined;
+  let scheduled = 0;
+  const headersAtRead: boolean[] = [];
+  const deps: SettingsEventsDeps = {
+    workspaceId: "ws", settingsReady: Promise.resolve(), authorize: async () => ({ allowed: true, reason: "granted" }),
+    settingsRepo: {
+      maxRevisionSeq: async () => { headersAtRead.push(response?.headersSent === true); throw new Error("private ledger failure"); },
+      listRevisionsSince: async () => assert.fail("no poll after rejected head"), findDefinitionBySettingId: async () => null,
+    },
+    feedTimers: { scheduleInterval: (work, ms) => { scheduled++; return setInterval(work, ms); }, clearScheduledInterval: timer => clearInterval(timer) },
+  };
+  const app = express();
+  app.use((_req, res, next) => { response = res; res.locals.principal = { id: "owner" }; next(); });
+  registerAdminSettingsEventsRoute({ app, deps });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/api/admin/v1/workspaces/ws/settings/events`, { signal: AbortSignal.timeout(2000) });
+  const body = await res.text();
+  assert.equal(res.status, 200);
+  assert.deepEqual(headersAtRead, [true]);
+  assert.equal(scheduled, 0);
+  assert.equal((body.match(/event: error/g) ?? []).length, 1);
+  assert.match(body, /FEED_UNAVAILABLE/);
+  assert.doesNotMatch(body, /private ledger failure/);
 });

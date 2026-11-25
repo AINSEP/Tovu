@@ -6,6 +6,7 @@ import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-ht
 import { registerAdminExternalMcpAdmissionsRoute, registerAdminExternalMcpDeleteRoute, registerAdminExternalMcpListRoute, registerAdminExternalMcpOAuthDisconnectRoute, registerAdminExternalMcpPutRoute, registerAdminExternalMcpToolApprovalsRoutes } from '#src/server/runtime/composition/modules/external-mcp';
 import { registerAdminExternalMcpProbeRoute, createExternalMcpProbeLimiter } from '../probe.js';
 import { registerAdminExternalMcpOAuthConnectRoute, registerAdminExternalMcpOAuthDevicePollRoute } from '../oauth.js';
+import { EXTERNAL_MCP_SIGN_IN_PATH } from '#src/features/api-connections/browser-binding';
 import { OAuthError } from '@jini-ai/oauth';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { WS, BASE, INTERNAL_CODE, allowed, limiter, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
@@ -199,3 +200,32 @@ for (const [name, register, method, suffix, expected] of [
     assert.deepEqual(serverIds, ['']);
   });
 }
+
+
+test('browser limit and session gates precede workspace while shared list has no limiter and authorizes first', async t => {
+  const calls: string[] = [];
+  let limited = true;
+  const { app } = fixture(({ app, deps }) => {
+    app.use((_req, res, next) => { res.locals.authCredentialKind = 'api-key'; next(); });
+    registerAdminExternalMcpOAuthConnectRoute({ app, deps: { ...deps, externalMcpOAuth: {
+      beginConnect: async () => { calls.push('connect'); return { kind: 'redirect_required', authorizationUrl: 'https://provider.example' }; },
+    } } as unknown as Parameters<typeof registerAdminExternalMcpOAuthConnectRoute>[0]['deps'], limiter: {
+      check: async () => { calls.push('limit'); return limited ? { allowed: false as const, retryAfterSeconds: 7 } : { allowed: true as const }; },
+    } });
+  }, { authorize: async () => { calls.push('authorize'); return { allowed: true, reason: 'matched' }; } });
+  const origin = await startTestServer(app, t);
+  const browserPath = EXTERNAL_MCP_SIGN_IN_PATH.replace(':workspaceId', 'other').replace(':serverId', 'server');
+  const rate = await fetch(origin + browserPath);
+  assert.equal(rate.status, 429);
+  assert.equal(rate.headers.get('cache-control'), 'no-store');
+  assert.equal(rate.headers.get('referrer-policy'), 'no-referrer');
+  assert.deepEqual(calls, ['limit']);
+  limited = false; calls.length = 0;
+  const session = await fetch(origin + browserPath);
+  assert.equal(session.status, 403);
+  assert.deepEqual(calls, ['limit']);
+  calls.length = 0;
+  const shared = await fetch(`${origin}${BASE}/mcp-servers/server/oauth/shared`);
+  assert.equal(shared.status, 403);
+  assert.deepEqual(calls, ['authorize']);
+});

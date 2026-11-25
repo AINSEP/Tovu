@@ -68,12 +68,12 @@ import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
  * the two numbers differ.
  */
 
+import { settingsEventsRoute } from "@jini-ai/cms/admin-http/routes/settings/events";
 import { authorizeChangeFeed } from "@jini-ai/cms/admin-http/routes/settings/preview-feed-access";
 import { createThemePreviewFeed, readThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import {
   collectChangedNamespaces,
   type ChangeFeedViewer,
-  type ChangeFeedBatch,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
@@ -101,30 +101,6 @@ type ChangeFeedAccess = Awaited<ReturnType<typeof authorizeChangeFeed>>;
 
 /** Who was admitted to the stream and which channels they may receive. */
 type Admission = { principal: { id: string }; access: ChangeFeedAccess; includePreview: boolean };
-
-/** How often the ledger is checked. Fast enough that a change feels immediate, slow enough that an
- *  idle tab costs ~1 indexed lookup/sec. */
-const POLL_INTERVAL_MS = 1_000;
-
-/** Comment frames keep proxies and load balancers from reaping an idle connection. */
-const KEEPALIVE_INTERVAL_MS = 25_000;
-
-/**
- * How often an open stream re-checks that its principal is still allowed to read
- * settings.
- *
- * A long-lived SSE connection outlives the single `authorize()` call that opened
- * it, so revoking a principal's `settings.read` did not stop the change
- * notifications already flowing to their open tab — the grant was effectively
- * pinned for as long as they kept the connection. Re-checking on a slow interval
- * rather than per tick keeps the cost near zero (one authorize per 30s per
- * stream, versus one per second) while bounding the revocation window.
- */
-const REAUTHORIZE_INTERVAL_MS = 30_000;
-
-/** Ledger rows examined per tick. Bounds a client resuming after a long absence — the remainder is
- *  drained on the following ticks rather than loaded at once. */
-const REVISION_PAGE_SIZE = 200;
 
 /**
  * Response headers for this SSE stream's opening `writeHead()`, minus `Connection` on an HTTP/2
@@ -190,87 +166,6 @@ async function admitSubscriber(required: { req: Request; res: Response; deps: Se
   return { principal, access, includePreview };
 }
 
-/**
- * Resume point. `Last-Event-ID` is set by the browser automatically on `EventSource`'s own
- * reconnect, so a dropped connection replays the writes missed in the gap instead of silently
- * skipping them. A fresh subscriber starts at the current head — it has just loaded its values,
- * so replaying history would only make it re-read what it already has. Explicit tab handoff
- * or visibility reconnect uses afterRevision because a new EventSource cannot set headers.
- * Native Last-Event-ID takes precedence after that new source automatically reconnects.
- *
- * It is nonetheless client-supplied input naming a position in a ledger shared by every
- * workspace, so it is clamped INTO the ledger. An id past the head would otherwise park the
- * cursor in the future, and `seq > cursor` would then match nothing for as long as the tab
- * stayed open — a feed that is silently and permanently dead while still looking connected.
- *
- * @complexity O(1).
- */
-function resumeCursor(required: { req: Request; head: number }): number {
-  const { req, head } = required;
-  const resumeFrom = Number(req.headers["last-event-id"] ??
-    (typeof req.query.afterRevision === "string" ? req.query.afterRevision : undefined));
-  return Number.isFinite(resumeFrom) && resumeFrom >= 0 ? Math.min(resumeFrom, head) : head;
-}
-
-/**
- * Runs an admitted, already-opened stream: polls the ledger, emits settings and theme-preview
- * frames, keeps the connection alive, re-authorizes, and tears its timers down on close.
- * @complexity O(1) setup; per tick, as `collectChangedNamespaces` over one page of at most
- *   `REVISION_PAGE_SIZE` revisions, with one definition lookup per new settingId.
- */
-function runChangeFeed(required: Admission & {
-  req: Request; res: Response; deps: SettingsEventsDeps; timers: Required<FeedTimers>; cursor: number;
-}): void {
-  const { req, res, deps, principal, includePreview } = required;
-  const { scheduleInterval, clearScheduledInterval } = required.timers;
-  const state: ChangeFeedState = { access: required.access, cursor: required.cursor, lastEmittedId: required.cursor, closed: false, ticking: false };
-  const viewer: ChangeFeedViewer = { workspaceId: deps.workspaceId, principalId: principal.id };
-  const resolveNamespace = createNamespaceResolver(deps);
-
-  // One tiny site-local marker bridges saves from the separate agent-daemon process.
-  // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
-  const previewFeed = createThemePreviewFeed({ isReservedPath: isReservedThemePreviewPath,
-    read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }) : null,
-    emit: ({ frame }, _options = {}) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
-  }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
-
-  const close = (): void => {
-    if (state.closed) return;
-    state.closed = true;
-    clearScheduledInterval(pollTimer);
-    clearScheduledInterval(keepaliveTimer);
-    clearScheduledInterval(reauthorizeTimer);
-  };
-  const reauthorize = createChangeFeedReauthorizer(required, state, close);
-  const emitSettingsChange = createSettingsChangeEmitter(res, state);
-  const tick = createChangeFeedTick(required, state, { previewFeed, viewer, resolveNamespace, emitSettingsChange });
-
-  const pollTimer = scheduleInterval(() => void tick(), POLL_INTERVAL_MS);
-  const keepaliveTimer = scheduleInterval(() => {
-    if (!state.closed) res.write(": keepalive\n\n");
-  }, KEEPALIVE_INTERVAL_MS);
-  const reauthorizeTimer = scheduleInterval(() => void reauthorize(), REAUTHORIZE_INTERVAL_MS);
-
-  // `close` fires on tab close, navigation, and `EventSource.close()` alike. Without this the
-  // timers outlive the response and every reconnect leaks another pair.
-  req.on("close", close);
-  res.on("close", close);
-
-  // An opening comment flushes headers immediately, so the client's `onopen` fires now rather
-  // than whenever the first real change happens to arrive.
-  res.write(": connected\n\n");
-}
-
-type ChangeFeedState = {
-  access: ChangeFeedAccess;
-  cursor: number;
-  /** The last id written to the wire — workspace-scoped, unlike `cursor`. See where it is emitted. */
-  lastEmittedId: number;
-  closed: boolean;
-  /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
-  ticking: boolean;
-};
-
 function createNamespaceResolver(deps: SettingsEventsDeps) {
 
 
@@ -288,133 +183,44 @@ function createNamespaceResolver(deps: SettingsEventsDeps) {
   return resolveNamespace;
 }
 
-/**
-   * Re-runs the same authorization that opened the stream, and ends it the
-   * moment that stops holding or cannot be confirmed.
-   *
-   * Fail closed on errors: a later channel check may throw after settings.read was denied,
-   * leaving the cached grant unchanged. Closing also suppresses any poll already in flight.
-   */
-function createChangeFeedReauthorizer(required: Parameters<typeof runChangeFeed>[0], state: ChangeFeedState, close: () => void) {
-  const { deps, principal, includePreview, res } = required;
-  return async (): Promise<void> => {
-    if (state.closed) return;
-    try {
-      state.access = await authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview });
-      // Each channel is authorized independently; a theme-only subscriber never gets namespaces.
-      if (state.closed || state.access.settings || state.access.preview) return;
-    } catch (error) {
-      console.error("[settings] change feed re-authorization failed", error);
-    }
-    close();
-    res.end();
-  };
+function runChangeFeed(required: Admission & { req: Request; res: Response; deps: SettingsEventsDeps; timers: Required<FeedTimers> }): Promise<void> {
+  const { req, res, deps, principal, includePreview, timers } = required;
+  const viewer: ChangeFeedViewer = { workspaceId: deps.workspaceId, principalId: principal.id };
+  const resolveNamespace = createNamespaceResolver(deps);
+  let previewFeed: ReturnType<typeof createThemePreviewFeed>;
+  return settingsEventsRoute.open({ workspaceId: deps.workspaceId, initialAccess: required.access,
+    lastEventId: req.headers["last-event-id"]?.toString(), afterRevision: req.query.afterRevision, ports: {
+      writeHead: () => { res.writeHead(200, sseWriteHeadHeaders(req)); },
+      write: ({ frame }) => { res.write(frame); }, end: () => { res.end(); },
+      onClose: ({ close }) => { req.on("close", close); res.on("close", close); },
+      schedule: ({ work, ms }) => {
+        // One tiny site-local marker bridges saves from the separate agent-daemon process.
+        // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
+        previewFeed ??= createThemePreviewFeed({ isReservedPath: isReservedThemePreviewPath,
+          read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }) : null,
+          emit: ({ frame }, _options = {}) => { res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`); },
+        }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
+        return timers.scheduleInterval(work, ms);
+      },
+      clear: ({ timer }) => timers.clearScheduledInterval(timer),
+      readHead: () => deps.settingsRepo.maxRevisionSeq(),
+      readRevisions: (input) => deps.settingsRepo.listRevisionsSince(input),
+      collect: ({ revisions }) => collectChangedNamespaces({ revisions, viewer, resolveNamespace }),
+      reauthorize: () => authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview }),
+      previewTick: () => previewFeed(),
+      report: ({ phase, error }) => console.error(phase === "head" ? "[settings] change feed could not read the revision head" : phase === "poll" ? "[settings] change feed poll failed" : "[settings] change feed re-authorization failed", error),
+      headFailureText: "Live settings updates stopped because the server could not read the latest settings change. Reload the page to reconnect.",
+    },
+  });
 }
-
-/** Write one visible batch, checking the current grant again after the ledger reads. */
-function createSettingsChangeEmitter(res: Response, state: ChangeFeedState) {
-  
-  return (batch: ChangeFeedBatch, _optional: Record<string, never> = {}): void => {
-    if (state.closed || !state.access.settings || batch.namespaces.length === 0) return;
-
-    // Emit the WORKSPACE-scoped position, not the internal `cursor`.
-    //
-    // `cursor` is advanced to the global ledger head so this connection can
-    // skip past other tenants' rows, but the id is the one part of the frame
-    // a subscriber can read. Emitting the global head would let a tab watch
-    // its own event ids jump and count another workspace's write volume — a
-    // metadata channel that only exists because the ledger is shared. The
-    // workspace-scoped `batch.cursor` is a valid resume point: reconnecting
-    // from it re-examines rows already examined, which the workspace
-    // predicate makes cheap, and cannot skip anything.
-    state.lastEmittedId = Math.max(state.lastEmittedId, batch.cursor);
-    res.write(`id: ${state.lastEmittedId}\n`);
-    res.write("event: settings-changed\n");
-    res.write(`data: ${JSON.stringify({ namespaces: batch.namespaces })}\n\n`);
-  };
-}
-
-/**
-   * One poll. Never throws: a transient read failure must not tear down a subscription the client
-   * would then reconnect anyway, and `cursor` is left untouched so the same window is re-examined
-   * on the next tick rather than skipped.
-   */
-function createChangeFeedTick(required: Parameters<typeof runChangeFeed>[0], state: ChangeFeedState, { previewFeed, viewer, resolveNamespace, emitSettingsChange }: { previewFeed: () => void; viewer: ChangeFeedViewer; resolveNamespace: ReturnType<typeof createNamespaceResolver>; emitSettingsChange: (batch: ChangeFeedBatch) => void }) {
-  const { deps } = required;
-  return async (): Promise<void> => {
-    if (state.closed || state.ticking) return;
-    // `setInterval` does not await an async callback, and one tick does two
-    // repo round trips plus a definition lookup per visible revision. A tick
-    // slower than the poll interval would otherwise have the next one start
-    // mid-await: both read the same `cursor`, both query the same window, both
-    // can emit the same frame, and the `cursor` write becomes a lost update.
-    state.ticking = true;
-    try {
-      if (!state.closed && state.access.preview) previewFeed();
-      if (!state.access.settings) return;
-      // Read the head BEFORE the page, so every row counted by it was already durable when the
-      // query below ran. Reading it after would let a concurrent write inflate the head past rows
-      // the query never had a chance to see, and the cursor advance would skip them.
-      const ledgerHead = await deps.settingsRepo.maxRevisionSeq();
-      const revisions = await deps.settingsRepo.listRevisionsSince({
-        sinceSeq: state.cursor,
-        limit: REVISION_PAGE_SIZE,
-        workspaceId: deps.workspaceId,
-      });
-
-      const batch = await collectChangedNamespaces({
-        revisions, viewer, resolveNamespace,
-      });
-      // Advance even when nothing was visible, so writes this viewer cannot see are examined once
-      // rather than on every tick forever.
-      //
-      // A SHORT page is what makes that true now that the query is workspace-filtered: fewer than
-      // `REVISION_PAGE_SIZE` rows means the predicate ran out of matches before it ran out of
-      // ledger, so everything up to `ledgerHead` has been examined and can be skipped past.
-      // Advancing only to `batch.cursor` would leave the cursor parked behind a busy neighbour's
-      // rows and re-walk them on every tick for the life of the connection.
-      const examined = revisions.length < REVISION_PAGE_SIZE ? ledgerHead : batch.cursor;
-      state.cursor = Math.max(state.cursor, examined, batch.cursor);
-      emitSettingsChange(batch);
-    } catch (error) {
-      console.error("[settings] change feed poll failed", error);
-    } finally {
-      state.ticking = false;
-    }
-  };
-}
-
 
 export const registerAdminSettingsEventsRoute = ({ app, deps }: { app: Express; deps: SettingsEventsDeps }, _optional: Record<string, never> = {}): void => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", asyncRoute({ handler: async (req, res) => {
+  app.get(settingsEventsRoute.path, asyncRoute({ handler: async (req, res) => {
     // Resolved per request, not at registration: a test that swaps the global timers after the
     // route is registered must still be the one this stream schedules on.
     const timers = resolveFeedTimers({ feedTimers: deps.feedTimers });
     const admission = await admitSubscriber({ req, res, deps });
     if (!admission) return;
-
-    res.writeHead(200, sseWriteHeadHeaders(req));
-    const head = await readHeadOrEndStream({ res, deps });
-    if (head === null) return;
-    runChangeFeed({ ...admission, req, res, deps, timers, cursor: resumeCursor({ req, head }) });
+    await runChangeFeed({ ...admission, req, res, deps, timers });
   } }));
 };
-
-/**
- * Reads the ledger head after the stream's headers are already sent. A failure here cannot become
- * an HTTP error any more, so it is turned into one `error` event in plain words and the stream is
- * ended: without it the open tab sat silent, believing live updates were still coming. The raw
- * cause goes to the server log only, since it may carry a path or a SQL fragment.
- * @returns The head sequence, or `null` once the stream has been ended.
- * @complexity O(1) plus one indexed read.
- */
-async function readHeadOrEndStream({ res, deps }: { res: Response; deps: SettingsEventsDeps }, _options: Record<string, never> = {}): Promise<number | null> {
-  try {
-    return await deps.settingsRepo.maxRevisionSeq();
-  } catch (error) {
-    console.error("[settings] change feed could not read the revision head", error);
-    res.write(`event: error\ndata: ${JSON.stringify({ code: "FEED_UNAVAILABLE", message: "Live settings updates stopped because the server could not read the latest settings change. Reload the page to reconnect." })}\n\n`);
-    res.end();
-    return null;
-  }
-}

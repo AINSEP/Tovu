@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import { listPublishContentPeers } from "@jini-ai/cms/publish/content/peer-registry";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
-import type { Express, Request, Response } from "express";
+import type { Express } from "express";
 import { ToolInputError } from "@jini-ai/core";
 
 import { inspectStaticPublish, composePublishCredentialSource, getPublishRunSnapshot, listPublishDestinations, missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, startPublishRun, unknownTargetMessage } from "#src/features/deployments/static-publish/index";
@@ -12,12 +12,12 @@ import type {
   DeployTargetRegistry,
   LoadedDeployTarget,
 } from "@jini-ai/devops/deploy/site/deploy-targets/types";
-import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { createPublishTriggerRoute, type PublishTriggerDeps } from "@jini-ai/cms/admin-http/routes/system/publish-site/trigger";
+import { createPublishDestinationsRoute, type PublishDestinationsDeps } from "@jini-ai/cms/admin-http/routes/system/publish-site/destinations";
+import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
-const SITE_PUBLISH_ENTITY = "site-publish";
 
 /**
  * @file Admin Deployment panel → publish-to-a-static-host backend.
@@ -92,53 +92,6 @@ export type AdminPublishSiteDeps = RouteDeps;
  *  built. */
 
 /**
- * Parses and shape-validates the trigger request body's TARGET-INDEPENDENT fields. Never throws —
- * every malformed shape maps to a `{ok:false, error}` result this route turns into a `400`, matching
- * `export-site.ts`'s own `parseTriggerRequestBody` discipline. Which config fields `target` takes,
- * and whether their values are valid, is judged by the registry (`readStaticPublishConfig` +
- * `planStaticPublish`), so a caller only ever gets one canonical rejection for the same bad value.
- */
-function parsePublishRequestBody({ body }: { body: unknown }, _optional = {}): { ok: true; raw: Record<string, unknown>; targetId: string; projectName: string; credentialId?: string } | { ok: false; error: string } {
-  const raw = asJsonObject({ body });
-  if (!raw) {
-    return { ok: false, error: "request body must be a JSON object" };
-  }
-
-  if (typeof raw.projectName !== "string" || raw.projectName.trim() === "") {
-    return { ok: false, error: "'projectName' (non-empty string) is required" };
-  }
-
-  // Shape only, same discipline as every other field here — whether this id names a connection this
-  // workspace actually owns, for this target, is judged exactly once, by the credential source
-  // (`static-publish/credentials.ts`). Optional because the agent tool and env-var installs have no
-  // connection id to send; see this file's header for the full backward-compatibility contract.
-  if (!validOptionalCredential({ value: raw.credentialId })) {
-    return { ok: false, error: "'credentialId' must be a non-empty string when present" };
-  }
-
-  if (typeof raw.target !== "string" || raw.target.trim() === "") {
-    return { ok: false, error: "'target' (non-empty string) is required" };
-  }
-  return {
-    ok: true,
-    raw,
-    targetId: raw.target,
-    projectName: raw.projectName,
-    ...(typeof raw.credentialId === "string" ? { credentialId: raw.credentialId } : {}),
-  };
-}
-
-/** The body as a plain object, or `null` for a non-object, `null` or array body. */
-function asJsonObject({ body }: { body: unknown }, _optional = {}): Record<string, unknown> | null {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) return null;
-  return body as Record<string, unknown>;
-}
-
-function validOptionalCredential({ value }: { value: unknown }, _options = {}): boolean {
-  return value === undefined || (typeof value === "string" && value.trim() !== "");
-}
-
-/**
  * Resolves `targetId` in this workspace's registry and reads its descriptor-declared config fields
  * from `raw`. Registry refusals (a module that did not load) are logged, never returned.
  * @returns The target and config, or a refusal naming the unknown target / the non-string field.
@@ -199,68 +152,14 @@ async function httpPublishPreview(required: {
     providerInspection: inspected.inspection };
 }
 
-async function readPublishTriggerConfig(required: {
-  deps: AdminPublishSiteDeps; targetId: string; raw: Record<string, unknown>;
-}, _options = {}): Promise<{ ok: true; config: StaticPublishConfig } | { ok: false; status: number; body: Record<string, unknown> }> {
-  const { deps, targetId, raw } = required;
-  // Fails fast, before flipping the shared run slot to "running" or touching the
-  // filesystem/network at all, on a config `publishStaticSite` would reject anyway — the same
-  // `planStaticPublish` verdict `publishStaticSite` reaches internally — so a caller who only sends
-  // a malformed config never sees a "running" snapshot at all.
-  const read = await readTargetConfig({ deps, targetId, raw, blankAsAbsent: false });
-  if (!read.ok) return { ok: false, status: 400, body: { error: read.error } };
-  const plan = planStaticPublish({ registry: read.registry, config: read.config });
-  if (!plan.ok) return { ok: false, status: 400, body: { error: plan.message } };
-  if (read.config.customDomain) {
-    return { ok: false, status: 409, body: { code: "DOMAIN_CONFIRMATION_REQUIRED", error: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation." } };
-  }
-  return { ok: true, config: read.config };
-}
-
 export type PublishSiteContext = { deps: AdminPublishSiteDeps; credentialSource: PublishCredentialSource };
 type PublishPrincipal = ReturnType<typeof getAuthedPrincipal>;
-type PublishTriggerBody = { ok: false; status: number; body: Record<string, unknown>; reasonClass: string };
 
-/** Principal + permission check every publish route shares; `authorized` false means the response is already written. */
-async function authorizePublishRoute({ res, deps, permission }: { res: Response; deps: AdminPublishSiteDeps; permission: string }): Promise<{ principal: PublishPrincipal; authorized: boolean }> {
-  const principal = getAuthedPrincipal(res);
-  const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
-    principalId: principal.id,
-    permission,
-    workspaceId: deps.workspaceId,
-    entityType: SITE_PUBLISH_ENTITY,
-  } });
-  return { principal, authorized };
-}
-
-function captureBlockedPublish({ deps, principal, reasonClass }: { deps: AdminPublishSiteDeps; principal: PublishPrincipal; reasonClass: string }): void {
+function captureBlockedPublish({ deps, principal, reasonClass }: { deps: AdminPublishSiteDeps; principal: Pick<PublishPrincipal, "id">; reasonClass: string }): void {
   void deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass, source: "admin" } });
 }
 
-/** Everything that can refuse a publish before the shared run slot is touched, in the order the refusals apply. */
-async function checkPublishPreconditions({ deps, principal, body }: { deps: AdminPublishSiteDeps; principal: PublishPrincipal; body: unknown }): Promise<PublishTriggerBody | { ok: true; parsed: Extract<ReturnType<typeof parsePublishRequestBody>, { ok: true }>; config: StaticPublishConfig }> {
-  const parsed = parsePublishRequestBody({ body });
-  if (!parsed.ok) return { ok: false, status: 400, body: { error: parsed.error }, reasonClass: "config" };
-
-  const read = await readPublishTriggerConfig({ deps, targetId: parsed.targetId, raw: parsed.raw });
-  if (!read.ok) return { ok: false, status: read.status, body: read.body, reasonClass: "config" };
-
-  const consent = deps.siteConsent
-    ? await deps.siteConsent.deploymentCheck({ principalId: principal.id, permission: 'system.publish' })
-    : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
-  if (consent) return { ok: false, status: 409, body: consent as Record<string, unknown>, reasonClass: "consent" };
-
-  // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
-  // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both
-  // observe "idle". This is now ALSO the same guard `deployment_execute_static_publish`
-  // (`publish-agent-tools.ts`) checks before its own confirmed publish call — both read/write the
-  // ONE shared slot in `static-publish/publish-run.ts`, so a concurrent trigger from either caller
-  // is refused, not raced (Terra audit finding #1).
-  if (getPublishRunSnapshot().status === "running") return { ok: false, status: 409, body: { error: "a publish is already running", run: getPublishRunSnapshot() }, reasonClass: "busy" };
-  return { ok: true, parsed, config: read.config };
-}
-
-function startAdminPublish({ context, principal, parsed, config }: { context: PublishSiteContext; principal: PublishPrincipal; parsed: { projectName: string; credentialId?: unknown }; config: StaticPublishConfig }) {
+function startAdminPublish({ context, principal, parsed, config }: { context: PublishSiteContext; principal: Pick<PublishPrincipal, "id">; parsed: { projectName: string; credentialId?: unknown }; config: StaticPublishConfig }) {
   const { deps, credentialSource } = context;
   // Deliberately not awaited — see this file's header for why the response returns before the
   // publish finishes. `startPublishRun` itself keeps the shared slot in sync as the publish
@@ -284,32 +183,6 @@ function startAdminPublish({ context, principal, parsed, config }: { context: Pu
     clock: deps.clock,
     historyStore: deps.publishHistoryStore,
   });
-}
-
-async function handlePublishTrigger({ context, req, res }: { context: PublishSiteContext; req: Request; res: Response }): Promise<void> {
-  const { deps } = context;
-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-  try {
-    const { principal, authorized } = await authorizePublishRoute({ res, deps, permission: "system.publish" });
-    if (!authorized) { captureBlockedPublish({ deps, principal, reasonClass: "auth" }); return; }
-
-    const checked = await checkPublishPreconditions({ deps, principal, body: req.body });
-    if (!checked.ok) {
-      captureBlockedPublish({ deps, principal, reasonClass: checked.reasonClass });
-      res.status(checked.status).json(checked.body);
-      return;
-    }
-
-    res.status(202).json(startAdminPublish({ context, principal, parsed: checked.parsed, config: checked.config }));
-  } catch (err) {
-    // Everything above `startPublishRun` (auth check, snapshot read, body parsing) runs
-    // synchronously-awaited in this one try; `startPublishRun` itself is deliberately NOT awaited
-    // (see its own call site comment) so a failure inside the run it starts can never reach this
-    // catch — only a failure BEFORE that point can, e.g. `deps.authorize` itself throwing.
-
-    sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
-  }
 }
 
 /** The preview query's target + config, or the 400 message for whichever part is missing/invalid. */
@@ -340,36 +213,6 @@ export function publishPreviewFor({ context }: { context: PublishSiteContext }, 
     if (!target.ok) return { ok: false, error: target.error };
     return { ok: true, value: await httpPublishPreview({ deps, credentialSource, registry: target.read.registry, config: target.read.config, query: { ...query } }) };
   };
-}
-
-/** Peers are omitted, identities included, unless the caller also holds `publish_content.read`. */
-async function listVisiblePeers({ deps, res, principal }: { deps: AdminPublishSiteDeps; res: Response; principal: PublishPrincipal }): Promise<Awaited<ReturnType<typeof listPublishContentPeers>>> {
-  // Omit peer identities as well as peer rows without the additional permission.
-  const trust = getPublishTrustContext(res);
-  const peerAuthorization = await (trust ? publishTrustAuthorizeFor(trust) : deps.authorize)({
-    principalId: principal.id, permission: "publish_content.read", workspaceId: deps.workspaceId,
-  });
-  if (!peerAuthorization.allowed) return [];
-  return listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input: { workspaceId: deps.workspaceId } });
-}
-
-async function handlePublishDestinations({ context, req, res }: { context: PublishSiteContext; req: Request; res: Response }): Promise<void> {
-  const { deps } = context;
-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-  try {
-    const { principal, authorized } = await authorizePublishRoute({ res, deps, permission: "system.read" });
-    if (!authorized) return;
-    const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
-    const peers = await listVisiblePeers({ deps, res, principal });
-    res.status(200).json(await listPublishDestinations({
-      workspaceId: deps.workspaceId,
-      historyStore: deps.publishHistoryStore,
-      registry,
-      peers,
-    }));
-  } catch (err) {
-    sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
-  }
 }
 
 /** The registry's targets as the admin card's descriptors: ids, labels and field specs, never module paths. */
@@ -409,17 +252,47 @@ export function createPublishSiteContext({ deps }: { deps: AdminPublishSiteDeps 
   return { deps, credentialSource };
 }
 
-const PUBLISH_BASE = "/api/admin/v1/workspaces/:workspaceId/system/publish";
-
-/** `POST .../system/publish` — stays hand-written: an authorization denial records a
- *  `site_publish_blocked` product event before the 403 (see the system-deploy report). */
 export function registerAdminPublishTriggerRoute({ app, context }: { app: Express; context: PublishSiteContext }, _optional: Record<string, never> = {}): void {
-  app.post(PUBLISH_BASE, (req, res) => handlePublishTrigger({ context, req, res }));
+  const { deps } = context;
+  const triggerDeps: PublishTriggerDeps<{ config: StaticPublishConfig; registry: DeployTargetRegistry }, ReturnType<typeof getPublishRunSnapshot>> = {
+    readConfig: async ({ targetId, raw }) => {
+      const read = await readTargetConfig({ deps, targetId, raw, blankAsAbsent: false });
+      return read.ok ? { ok: true, config: { config: read.config, registry: read.registry } } : read;
+    },
+    plan: ({ config: read }) => planStaticPublish({ registry: read.registry, config: read.config }),
+    hasCustomDomain: ({ config: read }) => Boolean(read.config.customDomain),
+    domainConfirmationText: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation.",
+    deploymentCheck: async ({ principalId }) => (deps.siteConsent
+      ? await deps.siteConsent.deploymentCheck({ principalId, permission: 'system.publish' })
+      : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] })) ?? undefined,
+    snapshot: () => getPublishRunSnapshot(),
+    start: ({ config: read, projectName, principalId, credentialId }) => startAdminPublish({ context, principal: { id: principalId }, config: read.config,
+      parsed: { projectName, ...(credentialId === undefined ? {} : { credentialId }) } }),
+    onBlocked: ({ principalId, reasonClass }) => captureBlockedPublish({ deps, principal: { id: principalId }, reasonClass }),
+  };
+  mountAdminJsonRoute({ app, spec: createPublishTriggerRoute({ deps: triggerDeps }), deps: { ...triggerDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
+    refusalWriter: ({ res, error }) => {
+      res.status(error.response.status).json(error.response.body);
+      if (error.response.status === 403) captureBlockedPublish({ deps, principal: getAuthedPrincipal(res), reasonClass: "auth" });
+    },
+    failureWriter: ({ res, error }) => sendAdminFailure({ res, error }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" }),
+  });
 }
 
-/** `GET .../system/publish/destinations` — stays hand-written: its peer read authorizes through the
- *  request's publish-trust context (`res.locals`), which the admin JSON ports do not expose.
- *  Listing is read-only: execution still goes through the system.publish-gated POST. */
 export function registerAdminPublishDestinationsRoute({ app, context }: { app: Express; context: PublishSiteContext }, _optional: Record<string, never> = {}): void {
-  app.get(`${PUBLISH_BASE}/destinations`, (req, res) => handlePublishDestinations({ context, req, res }));
+  const { deps } = context;
+  const destinationsDeps: PublishDestinationsDeps<DeployTargetRegistry, Awaited<ReturnType<typeof listPublishContentPeers>>[number], Awaited<ReturnType<typeof listPublishDestinations>>> = {
+    loadRegistry: () => deps.loadDeployTargets({ workspaceId: deps.workspaceId }),
+    mayReadPeers: async (): Promise<boolean> => { throw new Error("bound per request"); },
+    listPeers: () => listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input: { workspaceId: deps.workspaceId } }),
+    listDestinations: ({ registry, peers }) => listPublishDestinations({ workspaceId: deps.workspaceId, historyStore: deps.publishHistoryStore, registry, peers }),
+  };
+  mountAdminJsonRoute({ app, spec: createPublishDestinationsRoute({ deps: destinationsDeps }), deps: { ...destinationsDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
+    requestDeps: ({ res, deps: base }) => ({ ...base, mayReadPeers: async ({ principalId }) => {
+      const trust = getPublishTrustContext(res);
+      const peerAuthorization = await (trust ? publishTrustAuthorizeFor(trust) : deps.authorize)({ principalId, permission: "publish_content.read", workspaceId: deps.workspaceId });
+      return peerAuthorization.allowed;
+    } }),
+    failureWriter: ({ res, error }) => sendAdminFailure({ res, error }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" }),
+  });
 }

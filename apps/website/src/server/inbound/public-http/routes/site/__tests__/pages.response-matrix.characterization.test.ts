@@ -30,6 +30,9 @@ import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerSiteRoutes } from "../pages.js";
+import { sendPublicPage } from "../pages/response.js";
+import express from "express";
+import { MEMBER_PAGES } from "../member-pages.js";
 import { finishStaticTierDocument } from "../pages/static-tier.js";
 
 type Deps = ReturnType<typeof createRouteDeps>;
@@ -374,4 +377,23 @@ test("static-tier finisher: partials, embeds, menus, previews, collections, rend
   pin("static finisher: calls", log);
   pin("static finisher: output without previews access", sha1(out));
   pin("static finisher: output", sha1(gated.replace(ATTEMPT_INPUT, "$1<attempt>$3")));
+});
+
+
+test("static export skips form-token registration and member script", async (t) => {
+  let issued = 0;
+  const deps = siteDeps();
+  deps.formSubmissionAttempts = { ...deps.formSubmissionAttempts!, issue: () => { issued++; } };
+  const app = express();
+  app.get("/signin", (req, res, next) => {
+    sendPublicPage({ req, res, deps, html: page(FORM + MEMBER_PAGES["/signin"]!.body), perVisitor: { cacheControl: "private, no-store", result: undefined } }).catch(next);
+  });
+  const baseUrl = await startTestServer(app, t);
+  const live = await capture(baseUrl, "/signin");
+  assert.equal(issued, 1);
+  assert.match(live.body, /<script data-tovu-member-auth>/);
+  const exported = await capture(baseUrl, "/signin", STATIC_EXPORT);
+  assert.equal(issued, 1);
+  assert.equal(exported.attemptIds.length, 0);
+  assert.doesNotMatch(exported.body, /<script data-tovu-member-auth>/);
 });
