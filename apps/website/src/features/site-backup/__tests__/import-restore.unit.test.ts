@@ -15,7 +15,8 @@ import Database from "better-sqlite3";
 import { readTemplate } from "../../../platform/site-dir/read-template.js";
 import { stageVerifiedImport, stagedImportWarnings } from "../import-restore.js";
 import { restoreStagedImport } from "#src/server/runtime/composition/site-portability";
-import { writeExclusive } from "../import-restore-placement.js";
+import { inspectThemeManifests, liveThemeTrees, restoreDestination, writeExclusive } from "../import-restore-placement.js";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
 
 // Resolve the admin dependency from its package so hoisted installs use its public export.
 const { formHtmlStarter } = await import(pathToFileURL(createRequire(new URL("../../../../../admin/package.json", import.meta.url)).resolve("@jini-ai/admin/forms")).href);
@@ -56,7 +57,7 @@ function pageStatuses(dbPath: string): Record<string, string> {
 }
 async function restore(t: TestContext, files: Record<string, string>, options: { themes?: readonly string[]; pages?: readonly PageRow[]; before?: (h: Harness) => void } = {}): Promise<Harness> {
   const h = harness(t);
-  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes(options.themes ?? [], options.pages), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes(options.themes ?? [], options.pages), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
   options.before?.(h);
   await restoreStagedImport({ root: h.root, dir: h.dir, dbPath: h.dbPath });
   return h;
@@ -74,7 +75,7 @@ function compiledTheme(name: string, build: Record<string, unknown> = {}): Recor
 
 test("staging writes the projected database, every verified file and the inventory, all private", async t => {
   const h = harness(t), database = databaseBytes([]);
-  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database, files: new Map([["uploads/a", Buffer.from("a")]]) } });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database, files: new Map([["uploads/a", Buffer.from("a")]]) } });
   assert.deepEqual(fs.readFileSync(path.join(h.root, "database/content.db")), database);
   assert.equal(fs.readFileSync(path.join(h.root, "uploads/a"), "utf8"), "a");
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(h.root, ".inventory.json"), "utf8")), ["uploads/a"]);
@@ -84,11 +85,11 @@ test("staging writes the projected database, every verified file and the invento
 test("staging refuses a stage folder that already exists", async t => {
   const h = harness(t);
   fs.mkdirSync(h.root);
-  assert.throws(() => stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: Buffer.alloc(0), files: new Map() } }), { code: "EEXIST" });
+  assert.throws(() => stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: Buffer.alloc(0), files: new Map() } }), { code: "EEXIST" });
 });
 test("staging refuses an unsafe file path before writing it", async t => {
   const h = harness(t);
-  assert.throws(() => stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: Buffer.alloc(0), files: new Map([["uploads/CON.txt", Buffer.from("x")]]) } }), { code: "UNSAFE_PATH", message: "Share path 'uploads/CON.txt' is unsafe." });
+  assert.throws(() => stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: Buffer.alloc(0), files: new Map([["uploads/CON.txt", Buffer.from("x")]]) } }), { code: "UNSAFE_PATH", message: "Share path 'uploads/CON.txt' is unsafe." });
   assert.equal(fs.existsSync(path.join(h.root, "uploads")), false);
 });
 
@@ -101,7 +102,7 @@ test("custom code that lands switched off gets one warning per unit; trusted, li
     "themes/__original-themes__/static/safe/index.html": "html", "themes/static/edited/index.html": "html", "overrides/custom.html": "html", "uploads/blob": "media",
   };
   const plugin = (id: string) => ({ kind: "agent" as const, id, version: "1.0.0", digest: "a".repeat(64), enabled: true, shipped: true });
-  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(["themes/edited"]), plugins: [plugin("mine"), plugin("shipped")], trustedPlugins: [plugin("shipped")], name: "Copy", database: databaseBytes([]), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: h.root, verified: { warnings: [], modified: new Set(["themes/edited"]), plugins: [plugin("mine"), plugin("shipped")], trustedPlugins: [plugin("shipped")], name: "Copy", database: databaseBytes([]), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
   assert.deepEqual(stagedImportWarnings({ root: h.root }), [
     "Theme 'edited' was edited. It was imported and kept switched off.",
     "Agent plugin 'mine' isn't code this Tovu recognises. It was imported and kept switched off.",
@@ -332,7 +333,7 @@ test("many kept-off pages share a bounded notice", async t => {
 
 test("restore refuses to overwrite an existing database file", async t => {
   const h = harness(t);
-  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes([]), files: new Map() } });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes([]), files: new Map() } });
   fs.writeFileSync(h.dbPath, "existing");
   await assert.rejects(restoreStagedImport({ root: h.root, dir: h.dir, dbPath: h.dbPath }), { code: "EEXIST" });
   assert.equal(fs.readFileSync(h.dbPath, "utf8"), "existing");
@@ -343,7 +344,7 @@ test("restore refuses to overwrite an existing site file", async t => {
 test("a database without presentation settings fails the restore after closing the database", async t => {
   const h = harness(t), empty = new Database(":memory:"), bytes = empty.serialize();
   empty.close();
-  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: bytes, files: new Map() } });
+  stageVerifiedImport({ themeChecks: THEME_PLACEMENT_CHECKS, root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: bytes, files: new Map() } });
   await assert.rejects(restoreStagedImport({ root: h.root, dir: h.dir, dbPath: h.dbPath }), { message: /no such table: presentation_settings/ });
   fs.rmSync(h.dbPath);
 });
@@ -423,4 +424,21 @@ test("unreadable menu and form rows do not stop other imported content", async t
     }
     assert.equal(stagedImportWarnings({ root: h.root }).length, 2);
   } finally { db.close(); }
+});
+
+test("a compiled theme whose sourceDir the theme owner calls outside is refused before restore placement: no theme load, every file quarantined", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-containment-"));
+  try {
+    const files = ["themes/static/outside/theme.json", "themes/static/outside/index.html"];
+    fs.mkdirSync(path.join(root, "themes/static/outside"), { recursive: true });
+    fs.writeFileSync(path.join(root, files[0]!), '{"tier":"static","build":{"source":"compiled","sourceDir":"src"}}');
+    fs.writeFileSync(path.join(root, files[1]!), "<html></html>");
+    const loads: string[] = [];
+    const themeChecks = { checkSourceDirContainment: () => ["Its source folder is outside the theme."], loadTheme: ({ themeDir }: { themeDir: string }) => { loads.push(themeDir); return { status: "valid" }; } };
+    const findings = inspectThemeManifests({ root, files, themeChecks });
+    assert.deepEqual([...findings.quarantinedThemes], ["static/outside"]);
+    assert.deepEqual(loads, [], "the theme is never loaded once containment refused it");
+    const liveThemes = liveThemeTrees({ files, findings });
+    assert.deepEqual(files.map(file => restoreDestination({ file, liveThemes, compiledSources: findings.compiledSources })), files.map(file => ".import-quarantine/" + file));
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

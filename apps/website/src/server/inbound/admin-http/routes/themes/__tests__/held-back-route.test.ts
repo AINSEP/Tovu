@@ -11,8 +11,11 @@ import type { NextFunction, Request, Response } from "express";
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { explainThemeTree } from "#src/features/site-backup/import-restore-placement";
+import { explainThemeTree as explainWithChecks } from "#src/features/site-backup/import-restore-placement";
 import { registerAdminHeldBackThemeRoutes, type HeldBackRouteDeps } from "../held-back.js";
+import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
+/** The held-back re-check as the host binds it (`modules/theme-held-back.ts`). */
+const explainThemeTree = (required: { root: string; id: string; files: readonly string[] }) => explainWithChecks({ ...required, themeChecks: THEME_PLACEMENT_CHECKS });
 
 /**
  * @file `GET|POST .../held-back-themes[/check|/restore]` — the Themes screen's "Held back on import"
