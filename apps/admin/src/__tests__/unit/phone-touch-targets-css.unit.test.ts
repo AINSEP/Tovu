@@ -63,7 +63,7 @@ describe("phone touch targets are 44px", () => {
   });
 
   it("rings the pill switches with an invisible hit area at least 44px each way", () => {
-    const ring = phoneDeclarations(':is(.agent-plugin-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before');
+    const ring = phoneDeclarations(':is(.jini-agent-plugin-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before');
     expect(ring).toEqual({ content: '""', position: "absolute", inset: "-12px -5px" });
     const [block, inline] = ring.inset!.split(" ").map((value) => -Number.parseFloat(value));
     // Smallest padding box the ring wraps: the theme-explore switch's 34x20.

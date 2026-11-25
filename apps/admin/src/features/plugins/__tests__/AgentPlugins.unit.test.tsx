@@ -143,9 +143,9 @@ describe("AgentPlugins", () => {
     const compliance = row("Site Compliance");
     expect(within(compliance).getByText("v1.0.0")).toBeInTheDocument();
     // Scoped: the row's always-rendered (collapsed, `hidden`) detail panel carries this same
-    // string a second time — see `.agent-plugin-detail-description`'s own test below.
+    // string a second time — see `.jini-agent-plugin-detail-description`'s own test below.
     expect(
-      within(compliance).getByText("Evidence-based compliance screening.", { selector: ".agent-plugin-row-desc" }),
+      within(compliance).getByText("Evidence-based compliance screening.", { selector: ".jini-agent-plugin-row-desc" }),
     ).toBeInTheDocument();
 
     // No version chip for a plugin whose installed package carries none — honest omission, not a
@@ -257,7 +257,7 @@ describe("AgentPlugins", () => {
 
     const summary = within(row("Site Compliance")).getByRole("button", { name: "Site Compliance v1.0.0" });
     expect(summary).toHaveAttribute("aria-expanded", "false");
-    expect(row("Site Compliance").querySelector(".agent-plugin-row-detail")).not.toBeVisible();
+    expect(row("Site Compliance").querySelector(".jini-agent-plugin-row-detail")).not.toBeVisible();
 
     function useExpanded(): AgentPluginsController {
       return fakeController({ expandedIds: new Set(["site-compliance"]) });
@@ -287,7 +287,7 @@ describe("AgentPlugins", () => {
     // Scoped with `selector` because the collapsed summary's own (clamped) copy of the identical
     // string is still in the DOM, hidden only by CSS `-webkit-line-clamp`, not removed.
     const fullDescription = within(expandedRow).getByText("Evidence-based compliance screening.", {
-      selector: ".agent-plugin-detail-description p",
+      selector: ".jini-agent-plugin-detail-description p",
     });
     expect(fullDescription).toBeVisible();
   });
@@ -296,7 +296,7 @@ describe("AgentPlugins", () => {
     renderAgentPlugins();
 
     const summaryDescription = within(row("Site Compliance")).getByText("Evidence-based compliance screening.", {
-      selector: ".agent-plugin-row-desc",
+      selector: ".jini-agent-plugin-row-desc",
     });
     expect(summaryDescription).toHaveAttribute("title", "Evidence-based compliance screening.");
   });
@@ -307,8 +307,8 @@ describe("AgentPlugins", () => {
 
     const exampleRow = row("Tovu Deploy Example");
     expect(within(exampleRow).getByRole("button", { name: "Tovu Deploy Example" })).toHaveAttribute("aria-expanded", "true");
-    expect(exampleRow.querySelector(".agent-plugin-row-desc")).toBeNull();
-    expect(exampleRow.querySelector(".agent-plugin-detail-description")).toBeNull();
+    expect(exampleRow.querySelector(".jini-agent-plugin-row-desc")).toBeNull();
+    expect(exampleRow.querySelector(".jini-agent-plugin-detail-description")).toBeNull();
   });
 
   it("calls the controller with the row's own id when the expander is activated", async () => {
@@ -680,7 +680,7 @@ describe("assistant admin navigation regression", () => {
       });
     }
     const view = render(<AgentPlugins tabId="installed" useAgentPluginsHook={useController} />);
-    const detailsControl = view.container.querySelector('.agent-plugin-row-summary')!;
+    const detailsControl = view.container.querySelector('.jini-agent-plugin-row-summary')!;
     const scroll = vi.fn();
     detailsControl.scrollIntoView = scroll;
     vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
@@ -721,7 +721,7 @@ describe("assistant admin navigation regression", () => {
         expect(scroll).toHaveBeenCalledTimes(1);
         expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
         expect(view.container.querySelector(`[data-agent-element="${details!.handle}"]`)).toHaveAttribute("aria-expanded", "true");
-        const detailsRegion = view.container.querySelector(".agent-plugin-row-detail");
+        const detailsRegion = view.container.querySelector(".jini-agent-plugin-row-detail");
         expect(detailsRegion).toBeVisible();
         expect(detailsRegion).toHaveTextContent("Design the user interface");
       } });

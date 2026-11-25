@@ -11,7 +11,7 @@ const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8"
 
 describe("phone row wrapping", () => {
   it("sizes a plugin row's summary to its own text, so three actions wrap under it instead of squeezing the name", () => {
-    expect(effectiveDeclarationsFor(stylesheet, ".plugin-row-summary")).toContain("flex-basis: auto;");
+    expect(effectiveDeclarationsFor(stylesheet, ".jini-plugin-row-summary")).toContain("flex-basis: auto;");
   });
 
   it("starts the open toolbar's character count at the left, clear of the floating chat button", () => {

@@ -1,10 +1,11 @@
 /** ZIP input shares the folder trust step; changing the package always invalidates consent. */
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
 import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { usePluginInstall } from "../hooks/use-plugin-install.hooks";
+import { usePluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-install.hooks";
 import { createFakePluginInstallPort, defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
-import { AddPluginPanel } from "../AddPluginPanel";
+import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
 import { tPlugins as t } from "../../../lib/i18n-common";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -14,7 +15,7 @@ it("reviews uploaded bytes and only installs them with reviewed consent", async 
   const port = createFakePluginInstallPort({ preview });
   const inspect = vi.spyOn(port, "preview"); const install = vi.spyOn(port, "install");
   const file = new File(["archive"], "package.zip", { type: "application/zip" });
-  const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
+  const { result } = renderHook(() => usePluginInstall({ ...HOST_INSTALL, port, t: (key) => key, onInstalled: async () => {} }));
   act(() => { result.current.setZipFile({ file }); });
   await act(async () => { await result.current.install(); });
   expect(install).not.toHaveBeenCalled();
@@ -26,7 +27,7 @@ it("reviews uploaded bytes and only installs them with reviewed consent", async 
 
 it("changing ZIP, choosing a folder, or replacement options invalidates review", async () => {
   const port = createFakePluginInstallPort({ preview });
-  const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
+  const { result } = renderHook(() => usePluginInstall({ ...HOST_INSTALL, port, t: (key) => key, onInstalled: async () => {} }));
   const file = new File(["archive"], "one.zip");
   act(() => { result.current.setZipFile({ file }); });
   await act(async () => { await result.current.review(); });
@@ -44,7 +45,7 @@ it("changing ZIP, choosing a folder, or replacement options invalidates review",
 
 it("rejects oversized browser files before an upload", async () => {
   const port = createFakePluginInstallPort({ preview }); const read = vi.spyOn(port, "preview");
-  const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
+  const { result } = renderHook(() => usePluginInstall({ ...HOST_INSTALL, port, t: (key) => key, onInstalled: async () => {} }));
   const file = new File([], "huge.zip"); Object.defineProperty(file, "size", { value: 32 * 1024 * 1024 + 1 });
   act(() => { result.current.setZipFile({ file }); });
   await act(async () => { await result.current.review(); });
@@ -55,8 +56,8 @@ it("rejects oversized browser files before an upload", async () => {
 it("renders a styled ZIP drop zone (no raw file input) and requires the same full-access review before installation", async () => {
   const port = createFakePluginInstallPort({ preview });
   function Harness() {
-    const controller = usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} });
-    return <AddPluginPanel controller={controller} />;
+    const controller = usePluginInstall({ ...HOST_INSTALL, port, t: (key) => key, onInstalled: async () => {} });
+    return <AddPluginPanel productName="Tovu" controller={controller} />;
   }
   render(<Harness />); const user = userEvent.setup();
   const picker = screen.getByLabelText("Upload .zip (max 32 MiB)") as HTMLInputElement;
@@ -74,7 +75,7 @@ it("renders a styled ZIP drop zone (no raw file input) and requires the same ful
 
 it("a dropped .zip is chosen like a picked one; a drop is ignored while a preview is in flight", async () => {
   const port = createFakePluginInstallPort({ preview });
-  const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
+  const { result } = renderHook(() => usePluginInstall({ ...HOST_INSTALL, port, t: (key) => key, onInstalled: async () => {} }));
   const file = new File(["zip"], "dropped.zip");
   const dropEvent = (files: File[]) => ({ preventDefault: vi.fn(), dataTransfer: { files } }) as unknown as Parameters<typeof result.current.drop.onDrop>[0];
   act(() => result.current.drop.onDragOver({ preventDefault: vi.fn() } as unknown as Parameters<typeof result.current.drop.onDragOver>[0]));

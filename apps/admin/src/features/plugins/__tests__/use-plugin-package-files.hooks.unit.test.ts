@@ -1,11 +1,12 @@
+import { pluginRules } from "../rules";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import type { AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
-import { usePluginPackageFiles } from "../hooks/use-plugin-package-files.hooks";
-import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";
+import { usePluginPackageFiles } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-package-files.hooks";
+import { useAgentPluginDetailsModal } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { toPackageFileView } from "../rules";
 
 /**
@@ -33,7 +34,7 @@ function listing(pluginId: string, overrides: Partial<AdminPluginFilesEnvelope> 
 describe("usePluginPackageFiles", () => {
   it("reports loading, then maps the listing and selects the first file", async () => {
     const port = createFakePluginsPort({ packageFiles: { "site-fixture": listing("site-fixture") } });
-    const { result } = renderHook(() => usePluginPackageFiles({ pluginId: "site-fixture", port, t: identity }));
+    const { result } = renderHook(() => usePluginPackageFiles({ rules: pluginRules, pluginId: "site-fixture", port, t: identity }));
 
     expect(result.current.status).toEqual({ text: "Loading package files…", role: "status" });
     await waitFor(() => expect(result.current.files).toHaveLength(2));
@@ -46,7 +47,7 @@ describe("usePluginPackageFiles", () => {
 
   it("selectFile moves the selection; an unknown path falls back to the first file", async () => {
     const port = createFakePluginsPort({ packageFiles: { p: listing("p") } });
-    const { result } = renderHook(() => usePluginPackageFiles({ pluginId: "p", port, t: identity }));
+    const { result } = renderHook(() => usePluginPackageFiles({ rules: pluginRules, pluginId: "p", port, t: identity }));
     await waitFor(() => expect(result.current.files).toHaveLength(2));
 
     act(() => result.current.selectFile("assets/logo.png"));
@@ -59,7 +60,7 @@ describe("usePluginPackageFiles", () => {
   it("turns a refusal into an alert using the screen's own error text", async () => {
     const port = createFakePluginsPort();
     port.getPluginFiles = () => Promise.reject(new ApiError({ message: "plugin id or version is not a safe path", status: 400 }, { code: "PLUGIN_ID_INVALID" }));
-    const { result } = renderHook(() => usePluginPackageFiles({ pluginId: "../escape", port, t: identity }));
+    const { result } = renderHook(() => usePluginPackageFiles({ rules: pluginRules, pluginId: "../escape", port, t: identity }));
 
     await waitFor(() => expect(result.current.status).toEqual({ text: "This plugin's id is invalid.", role: "alert" }));
     expect(result.current.files).toEqual([]);
@@ -71,10 +72,10 @@ describe("usePluginPackageFiles", () => {
       packageFiles: { empty: listing("empty", { files: [] }), big: listing("big", { truncated: true }) },
     });
 
-    const empty = renderHook(() => usePluginPackageFiles({ pluginId: "empty", port, t: identity }));
+    const empty = renderHook(() => usePluginPackageFiles({ rules: pluginRules, pluginId: "empty", port, t: identity }));
     await waitFor(() => expect(empty.result.current.status).toEqual({ text: "No files to show for this plugin.", role: "status" }));
 
-    const big = renderHook(() => usePluginPackageFiles({ pluginId: "big", port, t: identity }));
+    const big = renderHook(() => usePluginPackageFiles({ rules: pluginRules, pluginId: "big", port, t: identity }));
     await waitFor(() =>
       expect(big.result.current.listNotice).toBe("Some files are not listed: this package is larger than the viewer's limits."),
     );
@@ -86,7 +87,7 @@ describe("usePluginPackageFiles", () => {
     const realGet = port.getPluginFiles.bind(port);
     port.getPluginFiles = ({ id }) => (id === "first" ? new Promise((resolve) => (resolveFirst = resolve)) : realGet({ id }));
 
-    const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ pluginId, port, t: identity }), {
+    const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ rules: pluginRules, pluginId, port, t: identity }), {
       initialProps: { pluginId: "first" },
     });
     rerender({ pluginId: "second" });
@@ -102,7 +103,7 @@ describe("usePluginPackageFiles", () => {
     const realGet = port.getPluginFiles.bind(port);
     port.getPluginFiles = ({ id }) => (id === "second" ? new Promise(() => {}) : realGet({ id }));
 
-    const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ pluginId, port, t: identity }), {
+    const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ rules: pluginRules, pluginId, port, t: identity }), {
       initialProps: { pluginId: "first" },
     });
     await waitFor(() => expect(result.current.files).toHaveLength(2));
@@ -117,7 +118,7 @@ describe("usePluginPackageFiles", () => {
   it("a failed load sets no caps notice", async () => {
     const port = createFakePluginsPort();
     port.getPluginFiles = () => Promise.reject(new Error("network down"));
-    const { result } = renderHook(() => usePluginPackageFiles({ pluginId: "p", port, t: identity }));
+    const { result } = renderHook(() => usePluginPackageFiles({ rules: pluginRules, pluginId: "p", port, t: identity }));
 
     await waitFor(() => expect(result.current.status).toEqual({ text: "network down", role: "alert" }));
     expect(result.current.listNotice).toBeNull();
@@ -139,8 +140,8 @@ it("keeps CMS and agent package files separate when their identifiers match", as
   const cms = createFakePluginsPort({ packageFiles: { shared: listing("shared") } });
   const agent = { getAgentPluginFiles: async () => listing("shared", { files: [{ relativePath: "agent.json", sizeBytes: 2, content: "{}", omitted: null }] }) };
   const { result } = renderHook(() => ({
-    cms: usePluginPackageFiles({ pluginId: "shared", port: cms, t: identity }),
-    agent: useAgentPluginDetailsModal({ pluginId: "shared", port: agent, t: identity }),
+    cms: usePluginPackageFiles({ rules: pluginRules, pluginId: "shared", port: cms, t: identity }),
+    agent: useAgentPluginDetailsModal({ rules: pluginRules, pluginId: "shared", port: agent, t: identity }),
   }));
   await waitFor(() => {
     expect(result.current.cms.files[0]?.relativePath).toBe("tovu.plugin.json");

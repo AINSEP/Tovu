@@ -81,7 +81,7 @@ describe("admin selection ring", () => {
     ["styles.css", '.tab-bar-item[aria-selected="true"]', "border-bottom-color"],
     ["styles.css", ".settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active", "border-bottom-color"],
     ["styles.css", ".settings-ui-section .jini-settings-language-tile.active", "border-color"],
-    ["styles.css", '.agent-plugin-source-content-header button[aria-pressed="true"]', "border-color"],
+    ["styles.css", '.jini-agent-plugin-source-content-header button[aria-pressed="true"]', "border-color"],
     ["styles.css", ".site-db-option.is-selected", "border-color"],
     ["styles/forms.css", '.form-tab[aria-selected="true"]', "border-bottom-color"],
     ["styles.css", ".cms-item.active::before", "background"],

@@ -115,15 +115,3 @@ export function folderWindowOpenElsewhere(
 ) {
   return picking && !desktop;
 }
-
-/**
- * The header title editor's rename handler. Renames the active conversation; with no active
- * conversation there is nothing to rename (the editor is disabled then too), so it does nothing.
- *
- * @param chats The dock's conversation state; `activeId` is read when the handler runs.
- * @returns A handler taking the new title.
- * @complexity O(1).
- */
-export function renameActiveConversation(chats: Pick<UseAssistantChats, "activeId" | "rename">) {
-  return (title: string) => chats.activeId ? chats.rename({ id: chats.activeId, title }) : undefined;
-}

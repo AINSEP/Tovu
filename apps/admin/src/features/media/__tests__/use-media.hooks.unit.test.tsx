@@ -6,7 +6,7 @@ import { mediaApi } from "@/features/media/api/media-api";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
+import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
 import { useMedia } from "../hooks/use-media.hooks";
 import { MEDIA_RESOURCE, visibleMediaError as visibleMediaErrorRule } from "@jini-ai/admin/screens/media/rules";
 

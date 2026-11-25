@@ -1,4 +1,4 @@
-import { navigateSecurityTab } from "./Security.hooks";
+import { navigateSecurityTab } from "@jini-ai/admin/security/host/Security.hooks";
 import { PasskeySettings } from '@jini-ai/user-management/react';
 import { ownerPasskeySettingsPort } from '../../lib/owner-clients';
 import { TotpSettings } from "@jini-ai/user-management/react";

@@ -2,8 +2,8 @@
  * @file External-MCP write-tool picker + the per-server tools modal (`ExternalMcpToolsModal.tsx`)
  * that replaced the old Connection/Tools tab layout — Phase 4 of `ADS-memory/reports/pipeline/
  * external-mcp-write-tools/implementation-outline.md`. Classes match `ExternalMcpSettingsPanel.tsx`
- * (`.external-mcp-source`), `ExternalMcpToolsModal.tsx` (`.external-mcp-tools-modal*`), and
- * `ExternalMcpToolPicker.tsx` (`.external-mcp-tool-*`) verbatim.
+ * (`.external-mcp-source`), `ExternalMcpToolsModal.tsx` (`.jini-external-mcp-tools-modal*`), and
+ * `ExternalMcpToolPicker.tsx` (`.jini-external-mcp-tool-*`) verbatim.
  *
  * ## Every control here declares `color` explicitly
  *
@@ -19,7 +19,7 @@
  *
  * ## The scrolling list
  *
- * The live higgsfield connection advertises 157 tools. `.external-mcp-tool-list` is the dialog's one
+ * The live higgsfield connection advertises 157 tools. `.jini-external-mcp-tool-list` is the dialog's one
  * scrolling container, bounded by the dialog's fixed-height flex column (2026-10-13; was its own
  * `max-height: 22rem` inside a second scrolling modal body), so a wide-open server cannot grow the
  * dialog to match it, and every
@@ -95,7 +95,7 @@
    toolbar, the list as the one scroller, and a footer pinned under it — and every band shares one
    horizontal inset, `--tools-pad`, so rows, toolbar and footer line up. A fixed height (not just a
    max) keeps the dialog from jumping as a search narrows the list. */
-.external-mcp-tools-modal {
+.jini-external-mcp-tools-modal {
   --tools-pad: var(--space-6);
   width: 42rem;
   max-width: calc(100vw - 2rem);
@@ -105,19 +105,19 @@
   gap: 0;
   overflow: hidden;
 }
-.external-mcp-tools-modal-head {
+.jini-external-mcp-tools-modal-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-5) var(--tools-pad) var(--space-3);
 }
-.external-mcp-tools-modal-head h2 {
+.jini-external-mcp-tools-modal-head h2 {
   margin: 0;
   color: var(--fg);
   overflow-wrap: anywhere;
 }
-.external-mcp-tools-modal-kicker {
+.jini-external-mcp-tools-modal-kicker {
   margin: 0 0 var(--space-1);
   font-size: var(--text-2xs);
   font-weight: 600;
@@ -127,7 +127,7 @@
 }
 /* The × close. A bare `<button>`, so `color` and `background` are both named — see this file's
    header on the global reset. */
-.external-mcp-tools-modal-close {
+.jini-external-mcp-tools-modal-close {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -141,19 +141,19 @@
   border: 1px solid transparent;
   border-radius: var(--r-sm);
 }
-.external-mcp-tools-modal-close:hover {
+.jini-external-mcp-tools-modal-close:hover {
   color: var(--fg);
   background: var(--surface-2);
   opacity: 1;
 }
 /* The dialog focuses this button on open (`useExternalMcpToolsModalEscape`), so its ring shows on
    every open: the soft `--primary-ring` halo the app's inputs use, not the global 2px outline. */
-.external-mcp-tools-modal-close:focus-visible {
+.jini-external-mcp-tools-modal-close:focus-visible {
   outline: none;
   color: var(--fg);
   box-shadow: var(--jini-control-shadow-focus);
 }
-.external-mcp-tools-modal-body {
+.jini-external-mcp-tools-modal-body {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -169,7 +169,7 @@
 }
 
 /* Search, select all/none, Refresh — one quiet row above the list. */
-.external-mcp-tool-toolbar {
+.jini-external-mcp-tool-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -177,31 +177,31 @@
   padding: 0 var(--tools-pad, var(--space-4)) var(--space-3);
   border-bottom: 1px solid var(--border);
 }
-.external-mcp-tool-search {
+.jini-external-mcp-tool-search {
   flex: 1 1 12rem;
   min-width: 0;
   min-height: 34px;
   padding: 0.4rem 0.7rem;
 }
-.external-mcp-tool-bulk {
+.jini-external-mcp-tool-bulk {
   display: flex;
   gap: var(--space-1);
 }
-.external-mcp-tool-toolbar .btn-ghost {
+.jini-external-mcp-tool-toolbar .btn-ghost {
   padding: 0.4rem 0.6rem;
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--fg-2);
 }
-.external-mcp-tool-toolbar .btn-ghost:disabled {
+.jini-external-mcp-tool-toolbar .btn-ghost:disabled {
   color: var(--faint);
 }
-.external-mcp-tool-refresh {
+.jini-external-mcp-tool-refresh {
   margin-left: auto;
 }
 
 /* The one action area — see `ExternalMcpToolPicker.tsx`'s `ToolPickerFooter`. */
-.external-mcp-tool-foot {
+.jini-external-mcp-tool-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -211,12 +211,12 @@
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
-.external-mcp-tool-foot-text {
+.jini-external-mcp-tool-foot-text {
   flex: 1 1 14rem;
   min-width: 0;
 }
 
-.external-mcp-tool-count {
+.jini-external-mcp-tool-count {
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -226,18 +226,18 @@
 /* A connection that is configured but grants nothing looks identical to a working one at a glance —
    the same class of quiet failure as an inert write grant, so it gets a distinct color, not just
    different text. */
-.external-mcp-tool-count[data-zero] {
+.jini-external-mcp-tool-count[data-zero] {
   color: var(--danger);
   font-weight: 600;
 }
 
-.external-mcp-tool-footnote {
+.jini-external-mcp-tool-footnote {
   margin: 0.15rem 0 0;
   color: var(--muted);
   font-size: var(--text-xs);
 }
 
-.external-mcp-tool-actions {
+.jini-external-mcp-tool-actions {
   display: flex;
   gap: var(--space-2);
   flex-shrink: 0;
@@ -246,28 +246,28 @@
 /* Bare buttons already get `color: var(--primary-ink)` from the app-wide reset — restated here so
    this rule is legible on its own without requiring a reader to know that default holds. Save is
    the bare one: the theme's burnt-orange `--primary`, the dialog's one primary action. */
-.external-mcp-tool-actions button {
+.jini-external-mcp-tool-actions button {
   color: var(--primary-ink);
 }
 /* Same tie for a disabled Save: near-white `--primary-ink` on `button:disabled`'s grey fill left the
    label unreadable. Use the app's disabled label colour. */
-.external-mcp-tool-actions button:disabled {
+.jini-external-mcp-tool-actions button:disabled {
   color: var(--muted);
 }
 /* Cancel uses the app's existing secondary variant — restated explicitly rather than left to that
    class's own definition, for the same legibility reason as the line above. */
-.external-mcp-tool-actions .btn-secondary {
+.jini-external-mcp-tool-actions .btn-secondary {
   color: var(--fg-2);
 }
 /* ...but this (0,2,0) rule loads after `styles.css`'s `.btn-secondary:disabled` (also 0,2,0) and won,
    so a disabled Cancel kept the enabled label colour and looked clickable (owner, 2026-10-14).
    Restate the disabled look at higher specificity. */
-.external-mcp-tool-actions .btn-secondary:disabled {
+.jini-external-mcp-tool-actions .btn-secondary:disabled {
   color: var(--faint);
   border-color: var(--border);
 }
 
-.external-mcp-tool-note {
+.jini-external-mcp-tool-note {
   margin: var(--space-4) var(--tools-pad, var(--space-4));
   padding: 0.6rem 0.75rem;
   color: var(--fg);
@@ -276,19 +276,19 @@
   border-radius: var(--r-sm);
   font-size: var(--text-sm);
 }
-.external-mcp-tool-note[role="alert"] {
+.jini-external-mcp-tool-note[role="alert"] {
   color: var(--danger);
   background: var(--danger-bg);
   border-color: var(--danger);
 }
 /* The "switched off" note sits above the toolbar, so it needs no top gap of its own. */
-.external-mcp-tool-picker > .external-mcp-tool-note:first-child {
+.external-mcp-tool-picker > .jini-external-mcp-tool-note:first-child {
   margin-top: 0;
 }
 
 /* The one scroller — see this file's header. Bounded by the dialog's fixed-height flex column
    (`flex` + `min-height: 0`), not by a `max-height` of its own, so it fills whatever the dialog has. */
-.external-mcp-tool-list {
+.jini-external-mcp-tool-list {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -299,7 +299,7 @@
 
 /* Checkbox + name + badges on line one, "Allow changes" at the right edge of that line, the
    description on line two, indented to the name. */
-.external-mcp-tool-row {
+.jini-external-mcp-tool-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -309,16 +309,16 @@
   border-bottom: 1px solid var(--border);
   color: var(--fg);
 }
-.external-mcp-tool-row:last-child {
+.jini-external-mcp-tool-row:last-child {
   border-bottom: none;
 }
-.external-mcp-tool-row[data-locked] {
+.jini-external-mcp-tool-row[data-locked] {
   background: var(--surface-2);
 }
 
 /* The checkbox hangs into the left padding (negative margin on the label), so on a narrow screen a
    badge that wraps lines up under the tool NAME, not under the checkbox. */
-.external-mcp-tool-title {
+.jini-external-mcp-tool-title {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -327,7 +327,7 @@
   padding-left: calc(16px + var(--space-3));
 }
 
-.external-mcp-tool-enable {
+.jini-external-mcp-tool-enable {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
@@ -336,13 +336,13 @@
   color: var(--fg);
   cursor: pointer;
 }
-.external-mcp-tool-row[data-locked] .external-mcp-tool-enable {
+.jini-external-mcp-tool-row[data-locked] .jini-external-mcp-tool-enable {
   color: var(--faint);
   cursor: default;
 }
 
 /* The UI font, not `--font-mono`: these names are read and scanned, not copied (2026-10-13). */
-.external-mcp-tool-name {
+.jini-external-mcp-tool-name {
   font-size: var(--text-base);
   font-weight: 500;
   color: inherit;
@@ -355,7 +355,7 @@
    offers this name) and `danger` (Destructive) keep a colour — see `ToolRowBadge`'s doc. A genuinely
    declared read-only tool renders no badge at all, so its unremarkable row IS the positive
    statement (`external-mcp-tool-picker-rules.ts`'s header). */
-.external-mcp-tool-badge {
+.jini-external-mcp-tool-badge {
   font-size: var(--text-2xs);
   font-weight: 500;
   line-height: 1.5;
@@ -365,22 +365,22 @@
   border-radius: var(--r-pill);
   padding: 0 0.45rem;
 }
-.external-mcp-tool-badge[data-tone="warning"] {
+.jini-external-mcp-tool-badge[data-tone="warning"] {
   color: var(--warning);
   background: var(--warning-bg);
   border-color: transparent;
 }
-.external-mcp-tool-badge[data-tone="danger"] {
+.jini-external-mcp-tool-badge[data-tone="danger"] {
   color: var(--danger);
   background: var(--danger-bg);
   border-color: transparent;
 }
 
 /* `SeeMore`'s wrapper — passed as its `className`. The clamp mechanics live in `see-more.css`;
-   typography lives on `.external-mcp-tool-description` below, passed as `textClassName` per that
+   typography lives on `.jini-external-mcp-tool-description` below, passed as `textClassName` per that
    component's own contract. A flex row so the one-line clamp and its toggle share a line; the
    indent lines the text up under the tool name (checkbox width + the label's gap). */
-.external-mcp-tool-description-wrap {
+.jini-external-mcp-tool-description-wrap {
   grid-column: 1 / -1;
   display: flex;
   align-items: baseline;
@@ -389,7 +389,7 @@
   padding-left: calc(16px + var(--space-3));
 }
 
-.external-mcp-tool-description {
+.jini-external-mcp-tool-description {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--muted);
@@ -403,20 +403,20 @@
 /* Three classes to outrank `see-more.css`'s two-class `.see-more .see-more-toggle`. The focus ring
    is the same soft `--primary-ring` halo the app's text inputs use, rather than the global 2px
    orange outline, which boxed a two-word link far too heavily. */
-.external-mcp-tool-row .see-more .external-mcp-tool-description-toggle {
+.jini-external-mcp-tool-row .see-more .jini-external-mcp-tool-description-toggle {
   flex: 0 0 auto;
   margin: 0;
   font-size: var(--text-xs);
   color: var(--link);
   border-radius: var(--r-sm);
 }
-.external-mcp-tool-row .see-more .external-mcp-tool-description-toggle:focus-visible {
+.jini-external-mcp-tool-row .see-more .jini-external-mcp-tool-description-toggle:focus-visible {
   outline: none;
   box-shadow: var(--jini-control-shadow-focus);
 }
 
 /* The write grant, as a small pill switch on the row's first line — see `ToolPickerRowItem`. */
-.external-mcp-tool-write {
+.jini-external-mcp-tool-write {
   grid-column: 2;
   grid-row: 1;
   display: inline-flex;
@@ -431,16 +431,16 @@
   border-radius: var(--r-pill);
   cursor: pointer;
 }
-.external-mcp-tool-write:has(input:checked) {
+.jini-external-mcp-tool-write:has(input:checked) {
   background: var(--primary-dim);
   border-color: var(--primary);
 }
-.external-mcp-tool-write input[type="checkbox"] {
+.jini-external-mcp-tool-write input[type="checkbox"] {
   width: 14px;
   height: 14px;
 }
 
-.external-mcp-tool-lock {
+.jini-external-mcp-tool-lock {
   grid-column: 1 / -1;
   margin: 0;
   padding-left: calc(16px + var(--space-3));
@@ -496,13 +496,13 @@
    redesign the picker is already one flat surface with the list as its only scroller, so all this
    block does is go full-screen and tighten the shared inset. */
 @media (max-width: 640px) {
-  .settings-dialog-backdrop:has(> .external-mcp-tools-modal) { place-items: stretch; }
-  .settings-dialog.external-mcp-tools-modal {
+  .settings-dialog-backdrop:has(> .jini-external-mcp-tools-modal) { place-items: stretch; }
+  .settings-dialog.jini-external-mcp-tools-modal {
     --tools-pad: var(--space-4);
     width: 100%; max-width: none; height: 100dvh; max-height: none;
     border-radius: 0; padding: 0;
   }
-  .external-mcp-tool-search { flex-basis: 100%; }
+  .jini-external-mcp-tool-search { flex-basis: 100%; }
 }
 
 /* The row's "Connect" button (2026-10-23) — an OAuth row that isn't signed in. Same band and size

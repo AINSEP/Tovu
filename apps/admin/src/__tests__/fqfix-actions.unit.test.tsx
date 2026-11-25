@@ -1,8 +1,9 @@
+import { HOST_PLUGINS } from '@/features/plugins/__tests__/plugin-host-deps';
 import { act, renderHook, waitFor } from './fetch-query-render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRecovery } from '@jini-ai/admin/recovery/hooks/use-recovery.hooks';
 import { RECOVERY_HOST, createFakeRecoveryPort } from '@/features/recovery/hooks/recovery-dependencies.hooks';
-import { usePlugins } from '@/features/plugins/hooks/use-plugins.hooks';
+import { usePlugins } from '@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks';
 import { createFakePluginsPort } from '@/features/plugins/hooks/plugins-dependencies.hooks';
 import { useSkills } from '@/features/skills/use-skills.hooks';
 import { useInvalidate } from '@jini-ai/ui/fetch-query';
@@ -45,7 +46,7 @@ describe('fq action completion', () => {
     const plugin = { id: 'p1', name: 'Example', version: '1.0.0', source: 'site' as const, tier: 'tier-1' as const,
       status: 'valid' as const, enabled: false, quarantine: null, errors: [], conflicts: [] };
     const port = createFakePluginsPort({ plugins: [plugin] });
-    const { result } = renderHook(() => usePlugins({ port, locale: 'en', t: key => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([plugin]));
     const refresh = deferred<Awaited<ReturnType<typeof port.listPlugins>>>();
     let refreshStarted = false;
@@ -92,7 +93,7 @@ describe('fq action completion', () => {
     const plugin = { id: 'example', name: 'Example', version: '1.0.0', tier: 'tier-1', capabilities: [], hooks: [],
       hasCode: false, digest: 'reviewed-digest', contentTypes: [], conflicts: [] };
     const installPort = { preview: async () => ({ plugin }), install: async () => ({ plugin }) };
-    const { result } = renderHook(() => usePlugins({ port, installPort, locale: 'en', t: key => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, installPort, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([]));
     act(() => result.current.install!.setFolder({ value: '/example' }));
     await act(async () => { await result.current.install!.review(); });
@@ -165,7 +166,7 @@ describe('accepted writes with failed refreshes', () => {
     const plugin = { id: 'p-refresh', name: 'Example', version: '1.0.0', source: 'site' as const, tier: 'tier-1' as const,
       status: 'valid' as const, enabled: false, quarantine: null, errors: [], conflicts: [] };
     const port = createFakePluginsPort({ plugins: [plugin] });
-    const { result } = renderHook(() => usePlugins({ port, locale: 'en', t: key => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([plugin]));
     port.listPlugins = async () => { throw new Error('Plugin roster refresh failed'); };
     await act(async () => { await (kind === 'toggle' ? result.current.onToggleEnabled(plugin) : result.current.onRemovePlugin(plugin)); });
@@ -203,7 +204,7 @@ describe('accepted writes with failed refreshes', () => {
       hasCode: false, digest: 'reviewed-digest', contentTypes: [], conflicts: [] };
     let writes = 0;
     const installPort = { preview: async () => ({ plugin }), install: async () => { writes++; return { plugin }; } };
-    const { result } = renderHook(() => usePlugins({ port, installPort, locale: 'en', t: key => key }));
+    const { result } = renderHook(() => usePlugins({ ...HOST_PLUGINS, port, installPort, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([]));
     act(() => result.current.install!.setFolder({ value: '/example' }));
     await act(async () => { await result.current.install!.review(); });

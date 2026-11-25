@@ -1,3 +1,4 @@
+import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
 import { useAgentPluginConfirmation } from "@jini-ai/admin/screens/plugins/AgentPlugins.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
@@ -7,20 +8,23 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { useId } from "react";
 
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
-import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
+import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
+import { AddAgentPluginPanel } from "@jini-ai/admin/screens/plugins/AddAgentPluginPanel";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
-import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
-import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
-import { AgentPluginManageButton } from "./AgentPluginManageButton";
+import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
+import { AgentPluginRow, type AgentPluginRowStateControl } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
+import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
 import { InstalledIcon, MarketplaceIcon, UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
-import { agentPluginDisplayName, updatableAgentPluginDigest } from "./rules";
-import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { agentPluginDisplayName, isApiError, pluginRules, updatableAgentPluginDigest } from "./rules";
+import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
+import { AgentPluginUpdateControl } from "@jini-ai/admin/screens/plugins/AgentPluginUpdateControl";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
 import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
-import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
-import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
+import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginUpdate } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-update.hooks";
 
 import { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
 
@@ -98,7 +102,7 @@ export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandl
   onUpdated: (plugin: AgentPluginListRow) => void;
   port: AgentPluginInstallPort;
 }) {
-  const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated });
+  const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated, productName: "Tovu", isApiError, folderZip, rules: pluginRules });
   return <AgentPluginUpdateControl update={update} t={t} agentHandleBase={agentHandleBase} />;
 }
 
@@ -158,6 +162,7 @@ function AgentPluginList({
           }
           manage={plugin.enabled ? (
             <AgentPluginManageButton
+              port={defaultAgentPluginSurfacesPort}
               pluginId={plugin.pluginId}
               displayName={agentPluginDisplayName(plugin)}
               t={controller.t}
@@ -353,6 +358,11 @@ export interface AgentPluginsProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useAgentPluginsHook?: typeof useWiredAgentPlugins;
+  /** Injection seams for the screen's other hooks (hook-injection gate), each defaulted to the real one. */
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useAgentPluginTabHook?: typeof useAgentPluginTab;
+  useAgentPluginInstallHook?: typeof useAgentPluginInstall;
+  useAgentPluginConfirmationHook?: typeof useAgentPluginConfirmation;
   /** The "Add a plugin" upload transport; tests pass `createFakeAgentPluginInstallPort`. */
   agentPluginInstallPort?: AgentPluginInstallPort;
 }
@@ -389,22 +399,26 @@ export interface AgentPluginsProps {
  *     switch's off state is reachable again and a switched-off bundled plugin can be turned on
  *     from the default tab. Item 4's "Installed (only `enabled: true`)" scope no longer holds.
  */
-export function AgentPlugins({
+function AgentPluginsScreen({
   tabId,
   useAgentPluginsHook = useWiredAgentPlugins,
   agentPluginInstallPort = defaultAgentPluginInstallPort,
+  useAdminThemeBoundaryHook = useAdminThemeBoundary,
+  useAgentPluginTabHook = useAgentPluginTab,
+  useAgentPluginInstallHook = useAgentPluginInstall,
+  useAgentPluginConfirmationHook = useAgentPluginConfirmation,
 }: AgentPluginsProps = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  const tab = useAgentPluginTab({ tabId });
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
+  const tab = useAgentPluginTabHook({ tabId });
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
-  const installController = useAgentPluginInstall({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
+  const installController = useAgentPluginInstallHook({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled, productName: "Tovu", isApiError, folderZip, rules: pluginRules });
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
   const { pendingDisable, setPendingDisable, pendingDisablePlugin, onRequestToggleEnabled, onRequestRemove } =
-    useAgentPluginConfirmation({ agentPlugins, onToggleEnabled });
+    useAgentPluginConfirmationHook({ agentPlugins, onToggleEnabled });
 
   const tabs: SettingsDialogTab[] = [
     {
@@ -489,6 +503,7 @@ export function AgentPlugins({
         {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
         {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
+            rules={pluginRules}
             origin={pendingDisablePlugin.origin}
             requiredBy={pendingDisablePlugin.requiredBy}
             name={agentPluginDisplayName(pendingDisablePlugin)}
@@ -508,5 +523,14 @@ export function AgentPlugins({
         ) : null}
       </div>
     </I18nProvider>
+  );
+}
+
+/** The agent-plugins screen under the host-bound rule functions the Jini rows and dialogs read. */
+export function AgentPlugins(props: AgentPluginsProps = {}) {
+  return (
+    <PluginRulesProvider rules={pluginRules}>
+      <AgentPluginsScreen {...props} />
+    </PluginRulesProvider>
   );
 }

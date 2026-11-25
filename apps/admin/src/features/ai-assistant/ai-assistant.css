@@ -120,7 +120,7 @@
 }
 
 /* The one switch the tab is about: a real track-and-knob, not a checkbox. Same geometry as the
-   shared `.agent-plugin-switch` (38x22 incl. a 1px track-coloured border): the global checkbox
+   shared `.jini-agent-plugin-switch` (38x22 incl. a 1px track-coloured border): the global checkbox
    rule adds that border, and on a 34x20 box it left the knob touching the bottom/right edge. */
 .jini-assistant-toggle--switch input[role="switch"] {
   appearance: none; -webkit-appearance: none; position: relative; flex-shrink: 0;

@@ -379,7 +379,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    box no wider than what it holds — expressed for controls that already have a width of their
    own. `max-width: 100%` hands control back to `.toolbar`'s own `flex-wrap` once the column is
    narrower than the row. */
-.database-filter-bar { width: fit-content; max-width: 100%; }
+.jini-database-filter-bar { width: fit-content; max-width: 100%; }
 
 /* Kicker + title + description on the left, actions on the right — mirrors the measured
    Settings triad (11px kicker / 26px title / 13px description) instead of a bare <h1>. */
@@ -771,7 +771,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   cursor: pointer;
   transition: background-color 0.15s;
 }
-/* Burnt orange (`--primary`) when on, and the same mid-grey off track, as `.agent-plugin-switch`
+/* Burnt orange (`--primary`) when on, and the same mid-grey off track, as `.jini-agent-plugin-switch`
    (2026-10-06 mobile catalog P-8: these were the only green toggles left in the app, next to the
    burnt-orange plugin/skill switches). History: it was green when on — the owner's own 2026-08-30 ask, verbatim ("a green toggle, Apple style") — reusing `--ok`
    (the SAME green `.status-ok`/`.jini-tab-bar-dot` use for "this is connected/active") rather than
@@ -2877,15 +2877,15 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .theme-atlas { background: var(--tovu-theme-preview-atlas-bg); color: var(--tovu-theme-preview-atlas-text); }
 .theme-glassmorphic { background: var(--tovu-theme-preview-glass-bg); color: var(--tovu-theme-preview-glass-text); }
 /* Card actions as icons (owner 2026-10-08): the Activate button and the green Active pill became one
-   switch — the same `.agent-plugin-switch` the plugin and settings rows use, burnt orange when ON —
+   switch — the same `.jini-agent-plugin-switch` the plugin and settings rows use, burnt orange when ON —
    and Explore/Duplicate became compass/copy icon buttons grouped on the right. Every rule here is
    written as `.theme-card button.<class>` for the specificity trap the `.btn-primary`/`.btn-explore`
    overrides above record: `.theme-card button` (0,1,1) would otherwise tint these with
    `currentColor` too. Placed after `.theme-card button:hover` so equal-specificity ties resolve here. */
 .theme-card-icon-actions { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: auto; }
-.theme-card button.agent-plugin-switch { background: var(--border-strong); border: 1px solid var(--border-strong); padding: 0; border-radius: var(--r-pill); }
-.theme-card button.agent-plugin-switch[aria-checked="true"] { background: var(--primary); border-color: var(--primary); }
-.theme-card button.agent-plugin-switch:hover:not(:disabled) { border-color: var(--primary); opacity: 1; }
+.theme-card button.jini-agent-plugin-switch { background: var(--border-strong); border: 1px solid var(--border-strong); padding: 0; border-radius: var(--r-pill); }
+.theme-card button.jini-agent-plugin-switch[aria-checked="true"] { background: var(--primary); border-color: var(--primary); }
+.theme-card button.jini-agent-plugin-switch:hover:not(:disabled) { border-color: var(--primary); opacity: 1; }
 .theme-card button.theme-card-icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 36px; height: 36px; padding: 0;
@@ -3124,7 +3124,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* 80, not 40: this is the shared blocking-modal backdrop (confirm dialogs, media/widget pickers),
    so it must sit above `.chat-fab` (75, `styles/assistant.css`). At 40 the raised FAB would float
    over every confirm dialog and let a click open the chat behind the backdrop. */
-.settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
+.settings-dialog-backdrop, .jini-settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
 .settings-dialog, .jini-settings-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
@@ -3293,15 +3293,15 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .status-tombstone { background: var(--danger-bg); color: var(--danger); }
 .status-cheap { background: var(--ok-bg); color: var(--ok); }
 .status-expensive { background: var(--accent-dim); color: var(--accent-text); }
-.status-success { background: var(--ok-bg); color: var(--ok); }
-.status-failure, .status-error, .jini-content-analysis-status-error { background: var(--danger-bg); color: var(--danger); }
+.status-success, .jini-status-success { background: var(--ok-bg); color: var(--ok); }
+.status-failure, .status-error, .jini-status-failure, .jini-status-error, .jini-content-analysis-status-error { background: var(--danger-bg); color: var(--danger); }
 
 /* Plugins (SPEC-005 ui.spec.md §5) — the discovery-status pill values and the trust-tier badge,
  * reusing the `.status` pill geometry above rather than introducing a new badge token. */
 .status-valid { background: var(--ok-bg); color: var(--ok); }
 .status-invalid, .status-incompatible { background: var(--danger-bg); color: var(--danger); }
 .tier { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; background: var(--surface-3); color: var(--muted); white-space: nowrap; }
-.plugin-errors { margin: 0; padding-left: 1rem; font-size: 0.8rem; }
+.jini-plugin-errors { margin: 0; padding-left: 1rem; font-size: 0.8rem; }
 
 /* `jini-collections-*` / dialog-scoped `jini-*` twins: the Jini collections dialogs
    (`NewContentTypeDialog`, `EditFieldsDialog`, `LifecycleConfirmDialog`) emit only `jini-*` classes;
@@ -4017,32 +4017,32 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   background: var(--jini-bg-panel);
   overflow: hidden;
 }
-.agent-plugin-row + .agent-plugin-row { border-top: 1px solid var(--jini-border); }
+.jini-agent-plugin-row + .jini-agent-plugin-row { border-top: 1px solid var(--jini-border); }
 
 /* Applied state, signal 1 of 3 (the state word and the switch position are the other two — colour
    alone must not carry meaning). A rail rather than a row tint: a filled row would fight the
    chips inside its own expanded panel for contrast. The "on" paint (rail, glyph, switch track) is
    `--primary` — the assistant FAB's burnt orange — not `--jini-accent`, which in this admin is a
    near-black (#363636) and made every enabled row read as black (owner, 2026-10-06). */
-.agent-plugin-row { position: relative; }
-.agent-plugin-row::before {
+.jini-agent-plugin-row { position: relative; }
+.jini-agent-plugin-row::before {
   content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
   background: var(--primary);
   opacity: 0;
   transition: opacity 140ms var(--jini-ease-out);
 }
-.agent-plugin-row[data-enabled="true"]::before { opacity: 1; }
+.jini-agent-plugin-row[data-enabled="true"]::before { opacity: 1; }
 
 /* `flex-wrap` + the summary's `--row-text-min` basis decide whether the actions fit beside the
    text (owner, 2026-10-07): while the summary keeps that much width the actions stay on its line,
    right-aligned and vertically centred; once they don't they wrap under the text, still
    right-aligned (`margin-left: auto`). 15rem is the glyph, chevron and padding (~100px) plus ~140px
-   of name. Same mechanism as `.plugin-row-main` on the Plugins screen. */
-.agent-plugin-row-main { --row-text-min: 15rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 0 14px 0 0; }
+   of name. Same mechanism as `.jini-plugin-row-main` on the Plugins screen. */
+.jini-agent-plugin-row-main { --row-text-min: 15rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 0 14px 0 0; }
 
 /* The row's summary IS its expander — one hit target for "tell me more", rather than a fourth
    control competing with the three real ones on the right. */
-.agent-plugin-row-summary {
+.jini-agent-plugin-row-summary {
   flex: 1 1 var(--row-text-min); min-width: 0;
   display: flex; align-items: center; gap: 12px;
   padding: 13px 8px 13px 17px;
@@ -4050,15 +4050,15 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   cursor: pointer;
   border-radius: var(--jini-radius-sm);
 }
-.agent-plugin-row-summary:hover { background: color-mix(in srgb, var(--jini-text) 3.5%, transparent); }
-.agent-plugin-row-summary:focus-visible,
-.agent-plugin-switch:focus-visible,
+.jini-agent-plugin-row-summary:hover { background: color-mix(in srgb, var(--jini-text) 3.5%, transparent); }
+.jini-agent-plugin-row-summary:focus-visible,
+.jini-agent-plugin-switch:focus-visible,
 .jini-settings-interface-switch:focus-visible,
-.agent-plugin-icon-btn:focus-visible {
+.jini-agent-plugin-icon-btn:focus-visible {
   outline: 2px solid var(--jini-accent); outline-offset: 2px;
 }
 
-.agent-plugin-row-glyph {
+.jini-agent-plugin-row-glyph {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px;
@@ -4070,18 +4070,18 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 }
 /* The glyph picks up the accent on an enabled plugin — the same accent as the rail and the switch
    track, so "on" reads as one state across the whole row rather than three unrelated details. */
-.agent-plugin-row[data-enabled="true"] .agent-plugin-row-glyph {
+.jini-agent-plugin-row[data-enabled="true"] .jini-agent-plugin-row-glyph {
   color: var(--primary);
   border-color: color-mix(in srgb, var(--primary) 32%, var(--jini-border));
 }
 
-.agent-plugin-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.agent-plugin-row-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.agent-plugin-row-name {
+.jini-agent-plugin-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.jini-agent-plugin-row-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.jini-agent-plugin-row-name {
   font-size: 13.5px; font-weight: 650; color: var(--jini-text-strong);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.agent-plugin-row-version {
+.jini-agent-plugin-row-version {
   flex: 0 0 auto;
   font-size: 11px; font-family: var(--font-mono, monospace); color: var(--jini-text-muted);
   background: var(--jini-bg-subtle); border: 1px solid var(--jini-border);
@@ -4091,24 +4091,24 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    line-height gives both chips the same box (1px padding + 1px border each), and it drops the
    sidebar `.soon` push-right, which stays as is everywhere else. The negative margin keeps the
    pill's 24px tap target without making the title line taller. */
-.agent-plugin-row-maturity { flex: 0 0 auto; align-self: center; display: inline-flex; }
-.agent-plugin-row-version, .agent-plugin-row-maturity .soon { line-height: 14px; }
-.agent-plugin-row-maturity .soon { margin-left: 0; }
-.agent-plugin-row-maturity .info-tip-icon { min-height: 0; padding-block: 3px; margin-block: -3px; }
+.jini-agent-plugin-row-maturity { flex: 0 0 auto; align-self: center; display: inline-flex; }
+.jini-agent-plugin-row-version, .jini-agent-plugin-row-maturity .soon { line-height: 14px; }
+.jini-agent-plugin-row-maturity .soon { margin-left: 0; }
+.jini-agent-plugin-row-maturity .info-tip-icon { min-height: 0; padding-block: 3px; margin-block: -3px; }
 /* One line, clamped. The full text is never lost — it is the first thing the assistant reads and
    it stays in the package's own manifest; on this screen its job is to identify the row, and a
    four-line paragraph per row is what made the old cards unscannable. */
-.agent-plugin-row-desc {
+.jini-agent-plugin-row-desc {
   font-size: 12.5px; line-height: 1.45; color: var(--jini-text-muted);
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.agent-plugin-row-chevron {
+.jini-agent-plugin-row-chevron {
   flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--jini-text-disabled);
 }
 .jini-agent-plugin-chevron-glyph { transition: transform 160ms var(--jini-ease-out); }
-.agent-plugin-row-summary[aria-expanded="true"] .jini-agent-plugin-chevron-glyph { transform: rotate(90deg); }
+.jini-agent-plugin-row-summary[aria-expanded="true"] .jini-agent-plugin-chevron-glyph { transform: rotate(90deg); }
 
 /* The hairline between the summary zone and the action zone. Without it the summary's own chevron
    read as a control floating between the description and the switch, belonging to neither — seen
@@ -4116,14 +4116,14 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    the first one. */
 /* A plugin's "Manage" entry (its own admin screens) sits against the actions divider, outside that
    column, so the switch keeps one x position down the list. */
-.agent-plugin-row-manage { flex: 0 0 auto; margin-left: auto; }
+.jini-agent-plugin-row-manage { flex: 0 0 auto; margin-left: auto; }
 /* `AgentPluginManageButton` renders nothing for a plugin with no admin screens, leaving this wrapper
    empty -- and the `+` rule below then zeroed the actions' auto margin, so on a narrow list the
    wrapped actions sat flush left and the rail clipped "Enabled" (owner report, 2026-10-21). */
-.agent-plugin-row-manage:empty { display: none; }
-.agent-plugin-row-manage .btn-secondary, .agent-plugin-row-manage .jini-btn-secondary { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
-.agent-plugin-row-manage + .agent-plugin-row-actions { margin-left: 0; }
-.agent-plugin-row-actions {
+.jini-agent-plugin-row-manage:empty { display: none; }
+.jini-agent-plugin-row-manage .btn-secondary, .jini-agent-plugin-row-manage .jini-btn-secondary { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+.jini-agent-plugin-row-manage + .jini-agent-plugin-row-actions { margin-left: 0; }
+.jini-agent-plugin-row-actions {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
   margin-left: auto; padding-left: 14px;
   border-left: 1px solid var(--jini-border);
@@ -4131,17 +4131,17 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 }
 /* Signal 2 of 3. Fixed-width so the switch column stays put between an "Enabled" and a "Disabled"
    row — a shifting switch position reads as a layout bug while scanning down the list. */
-.agent-plugin-state {
+.jini-agent-plugin-state {
   min-width: 4.6rem; text-align: right;
   font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em;
   color: var(--jini-text-muted);
 }
-.agent-plugin-row[data-enabled="true"] .agent-plugin-state { color: var(--jini-text); }
+.jini-agent-plugin-row[data-enabled="true"] .jini-agent-plugin-state { color: var(--jini-text); }
 
 /* iOS-style switch. `role="switch"` + `aria-checked` in the markup; this is only its paint.
    The off track is a solid mid-grey, not `--jini-bg-subtle`: on that near-white fill the white knob
    disappeared (owner screenshot, 2026-10-06). */
-.agent-plugin-switch,
+.jini-agent-plugin-switch,
 .jini-settings-interface-switch {
   flex: 0 0 auto; position: relative;
   width: 38px; height: 22px; padding: 0;
@@ -4151,7 +4151,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   cursor: pointer;
   transition: background-color 160ms var(--jini-ease-out), border-color 160ms var(--jini-ease-out);
 }
-.agent-plugin-switch-knob,
+.jini-agent-plugin-switch-knob,
 .jini-settings-interface-switch-knob {
   position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px;
@@ -4159,24 +4159,24 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   box-shadow: var(--jini-control-thumb-shadow-strong);
   transition: transform 160ms var(--jini-ease-out);
 }
-.agent-plugin-switch[aria-checked="true"],
+.jini-agent-plugin-switch[aria-checked="true"],
 .jini-settings-interface-switch[aria-checked="true"] {
   background: var(--primary); border-color: var(--primary);
 }
-.agent-plugin-switch[aria-checked="true"] .agent-plugin-switch-knob,
+.jini-agent-plugin-switch[aria-checked="true"] .jini-agent-plugin-switch-knob,
 .jini-settings-interface-switch[aria-checked="true"] .jini-settings-interface-switch-knob { transform: translateX(16px); }
-.agent-plugin-switch:hover:not(:disabled),
+.jini-agent-plugin-switch:hover:not(:disabled),
 .jini-settings-interface-switch:hover:not(:disabled) { border-color: var(--primary); }
 /* In flight. Dimmed and inert rather than mid-travel: the position it will land on is not known
    until the server answers, and animating to the requested state first would show a position the
    server may refuse. */
-.agent-plugin-switch:disabled,
+.jini-agent-plugin-switch:disabled,
 .jini-settings-interface-switch:disabled { cursor: progress; opacity: 0.55; }
 /* A locked ("Soon") switch is not drawn: its padlock (`.jini-agent-plugin-linked-lock`) takes the switch's
    column, as on a linked row, so every row's divider, word, eye and trash line up. The disabled switch
    stays in the DOM for its accessible name and state; hiding it visually leaves no white empty switch
    (owner 2026-10-25). */
-.agent-plugin-switch--locked:disabled { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); border: 0; opacity: 0; pointer-events: none; }
+.jini-agent-plugin-switch--locked:disabled { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); border: 0; opacity: 0; pointer-events: none; }
 /* A provider plugin's assistant face (`AgentPluginLinkedLock`, owner 2026-10-25): a red padlock in
    the switch's column — it is switched on the Plugins page, which the padlock opens — and the row
    reads as disabled. The padlock itself stays at full strength: it is the one live control. */
@@ -4186,9 +4186,9 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .jini-agent-plugin-linked-lock .info-tip:hover .info-tip-icon--custom,
 .jini-agent-plugin-linked-lock .info-tip:focus-within .info-tip-icon--custom { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .jini-agent-plugin-linked-lock .info-tip-icon--custom:focus-visible { border-radius: var(--r-sm); }
-.agent-plugin-row[data-linked="true"] :is(.agent-plugin-row-glyph, .agent-plugin-row-text, .agent-plugin-state) { opacity: 0.55; }
+.jini-agent-plugin-row[data-linked="true"] :is(.jini-agent-plugin-row-glyph, .jini-agent-plugin-row-text, .jini-agent-plugin-state) { opacity: 0.55; }
 
-.agent-plugin-icon-btn {
+.jini-agent-plugin-icon-btn {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; padding: 0;
@@ -4199,13 +4199,13 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   transition: color 140ms var(--jini-ease-out), background-color 140ms var(--jini-ease-out),
     border-color 140ms var(--jini-ease-out);
 }
-.agent-plugin-icon-btn:hover:not(:disabled) {
+.jini-agent-plugin-icon-btn:hover:not(:disabled) {
   color: var(--jini-text-strong); background: var(--jini-bg-subtle); border-color: var(--jini-border);
 }
 /* Honest-disabled, and it must LOOK unavailable rather than merely fail on click — the reason is
    in `aria-describedby` and in the section footnote. Not `cursor: not-allowed`: a "no" cursor
    invites the click that produces nothing. */
-.agent-plugin-icon-btn:disabled { color: var(--jini-text-disabled); cursor: default; }
+.jini-agent-plugin-icon-btn:disabled { color: var(--jini-text-disabled); cursor: default; }
 
 /* Detail panel — everything the old card shouted, on request. `[hidden]` needs its own rule here
    for the reason `.cms-section-items[hidden]` above already documents: the UA stylesheet's
@@ -4213,34 +4213,34 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 /* Indented to start at the row's TEXT column (17px summary padding + 34px glyph + 12px gap), not
    at the row's own edge — so the panel visibly belongs to the row above it rather than to the
    list. */
-.agent-plugin-row-detail {
+.jini-agent-plugin-row-detail {
   display: grid; gap: 14px;
   padding: 2px 17px 16px 63px;
 }
-.agent-plugin-row-detail[hidden] { display: none; }
+.jini-agent-plugin-row-detail[hidden] { display: none; }
 /* The one thing the collapsed summary clips to a line — wraps freely here, first, above every
    chip group; no clamp, no ellipsis. */
-.agent-plugin-detail-description {
+.jini-agent-plugin-detail-description {
   margin: 0;
   font-size: 12.5px; line-height: 1.5; color: var(--jini-text);
 }
 /* `PlainTextBlocks` paragraphs and `- ` lists: the author's blank lines become real gaps instead
    of one wall of text. */
-.agent-plugin-detail-description { display: grid; gap: 8px; max-width: 68ch; }
-.agent-plugin-detail-description :is(p, ul) { margin: 0; }
-.agent-plugin-detail-description ul { padding-left: 1.2em; }
-.agent-plugin-detail-group { display: flex; flex-direction: column; gap: 7px; }
-.agent-plugin-detail-label {
+.jini-agent-plugin-detail-description { display: grid; gap: 8px; max-width: 68ch; }
+.jini-agent-plugin-detail-description :is(p, ul) { margin: 0; }
+.jini-agent-plugin-detail-description ul { padding-left: 1.2em; }
+.jini-agent-plugin-detail-group { display: flex; flex-direction: column; gap: 7px; }
+.jini-agent-plugin-detail-label {
   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--jini-text-muted);
 }
-.agent-plugin-chips { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
-.agent-plugin-chips li {
+.jini-agent-plugin-chips { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.jini-agent-plugin-chips li {
   font-size: 12px; font-family: var(--font-mono, monospace); color: var(--jini-text);
   background: var(--jini-bg-subtle); border: 1px solid var(--jini-border);
   border-radius: var(--jini-radius-pill); padding: 2px 9px;
 }
-.agent-plugin-chips code { font: inherit; color: inherit; background: none; }
+.jini-agent-plugin-chips code { font: inherit; color: inherit; background: none; }
 
 /* Section-wide footnotes (why uninstall is unavailable; the package format link). Separated from
    the list so they read as a footer rather than a stray trailing line — the same job the removed
@@ -4294,43 +4294,43 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    to identify — is what starts giving way, so that is where the layout changes instead. */
 .agent-plugin-rows { container-type: inline-size; container-name: agent-plugin-list; }
 @container agent-plugin-list (max-width: 560px) {
-  /* The row's bottom inset lives on `.agent-plugin-row-main`; the summary keeps only the rest of
+  /* The row's bottom inset lives on `.jini-agent-plugin-row-main`; the summary keeps only the rest of
      its 13px. An inline row is 13px top and bottom as before, and actions that wrapped get the
      inset under them instead of sitting on the card edge. `row-gap` only exists between lines. */
-  .agent-plugin-row-main { gap: 2px 8px; padding: 0 14px 9px 0; }
-  .agent-plugin-row-summary { padding: 13px 8px 4px 17px; }
+  .jini-agent-plugin-row-main { gap: 2px 8px; padding: 0 14px 9px 0; }
+  .jini-agent-plugin-row-summary { padding: 13px 8px 4px 17px; }
   /* The text column no longer has a stable left edge once the actions stack, so the detail panel
      returns to the row's own edge and reclaims the width for its chips. */
-  .agent-plugin-row-detail { padding-left: 17px; }
-  .agent-plugin-row-actions {
+  .jini-agent-plugin-row-detail { padding-left: 17px; }
+  .jini-agent-plugin-row-actions {
     justify-content: flex-end; padding: 0;
     /* Beside the text or wrapped under it, a left border would cut through the wrapped line. */
     border-left: none; align-self: center;
   }
   /* A real Manage button stays on the text's line while the actions wrap under it, so the actions
      need their own auto margin back to stay right-aligned rather than start at the rail. */
-  .agent-plugin-row-manage + .agent-plugin-row-actions { margin-left: auto; }
+  .jini-agent-plugin-row-manage + .jini-agent-plugin-row-actions { margin-left: auto; }
   /* Keeps its 8px gap to the switch rather than being pushed to the far edge by a `margin-right:
      auto`, which is what an earlier revision of this block did: at 440px that put the word 290px
      from the control it labels, and a state word that far from its switch stops reading as its
-     label. It is signal 2 of 3 for applied state (see `.agent-plugin-row::before`) — it has to stay
+     label. It is signal 2 of 3 for applied state (see `.jini-agent-plugin-row::before`) — it has to stay
      legibly attached to the other two. Only the fixed `min-width` goes, since the column no longer
      has a switch below it to stay aligned with. */
-  .agent-plugin-state { min-width: 0; text-align: right; }
+  .jini-agent-plugin-state { min-width: 0; text-align: right; }
 }
 
 /* Every transition above is feedback, not spectacle, and none of it is load-bearing — the switch
    still reads its position from `aria-checked` and the state word, and the chevron from
    `aria-expanded`. So it all simply stops. */
 @media (prefers-reduced-motion: reduce) {
-  .agent-plugin-row::before,
-  .agent-plugin-row-glyph,
+  .jini-agent-plugin-row::before,
+  .jini-agent-plugin-row-glyph,
   .jini-agent-plugin-chevron-glyph,
-  .agent-plugin-switch,
+  .jini-agent-plugin-switch,
   .jini-settings-interface-switch,
-  .agent-plugin-switch-knob,
+  .jini-agent-plugin-switch-knob,
   .jini-settings-interface-switch-knob,
-  .agent-plugin-icon-btn {
+  .jini-agent-plugin-icon-btn {
     transition: none;
   }
 }
@@ -5333,12 +5333,12 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   margin-top: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border);
 }
 
-/* `OverflowAwareMcpUiSurfaceCard.tsx` — the small "Show in modal" trigger under an MCP-UI surface
-   that overflows its own box. `.mcpui-surface-overflow-wrap` gets no layout rules of its own
+/* `OverflowAwareMcpUiSurfaceCard.tsx` (Jini admin) — the small "Show in modal" trigger under an MCP-UI surface
+   that overflows its own box. `.jini-mcpui-surface-overflow-wrap` gets no layout rules of its own
    beyond the width cap (`assistant.css`'s `.mcpui-surface-card` rule already covers the card it
    wraps); this is purely the trigger button's own look, styled like the pane's other small
    secondary actions (`.jini-chat-pane__new-thread`) rather than a new visual language. */
-.mcpui-surface-overflow-expand {
+.jini-mcpui-surface-overflow-expand {
   margin-top: 6px;
   padding: 4px 10px;
   border: 1px solid var(--border);
@@ -5348,20 +5348,20 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   font-size: 12px;
   cursor: pointer;
 }
-.mcpui-surface-overflow-expand:hover { border-color: var(--border-strong); }
+.jini-mcpui-surface-overflow-expand:hover { border-color: var(--border-strong); }
 
 /* Agent Plugin package inspector — Jini's exported `PreviewModalShell` supplies the accessible
    dialog/Escape/close behaviour and `CodeWithLines` supplies the read-only line-number pane. Tovu
    owns only this host layout around its compile-time source allowlist. */
 /* The assistant button sits under this modal's backdrop yet still shows through at its corner; hide it while open. */
-body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
-.agent-plugin-source-modal {
+body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
+.jini-agent-plugin-source-modal {
   z-index: 80;
   padding: var(--space-4);
   background: var(--jini-overlay-bg-source);
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
-.agent-plugin-source-modal [data-preview-modal] {
+.jini-agent-plugin-source-modal [data-preview-modal] {
   max-width: 72rem;
   max-height: min(52rem, calc(100vh - 2rem));
   overflow: hidden;
@@ -5377,109 +5377,109 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    tabs, actions, close; at phone width that squeezed the title into a narrow column beside the tabs
    and wasted the top third of the modal. Wrapping + `order` re-flows it without touching Jini: the
    title block claims all but the close button's width, so the tabs always break to row two. */
-.agent-plugin-source-modal [data-preview-modal-header] {
+.jini-agent-plugin-source-modal [data-preview-modal-header] {
   flex-wrap: wrap;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
-.agent-plugin-source-modal [data-preview-modal-title-block] { order: 0; flex: 1 1 calc(100% - 3rem - 12px); min-width: 0; }
-.agent-plugin-source-modal [data-preview-modal-close] { order: 1; }
-.agent-plugin-source-modal [data-preview-modal-tabs] { order: 2; }
-.agent-plugin-source-modal [data-preview-modal-actions] { order: 3; }
+.jini-agent-plugin-source-modal [data-preview-modal-title-block] { order: 0; flex: 1 1 calc(100% - 3rem - 12px); min-width: 0; }
+.jini-agent-plugin-source-modal [data-preview-modal-close] { order: 1; }
+.jini-agent-plugin-source-modal [data-preview-modal-tabs] { order: 2; }
+.jini-agent-plugin-source-modal [data-preview-modal-actions] { order: 3; }
 /* Nothing renders actions here; the shell's inline `display: flex` would still claim a gap. */
-.agent-plugin-source-modal [data-preview-modal-actions]:empty { display: none !important; }
-.agent-plugin-source-modal [data-preview-modal-title] { font-weight: 700; color: var(--fg); }
-.agent-plugin-source-modal [data-preview-modal-subtitle] { margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
-.agent-plugin-source-modal [data-preview-modal-close],
-.agent-plugin-source-modal [data-preview-modal-stage-fullscreen] {
+.jini-agent-plugin-source-modal [data-preview-modal-actions]:empty { display: none !important; }
+.jini-agent-plugin-source-modal [data-preview-modal-title] { font-weight: 700; color: var(--fg); }
+.jini-agent-plugin-source-modal [data-preview-modal-subtitle] { margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
+.jini-agent-plugin-source-modal [data-preview-modal-close],
+.jini-agent-plugin-source-modal [data-preview-modal-stage-fullscreen] {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 2rem; min-height: 2rem; padding: 0.4rem;
   color: var(--fg-2); background: transparent;
   border: 1px solid var(--border); border-radius: var(--r-sm);
 }
-.agent-plugin-source-modal [data-preview-modal-stage-fullscreen] { position: absolute; z-index: 1; top: var(--space-3); right: var(--space-3); }
-.agent-plugin-source-modal [data-preview-modal-stage-custom] { width: 100%; height: 100%; min-height: 0; }
+.jini-agent-plugin-source-modal [data-preview-modal-stage-fullscreen] { position: absolute; z-index: 1; top: var(--space-3); right: var(--space-3); }
+.jini-agent-plugin-source-modal [data-preview-modal-stage-custom] { width: 100%; height: 100%; min-height: 0; }
 /* Expand puts the shell's stage itself in browser fullscreen, where the only thing behind it is
    the UA's black backdrop. The stage painted no background of its own, so the file bar went black
    with dark, unreadable text and the expand toggle became a black box (owner screenshot,
    2026-10-15). Painting the modal's surface here keeps the expanded view identical to the docked
    one; docked, it sits on that same surface and changes nothing. The template viewer shares it. */
-.agent-plugin-source-modal [data-preview-modal-stage],
+.jini-agent-plugin-source-modal [data-preview-modal-stage],
 .template-source-modal [data-preview-modal-stage] { background: var(--surface); color: var(--fg); }
-.agent-plugin-source-browser { display: grid; grid-template-columns: minmax(14rem, min(16rem, 24%)) minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; }
-.agent-plugin-source-files {
+.jini-agent-plugin-source-browser { display: grid; grid-template-columns: minmax(14rem, min(16rem, 24%)) minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; }
+.jini-agent-plugin-source-files {
   display: flex; flex-direction: column; gap: 2px;
   min-width: 0; padding: var(--space-2) 0; overflow: auto;
   border-right: 1px solid var(--border); background: var(--surface-2);
 }
-.agent-plugin-source-files > .page-description { margin: 0 var(--space-3) var(--space-2); }
+.jini-agent-plugin-source-files > .page-description { margin: 0 var(--space-3) var(--space-2); }
 /* VS Code-style file tree (2026-09-29, `PackageFileTree` in `PackageFilesModal.tsx`): flat 24px
    rows, full-width highlight, indent guides drawn by one gradient on the indent spacer (a 1px line
    centred under each ancestor's chevron), names truncated with the full path as the tooltip. */
-.agent-plugin-source-tree {
+.jini-agent-plugin-source-tree {
   --tree-indent: 12px;
   --tree-guide: var(--border-strong);
   display: flex; flex-direction: column; min-width: 0;
   font-family: var(--font-mono); font-size: var(--text-xs);
 }
-.agent-plugin-source-tree-row {
+.jini-agent-plugin-source-tree-row {
   display: flex; align-items: center; gap: 4px;
   height: 24px; min-width: 0; padding: 0 var(--space-3) 0 var(--space-2);
   color: var(--fg-2); cursor: pointer; user-select: none; outline: none;
 }
-.agent-plugin-source-tree-row:hover { color: var(--fg); background: var(--surface-3); }
-.agent-plugin-source-tree-row[aria-selected="true"] { color: var(--fg); background: var(--accent-dim); font-weight: 600; }
-.agent-plugin-source-tree-row:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
-.agent-plugin-source-tree-indent {
+.jini-agent-plugin-source-tree-row:hover { color: var(--fg); background: var(--surface-3); }
+.jini-agent-plugin-source-tree-row[aria-selected="true"] { color: var(--fg); background: var(--accent-dim); font-weight: 600; }
+.jini-agent-plugin-source-tree-row:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.jini-agent-plugin-source-tree-indent {
   flex-shrink: 0; align-self: stretch;
   background: repeating-linear-gradient(to right,
     transparent 0 calc(var(--tree-indent) / 2 + 1.5px),
     var(--tree-guide) calc(var(--tree-indent) / 2 + 1.5px) calc(var(--tree-indent) / 2 + 2.5px),
     transparent calc(var(--tree-indent) / 2 + 2.5px) var(--tree-indent));
 }
-.agent-plugin-source-tree-twistie { flex-shrink: 0; width: 16px; color: var(--muted); }
-.agent-plugin-source-tree-icon { flex-shrink: 0; color: var(--muted); }
-.agent-plugin-source-tree-icon.is-folder { color: var(--jini-file-icon-folder); }
-.agent-plugin-source-tree-icon.is-json { color: var(--jini-file-icon-json); }
-.agent-plugin-source-tree-icon.is-markdown { color: var(--jini-file-icon-markdown); }
-.agent-plugin-source-tree-icon.is-javascript { color: var(--jini-file-icon-javascript); }
-.agent-plugin-source-tree-icon.is-typescript { color: var(--jini-file-icon-typescript); }
-.agent-plugin-source-tree-icon.is-config { color: var(--jini-file-icon-config); }
-.agent-plugin-source-tree-icon.is-html { color: var(--jini-file-icon-html); }
-.agent-plugin-source-tree-icon.is-css { color: var(--jini-file-icon-css); }
-.agent-plugin-source-tree-icon.is-image { color: var(--jini-file-icon-image); }
-.agent-plugin-source-tree-icon.is-shell { color: var(--jini-file-icon-shell); }
-.agent-plugin-source-tree-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.agent-plugin-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.jini-agent-plugin-source-tree-twistie { flex-shrink: 0; width: 16px; color: var(--muted); }
+.jini-agent-plugin-source-tree-icon { flex-shrink: 0; color: var(--muted); }
+.jini-agent-plugin-source-tree-icon.is-folder { color: var(--jini-file-icon-folder); }
+.jini-agent-plugin-source-tree-icon.is-json { color: var(--jini-file-icon-json); }
+.jini-agent-plugin-source-tree-icon.is-markdown { color: var(--jini-file-icon-markdown); }
+.jini-agent-plugin-source-tree-icon.is-javascript { color: var(--jini-file-icon-javascript); }
+.jini-agent-plugin-source-tree-icon.is-typescript { color: var(--jini-file-icon-typescript); }
+.jini-agent-plugin-source-tree-icon.is-config { color: var(--jini-file-icon-config); }
+.jini-agent-plugin-source-tree-icon.is-html { color: var(--jini-file-icon-html); }
+.jini-agent-plugin-source-tree-icon.is-css { color: var(--jini-file-icon-css); }
+.jini-agent-plugin-source-tree-icon.is-image { color: var(--jini-file-icon-image); }
+.jini-agent-plugin-source-tree-icon.is-shell { color: var(--jini-file-icon-shell); }
+.jini-agent-plugin-source-tree-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jini-agent-plugin-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 /* Header bar: title + the wrap toggle (item 1, 2026-08-31). The padding/border that used to sit
    directly on the bare `h3` now live on this row instead, so the toggle shares the same bar rather
    than stacking under the title; the 4rem right padding is still reserved space for the modal's
    absolutely-positioned fullscreen toggle (`[data-preview-modal-stage-fullscreen]`), which floats
    over this corner of the pane regardless of which view is showing. On phones the tree stacks above
    this bar, so the phone block below moves the toggle down into the same reserved slot. */
-.agent-plugin-source-content-header {
+.jini-agent-plugin-source-content-header {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
   padding: var(--space-3) 4rem var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
-.agent-plugin-source-content-header h3 {
+.jini-agent-plugin-source-content-header h3 {
   margin: 0; min-width: 0; font: 600 var(--text-sm)/1.4 var(--font-mono); overflow-wrap: anywhere;
 }
-.agent-plugin-source-content-header button {
+.jini-agent-plugin-source-content-header button {
   flex-shrink: 0; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--r-sm);
   background: var(--surface-2); color: var(--fg-2); font-size: 12px; cursor: pointer;
 }
-.agent-plugin-source-content-header button:hover { border-color: var(--border-strong); }
-.agent-plugin-source-content-header button[aria-pressed="true"] {
+.jini-agent-plugin-source-content-header button:hover { border-color: var(--border-strong); }
+.jini-agent-plugin-source-content-header button[aria-pressed="true"] {
   color: var(--fg); background: var(--surface); border-color: var(--selected-ring);
 }
-.agent-plugin-source-content .code-viewer {
+.jini-agent-plugin-source-content .code-viewer {
   display: grid; grid-template-columns: auto minmax(max-content, 1fr);
   flex: 1; min-height: 0; margin: 0; overflow: auto;
   color: var(--fg-2); background: var(--surface); font: var(--text-xs)/1.6 var(--font-mono);
 }
-.agent-plugin-source-content .code-viewer code { display: block; padding: var(--space-4); white-space: pre; }
-.agent-plugin-source-content .code-viewer .gutter {
+.jini-agent-plugin-source-content .code-viewer code { display: block; padding: var(--space-4); white-space: pre; }
+.jini-agent-plugin-source-content .code-viewer .gutter {
   position: sticky; left: 0; text-align: right; user-select: none;
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
@@ -5490,7 +5490,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    widest *unwrapped* line, which would defeat wrapping outright. Vertical padding moves to the grid
    container itself, since CSS Grid applies container padding once around every row, not per cell —
    putting it on `.jini-code-viewer__line-number`/`.jini-code-viewer__line-content` instead would pad every single line. */
-.agent-plugin-source-content .jini-code-viewer--wrap {
+.jini-agent-plugin-source-content .jini-code-viewer--wrap {
   grid-template-columns: auto minmax(0, 1fr);
   /* Rows pack at the top. Without this the grid's default `align-content: stretch` shares the
      pane's spare height across every line, so a 5-line file spread its lines down the whole pane
@@ -5498,32 +5498,32 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   align-content: start;
   padding: var(--space-4) 0;
 }
-.agent-plugin-source-content .jini-code-viewer--wrap .jini-code-viewer__line-number {
+.jini-agent-plugin-source-content .jini-code-viewer--wrap .jini-code-viewer__line-number {
   position: sticky; left: 0; text-align: right; user-select: none; padding: 0 var(--space-3);
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
-.agent-plugin-source-content .jini-code-viewer--wrap .jini-code-viewer__line-content {
+.jini-agent-plugin-source-content .jini-code-viewer--wrap .jini-code-viewer__line-content {
   padding: 0 var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
 @media (max-width: 720px) {
   /* Phone: a thinner backdrop margin and header, and full-width tabs, so the tree and code get the room. */
-  .agent-plugin-source-modal { padding: var(--space-2); }
-  .agent-plugin-source-modal [data-preview-modal] { max-height: calc(100dvh - 1rem); }
-  .agent-plugin-source-modal [data-preview-modal-header] { padding: var(--space-3); }
+  .jini-agent-plugin-source-modal { padding: var(--space-2); }
+  .jini-agent-plugin-source-modal [data-preview-modal] { max-height: calc(100dvh - 1rem); }
+  .jini-agent-plugin-source-modal [data-preview-modal-header] { padding: var(--space-3); }
   /* Full width, and a plugin's extra tabs (Memory, its own screens) scroll sideways instead of
      squeezing every label into an equal slice that overflows the modal at 375px. */
-  .agent-plugin-source-modal [data-preview-modal-tabs] { flex-basis: 100%; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-  .agent-plugin-source-modal [data-preview-modal-tabs] button { flex: 1 0 auto; white-space: nowrap; }
-  .agent-plugin-source-modal { --agent-plugin-tree-pane: 11rem; }
-  .agent-plugin-source-browser { grid-template-columns: 1fr; grid-template-rows: var(--agent-plugin-tree-pane) minmax(0, 1fr); }
-  .agent-plugin-source-files { border-right: none; border-bottom: 1px solid var(--border); }
+  .jini-agent-plugin-source-modal [data-preview-modal-tabs] { flex-basis: 100%; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .jini-agent-plugin-source-modal [data-preview-modal-tabs] button { flex: 1 0 auto; white-space: nowrap; }
+  .jini-agent-plugin-source-modal { --agent-plugin-tree-pane: 11rem; }
+  .jini-agent-plugin-source-browser { grid-template-columns: 1fr; grid-template-rows: var(--agent-plugin-tree-pane) minmax(0, 1fr); }
+  .jini-agent-plugin-source-files { border-right: none; border-bottom: 1px solid var(--border); }
   /* The stacked tree now owns the stage's top-right corner, where the fullscreen toggle floated over
      the first tree row (owner screenshot, 2026-10-06). Drop it into the file header bar under the
      tree, beside "Wrap", in the slot that bar already reserves — the desktop placement. A fixed
      tree height (not a percentage) is what lets `top` line up with that bar. `:has` keeps the
      toggle in the corner on the Memory tab and when no file is selected, where there is no bar. */
-  .agent-plugin-source-modal [data-preview-modal-stage-frame]:has(.agent-plugin-source-content-header) > [data-preview-modal-stage-fullscreen] {
+  .jini-agent-plugin-source-modal [data-preview-modal-stage-frame]:has(.jini-agent-plugin-source-content-header) > [data-preview-modal-stage-fullscreen] {
     top: calc(var(--agent-plugin-tree-pane) + var(--space-3));
   }
   /* The tree sizes to its rows, capped at that same 11rem (then it scrolls), and the file viewer
@@ -5532,10 +5532,10 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      toggle is anchored to the file header bar instead and centred on it. Browsers without anchor
      positioning keep the fixed-height layout above, where the `top` arithmetic still holds. */
   @supports (anchor-name: --a) {
-    .agent-plugin-source-browser { grid-template-rows: auto minmax(0, 1fr); }
-    .agent-plugin-source-files { max-height: var(--agent-plugin-tree-pane); }
-    .agent-plugin-source-content-header { anchor-name: --agent-plugin-file-bar; }
-    .agent-plugin-source-modal [data-preview-modal-stage-frame]:has(.agent-plugin-source-content-header) > [data-preview-modal-stage-fullscreen] {
+    .jini-agent-plugin-source-browser { grid-template-rows: auto minmax(0, 1fr); }
+    .jini-agent-plugin-source-files { max-height: var(--agent-plugin-tree-pane); }
+    .jini-agent-plugin-source-content-header { anchor-name: --agent-plugin-file-bar; }
+    .jini-agent-plugin-source-modal [data-preview-modal-stage-frame]:has(.jini-agent-plugin-source-content-header) > [data-preview-modal-stage-fullscreen] {
       position-anchor: --agent-plugin-file-bar;
       top: anchor(center);
       translate: 0 -50%;
@@ -5544,10 +5544,10 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 }
 
 /* "View Template" (2026-08-10, `TemplateSourceModal.tsx`, shared by both editors since 2026-09-24) — same `PreviewModalShell` host chrome as
-   `.agent-plugin-source-modal` above, but a single stage pane rather than a file-browser grid: this
+   `.jini-agent-plugin-source-modal` above, but a single stage pane rather than a file-browser grid: this
    modal has exactly one file (the chosen template), never a list to pick from. `.code-viewer` reuses
    the identical gutter/line styling `CodeWithLines` renders into, scoped under this modal's own
-   ancestor since `.agent-plugin-source-content .code-viewer` above only matches inside that OTHER
+   ancestor since `.jini-agent-plugin-source-content .code-viewer` above only matches inside that OTHER
    modal's markup. */
 .template-source-modal {
   z-index: 80;
@@ -6497,7 +6497,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 
 /* ------------------------------------------------------------------------
    Plugins screen (Plugins.tsx) — the `.tovu-plugin` runtime family's row list,
-   independent of `.agent-plugin-row*` above (that block belongs to the sibling
+   independent of `.jini-agent-plugin-row*` above (that block belongs to the sibling
    Agent Plugins screen). Same row shape, different tokens: this screen stays a
    plain `.page`, so it uses Tovu's own `--surface`/`--fg`/`--border` set rather
    than Jini's `--jini-*` tokens, which only redefine inside a `data-theme`-
@@ -6510,17 +6510,17 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   background: var(--surface);
   overflow: hidden;
 }
-.plugin-row + .plugin-row { border-top: 1px solid var(--border); }
+.jini-plugin-row + .jini-plugin-row { border-top: 1px solid var(--border); }
 /* The row `?plugin=` names (a linked agent plugin's padlock opened this page): an inset ring, so it
    never shifts the list. */
-.plugin-row[data-focused="true"] { box-shadow: inset 0 0 0 2px var(--primary); background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.jini-plugin-row[data-focused="true"] { box-shadow: inset 0 0 0 2px var(--primary); background: color-mix(in srgb, var(--primary) 6%, transparent); }
 /* `flex-wrap` + the summary's `--row-text-min` basis are what decide whether the actions fit
    beside the text (owner, 2026-10-07): while the summary keeps at least that much width the actions
    stay on its line, right-aligned and vertically centred; once they don't fit they wrap under the
    text, still right-aligned (`margin-left: auto`). Wide lists never reach the wrap point. */
-.plugin-row-main { --row-text-min: 10rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 0 14px 0 0; }
+.jini-plugin-row-main { --row-text-min: 10rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 0 14px 0 0; }
 
-.plugin-row-summary {
+.jini-plugin-row-summary {
   flex: 1 1 var(--row-text-min); min-width: 0;
   display: flex; align-items: center; gap: 12px;
   padding: 13px 8px 13px 17px;
@@ -6528,13 +6528,13 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   cursor: pointer;
   border-radius: var(--r-sm);
 }
-.plugin-row-summary:hover { background: var(--surface-2); }
-.plugin-row-summary:focus-visible,
-.plugin-icon-btn:focus-visible {
+.jini-plugin-row-summary:hover { background: var(--surface-2); }
+.jini-plugin-row-summary:focus-visible,
+.jini-plugin-icon-btn:focus-visible {
   outline: 2px solid var(--accent-text); outline-offset: 2px;
 }
 
-.plugin-row-glyph {
+.jini-plugin-row-glyph {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px;
@@ -6543,36 +6543,36 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
 }
-.plugin-row[data-enabled="true"] .plugin-row-glyph {
+.jini-plugin-row[data-enabled="true"] .jini-plugin-row-glyph {
   color: var(--accent-text);
   border-color: var(--accent-text);
 }
 
-.plugin-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.plugin-row-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.plugin-row-name {
+.jini-plugin-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.jini-plugin-row-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.jini-plugin-row-name {
   font-size: 13.5px; font-weight: 650; color: var(--fg);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.plugin-row-version {
+.jini-plugin-row-version {
   flex: 0 0 auto;
   font-size: 11px; font-family: var(--font-mono, monospace); color: var(--muted);
   background: var(--surface-3); border: 1px solid var(--border);
   border-radius: var(--r-pill); padding: 1px 7px;
 }
-.plugin-row-subline {
+.jini-plugin-row-subline {
   font-size: 12.5px; line-height: 1.45; color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.plugin-row-chevron { flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--faint); }
+.jini-plugin-row-chevron { flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--faint); }
 .jini-plugin-chevron-glyph { transition: transform 160ms ease; }
-.plugin-row-summary[aria-expanded="true"] .jini-plugin-chevron-glyph { transform: rotate(90deg); }
+.jini-plugin-row-summary[aria-expanded="true"] .jini-plugin-chevron-glyph { transform: rotate(90deg); }
 
 /* The hairline between the summary zone and the action zone — same reasoning
-   `.agent-plugin-row-actions` documents: without it the chevron reads as floating between the
+   `.jini-agent-plugin-row-actions` documents: without it the chevron reads as floating between the
    subline and the action, belonging to neither. */
-.plugin-row-actions {
+.jini-plugin-row-actions {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
   margin-left: auto; padding-left: 14px;
   border-left: 1px solid var(--border);
@@ -6580,9 +6580,9 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 }
 
 /* One width for "Enable" and "Disable", so the eye and the button line up down the list. Four classes deep to beat the phone tap-target `min-width: 44px` rule. */
-.plugin-rows .plugin-row .plugin-row-actions > button:not(.plugin-icon-btn, .plugin-settings-btn) { min-width: 5.5rem; }
+.plugin-rows .jini-plugin-row .jini-plugin-row-actions > button:not(.jini-plugin-icon-btn, .jini-plugin-settings-btn) { min-width: 5.5rem; }
 
-.plugin-icon-btn {
+.jini-plugin-icon-btn {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; padding: 0;
@@ -6591,13 +6591,13 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   border: 1px solid transparent; border-radius: var(--r-sm);
   cursor: pointer;
 }
-.plugin-icon-btn:hover:not(:disabled) {
+.jini-plugin-icon-btn:hover:not(:disabled) {
   color: var(--danger); background: var(--danger-bg); border-color: var(--danger);
 }
 /* Honest-disabled — built-in plugins have no on-disk artifact for this route to remove. Must LOOK
    unavailable rather than merely fail on click; the reason lives in `aria-describedby` and the
    section-wide note above the list. */
-.plugin-icon-btn:disabled { color: var(--faint); cursor: default; }
+.jini-plugin-icon-btn:disabled { color: var(--faint); cursor: default; }
 
 /* Downloaded's two Remove notes, as compact helper text between the tabs and the list (owner,
    2026-10-07). Under the list they read as page body copy, each with a full paragraph margin. The
@@ -6611,43 +6611,43 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    the element itself — this panel has none, so this is defensive, matching the sibling screen's
    identical rule. Indented to the row's own text column (17px summary padding + 34px glyph + 12px
    gap), so it visibly belongs to the row above it. */
-.plugin-row-detail { display: grid; gap: 10px; padding: 2px 17px 16px 63px; }
-.plugin-row-detail[hidden] { display: none; }
+.jini-plugin-row-detail { display: grid; gap: 10px; padding: 2px 17px 16px 63px; }
+.jini-plugin-row-detail[hidden] { display: none; }
 /* The always-present facts (PL-2): a compact two-column label/value list, labels in the muted
    small-caps-free style the subline uses so the panel reads as reference, not as a form. */
-.plugin-row-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 12.5px; line-height: 1.45; }
-.plugin-row-fact { display: contents; }
-.plugin-row-fact dt { color: var(--muted); }
-.plugin-row-fact dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
+.jini-plugin-row-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 12.5px; line-height: 1.45; }
+.jini-plugin-row-fact { display: contents; }
+.jini-plugin-row-fact dt { color: var(--muted); }
+.jini-plugin-row-fact dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
 
 /* A chat dock can make this list narrow on a wide viewport. Respond to the list's own width so
    names, versions and actions retain separate space when the dock or sidebar is open. */
 @container plugin-list (max-width: 700px) {
-  /* The row's bottom inset lives on `.plugin-row-main` and the summary keeps only the rest of its
+  /* The row's bottom inset lives on `.jini-plugin-row-main` and the summary keeps only the rest of its
      12px, so a row whose actions sit inline is 12px top and bottom as before, while actions that
      wrapped get the row inset under them instead of sitting flush on the card edge. The 2px
      `row-gap` only exists between wrapped lines. */
-  .plugin-row-main { gap: 2px 8px; padding: 0 12px 10px 0; }
-  .plugin-row-summary { padding: 12px 12px 2px; gap: 10px; }
-  .plugin-row-text { flex: 1; }
-  .plugin-row-heading { flex-wrap: wrap; }
-  .plugin-row-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
-  .plugin-row-subline { white-space: normal; overflow-wrap: anywhere; }
-  .plugin-row-version { max-width: 100%; overflow-wrap: anywhere; }
-  .plugin-row-detail { padding-left: 12px; padding-right: 12px; }
+  .jini-plugin-row-main { gap: 2px 8px; padding: 0 12px 10px 0; }
+  .jini-plugin-row-summary { padding: 12px 12px 2px; gap: 10px; }
+  .jini-plugin-row-text { flex: 1; }
+  .jini-plugin-row-heading { flex-wrap: wrap; }
+  .jini-plugin-row-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .jini-plugin-row-subline { white-space: normal; overflow-wrap: anywhere; }
+  .jini-plugin-row-version { max-width: 100%; overflow-wrap: anywhere; }
+  .jini-plugin-row-detail { padding-left: 12px; padding-right: 12px; }
   /* No divider here: the actions either sit beside the text or wrap under it, and a left border
      would cut through the wrapped line. */
-  .plugin-row-actions { flex-wrap: wrap; justify-content: flex-end; padding: 0; border-left: none; gap: 8px; align-self: center; }
+  .jini-plugin-row-actions { flex-wrap: wrap; justify-content: flex-end; padding: 0; border-left: none; gap: 8px; align-self: center; }
 }
 /* At phone width the decorative package glyph is what truncated the name ("Word Co…"); the row's
    own action ("Disable"/"Enable") already states on/off, so the glyph's border tint is redundant. */
 @container plugin-list (max-width: 480px) {
-  .plugin-row-glyph { display: none; }
+  .jini-plugin-row-glyph { display: none; }
   /* Downloaded's three actions (view, Enable, remove) still fit beside a 10rem summary at 390px,
      which squeezed "Content Analyzer" onto two lines with its version and subline stacked under it
      (owner 2026-10-16). Sized to its own one-line text instead, the summary keeps the actions beside
      it only when name, version and subline fit unbroken; otherwise the actions wrap under it. */
-  .plugin-row-summary { flex-basis: auto; }
+  .jini-plugin-row-summary { flex-basis: auto; }
 }
 
 .site-card-actions .btn-secondary:disabled, .sites-page .jini-sites-trash-card-actions .jini-btn-secondary:disabled, .site-card-actions .jini-btn-secondary:disabled {
@@ -6926,7 +6926,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      measured from the padding box (36x20 inside the agent / AI Assistant switch's 1px border), so
      -12px -5px makes it 46x44 / 44x44; -10px -4px left both short of 44 tall. The AI Assistant
      switch is an `appearance: none` checkbox whose `::after` is the knob, so `::before` is free. */
-  :is(.agent-plugin-switch, .jini-settings-interface-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before { content: ""; position: absolute; inset: -12px -5px; }
+  :is(.jini-agent-plugin-switch, .jini-settings-interface-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before { content: ""; position: absolute; inset: -12px -5px; }
 
 }
 
@@ -6936,13 +6936,13 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 @container admin-content (max-width: 620px) {
   /* TR-2: bulk actions only take space once there is a selection; busy selected actions stay
      visible and disabled, so their progress does not cause the toolbar to jump. */
-  .trash-toolbar[data-selection-empty="true"] .trash-bulk-action { display: none; }
+  .jini-trash-toolbar[data-selection-empty="true"] .jini-trash-bulk-action { display: none; }
 
   /* DB-1/AI-4/FO-4: short desktop rows become labelled, full-width fields on phones. */
-  .database-filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
-  .database-filter-bar .field { min-width: 0; width: 100%; }
-  .database-filter-bar :is(input, select) { width: 100%; min-width: 0; }
-  .database-filter-bar > button { justify-self: start; }
+  .jini-database-filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .jini-database-filter-bar .jini-field { min-width: 0; width: 100%; }
+  .jini-database-filter-bar :is(input, select) { width: 100%; min-width: 0; }
+  .jini-database-filter-bar > button { justify-self: start; }
   .settings-ui-section .jini-byok-model-row,
 .jini-settings-ui-section .jini-byok-model-row { flex-direction: column; align-items: stretch; }
   .settings-ui-section .jini-byok-model-row > .jini-field,

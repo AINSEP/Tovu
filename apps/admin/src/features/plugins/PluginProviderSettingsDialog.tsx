@@ -6,7 +6,7 @@ import { useEffect, useId } from "react";
 import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
-import { ProviderSettingField } from "./PluginProviderSettingField";
+import { ProviderSettingField } from "@jini-ai/admin/screens/plugins/PluginProviderSettingField";
 import { providerSettingRequiredHere } from "./rules";
 import { interpolate } from '@jini-ai/core/text';
 import "../../styles/native-domain-dialogs.css";

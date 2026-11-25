@@ -2,7 +2,7 @@ import { formatCredentialHint, formatCredentialHints, translateCredentialMessage
 import { credentialDraftError } from "@/lib/credential-copy";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { AdminMediaProviderMap } from "@/features/media/api/media-api";
+import type { AdminMediaProviderMap } from "@jini-ai/admin/screens/media/api/media-api";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
@@ -13,7 +13,7 @@ import { OTHER_CREDENTIAL_STORES, envNamesFact, maskedTailFact, mediaProviderLab
 import { ACCESS_TOKENS_RESOURCE } from "../rules";
 import { accessTokenCategoryMatches, type AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
 import { defaultOtherCredentialsPort } from "./other-credentials-dependencies.hooks";
-import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
+import type { OtherCredentialsPort } from "@jini-ai/admin/security/host/hooks/other-credentials-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

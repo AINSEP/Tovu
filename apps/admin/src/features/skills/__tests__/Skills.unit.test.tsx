@@ -98,7 +98,7 @@ describe("Skills", () => {
     fireEvent.click(screen.getByRole("switch", { name: "Enable incident-response" }));
     await waitFor(() => expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false"));
     const remove = screen.getByRole("button", { name: "Remove incident-response" });
-    expect(remove).toHaveClass("agent-plugin-icon-btn");
+    expect(remove).toHaveClass("jini-agent-plugin-icon-btn");
     expect(remove.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(remove.querySelectorAll("svg path")[2]).toHaveAttribute("d", "M10.4 10.5v6M13.6 10.5v6");
     expect(remove).not.toHaveTextContent("Remove");

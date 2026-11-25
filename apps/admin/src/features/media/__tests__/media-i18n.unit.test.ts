@@ -9,7 +9,7 @@ import { MEDIA_DICT, t } from "../media-i18n";
 import { MEDIA_ORDER_OPTIONS } from "@jini-ai/admin/screens/media/rules";
 import { Media } from "../Media";
 import { useMedia } from "../hooks/use-media.hooks";
-import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
+import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 afterEach(() => vi.restoreAllMocks());

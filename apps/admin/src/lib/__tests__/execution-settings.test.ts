@@ -383,7 +383,7 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
     const { act, renderHook } = await import("@/__tests__/fetch-query-render");
     const { useExecutionConfig } = await import("../../components/AssistantDock/hooks/execution-config.hooks");
     const { useLocalCliSelection } = await import("../../components/AssistantDock/hooks/local-cli-selection.hooks");
-    const { useAssistantTransport } = await import("../../components/AssistantDock/hooks/assistant-transport.hooks");
+    const { useTovuAssistantTransport: useAssistantTransport } = await import("../../components/AssistantDock/hooks/assistant-transport.binding");
     const repo = new InMemorySettingsRepo({ definitions: [
       ["localCli.agentId", "old-agent"], ["localCli.model", "old-model"], ["localCli.reasoning", "high"],
     ].map(([key, defaultValue]) => ({ settingId: key!, version: 1, workspaceId: null,

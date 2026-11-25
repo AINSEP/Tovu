@@ -22,7 +22,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import { useAssistantDockChrome } from "./hooks/dock-chrome.hooks";
 import { useAttachmentUploader, useAttachmentValidator, useFolderDropBridge } from "./hooks/composer-files.hooks";
 import { useComposerCapabilities } from "./hooks/composer-discovery.hooks";
-import { useAssistantTransport } from "./hooks/assistant-transport.hooks";
+import { useTovuAssistantTransport } from "./hooks/assistant-transport.binding";
 import { useRuntimeAccess } from "./hooks/runtime-access.hooks";
 import { useByokRuntime } from "./hooks/byok-runtime.hooks";
 import { useExecutionConfig } from "./hooks/execution-config.hooks";
@@ -158,7 +158,7 @@ export interface AssistantDockProps {
    * above): the real hook calls `createTovuAssistantTransport`, whose `startRun` makes the actual
    * daemon network call, which a fake bypasses entirely.
    */
-  useAssistantTransport?: typeof useAssistantTransport;
+  useAssistantTransport?: typeof useTovuAssistantTransport;
   /**
    * Injectable seam for the composer's attachment uploader — see {@link useAttachmentUploader}.
    * Defaults to the real hook, same 2026-08-18 rationale as `useAssistantTransport` above: the real

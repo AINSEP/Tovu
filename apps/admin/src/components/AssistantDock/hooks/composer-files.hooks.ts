@@ -1,15 +1,32 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
-import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
-import { partitionChatPackages } from "@jini-ai/admin/shell/components/AssistantDock/hooks/chat-package-kind";
-import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
-import { useCallback, useEffect, useMemo, type DragEvent } from "react";
-import { createDaemonAttachmentUploader, type ChatPaneAgent, type ChatPaneWorkingDirectoryAccess } from "@jini-ai/chat/react";
-import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
+import {
+  useAttachmentUploader as useAdminAttachmentUploader, useAttachmentValidator as useAdminAttachmentValidator,
+  useFolderDropBridge as useAdminFolderDropBridge, useWorkingDirectoryAccess as useAdminWorkingDirectoryAccess,
+} from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-files.hooks";
+import type { ChatPaneWorkingDirectoryAccess } from "@jini-ai/admin/react/kit";
+import type { UseFolderDrop } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
 
-import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
-import { createBrowserWorkingDirectoryAccess } from "@jini-ai/admin/shell/lib/browser-working-directory-access";
-import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
+import { CHAT_ATTACHMENT_ROUTE_RULES } from "@/lib/chat-attachment-liveness";
 import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
+
+/**
+ * Mirrors the website daemon's own per-file/per-turn caps so a rejection surfaces here, before any
+ * bytes are sent, rather than only after the daemon's own enforcement rejects them. `apps/admin` is
+ * a separate browser bundle from `apps/website` (no shared import today — see `tsconfig.json`'s
+ * `@tovu/*` aliases for the narrow, dependency-free exceptions that DO cross that boundary), so
+ * these are duplicated literals, not an import, matching this codebase's existing convention for a
+ * client-side check that mirrors a server-side one it cannot reach (see `rules.ts`'s
+ * `MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES` doc for the same "keep identical, by hand" pattern).
+ *
+ * Owner-directed (2026-09-21): must stay equal to `@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES`, which the website imports as
+ * `TOVU_MAX_UPLOAD_BYTES` (50 MiB) and `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
+ * (100 MiB, `TOVU_MAX_UPLOAD_BYTES * 2`) — update both together if either changes.
+ */
+const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
+const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
+
+/** The legacy plugin manifest name the skill-package detector still recognises. */
+export const TOVU_LEGACY_MANIFEST_NAMES: readonly string[] = ["tovu.plugin.json"]; // the host's legacy plugin manifest alias
 
 /**
  * Builds the `uploadAttachments` callback `AssistantDock.tsx` passes to `<ChatPane>`. Injectable
@@ -28,64 +45,12 @@ import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
  * @example
  * const uploadAttachments = useAttachmentUploader();
  */
-/**
- * The same limits the server enforces, read from the shared contract (`apps/admin` is a browser
- * bundle and cannot import website code) so a rejection surfaces here, before any bytes are sent.
- * One source for Library, Media, chat attachments and assistant imports (owner 2026-10-29); a video gets
- * the larger video limit, picked per file by {@link uploadLimitForFile} (owner 2026-11-24).
- */
-export const CHAT_ATTACHMENT_MAX_BYTES = MAX_UPLOAD_BYTES;
-export const CHAT_ATTACHMENT_MAX_BATCH_BYTES = MAX_UPLOAD_BATCH_BYTES;
-
-export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmentUploader> {
-  return useMemo(
-    () =>
-      createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
-        maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES,
-        maxAttachmentBytesFor: uploadLimitForFile,
-
-        maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES,
-      }),
-    [],
-  );
+export function useAttachmentUploader(): ReturnType<typeof useAdminAttachmentUploader> {
+  return useAdminAttachmentUploader({ fetch }, { maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES, maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES });
 }
 
-/**
- * Routes skill packages to the install proposal; ordinary files retain their uploader result.
- * @returns A stable callback, refreshed when either injected dependency changes.
- * @complexity O(files) selection time and O(1) routing space; upload costs belong to the adapters.
- */
-export function useSkillAwareAttachmentUploader(
-  { uploadAttachments, proposeFiles }: {
-    uploadAttachments: ReturnType<typeof createDaemonAttachmentUploader>;
-    proposeFiles: (files: readonly File[]) => Promise<void>;
-  },
-  _optional: Record<string, never> = {},
-): ReturnType<typeof createDaemonAttachmentUploader> {
-  return useCallback(async (files, options) => {
-    const { skills, attachments } = await partitionChatPackages({ files, legacyManifestNames: ["tovu.plugin.json"] }); // the host's legacy plugin manifest alias
-    if (skills.length > 0) await proposeFiles(skills);
-    if (attachments.length === 0) return [];
-    // The composer owns the message batch and cancellation lifetime. Dropping these options
-    // makes separate attach actions create different batches, which the daemon cannot claim.
-    return options === undefined ? uploadAttachments(attachments) : uploadAttachments(attachments, options);
-  }, [uploadAttachments, proposeFiles]);
-}
-
-/**
- * Allows skill selection until the selected local runtime explicitly reports no tools.
- * @returns Whether the current runtime can receive skill guidance.
- * @complexity O(agents) time, O(1) space.
- */
-export function resolveSkillsAvailable(
-  { executionMode, selectedAgentId, agents }: {
-    executionMode: ExecutionConfig["mode"];
-    selectedAgentId: string;
-    agents: readonly Pick<ChatPaneAgent, "id" | "supportsTools">[] | undefined;
-  },
-): boolean {
-  return executionMode === "byok" || agents?.find(agent => agent.id === selectedAgentId)?.supportsTools !== false;
-}
+/** Stable across renders (the shared hook memoizes on it); `fetch` resolves at probe time, as the pre-move `bind` at mount did for a stubbed global. */
+const CHAT_ATTACHMENT_VALIDATOR_INPUT = { fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args), ...CHAT_ATTACHMENT_ROUTE_RULES };
 
 /**
  * Builds the `validateAttachments` callback `AssistantDock.tsx` passes to `<ChatPane>` — the host
@@ -105,8 +70,8 @@ export function resolveSkillsAvailable(
  * @example
  * const validateAttachments = useAttachmentValidator();
  */
-export function useAttachmentValidator(): ReturnType<typeof createChatAttachmentValidator> {
-  return useMemo(() => createChatAttachmentValidator(), []);
+export function useAttachmentValidator(): ReturnType<typeof useAdminAttachmentValidator> {
+  return useAdminAttachmentValidator({ input: CHAT_ATTACHMENT_VALIDATOR_INPUT });
 }
 
 /** Where the recent-folder names already live; host-owned and unchanged so existing lists survive. */
@@ -130,16 +95,16 @@ const RECENT_DIRECTORY_NAMES_STORAGE_KEY = "tovu.assistant.recentWorkingDirector
  * const workingDirectoryAccess = useWorkingDirectoryAccess();
  */
 export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | undefined {
-  return useMemo(() => createBrowserWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY, orFallbackSync }), []);
+  return useAdminWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY, orFallbackSync });
 }
 
 export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}
-): ReturnType<typeof createDaemonAttachmentUploader> {
+): ReturnType<typeof useAttachmentUploader> {
   return (override ?? useAttachmentUploader)();
 }
 
 export function useAttachmentValidatorSeam({ override }: { override: typeof useAttachmentValidator | undefined }, _options: Record<string, never> = {}
-): ReturnType<typeof createChatAttachmentValidator> {
+): ReturnType<typeof useAttachmentValidator> {
   return (override ?? useAttachmentValidator)();
 }
 
@@ -169,22 +134,8 @@ export function useWorkingDirectoryAccessSeam({ override }: { override: typeof u
  * @complexity Time/space: O(1) beyond what `useFolderDrop` itself costs.
  */
 export function useFolderDropBridge(
-  { input, onReady }: {
-    input: UseFolderDropInput;
-    onReady: ((handleDropCapture: (event: DragEvent<HTMLElement>) => void) => void) | undefined;
-  },
-  { proposeSkillFiles, onSkillDropError, useFolder = useFolderDrop }: {
-    useFolder?: typeof useFolderDrop;
-    proposeSkillFiles?: (files: readonly File[], paths?: readonly string[]) => Promise<void>;
-    onSkillDropError?: (message: string) => void;
-  } = {},
+  { input, onReady }: Omit<Parameters<typeof useAdminFolderDropBridge>[0], "folderDropDeps">,
+  options: Parameters<typeof useAdminFolderDropBridge>[1] = {},
 ): UseFolderDrop {
-  const folderDrop = useFolder(input, folderDropDeps);
-  const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
-    if (proposeSkillFiles && captureSkillDrop({ event, proposeFiles: proposeSkillFiles, fallback: folderDrop.handleDropCapture }, onSkillDropError ? { onError: onSkillDropError } : {})) return;
-    folderDrop.handleDropCapture(event);
-  }, [proposeSkillFiles, folderDrop.handleDropCapture, onSkillDropError]);
-  useEffect(() => { onReady?.(handleDropCapture); }, [onReady, handleDropCapture]);
-  return { ...folderDrop, handleDropCapture };
+  return useAdminFolderDropBridge({ input, onReady, folderDropDeps }, options);
 }
-

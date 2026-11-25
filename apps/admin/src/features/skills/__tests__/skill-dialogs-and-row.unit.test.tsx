@@ -65,7 +65,7 @@ describe("SkillRow", () => {
     });
     render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} classNames={SKILLS_HOST_CLASSNAMES} /></ul>);
     const detail = document.getElementById("skill-notes-detail") as HTMLElement;
-    expect([...detail.querySelectorAll(".agent-plugin-detail-description p")].map((p) => p.textContent)).toEqual([
+    expect([...detail.querySelectorAll(".jini-agent-plugin-detail-description p")].map((p) => p.textContent)).toEqual([
       "Keeps notes.",
       "Also tidies them.",
     ]);

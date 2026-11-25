@@ -1,18 +1,21 @@
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
 import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentPlugins, AgentPluginUpdateSlot } from "../AgentPlugins";
-import { AgentPluginDisableConfirmDialog } from "../AgentPluginDisableConfirmDialog";
-import { AgentPluginRow } from "../AgentPluginRow";
+import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
+import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
 import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
-import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import { tPlugins as translatePlugins } from "../../../lib/i18n-common";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { pluginRules } from "../rules";
 
 /**
  * @file The Agent Plugins lifecycle fields on screen (2026-10-21): a row this Tovu cannot run or
@@ -41,8 +44,8 @@ function controllerFor(agentPlugins: AgentPluginListRow[], onInstalled = vi.fn()
 }
 
 function renderRow(plugin: AgentPluginListRow, update?: ReactNode) {
-  render(<ul><AgentPluginRow plugin={plugin} t={(key) => key} locale="en" expanded busy={false} onToggleExpanded={vi.fn()}
-    stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }} onInspect={vi.fn()} uninstallNoteId="note" agentHandleBase="row" update={update} /></ul>);
+  render(<PluginRulesProvider rules={pluginRules}><ul><AgentPluginRow plugin={plugin} t={(key) => key} locale="en" expanded busy={false} onToggleExpanded={vi.fn()}
+    stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }} onInspect={vi.fn()} uninstallNoteId="note" agentHandleBase="row" update={update} /></ul></PluginRulesProvider>);
   return screen.getByRole("listitem", { name: plugin.displayName! });
 }
 
@@ -57,8 +60,8 @@ describe("Agent Plugin rows — compatibility and Update", () => {
 
   it("a row this Tovu cannot run, and one with unmet requirements, say so under the name", () => {
     const row = renderRow({ ...UPLOADED, hostOk: false, missingRequires: ["db:query", "mail:send"] });
-    expect(within(row).getByText("Not for this Tovu version")).toHaveClass("agent-plugin-row-desc");
-    expect(within(row).getByText("Needs db:query, mail:send")).toHaveClass("agent-plugin-row-desc");
+    expect(within(row).getByText("Not for this Tovu version")).toHaveClass("jini-agent-plugin-row-desc");
+    expect(within(row).getByText("Needs db:query, mail:send")).toHaveClass("jini-agent-plugin-row-desc");
   });
 
   it("a compatible row, or one from a server without the fields, shows no compatibility line", () => {
@@ -68,7 +71,7 @@ describe("Agent Plugin rows — compatibility and Update", () => {
 
   it("the Update slot renders inside the expanded details", () => {
     const row = renderRow(UPLOADED, <button type="button">slot</button>);
-    expect(within(row).getByRole("button", { name: "slot" }).closest(".agent-plugin-row-detail")).not.toBeNull();
+    expect(within(row).getByRole("button", { name: "slot" }).closest(".jini-agent-plugin-row-detail")).not.toBeNull();
   });
 });
 
@@ -130,7 +133,7 @@ describe("AgentPluginUpdateControl, composed by its wired slot", () => {
 describe("useAgentPluginInstall — install vs update copy", () => {
   function hookWith(installZip: () => Promise<never>, update?: { pluginId: string; expectedOldDigest: string }) {
     const port = { sha256: async () => "sha", installZip: vi.fn(installZip) };
-    return renderHook(() => useAgentPluginInstall({ port, t: (key) => `t:${key}`, onInstalled: vi.fn() }, update ? { update } : {})).result;
+    return renderHook(() => useAgentPluginInstall({ ...HOST_AGENT_INSTALL, port, t: (key) => `t:${key}`, onInstalled: vi.fn() }, update ? { update } : {})).result;
   }
 
   it("an unrecognised install refusal is the install's own try-again line, translated", async () => {
@@ -151,7 +154,7 @@ describe("useAgentPluginInstall — install vs update copy", () => {
 
   it("an update of identical bytes says it is already installed", async () => {
     const port = createFakeAgentPluginInstallPort({ row: UPLOADED }, { alreadyInstalled: true });
-    const { result } = renderHook(() => useAgentPluginInstall({ port, t: (key) => key, onInstalled: vi.fn() }, { update: { pluginId: "note-taker", expectedOldDigest: DIGEST } }));
+    const { result } = renderHook(() => useAgentPluginInstall({ ...HOST_AGENT_INSTALL, port, t: (key) => key, onInstalled: vi.fn() }, { update: { pluginId: "note-taker", expectedOldDigest: DIGEST } }));
     act(() => result.current.onFileChange({ target: { files: [zip()] } } as never));
     await act(async () => result.current.install());
     expect(result.current.installedMessage).toBe("Note Taker is already installed.");
@@ -174,7 +177,7 @@ describe("Agent Plugin update transport", () => {
 
 describe("AgentPluginDisableConfirmDialog — provenance and dependents", () => {
   function renderDialog(props: { origin?: "bundled" | "operator-installed"; requiredBy?: string[] }) {
-    render(<AgentPluginDisableConfirmDialog name="Mailer" variant="disable" agentHandleBase="row-mailer" onConfirm={vi.fn()} onCancel={vi.fn()} t={(key) => key} {...props} />);
+    render(<AgentPluginDisableConfirmDialog rules={pluginRules} name="Mailer" variant="disable" agentHandleBase="row-mailer" onConfirm={vi.fn()} onCancel={vi.fn()} t={(key) => key} {...props} />);
     return screen.getByRole("dialog");
   }
 
