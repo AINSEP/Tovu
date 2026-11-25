@@ -25,7 +25,7 @@ import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai
 import { useCachedLoader, useFetchMutation, useFetchQuery, useFetchQueryScope, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { ConfirmDialog as AdminConfirmDialog, RowMenu, DataTable } from '@jini-ai/admin/react';
 import type { RoutinesKit } from '../features/routines/Routines';
-import { ChatPane, ChatSettingsDialog, JiniChatProvider, ConversationList, ChatSettingsSegmented, McpUiSurfaceCard, A2uiSurfaceCard, createDaemonAttachmentUploader,
+import { ChatPane, ChatSettingsDialog, JiniChatProvider, ConversationList as ChatConversationList, defaultConversationListHooks, ChatSettingsSegmented, McpUiSurfaceCard, A2uiSurfaceCard, createDaemonAttachmentUploader,
   useT as useChatT, createExtEventRendererRegistry, createLastConversationStore, createAssistantChatsClient, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection,
   mcpUiSurfaceSlotKey, midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME } from '@jini-ai/chat/react';
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE, conversationTitleForDisplay, deriveConversationTitle, isTerminalRunStatus } from '@jini-ai/chat/core';
@@ -34,10 +34,19 @@ import { createAgentInventorySnapshot } from '@jini-ai/chat/browser/agent-invent
 import { adminSurfaceFrameAttributes, readAdminSurfaceTheme, adminSurfaceThemeMessage, adminSurfaceInitMessage, adminSurfaceActionResponse, createAdminSurfaceMount,
   openAdminSurfaceLink, readAdminSurfaceResize, validateAdminSurfaceMessage } from '@jini-ai/agent-plugins/admin-surfaces';
 import { isProviderSettingRequired } from '@jini-ai/plugins/host';
-import type { AdminKit } from '@jini-ai/admin/react/kit';
+import type { AdminKit, KitConversationListProps } from '@jini-ai/admin/react/kit';
+import { createElement } from 'react';
 import { useHostAdminLocale } from '../hooks/admin-locale-dependencies.hooks';
 import type { UserManagementKit } from '@jini-ai/user-management/react/kit';
 import type { UiKit } from '@jini-ai/ui/react-kit';
+
+/** The dock's conversation switcher with its hooks bound here, at the composition root. Chat's
+ *  `ConversationList` takes its hooks as a REQUIRED prop; the admin kit's prop contract does not
+ *  carry them yet (NEEDS-JINI: add `hooks` to `KitConversationListProps` and pass it from DockHeader),
+ *  so without this binding the dock would mount the list with `hooks` undefined. */
+function ConversationList(props: KitConversationListProps) {
+  return createElement(ChatConversationList, { ...props, hooks: defaultConversationListHooks });
+}
 
 /** Tovu picks the implementations; @jini-ai/admin only states what it renders. ui-kit facades (not
  *  raw native parts) so Tovu's <KitProvider> still supplies agent attrs, overlay container and guards.

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Media } from "../Media";
 import { useMedia } from "../hooks/use-media.hooks";
-import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
+import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { MEDIA_DICT, t as translate } from "../media-i18n";
 import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
 import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
@@ -72,9 +72,10 @@ describe("conversion notice after a successful upload", () => {
       const result = await store(input, options);
       return withNotice ? { ...result, conversionNotice: "web-copy-unavailable" as const } : result;
     };
-    const listMedia = vi.spyOn(port, "listMedia");
+    // The paged grid (P10-M4.T) reads through `listMediaGrid`; each upload must refresh it once.
+    const listMediaGrid = vi.spyOn(port, "listMediaGrid");
     renderWithPort(port);
-    await waitFor(() => expect(listMedia).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(listMediaGrid).toHaveBeenCalledTimes(1));
 
     await uploadVideo(user, "holiday.mp4");
 
@@ -83,11 +84,11 @@ describe("conversion notice after a successful upload", () => {
     expect(notice.closest(".media-upload-dialog")).toBeNull();
     expect(notice.closest(".notice.error, [role='alert']")).toBeNull();
     expect(document.querySelector(".media-upload-dialog")).not.toHaveAttribute("open");
-    await waitFor(() => expect(listMedia).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(listMediaGrid).toHaveBeenCalledTimes(2));
 
     withNotice = false;
     await uploadVideo(user, "second.mp4");
-    await waitFor(() => expect(listMedia).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(listMediaGrid).toHaveBeenCalledTimes(3));
     expect(screen.queryByText(NOTICE_COPY)).toBeNull();
     expect(port.items).toHaveLength(2);
   });

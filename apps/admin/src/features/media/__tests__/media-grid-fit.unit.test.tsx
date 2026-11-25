@@ -222,7 +222,7 @@ describe("Chrome playback note", () => {
       const body = String(url).includes("/settings/effective") ? { data: [] } : { media: items };
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     }));
-    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
     const card = async (title: string) => (await screen.findByRole("button", { name: new RegExp(`^${title}`) })).closest(".media-card") as HTMLElement;
     expect(within(await card("Small HEVC")).getByText("This video may not play in Chrome.")).toBeInTheDocument();
     // A QuickTime container or .mov name is not a codec; only the probed answer counts, and only under the base limit.
