@@ -3,7 +3,7 @@ import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { I18nProvider, Icon, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
@@ -42,7 +42,7 @@ import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
-import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
+import { resolveMediaTabChange, resolveMediaTabs } from "@jini-ai/admin/screens/media/media-tabs.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { RemoteImageImport, useRemoteImageImport, type ImportDialogKit } from "@jini-ai/cms/react/media";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
@@ -1460,7 +1460,7 @@ function MediaPageShell({
           reaches for far more often, and read as one group with this one set apart. */}
       <TabBar
         ariaLabel={t("Media")}
-        tabs={resolveMediaTabs({ t }, { counts: tabCounts })}
+        tabs={resolveMediaTabs({ t, Icon }, { counts: tabCounts })}
         activeId={activeTab}
         onChange={resolveMediaTabChange({ setActiveTab })}
       />

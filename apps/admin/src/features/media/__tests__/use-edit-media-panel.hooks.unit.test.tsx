@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
+import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
 import { useEditMediaPanel } from "../hooks/use-edit-media-panel.hooks";
 
 /**

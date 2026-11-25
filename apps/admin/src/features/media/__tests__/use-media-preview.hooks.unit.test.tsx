@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
-import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
+import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
 import { useMediaPreview } from "../hooks/use-media-preview.hooks";
 
 /**
