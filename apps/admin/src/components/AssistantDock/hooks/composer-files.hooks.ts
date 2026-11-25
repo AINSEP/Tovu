@@ -1,4 +1,5 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import {
   useAttachmentUploader as useAdminAttachmentUploader, useAttachmentValidator as useAdminAttachmentValidator,
   useFolderDropBridge as useAdminFolderDropBridge, useWorkingDirectoryAccess as useAdminWorkingDirectoryAccess,
@@ -10,20 +11,13 @@ import { CHAT_ATTACHMENT_ROUTE_RULES } from "@/lib/chat-attachment-liveness";
 import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
 
 /**
- * Mirrors the website daemon's own per-file/per-turn caps so a rejection surfaces here, before any
- * bytes are sent, rather than only after the daemon's own enforcement rejects them. `apps/admin` is
- * a separate browser bundle from `apps/website` (no shared import today — see `tsconfig.json`'s
- * `@tovu/*` aliases for the narrow, dependency-free exceptions that DO cross that boundary), so
- * these are duplicated literals, not an import, matching this codebase's existing convention for a
- * client-side check that mirrors a server-side one it cannot reach (see `rules.ts`'s
- * `MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES` doc for the same "keep identical, by hand" pattern).
- *
- * Owner-directed (2026-09-21): must stay equal to `@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES`, which the website imports as
- * `TOVU_MAX_UPLOAD_BYTES` (50 MiB) and `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
- * (100 MiB, `TOVU_MAX_UPLOAD_BYTES * 2`) — update both together if either changes.
+ * The same limits the server enforces, read from the shared contract (`apps/admin` is a browser
+ * bundle and cannot import website code) so a rejection surfaces here, before any bytes are sent.
+ * One source for Library, Media, chat attachments and assistant imports (owner 2026-10-29); a video gets
+ * the larger video limit, picked per file by {@link uploadLimitForFile} (owner 2026-11-24).
  */
-const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
-const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
+export const CHAT_ATTACHMENT_MAX_BYTES = MAX_UPLOAD_BYTES;
+export const CHAT_ATTACHMENT_MAX_BATCH_BYTES = MAX_UPLOAD_BATCH_BYTES;
 
 /** The legacy plugin manifest name the skill-package detector still recognises. */
 export const TOVU_LEGACY_MANIFEST_NAMES: readonly string[] = ["tovu.plugin.json"]; // the host's legacy plugin manifest alias
@@ -46,7 +40,7 @@ export const TOVU_LEGACY_MANIFEST_NAMES: readonly string[] = ["tovu.plugin.json"
  * const uploadAttachments = useAttachmentUploader();
  */
 export function useAttachmentUploader(): ReturnType<typeof useAdminAttachmentUploader> {
-  return useAdminAttachmentUploader({ fetch }, { maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES, maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES });
+  return useAdminAttachmentUploader({ fetch }, { maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES, maxAttachmentBytesFor: uploadLimitForFile, maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES });
 }
 
 /** Stable across renders (the shared hook memoizes on it); `fetch` resolves at probe time, as the pre-move `bind` at mount did for a stubbed global. */
