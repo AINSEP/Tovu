@@ -84,7 +84,7 @@ test("writer creates the lock before the folder (composition binds every writer 
   assert.match(source("../site-deps/route-deps-assistant-mcp.ts"), /withTempRoot: siteTempRoot\(\{ prefix: SITE_TEMP_PREFIXES\.transferChat \}\)/);
   // The export snapshot parent is the same resolved parent the sweeper reads.
   assert.match(source("../site-deps/site-sharing.ts"), /snapshotRoot: SITE_TEMP_PARENT/);
-  for (const file of ["features/site-backup/import-database.ts", "features/site-backup/share-database/repo.sqlite.ts", "features/site-backup/static-copy.ts", "features/site-backup/sources.ts"]) {
+  for (const file of ["features/site-backup/import-database.ts", "features/site-backup/share-database/repo.sqlite.ts", "features/site-backup/static-download-host.ts", "features/site-backup/sources.ts"]) {
     assert.doesNotMatch(source(`../../../../${file}`), /mkdtemp\(|tmpdir\(\)/, `${file} allocates only owned roots`);
   }
 });
@@ -163,6 +163,10 @@ test("a root with a live marker from another process is kept", { timeout: 30_000
 test("the temp-root tidy is registered with the serving policies and the old startup tidier is gone", () => {
   assert.match(source("../retention.ts"), /createSiteTempRootPolicy\(\{ roots: SITE_TEMP_ROOTS/);
   assert.doesNotMatch(source("../../../../cli/commands/serve.ts"), /tidyImportDatabases/);
-  assert.doesNotMatch(source("../../../../features/site-backup/import-backend.ts"), /tidyImportDatabases/);
-  assert.match(source("../../../../features/site-backup/import-backend.ts"), /registry\.expire\(\{\}\)/);
+  // The Jini import backend owns the registry expiry; this host only supplies the explicit `--tidy` port
+  // (the import + the one host-port binding) and never calls it itself, so there is no startup tidier here.
+  const hostSource = source("../../../../features/site-backup/import-backend.ts");
+  assert.equal((hostSource.match(/tidyImportDatabases/g) ?? []).length, 2);
+  assert.doesNotMatch(hostSource, /tidyImportDatabases\s*\(/);
+  assert.match(fs.readFileSync(new URL("../../../../../../../node_modules/@jini-ai/devops/dist/backup/site/import-backend.js", import.meta.url), "utf8"), /registry\.expire\(\{\}\)/);
 });
