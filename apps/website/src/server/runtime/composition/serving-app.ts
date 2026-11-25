@@ -23,7 +23,7 @@ import { startOutboxDrainer, type OutboxQueueMetrics } from "#src/contracts/core
 import { readOutboxQueueDepth } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { type OutboxDrainer } from "@jini-ai/infra/events/outbox";
 import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
-import { createApp } from "./app.js";
+import { createApp, siteFailureReporter } from "./app.js";
 import type { CreateAppOptions } from "./create-app-options.js";
 import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
@@ -154,8 +154,9 @@ export function createServingApp(
     ...servingRoutineToolOptions({ canRun: routinesCanRun, releaseEnabled: optional.routines?.releaseEnabled ?? false,
       ready: () => routinesReady.then((ready) => ready), access: ownerAccessFor(routeDeps), workspaceId: routeDeps.workspaceId },
       routeDeps.settingsRepo ? { localeFor: settingsLocaleFor({ settingsRepo: routeDeps.settingsRepo, workspaceId: routeDeps.workspaceId }) } : {}) });
+  // `siteFailureReporter` is memoized per routeDeps, so routines record through the reporter `createApp` bound above.
   const routines = startServingRoutines({ routeDeps, router: routineRouter, desktopEligible: optional.routines?.desktopEligible ?? false,
-    releaseEnabled: optional.routines?.releaseEnabled ?? false }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : { acceptanceDeps: routeDeps });
+    releaseEnabled: optional.routines?.releaseEnabled ?? false, reporter: siteFailureReporter({ routeDeps }) }, optional.routines?.runStarter ? { runStarter: optional.routines.runStarter } : { acceptanceDeps: routeDeps });
   bindRoutines(routines.ready);
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },

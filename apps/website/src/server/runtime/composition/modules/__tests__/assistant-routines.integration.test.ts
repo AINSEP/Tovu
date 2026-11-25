@@ -93,6 +93,7 @@ function harness(t: { after: (fn: () => void) => void }, overrides: Partial<Comp
     mountAdminRoute: ({ spec }, options) => { routes.set(`${spec.method} ${spec.path}`, { spec, options }); },
     now: clock.now, newId: () => `id-${++id}`, timers: clock.timers, log: quiet, writeBeacon: async () => ({ ok: true }),
     policy: { releaseEnabled: true, access: async ({ actor }) => actor.principalId === OWNER.id && actor.workspaceId === OWNER.workspaceId },
+    reporter: { record: () => assert.fail("no incident is expected") },
     ...overrides,
   };
   t.after(() => { for (const handle of handles) if (handle.open) handle.close(); });
@@ -233,9 +234,9 @@ test("every route is session-credential only and the four writes are same-origin
 
 test("store-open failure answers the plain unavailable refusal with the admin ERR- id it logged the open error under", async (t) => {
   const reported: Array<{ error: unknown; operation: string }> = [];
-  const h = harness(t, { openSqlite: () => { throw new Error("SQLITE_CANTOPEN"); } });
-  const reportFailure = (args: { error: unknown; operation: string }) => { reported.push(args); return { errorId: "ERR-AAAA-BBBB-CCCC-DDDD" }; };
-  const host = await composeAssistantRoutines(h.required, { monotonicNow: h.clock.now, reportFailure });
+  const reporter = { record: (args: { error: unknown; operation: string }) => { reported.push({ error: args.error, operation: args.operation }); return { errorId: "ERR-AAAA-BBBB-CCCC-DDDD" }; } };
+  const h = harness(t, { openSqlite: () => { throw new Error("SQLITE_CANTOPEN"); }, reporter });
+  const host = await composeAssistantRoutines(h.required, { monotonicNow: h.clock.now });
   assert.equal(host.availability(), "error");
   assert.equal(reported.length, 1, "the open failure is reported once, at boot");
   assert.equal(reported[0]!.operation, "routines:store-open");

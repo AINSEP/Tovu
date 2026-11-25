@@ -30,6 +30,10 @@ import { mapWidgetErrorToResponse } from "../inbound/admin-http/http/widgets.js"
 import { installErrorResponse } from "../inbound/admin-http/routes/agent-plugins/install-response.js";
 import { importErrorResponse } from "../inbound/admin-http/routes/publish-content/import-errors.js";
 import { respondWithError } from "../inbound/admin-http/routes/publish-content/peer-transport.js";
+import { composeAssistantRoutines, ROUTINE_ROUTE_BASE, type ComposeAssistantRoutinesRequired, type MountRoutineAdminRoute } from "../runtime/composition/modules/assistant-routines.js";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 const REF = /(ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/;
 
@@ -195,4 +199,27 @@ for (const [name, map] of [
   const { status, body } = map(probe.reporter as never, thrown);
   assert.equal(status, 500);
   probe.assertOneIncident({ errorId: (body as { errorId: string }).errorId, thrown });
+});
+
+// FIX 4 (rv1125a item 4): the routine store-open failure has no response of its own; composition injects the reporter.
+test("routines store-open: a sidecar open failure records through the injected reporter", async (t) => {
+  const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
+  const root = mkdtempSync(path.join(tmpdir(), "routines-reporter-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const routes = new Map<string, Parameters<MountRoutineAdminRoute>[0]["spec"]>();
+  const required: ComposeAssistantRoutinesRequired = {
+    launch: { desktopEligible: true }, workspaceId: "ws", contentDbPath: path.join(root, "content.db"), openSqlite: () => { throw thrown; },
+    beforeStoreClose: () => {}, onStoreClose: () => {}, assistantEnabled: true, onAssistantToggle: () => () => {},
+    runStarter: async () => assert.fail("no run starts"), mountAdminRoute: ({ spec }) => { routes.set(`${spec.method} ${spec.path}`, spec); },
+    now: () => 0, newId: () => "id", timers: { schedule: () => () => {} }, log: () => {}, writeBeacon: async () => ({}),
+    policy: { releaseEnabled: true, access: async () => true }, reporter: probe.reporter,
+  };
+  const host = await composeAssistantRoutines(required);
+  assert.equal(host.availability(), "error");
+  const spec = routes.get(`get ${ROUTINE_ROUTE_BASE}`)!;
+  const parsed = spec.parse({ body: undefined, params: {}, query: {} });
+  assert.ok(parsed.ok);
+  const refused = await spec.handle({ input: parsed.value, deps: {} as never, context: { id: "owner", workspaceId: "ws" } as never });
+  assert.equal(refused.ok, false);
+  probe.assertOneIncident({ errorId: (refused as { error: { details: { errorId: string } } }).error.details.errorId, thrown });
 });

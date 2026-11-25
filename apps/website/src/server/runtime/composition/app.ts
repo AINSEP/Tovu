@@ -431,7 +431,7 @@ let processVersions: BuildVersions | undefined;
  * over the site tracker and clock with the process console as its host record.
  * @complexity O(1) after the first call per site; the first call reads two manifests once per process.
  */
-function siteFailureReporter(
+export function siteFailureReporter(
   { routeDeps }: { routeDeps: Pick<NewsletterRouteDeps, "tracker" | "clock"> },
   { errorReporter }: Pick<CreateAppOptions, "errorReporter"> = {},
 ): ErrorReporter {

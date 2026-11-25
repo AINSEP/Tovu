@@ -35,7 +35,7 @@ function site(t: { after: (fn: () => void) => void }) {
 function boot(t: { after: (fn: () => void) => void }, { desktopEligible = true, hooks = site(t).hooks, holderId = "boot-a", opened = { count: 0 } } = {}) {
   const router = Router();
   const channel = fakeChannel();
-  const serving = startServingRoutines({ routeDeps, router, desktopEligible, releaseEnabled: true }, { storeHooks: hooks, channel, composeOverrides: {
+  const serving = startServingRoutines({ routeDeps, router, desktopEligible, releaseEnabled: true, reporter: { record: () => assert.fail("no incident is expected") } }, { storeHooks: hooks, channel, composeOverrides: {
     timers: { schedule: () => () => {} }, log: () => {}, writeBeacon: async () => {},
     openSqlite: (file) => { opened.count += 1; return openNativeSqlite(file); },
     policy: { releaseEnabled: true, access: async ({ actor }) => actor.principalId === "owner-1" } } });

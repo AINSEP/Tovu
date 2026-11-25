@@ -14,6 +14,7 @@ import {
 import { closeRoutineHost, openRoutineSidecar } from "#src/features/routines/routine-host";
 import { routinesPaths } from "#src/features/routines/routines-paths";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { createRoutineApprovalObserver, type RoutineApprovalObserver } from "#src/features/routines/routine-approval-observer";
 import type { OpenRoutinesSqlite } from "#src/platform/db/sqlite/routines-db";
 import type { StoreCloseRegistration } from "../site-deps/open-store.js";
@@ -56,6 +57,8 @@ export interface ComposeAssistantRoutinesRequired {
   log: Log;
   writeBeacon: (required: { path: string; enabled: number; now: () => number }) => Promise<unknown>;
   policy: { releaseEnabled: boolean; access: RoutineAccess; target?: RoutineTarget };
+  /** The site's composed reporter: the store-open failure is recorded under the `ERR-` id the refusal routes carry. */
+  reporter: Pick<ErrorReporter, "record">;
 }
 
 export interface ComposeAssistantRoutinesOptional {
@@ -66,8 +69,6 @@ export interface ComposeAssistantRoutinesOptional {
   createService?: (required: { persistence: RoutineDurablePersistence; holderId: string }) => RoutineService;
   /** Builds the run handler once the approval observer exists (P3-T3.T), so every accepted run can be tracked; wins over `runStarter`. */
   createRunHandler?: (ports: { approvals: Pick<RoutineApprovalObserver, "track" | "untrack">; updateRun: RoutineDurablePersistence["updateRun"] }) => RoutineRunHandler;
-  /** Reports the store-open failure under an admin `ERR-` id; defaults to the admin failure sink (`reportServerFailure`). */
-  reportFailure?: (required: { error: unknown; operation: string }) => { errorId: string };
 }
 
 export interface AssistantRoutinesHandle {
@@ -232,7 +233,7 @@ export async function composeAssistantRoutines(required: ComposeAssistantRoutine
   { log: (entry) => { if (entry.event === "routine-sidecar-open-failed") openError = entry.error; log(entry); } });
   // Store-open failure keeps the site up; routines answer `error` (with this boot's `ERR-` id) until the next boot.
   if (!sidecar.ok) {
-    const { errorId } = (optional.reportFailure ?? reportServerFailure)({ error: openError, operation: "routines:store-open" });
+    const { errorId } = reportServerFailure({ error: openError, operation: "routines:store-open" }, { reporter: required.reporter });
     return mountRefusal(required, "error", { errorId });
   }
   const { monotonicNow = () => performance.now() } = optional;

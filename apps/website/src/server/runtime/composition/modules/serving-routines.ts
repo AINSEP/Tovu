@@ -78,6 +78,8 @@ export interface ServingRoutinesRequired {
   desktopEligible: boolean;
   /** `ROUTINES_RELEASE_ENABLED`, bound once at the host root. */
   releaseEnabled: boolean;
+  /** The site's composed reporter (the one `createApp` binds to `res.locals.failureReporter`). */
+  reporter: ComposeAssistantRoutinesRequired["reporter"];
 }
 
 export interface ServingRoutinesOptional {
@@ -141,7 +143,7 @@ export function startServingRoutines(required: ServingRoutinesRequired, optional
     assistantEnabled: routeDeps.adminAssistantEnabled, onAssistantToggle: () => () => {},
     runStarter: optional.runStarter ?? createRoutinesNotReadyStarter(),
     mountAdminRoute, now: Date.now, newId: randomUUID, timers: nodeRoutineTimers, log: logRoutineEvent, writeBeacon: writeRoutineBeaconAtomically,
-    policy: { releaseEnabled, access: ownerAccessFor(routeDeps) }, ...optional.composeOverrides,
+    policy: { releaseEnabled, access: ownerAccessFor(routeDeps) }, reporter: required.reporter, ...optional.composeOverrides,
   }, ownerChatRunHandler({ routeDeps, access: ownerAccessFor(routeDeps) }, optional)).then((handle) => {
     if (!stopped) removeReceiver = installRoutineWakeReceiver({ channel: optional.channel ?? parentChannel(), reconcile: handle.reconcile,
       eligible: desktopEligible && releaseEnabled, log: ({ event, error }) => logRoutineEvent({ event, error }) });
