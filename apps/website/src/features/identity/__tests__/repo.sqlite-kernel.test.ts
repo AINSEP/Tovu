@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -13,7 +14,7 @@ for (const mode of ["handle", "kernel"] as const) {
     const db = openContentDb(":memory:");
     t.after(() => db.$client.close());
     const kernel = contentKernel({ store: db });
-    const repo = new SqliteRoleRepo(mode === "handle" ? db : kernel);
+    const repo = new SqliteRoleRepo({ store: mode === "handle" ? db : kernel, assertVersionedWrite });
     const transactions = createIdentityTransactions({ kernel });
     await assert.rejects(transactions.run({ workspaceId: "ws-rollback", execute: async () => {
       await repo.save({ id: "rolled-back", workspaceId: "ws-rollback", name: "temporary", isBuiltin: false });
@@ -30,8 +31,8 @@ for (const mode of ["handle", "kernel"] as const) {
     const kernel = contentKernel({ store: db });
     const store = mode === "handle" ? db : kernel;
     const repos = {
-      principals: new SqlitePrincipalRepo(store), users: new SqliteUserRepo(store), sessions: new SqliteSessionRepo(store),
-      roles: new SqliteRoleRepo(store), policies: new SqlitePolicyRepo(store), policyPermissions: new SqlitePolicyPermissionRepo(store),
+      principals: new SqlitePrincipalRepo(store), users: new SqliteUserRepo({ store, assertVersionedWrite }), sessions: new SqliteSessionRepo(store),
+      roles: new SqliteRoleRepo({ store, assertVersionedWrite }), policies: new SqlitePolicyRepo({ store, assertVersionedWrite }), policyPermissions: new SqlitePolicyPermissionRepo(store),
       principalPolicies: new SqlitePrincipalPolicyRepo(store), principalRoles: new SqlitePrincipalRoleRepo(store), rolePolicies: new SqliteRolePolicyRepo(store),
     };
     const principal = { id: "reader", workspaceId: "ws-b08", kind: "user" as const, displayName: "Reader", status: "active" as const, createdAt: "2026-10-01T12:00:00Z" };

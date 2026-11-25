@@ -1,4 +1,5 @@
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
+import type { AssertVersionedWritePort } from "@jini-ai/core/optimistic-concurrency";
 import { createSqlMfaStore, createSqlPasskeyStore, createSqlRecoveryCodeStore } from "@jini-ai/user-management/server/sql";
 import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -39,8 +40,8 @@ export class SqlitePrincipalRepo extends SqlPrincipalRepo {
 }
 
 export class SqliteUserRepo extends SqlUserRepo {
-  constructor(store: Store) {
-    super(contentKernel({ store }));
+  constructor({ store, assertVersionedWrite }: { store: Store; assertVersionedWrite: AssertVersionedWritePort }, _optional: Record<string, never> = {}) {
+    super({ kernel: contentKernel({ store }), assertVersionedWrite });
   }
 }
 
@@ -51,14 +52,14 @@ export class SqliteSessionRepo extends SqlSessionRepo {
 }
 
 export class SqliteRoleRepo extends SqlRoleRepo {
-  constructor(store: Store) {
-    super(contentKernel({ store }));
+  constructor({ store, assertVersionedWrite }: { store: Store; assertVersionedWrite: AssertVersionedWritePort }, _optional: Record<string, never> = {}) {
+    super({ kernel: contentKernel({ store }), assertVersionedWrite });
   }
 }
 
 export class SqlitePolicyRepo extends SqlPolicyRepo {
-  constructor(store: Store) {
-    super(contentKernel({ store }));
+  constructor({ store, assertVersionedWrite }: { store: Store; assertVersionedWrite: AssertVersionedWritePort }, _optional: Record<string, never> = {}) {
+    super({ kernel: contentKernel({ store }), assertVersionedWrite });
   }
 }
 

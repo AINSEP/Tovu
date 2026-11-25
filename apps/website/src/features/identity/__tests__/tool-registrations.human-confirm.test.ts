@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
@@ -44,10 +45,10 @@ interface Harness {
 async function buildHarness(): Promise<Harness> {
   const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
-    users: new InMemoryUserRepo({}),
+    users: new InMemoryUserRepo({ assertVersionedWrite }),
     sessions: new InMemorySessionRepo({}),
-    roles: new InMemoryRoleRepo({}),
-    policies: new InMemoryPolicyRepo({}),
+    roles: new InMemoryRoleRepo({ assertVersionedWrite }),
+    policies: new InMemoryPolicyRepo({ assertVersionedWrite }),
     policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}),
     principalRoles: new InMemoryPrincipalRoleRepo({}),

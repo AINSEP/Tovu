@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
@@ -123,10 +124,10 @@ type Vintage = "fresh" | "pre-theme-edit";
 async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
   const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
-    users: new InMemoryUserRepo({}),
+    users: new InMemoryUserRepo({ assertVersionedWrite }),
     sessions: new InMemorySessionRepo({}),
-    roles: new InMemoryRoleRepo({}),
-    policies: new InMemoryPolicyRepo({}),
+    roles: new InMemoryRoleRepo({ assertVersionedWrite }),
+    policies: new InMemoryPolicyRepo({ assertVersionedWrite }),
     policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}),
     principalRoles: new InMemoryPrincipalRoleRepo({}),

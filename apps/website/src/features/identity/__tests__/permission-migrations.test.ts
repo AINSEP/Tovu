@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createTransactionalInMemoryIdentityRepos, InMemoryUserRepo, InMemorySessionRepo } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -82,9 +83,9 @@ test("C-001: re-registering the same `from` overwrites rather than duplicates (i
 
 function memoryRepos() {
   return createTransactionalInMemoryIdentityRepos({ repos: {
-    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}),
-    sessions: new InMemorySessionRepo({}), roles: new InMemoryRoleRepo({}),
-    policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({ assertVersionedWrite }),
+    sessions: new InMemorySessionRepo({}), roles: new InMemoryRoleRepo({ assertVersionedWrite }),
+    policies: new InMemoryPolicyRepo({ assertVersionedWrite }), policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}),
     principalPolicies: new InMemoryPrincipalPolicyRepo({}),
   } });
