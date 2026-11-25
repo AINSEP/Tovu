@@ -316,10 +316,10 @@ test("analytics-ingest: `req.ip ?? req.socket.remoteAddress ?? \"\"` double fall
   const handler = extractHandler(app, "/_analytics/e");
   let statusCode: number | undefined;
   const res = {
-    status(code: number) {
-      statusCode = code;
-      return res;
-    },
+    on() { return res; },
+    off() { return res; },
+    setHeader() { return res; },
+    set statusCode(code: number) { statusCode = code; },
     end() {
       return res;
     },
@@ -370,10 +370,10 @@ test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct han
 
   let statusCode: number | undefined;
   const res = {
-    status(code: number) {
-      statusCode = code;
-      return res;
-    },
+    on() { return res; },
+    off() { return res; },
+    setHeader() { return res; },
+    set statusCode(code: number) { statusCode = code; },
     end() {
       return res;
     },
@@ -407,10 +407,10 @@ test("analytics-ingest: `parseBeacon`'s `(body ?? {})` fallback, forced via a di
   const handler = extractHandler(app, "/_analytics/e");
   let statusCode: number | undefined;
   const res = {
-    status(code: number) {
-      statusCode = code;
-      return res;
-    },
+    on() { return res; },
+    off() { return res; },
+    setHeader() { return res; },
+    set statusCode(code: number) { statusCode = code; },
     end() {
       return res;
     },
@@ -475,7 +475,7 @@ async function invokeBeacon(
   requestOverrides: { ip?: string; socket?: { remoteAddress?: string } } = {},
 ): Promise<number | undefined> {
   let status: number | undefined;
-  const res = { status(code: number) { status = code; return res; }, end() { return res; } };
+  const res = { on() { return res; }, off() { return res; }, setHeader() { return res; }, set statusCode(code: number) { status = code; }, end() { return res; } };
   await extractHandler(app, "/_analytics/e")({
     body, hostname: "example.com", ip: "127.0.0.1", socket: { remoteAddress: "127.0.0.1" }, get: () => undefined,
     ...requestOverrides,
