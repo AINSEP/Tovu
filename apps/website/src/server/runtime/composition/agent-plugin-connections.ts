@@ -19,8 +19,9 @@ import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delive
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import { createApiConnectionHost, type ApiConnectionHost } from "#src/features/api-connections/host";
-import { createBundledClientNamespaceReader } from "#src/features/api-connections/bundled-client-namespace";
-import type { ClientNamespaceFor } from "#src/features/api-connections/contribution";
+import { createBundledClientNamespaceReader } from "@jini-ai/integrations/api-connections/bundled-client-namespace";
+import type { ClientNamespaceFor } from "@jini-ai/core/contracts/site/integrations-api-connections";
+import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -143,6 +144,7 @@ function bundledClientNamespaceFor(_required: Record<string, never> = {}, _optio
     readManifest: ({ pluginId }) => {
       try { return JSON.parse(readFileSync(resolveFrom.resolve(`${SELECTED_AGENT_PLUGIN_PACKAGES.get(pluginId)}/plugin.json`), "utf8")); } catch { return null; }
     },
+    readClientNamespace: ({ value }) => readAgentPluginMetadata({ value }).metadata.clientNamespace,
   });
 }
 
