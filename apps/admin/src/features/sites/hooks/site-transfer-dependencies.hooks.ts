@@ -18,8 +18,11 @@ export interface SiteShare {
   file: string;
   bytes: number;
   url: string | null;
-  status: "active" | "revoked" | "failed";
+  status: "active" | "revoked" | "failed" | "expired";
   createdAt: string;
+  /** The link's stated end (P11 ST-12a), set only when the owner chose 7, 30 or 90 days. Absent or
+   *  null means it never expires; only `status` says a link has expired, never a missing date. */
+  expiresAt?: string | null;
   downloadUrl: string;
   hasEncryptedKeys?: boolean;
   notices?: readonly string[];
@@ -30,6 +33,9 @@ export interface SiteShare {
   /** True until the owner checks "I understand"; the download route answers 409 until then. */
   needsAcknowledgement?: boolean;
 }
+
+/** The owner's link-expiry choices besides Never (the default), mirroring the server's `SHARE_EXPIRY_DAYS`. */
+export type ShareExpiryDays = 7 | 30 | 90;
 
 /** One place an archive may hold a credential: a ZIP path or `content.db:<table>.<column>`, and a
  *  human kind label. Never the matched value. */
@@ -71,8 +77,11 @@ export interface SiteTransferPort {
   savedKeysAccess(required: Record<string, never>, optional?: Record<string, never>): Promise<{ isOwner: boolean }>;
   revealSharePassword(required: { shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   staticExportOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
-  listShares(): Promise<{ shares: SiteShare[] }>;
-  createShare(input: { jobId?: string }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
+  /** `expiryChoices` lists the day choices the current destination honours (only this server's own
+   *  share folder can expire a link); absent means Never is the only choice. */
+  listShares(): Promise<{ shares: SiteShare[]; expiryChoices?: readonly number[] }>;
+  /** `expiresInDays` belongs to the initial POST only; a job poll sends `jobId` alone. */
+  createShare(input: { jobId?: string; expiresInDays?: ShareExpiryDays | null }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
@@ -120,6 +129,12 @@ function downloadRefusalDetails(body: { code?: unknown; message?: unknown; crede
   };
 }
 
+/** A poll resumes the captured job, so it never re-sends the expiry; Never stays the empty body the server reads as Never. O(1). */
+function shareCreateBody(input: { jobId?: string; expiresInDays?: ShareExpiryDays | null }, _options = {}) {
+  if (input.jobId) return { jobId: input.jobId };
+  return typeof input.expiresInDays === "number" ? { expiresInDays: input.expiresInDays } : {};
+}
+
 /** Selection belongs only to the initial POST; subsequent calls resume the captured job. */
 function staticShareInput(input: { jobId?: string; themeIds?: readonly string[] }, _options = {}) {
   if (input.jobId) return { jobId: input.jobId };
@@ -136,7 +151,7 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   },
   revealSharePassword: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/password`, body: {} }),
   listShares: () => authenticatedAdminRequest({ method: "GET", path: SHARES }),
-  createShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
+  createShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: shareCreateBody(input) }),
   staticExportOptions: (_input, _options = {}) => authenticatedAdminRequest({ method: "GET", path: `${SHARES}/static/options` }),
   createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: staticShareInput(input) }),
   downloadShare: ({ share }, _options = {}) => {
