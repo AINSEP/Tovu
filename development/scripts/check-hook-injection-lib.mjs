@@ -77,10 +77,12 @@ function bodyDestructured(fn, propsName) {
   return names;
 }
 
-/** Hook names a component receives from its caller instead of importing: required or defaulted parameter
- *  destructuring (`function X({ useFooHook })`), and body destructuring or aliasing from the props
- *  parameter (`const { useFooHook } = props`). Required is the owner's form (no default hook to drift
- *  from the host binding), so the fix hint recommends it and body destructuring ignores defaults. */
+/** Names of destructured hook props: defaulted (`{ useFooHook = useFoo }`) or required
+ *  (`{ useFooHook }`). A required hook prop is injection too — the caller must pass it — and is the
+ *  owner's preferred form (P12 #6 F6.4: no default hook to drift from the host binding). */
+// R05 (g6): body destructuring or aliasing from the props parameter (`const { useFooHook } = props`,
+// `{ useFooHook: useBar }`) counts too; a body default is not injection, and the fix hint recommends
+// a required prop.
 function injectedHooks(fn) {
   const param = fn.parameters[0]?.name;
   if (!param) return new Set();
