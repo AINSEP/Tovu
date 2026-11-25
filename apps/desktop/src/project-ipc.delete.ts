@@ -8,6 +8,8 @@ import { SITE_ORIGIN, readTrackedSites, untrackSite } from "./tracked-sites.ts";
 import { mayEraseDirectory } from "@jini-ai/platform/fs";
 import { type ProjectIpcDeps, type RegistryRow } from "./project-ipc.types.ts";
 import { SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
+import { type SiteRetirementPort } from "./site-retirement.ts";
+import { type ErasedRetirementCandidate } from "@jini-ai/desktop-host/electron/partitions";
 
 
 /**
@@ -98,7 +100,7 @@ function liveForeignServers({ deps, siteDir, ownPid }: { deps: Pick<ProjectIpcDe
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-export async function handleDelete({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites"> }, _options = {}): Promise<void> {
+export async function handleDelete({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites" | "retirement"> }, _options = {}): Promise<void> {
   await deps.serializer.run({ key: id, fn: () => deleteProject({ id, deps }) });
 }
 
@@ -108,7 +110,7 @@ export async function handleDelete({ id, deps }: { id: string; deps: Pick<Projec
  *
  * @complexity see {@link handleDelete}.
  */
-async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites"> }, _options = {}): Promise<void> {
+async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites" | "retirement"> }, _options = {}): Promise<void> {
   const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
@@ -138,8 +140,12 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
     await openEntry.server.stop();
     closeStoppedProject({ id, openEntry, deps });
   }
+  // Erase arm only: the untrack arm keeps the folder, so it must never produce removal proof.
+  const candidate = erasesFiles ? captureRetirement({ siteDir: id, siteId: row.siteId, retirement: deps.retirement }) : null;
   // The row is the recovery handle for a partial erase: keep it until removal succeeds.
   if (erasesFiles) await eraseProjectDirectory({ id, deps });
+  // Before untrack: a crash between the two leaves a pending record AND a tracked row, which keeps it.
+  if (candidate !== null) recordRetirement({ candidate, absence: deps.retirement.absence({ candidate }), retirement: deps.retirement, log: warnRetirement });
   untrackSite({ projectsPath: deps.projectsPath, siteDir: id });
   if (erasesFiles) removeFromSharedCatalog({ id, sharedSites: deps.sharedSites });
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
@@ -209,4 +215,40 @@ async function eraseProjectDirectory(
       ? 'Permission was denied.' : 'The folder could not be removed.';
     throw new Error(`Could not delete this website. ${reason} Its card has been kept so you can try again.`);
   }
+}
+
+/** The website's identity before its folder is erased; `null` (no proof, logins kept) when unknown.
+ * @complexity O(1) filesystem calls, delegated to the retirement port.
+ */
+function captureRetirement(
+  { siteDir, siteId, retirement }: { siteDir: string; siteId: string | undefined; retirement: Pick<SiteRetirementPort, "capture"> }, _options = {},
+): ErasedRetirementCandidate | null {
+  if (siteId === undefined) return null;
+  try { return retirement.capture({ siteDir, siteId }); }
+  catch { return null; }
+}
+
+/**
+ * Write the removal proof only once the erase succeeded AND the folder is certainly gone.
+ *
+ * Why this is positive proof rather than a reconstruction from missing rows: a partition whose site
+ * has no tracked row may still belong to an untracked card, an unplugged drive or an older copy of
+ * the app; only this arm, which itself just erased the folder it identified beforehand, knows the
+ * website is deleted. A failure here only warns: the erase already happened and its result stands;
+ * without a record the partition is merely ambiguous later (logins kept and listed), the safe side.
+ * @complexity O(records) in the ledger, under its file lock.
+ */
+function recordRetirement(
+  { candidate, absence, retirement, log }: {
+    candidate: ErasedRetirementCandidate; absence: string; retirement: Pick<SiteRetirementPort, "append">; log: (required: { error: unknown }) => void;
+  }, _options = {},
+): void {
+  if (absence !== "absent") return;
+  try { retirement.append({ candidate }); }
+  catch (error) { log({ error }); }
+}
+
+/** {@link recordRetirement}'s plain-words warning. @complexity O(1). */
+function warnRetirement({ error }: { error: unknown }, _options = {}): void {
+  console.warn("tovu desktop: could not record the deleted website's sign-in for later removal; it will be kept and listed instead.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
 }

@@ -18,6 +18,7 @@ import { importSharedSiteDiscovery, handleList, handleLocate, rescanSites } from
 import { handleAddSite, handleImportArchive } from "./project-ipc.import.ts";
 import { handleCreate, planNewSiteDir, handleTokenSignInPlugins } from "./project-ipc.create.ts";
 import { handleDelete } from "./project-ipc.delete.ts";
+import { NO_RETIREMENT } from "./site-retirement.ts";
 import { handleOpenExternal, handleStart, handleStop, handleGetPreview } from "./project-ipc.server.ts";
 import { handleRename } from "./project-ipc.rename.ts";
 import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
@@ -165,6 +166,7 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
     | "isLiveServeRow"
     | "serializer"
     | "ctx"
+    | "retirement"
   > &
   O {
   const dir = tempDir();
@@ -192,6 +194,8 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
     isLiveServeRow,
     serializer: { run: ({ fn }: { key: string; fn: () => unknown }) => fn() },
     ctx: {},
+    // These handler tests are not about the sign-in removal proof; `site-retirement.test.ts` is.
+    retirement: NO_RETIREMENT,
     ...overrides,
   };
 }

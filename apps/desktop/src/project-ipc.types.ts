@@ -5,6 +5,7 @@ import type { removeDirectoryTree } from "@jini-ai/platform/fs";
 import type { OpenSiteEntry, ServerExitLike, SiteRuntime } from "./project-ipc.site-lifecycle.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
+import type { SiteRetirementPort } from "./site-retirement.ts";
 import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 import type { SitePresence, PresenceSender } from "@jini-ai/desktop-host/shell/site-presence";
 
@@ -232,6 +233,9 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   discoverSites?: (required: { scanRoots?: string[] }, options?: {}) => Promise<string[]>;
   recentSiteDirs: () => string[];
   sharedSites?: SitesWorkspace;
+  /** The erase arm's sign-in removal proof (ST-2b). Required: production binds the real ledger, and
+   *  only tests that never erase may pass `NO_RETIREMENT`. */
+  retirement: SiteRetirementPort;
   /** Stops a site another process serves (`external-site-stop.ts`). Absent: such a Stop is refused. */
   externalSites?: Pick<ExternalSiteStopper, "launcherOf" | "stop">;
   ctx: TCtx;
