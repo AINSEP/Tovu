@@ -295,6 +295,7 @@ export function createSiteImportBackend(required: ImportBackendRequired, optiona
     },
     get(input) {
       available();
+      // Lock-free get and list never cut over or expire anything: they hold no lock, so only `exclusive` may mutate.
       const row = registry.get(input);
       if (registry.history) return registry.history.read({ run: (session, _optional = {}) => {
         if (session.kind === "legacy") return ctx.view(row);
