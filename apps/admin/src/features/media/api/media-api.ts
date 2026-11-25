@@ -85,6 +85,8 @@ export const mediaApi = {
       alt?: string;
       caption?: string;
       credit?: string;
+      /** Blank is an explicit clear; omitting the key leaves the stored description unchanged. */
+      description?: string;
       width?: number | null;
       height?: number | null;
       cssClass?: string | null;
