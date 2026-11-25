@@ -21,21 +21,21 @@ import { t as realT } from "@jini-ai/admin/roles/roles-i18n";
  * is not built-in, and the inline "Add permission" form appearing for exactly one row.
  */
 
-const BUILTIN_ROLE: AdminRole = { id: "r-builtin", workspaceId: "w1", name: "Owner", isBuiltin: true };
-const CUSTOM_ROLE: AdminRole = { id: "r-custom", workspaceId: "w1", name: "Editor", isBuiltin: false };
+const BUILTIN_ROLE: AdminRole = { id: "r-builtin", workspaceId: "w1", name: "Owner", isBuiltin: true, version: 1 };
+const CUSTOM_ROLE: AdminRole = { id: "r-custom", workspaceId: "w1", name: "Editor", isBuiltin: false, version: 1 };
 
 const FROZEN_POLICY: AdminPolicy = {
   id: "p-frozen",
   workspaceId: "w1",
   name: "Frozen Policy",
-  isBuiltin: false,
+  isBuiltin: false, version: 1,
   isFrozen: true,
 };
 const CUSTOM_POLICY: AdminPolicy = {
   id: "p-custom",
   workspaceId: "w1",
   name: "Custom Policy",
-  isBuiltin: false,
+  isBuiltin: false, version: 1,
   isFrozen: false,
 };
 
@@ -470,7 +470,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     const event = new Event("submit", { cancelable: true });
     await act(() => result.current.onCreatePolicy(event as unknown as React.FormEvent));
     expect(event.defaultPrevented).toBe(true);
-    expect(port.policies).toEqual([{ id: "fake-policy-1", workspaceId: "fake-ws", name: "Reader", description: undefined, isBuiltin: false, isFrozen: false }]);
+    expect(port.policies).toEqual([{ id: "fake-policy-1", workspaceId: "fake-ws", name: "Reader", description: undefined, isBuiltin: false, isFrozen: false, version: 1 }]);
     await waitFor(() => expect(result.current.policies).toEqual(port.policies));
     expect(result.current.policyName).toBe("");
     expect(result.current.policyDescription).toBe("");
