@@ -34,6 +34,19 @@ export interface SubscriptionsDeps {
   ids: { newId(): string };
 }
 
+async function requireActiveList(
+  { listRepo, workspaceId, listId }: { listRepo: NewsletterListRepoPort; workspaceId: UUID; listId: UUID },
+  _optional = {},
+): Promise<void> {
+  const list = await listRepo.findById({ workspaceId, id: listId });
+  if (!list) {
+    throw new NewsletterListNotFoundError(`list ${listId} was not found`);
+  }
+  if (list.status === "archived") {
+    throw new NewsletterValidationError({ field: "listId", reason: "archived", message: "This list is archived." });
+  }
+}
+
 /** C-013 — resolve `subscriberId` via `SubscriberDirectoryPort`, create a `pending` subscription, trigger confirmation (AC-12/13). */
 export async function saveSubscription(required: {
   deps: SubscriptionsDeps;
@@ -41,10 +54,7 @@ export async function saveSubscription(required: {
 }, _optional: Record<string, never> = {}): Promise<{ subscription: SubscriptionRow }> {
   const { deps, input } = required;
 
-  const list = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.listId });
-  if (!list) {
-    throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
-  }
+  await requireActiveList({ listRepo: deps.listRepo, workspaceId: input.workspaceId, listId: input.listId });
 
   const contact = await deps.subscriberDirectory.getContact({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
   if (!contact) {
@@ -141,10 +151,7 @@ export async function importSubscriptions(required: {
   // every row independently fail — an unknown list is a malformed-request condition, not a
   // per-row outcome (api.spec.md §6 IMPORT_SUBSCRIPTIONS' 400 is scoped to "malformed batch shape
   // only"; a missing list is closer to that than to a per-row 207 failure entry).
-  const list = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.listId });
-  if (!list) {
-    throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
-  }
+  await requireActiveList({ listRepo: deps.listRepo, workspaceId: input.workspaceId, listId: input.listId });
 
   const created: SubscriptionRow[] = [];
   const failed: { index: number; code: string; message: string }[] = [];

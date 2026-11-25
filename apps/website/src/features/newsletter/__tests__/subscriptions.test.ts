@@ -106,6 +106,63 @@ test("saveSubscription: unknown listId rejected with NEWSLETTER_LIST_NOT_FOUND (
   );
 });
 
+test("saveSubscription refuses an archived list without creating a subscriber row or token", async (t) => {
+  const deps = makeDeps();
+  const list = await deps.listRepo.findById({ workspaceId: WS, id: "list-1" });
+  assert.ok(list);
+  await deps.listRepo.save({ ...list, status: "archived" });
+  const contactLookup = t.mock.method(deps.subscriberDirectory, "getContact");
+  const subscriberLookup = t.mock.method(deps.subscriptionRepo, "findBySubscriberAndList");
+  const subscriptionWrite = t.mock.method(deps.subscriptionRepo, "save");
+  const tokenWrite = t.mock.method(deps.confirmationDeps.tokenRepo, "save");
+
+  await assert.rejects(
+    saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1", source: "admin" } }),
+    (error: unknown) => {
+      assert.ok(error instanceof NewsletterValidationError);
+      assert.equal(error.field, "listId");
+      assert.equal(error.reason, "archived");
+      assert.equal(error.message, "This list is archived.");
+      return true;
+    },
+  );
+  assert.equal(contactLookup.mock.callCount(), 0);
+  assert.equal(subscriberLookup.mock.callCount(), 0);
+  assert.equal(subscriptionWrite.mock.callCount(), 0);
+  assert.equal(tokenWrite.mock.callCount(), 0);
+  assert.deepEqual(deps.sentEmails, []);
+});
+
+test("importSubscriptions refuses an archived list before starting the batch", async (t) => {
+  const deps = makeDeps();
+  const list = await deps.listRepo.findById({ workspaceId: WS, id: "list-1" });
+  assert.ok(list);
+  await deps.listRepo.save({ ...list, status: "archived" });
+  const contactLookup = t.mock.method(deps.subscriberDirectory, "getContact");
+  const subscriberLookup = t.mock.method(deps.subscriptionRepo, "findBySubscriberAndList");
+  const subscriptionWrite = t.mock.method(deps.subscriptionRepo, "save");
+  const tokenWrite = t.mock.method(deps.confirmationDeps.tokenRepo, "save");
+
+  await assert.rejects(
+    importSubscriptions({
+      deps,
+      input: { workspaceId: WS, listId: "list-1", subscribers: [{ subscriberId: "subscriber-1", source: "import" }, { subscriberId: "subscriber-2", source: "import" }] },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof NewsletterValidationError);
+      assert.equal(error.field, "listId");
+      assert.equal(error.reason, "archived");
+      assert.equal(error.message, "This list is archived.");
+      return true;
+    },
+  );
+  assert.equal(contactLookup.mock.callCount(), 0);
+  assert.equal(subscriberLookup.mock.callCount(), 0);
+  assert.equal(subscriptionWrite.mock.callCount(), 0);
+  assert.equal(tokenWrite.mock.callCount(), 0);
+  assert.deepEqual(deps.sentEmails, []);
+});
+
 test("importSubscriptions: an unknown listId rejects the WHOLE batch up front (404), not a per-row 207 failure", async () => {
   const deps = makeDeps();
   await assert.rejects(

@@ -3,6 +3,9 @@ import test from 'node:test';
 import { registerSiteThemePreviewIpc } from './site-theme-preview-ipc.ts';
 import { SITE_THEME_PREVIEW_CHANNELS as channels } from './contracts/project.ts';
 
+// The trusted window's own page: watch admits only a top-level senderFrame (B115).
+const TOP_FRAME = { url: 'file:///sites-home.html', parent: null };
+
 test('IPC claims are scoped to a trusted sender and tab; closing tabs or destroying windows releases them', () => {
   const handlers = new Map<string, Function>(), removed: string[] = [], deliveries: unknown[] = [];
   let claimed = 0, cleaned = 0;
@@ -14,15 +17,15 @@ test('IPC claims are scoped to a trusted sender and tab; closing tabs or destroy
     subscriptions: { watch: ({ siteDir, listener }) => { claimed++; listener({ frame: { siteDir, revision: 'one' } }); return () => { cleaned++; }; } },
   });
   const watch = handlers.get(channels.watch)!;
-  watch({ sender }, { siteDir: '/a', subscriptionId: '1' });
-  watch({ sender }, { siteDir: '/a', subscriptionId: '1' });
+  watch({ sender, senderFrame: TOP_FRAME }, { siteDir: '/a', subscriptionId: '1' });
+  watch({ sender, senderFrame: TOP_FRAME }, { siteDir: '/a', subscriptionId: '1' });
   assert.equal(claimed, 1);
-  watch({ sender: { ...sender, id: 2 } }, { siteDir: '/b', subscriptionId: '1' });
+  watch({ sender: { ...sender, id: 2 }, senderFrame: TOP_FRAME }, { siteDir: '/b', subscriptionId: '1' });
   assert.equal(claimed, 1);
   assert.deepEqual(deliveries, [{ siteDir: '/a', revision: 'one' }]);
   handlers.get(channels.unwatch)!({ sender }, { subscriptionId: '1' });
   assert.equal(cleaned, 1);
-  watch({ sender }, { siteDir: '/a', subscriptionId: '2' });
+  watch({ sender, senderFrame: TOP_FRAME }, { siteDir: '/a', subscriptionId: '2' });
   destroyed(); assert.equal(cleaned, 2);
   dispose(); assert.deepEqual(removed, [channels.watch, channels.unwatch]);
 });
@@ -37,9 +40,9 @@ test('disposing releases every live claim of every sender, unhooks their destroy
     subscriptions: { watch: ({ siteDir }) => () => { cleaned.push(siteDir); } },
   });
   const watch = handlers.get(channels.watch)!;
-  watch({ sender: first }, { siteDir: '/a', subscriptionId: 'tab-1' });
-  watch({ sender: first }, { siteDir: '/b', subscriptionId: 'tab-2' });
-  watch({ sender: second }, { siteDir: '/c', subscriptionId: 'tab-1' });
+  watch({ sender: first, senderFrame: TOP_FRAME }, { siteDir: '/a', subscriptionId: 'tab-1' });
+  watch({ sender: first, senderFrame: TOP_FRAME }, { siteDir: '/b', subscriptionId: 'tab-2' });
+  watch({ sender: second, senderFrame: TOP_FRAME }, { siteDir: '/c', subscriptionId: 'tab-1' });
   dispose();
   assert.deepEqual(cleaned, ['/a', '/b', '/c']);
   assert.deepEqual(unhooked, [1, 2]);
@@ -58,16 +61,16 @@ test('IPC ignores untrusted, destroyed or malformed claims and never pushes to a
   });
   const watch = handlers.get(channels.watch)!, unwatch = handlers.get(channels.unwatch)!;
   for (const input of [undefined, 'x', {}, { siteDir: '/a' }, { subscriptionId: '1' }, { siteDir: 3, subscriptionId: '1' }, { siteDir: '/a', subscriptionId: 'bad id!' }, { siteDir: '/a', subscriptionId: 7 }]) {
-    watch({ sender }, input);
+    watch({ sender, senderFrame: TOP_FRAME }, input);
   }
-  watch({ sender: stranger }, { siteDir: '/a', subscriptionId: '1' });
+  watch({ sender: stranger, senderFrame: TOP_FRAME }, { siteDir: '/a', subscriptionId: '1' });
   assert.equal(claimed, 0);
   // Unwatching an unknown sender or a malformed id is a no-op, not a throw.
   unwatch({ sender: stranger }, { subscriptionId: '1' });
   unwatch({ sender }, { subscriptionId: '../x' });
   unwatch({ sender }, null);
-  watch({ sender }, { siteDir: '/a', subscriptionId: '1' });
-  watch({ sender }, { siteDir: '/b', subscriptionId: '2' });
+  watch({ sender, senderFrame: TOP_FRAME }, { siteDir: '/a', subscriptionId: '1' });
+  watch({ sender, senderFrame: TOP_FRAME }, { siteDir: '/b', subscriptionId: '2' });
   assert.equal(claimed, 2);
   // One of two claims closed keeps the sender's destroy hook; the last one releases it.
   unwatch({ sender }, { subscriptionId: '1' });
@@ -75,8 +78,25 @@ test('IPC ignores untrusted, destroyed or malformed claims and never pushes to a
   destroyed = true;
   push({ frame: { siteDir: '/b', revision: 'late' } });
   assert.deepEqual(deliveries, []);
-  watch({ sender }, { siteDir: '/c', subscriptionId: '3' });
+  watch({ sender, senderFrame: TOP_FRAME }, { siteDir: '/c', subscriptionId: '3' });
   assert.equal(claimed, 2);
   unwatch({ sender }, { subscriptionId: '2' });
   assert.deepEqual(detached, ['destroyed']);
+});
+
+test('a non-top-frame preview invocation does not acquire a subscription', () => {
+  // Repro: watch with a synthetic event { sender: trusted, senderFrame: { parent: <top> } } — watch() is still called once.
+  const handlers = new Map<string, Function>();
+  let claimed = 0;
+  const sender = { id: 1, getURL: () => 'file:///sites-home.html', once: () => {}, removeListener: () => {}, isDestroyed: () => false, send: () => {} };
+  registerSiteThemePreviewIpc({
+    ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); }, removeHandler: () => {} },
+    allowed: ({ sender: source }) => source === sender,
+    subscriptions: { watch: () => { claimed++; return () => {}; } },
+  });
+  const subframe = { url: 'file:///sites-home.html', parent: { url: 'file:///sites-home.html', parent: null } };
+  handlers.get(channels.watch)!({ sender, senderFrame: subframe }, { siteDir: '/a', subscriptionId: 'frame-1' });
+  // A frame torn down mid-flight arrives with no senderFrame at all: unknown origin, same refusal.
+  handlers.get(channels.watch)!({ sender, senderFrame: null }, { siteDir: '/a', subscriptionId: 'frame-2' });
+  assert.equal(claimed, 0, 'a subframe must not acquire a preview subscription');
 });

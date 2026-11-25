@@ -255,13 +255,15 @@
   "min": [
    {
     "id": "<id>",
-    "html": "<html>", "expectedVersion": 1
+    "html": "<html>",
+    "expectedVersion": 1
    }
   ],
   "full": [
    {
     "id": "<id>",
-    "html": "<html>", "expectedVersion": 1
+    "html": "<html>",
+    "expectedVersion": 1
    },
    {}
   ]
@@ -750,25 +752,36 @@
   "min": [],
   "full": []
  },
- "saveMediaProviders": {
+ "patchMediaProvider": {
   "min": [
-   {}
+   {
+    "providerId": "<providerId>",
+    "fields": {}
+   }
   ],
   "full": [
    {
-    "<providersKey>": {
-     "apiKeyHint": {
-      "length": 7,
-      "last4": "<last4>"
-     },
+    "providerId": "<providerId>",
+    "fields": {
      "apiKey": "<apiKey>",
      "baseUrl": "<baseUrl>",
-     "model": "<model>",
-     "apiKeyConfigured": false,
-     "apiKeyTail": "<apiKeyTail>",
-     "source": "<source>"
+     "model": "<model>"
     }
+   },
+   {}
+  ]
+ },
+ "removeMediaProvider": {
+  "min": [
+   {
+    "providerId": "<providerId>"
    }
+  ],
+  "full": [
+   {
+    "providerId": "<providerId>"
+   },
+   {}
   ]
  },
  "listExternalMcpServers": {

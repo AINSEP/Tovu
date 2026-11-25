@@ -593,7 +593,8 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
     registerRoutes: ({ app }, _options = {}) => {
       app.use(BYOK_TURN_PATH, requireAdminSession(routeDeps));
       app.post(BYOK_TURN_PATH, (req: Request, res: Response, next: NextFunction) => {
-        void handleTurn(req, res, { routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }).catch((error: unknown) => {
+        // Returned, not voided: Express ignores it, but an embedding host can await the turn it started.
+        return handleTurn({ req, res, context: { routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns } }).catch((error: unknown) => {
           console.error("[assistant-byok] unhandled error", error);
           if (res.headersSent) {
             sse({ res, event: "error", data: { message: "assistant failed" } });
@@ -720,50 +721,78 @@ async function preparePluginGuidance({ req, res, run, principal, messages, abort
   }
 
 
-async function handleTurn(req: Request, res: Response, context: ByokTurnContext): Promise<void> {
-    const { routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns } = context;
-    const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
-    if (!inputs) return undefined;
+/** Arms this turn's abort before its first await and reports a response that closed before entry,
+ * since an already-closed response emits no further `close`. `release` detaches the listener.
+ * @complexity O(1); no I/O. */
+function bindTurnAbort({ res }: { res: Response }, _optional = {}): { abort: AbortController; release: () => void } {
+  // Same reasoning as `site-assistant.ts`'s identical guard: a browser tab closing must stop the
+  // upstream provider call and any in-flight tool execution, not run to completion unobserved.
+  const abort = new AbortController();
+  const onClose = () => { if (!res.writableEnded) abort.abort(); };
+  res.once("close", onClose);
+  if (res.destroyed) abort.abort();
+  return { abort, release: () => { res.off("close", onClose); } };
+}
+
+/** Resolves inputs, extension tools, federation and the prompt, checking the turn's abort after each
+ * so a disconnected user never reaches credential-backed provider work. Closed responses end quietly.
+ * @complexity Awaits the existing input, surface and prompt owners once each; the federation wait is
+ * shared across turns and is never cancelled by this one. */
+async function handleTurn({ req, res, context }: { req: Request; res: Response; context: ByokTurnContext }, _optional = {}): Promise<void> {
+    const { routeDeps, resolvedToolSurface, credentialPort } = context;
+    // A disconnected user must not leave paid work running: the abort is armed before credential,
+    // attachment or federation I/O, and every step below re-checks it before starting new work.
+    const { abort, release } = bindTurnAbort({ res });
+    try {
+      const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
+      if (!inputs || abort.signal.aborted) return undefined;
+
+      // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
+      // plugin-capability tools) has been applied to `resolvedToolSurface`'s registry AND its
+      // `search_tools`/`describe_tool` catalog rebuilt to include them — see `ByokToolSurface.ready`'s
+      // own doc. Awaited here, once per turn, so `search_tools` can find a just-registered extension
+      // tool before the model's first tool call this turn, not only after it. Resolves instantly for
+      // every turn after the first (the promise is already settled) and for a caller-supplied
+      // `toolSurface` that predates this field, which has no `ready` to wait on at all.
+      await (resolvedToolSurface.ready ?? Promise.resolve());
+
+      // Starts (or awaits) this surface's lazy federation boot pass, bounded to
+      // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only a turn that
+      // lands before the boot pass has settled can actually wait (a roster-change reload is never
+      // awaited here); every later turn finds the boot pass already settled and this resolves at
+      // once. `federation?.refusalPrefix()` reads whatever drift THIS surface has accumulated so far,
+      // live — empty before federation has admitted anything, and always when this surface was built
+      // with `installExtensions: false` (`federation` is `undefined` there). No signal is passed: the
+      // boot pass is shared, so one closed tab must not stop it for other turns.
+      const federationOutcome = await resolvedToolSurface.awaitFederation({ timeoutMs: FEDERATION_TURN_WAIT_MS });
+      if (abort.signal.aborted) return undefined;
+      const system = await resolveByokSystemPrompt(routeDeps, {
+        refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
+        stillConnecting: !federationOutcome.settled,
+      });
+      if (abort.signal.aborted) return undefined;
+      return await runByokTurn({ req, res, context, inputs, abort, system });
+    } finally { release(); }
+  }
+
+/** Opens the stream, registers the live run for access lowering and drives the provider turn.
+ * The run's registration and cleanup stay paired in one try/finally; a lowered run ends cleanly.
+ * @complexity O(admitted tools) to snapshot sources, plus plugin preparation and the provider turn. */
+async function runByokTurn({ req, res, context, inputs, abort, system }: {
+    req: Request; res: Response; context: ByokTurnContext; inputs: ByokTurnInputs; abort: AbortController; system: string;
+  }, _optional = {}): Promise<void> {
+    const { routeDeps, resolvedToolSurface, liveToolRuns } = context;
     const { messages, principal, credential } = inputs;
-
-    // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
-    // plugin-capability tools) has been applied to `resolvedToolSurface`'s registry AND its
-    // `search_tools`/`describe_tool` catalog rebuilt to include them — see `ByokToolSurface.ready`'s
-    // own doc. Awaited here, once per turn, so `search_tools` can find a just-registered extension
-    // tool before the model's first tool call this turn, not only after it. Resolves instantly for
-    // every turn after the first (the promise is already settled) and for a caller-supplied
-    // `toolSurface` that predates this field, which has no `ready` to wait on at all.
-    await (resolvedToolSurface.ready ?? Promise.resolve());
-
-    // Starts (or awaits) this surface's lazy federation boot pass, bounded to
-    // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only a turn that
-    // lands before the boot pass has settled can actually wait (a roster-change reload is never
-    // awaited here); every later turn finds the boot pass already settled and this resolves at
-    // once. `federation?.refusalPrefix()` reads whatever drift THIS surface has accumulated so far,
-    // live — empty before federation has admitted anything, and always when this surface was built
-    // with `installExtensions: false` (`federation` is `undefined` there).
-    const federationOutcome = await resolvedToolSurface.awaitFederation({ timeoutMs: FEDERATION_TURN_WAIT_MS });
-    let system = await resolveByokSystemPrompt(routeDeps, {
-      refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
-      stillConnecting: !federationOutcome.settled,
-    });
-
     const run = { id: randomUUID() };
 
     beginStream(req, res);
-    // Same reasoning as `site-assistant.ts`'s identical guard: a browser tab closing must stop the
-    // upstream provider call and any in-flight tool execution, not run to completion unobserved.
-    const abort = new AbortController();
     let finishCleanup!: () => void;
     const done = new Promise<void>(resolve => { finishCleanup = resolve; });
     const liveToolRun = { runId: run.id, agentId: `api:${credential.protocol}`, ...admittedToolSources({ tools: resolvedToolSurface.registry.list({}) }), abort, done, lowered: false, res };
     liveToolRuns.set(run.id, liveToolRun);
     try {
-      res.on("close", () => {
-        if (!res.writableEnded) abort.abort();
-      });
-
       system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system }, context);
+      if (abort.signal.aborted) return undefined;
 
       // Older injected surfaces retain their wrapper contract; production creates one exposure per run.
       const toolRun = resolvedToolSurface.createRun?.({ principal, run });

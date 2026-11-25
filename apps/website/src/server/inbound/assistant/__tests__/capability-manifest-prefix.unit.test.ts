@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assemblePromptWithPluginPrefix } from "../plugin-prompt-prefix.js";
+import { assemblePromptWithPluginPrefix } from "../plugin-prompt-assembly.js";
 import {
   CAPABILITY_MANIFEST_TEXT,
   buildCapabilityManifestPrefix,

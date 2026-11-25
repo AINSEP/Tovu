@@ -8,6 +8,7 @@ import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primit
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
+import { createHash } from "node:crypto";
 import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
@@ -88,6 +89,38 @@ export async function getMediaProviderCredentials(
 ): Promise<MediaProviderCredentialMap> {
   return toMap(await deps.repo.listByWorkspaceId({ workspaceId: input.workspaceId }));
 }
+
+/** The markers map and the revision of exactly that map, as the provider routes answer them. */
+export interface MediaProviderCredentialReadModel {
+  providers: MediaProviderCredentialMap;
+  revision: string;
+}
+
+/**
+ * The workspace's credential-set revision, derived only from stored write markers: each row's vault id,
+ * its compare-and-swap revision (bumped by every write to that row) and its write time. Sorted so
+ * row order cannot change it; hashed only to keep the header short. No key, envelope or hint is an
+ * input, so the digest carries nothing about key material. A provider removed and re-saved restarts
+ * its row revision at 1 but carries a new write time, so the set's revision still moves.
+ * @complexity O(n log n) over the catalogue-bounded rows.
+ */
+export function mediaProviderSetRevision({ records }: { records: readonly MediaProviderCredentialRecord[] }, _optional: Record<string, never> = {}): string {
+  const markers = records.map((record) => [record.vaultRecord?.id ?? record.providerId, record.vaultRecord?.revision ?? 0, record.updatedAt] as const)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `mp1-${createHash("sha256").update(JSON.stringify(markers)).digest("hex")}`;
+}
+
+/** {@link getMediaProviderCredentials} plus its revision, both from ONE list read so they describe the same set. Never decrypts. @complexity O(n log n). */
+export async function getMediaProviderCredentialsModel(
+  { deps, workspaceId }: { deps: { repo: Pick<MediaProviderCredentialRepoPort, "listByWorkspaceId"> }; workspaceId: UUID },
+  _optional: Record<string, never> = {},
+): Promise<MediaProviderCredentialReadModel> {
+  const records = await deps.repo.listByWorkspaceId({ workspaceId });
+  return { providers: toMap(records), revision: mediaProviderSetRevision({ records }) };
+}
+
+/** A whole-set save whose last-read revision no longer matches the stored set; nothing was written. */
+export class MediaProviderCredentialStaleError extends Error {}
 
 /** One provider's incoming edit. `apiKey` present and non-blank sets a new key; absent or blank
  *  leaves the stored one alone (`@jini-ai/ui`'s `filled()` treats blank as absent, and the tab
@@ -267,12 +300,15 @@ function buildProviderUpsertRow(input: {
  *   provider id, or carries a non-string/oversized `apiKey`/`baseUrl`/`model`.
  * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} a new key was supplied but the
  *   site key is unavailable — never downgraded to a plaintext write or a silent skip.
+ * @throws {MediaProviderCredentialStaleError} `expectedRevision` was given and the stored set's
+ *   revision, read inside the writer boundary, differs; the transaction rolls back unwritten.
  * @complexity O(n) over the submitted providers, plus one keyring derivation per NEW key. `n` is
  *   bounded by the catalogue: unknown ids are rejected, so the payload cannot exceed its size.
  */
 export async function saveMediaProviderCredentials(
   deps: MediaProviderCredentialSaveDeps,
-  input: SaveMediaProviderCredentialsInput
+  input: SaveMediaProviderCredentialsInput,
+  { expectedRevision }: { expectedRevision?: string } = {},
 ): Promise<MediaProviderCredentialMap> {
   const { providers } = input;
   if (providers === null || typeof providers !== "object" || Array.isArray(providers)) {
@@ -294,6 +330,11 @@ export async function saveMediaProviderCredentials(
   /** Merges the submitted payload against whatever rows the transaction just read. Synchronous and
    *  pure by contract — it runs inside the open transaction. */
   const plan: MediaProviderCredentialReplacePlanner = ({ existing: existingRows }, _optional = {}) => {
+    // The last-read revision is compared HERE, against the rows this writer boundary just read: a
+    // compare made before the boundary would let another window's save land between it and this write.
+    if (expectedRevision !== undefined && mediaProviderSetRevision({ records: existingRows }) !== expectedRevision) {
+      throw new MediaProviderCredentialStaleError("media provider set changed since it was read");
+    }
     const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
     const upserts = entries.map(([providerId, entry]) =>
       buildProviderUpsertRow({ workspaceId: input.workspaceId, providerId, entry,
@@ -312,6 +353,62 @@ export async function saveMediaProviderCredentials(
   };
 
   return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }));
+}
+
+/** One-row writes read the set back afterward, so they also need the list read. */
+export type MediaProviderCredentialRowDeps = Omit<MediaProviderCredentialWriteDeps, "repo"> & {
+  repo: Pick<MediaProviderCredentialRepoPort, "replaceWorkspace" | "vault" | "listByWorkspaceId">;
+};
+
+/** One provider's PATCH merged over its stored row: a field the PATCH omits keeps its stored value. @complexity O(1). */
+function mergedPatchEntry({ fields, existing }: { fields: MediaProviderCredentialInput; existing: MediaProviderCredentialRecord | undefined }, _optional: Record<string, never> = {}): MediaProviderCredentialInput {
+  const baseUrl = fields.baseUrl ?? existing?.baseUrl ?? undefined;
+  const model = fields.model ?? existing?.model ?? undefined;
+  return { ...(baseUrl === undefined ? {} : { baseUrl }), ...(model === undefined ? {} : { model }) };
+}
+
+/**
+ * Merges ONE provider's fields into its stored credentials and answers the set's read model. No other
+ * provider is touched: this write names one provider, so it never tombstones by omission. An omitted
+ * `apiKey` keeps the stored key; an omitted `baseUrl`/`model` keeps the stored value, an empty one
+ * clears it. Same order as the whole-set save, for the same reason: validate, seal any new key, and
+ * only then open the writer boundary, where the merge reads the CURRENT row.
+ * @throws {MediaProviderCredentialValidationError} unknown provider id or an invalid field.
+ * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} a new key but no site key.
+ * @complexity One seal at most, one read-plan-write, one list read.
+ */
+export async function patchMediaProvider(
+  { deps, workspaceId, providerId, fields }: { deps: MediaProviderCredentialRowDeps; workspaceId: UUID; providerId: string; fields: MediaProviderCredentialInput },
+  _optional: Record<string, never> = {},
+): Promise<MediaProviderCredentialReadModel> {
+  const policy = deps.credentialPolicy ?? DEFAULT_CREDENTIAL_POLICY;
+  assertValidEntry({ providerId, entry: fields, catalog: deps.providerCatalog, policy });
+  const now = clockNowIso({ clock: deps.clock });
+  const fresh = (await sealNewProviderKeys(deps, { workspaceId, providers: { [providerId]: fields } }, policy)).get(providerId);
+  await deps.repo.replaceWorkspace({ workspaceId, plan: ({ existing: existingRows }) => {
+    const existing = existingRows.find((row) => row.providerId === providerId);
+    const entry = mergedPatchEntry({ fields, existing });
+    return { upserts: [buildProviderUpsertRow({ workspaceId, providerId, entry, existing, fresh, now })], tombstoneProviderIds: [] };
+  } });
+  return getMediaProviderCredentialsModel({ deps, workspaceId });
+}
+
+/**
+ * Deletes exactly one provider's stored credentials in one workspace and answers the set's read model.
+ * The catalog is deliberately NOT consulted: a saved plugin vendor whose plugin is disabled or gone
+ * must stay removable, and catalog absence is no permission to remove anything either — only this
+ * explicit, workspace-scoped request is. A provider with nothing stored is a no-op, not an error.
+ * @throws {MediaProviderCredentialValidationError} the id is secret-shaped (it is never echoed).
+ * @complexity One read-plan-write, one list read.
+ */
+export async function removeMediaProvider(
+  { deps, workspaceId, providerId }: { deps: Pick<MediaProviderCredentialRowDeps, "repo" | "credentialPolicy">; workspaceId: UUID; providerId: string },
+  _optional: Record<string, never> = {},
+): Promise<MediaProviderCredentialReadModel> {
+  const policy = deps.credentialPolicy ?? DEFAULT_CREDENTIAL_POLICY;
+  rethrowAsValidation({ run: () => policy.assertCredentialFreeField({ value: providerId, field: "providerId" }) });
+  await deps.repo.replaceWorkspace({ workspaceId, plan: () => ({ upserts: [], tombstoneProviderIds: [providerId] }) });
+  return getMediaProviderCredentialsModel({ deps, workspaceId });
 }
 
 export interface MediaProviderCredentialResolveDeps {

@@ -7,7 +7,7 @@ import type { AdminMediaProviderMap } from "@jini-ai/admin/screens/media/api/med
 /**
  * @file Coverage for `other-credentials-dependencies.hooks.ts` — two independent surfaces:
  *
- * 1. `defaultOtherCredentialsPort` — 14 thin binds onto `api.*`, exercised the same way
+ * 1. `defaultOtherCredentialsPort` — 15 thin binds onto `api.*`, exercised the same way
  *    `use-admin-execution-credential.hooks.test.ts` exercises `defaultAdminExecutionCredentialPort`
  *    (a mocked `lib/api`, one assertion per bind: right `api.*` call, args forwarded, result
  *    returned unchanged).
@@ -23,7 +23,8 @@ const {
   setAdminExecutionCredential,
   deleteAdminExecutionCredential,
   getMediaProviders,
-  saveMediaProviders,
+  patchMediaProvider,
+  removeMediaProvider,
   listExternalMcpServers,
   deleteExternalMcpServer,
 } = vi.hoisted(() => ({
@@ -34,7 +35,8 @@ const {
   setAdminExecutionCredential: vi.fn(),
   deleteAdminExecutionCredential: vi.fn(),
   getMediaProviders: vi.fn(),
-  saveMediaProviders: vi.fn(),
+  patchMediaProvider: vi.fn(),
+  removeMediaProvider: vi.fn(),
   listExternalMcpServers: vi.fn(),
   deleteExternalMcpServer: vi.fn(),
 }));
@@ -49,7 +51,7 @@ vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => 
 });
 vi.mock("../../../media/api/media-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../media/api/media-api")>();
-  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, saveMediaProviders } };
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, patchMediaProvider, removeMediaProvider } };
 });
 
 const { createFakeOtherCredentialsPort, defaultOtherCredentialsPort } = await import("../other-credentials-dependencies.hooks");
@@ -126,11 +128,20 @@ describe("defaultOtherCredentialsPort — media providers", () => {
     expect(getMediaProviders).toHaveBeenCalledWith();
   });
 
-  it("saveMediaProviders forwards the whole map to api.saveMediaProviders", async () => {
+  it("patchMediaProvider forwards exactly one provider and its fields to api.patchMediaProvider", async () => {
     const map: AdminMediaProviderMap = { cloudinary: { apiKeyConfigured: true, apiKeyTail: "1234" } };
-    saveMediaProviders.mockResolvedValue(map);
-    await expect(defaultOtherCredentialsPort.saveMediaProviders(map)).resolves.toEqual(map);
-    expect(saveMediaProviders).toHaveBeenCalledWith(map);
+    patchMediaProvider.mockResolvedValue(map);
+    await expect(defaultOtherCredentialsPort.patchMediaProvider({ providerId: "cloudinary", fields: { apiKey: "sk-1234" } })).resolves.toEqual(map);
+    expect(patchMediaProvider).toHaveBeenCalledTimes(1);
+    expect(patchMediaProvider.mock.calls[0]).toStrictEqual([{ providerId: "cloudinary", fields: { apiKey: "sk-1234" } }]);
+  });
+
+  it("removeMediaProvider forwards exactly one provider to api.removeMediaProvider", async () => {
+    const map: AdminMediaProviderMap = { grok: { apiKeyConfigured: true, apiKeyTail: "5678" } };
+    removeMediaProvider.mockResolvedValue(map);
+    await expect(defaultOtherCredentialsPort.removeMediaProvider({ providerId: "cloudinary" })).resolves.toEqual(map);
+    expect(removeMediaProvider).toHaveBeenCalledTimes(1);
+    expect(removeMediaProvider.mock.calls[0]).toStrictEqual([{ providerId: "cloudinary" }]);
   });
 });
 
@@ -196,7 +207,8 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
     await expect(port.deleteSiteAssistantCredential()).rejects.toThrow("deleteSiteAssistantCredential not stubbed for this test");
     await expect(port.setAdminByokCredential({ apiKey: "x" })).rejects.toThrow("setAdminByokCredential not stubbed for this test");
     await expect(port.deleteAdminByokCredential()).rejects.toThrow("deleteAdminByokCredential not stubbed for this test");
-    await expect(port.saveMediaProviders({})).rejects.toThrow("saveMediaProviders not stubbed for this test");
+    await expect(port.patchMediaProvider({ providerId: "x", fields: {} })).rejects.toThrow("patchMediaProvider not stubbed for this test");
+    await expect(port.removeMediaProvider({ providerId: "x" })).rejects.toThrow("removeMediaProvider not stubbed for this test");
     await expect(port.deleteExternalMcpServer({ serverId: "x" })).rejects.toThrow("deleteExternalMcpServer not stubbed for this test");
   });
 

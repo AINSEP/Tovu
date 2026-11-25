@@ -31,6 +31,7 @@ import type { CommentsToolDeps } from "../features/comments/tool-registrations.j
 import { buildAdminScreenLinkRegistrations, adminScreenLinkDerivedRisk } from "./admin-screen-link-tool.js";
 import { buildAskChoiceRegistrations, askChoiceDerivedRisk } from "./ask-choice-tool.js";
 import { buildComponentCatalogRegistrations, componentCatalogDerivedRisk } from "./component-catalog-tool.js";
+import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 import { buildExternalMcpReauthRegistrations, externalMcpReauthDerivedRisk, type ExternalMcpReauthToolDeps } from "./external-mcp-reauth-tool.js";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool.js";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
@@ -133,6 +134,9 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
     providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
     reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
     providerConfig?: ProviderConfigSource;
+    // The site's live chart-provider read, the same one `/internal/component-catalog` serves the daemon.
+    chartProviderSnapshot?: (input: Record<string, never>, options?: Record<string, never>) => Promise<AdminChartProviderSnapshot>;
+    pluginRuntimeReady?: Promise<void>; siteTitleReady?: Promise<void>;
   } &
   AssistantHistoryHostDeps &
   import("../features/post/content-stats-tool.js").ContentStatsToolDeps &
@@ -192,6 +196,16 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
   import("./admin-screen-link-tool.js").AdminScreenLinkToolDeps &
   import("@jini-ai/diagnostics/observability/tool-registrations").ObservabilityToolDeps;
 
+/** Reads this site's chart providers once plugin and site settings are ready, like the daemon's
+ * `/internal/component-catalog` route. A host without the read fails the call in plain words instead
+ * of answering with shipped chart entries that may name a disabled provider.
+ * @complexity One readiness wait and one snapshot read per call; no caching. */
+async function readSiteChartSnapshot({ routeDeps }: { routeDeps: AssistantToolRegistryDeps }, _optional = {}): Promise<AdminChartProviderSnapshot> {
+  if (!routeDeps.chartProviderSnapshot) throw new Error("The component catalog is unavailable right now.");
+  await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);
+  return routeDeps.chartProviderSnapshot({});
+}
+
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.
  *
@@ -224,7 +238,7 @@ const DOMAIN_SLICES: readonly ToolContributor[] = [
   { domain: "render-ui", build: (routeDeps, surfaces) => buildRenderUiRegistrations({ _routeDeps: routeDeps, surfaces }), risk: renderUiDerivedRisk },
   // Also registers the component-catalog tools for BYOK delegated execution; MCP top-level
   // registration alone does not put them in this registry. See `component-catalog-tool.ts`.
-  { domain: "component-catalog", build: (routeDeps, surfaces) => buildComponentCatalogRegistrations({ _routeDeps: routeDeps, _surfaces: surfaces }), risk: componentCatalogDerivedRisk },
+  { domain: "component-catalog", build: (routeDeps) => buildComponentCatalogRegistrations({ readChartSnapshot: () => readSiteChartSnapshot({ routeDeps }) }), risk: componentCatalogDerivedRisk },
   // Production choices accept the model's title/options; demo-choices uses a fixed sample.
   // See `ask-choice-tool.ts` for the separate contracts.
   { domain: "ask-choice", build: buildAskChoiceRegistrations, risk: askChoiceDerivedRisk },

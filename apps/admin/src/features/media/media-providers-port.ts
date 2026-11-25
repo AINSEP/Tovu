@@ -3,7 +3,7 @@ import { createMediaProvidersPort } from "@jini-ai/admin/screens/media/media-pro
 import { mediaApi } from "./api/media-api";
 
 /**
- * @file The real `MediaProvidersPort` — Tovu's own implementation of the transport
+ * @file The real media-providers port — Tovu's own implementation of the transport
  * `@jini-ai/ui`'s Media providers tab declares but deliberately does not ship (same convention as
  * `ProjectLocationsPort`/`SkillsPort`; the package ships only a fake).
  *

@@ -31,7 +31,8 @@ import { RUNNER_WORKING_DIRECTORY_CHANNELS } from "./contracts/working-directory
 import type { WorkspaceChatEventMessage } from "./contracts/workspace-chat.ts";
 import type { StreamSubscribeResult } from "@jini-ai/daemon";
 
-type Handler = (event: { sender: EventSink }, ...args: unknown[]) => unknown;
+type Handler = (event: { sender: EventSink; senderFrame?: { parent: unknown } | null }, ...args: unknown[]) => unknown;
+const TOP_FRAME = { url: "file:///sites-home.html", parent: null };
 /** Jini's real `RunLifecycle.stream` result, so a fake cannot model an outcome the daemon never returns. */
 type StreamResult = StreamSubscribeResult;
 
@@ -90,7 +91,8 @@ function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event: 
     pickDirectory: async (_required: Record<string, never> = {}, { currentDirectory }: { currentDirectory?: string } = {}) => { calls.pick!.push(currentDirectory); return "/picked"; },
   } as unknown as WorkspaceChatIpcDeps;
   const registered = registerWorkspaceChatIpc(deps);
-  const invoke = (channel: string, sender: EventSink, ...args: unknown[]) => handlers.get(channel)!({ sender }, ...args);
+  // The trusted shell's main frame: every handler admits only a top-level senderFrame (B115).
+  const invoke = (channel: string, sender: EventSink, ...args: unknown[]) => handlers.get(channel)!({ sender, senderFrame: TOP_FRAME }, ...args);
   return { handlers, calls, invoke, ...registered };
 }
 
@@ -293,4 +295,31 @@ test("working directory: pick delegates, recent is empty, exists/normalize accep
     assert.equal(await invoke(WORKING_DIRECTORY_IPC.normalize, sender, bad), null, `normalize(${String(bad)})`);
   }
   assert.equal(await invoke(WORKING_DIRECTORY_IPC.normalize, sender, `${dir}${path.sep}.${path.sep}`), path.resolve(dir));
+});
+
+test("a non-top-frame chat invocation does not reach the runtime", async () => {
+  // Repro: invoke WORKSPACE_CHAT_IPC.start with a synthetic event whose senderFrame has a parent
+  // (the repo's non-top-frame idiom, see owner-store-ipc.ts) — startTurn is still called once.
+  const { handlers, calls } = setup();
+  const { sender } = fakeSender();
+  const subframe = { url: "file:///sites-home.html", parent: { url: "file:///sites-home.html", parent: null } };
+  const start = handlers.get(WORKSPACE_CHAT_IPC.start)! as (event: unknown, input: unknown) => unknown;
+  await Promise.resolve(start({ sender, senderFrame: subframe }, { subscriptionId: "s-frame", prompt: "hi", agentId: "claude" })).catch(() => undefined);
+  // A frame torn down mid-flight arrives with no senderFrame at all: unknown origin, same refusal.
+  await Promise.resolve(start({ sender, senderFrame: null }, { subscriptionId: "s-gone", prompt: "hi", agentId: "claude" })).catch(() => undefined);
+  assert.equal(calls.startTurn!.length, 0, "a subframe must not start an agent turn");
+  assert.equal(calls.stream!.length, 0, "a subframe must not attach a run stream");
+});
+
+test("a non-top-frame invocation cannot reattach to, stop or read a run either", async () => {
+  const { handlers, calls } = setup();
+  const { sender } = fakeSender();
+  const subframe = { url: "file:///sites-home.html", parent: { url: "file:///sites-home.html", parent: null } };
+  const call = (channel: string, event: unknown, input: unknown) => (handlers.get(channel)! as (event: unknown, input: unknown) => unknown)(event, input);
+  for (const senderFrame of [subframe, null]) {
+    await assert.rejects(async () => call(WORKSPACE_CHAT_IPC.reattach, { sender, senderFrame }, { subscriptionId: "s-frame", runId: "known", afterCursor: null }), /only available in the main window/);
+    await assert.rejects(async () => call(WORKSPACE_CHAT_IPC.stop, { sender, senderFrame }, { runId: "known" }), /only available in the main window/);
+    await assert.rejects(async () => call(WORKSPACE_CHAT_IPC.status, { sender, senderFrame }, { runId: "known" }), /only available in the main window/);
+  }
+  assert.deepEqual([calls.stream, calls.cancel, calls.get], [[], [], []], "no subframe call reaches the run lifecycle");
 });

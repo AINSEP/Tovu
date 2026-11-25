@@ -409,7 +409,7 @@ test("a provider answering invalid_grant transitions to needs_reauth, clears the
     caught.message,
     '"Higgs" is disconnected: its authorization expired or was revoked. Ask the operator to reconnect it in Settings → External MCP. Do not retry this tool.',
   );
-  assert.equal(caught.settingsLink, "/settings/external-mcp?server=higgs");
+  assert.equal(caught.settingsLink, "/addons/integrations?tab=external-mcp&server=higgs");
 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "needs_reauth");
@@ -837,8 +837,8 @@ test("a save that changes nothing about the OAuth binding leaves the live connec
   assert.equal((await openExternalMcpOAuthPayload(sealer, row)).tokens?.accessToken, "at-1");
 });
 
-test("the settings deep link escapes its server id", () => {
-  assert.equal(externalMcpSettingsDeepLink({ serverId: "a b&c" }), "/settings/external-mcp?server=a%20b%26c");
+test("reauth link preserves the encoded server id in Add-ons", () => {
+  assert.equal(externalMcpSettingsDeepLink({ serverId: "a b&c" }), "/addons/integrations?tab=external-mcp&server=a%20b%26c");
 });
 
 // ---------------------------------------------------------------------------
@@ -1573,4 +1573,37 @@ test("a post-connect step that succeeds is handed the server id and logs nothing
   await connect(serviceOver(h, { onConnected: async (serverId) => { connected.push(serverId); } }));
   assert.deepEqual(connected, [SERVER]);
   assert.equal(warn.mock.callCount(), 0);
+});
+
+test("B272: an OAuth callback cannot apply a pending attempt to a replacement client", {
+  todo: "B272 verify-first: completeAuthorizationCallback does not bind the pending attempt to the client id it started with, so the old attempt connects the replacement client",
+}, async () => {
+  // Repro: beginConnect (client A) -> hold state -> save clientId B -> callback with held state:
+  // the row is `connected` with A's exchanged token under client B.
+  // Synthetic tokens only. The old client's attempt is held across a save that swaps the client id.
+  const { repo, sealer, keyring, clock, http, service } = await makeHarness({
+    script: [{ json: { token_type: "Bearer", access_token: "at-for-old-client", refresh_token: "rt-for-old-client", expires_in: 3600 } }],
+  });
+  const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+  const heldState = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state") ?? "";
+  assert.notEqual(heldState, "");
+
+  await saveExternalMcpServer(
+    { repo, sealer, keyring, clock },
+    {
+      workspaceId: WORKSPACE, serverId: SERVER, transport: "stdio", authMode: "oauth", enabled: true,
+      command: "npx", args: "-y higgs-mcp", allowedToolNames: "generate_image", writeAllowedToolNames: "",
+      principalId: "principal-1", oauth: { clientId: "replacement-client" },
+    },
+  );
+  assert.equal((await readRow(repo)).oauthClientId, "replacement-client");
+
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: heldState, code: "old-attempt-code" } })
+    .then(() => undefined, () => undefined);
+
+  const row = await readRow(repo);
+  assert.notEqual(row.oauthStatus, "connected", "the replacement client must not read as signed in");
+  assert.equal(row.oauthExpiresAt, null);
+  assert.equal((await openExternalMcpOAuthPayload(sealer, row)).tokens, undefined, "no token is written for the replacement client");
+  assert.equal(http.callCount(), 0, "the old attempt's code is never exchanged for the replacement client");
 });

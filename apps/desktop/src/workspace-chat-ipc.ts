@@ -73,9 +73,22 @@ interface EventSink {
   isDestroyed(): boolean;
 }
 
+/** The frame an invoke came from; Electron gives `null` once that frame is gone. */
+type SenderFrame = { parent: unknown } | null;
+
 /** The slice of Electron's `ipcMain` this module uses. */
 interface ChatIpcMain {
-  handle(channel: string, listener: (event: { sender: EventSink }, ...args: any[]) => unknown): void;
+  handle(channel: string, listener: (event: { sender: EventSink; senderFrame?: SenderFrame }, ...args: any[]) => unknown): void;
+}
+
+/**
+ * Refuses an invoke that is not from a top-level frame, the same admission `owner-store-ipc.ts` and
+ * `resources-ipc.ts` apply: an iframe inside the shell window shares its `sender`, so the sender alone
+ * cannot tell the shell's own page from embedded content (B115). A missing frame is unknown origin.
+ * @complexity O(1).
+ */
+function assertTopFrame({ event }: { event: { senderFrame?: SenderFrame } }, _options = {}): void {
+  if (!event.senderFrame || event.senderFrame.parent !== null) throw new Error("Chat is only available in the main window.");
 }
 
 /** The pane's start input plus the active site the shell renderer reports for THIS turn. */
@@ -122,6 +135,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   const subscribe = createWorkspaceRunSubscriber(detach, lifecycleOf, subscriptions);
 
   deps.ipcMain.handle(WORKSPACE_CHAT_IPC.start, async (event, input: DesktopChatStartInput) => {
+    assertTopFrame({ event });
     const { runId } = await (await deps.runtime).startTurn(
       { prompt: input.prompt, agentId: input.agentId },
       {
@@ -136,13 +150,16 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
     return { runId };
   });
   deps.ipcMain.handle(WORKSPACE_CHAT_IPC.reattach, async (event, input: WorkspaceChatReattachInput) => {
+    assertTopFrame({ event });
     await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId: input.runId, afterCursor: input.afterCursor ?? null });
   });
   deps.ipcMain.handle(WORKSPACE_CHAT_IPC.detach, (_event, { subscriptionId }: { subscriptionId: string }) => detach({ subscriptionId }));
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.stop, async (_event, { runId }: { runId: string }) => {
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.stop, async (event, { runId }: { runId: string }) => {
+    assertTopFrame({ event });
     await (await lifecycleOf()).cancel({ runId, reason: "Stopped by the operator." });
   });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.status, async (_event, { runId }: { runId: string }): Promise<WorkspaceChatRunSnapshot | null> => {
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.status, async (event, { runId }: { runId: string }): Promise<WorkspaceChatRunSnapshot | null> => {
+    assertTopFrame({ event });
     const run = await (await lifecycleOf()).get({ runId });
     return run === undefined ? null : { runId: run.id, state: run.state };
   });

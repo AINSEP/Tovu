@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { mock } from "node:test";
@@ -9,7 +9,7 @@ import * as realSecrets from "@jini-ai/platform/secrets";
 /**
  * @file Pins `keyring.env.ts`'s translation of errors coming back from `@jini-ai/platform/secrets`.
  * With today's Jini these paths are defence in depth — Tovu validates a key before handing it over,
- * and Jini itself already maps `EEXIST`/`ELOOP` to `RootKeyFileAlreadyExistsError` — so the only
+ * and Jini itself already maps `EEXIST`/`ELOOP` to `SiteKeyFileAlreadyExistsError` — so the only
  * seam that reaches them is a module mock of the Jini boundary. Each fake below is a subclass or a
  * spread of the REAL module, so the types and every other export stay the real ones.
  */
@@ -21,7 +21,7 @@ let deriveFailure: unknown;
 let generateFailure: unknown;
 
 /** The real keyring, except that a derivation fails with `deriveFailure` when one is set. */
-class FailingFixedKeyring extends realSecrets.FixedRootKeyKeyring {
+class FailingFixedKeyring extends realSecrets.FixedSiteKeyKeyring {
   override async derive(input: DeriveInput): Promise<Uint8Array> {
     if (deriveFailure !== undefined) throw deriveFailure;
     return super.derive(input);
@@ -32,13 +32,13 @@ class FailingFixedKeyring extends realSecrets.FixedRootKeyKeyring {
   }
 }
 
-const failingGenerate: typeof realSecrets.generateFileRootKey = (options) => {
+const failingGenerate: typeof realSecrets.generateFileSiteKey = (options) => {
   if (generateFailure !== undefined) throw generateFailure;
-  return realSecrets.generateFileRootKey(options);
+  return realSecrets.generateFileSiteKey(options);
 };
 
 mock.module("@jini-ai/platform/secrets", {
-  namedExports: { ...realSecrets, FixedRootKeyKeyring: FailingFixedKeyring, generateFileRootKey: failingGenerate },
+  namedExports: { ...realSecrets, FixedSiteKeyKeyring: FailingFixedKeyring, generateFileSiteKey: failingGenerate },
 });
 
 const { EnvOrFileKeyring, generateFileSiteKey, SiteKeyFileAlreadyExistsError, UnusableSiteKeyError } = await import("../keyring.env.js");
@@ -51,8 +51,8 @@ const workDir = mkdtempSync(join(tmpdir(), "tovu-keyring-jini-boundary-"));
 const KEY_FILE = join(workDir, "keys", "site-key.hex");
 test.after(() => rmSync(workDir, { recursive: true, force: true }));
 
-function jiniRefusal(): InstanceType<typeof realSecrets.UnusableRootKeyError> {
-  return new realSecrets.UnusableRootKeyError({
+function jiniRefusal(): InstanceType<typeof realSecrets.UnusableSiteKeyError> {
+  return new realSecrets.UnusableSiteKeyError({
     source: "file",
     reason: "odd-length",
     message: "the root key file at /k is not usable as a root key: x. The keyring refuses to derive any key material from it.",
@@ -115,9 +115,33 @@ test("jini boundary: a raw ELOOP (refused symlink chain) also becomes SiteKeyFil
   assert.throws(() => generateFileSiteKey({ keyFilePath: KEY_FILE }), SiteKeyFileAlreadyExistsError);
 });
 
-test("jini boundary: Jini's own RootKeyFileAlreadyExistsError (matched by name) becomes SiteKeyFileAlreadyExistsError", () => {
-  generateFailure = Object.assign(new Error("a root key file already exists at /x"), { name: "RootKeyFileAlreadyExistsError" });
-  assert.throws(() => generateFileSiteKey({ keyFilePath: KEY_FILE }), SiteKeyFileAlreadyExistsError);
+test("the canonical Jini exists error maps to the public Tovu SiteKeyFileAlreadyExistsError", () => {
+  generateFailure = new realSecrets.SiteKeyFileAlreadyExistsError({ keyFilePath: "/x" });
+  assert.throws(() => generateFileSiteKey({ keyFilePath: KEY_FILE }), {
+    name: "SiteKeyFileAlreadyExistsError",
+    message: `a site key file already exists at ${KEY_FILE} — generate never overwrites an existing key`,
+  });
+});
+
+// The mapping keys on Jini's error identity: an unrelated error that only borrows the old class
+// name is not proof that a key file exists, so it must keep propagating as itself.
+test("jini boundary: an error that only carries the retired exists-error name propagates unchanged", () => {
+  const impostor = Object.assign(new Error("not an exists refusal"), { name: "RootKeyFileAlreadyExistsError" });
+  generateFailure = impostor;
+  assert.throws(() => generateFileSiteKey({ keyFilePath: KEY_FILE }), (error: unknown) => {
+    assert.equal(error, impostor);
+    return true;
+  });
+});
+
+test("the Tovu keyring imports no retired RootKey names", () => {
+  const source = readFileSync(new URL("../keyring.env.ts", import.meta.url), "utf8");
+  const jiniImports = [...source.matchAll(/import\s*\{([^}]*)\}\s*from\s*"@jini-ai\/platform\/secrets"/g)].map((m) => m[1]).join(",");
+  assert.ok(jiniImports.length > 0, "keyring.env.ts must import from @jini-ai/platform/secrets");
+  assert.doesNotMatch(jiniImports, /RootKey/);
+  for (const name of ["FixedSiteKeyKeyring", "UnusableSiteKeyError", "parseSiteKeyHex", "fingerprintSiteKeyHex", "generateFileSiteKey", "SiteKeyFileAlreadyExistsError"]) {
+    assert.match(jiniImports, new RegExp(`\\b${name}\\b`));
+  }
 });
 
 test("jini boundary: a different fs error code propagates unchanged", () => {

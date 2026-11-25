@@ -3,6 +3,13 @@ import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { injectPublishedWebMcp } from '../published-html.js';
 
+test('a capital İ before a mixed-case body closer does not shift the WebMCP insertion', () => {
+  const html = '<html><body><p>İstanbul</p></BODY></html>';
+  const injected = injectPublishedWebMcp({ html, enabled: true });
+  assert.equal(injected.indexOf('<script data-tovu-webmcp-script'), html.indexOf('</BODY>'));
+  assert.equal(injectPublishedWebMcp({ html: injected, enabled: false }), html);
+});
+
 test('first-party WebMCP registers local actions without writing storage, cookies or making requests', () => {
   const html = injectPublishedWebMcp({ html: '<html><body><button type="button" data-toolname="help" data-tooldescription="Show help">Help</button></body></html>', enabled: true });
   const dom = new JSDOM(html, { url: 'https://site.example/', runScripts: 'outside-only' });

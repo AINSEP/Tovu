@@ -3,7 +3,9 @@ import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireSt
 
 import { describeComponentTool, searchComponentsTool } from "@jini-ai/mcp";
 
-import { buildComponentCatalogQuery } from "./component-catalog-query.js";
+import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
+
+import { buildComponentCatalogQuery, chartCatalogManifests } from "./component-catalog-query.js";
 
 /**
  * @file Wires `search_components`/`describe_component` into Tovu's OWN `ToolRegistry` — the same
@@ -38,10 +40,10 @@ import { buildComponentCatalogQuery } from "./component-catalog-query.js";
  * has, and a second, redundant-but-harmless discovery route for the CLI path (a model that forgets
  * the literal name can still find it by searching what it needs, same as every other tool here).
  *
- * `buildComponentCatalogQuery()` is called once per registration build (once per daemon boot / BYOK
- * surface construction, mirroring `buildToolCatalogQuery`'s own call site) rather than per handler
- * invocation: `ALL_MANIFESTS` is static, so there is nothing to refresh between calls — see that
- * function's own module doc.
+ * The catalog is built per handler invocation, not per registration build: chart entries come from
+ * the host's live chart-provider snapshot, so disabling a provider or changing the site default must
+ * show on the next request without rebuilding registrations. The server builds those entries from
+ * headless manifests (`chartCatalogManifests`) because it cannot import a React chart package.
  */
 
 export const SEARCH_COMPONENTS_TOOL_ID = "search_components";
@@ -120,17 +122,22 @@ const CATALOG_BY_ID = new Map(componentCatalogAgentToolCatalog.map((entry) => [e
  * `ComponentCatalogQuery` the HTTP routes use — see this file's own doc for why a second, registry
  * based path to the identical ids is worth wiring.
  *
- * `_routeDeps`/`_surfaces` are unused: the interactive-component catalog is static
- * (`@jini-ai/ui`'s `ALL_MANIFESTS`), so this domain needs neither a workspace-scoped dependency bag
- * nor a live surface channel. `tool-registrations.ts` adapts the shared
- * `ToolContributor.build` signature to this argument object.
+ * `readChartSnapshot` is the host's site-bound chart-provider read. It is awaited once per request
+ * and never during construction or across requests, so metadata builds stay I/O-free and a failed
+ * read surfaces as the tool's error rather than as shipped chart entries for a disabled provider.
+ * `tool-registrations.ts` adapts the shared `ToolContributor.build` signature to this argument object.
  *
- * @complexity O(1) to build (a handful of static manifests); see {@link buildComponentCatalogQuery}
- * for its own per-call search/describe cost.
+ * @complexity O(1) to build; each call awaits one snapshot read and builds O(m + k * p) manifests,
+ * then see {@link buildComponentCatalogQuery} for its own per-call search/describe cost.
  * @overallScore 100
  */
-export function buildComponentCatalogRegistrations({ _routeDeps, _surfaces }: { _routeDeps: unknown; _surfaces: unknown }, _optional = {}): ToolRegistration[] {
-  const componentCatalog = buildComponentCatalogQuery();
+export function buildComponentCatalogRegistrations({ readChartSnapshot }: {
+  readChartSnapshot: (required: Record<string, never>, optional?: Record<string, never>) => Promise<AdminChartProviderSnapshot>;
+}, _optional = {}): ToolRegistration[] {
+  const readCatalog = async () => {
+    const manifests = chartCatalogManifests({ snapshot: await readChartSnapshot({}) });
+    return buildComponentCatalogQuery({ getManifests: () => manifests });
+  };
 
   const handlers: Record<string, ToolHandler> = {
     [SEARCH_COMPONENTS_TOOL_ID]: async (ctx) => {
@@ -141,12 +148,12 @@ export function buildComponentCatalogRegistrations({ _routeDeps, _surfaces }: { 
       // caller is actually asking for, mirroring `byok-tool-surface.ts`'s identical `runSearchTools`
       // treatment of `search_tools`' own `limit` argument.
       const limit = rawLimit === undefined ? SEARCH_LIMIT_DEFAULT : Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX);
-      return componentCatalog.search({ query }, { limit });
+      return (await readCatalog()).search({ query }, { limit });
     },
     [DESCRIBE_COMPONENT_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input, key: "id" });
-      const entry = componentCatalog.describe({ id });
+      const entry = (await readCatalog()).describe({ id });
       if (!entry) throw new Error(`component '${id}' was not found`);
       return entry;
     },

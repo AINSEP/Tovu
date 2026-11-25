@@ -18,7 +18,8 @@ import test, { type TestContext } from "node:test";
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 
 import { resolveAgentPluginLayout } from "../../../../features/agent-plugins/layout.js";
-import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "../plugin-prompt-prefix.js";
+import { resolveAgentPluginPromptPrefix } from "../plugin-prompt-prefix.js";
+import { assemblePromptWithPluginPrefix } from "../plugin-prompt-assembly.js";
 
 /**
  * @file Closes the gap named in this dispatch's brief: nothing tested `agent-daemon-server.ts`'s

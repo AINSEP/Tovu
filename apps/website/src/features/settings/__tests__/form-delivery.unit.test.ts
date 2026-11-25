@@ -257,3 +257,14 @@ test("a raw vendor-prefixed token under an innocent config key is accepted (repo
   const rawToken = "gh" + "p_" + "x".repeat(36);
   assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config: { header: { value: rawToken } } })] })[0]?.config, { header: { value: rawToken } });
 });
+
+// B170 verify-first witness: the fix step deletes the `(reported, not fixed)` pin above and drops the `todo`.
+test("a vendor-shaped secret under an ordinary delivery config key is refused before job serialization", { todo: "B170 verify-first: parseFormDeliveryBindings accepts a bare ghp_/sk-ant-/AIza token under config.column, so it reaches every delivery job" }, () => {
+  // Same generated shape as the property above (ordinary key from its `keys` list); tokens built at runtime.
+  const vendorShaped = ["gh" + "p_" + "x".repeat(36), "sk-" + "ant-" + "y".repeat(95), "AI" + "za" + "z".repeat(35)];
+  for (const secret of vendorShaped) {
+    const message = refusal([binding({ config: { column: secret } }), binding({ bindingId: "b2", config: { range: { author: [secret, 1] } } })]);
+    assert.match(message, /^Form delivery bindings \(core\.forms\.deliveryBindings\) binding 1: /);
+    assert.equal(message.includes(secret), false, "the refusal must not repeat the secret");
+  }
+});

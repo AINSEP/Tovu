@@ -13,7 +13,7 @@ interface PreviewSender {
 export function registerSiteThemePreviewIpc(
   { ipcMain, subscriptions, allowed }: {
     ipcMain: {
-      handle: (channel: string, listener: (event: { sender: PreviewSender }, input: unknown) => void) => void;
+      handle: (channel: string, listener: (event: { sender: PreviewSender; senderFrame?: { parent: unknown } | null }, input: unknown) => void) => void;
       removeHandler: (channel: string) => void;
     };
     subscriptions: Pick<ReturnType<typeof createSiteThemePreviewSubscriptions>, 'watch'>;
@@ -34,8 +34,11 @@ export function registerSiteThemePreviewIpc(
     const { subscriptionId } = input;
     return typeof subscriptionId === 'string' && /^[\w-]{1,100}$/.test(subscriptionId) ? subscriptionId : undefined;
   };
-  ipcMain.handle(channels.watch, ({ sender }, input) => {
+  ipcMain.handle(channels.watch, ({ sender, senderFrame }, input) => {
     const id = inputId({ input });
+    // An iframe inside the trusted window shares its sender, so only a top-level frame may claim a
+    // stream (B115) — the admission `owner-store-ipc.ts` applies. A missing frame is unknown origin.
+    if (!senderFrame || senderFrame.parent !== null) return;
     if (!allowed({ sender }) || sender.isDestroyed() || !id) return;
     const siteDir = watchSiteDirectory({ input });
     if (siteDir === undefined) return;

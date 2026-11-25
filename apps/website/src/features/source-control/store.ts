@@ -180,7 +180,11 @@ export async function listSourceControlCredentials(
   input: { workspaceId: UUID }
 ): Promise<SourceControlCredentialSummary[]> {
   const located = await listEffective(deps, input.workspaceId);
-  return Promise.all(located.map(async ({ scoped, record }) => ({ ...await toSummary(record), ...reportedScope(deps, scoped) })));
+  const legacy = await Promise.all(located.map(async ({ scoped, record }) => ({ ...await toSummary(record), ...reportedScope(deps, scoped) })));
+  // Canonical keys live in the provider-declared key store; neither half opens a key for display.
+  const canonical = await deps.repo.canonical?.list({ workspaceId: input.workspaceId }) ?? [];
+  const seen = new Set(legacy.map(row => row.id));
+  return [...legacy, ...canonical.filter(row => !seen.has(row.id) && seen.add(row.id))];
 }
 
 export interface SourceControlCredentialWriteDeps extends SourceControlCredentialReadDeps {
@@ -483,6 +487,10 @@ export async function updateSourceControlCredential(
   { deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput },
   _options = {},
 ): Promise<SourceControlCredentialSummary> {
+  // Only an id the canonical store does not own reaches the legacy path; owned refusals throw there.
+  const canonical = await deps.repo.canonical?.update({ workspaceId: input.workspaceId, id: input.id,
+    patch: { label: input.label, connection: input.connection, isDefault: input.isDefault } });
+  if (canonical?.owned) return canonical.summary;
   const { scoped, existing, label, requestedDefault, row, where } = await loadSourceControlCredentialUpdate({ deps, input });
   const patch = await normalizeConnectionPatch({ raw: input.connection, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   if (patch !== undefined && !isEmptyTokenPatch({ value: patch })) {
@@ -514,6 +522,8 @@ export async function updateSourceControlCredential(
  *   group).
  */
 export async function deleteSourceControlCredential(deps: SourceControlCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
+  // A canonical key is removed by the store that owns it, under its own grant and deletion rules.
+  if ((await deps.repo.canonical?.remove(input))?.owned) return;
   // A project row is removed only when no other site uses it, with its attachments.
   const located = await locateById({ ...deps, repo: deps.repo }, input);
   if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });

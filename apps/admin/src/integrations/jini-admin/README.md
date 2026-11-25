@@ -8,7 +8,7 @@ with its ports, session grants and live locale.
 ### Security (`security-ports.ts`, `security-module.hooks.ts`)
 
 - **Ports:** `createSecurityHostPorts({ transport })` gives `securityApi` (`createHttpSecurityApi`, Shared Keys on),
-  `otherCredentials` (`mediaOrder: 'replaced-last'`, `tokenHints: true`, media labels from the host catalog) and
+  `otherCredentials` (`tokenHints: true`, media labels from the host catalog) and
   `rootKey` (`/system/site-key`, `{ siteKey }` import body, reveal on).
 - **Host client:** `securityApi` keeps the host's 11 method names, composed from the Jini publish, custom and
   Shared Keys clients.

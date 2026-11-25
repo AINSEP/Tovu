@@ -6359,6 +6359,51 @@ exports[`request-shape table: what every fetching member sends > mediaContentTyp
 }
 `;
 
+exports[`request-shape table: what every fetching member sends > patchMediaProvider 1`] = `
+{
+  "full": {
+    "calls": [
+      {
+        "body": "{"apiKey":"<apiKey>","baseUrl":"<baseUrl>","model":"<model>"}",
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "PATCH",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers/%3CproviderId%3E",
+      },
+    ],
+    "outcome": "resolved",
+  },
+  "min": {
+    "calls": [
+      {
+        "body": "{}",
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "PATCH",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers/%3CproviderId%3E",
+      },
+    ],
+    "outcome": "resolved",
+  },
+}
+`;
+
 exports[`request-shape table: what every fetching member sends > pauseIntegrationSubscription 1`] = `
 {
   "full": {
@@ -6989,6 +7034,51 @@ exports[`request-shape table: what every fetching member sends > redeemBootSessi
 }
 `;
 
+exports[`request-shape table: what every fetching member sends > removeMediaProvider 1`] = `
+{
+  "full": {
+    "calls": [
+      {
+        "body": undefined,
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "DELETE",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers/%3CproviderId%3E",
+      },
+    ],
+    "outcome": "resolved",
+  },
+  "min": {
+    "calls": [
+      {
+        "body": undefined,
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "DELETE",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers/%3CproviderId%3E",
+      },
+    ],
+    "outcome": "resolved",
+  },
+}
+`;
+
 exports[`request-shape table: what every fetching member sends > removePolicyPermission 1`] = `
 {
   "full": {
@@ -7567,51 +7657,6 @@ exports[`request-shape table: what every fetching member sends > saveExternalMcp
         "keepalive": undefined,
         "method": "PUT",
         "url": "/api/admin/v1/workspaces/workspace-local/mcp-servers/%3CserverId%3E",
-      },
-    ],
-    "outcome": "resolved",
-  },
-}
-`;
-
-exports[`request-shape table: what every fetching member sends > saveMediaProviders 1`] = `
-{
-  "full": {
-    "calls": [
-      {
-        "body": "{"<providersKey>":{"apiKeyHint":{"length":7,"last4":"<last4>"},"apiKey":"<apiKey>","baseUrl":"<baseUrl>","model":"<model>","apiKeyConfigured":false,"apiKeyTail":"<apiKeyTail>","source":"<source>"}}",
-        "cache": undefined,
-        "credentials": "same-origin",
-        "hasSignal": true,
-        "headers": [
-          [
-            "content-type",
-            "application/json",
-          ],
-        ],
-        "keepalive": undefined,
-        "method": "PUT",
-        "url": "/api/admin/v1/workspaces/workspace-local/media/providers",
-      },
-    ],
-    "outcome": "resolved",
-  },
-  "min": {
-    "calls": [
-      {
-        "body": "{}",
-        "cache": undefined,
-        "credentials": "same-origin",
-        "hasSignal": true,
-        "headers": [
-          [
-            "content-type",
-            "application/json",
-          ],
-        ],
-        "keepalive": undefined,
-        "method": "PUT",
-        "url": "/api/admin/v1/workspaces/workspace-local/media/providers",
       },
     ],
     "outcome": "resolved",

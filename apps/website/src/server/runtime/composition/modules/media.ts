@@ -11,7 +11,10 @@ import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 import { mediaDeleteRoute } from "@jini-ai/cms/admin-http/routes/media/delete";
 import { mediaGetProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/get-providers";
 import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
-import { mediaPutProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/put-providers";
+import { MEDIA_PROVIDERS_REVISION_REQUEST_HEADER } from "@jini-ai/cms/admin-http/routes/media/get-providers";
+import { mediaPutProvidersRoute, type MediaProvidersSaveOutcome } from "@jini-ai/cms/admin-http/routes/media/put-providers";
+import { mediaPatchProviderRoute } from "@jini-ai/cms/admin-http/routes/media/patch-provider";
+import { mediaDeleteProviderRoute } from "@jini-ai/cms/admin-http/routes/media/delete-provider";
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
@@ -21,8 +24,8 @@ import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
 import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import {
-  getMediaProviderCredentials, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialValidationError,
-  saveMediaProviderCredentials, uploadMedia,
+  getMediaProviderCredentialsModel, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialStaleError,
+  MediaProviderCredentialValidationError, patchMediaProvider, removeMediaProvider, saveMediaProviderCredentials, uploadMedia,
 } from "#src/features/media/index";
 import { fetchImage } from "#src/features/media-import/fetch-image";
 import { EgressRefusedError } from "#src/platform/http/index";
@@ -262,22 +265,53 @@ export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; dep
   mountAdminJsonRoute({ app, spec: mediaDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete", authorization: "guarded" }));
 };
 
+/** The provider store's deps, read from `deps` per request so a test's later replacement is honoured. */
+function mediaProviderStoreDeps({ deps }: { deps: MediaProviderRouteDeps }, _optional: Record<string, never> = {}) {
+  return {
+    repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring,
+    clock: deps.clock, providerCatalog: deps.mediaProviderRegistry,
+  };
+}
+
 export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const getProviders = ({ workspaceId }: { workspaceId: string }) =>
-    getMediaProviderCredentials({ repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId });
+  const getProviders = ({ workspaceId }: { workspaceId: string }) => getMediaProviderCredentialsModel({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId });
   mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
 };
 
+/** The legacy whole-set PUT: its `If-Match` basis is compared by the store INSIDE the writer boundary
+ *  (`saveMediaProviderCredentials`' planner), and a mismatch answers `stale` with nothing written. The
+ *  saved answer is re-read in one list so the map and its revision describe the same stored set. */
 export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const saveProviders = ({ workspaceId, providers }: { workspaceId: string; providers: Record<string, unknown> }) => saveMediaProviderCredentials(
-    {
-      repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring,
-      clock: deps.clock, providerCatalog: deps.mediaProviderRegistry,
-    },
-    { workspaceId, providers: providers as Record<string, never> },
-  );
+  const saveProviders = async (
+    { workspaceId, providers, expectedRevision }: { workspaceId: string; providers: Record<string, unknown>; expectedRevision: string },
+  ): Promise<MediaProvidersSaveOutcome> => {
+    try {
+      await saveMediaProviderCredentials(mediaProviderStoreDeps({ deps }), { workspaceId, providers: providers as Record<string, never> }, { expectedRevision });
+    } catch (err) {
+      if (err instanceof MediaProviderCredentialStaleError) return { outcome: "stale" };
+      throw err;
+    }
+    return { outcome: "saved", ...(await getMediaProviderCredentialsModel({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId })) };
+  };
   const putDeps = { ...mediaPortDeps({ deps }), saveProviders, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
-  mountAdminJsonRoute({ app, spec: mediaPutProvidersRoute, deps: putDeps }, mountOptions({ operation: "routes/media/put-providers", authorization: "direct" }));
+  const spec = { ...mediaPutProvidersRoute, readHeaders: [MEDIA_PROVIDERS_REVISION_REQUEST_HEADER] };
+  mountAdminJsonRoute({ app, spec, deps: putDeps }, mountOptions({ operation: "routes/media/put-providers", authorization: "direct" }));
+};
+
+/** PATCH one provider: only the named provider is written, merged against its current row. */
+export const registerAdminMediaPatchProviderRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const patchProvider = ({ workspaceId, providerId, fields }: { workspaceId: string; providerId: string; fields: { apiKey?: string; baseUrl?: string; model?: string } }) =>
+    patchMediaProvider({ deps: mediaProviderStoreDeps({ deps }), workspaceId, providerId, fields });
+  const patchDeps = { ...mediaPortDeps({ deps }), patchProvider, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
+  mountAdminJsonRoute({ app, spec: mediaPatchProviderRoute, deps: patchDeps }, mountOptions({ operation: "routes/media/patch-provider", authorization: "direct" }));
+};
+
+/** DELETE one provider: exactly the bound workspace and the named provider, catalog or not. */
+export const registerAdminMediaDeleteProviderRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const removeProvider = ({ workspaceId, providerId }: { workspaceId: string; providerId: string }) =>
+    removeMediaProvider({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId, providerId });
+  const deleteDeps = { ...mediaPortDeps({ deps }), removeProvider, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
+  mountAdminJsonRoute({ app, spec: mediaDeleteProviderRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete-provider", authorization: "direct" }));
 };
 
 /** The `RouteDeps` slice the usage route reads (the usage scan's repos plus the port fields). */
@@ -354,6 +388,8 @@ export function createMediaModule(
       registerMediaOriginalVideoRoute({ app, deps });
       registerAdminMediaGetProvidersRoute({ app, deps });
       registerAdminMediaPutProvidersRoute({ app, deps });
+      registerAdminMediaPatchProviderRoute({ app, deps });
+      registerAdminMediaDeleteProviderRoute({ app, deps });
     },
   };
 }

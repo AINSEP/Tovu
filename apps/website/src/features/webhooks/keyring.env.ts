@@ -1,9 +1,10 @@
 import {
-  FixedRootKeyKeyring as JiniFixedSiteKeyKeyring, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  UnusableRootKeyError as JiniUnusableSiteKeyError, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  parseRootKeyHex as parseKeyHex, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  fingerprintRootKeyHex as fingerprintKeyHex, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  generateFileRootKey as generateKeyFile, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+  FixedSiteKeyKeyring as JiniFixedSiteKeyKeyring,
+  UnusableSiteKeyError as JiniUnusableSiteKeyError,
+  parseSiteKeyHex as parseKeyHex,
+  fingerprintSiteKeyHex as fingerprintKeyHex,
+  generateFileSiteKey as generateKeyFile,
+  SiteKeyFileAlreadyExistsError as JiniSiteKeyFileAlreadyExistsError,
 } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring as PlatformInMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { mkdirSync } from "node:fs";
@@ -473,7 +474,9 @@ export function generateFileSiteKey(options: { keyFilePath: string }, _optional 
   mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
   try { return generateKeyFile({ keyFilePath }); }
   catch (error) {
-    if (isAlreadyExistsError({ err: error }) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) { // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+    // Jini's own refusal is matched by identity, never by name; the raw errno check stays for a
+    // create that surfaces `EEXIST`/`ELOOP` without Jini's wrapper.
+    if (error instanceof JiniSiteKeyFileAlreadyExistsError || isAlreadyExistsError({ err: error })) {
       throw new SiteKeyFileAlreadyExistsError({ keyFilePath });
     }
     throw error;
