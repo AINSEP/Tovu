@@ -9,8 +9,9 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { withFileLock } from "@jini-ai/platform/fs";
+import { PartitionBusyError, PartitionOpenRefusedError } from "@jini-ai/desktop-host/electron/partitions";
 import { sitePartition } from "./desktop-auth.ts";
-import { bindDesktopPartitions, nodePartitionFs, NO_RETIREMENT, type DesktopRetirementPort } from "./desktop-partition-lock.ts";
+import { bindDesktopPartitions, partitionOpenFailure, nodePartitionFs, NO_RETIREMENT, type DesktopRetirementPort } from "./desktop-partition-lock.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -143,4 +144,27 @@ test("a sessionData root outside this profile blocks automatic maintenance", () 
   const shared = fixture({ sessionData: path.join(os.tmpdir(), "shared-session-root") });
   assert.equal(shared.binding.automaticMaintenance, false);
   assert.ok(shared.logs.includes("maintenance-blocked:"));
+});
+
+test("a refused window acquire says busy, refused or unknown in plain words", () => {
+  const busy = partitionOpenFailure({ error: new PartitionBusyError("Tovu is tidying website data. Try opening this website again in a moment.") });
+  assert.equal(busy.kind, "busy");
+  assert.match(busy.message, /tidying website data/);
+  const refused = partitionOpenFailure({ error: new PartitionOpenRefusedError("Tovu could not confirm this website's sign-in data is safe to open. Try opening it again in a moment.") });
+  assert.equal(refused.kind, "refused");
+  assert.match(refused.message, /could not confirm/);
+  const unknown = partitionOpenFailure({ error: new TypeError("x is not a function") });
+  assert.equal(unknown.kind, "unknown");
+  assert.doesNotMatch(unknown.message, /not a function/, "an internal error is not shown to the owner");
+  assert.match(unknown.message, /Tovu could not open this website/);
+  assert.ok(unknown.cause instanceof TypeError, "the original stays attached for the log");
+});
+
+test("an unregistered instance's window acquire is refused and touches no session", async () => {
+  const f = fixture();
+  f.binding.unregisterHolder();
+  const siteDir = path.join(f.root, "site-b");
+  await assert.rejects(f.binding.acquireSiteWindow({ siteDir }), (error: Error & { kind?: string }) => error.kind === "refused" && /settings folder/.test(error.message));
+  assert.throws(() => f.binding.siteSession({ partition: sitePartition({ siteDir }) }), /used before it was acquired/, "no fallback session was handed out");
+  assert.equal(f.binding.admitGuestPartition({ partition: sitePartition({ siteDir }) }), false);
 });
