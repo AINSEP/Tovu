@@ -80,3 +80,20 @@ test('IPC ignores untrusted, destroyed or malformed claims and never pushes to a
   unwatch({ sender }, { subscriptionId: '2' });
   assert.deepEqual(detached, ['destroyed']);
 });
+
+test('a non-top-frame preview invocation does not acquire a subscription', {
+  todo: 'B115 verify-first: the watch handler admits on sender alone and never reads event.senderFrame, so a subframe of the trusted window claims a preview stream',
+}, () => {
+  // Repro: watch with a synthetic event { sender: trusted, senderFrame: { parent: <top> } } — watch() is still called once.
+  const handlers = new Map<string, Function>();
+  let claimed = 0;
+  const sender = { id: 1, getURL: () => 'file:///sites-home.html', once: () => {}, removeListener: () => {}, isDestroyed: () => false, send: () => {} };
+  registerSiteThemePreviewIpc({
+    ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); }, removeHandler: () => {} },
+    allowed: ({ sender: source }) => source === sender,
+    subscriptions: { watch: () => { claimed++; return () => {}; } },
+  });
+  const subframe = { url: 'file:///sites-home.html', parent: { url: 'file:///sites-home.html', parent: null } };
+  handlers.get(channels.watch)!({ sender, senderFrame: subframe }, { siteDir: '/a', subscriptionId: 'frame-1' });
+  assert.equal(claimed, 0, 'a subframe must not acquire a preview subscription');
+});

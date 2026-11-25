@@ -294,3 +294,17 @@ test("working directory: pick delegates, recent is empty, exists/normalize accep
   }
   assert.equal(await invoke(WORKING_DIRECTORY_IPC.normalize, sender, `${dir}${path.sep}.${path.sep}`), path.resolve(dir));
 });
+
+test("a non-top-frame chat invocation does not reach the runtime", {
+  todo: "B115 verify-first: the start handler never reads event.senderFrame, so a subframe of an allowed window starts an agent turn",
+}, async () => {
+  // Repro: invoke WORKSPACE_CHAT_IPC.start with a synthetic event whose senderFrame has a parent
+  // (the repo's non-top-frame idiom, see owner-store-ipc.ts) — startTurn is still called once.
+  const { handlers, calls } = setup();
+  const { sender } = fakeSender();
+  const subframe = { url: "file:///sites-home.html", parent: { url: "file:///sites-home.html", parent: null } };
+  const start = handlers.get(WORKSPACE_CHAT_IPC.start)! as (event: unknown, input: unknown) => unknown;
+  await Promise.resolve(start({ sender, senderFrame: subframe }, { subscriptionId: "s-frame", prompt: "hi", agentId: "claude" })).catch(() => undefined);
+  assert.equal(calls.startTurn!.length, 0, "a subframe must not start an agent turn");
+  assert.equal(calls.stream!.length, 0, "a subframe must not attach a run stream");
+});
