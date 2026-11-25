@@ -8,6 +8,7 @@ import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/platfor
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { adminFrontendOwner, adminFrontendRunOwner } from '../admin-frontend-owner.js';
 import { RUN_PRINCIPAL_HEADER } from '../daemon-access.js';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** The hook input a Jini route list gives: the request's headers and the facts the host put in `locals` (the host app's parsed query among them). */
 function hookInput({ headers, query }: { headers: Record<string, string>; query: Record<string, unknown> }) {

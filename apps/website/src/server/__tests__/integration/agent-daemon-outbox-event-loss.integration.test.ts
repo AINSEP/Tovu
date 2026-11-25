@@ -15,6 +15,7 @@ import { registerAssistantToolExecRoutes } from "../../runtime/composition/modul
 import { acceptToolRun } from "../../runtime/composition/modules/__tests__/assistant-tool-exec.fixture.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { startTestServer } from "../helpers/http-test-server.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** The former daemon enqueue-only outbox prevented event theft. With ADR-070 the write itself
  * runs at the site owner: both the remote write and existing pending rows use its bus/drainer. */

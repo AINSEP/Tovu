@@ -15,6 +15,7 @@ import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/cor
 import { daemonRouteHost, mountJiniRoutes } from "../../platform/express/jini-routes.js";
 
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER, type RunOwnerRegistry } from "../daemon-access.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Cross-principal authorization coverage for the agent daemon's `/api/runs` surface

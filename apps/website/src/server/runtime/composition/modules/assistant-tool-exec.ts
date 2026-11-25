@@ -91,7 +91,7 @@ type ComponentCatalogDeps = {
  * @complexity O(1) setup.
  */
 export function registerAssistantToolExecRoutes({ router, reporter, toolSurface, runStore, workspaceId, components, plugins, core }: {
-  router: InternalRouteTarget; reporter: Pick<ErrorReporter, "record">; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
+  router: InternalRouteTarget; reporter: ErrorReporter; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
 } & ComponentCatalogDeps, _optional = {}): void {
   if (core) registerAgentDaemonCoreRoutes({ router, deps: core });
   const tokenEnv: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
@@ -256,7 +256,7 @@ function requireSiteToolRun({ runStore, workspaceId, plugins }: {
 }
 
 /** The host the tool RPC list is given. These routes are called by a local process, never a browser, so no request counts as same-origin; the list never asks. Its body limit is its own (`maxBodyBytes`), not a parser's. */
-function toolRpcRouteHost({ reporter }: { reporter: Pick<ErrorReporter, "record"> }) {
+function toolRpcRouteHost({ reporter }: { reporter: ErrorReporter }) {
   // The site's own reporter owns a tool-RPC route incident; this process tracks no operations, hence the explicit no-op.
   return daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => false } }, parserLimitBytes: DEFAULT_TOOL_EXEC_MAX_BODY_BYTES,
     errors: { reporter, observability: NO_OPERATION_TRACKING } });

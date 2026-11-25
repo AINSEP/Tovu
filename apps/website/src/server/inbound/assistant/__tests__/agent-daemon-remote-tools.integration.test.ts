@@ -12,6 +12,7 @@ import { createRunScopedCredentials, registerDaemonAttachmentLookup } from "#src
 import { daemonRouteHost, mountJiniRoutes } from "#src/platform/express/jini-routes";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonStatements, statementsFor, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** Execute the real entry's lookup registration without booting its databases or agent CLIs. */
 async function bootAttachmentOwner(t: import("node:test").TestContext) {

@@ -6,6 +6,7 @@ import { createLocalSameOriginPolicy, type ServerRoute } from "@jini-ai/core/con
 import { daemonRouteHost } from "../../platform/express/jini-routes.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
 import { createToolCatalogFor, discoveryPrincipalResolver } from "../tool-catalog-principal-scope.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Per-principal discovery: a read-only principal's `/api/tools/search` and `/api/tools/:id`

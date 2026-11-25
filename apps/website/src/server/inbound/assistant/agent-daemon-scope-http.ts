@@ -3,7 +3,7 @@ import express from "express";
 import type { Principal } from "@jini-ai/core";
 import { stopRunsForToolAccessChange, type createAgentExecutor, type ToolExecutor, type RunLifecycle, type UserMessageDelivery, type ToolAccessRun } from "@jini-ai/daemon";
 import { frontendRequestRoutes, agentRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes, type createFrontendControl, type RunStartHandler, type RunMessageRequest, type DelegatedToolExecuteRequest } from "@jini-ai/daemon/http";
-import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteErrorPorts, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 import { createRunScopedCredentials, createRunOwnerRegistry, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, requireRunOwnership, createOwnedRunListHandler } from "#src/assistant/daemon-access";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
@@ -42,7 +42,7 @@ type ScopeAppPorts = {
   /** The scope's site-labelled logger: the delegated route warns here when a describer throws. */
   logger: Pick<Logger, "warn">;
 };
-type MountPorts = ScopeAppPorts & { app: express.Express; routeHost: ReturnType<typeof daemonRouteHost>; resolvePrincipal(input: { request: DelegatedToolExecuteRequest }): Principal; resolveDiscoveryCaller(req: express.Request): ReturnType<ScopeAppPorts['runCredentials']['resolveCaller']> };
+type MountPorts = ScopeAppPorts & { app: express.Express; routeHost: ReturnType<typeof daemonRouteHost>; routeErrors: RouteErrorPorts; resolvePrincipal(input: { request: DelegatedToolExecuteRequest }): Principal; resolveDiscoveryCaller(req: express.Request): ReturnType<ScopeAppPorts['runCredentials']['resolveCaller']> };
 
 
 /** Fails closed: an untracked `runId` throws rather than fabricating a principal — see
@@ -79,7 +79,7 @@ const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ 
 // the explicit no-op keeps every route host of the scope (surface routes included) in reporter mode.
 const routeErrors = { reporter: required.reporter, observability: NO_OPERATION_TRACKING }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024,
     errors: routeErrors }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
-  const ports = { ...required, app, routeHost, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
+  const ports = { ...required, app, routeHost, routeErrors, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
     resolvePrincipal: ({ request }: { request: DelegatedToolExecuteRequest }) => resolvePrincipal({ principalByRunId: required.principalByRunId, request }) };
   mountRunRoutes(ports);
   mountDelegatedRoutes(ports);
@@ -230,7 +230,7 @@ registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
 mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });
 }
 
-function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendControl, routeHost, routeDeps, siteTools, resolveDiscoveryCaller, runCredentials, principalByRunId }: MountPorts, _optional = {}) {
+function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendControl, routeHost, routeErrors, routeDeps, siteTools, resolveDiscoveryCaller, runCredentials, principalByRunId }: MountPorts, _optional = {}) {
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape

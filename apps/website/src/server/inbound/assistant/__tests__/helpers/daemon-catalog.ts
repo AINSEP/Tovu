@@ -9,6 +9,7 @@ import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-t
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { statementsFor, evaluateDaemonStatements } from "./daemon-source.js";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 type CatalogBody = { hits: { id: string }[]; id: string; description: string };
 

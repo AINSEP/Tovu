@@ -15,6 +15,7 @@ import { createSiteAssistantModule } from "../runtime/composition/modules/site-a
 import { parsePublicJsonBody } from "../inbound/shared/json-body-parsers.js";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const TEST_KEY = "visitorsafe-plain-test-key";
 
@@ -39,7 +40,7 @@ async function boot(
   const app = express();
   app.use(parsePublicJsonBody);
   const routeDeps = { ...deps, siteAssistantErrorLog: (entry: SiteAssistantErrorLogEntry) => logs.push(entry) };
-  createSiteAssistantModule(routeDeps, { env: {} }).registerRoutes?.({ app });
+  createSiteAssistantModule({ deps: routeDeps, reporter: createRouteIncidentReporter().reporter }, { env: {} }).registerRoutes?.({ app });
   return { deps: routeDeps, logs, baseUrl: await startTestServer(app, t) };
 }
 

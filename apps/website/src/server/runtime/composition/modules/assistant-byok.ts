@@ -1,3 +1,4 @@
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { ToolAccessLoweringError } from '@jini-ai/core/tool-access-change';
 import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun } from '@jini-ai/daemon';
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
@@ -76,7 +77,7 @@ import {
   createStoredExecutionCredentialPort,
   createByokToolSurface,
   type ByokToolSurface,
-  type ByokToolSurfaceDeps, type ByokToolSurfaceRequired,
+  type ByokToolSurfaceDeps,
 } from "#src/assistant/index";
 import { providerTurnAdapters, runProviderToolTurn, type ProviderChatMessage, type ProviderToolExecutor, type ProviderToolTurnInput, type ProviderToolTurnOptions, type ProviderToolTurnResult, type ProviderTurnEvent } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "@jini-ai/agent-runtime/custom-instructions";
@@ -514,7 +515,7 @@ async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {
 /** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`).
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
-  { routeDeps, reporter }: { routeDeps: RouteDeps & ByokToolSurfaceDeps; reporter: ByokToolSurfaceRequired["reporter"] },
+  { routeDeps, reporter }: { routeDeps: RouteDeps & ByokToolSurfaceDeps; reporter: ErrorReporter },
   { toolSurface, attachmentLookup, federationConnect }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
     federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"] } = {},
 ): AssistantByokModuleHandle {
@@ -563,10 +564,10 @@ export function createAssistantByokModule(
     sealer: routeDeps.siteAssistantSecretSealer,
   });
 
-  return byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }, serverFederation);
+  return byokModuleHandle({ routeDeps, reporter, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }, serverFederation);
 }
 
-function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }: ByokTurnContext, serverFederation: ReturnType<typeof createAssistantServerFederation>): AssistantByokModuleHandle {
+function byokModuleHandle({ routeDeps, reporter, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }: ByokTurnContext & { reporter: ErrorReporter }, serverFederation: ReturnType<typeof createAssistantServerFederation>): AssistantByokModuleHandle {
   return {
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,

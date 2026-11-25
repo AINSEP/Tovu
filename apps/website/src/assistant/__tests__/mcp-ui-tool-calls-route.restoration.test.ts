@@ -11,6 +11,7 @@ import { startTestServer } from '../../server/__tests__/helpers/http-test-server
 import { RUN_PRINCIPAL_HEADER } from '../daemon-access.js';
 import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../mcp-ui-tool-calls-route.js';
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 async function fixture(t: import("node:test").TestContext) {
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),

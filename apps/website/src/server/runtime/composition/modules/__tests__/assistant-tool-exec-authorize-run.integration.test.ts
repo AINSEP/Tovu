@@ -3,6 +3,7 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import { ensureToolExecToken } from "../../../../../assistant/daemon-access.js";
 import { registerAssistantToolExecRoutes } from "../assistant-tool-exec.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Who may run a tool over the daemon's tool RPC, recorded from today's router on a real

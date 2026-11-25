@@ -14,6 +14,7 @@ import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Wire pins for the two surface-answer endpoints: the exact status, body and content type of

@@ -7,6 +7,7 @@ import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { registerAssistantToolExecRoutes } from "../assistant-tool-exec.js";
 import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const snapshot = { generation: "plugins:2", siteProvider: "charts.example", providers: [
   { id: "charts.example", kinds: ["bar", "line"], javascript: "/providers/example.js", stylesheet: "/providers/example.css" },

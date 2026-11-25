@@ -16,6 +16,7 @@ import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { createAssistantByokModule } from "../assistant-byok.js";
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test("preflight keeps pinned guidance when its credential-bearing controller fails", async (t) => {
   const source = ts.createSourceFile("assistant-tool-exec.ts", readFileSync(new URL("../assistant-tool-exec.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);

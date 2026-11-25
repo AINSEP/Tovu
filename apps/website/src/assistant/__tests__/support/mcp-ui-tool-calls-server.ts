@@ -13,6 +13,7 @@ import express from "express";
 import { RUN_PRINCIPAL_HEADER } from "../../daemon-access.js";
 import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from "../../mcp-ui-tool-calls-route.js";
 import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 type McpUiToolCallsDeps = Parameters<typeof registerMcpUiToolCallsRoute>[0]["deps"];
 

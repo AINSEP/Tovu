@@ -7,6 +7,7 @@ import { createRouteDeps } from "../../app.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { registerAssistantToolExecRoutes } from "../assistant-tool-exec.js";
 import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test("a member cannot execute or discover tools as another run's owner", async (t) => {
   const deps = createRouteDeps();

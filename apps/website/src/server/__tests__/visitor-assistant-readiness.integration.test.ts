@@ -18,6 +18,7 @@ import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated } from "./helpers/http-test-server.js";
 import { startStubProviderServer } from "./helpers/stub-provider-server.js";
 import { useSiteChatBuild } from "../inbound/public-http/http/site/__tests__/site-chat.fixture.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const BASE = "/api/admin/v1/workspaces/workspace-local";
 const allow = async () => ({ allowed: true, reason: "test_grant" });
@@ -52,7 +53,7 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
   createAssistantSettingsModule(deps).registerRoutes?.({ app });
   registerAdminSettingsSetRoute({ app, deps });
   registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
-  createSiteAssistantModule(deps, { env: { GEMINI_API_KEY: "env-key-must-not-rescue-missing-saved-key",
+  createSiteAssistantModule({ deps, reporter: createRouteIncidentReporter().reporter }, { env: { GEMINI_API_KEY: "env-key-must-not-rescue-missing-saved-key",
     TOVU_SITE_ASSISTANT_MODEL: "env-model", TOVU_SITE_ASSISTANT_BASE_URL: endpoint } }).registerRoutes?.({ app });
   // A real declarative renderer with no disk theme/build dependency; homepage content proves
   // the negative markup assertions reached a successful page, rather than an error response.

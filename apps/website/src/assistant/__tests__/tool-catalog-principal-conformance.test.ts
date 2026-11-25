@@ -13,6 +13,7 @@ import { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from ".
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { createToolCatalogFor, discoveryPrincipalResolver } from "../tool-catalog-principal-scope.js";
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Two-sided conformance (todos: the Strapi-suite test): a read-only principal cannot SEE a

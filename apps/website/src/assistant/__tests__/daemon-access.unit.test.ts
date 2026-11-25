@@ -7,6 +7,7 @@ import {
   RUN_PRINCIPAL_HEADER,
 } from "../daemon-access.js";
 import { daemonRouteHost, mountJiniRoutes } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file `isRunScopedRoute` — which daemon routes a run-scoped credential (as opposed to the host's

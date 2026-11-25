@@ -8,6 +8,7 @@ import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { createDaemonSiteTools } from "#src/server/inbound/assistant/agent-daemon-site-tools";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAssistantToolExecRoutes } from "../assistant-tool-exec.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** Real live-run RPC and daemon client; callers supply only the plugin owner and its log sink. */
 export async function pluginPreflightFixture({ t, context, plugins, tools = [], prepareGuidance, agentId }: {

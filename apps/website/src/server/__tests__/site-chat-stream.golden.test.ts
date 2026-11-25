@@ -20,6 +20,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file T0-4 of the AG-UI design (S0): the frames the public site chat sends today
@@ -91,7 +92,7 @@ async function boot({ t, respond, ask = false, confirmationScheduler, seed }: { 
   const app = express();
   app.use(express.json());
   const logs: unknown[] = [];
-  createSiteAssistantModule({ ...deps, siteAssistantErrorLog: (entry: unknown) => logs.push(entry), ...(confirmationScheduler ? { siteAssistantConfirmationScheduler: confirmationScheduler } : {}) } as typeof deps,
+  createSiteAssistantModule({ deps: { ...deps, siteAssistantErrorLog: (entry: unknown) => logs.push(entry), ...(confirmationScheduler ? { siteAssistantConfirmationScheduler: confirmationScheduler } : {}) } as typeof deps, reporter: createRouteIncidentReporter().reporter },
     { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl, TOVU_VISITOR_TOOLS_POLICY: "on" } }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   siteOrigin = new URL(baseUrl);
@@ -318,7 +319,7 @@ test("site chat golden: a visitor who leaves cancels the provider call and gets 
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl } }).registerRoutes?.({ app });
+  createSiteAssistantModule({ deps, reporter: createRouteIncidentReporter().reporter }, { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl } }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   const controller = new AbortController();
   t.after(() => controller.abort());
