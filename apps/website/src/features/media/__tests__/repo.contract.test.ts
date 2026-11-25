@@ -460,6 +460,31 @@ for (const each of eachDialect({ tables: ["media", "media_slug_history", "asset_
     assert.equal((await new SqlMediaRepo(kernel).findById({ workspaceId: WORKSPACE_ID, id: created.id }))?.description, "", "blank is an explicit clear, not never-described");
   });
 
+  test(`[${each.name}] replacement cannot retain the previous video's codec`, async () => {
+    const kernel = each.make();
+    const repo = new SqlMediaRepo(kernel);
+    const blobs = new SqlAssetBlobRepo(kernel);
+    const find = () => new SqlMediaRepo(kernel).findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
+    const created = makeMedia({ source: { sha256: "a".repeat(64), contentType: "video/quicktime", provenance: { kind: "upload", path: "clip.mov" }, videoCodec: "hevc" } });
+    assert.deepEqual(await repo.insertIfAbsent(created), { applied: true });
+    assert.equal((await find())?.source.videoCodec, "hevc", "the probe result survives reopen");
+    await blobs.save(makeAssetBlob({ id: "blob-b", sha256: "b".repeat(64), storageKey: "blobs/b" }));
+    await blobs.save(makeAssetBlob({ id: "blob-c", sha256: "c".repeat(64), storageKey: "blobs/c" }));
+    const base = { workspaceId: WORKSPACE_ID, id: "media-1", originalRenditionId: "rendition-1", updatedAt: "2026-07-18T00:00:00.000Z" };
+    assert.deepEqual(await repo.replaceFileIfVersion({ ...base, ifVersion: 1, sha256: "b".repeat(64), storageKey: "blobs/b",
+      contentType: "video/mp4", provenance: { kind: "upload", path: "clip.mp4" } }), { applied: true });
+    const unknown = await find();
+    assert.equal(unknown?.source.sha256, "b".repeat(64));
+    assert.equal(unknown?.source.videoCodec, undefined, "new bytes with no probe result must not keep the old HEVC hint");
+    assert.deepEqual(await repo.replaceFileIfVersion({ ...base, ifVersion: 2, sha256: "c".repeat(64), storageKey: "blobs/c",
+      contentType: "video/mp4", provenance: { kind: "upload", path: "other.mp4" }, videoCodec: "h264" }), { applied: true });
+    assert.equal((await find())?.source.videoCodec, "h264");
+    // Rollback restores the previous source verbatim, so its (absent) hint comes back with it, not the newer one.
+    assert.deepEqual(await repo.replaceFileIfVersion({ ...base, ifVersion: 3, sha256: "b".repeat(64), storageKey: "blobs/b",
+      restore: { version: 2, updatedAt: base.updatedAt, source: unknown!.source } }), { applied: true });
+    assert.equal((await find())?.source.videoCodec, undefined, "rollback must not keep the replaced video's codec");
+  });
+
   test(`[${each.name}] a pre-backfill row with a NULL slug reads back under its own id`, async () => {
     const kernel = each.make();
     const repo = new SqlMediaRepo(kernel);
