@@ -1,7 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { reportSitesSyncWarning } from "./platform/site-dir/sites-home.js";
 import { pinDefaultSiteRoot, ValidationError } from "./platform/site-dir/index.js";
-import { claimSiteRunning } from "./platform/site-dir/site-running.js";
+import { claimServingSite, claimSiteRunning } from "./platform/site-dir/site-running.js";
+import { setTimeout as sleep } from "node:timers/promises";
 import { resumeLocalSitesForHost, shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
@@ -179,7 +180,7 @@ async function prepareSiteBoot(
   await runProductionReadinessGateOrExit();
 
   // Claim before the schema guard, which already opens the site's database.
-  const runningLease = useMemory ? undefined : claimSiteRunning({ dir: siteDir(), app: "Web", scheme: devTls.active ? "https" : "http" });
+  const runningLease = useMemory ? undefined : await claimServingSite({ dir: siteDir(), app: "Web", scheme: devTls.active ? "https" : "http", claim: claimSiteRunning, sleep, mono: () => performance.now() });
   if (runningLease?.attached) return runningLease;
   if (!useMemory) {
     reportSitesSyncWarning({});

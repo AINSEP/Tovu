@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import { claimServingSite } from "#src/platform/site-dir/site-running";
 
 /**
  * @file Pins the boot-step order around the composition root now that `createSiteRouteDeps` is
@@ -80,6 +81,9 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
     pinDefaultSiteRoot: () => "/isolated",
     reportSitesSyncWarning: () => {},
     claimSiteRunning: () => ({ release: () => {} }),
+    claimServingSite,
+    sleep: async () => {},
+    performance: { now: () => 0 },
     devTls: { active: false },
     installServerLogCapture: () => {},
     processBuildRelease: () => "test-release",

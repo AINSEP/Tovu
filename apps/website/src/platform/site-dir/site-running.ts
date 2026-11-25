@@ -29,7 +29,7 @@ export function claimSiteRunning(
   const claim = workspace.claim({ path: dir, app, scheme, purpose });
   if (!claim.acquired) {
     const url = runningSiteUrl({ record: claim.record });
-    log(url ? `Using the site already running in ${claim.record.app}: ${url}` : `Using the site starting in ${claim.record.app}. Its admin URL will be available when that server finishes starting.`);
+    log(claim.record.purpose === "maintenance" ? "Waiting for this website's storage maintenance to finish." : url ? `Using the site already running in ${claim.record.app}: ${url}` : `Using the site starting in ${claim.record.app}. Its admin URL will be available when that server finishes starting.`);
     // Attachment never owns the other process's token, database or exit cleanup.
     return { attached: claim.record, ready: () => {}, release: () => {}, isHeld: () => false };
   }
@@ -54,4 +54,21 @@ export function claimSiteRunning(
     workspace.registry({}).opened({ path: dir, at: new Date().toISOString() });
   },
     release: () => { process.removeListener("exit", release); release(); } };
+}
+
+export async function claimServingSite(
+  { dir, app, scheme, claim, sleep, mono }: {
+    dir: string; app: "Web" | "Desktop"; scheme: "http" | "https";
+    claim: typeof claimSiteRunning; sleep: (ms: number) => Promise<unknown>; mono: () => number;
+  },
+  { pollMs = 500, timeoutMs = 180_000 }: { pollMs?: number; timeoutMs?: number } = {},
+): Promise<ReturnType<typeof claimSiteRunning>> {
+  const started = mono();
+  while (true) {
+    const lease = claim({ dir, app, scheme });
+    if (lease.attached?.purpose !== "maintenance") return lease;
+    const remaining = timeoutMs - (mono() - started);
+    if (remaining <= 0) throw new Error("This website's storage maintenance has not finished. Try starting it again later.");
+    await sleep(Math.min(pollMs, remaining));
+  }
 }

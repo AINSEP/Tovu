@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import type { DirectoryRunningRecord } from "@jini-ai/platform/fs";
 import { createSitesWorkspace } from "../../sites-home.js";
-import { claimSiteRunning, readSiteRunning, runningSiteUrl } from "../../site-running.js";
+import { claimServingSite, claimSiteRunning, readSiteRunning, runningSiteUrl } from "../../site-running.js";
 
 function fixture(t: TestContext) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-running-")));
@@ -103,4 +103,49 @@ test("isHeld is true only for the claiming lease while its token is on the recor
   assert.equal(lease.isHeld(), true);
   lease.release();
   assert.equal(lease.isHeld(), false, "released");
+});
+
+test("server waits for maintenance then starts without a premature DB open", async (t) => {
+  const { dir, workspace } = fixture(t);
+  const maintenance = claimSiteRunning({ dir, app: "Web", purpose: "maintenance" }, { workspace, log: () => {} });
+  t.after(() => maintenance.release());
+  const order: string[] = [];
+  let elapsed = 0;
+  const lease = await claimServingSite({ dir, app: "Web", scheme: "http",
+    claim: required => { order.push("claim"); return claimSiteRunning(required, { workspace, log: () => {} }); },
+    sleep: async ms => { order.push("wait"); elapsed += ms; maintenance.release(); },
+    mono: () => elapsed,
+  }, {});
+  t.after(() => lease.release());
+  assert.equal(lease.attached, null);
+  assert.equal(lease.isHeld(), true);
+  order.push("open-db");
+  assert.deepEqual(order, ["claim", "wait", "claim", "open-db"]);
+  assert.equal(elapsed, 500);
+  const serve = fs.readFileSync(new URL("../../../../cli/commands/serve.ts", import.meta.url), "utf8");
+  const index = fs.readFileSync(new URL("../../../../index.ts", import.meta.url), "utf8");
+  assert.match(serve, /const runningLease = await claimServingSite\(/);
+  assert.ok(serve.indexOf("await claimServingSite(") < serve.indexOf("await bootSiteDir("));
+  assert.match(index, /const runningLease = useMemory \? undefined : await claimServingSite\(/);
+  assert.ok(index.indexOf("await claimServingSite(") < index.indexOf("await guardContentDbSchemaOrExit("));
+  lease.release();
+  const blocked = claimSiteRunning({ dir, app: "Web", purpose: "maintenance" }, { workspace, log: () => {} });
+  t.after(() => blocked.release());
+  let time = 0;
+  await assert.rejects(claimServingSite({ dir, app: "Web", scheme: "http",
+    claim: required => claimSiteRunning(required, { workspace, log: () => {} }),
+    sleep: async ms => { time += ms; }, mono: () => time,
+  }, { timeoutMs: 1000 }), /storage maintenance has not finished/);
+  assert.equal(time, 1000);
+});
+
+test("boot unaffected when preflight fails", async (t) => {
+  const { dir, workspace } = fixture(t);
+  const refusal = new Error("unreadable lease");
+  let sleeps = 0;
+  await assert.rejects(claimServingSite({ dir, app: "Web", scheme: "http",
+    claim: () => { throw refusal; }, sleep: async () => { sleeps += 1; }, mono: () => 0,
+  }, {}), error => error === refusal);
+  assert.equal(sleeps, 0);
+  assert.equal(readSiteRunning({ dir }, { workspace }), null);
 });

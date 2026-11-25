@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
+import { claimServingSite } from "../../../platform/site-dir/site-running.js";
 
 /**
  * @file Closes the "correct primitive, unwired call site" gap for `pinServedSiteDirIntoEnv`
@@ -231,7 +232,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   });
   // The running lease (1cffdf3cf) releases on a real process exit, which this test mocks away; each
   // scenario would otherwise find the previous one still "Running in Web".
-  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { attached: attached ? { port: 4320 } : null, ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
+  module("../../../platform/site-dir/site-running.ts", { claimServingSite, claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { attached: attached ? { port: 4320 } : null, ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
   module("../../../features/plugin-runtime/sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });

@@ -1,6 +1,7 @@
 import { reportSitesSyncWarning } from "../../platform/site-dir/sites-home.js";
 import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases.js";
-import { claimSiteRunning } from "../../platform/site-dir/site-running.js";
+import { claimServingSite, claimSiteRunning } from "../../platform/site-dir/site-running.js";
+import { setTimeout as sleep } from "node:timers/promises";
 import path from "node:path";
 
 import { createServingApp } from "../../server/runtime/composition/serving-app.js";
@@ -227,7 +228,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   const logFiles = serverLogFilePaths({ siteDir: target });
   attachServerLogFile({ filePath: logFiles.server }, { alsoRead: [logFiles.daemon] });
   pinPlainHttpIntoEnv();
-  const runningLease = claimSiteRunning({ dir: target, app: bootEnv.TOVU_RUNNING_APP === "Desktop" ? "Desktop" : "Web" });
+  const runningLease = await claimServingSite({ dir: target, app: bootEnv.TOVU_RUNNING_APP === "Desktop" ? "Desktop" : "Web", scheme: "http", claim: claimSiteRunning, sleep, mono: () => performance.now() });
   if (runningLease.attached) return;
   let bootResult: BootSiteDirResult;
   try { bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId }); }
