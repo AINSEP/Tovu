@@ -239,6 +239,8 @@ async function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[])
   const repo = new InMemoryVendorCredentialSetRepo({});
   for (const record of records) await repo.insert(record);
   return {
+    // f82b172d6 (A04): every composed credential repo carries Tovu's vault binding; the stores open through it.
+    credentialVault: repo.credentialVault,
     vault: new Proxy(repo.vault, { get(target, prop) {
       if (prop === "list") return target.list.bind(target);
       return () => { throw new Error("not used by this read-only test"); };
