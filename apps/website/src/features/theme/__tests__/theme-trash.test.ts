@@ -22,6 +22,7 @@ import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/featu
 import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createTrashModule } from "#src/server/runtime/composition/modules/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file `theme_trash` (2026-10-08) — whole-theme delete through the generic Trash: the folder moves
@@ -76,7 +77,7 @@ function harness(t: test.TestContext, options: { deny?: readonly string[]; renam
     idGen: { newId: () => `trash-${(sequence += 1)}` },
     transaction: ({ work }) => work(),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
   const deps: TrashThemeToolDeps = {
     workspaceId: WORKSPACE_ID,
     themesDir,

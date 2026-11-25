@@ -23,6 +23,7 @@ import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
 import { buildPermanentDeleteDeps } from "../permanent-delete-deps.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 
 async function setup() {
@@ -41,7 +42,7 @@ async function setup() {
     assertAccountAction: (required, optional) => identity.transactions.run({ workspaceId, execute: () => assertUserAccountAction({ ...required, deps: service }, { ...optional, seededOwnerPrincipalId: ownerId }) }),
   });
   const trash = createTrashService({ repo: trashRepo, adapters: new Map([["user", adapter]]), idGen,
-    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work), entityPolicy: ({ entityType }) => entityType === "user" });
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work), entityPolicy: ({ entityType }) => entityType === "user" }, { retentionDays: TRASH_RETENTION_DAYS });
   const authorize = withUserTrashAdminOverride({ base: async () => ({ allowed: true, reason: "grant" }), identity: service, workspaceId, seededOwnerPrincipalId: ownerId });
   const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: contentKernel({ store: db }), authorize };
   const permanent = buildPermanentDeleteDeps(routeDeps as unknown as Parameters<typeof buildPermanentDeleteDeps>[0]);

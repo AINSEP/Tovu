@@ -13,6 +13,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService, InMemoryTrashRepo } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 
 /**
@@ -157,7 +158,7 @@ for (const state of ["live", "missing", "denied"] as const) {
     const adapter = createTableTrashAdapter({ kernel: kernel, entry: registry.get("form")!, tables: TRASH_TABLES });
     const trash = createTrashService({ repo: new InMemoryTrashRepo({}), adapters: new Map([["form", adapter]]),
       idGen: { newId: () => "l128-trash" }, entityPolicy: ({ entityType }) => registry.has(entityType),
-      transaction: ({ work }) => kernel.transaction(work) });
+      transaction: ({ work }) => kernel.transaction(work) }, { retentionDays: TRASH_RETENTION_DAYS });
     const deps: TrashItemToolDeps = { workspaceId, registry, trash,
       postRepo: { findById: async () => { throw new Error("generic kinds must not read posts"); } },
       commentRepo: { findById: async () => { throw new Error("generic kinds must not read comments"); } },

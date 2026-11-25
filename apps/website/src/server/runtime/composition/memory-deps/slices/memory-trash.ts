@@ -7,7 +7,7 @@ import { composeMemoryTrashAdapters } from "../../memory-deps/slices/trash-adapt
 import { attachFormAttachmentPurge } from "../../memory-deps/slices/form-attachment-purge.js";
 import { createTrashService, bindRemoveEntity } from "@jini-ai/cms/trash";
 import { randomUUID } from "node:crypto";
-import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 import { composePluginRuntime } from "../../plugin-runtime.js";
 import { followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { InMemoryPostRepo } from "#src/features/post/index";

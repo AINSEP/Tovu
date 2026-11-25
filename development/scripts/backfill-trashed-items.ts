@@ -55,7 +55,7 @@ import type Database from "better-sqlite3";
 
 import { COMMENTS_PLUGIN_ID } from "@jini-ai/cms/comments";
 import { computePurgeAfter } from "../../apps/website/src/features/trash/index.js";
-import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
+import { TRASH_RETENTION_DAYS } from "../../apps/website/src/server/runtime/composition/trash-retention.js";
 import { openContentDb, openContentDbReadOnly } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
@@ -282,7 +282,7 @@ async function main(): Promise<void> {
     else console.log(`BACKFILLED: ${result.entityType} — ${result.rows} row(s) indexed.`);
   }
   const total = applied.reduce((sum, result) => sum + result.rows, 0);
-  console.log(`Done: ${total} row(s) indexed, purge_after = ${computePurgeAfter({ at: now })} (retention starts now, not retroactively).`);
+  console.log(`Done: ${total} row(s) indexed, purge_after = ${computePurgeAfter({ at: now }, { retentionDays: TRASH_RETENTION_DAYS })} (retention starts now, not retroactively).`);
 }
 
 // Only when run as a script — the exported `backfillTrashedItems` is imported by tests.

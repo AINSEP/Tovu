@@ -25,6 +25,7 @@ import { createTrashModule } from "../runtime/composition/modules/trash.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import type { RouteDeps } from "../routes/types.js";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file `POST /trash/items` -> HTTP 409 for a `TrashEntry.blocker` hit (T1 plan item 2). Pins the
@@ -64,7 +65,7 @@ function buildHarness(): Harness {
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
 
   const trashDeps: TrashRouteDeps = {
     workspaceId: base.workspaceId,

@@ -15,6 +15,7 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import type { TrashAdapter, TrashItem } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file The Trash index row's fate when a post delete is UNDONE.
@@ -77,7 +78,7 @@ function harness(): Harness {
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   return {
     client,

@@ -15,6 +15,7 @@ import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService, type TrashEntry } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file `createTableTrashAdapter` against real SQLite (Batch G1b).
@@ -368,7 +369,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const trashed = await trash.trash({
     workspaceId: WS,
@@ -452,7 +453,7 @@ test("status marker: through createTrashService, trash records priorMarker and r
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   const trashed = await trash.trash({
     workspaceId: WS,

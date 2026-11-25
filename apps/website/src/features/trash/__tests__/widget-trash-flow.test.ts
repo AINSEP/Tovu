@@ -26,6 +26,7 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file A `widget` moved to the Trash through the widgets domain's own delete (`trashWidgetInstance`,
@@ -77,7 +78,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (transaction)(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   const entries = entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
   const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,

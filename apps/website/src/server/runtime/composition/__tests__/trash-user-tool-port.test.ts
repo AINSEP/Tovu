@@ -24,6 +24,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "#src/server/inbound/admin-http/routes/users/deps";
 import { bindTrashUserForTool } from "../trash-user-tool-port.js";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 
 /**
@@ -62,7 +63,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
     idGen: { newId: nextTrashId },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work),
     entityPolicy: ({ entityType }) => entityType === USER_ENTITY_TYPE,
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
 
   const deps: UsersRouteDeps = {
     workspaceId: WORKSPACE_ID,

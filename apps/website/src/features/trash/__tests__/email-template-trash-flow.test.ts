@@ -17,6 +17,7 @@ import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { filterVisibleTrashItems, mayActOnEntityType } from "../permissions.js";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /** Chrome Email T3: real Pages storage and the registered Trash lifecycle, including restore. */
 const WS = "ws-email-trash";
@@ -42,7 +43,7 @@ function harness(_required = {}, _options = {}) {
   const trash = createTrashService({
     repo: new SqliteTrashRepo({ store: kernel }), adapters, idGen: { newId: () => `trash-${++sequence}` },
     transaction: ({ work }) => transaction(work), entityPolicy: ({ entityType }) => adapters.has(entityType),
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
   const granted = new Set(["pages.edit_html"]);
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: granted.has(permission), reason: "test grant" });
   const routeDeps = { workspaceId: WS, registry, trash, db: trashDb, authorize, clock };

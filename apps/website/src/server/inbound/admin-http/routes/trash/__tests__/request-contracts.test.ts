@@ -19,6 +19,7 @@ import { toAdminTrashResponse } from "@jini-ai/cms/admin-http/http/trash";
 import { registerAdminTrashMoveToTrashRoute } from "#src/server/runtime/composition/modules/trash";
 import { registerAdminTrashPurgeRoute } from "#src/server/runtime/composition/modules/trash";
 import { registerAdminTrashRestoreRoute } from "#src/server/runtime/composition/modules/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 const base = "/api/admin/v1/workspaces/:workspaceId/trash";
 const now = "2026-10-01T12:00:00.000Z";
@@ -118,7 +119,7 @@ test("purge returns 200 for referenced media and continues purging later selecte
   const trash = createTrashService({ repo, adapters: new Map([["media", adapter]]),
     idGen: { newId: () => `row-${++id}` }, entityPolicy: () => true,
     transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
-  });
+  }, { retentionDays: TRASH_RETENTION_DAYS });
   for (const entityId of ["media-used", "media-free"]) {
     await trash.trash({ workspaceId: "ws-7", entityType: "media", entityId, actor: { principalId: "principal-7" },
       display: { title: entityId }, at: now, expectedVersion: 1 });

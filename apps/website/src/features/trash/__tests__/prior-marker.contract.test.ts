@@ -7,6 +7,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashMarkerResult, TrashPort } from "@jini-ai/cms/trash";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file `priorMarker` (migration 0072) round-trips through the generic Trash store: `trash()`
@@ -56,7 +57,7 @@ function harness(
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (new Map([[STUB_ENTITY_TYPE, adapter]])).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   return { trash, client };
 }
 

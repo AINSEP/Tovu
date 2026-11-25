@@ -17,6 +17,7 @@ import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinA
 import { trashUser } from "../trash-user-binding.js";
 import { UserDeleteUnsupportedError } from "@jini-ai/user-management/identity/user-purge-types";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file RED-first coverage for `trashUser` (delete-user plan v2 Slice 2, and the OWNER DECISION
@@ -88,7 +89,7 @@ async function setup(workspaceId: string): Promise<Fixture> {
     idGen: { newId: () => (counterTrashIdGen()).next() },
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]])).has(entityType)
-  }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
+  }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   const isInTrash = async ({ principalId }: { principalId: string }): Promise<boolean> =>
     (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
