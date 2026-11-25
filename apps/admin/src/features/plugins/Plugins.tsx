@@ -13,7 +13,7 @@ import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
 import { AddPluginPanel } from "./AddPluginPanel";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
-import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "@jini-ai/admin/screens/plugins/plugins-visuals";
+import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
 import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 

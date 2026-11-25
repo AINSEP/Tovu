@@ -2,7 +2,7 @@ import { act, fireEvent, waitFor } from "@testing-library/react";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
-import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
+import { AgentPluginSurfaceFrame } from "../AgentPluginSurfaceFrame";
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";

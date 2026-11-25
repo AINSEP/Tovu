@@ -9,7 +9,7 @@ import {
 } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import {
   DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginChevronIcon, PluginPackageIcon, PluginTrashIcon,
-} from "@jini-ai/admin/screens/plugins/plugins-visuals";
+} from "../plugins-visuals";
 
 /** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
  *  mounts once at its root; each render here mounts the app's own kit the same way. */
