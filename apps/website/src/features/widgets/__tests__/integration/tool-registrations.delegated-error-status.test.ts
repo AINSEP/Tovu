@@ -9,6 +9,8 @@ import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryPostRepo } from "#src/features/post/index";
+import { updatePost } from "#src/features/post/post-update";
+import { restorePostForward } from "#src/features/post/post-trash";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
@@ -52,6 +54,8 @@ function makeRouteDeps(): WidgetsToolDeps {
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: new InMemoryPostRepo({}),
+    // A14 (cc1db295f): the host binds the live editor's post writes, as production composition does.
+    widgetPostWrites: { updatePost, restorePostForward },
     forgetRemovedPost: async () => {},
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
