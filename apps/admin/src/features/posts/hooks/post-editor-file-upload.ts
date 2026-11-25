@@ -2,7 +2,7 @@ import type { Editor } from "@tiptap/react";
 import { type Translate, interpolate } from "@jini-ai/core/text";
 import { readFileAsDataUrl } from "../rules";
 import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
-import type { PostEditorPort } from "./post-editor-port.hooks";
+import type { PostEditorPort } from "./post-editor-dependencies.hooks";
 
 /**
  * @file Drag-and-drop and paste upload for the post editor's `FileHandler`: the advisory MIME

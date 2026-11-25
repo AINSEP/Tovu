@@ -1,9 +1,13 @@
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
+import { dockerfileLineCountLabel } from "@jini-ai/admin/deployment/deployment-i18n";
+import { downloadDockerfile } from "../deployment-panel";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockerfileTab } from "../DockerfileTab";
-import type { DockerfileSourceController } from "../hooks/use-dockerfile-source.hooks";
+import { DockerfileTab } from "@jini-ai/devops/deploy/react/DockerfileTab";
+import type { DockerfileSourceController } from "@jini-ai/devops/deploy/react/hooks/use-dockerfile-source.hooks";
 
 /**
  * @file `DockerfileTab` — driven through the `useDockerfileSourceHook` DI seam, same convention
@@ -54,13 +58,13 @@ afterEach(() => {
 
 describe("loading and error states", () => {
   it("shows a loading notice while snapshot is undefined", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ snapshot: undefined })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ snapshot: undefined })} />);
     expect(screen.getByText("Loading Dockerfile…")).toBeInTheDocument();
   });
 
   it("shows the error alone when nothing has ever loaded", () => {
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() => controllerFixture({ snapshot: undefined, error: "disk error" })}
       />,
     );
@@ -72,7 +76,7 @@ describe("loading and error states", () => {
 describe("no Dockerfile yet", () => {
   it("renders the honest empty-state block AND an editable box to write one, not a dead end", () => {
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() =>
           controllerFixture({ snapshot: { exists: false, contents: null, etag: 'W/"missing"' }, draft: "" })
         }
@@ -94,7 +98,7 @@ describe("no Dockerfile yet", () => {
 
   it("Save is enabled once the operator has typed something, even before it's saved", () => {
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() =>
           controllerFixture({ snapshot: { exists: false, contents: null, etag: 'W/"missing"' }, draft: "FROM node:22\n", isDirty: true })
         }
@@ -108,7 +112,7 @@ describe("no Dockerfile yet", () => {
 
 describe("an existing Dockerfile", () => {
   it("shows the real contents in a real, editable textarea — not a read-only <pre>", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture()} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture()} />);
     const textarea = screen.getByRole("textbox", { name: "Dockerfile contents" });
     expect(textarea).toHaveValue("FROM node:22\n");
     expect(
@@ -122,56 +126,56 @@ describe("an existing Dockerfile", () => {
   it("typing in the textarea calls the injected setDraft with the new value — the hook owns the actual state, not the component", async () => {
     const user = userEvent.setup();
     const setDraft = vi.fn();
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ setDraft })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ setDraft })} />);
 
     await user.type(screen.getByRole("textbox", { name: "Dockerfile contents" }), "X");
     expect(setDraft).toHaveBeenCalledWith("FROM node:22\nX");
   });
 
   it("no Unsaved-changes pill and no Saved confirmation when nothing has changed", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture()} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture()} />);
     expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
   });
 
   it("shows the Unsaved-changes pill when the controller reports isDirty", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ isDirty: true })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ isDirty: true })} />);
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
   });
 
   it("clicking Save calls the injected save() and disables the button while saving", async () => {
     const user = userEvent.setup();
     const save = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ save })} />);
+    const { rerender } = render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ save })} />);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(save).toHaveBeenCalledTimes(1);
 
-    rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ save, saving: true })} />);
+    rerender(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ save, saving: true })} />);
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
 
   it("shows a Saved confirmation when the controller reports saved=true", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saved: true })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ saved: true })} />);
     expect(screen.getByText("Saved")).toBeInTheDocument();
   });
 
   it("surfaces a save failure as an alert, distinct from a load error", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
     expect(screen.getByRole("alert")).toHaveTextContent("disk full");
   });
 
   it("clicking Copy calls the injected copy() — the actual clipboard write is the hook's own job, not this component's", async () => {
     const user = userEvent.setup();
     const copy = vi.fn().mockResolvedValue(undefined);
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ copy })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ copy })} />);
 
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(copy).toHaveBeenCalledTimes(1);
   });
 
   it("shows Copied! instead of Copy whenever the controller reports copied=true — the label is driven by the hook's own state, not a second un-synced local flag", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ copied: true })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ copied: true })} />);
     expect(screen.getByRole("button", { name: "Copied!" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
   });
@@ -184,7 +188,7 @@ describe("an existing Dockerfile", () => {
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ draft })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ draft })} />);
     await user.click(screen.getByRole("button", { name: "Download" }));
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
@@ -210,7 +214,7 @@ describe("an existing Dockerfile", () => {
 describe("save conflict (412, Terra audit finding C5)", () => {
   it("renders the conflict's current contents INSTEAD OF a generic save error, even when both are set on the fixture", () => {
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() =>
           controllerFixture({
             saveConflict: { exists: true, contents: "FROM node:22\n# a concurrent human edit\n" },
@@ -233,7 +237,7 @@ describe("save conflict (412, Terra audit finding C5)", () => {
 
   it("reports the deletion case distinctly when saveConflict.exists is false", () => {
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() => controllerFixture({ saveConflict: { exists: false, contents: null } })}
       />,
     );
@@ -241,7 +245,7 @@ describe("save conflict (412, Terra audit finding C5)", () => {
   });
 
   it("does not render any conflict block when saveConflict is null, even with a real saveError set", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
     expect(screen.queryByText("Load the current version")).not.toBeInTheDocument();
     expect(screen.getByText("disk full")).toBeInTheDocument();
   });
@@ -250,7 +254,7 @@ describe("save conflict (412, Terra audit finding C5)", () => {
     const user = userEvent.setup();
     const reloadAfterConflict = vi.fn().mockResolvedValue(undefined);
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() =>
           controllerFixture({
             saveConflict: { exists: true, contents: "FROM node:22\n# concurrent\n" },
@@ -266,7 +270,7 @@ describe("save conflict (412, Terra audit finding C5)", () => {
 
   it("leaves the operator's own draft in the textarea untouched while a conflict is showing", () => {
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() =>
           controllerFixture({
             draft: "FROM node:22\nRUN my own in-progress edit\n",
@@ -284,7 +288,7 @@ describe("agent handles", () => {
   // `data-agent-element` querying convention `PostEditor.unit.test.tsx` uses for its own handles.
   // Guards against a handle silently rotting (renamed, removed, or a typo) with nothing catching it.
   it("tags the editor card, Copy, Download, Save and the textarea on an existing Dockerfile", () => {
-    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture()} />);
+    render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture()} />);
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-editor-card"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-copy"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-download"]')).toBeInTheDocument();
@@ -302,7 +306,7 @@ describe("agent handles", () => {
 
   it("tags the empty-state region when no Dockerfile exists yet", () => {
     render(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() => controllerFixture({ snapshot: { exists: false, contents: null, etag: 'W/"missing"' }, draft: "" })}
       />,
     );
@@ -312,22 +316,22 @@ describe("agent handles", () => {
   });
 
   it("tags the unsaved-changes, saved, and save-error indicators only while each condition holds", () => {
-    const { rerender } = render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ isDirty: true })} />);
+    const { rerender } = render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ isDirty: true })} />);
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-unsaved"]')).toBeInTheDocument();
 
-    rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saved: true })} />);
+    rerender(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ saved: true })} />);
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-saved"]')).toBeInTheDocument();
 
-    rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
+    rerender(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-save-error"]')).toBeInTheDocument();
   });
 
   it("tags the conflict block and its reload button only while saveConflict holds, and NOT the plain save-error handle at the same time", () => {
-    const { rerender } = render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture()} />);
+    const { rerender } = render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture()} />);
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-conflict"]')).not.toBeInTheDocument();
 
     rerender(
-      <DockerfileTab
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDockerfileSourceHook={() =>
           controllerFixture({ saveConflict: { exists: true, contents: "FROM node:22\n# concurrent\n" } })
         }
@@ -340,11 +344,11 @@ describe("agent handles", () => {
 
   it("tags the load-error banner whether or not a snapshot ever loaded", () => {
     const { rerender } = render(
-      <DockerfileTab useDockerfileSourceHook={() => controllerFixture({ snapshot: undefined, error: "disk error" })} />,
+      <DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ snapshot: undefined, error: "disk error" })} />,
     );
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-load-error"]')).toBeInTheDocument();
 
-    rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ error: "stale refresh failed" })} />);
+    rerender(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ error: "stale refresh failed" })} />);
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-load-error"]')).toBeInTheDocument();
   });
 });

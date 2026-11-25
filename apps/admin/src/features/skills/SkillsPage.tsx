@@ -10,8 +10,8 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PackageFilesModal } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
 import { SKILL_INSTALL_CONFIRMATION_HOST, SKILLS_HOST_CLASSNAMES } from "./skill-install-confirmation-host";
 import { SKILL_FAILURE_HOST } from "./skill-failure-host";
-import { useSkillFilesModal } from "./use-skill-files.hooks";
-import { useSkills } from "./use-skills.hooks";
+import { useSkillFilesModal } from "./skills-host.hooks";
+import { useSkills } from "./skills-host.hooks";
 
 const SKILLS_COMPONENTS = { PlainTextBlocks, PackageFilesModal, InstallTabCard, InstallTabOption, InstallTabFieldRow };
 

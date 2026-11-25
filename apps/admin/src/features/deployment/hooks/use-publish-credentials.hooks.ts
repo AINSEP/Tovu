@@ -18,7 +18,7 @@ import {
   credentialsForProvider,
   defaultCredentialForProvider,
   withPromotedDefault,
-} from "../rules";
+} from "@jini-ai/devops/deploy/react/rules";
 import { defaultPublishCredentialsPort } from "./publish-credentials-dependencies.hooks";
 import type { PublishCredentialsPort } from "@jini-ai/admin/deployment/host/hooks/publish-credentials-port.hooks";
 
@@ -300,7 +300,7 @@ export function usePublishCredentials(
       const error = credentialDraftError({ value: values[spec.tokenField] ?? '' }, { locale, required: !defaultCredentialForProvider({ credentials: credentials ?? [], providerId }) });
       if (error) { patchRow({ providerId, patch: current => ({ ...current, error }) }); return false; }
     }
-    return spec !== undefined && credentialFormReadyToSave(spec, values) && !savingRef.current.has(providerId);
+    return spec !== undefined && credentialFormReadyToSave({ spec: spec, values: values }) && !savingRef.current.has(providerId);
   }
 
   async function save(providerId: AdminPublishCredentialProviderId) {

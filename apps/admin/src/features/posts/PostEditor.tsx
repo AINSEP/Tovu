@@ -1,14 +1,26 @@
+import { Icon } from "@jini-ai/ui";
+import { siteUrl } from "../../lib/site-url";
+import { VIEW_TABS } from "@jini-ai/admin/posts/view-tabs";
+import { resolveTabBarTabIndex } from "@jini-ai/ui/tab-strip";
+import { DevicePreviewToggle } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewToggle";
+import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
+import { usePreviewPaneWidth } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
+import { usePostPreviewIframeEscape } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
+import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import { PostEditorToolbarEnd } from "./editor/header/PostEditorToolbarEnd";
+import { resolvePostPreviewBranches } from "./rules";
 import { useCallback } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import type { PostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 
-import { PostEditorActions } from "./editor/header/PostEditorActions";
-import { PostEditorHeader } from "./editor/header/PostEditorHeader";
+import { PostEditorActions } from "@jini-ai/cms/react/posts/editor/header/PostEditorActions";
+import { PostEditorHeader } from "@jini-ai/cms/react/posts/editor/header/PostEditorHeader";
 import { PostEditorSlugCollisionWarning } from "@jini-ai/cms/react/posts/editor/notices/PostEditorSlugCollisionWarning";
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
-import { PostPreview } from "./editor/preview/PostPreview";
+import { PostPreview } from "@jini-ai/cms/react/posts/editor/preview/PostPreview";
 import { PostEditorTemplateModalGate } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
-import { PostEditorViewBar } from "./editor/view-bar/PostEditorViewBar";
+import { PostEditorViewBar } from "@jini-ai/cms/react/posts/editor/view-bar/PostEditorViewBar";
 import { PostDeleteConfirmDialog } from "@jini-ai/admin/posts/editor/PostDeleteConfirmDialog";
 import { PostEditorBody } from "./editor/PostEditorBody";
 import { PostSavedPanels } from "./editor/PostSavedPanels";
@@ -84,16 +96,16 @@ export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPost
 
   return (
     <div className="page content-editor-page">
-      <PostEditorHeader {...screen.header} />
+      <PostEditorHeader {...screen.header} Icon={Icon} siteUrl={siteUrl} />
 
       <PostEditorNotices {...screen.notices} />
       {/* Edit/Preview toolbar and the template picker — see `PostEditorViewBar`. */}
-      <PostEditorViewBar {...screen.viewBar} />
+      <PostEditorViewBar {...screen.viewBar} DevicePreviewToggle={DevicePreviewToggle} viewTabs={VIEW_TABS} resolveTabBarTabIndex={resolveTabBarTabIndex} PostEditorToolbarEnd={PostEditorToolbarEnd} />
 
       {/* Directly under the toolbar, not in the header — see `PostEditorActions`' own doc. Placed
           ABOVE the slug-collision warning so the row keeps the position the owner asked for
           (immediately below the toolbar) whether or not that conditional notice is showing. */}
-      <PostEditorActions {...screen.actions} />
+      <PostEditorActions {...screen.actions} Icon={Icon} />
       {/* Author, scheduled publishing and featured image (2026-10-05) used to be two rows here; they
           moved into the gear's modal (owner, 2026-10-10). The featured image left the modal again
           for the cover slot above the title (owner, 2026-10-11). */}
@@ -107,7 +119,7 @@ export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPost
         // moved out of this component. `editor` itself is no longer needed here (2026-09-11 — the
         // raw editor-buffer fallback that used to read `editor.getHTML()` was removed, see
         // `PostPreview`'s own doc).
-        <PostPreview {...screen.preview} />
+        <PostPreview {...screen.preview} DevicePreviewFrame={DevicePreviewFrame} usePreviewPaneWidthHook={usePreviewPaneWidth} resolvePostPreviewBranches={resolvePostPreviewBranches} sandbox={PAGE_PREVIEW_IFRAME_SANDBOX} usePostPreviewIframeEscapeHook={usePostPreviewIframeEscape} useThemePreviewFrameHook={useThemePreviewFrame} />
       ) : (
         <PostEditorBody {...screen.body} cover={<PostCoverImage {...screen.cover} bindings={postCoverBindings} useFeaturedImage={useWiredPostFeaturedImage} />} />
       )}

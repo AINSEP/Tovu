@@ -1,10 +1,13 @@
+import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
+import { ApiError } from "@/lib/admin-http/request";
+import { publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { Editor } from "@tiptap/react";
 import type { Translate } from "@jini-ai/core/text";
 
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
-import { POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure } from "./post-editor-messages";
+import { POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure } from "@jini-ai/cms/react/posts/hooks/post-editor-messages";
 
 /**
  * @file Puts a loaded post row into the post editor's live TipTap instance — the half of
@@ -76,7 +79,7 @@ export function useLoadedPostApply(
       const refused = current.t(POST_NOT_LOADED_SAVE_REFUSED);
       current.setError((shown) => (shown === refused ? null : shown));
     } catch (e) {
-      current.setError(reportPostLoadFailure({ error: e, t: current.t }));
+      current.setError(reportPostLoadFailure({ error: e, t: current.t, isUnexpectedServerFailure, isApiError: (error): error is ApiError => error instanceof ApiError, publishLocalFailure: publishLocalAdminFailure }));
     }
   }
   function takeLoadedRow(row: LoadedPostRow): void {

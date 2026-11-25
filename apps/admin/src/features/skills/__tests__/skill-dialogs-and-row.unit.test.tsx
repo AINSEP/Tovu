@@ -1,11 +1,11 @@
 import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { useSkills } from "../use-skills.hooks";
+import { useSkills } from "../skills-host.hooks";
 import { ApiError } from "@/lib/admin-http/request";
 import userEvent from "@testing-library/user-event";
 import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { useSkillInstall as useRealSkillInstall } from "../use-skill-install.hooks";
+import { useSkillInstall as useRealSkillInstall } from "../skills-host.hooks";
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SkillRow } from "@jini-ai/admin/screens/skills/SkillRow";
@@ -13,9 +13,9 @@ import { PlainTextBlocks } from "@jini-ai/admin/shell/components/PlainTextBlocks
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
 import { SKILL_INSTALL_CONFIRMATION_HOST, SKILLS_HOST_CLASSNAMES } from "../skill-install-confirmation-host";
 import { SkillRemoveConfirmDialog } from "@jini-ai/admin/screens/skills/SkillRemoveConfirmDialog";
-import type { SkillsController } from "../use-skills.hooks";
+import type { SkillsController } from "@jini-ai/agentic/react/skills/use-skills.hooks";
 import type { SkillRowView } from "@jini-ai/admin/screens/skills/skills-screen.types";
-import type { useSkillInstall } from "../use-skill-install.hooks";
+import type { useSkillInstall } from "../skills-host.hooks";
 
 /**
  * The three render-only Skills pieces, driven from their view-model props. `Skills.unit.test.tsx`

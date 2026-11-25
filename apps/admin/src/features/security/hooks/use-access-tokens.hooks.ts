@@ -11,7 +11,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
-import { withPromotedDefault } from "../../deployment/rules";
+import { withPromotedDefault } from "@jini-ai/devops/deploy/react/rules";
 import { tSecurity as defaultT } from "../../../lib/i18n-common";
 import { accessTokenDuplicateNameMessage, accessTokenMakeDefaultErrorMessage, accessTokenRemoveErrorMessage, accessTokenSaveErrorMessage, accessTokensLoadErrorMessage } from "@jini-ai/admin/security/security-i18n";
 import { ACCESS_TOKENS_RESOURCE, ACCESS_TOKEN_CATEGORIES } from "../rules";
@@ -20,10 +20,10 @@ import { type AccessTokenKind, type AccessTokenRowCategoryId, accessTokenNameTak
 import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError } from "../access-token-forms";
 import { type AccessTokenFormFields as CredentialAccessTokenFormFields, accessTokenProviderInfo, accessTokenProviders, accessTokenProvidersWithSavedRows, accessTokenRowProviderInfo, type AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "@jini-ai/admin/security/custom-credential-forms";
-import { sourceControlProviderInfoFromDescriptor } from "../../source-control/rules";
+import { sourceControlProviderInfoFromDescriptor } from "@jini-ai/devops/source-control/react/rules";
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
-import { PUBLISH_CREDENTIAL_ROW_LABEL } from "@/features/deployment/rules";
-import { SOURCE_CONTROL_CREDENTIAL_ROW_LABEL } from "@/features/source-control/rules";
+import { PUBLISH_CREDENTIAL_ROW_LABEL } from "@jini-ai/devops/deploy/react/rules";
+import { SOURCE_CONTROL_CREDENTIAL_ROW_LABEL } from "@jini-ai/devops/source-control/react/rules";
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
 
@@ -393,7 +393,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     // Each host's own text (labels, guidance, extra-field labels) in the viewer's locale.
     () =>
       accessTokenProviders(
-        { publishTargets: localizePublishTargets({ targets: publishTargetsQuery.data, locale }), copy: ACCESS_TOKEN_PROVIDER_COPY, sourceControlProviderInfo: sourceControlProviderInfoFromDescriptor },
+        { publishTargets: localizePublishTargets({ targets: publishTargetsQuery.data, locale }), copy: ACCESS_TOKEN_PROVIDER_COPY, sourceControlProviderInfo: descriptor => sourceControlProviderInfoFromDescriptor({ descriptor }) },
         { sourceControlProviders: sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders({ providers: sourceControlProvidersQuery.data, locale }) }
       ),
     [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]

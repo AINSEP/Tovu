@@ -1,3 +1,8 @@
+import { Icon } from "@jini-ai/ui";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
+import { copy } from "@/features/deployment/deployment-host-policy";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
+import { STATIC_SITE_CAPABILITIES } from "@/features/deployment/deployment-host-policy";
 import { createStaticSiteTabTranslator } from "./StaticSiteTab.hooks";
 import { useWiredCopyToClipboard } from "@jini-ai/ui";
 import { CredentialHint } from "@/components/CredentialHint";
@@ -16,7 +21,6 @@ import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
 import { t } from "./deployment-host-i18n";
 import {
-  STATIC_SITE_CAPABILITIES,
   credentialFieldHandleId,
   credentialFormReadyToSave,
   exportRunStatusLabelKey,
@@ -27,8 +31,8 @@ import {
   publishRunStatusLabelKey,
   runStatusTone,
   credentialVerifyStatusClass,
-} from "./rules";
-import { CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
+} from "@jini-ai/devops/deploy/react/rules";
+import { CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "@jini-ai/devops/deploy/react/deployment-visuals";
 import { PublishRunResult } from "@jini-ai/devops/deploy/react";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
 import type { StaticExportController } from "./hooks/use-static-export.hooks";
@@ -458,7 +462,7 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
         <div className="card-head">
           <div className="deployment-path-head">
             <span className="deployment-path-icon">
-              <StaticSiteIcon />
+              <StaticSiteIcon lineIcon={LINE_ICON} />
             </span>
             <h2 className="card-title">{t({ locale: locale, key: "What a static export gives you" })}</h2>
           </div>
@@ -473,7 +477,7 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
           <div className="deployment-split">
             <div>
               <span className="deployment-fact-label">{t({ locale: locale, key: "What survives the export" })}</span>
-              <CapabilityList rows={STATIC_SITE_CAPABILITIES} t={translate} />
+              <CapabilityList lineIcon={LINE_ICON} rows={STATIC_SITE_CAPABILITIES} t={translate} />
             </div>
             <div>
               <span className="deployment-fact-label">{t({ locale: locale, key: "Where it runs" })}</span>
@@ -764,7 +768,7 @@ function PublishCredentialFields({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
-  const readyToSave = credentialFormReadyToSave(row.credential, row.values);
+  const readyToSave = credentialFormReadyToSave({ spec: row.credential, values: row.values });
 
   return (
     <>
@@ -800,7 +804,7 @@ function PublishCredentialFields({
 /** A field's label: the descriptor's own (a host term, rendered verbatim) plus the translated
  *  "(optional)" suffix when the field is optional. */
 function FieldLabel({ field, htmlFor, t: translate }: { field: AdminPublishTargetField; htmlFor: string; t: Translate }) {
-  const { label, suffixKey } = fieldLabelParts(field);
+  const { label, suffixKey } = fieldLabelParts({ field: field });
   return (
     <label className="field-label" htmlFor={htmlFor}>
       {label}
@@ -825,7 +829,7 @@ function CredentialFieldInput({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
-  const id = credentialFieldHandleId({ providerId: row.providerId, fieldName: field.name, tokenField: row.credential.tokenField });
+  const id = credentialFieldHandleId({ asciiSlug, providerId: row.providerId, fieldName: field.name, tokenField: row.credential.tokenField });
   const isToken = field.name === row.credential.tokenField;
   return (
     <div className="field">
@@ -912,7 +916,7 @@ function CredentialStepTodo({
           <h3 className="deployment-step-title">
             {translate("Connect")} <span translate="no">{row.label}</span>
           </h3>
-          <p className="deployment-step-subtitle">{credentialStepSubtitle({ executionMode, credential: row.credential, translate })}</p>
+          <p className="deployment-step-subtitle">{credentialStepSubtitle({ copy, executionMode, credential: row.credential, translate })}</p>
         </div>
       </div>
       <PublishCredentialFields row={row} controller={controller} t={translate} />
@@ -1009,7 +1013,7 @@ function CredentialStepDone({
     >
       <summary className="deployment-step-summary">
         <span className="deployment-step-marker deployment-step-marker-done" aria-hidden="true">
-          <StepDoneIcon />
+          <StepDoneIcon lineIcon={LINE_ICON} Icon={Icon} />
         </span>
         <span className="deployment-step-summary-text">
           <TemplateWithNode template={translate("{host} connected")} token="{host}">
@@ -1030,7 +1034,7 @@ function CredentialStepDone({
         <CredentialVerifyAction row={row} controller={controller} t={translate} />
         <span className="deployment-step-summary-action">
           {translate("Replace token")}
-          <DisclosureChevron />
+          <DisclosureChevron lineIcon={LINE_ICON} Icon={Icon} />
         </span>
       </summary>
       <CredentialTokenPicker row={row} controller={controller} t={translate} />
@@ -1082,7 +1086,7 @@ function CredentialVerifyAction({
         {row.verifying ? translate("Verifying…") : translate("Verify")}
       </button>
       {statusText ? (
-        <span aria-live="polite" className={credentialVerifyStatusClass(row)}>
+        <span aria-live="polite" className={credentialVerifyStatusClass({ row: row })}>
           {statusText}
         </span>
       ) : null}
@@ -1169,7 +1173,7 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
   return (
     <>
       {target.configFields.map((field) => {
-        const id = publishConfigFieldHandleId({ fieldName: field.name });
+        const id = publishConfigFieldHandleId({ asciiSlug, fieldName: field.name });
         return (
           <div className="field" key={field.name}>
             <FieldLabel field={field} htmlFor={id} t={translate} />

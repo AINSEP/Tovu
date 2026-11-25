@@ -3,7 +3,7 @@ import { File as NativeFile } from "node:buffer";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { SkillInstallPayload } from "@jini-ai/core/contracts/site/skill-install";
-import { useSkillInstall } from "../use-skill-install.hooks";
+import { useSkillInstall } from "../skills-host.hooks";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -189,4 +189,13 @@ it("an obsolete successful file read cannot replace a new proposal", async () =>
   act(() => result.current.propose(replacement));
   await act(async () => { read.resolve(Uint8Array.of(115).buffer); await completion; });
   expect(result.current.pending).toEqual(replacement);
+});
+
+it("proposing through the host sends nothing until one confirmed install", async () => {
+  const requests = installEndpoint();
+  const { result } = renderHook(() => useSkillInstall());
+  act(() => result.current.propose(proposal));
+  expect(requests).toEqual([]);
+  await act(async () => { await result.current.confirm(); });
+  expect(requests).toEqual([{ ...proposal, confirmed: true }]);
 });

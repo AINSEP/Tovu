@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ADMIN_LOCALES } from '@tovu/contracts/admin-locales';
 import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 import { credentialDraftError, storedCredentialHint } from '../credential-copy';
-import { buildSourceControlConnectionInput } from '../../features/source-control/rules';
-import { buildCredentialConnectionInput } from '../../features/deployment/rules';
+import { buildSourceControlConnectionInput } from '@jini-ai/devops/source-control/react/rules';
+import { buildCredentialConnectionInput } from '@jini-ai/devops/deploy/react/rules';
 import { describeStoredCredentials, toAccessTokenWriteBody } from '../../features/settings/hooks/use-external-mcp.hooks';
 import type { AdminExternalMcpServer } from '@jini-ai/core/contracts/site/cms-external-mcp';
 

@@ -14,7 +14,7 @@ import { useCopyKeys } from "@jini-ai/admin/security/host/hooks/use-copy-keys.ho
 import { copyKeysHostPolicy } from "../hooks/copy-keys-dependencies.hooks";
 import { accessTokenProviderInfo, accessTokenProviders } from "@jini-ai/admin/security/access-token-providers";
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
-import { sourceControlProviderInfoFromDescriptor } from "../../source-control/rules";
+import { sourceControlProviderInfoFromDescriptor } from "@jini-ai/devops/source-control/react/rules";
 
 /**
  * @file Regression coverage for the owner-reported bug: this page's search box was filling itself
@@ -133,7 +133,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
     { descriptor: { ...CLOUDFLARE_PAGES_TARGET, credential: { tokenField: "token", fields: [] } }, label: "Access token" },
     { descriptor: CLOUDFLARE_PAGES_TARGET, label: "API token" },
   ])("labels the secret input exactly '$label'", ({ descriptor, label }) => {
-    const info = accessTokenProviderInfo({ copy: ACCESS_TOKEN_PROVIDER_COPY, providers: accessTokenProviders({ publishTargets: [descriptor], copy: ACCESS_TOKEN_PROVIDER_COPY, sourceControlProviderInfo: sourceControlProviderInfoFromDescriptor }, { sourceControlProviders: [] }), ref: { kind: "publish", providerId: "cloudflare-pages" } });
+    const info = accessTokenProviderInfo({ copy: ACCESS_TOKEN_PROVIDER_COPY, providers: accessTokenProviders({ publishTargets: [descriptor], copy: ACCESS_TOKEN_PROVIDER_COPY, sourceControlProviderInfo: descriptor => sourceControlProviderInfoFromDescriptor({ descriptor }) }, { sourceControlProviders: [] }), ref: { kind: "publish", providerId: "cloudflare-pages" } });
     render(<AccessTokensTab
       useAccessTokensHook={() => makeAccessTokens({
         groups: [{

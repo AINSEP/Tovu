@@ -4,11 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourceControl } from "../source-control-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
+import { useSourceControlCredentials } from "@/features/source-control/hooks/source-control-credentials-dependencies.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
-import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
+import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "@jini-ai/devops/source-control/react/hooks/use-source-control-credentials.hooks";
 import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@jini-ai/admin/source-control/api/source-control-api.types";
-import { sourceControlProviders, type SourceControlProviderInfo } from "../rules";
+import { sourceControlProviders, type SourceControlProviderInfo } from "@jini-ai/devops/source-control/react/rules";
 import { FORGE_PROVIDER, GITHUB_PROVIDER } from "./source-control-providers.fixture";
 
 /** Three listed hosts: GitHub, Codeberg (token only), Forge (token plus a required username). */
@@ -484,3 +484,25 @@ describe("SourceControl — Providers tab says why no host is listed", () => {
   });
 });
 
+
+it("the real panel keeps an unlisted saved provider connected with its hint and no form", async () => {
+  const saved = savedCredential({ providerId: "retired-forge", tokenHint: { length: 24, last4: "sAv4" } });
+  vi.stubGlobal("fetch", async (url: RequestInfo | URL) => {
+    const path = String(url);
+    if (path.includes("/settings/effective")) return Response.json({ data: [] });
+    if (path.endsWith("/system/source-control/providers")) return Response.json({ providers: [GITHUB_PROVIDER], switchedOff: [], refusals: [] });
+    if (path.endsWith("/system/source-control/credentials")) return Response.json({ credentials: [saved] });
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  render(<SourceControl />);
+  const row = await waitFor(() => {
+    const element = document.querySelector<HTMLElement>('[data-agent-element="source-control-credentials-row-retired-forge"]');
+    expect(element).not.toBeNull();
+    return element;
+  });
+  expect(row).toHaveClass("source-control-row-done");
+  expect(row?.textContent).toContain("connected");
+  expect(row?.querySelector(".credential-token-hint")?.textContent).toBe("…\u202fsAv4, 24 chars");
+  expect(row?.querySelector("input")).toBeNull();
+  expect(row?.textContent).toContain("Its plugin is off or missing.");
+});

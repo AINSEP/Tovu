@@ -1,8 +1,18 @@
+import { SourceControl } from "../source-control-panel";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { Icon } from "@jini-ai/ui";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
+import { CredentialHint } from "@/components/CredentialHint";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
+import { fieldHelpText, fieldNameHandleSegment } from "@jini-ai/devops/deploy/react/rules";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
-import { ProvidersTab } from "../ProvidersTab";
-import type { SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
+import { ProvidersTab } from "@jini-ai/devops/source-control/react/ProvidersTab";
+import type { SourceControlCredentialsController } from "@jini-ai/devops/source-control/react/hooks/use-source-control-credentials.hooks";
 
 // The sibling SourceControl suite covers load/save errors, accordion defaults,
 // navigation and the real controller's saves. These fixtures target plugin fields.
@@ -31,7 +41,7 @@ it("masks extra secret fields and routes edits by provider and declared field na
     loadError: null, providersNotice: null, t: (key) => key,
     setToken: vi.fn(), setField, save: vi.fn().mockResolvedValue(undefined),
   };
-  render(<ProvidersTab useSourceControlCredentialsHook={() => controller} />);
+  render(<ProvidersTab useAdminLocaleHook={useAdminLocale} navigate={navigate} viewerTimeZone={VIEWER_TIME_ZONE} CredentialHint={CredentialHint} kit={{ SecretInput, Icon }} lineIcon={LINE_ICON} fieldHelpText={fieldHelpText} fieldNameHandleSegment={({ fieldName }) => fieldNameHandleSegment({ fieldName, asciiSlug })} copy={{ providersRegionLabel: "Connect a source-control account so Tovu can read and later push to your repositories", storedTokenHint: "Stored encrypted on the server. Once saved, Tovu never displays it again." }} useSourceControlCredentialsHook={() => controller} />);
   const row = screen.getByRole("heading", { name: "Connect Atlas" }).closest("details")!;
   const secret = within(row).getByLabelText("Client secret");
   const account = within(row).getByRole("textbox", { name: "Account" });
@@ -65,7 +75,7 @@ it("omits empty scope guidance while retaining a usable token form", () => {
     loadError: null, providersNotice: null, t: (key) => key,
     setToken: vi.fn(), setField: vi.fn(), save: vi.fn().mockResolvedValue(undefined),
   };
-  render(<ProvidersTab useSourceControlCredentialsHook={() => controller} />);
+  render(<ProvidersTab useAdminLocaleHook={useAdminLocale} navigate={navigate} viewerTimeZone={VIEWER_TIME_ZONE} CredentialHint={CredentialHint} kit={{ SecretInput, Icon }} lineIcon={LINE_ICON} fieldHelpText={fieldHelpText} fieldNameHandleSegment={({ fieldName }) => fieldNameHandleSegment({ fieldName, asciiSlug })} copy={{ providersRegionLabel: "Connect a source-control account so Tovu can read and later push to your repositories", storedTokenHint: "Stored encrypted on the server. Once saved, Tovu never displays it again." }} useSourceControlCredentialsHook={() => controller} />);
   const row = screen.getByRole("heading", { name: "Connect Boreal" }).closest("details")!;
   expect(row).toHaveAttribute("open");
   expect(within(row).getByLabelText("Access token")).toHaveValue("");
@@ -88,7 +98,7 @@ it("shows token guidance with only a token page link, or with only scope guidanc
     loadError: null, providersNotice: null, t: (key) => key,
     setToken: vi.fn(), setField: vi.fn(), save: vi.fn().mockResolvedValue(undefined),
   };
-  render(<ProvidersTab useSourceControlCredentialsHook={() => controller} />);
+  render(<ProvidersTab useAdminLocaleHook={useAdminLocale} navigate={navigate} viewerTimeZone={VIEWER_TIME_ZONE} CredentialHint={CredentialHint} kit={{ SecretInput, Icon }} lineIcon={LINE_ICON} fieldHelpText={fieldHelpText} fieldNameHandleSegment={({ fieldName }) => fieldNameHandleSegment({ fieldName, asciiSlug })} copy={{ providersRegionLabel: "Connect a source-control account so Tovu can read and later push to your repositories", storedTokenHint: "Stored encrypted on the server. Once saved, Tovu never displays it again." }} useSourceControlCredentialsHook={() => controller} />);
   const [linkOnly, guideOnly] = screen.getAllByText("Which token do I need?").map((summary) => summary.closest("details")!);
   await user.click(within(linkOnly!).getByText("Which token do I need?"));
   expect(within(linkOnly!).getByRole("link")).toHaveAttribute("href", "https://linkonly.example.test/tokens");
@@ -101,7 +111,7 @@ it("shows token guidance with only a token page link, or with only scope guidanc
 it("wires the real credentials controller by default and reports a failed load", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { code: "INTERNAL", message: "store offline" } }, { status: 500 })));
   try {
-    render(<ProvidersTab />);
+    render(<SourceControl />);
     await waitFor(() => expect(document.body.textContent).toMatch(/store offline|Could not|couldn't/i));
   } finally {
     vi.unstubAllGlobals();

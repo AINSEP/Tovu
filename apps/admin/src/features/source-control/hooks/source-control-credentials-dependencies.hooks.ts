@@ -1,3 +1,14 @@
+import { useSourceControlCredentials as useJiniSourceControlCredentials } from "@jini-ai/devops/source-control/react/hooks/use-source-control-credentials.hooks";
+import { classifyCredentialSubmitError } from "../../../lib/shell-collaborators";
+import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
+import { describeApiError } from "@/lib/admin-http/request";
+import { localizeSourceControlProviders } from "@jini-ai/admin/shell/lib/descriptor-i18n";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "@jini-ai/admin/source-control/source-control-i18n";
+import { t as defaultT } from "../source-control-host-i18n";
+import type { Translate } from "@jini-ai/core/text";
 import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialsSnapshot, AdminSourceControlProvidersSnapshot } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
 import type { SourceControlCredentialsPort } from "@jini-ai/admin/source-control/host/hooks/source-control-credentials-port.hooks";
@@ -50,4 +61,19 @@ export function createFakeSourceControlCredentialsPort(
       overrides.updateCredential ?? (() => Promise.reject(new Error("updateCredential not stubbed for this test"))),
     deleteCredential: overrides.deleteCredential ?? (() => Promise.resolve()),
   };
+}
+
+export function useSourceControlCredentials({ port, t, locale }: { port: SourceControlCredentialsPort; t: Translate; locale: string }, _options = {}) {
+  return useJiniSourceControlCredentials({ port, t, locale, useFetchQueryHook: useFetchQuery, localizeSourceControlProviders, credentialDraftError, translateCredentialMessage, describeApiError, sourceControlCredentialsLoadErrorMessage, sourceControlCredentialSaveErrorMessage, classifyCredentialSubmitError });
+}
+
+/**
+ * Binds the real `/api/.../system/source-control/credentials` client, and a `t` bound to the real
+ * resolved locale — the zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, same
+ * shape `use-publish-credentials.hooks.ts`'s `useWiredPublishCredentials` documents.
+ */
+export function useWiredSourceControlCredentials() {
+  const locale = useAdminLocale();
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
+  return useSourceControlCredentials({ port: defaultSourceControlCredentialsPort, t: t, locale: locale });
 }

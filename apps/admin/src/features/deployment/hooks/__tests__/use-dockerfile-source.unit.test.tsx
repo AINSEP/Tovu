@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useDockerfileSource } from "../use-dockerfile-source.hooks";
+import { useDockerfileSource, useWiredDockerfileSource } from "@/features/deployment/hooks/dockerfile-source-dependencies.hooks";
 import { createFakeDockerfileSourcePort, FAKE_DOCKERFILE_ETAG } from "../dockerfile-source-dependencies.hooks";
 
 /**
@@ -593,4 +593,32 @@ describe("useDockerfileSource — copy", () => {
     });
     expect(result.current.copied).toBe(false);
   });
+});
+
+it("the wired controller sends the read ETag and the conflict reload ETag as If-Match", async () => {
+  const headers: Array<string | null> = [];
+  let reads = 0;
+  vi.stubGlobal("fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    expect(String(url)).toContain("/api/admin/v1/workspaces/workspace-local/");
+    if (String(url).includes("/settings/effective")) return Response.json({ data: [] });
+    expect(String(url)).toBe("/api/admin/v1/workspaces/workspace-local/system/dockerfile");
+    if (init?.method === "PUT") {
+      headers.push(new Headers(init.headers).get("If-Match"));
+      expect(JSON.parse(String(init.body))).toEqual({ contents: "FROM local-draft" });
+      if (headers.length === 1) return Response.json({ error: "changed", code: "DOCKERFILE_CONFLICT", current: { exists: true, contents: "FROM concurrent" } }, { status: 412 });
+      return Response.json({ exists: true, contents: "FROM local-draft" }, { headers: { ETag: '"saved"' } });
+    }
+    reads++;
+    return Response.json({ exists: true, contents: reads === 1 ? "FROM initial" : "FROM concurrent" }, { headers: { ETag: reads === 1 ? INITIAL_ETAG : '"reloaded"' } });
+  });
+  const { result } = renderHook(() => useWiredDockerfileSource(), { wrapper });
+  await waitFor(() => expect(result.current.snapshot?.etag).toBe(INITIAL_ETAG));
+  act(() => result.current.setDraft("FROM local-draft"));
+  await act(async () => { await result.current.save(); });
+  expect(headers).toEqual([INITIAL_ETAG]);
+  expect(result.current.saveConflict).toEqual({ exists: true, contents: "FROM concurrent" });
+  await act(async () => { await result.current.reloadAfterConflict(); });
+  expect(result.current.draft).toBe("FROM local-draft");
+  await act(async () => { await result.current.save(); });
+  expect(headers).toEqual([INITIAL_ETAG, '"reloaded"']);
 });

@@ -42,7 +42,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/email", moduleId: "email", exports: ["Email", "EmailTemplateEditor"] },
   { modulePath: "../../features/database", moduleId: "database", exports: ["Database"] },
   { modulePath: "../../features/recovery/recovery-panel", moduleId: "recovery", exports: ["Recovery"] },
-  { modulePath: "../../features/deployment", moduleId: "deployment", exports: ["Deployment"] },
+  { modulePath: "../../features/deployment/deployment-panel", moduleId: "deployment", exports: ["Deployment"] },
   { modulePath: "../../features/source-control/source-control-panel", moduleId: "source-control", exports: ["SourceControl"] },
   { modulePath: "../../features/security", moduleId: "security", exports: ["Security"] },
   { modulePath: "../../features/observability", moduleId: "observability", exports: ["Observability"] },

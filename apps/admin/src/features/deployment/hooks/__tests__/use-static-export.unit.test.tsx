@@ -5,7 +5,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useStaticExport } from "../use-static-export.hooks";
 import { createFakeStaticExportPort } from "../static-export-dependencies.hooks";
-import { DEPLOYMENT_EXPORT_RESOURCE } from "../../rules";
+import { DEPLOYMENT_EXPORT_RESOURCE } from "@jini-ai/devops/deploy/react/rules";
 import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
 /**

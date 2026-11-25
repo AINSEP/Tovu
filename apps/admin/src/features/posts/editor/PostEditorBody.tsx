@@ -4,12 +4,17 @@ import "../../../styles/native-domain-dialogs.css";
 import "@jini-ai/admin/posts/post-url-dialog.css";
 import { BubbleFormattingMenu } from "./bubble-menu/BubbleFormattingMenu";
 import { Toolbar } from "./toolbar/Toolbar";
-import { usePostUrlDialog } from "../hooks/use-post-url-dialog.hooks";
+import { usePostUrlDialog as useJiniPostUrlDialog } from "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks";
+import { getEmbedUrlFromYoutubeUrl } from "@tiptap/extension-youtube";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { type Translate } from "@jini-ai/core/text";
 import DragHandle from "@tiptap/extension-drag-handle-react";
 import { type Editor, EditorContent } from "@tiptap/react";
 import type { ReactNode } from "react";
+
+export function usePostUrlDialog(required: Pick<Parameters<typeof useJiniPostUrlDialog>[0], "editor">, _optional: Record<string, never> = {}) {
+  return useJiniPostUrlDialog({ ...required, getEmbedUrlFromYoutubeUrl }, { afterEditorFocus: close => { requestAnimationFrame(close); } });
+}
 
 /**
  * The Edit-view pane — formatting toolbar, bubble menu, drag handle, and the TipTap body itself.

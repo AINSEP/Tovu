@@ -3,7 +3,7 @@ import type { Translate } from "@jini-ai/core/text";
 
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { useToolbarOverflow } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
-import type { PostUrlDialogController } from "../../hooks/use-post-url-dialog.hooks";
+import type { PostUrlDialogController } from "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks";
 import { ToolbarColorGroup } from "./ToolbarColorGroup";
 import { ToolbarCharacterCount } from "@jini-ai/admin/posts/editor/toolbar/ToolbarCharacterCount";
 import { ToolbarAlignGroup, ToolbarBlockGroup, ToolbarHeadingGroup, ToolbarHistoryGroup, ToolbarMarksGroup } from "./ToolbarFormattingGroup";

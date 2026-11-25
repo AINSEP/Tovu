@@ -1,9 +1,10 @@
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import { customCredentialReplaceReadyToSave, accessTokenWorksForChanged } from "@jini-ai/admin/security/custom-credential-forms";
 import type { AdminPublishConnectionInput, AdminPublishCredentialProviderId } from "@jini-ai/admin/security/api/security-api.types";
 import type { AdminSourceControlConnectionInput } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { ApiError } from "../../lib/admin-http/request";
-import { buildCredentialConnectionInput, fieldNameHandleSegment, requiredFieldsFilled } from "../deployment/rules";
-import { buildSourceControlConnectionInput } from "../source-control/rules";
+import { buildCredentialConnectionInput, fieldNameHandleSegment, requiredFieldsFilled } from "@jini-ai/devops/deploy/react/rules";
+import { buildSourceControlConnectionInput } from "@jini-ai/devops/source-control/react/rules";
 import type { AccessTokenFormFields, AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { SOURCE_CONTROL } from "./rules";
 import { type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
@@ -80,7 +81,7 @@ export function buildAccessTokenConnectionInput(
 /** The DOM/agent id suffix of one extra field's input. `accountId` keeps its old `account` suffix
  *  (pinned by agent tooling); every other field uses its own name, hyphenated. @complexity O(n). */
 export function accessTokenExtraFieldIdSuffix({ fieldName }: { fieldName: string }, _options = {}): string {
-  return fieldName === "accountId" ? "account" : fieldNameHandleSegment({ fieldName });
+  return fieldName === "accountId" ? "account" : fieldNameHandleSegment({ asciiSlug, fieldName });
 }
 
 /** Builds an update patch's non-secret/secret halves independently — split out of the hook's own

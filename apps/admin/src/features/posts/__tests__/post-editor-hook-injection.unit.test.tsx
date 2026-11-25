@@ -1,9 +1,13 @@
+import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
+import { usePostPreviewIframeEscape } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
+import { useThemePreviewFrame } from "../../themes/hooks/use-theme-preview-refresh.hooks";
 import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { PostEditor } from "../PostEditor";
-import { PostPreview } from "../editor/preview/PostPreview";
+import { PostPreview } from "@jini-ai/cms/react/posts/editor/preview/PostPreview";
 import type { useWiredPostEditor } from "../hooks/use-post-editor.hooks";
 import type { usePostEditorScreen } from "../hooks/use-post-editor-screen.hooks";
 
@@ -42,26 +46,30 @@ describe("PostEditor — usePostEditorScreenHook", () => {
   });
 });
 
-describe("PostPreview — usePostPreviewSourceHook", () => {
+describe("PostPreview — injected preview collaborators", () => {
   const props = {
+    DevicePreviewFrame, sandbox: PAGE_PREVIEW_IFRAME_SANDBOX, usePostPreviewIframeEscapeHook: usePostPreviewIframeEscape, useThemePreviewFrameHook: useThemePreviewFrame,
     postId: "p-7", bodyJson: null, slug: "hello", status: "draft" as const, scheduled: false, dirty: false, contentDirty: false,
     templatePreviewUrl: "/admin/posts/p-7/template-preview", previewFormRef: () => undefined, previewFormTarget: "post-preview-frame",
     width: 800, expanded: false, onToggleExpanded: () => undefined, t,
   };
 
   it("shows the template-preview frame when the injected source says only that surface is available", () => {
-    const usePostPreviewSourceHook = vi.fn(() => ({ canShowLiveSite: false, canShowTemplatePreview: true, frameRef: () => undefined, paneWidth: 640 }));
+    const usePreviewPaneWidthHook = vi.fn(() => ({ frameRef: () => undefined, paneWidth: 640 }));
+    const resolvePostPreviewBranches = vi.fn(() => ({ canShowLiveSite: false, canShowTemplatePreview: true, canShowPendingContentPreview: false }));
 
-    render(<PostPreview {...props} usePostPreviewSourceHook={usePostPreviewSourceHook} />);
+    render(<PostPreview {...props} usePreviewPaneWidthHook={usePreviewPaneWidthHook} resolvePostPreviewBranches={resolvePostPreviewBranches} />);
 
     expect(screen.getByTitle("Post preview")).toHaveAttribute("src", expect.stringContaining("/admin/posts/p-7/template-preview"));
-    expect(usePostPreviewSourceHook).toHaveBeenCalledWith({ status: "draft", scheduled: false, dirty: false, contentDirty: false });
+    expect(usePreviewPaneWidthHook).toHaveBeenCalledWith();
+    expect(resolvePostPreviewBranches).toHaveBeenCalledWith({ status: "draft", scheduled: false, dirty: false, contentDirty: false });
   });
 
   it("shows the save-first notice, whatever the injected source says, for a post with no id", () => {
-    const usePostPreviewSourceHook = vi.fn(() => ({ canShowLiveSite: true, canShowTemplatePreview: true, frameRef: () => undefined, paneWidth: 640 }));
+    const usePreviewPaneWidthHook = vi.fn(() => ({ frameRef: () => undefined, paneWidth: 640 }));
+    const resolvePostPreviewBranches = vi.fn(() => ({ canShowLiveSite: true, canShowTemplatePreview: true, canShowPendingContentPreview: false }));
 
-    render(<PostPreview {...props} postId="" usePostPreviewSourceHook={usePostPreviewSourceHook} />);
+    render(<PostPreview {...props} postId="" usePreviewPaneWidthHook={usePreviewPaneWidthHook} resolvePostPreviewBranches={resolvePostPreviewBranches} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Save this post to preview it.");
     expect(screen.queryByTitle("Post preview")).toBeNull();

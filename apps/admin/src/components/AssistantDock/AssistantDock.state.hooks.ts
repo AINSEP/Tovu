@@ -19,7 +19,7 @@ import { useSelectedAgentAuthWarning } from "@jini-ai/admin/shell/components/Ass
 import { selectedAgentWarning } from "../../features/settings/ai-agent-presentation";
 import { useComposerSendStopGuard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-composer-send-stop-guard.hooks";
 import { useAdminBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
-import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
+import { useSkillInstall } from "../../features/skills/skills-host.hooks";
 import {
   ChatPane,
   useChatSettingsDialog,

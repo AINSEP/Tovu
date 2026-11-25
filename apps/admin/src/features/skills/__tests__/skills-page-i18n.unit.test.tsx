@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
 import { Skills } from "../SkillsPage";
-import { useSkills } from "../use-skills.hooks";
+import { useSkills } from "../skills-host.hooks";
 import { t } from "@jini-ai/admin/screens/skills/skills-i18n";
 import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
 

@@ -9,8 +9,8 @@ import {
   scheduleFieldsPatch,
   withEverPublished,
   type PostSaveWorkingCopy,
-} from "../hooks/post-editor-save.rules";
-import type { PostFormState } from "../hooks/use-post-editor.hooks";
+} from "@jini-ai/cms/react/posts/hooks/post-editor-save.rules";
+import type { PostFormState } from "@jini-ai/cms/react/posts/hooks/post-editor-state.rules";
 
 /**
  * @file Pure pieces of `usePostEditor`'s save (`post-editor-save.rules.ts`). The hook's own use of
@@ -126,13 +126,13 @@ describe("buildPostUpdatePatch", () => {
 
 describe("savedPostFields", () => {
   it("normalizes an absent byline and cover setting to the load defaults", () => {
-    expect(savedPostFields({ ...POST, slug: "saved-slug" })).toEqual({ slug: "saved-slug", author: "", showAuthor: false, hideCoverImageInBody: true });
+    expect(savedPostFields({ saved: { ...POST, slug: "saved-slug" } })).toEqual({ slug: "saved-slug", author: "", showAuthor: false, hideCoverImageInBody: true });
   });
 
   it("carries the saved byline and an explicit cover opt-out", () => {
     const saved = { ...POST, author: "Ada", showAuthor: true, ext: { "post-presentation": { hideCoverImageInBody: false } } };
 
-    expect(savedPostFields(saved)).toEqual({ slug: "hello-world", author: "Ada", showAuthor: true, hideCoverImageInBody: false });
+    expect(savedPostFields({ saved: saved })).toEqual({ slug: "hello-world", author: "Ada", showAuthor: true, hideCoverImageInBody: false });
   });
 });
 

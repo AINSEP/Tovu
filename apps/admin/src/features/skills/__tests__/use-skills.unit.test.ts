@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SKILLS_CHANGED_EVENT } from "../api";
 import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
-import { useSkills } from "../use-skills.hooks";
+import { useSkills } from "../skills-host.hooks";
 
 afterEach(() => {
   vi.unstubAllGlobals();

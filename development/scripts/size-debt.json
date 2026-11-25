@@ -30,13 +30,6 @@
       "value": 101
     },
     {
-      "file": "apps/admin/src/features/deployment/DockerfileTab.tsx",
-      "function": "DockerfileEditorCard#1",
-      "line": 226,
-      "rule": "max-lines-per-function",
-      "value": 118
-    },
-    {
       "file": "apps/admin/src/features/deployment/StaticSiteTab.tsx",
       "function": "<file>",
       "line": 809,
