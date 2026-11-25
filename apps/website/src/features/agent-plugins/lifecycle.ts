@@ -18,10 +18,10 @@ import { createNodeAgentPluginEffects } from "@jini-ai/node-adapters/agent-plugi
 import { writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { readBootIdentity, withFileLock } from "@jini-ai/platform/fs/file-lock";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "@jini-ai/core/contracts/headless/plugin-host";
-import { migrateSiteAgentPluginLayouts } from "./memory.js";
+import { migrateSiblingAgentPluginLayouts, migrateSiteAgentPluginLayouts, withAgentPluginWorkspaceLock } from "./memory.js";
 import { carryPluginRenameActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
-import { restoreUnseededUpgrades, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
-import { upgradeTovuRenamedBundledPlugins } from "./bundled-id-upgrade.js";
+import type { BundledIdUpgradeOutcome, BundledIdUpgradePort } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
+import { seedWithTovuRenamedBundledPlugins } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
@@ -121,8 +121,9 @@ function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleO
     // Layout first, then preserve explicit Cloudflare rename decisions before seeding.
     // Hosting now seeds disabled; retirement still preserves an enabled deploy decision.
     // `owner` is bound below; this runs only at seed time, after it exists.
-    migrateBeforeSeed: async ({ layout, workspaceId }) => {
-      const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => ownerRef().assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId });
+    // `ownership`: the seed window already holds this workspace's migration lock; never reacquire it.
+    migrateBeforeSeed: async ({ layout, workspaceId }, { ownership } = {}) => {
+      const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => ownerRef().assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId }, ownership ? { ownership } : {});
       if (migration.complete) {
         const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: ownerRef(), fromPluginId: "cloudflare-pages", toPluginId: "cloudflare", actor: "migration:cloudflare-plugin" };
         await carryPluginRenameActivation(required);
@@ -193,25 +194,25 @@ function buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, op
 /** Moves verified pre-rename bundled revisions aside (`bundled-id-upgrade.ts`), seeds, then puts back
  * any whose canonical replacement did not seed. The step is optional: its own fault never blocks
  * seeding, which then reports the same-slot conflict exactly as it did before this step existed.
+ * Lock order (Jini's `seedWithBundledIdUpgrade`): sibling workspaces migrate first, each under its own
+ * lock; then this workspace's migration lock is held from before the move through seed and put-back,
+ * and the seed's nested migration runs under that held ownership. A held id never reaches install.
  * @complexity One package listing per boot once a site is upgraded; see the step for the first run. */
 async function seedWithIdUpgrade({ owner, filesystem }: { owner: LifecycleOwner; filesystem: BundledIdUpgradePort["filesystem"] }, input: SeedBundledAgentPluginsRequired): Promise<TovuSeedBundledAgentPluginsResult> {
-  let upgrades: BundledIdUpgradeOutcome[] = [];
-  try {
-    const port: BundledIdUpgradePort = {
-      listInstalledPlugins: ({ workspaceRoot }) => owner.listInstalledPlugins({ workspaceRoot }),
-      readBundledAgentPluginDigests: ({ workspaceRoot }) => owner.readBundledAgentPluginDigests({ workspaceRoot }),
-      packAgentPluginDirectory: ({ sourceDir }) => owner.packAgentPluginDirectory({ sourceDir }),
-      readBundledSourceManifest: createBundledSourceManifestReader({ bundledSourceRoot: input.sourceRoot }),
-      filesystem,
-    };
-    upgrades = await upgradeTovuRenamedBundledPlugins({ workspaceRoot: input.layout.forWorkspace({ workspaceId: input.workspaceId }).root, port });
-  } catch {
-    // Listing failed before anything moved: seeding below reports each affected plugin itself.
-  }
-  const result = await owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) });
-  if (upgrades.length === 0) return result;
-  const seededIds = new Set(result.outcomes.flatMap(outcome => outcome.status === "seeded" ? [outcome.pluginId] : []));
-  return { ...result, idUpgrades: await restoreUnseededUpgrades({ outcomes: upgrades, seededIds, filesystem }) };
+  const contain = ({ root, entryPath }: { root: string; entryPath: string }) => owner.assertContainedOnDisk({ packageRoot: root, entryPath });
+  await migrateSiblingAgentPluginLayouts({ contain, layout: input.layout, workspaceId: input.workspaceId });
+  const port: BundledIdUpgradePort = {
+    listInstalledPlugins: ({ workspaceRoot }) => owner.listInstalledPlugins({ workspaceRoot }),
+    readBundledAgentPluginDigests: ({ workspaceRoot }) => owner.readBundledAgentPluginDigests({ workspaceRoot }),
+    packAgentPluginDirectory: ({ sourceDir }) => owner.packAgentPluginDirectory({ sourceDir }),
+    readBundledSourceManifest: createBundledSourceManifestReader({ bundledSourceRoot: input.sourceRoot }),
+    filesystem,
+  };
+  const { seeded, idUpgrades } = await seedWithTovuRenamedBundledPlugins({
+    workspaceRoot: input.layout.forWorkspace({ workspaceId: input.workspaceId }).root, port, withWorkspaceLock: withAgentPluginWorkspaceLock,
+    seed: ({ ownership, heldPluginIds }) => owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }, { ownership, heldPluginIds }),
+  });
+  return idUpgrades.length === 0 ? seeded : { ...seeded, idUpgrades };
 }
 
 /** The owner's install-side writers, with this host's layout and archive reader adapted to the owner's ports. */

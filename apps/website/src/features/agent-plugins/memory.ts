@@ -3,7 +3,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 /** Thin host binding: persistent storage, migration and caps are owned by Jini. */
 import * as filesystem from "node:fs/promises";
 import path from "node:path";
-import { createPluginMemory, migratePluginLayout, assertPluginStatePath, withPluginStateLock, type PluginMemory, type PluginStateEffects } from "@jini-ai/agent-plugins/persistent-state";
+import { createPluginMemory, migratePluginLayout, assertPluginStatePath, withPluginStateLock, withWorkspaceMigrationLock, type PluginMemory, type PluginStateEffects, type WorkspaceMigrationOwnership } from "@jini-ai/agent-plugins/persistent-state";
 import { withFileLock } from "@jini-ai/platform/fs/file-lock";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
@@ -19,7 +19,8 @@ export function pluginMemory(required: Pick<PluginStateEffects, "contain"> & { w
   const workspaceRoot = required.layout.forWorkspace({ workspaceId: required.workspaceId }).root;
   return createPluginMemory({ ...effects, contain: required.contain, workspaceRoot, pluginId: required.pluginId });
 }
-export async function migrateAgentPluginLayout(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, _optional: {} = {}) {
+/** `ownership`: the caller holds this workspace's migration lock (`withAgentPluginWorkspaceLock`); run under it. */
+export async function migrateAgentPluginLayout(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, optional: { ownership?: WorkspaceMigrationOwnership } = {}) {
   return migratePluginLayout({ ...effects, contain: required.contain, workspaceRoot: required.layout.forWorkspace({ workspaceId: required.workspaceId }).root,
     parsePluginId: ({ value }) => {
       const result = parseAgentPluginManifest({ value });
@@ -27,7 +28,12 @@ export async function migrateAgentPluginLayout(required: Pick<PluginStateEffects
       return result.manifest.name;
     },
     onEvent: ({ event, message }) => console.warn(`[agent-plugins:${event}] ${message}`),
-  });
+  }, optional.ownership ? { ownership: optional.ownership } : {});
+}
+
+/** Holds one workspace's layout-migration lock (the outermost lock; Jini owns the ordering) with this host's real file lock. */
+export function withAgentPluginWorkspaceLock<T>(required: { workspaceRoot: string; run(held: { ownership: WorkspaceMigrationOwnership }): Promise<T> }, _optional = {}): Promise<T> {
+  return withWorkspaceMigrationLock({ ...effects, ...required });
 }
 export async function appendPluginNotes(required: Pick<PluginStateEffects, "contain"> & { workspaceRoot: string; pluginId: string; guidance: string }, _optional: {} = {}): Promise<string> {
   const memory = createPluginMemory({ ...effects, contain: required.contain, workspaceRoot: required.workspaceRoot, pluginId: required.pluginId });
@@ -59,8 +65,12 @@ async function discoverSiteWorkspaceIds(required: Pick<PluginStateEffects, "cont
   return ids;
 }
 
-/** The web boot owns the site tree, including workspaces the current request is not serving. */
-export async function migrateSiteAgentPluginLayouts(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, _optional = {}) {
+/** The web boot owns the site tree, including workspaces the current request is not serving.
+ * With `ownership` (the active workspace's lock is already held) only the active workspace migrates,
+ * under that lock: its siblings ran first through {@link migrateSiblingAgentPluginLayouts}, because
+ * holding one workspace's lock while acquiring another's could deadlock two boots. */
+export async function migrateSiteAgentPluginLayouts(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, optional: { ownership?: WorkspaceMigrationOwnership } = {}) {
+  if (optional.ownership) return migrateAgentPluginLayout({ contain: required.contain, layout: required.layout, workspaceId: required.workspaceId }, { ownership: optional.ownership });
   const ids = await discoverSiteWorkspaceIds(required);
   let active = { complete: false, moved: 0 };
   for (const workspaceId of ids) {
@@ -68,4 +78,14 @@ export async function migrateSiteAgentPluginLayouts(required: Pick<PluginStateEf
     if (workspaceId === required.workspaceId) active = result;
   }
   return active;
+}
+
+/** Migrates every other site workspace, one lock at a time and with no lock held across them. A
+ * sibling's fault is logged and never blocks the active workspace's seed. */
+export async function migrateSiblingAgentPluginLayouts(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, _optional = {}): Promise<void> {
+  for (const workspaceId of await discoverSiteWorkspaceIds(required)) {
+    if (workspaceId === required.workspaceId) continue;
+    try { await migrateAgentPluginLayout({ contain: required.contain, layout: required.layout, workspaceId }); }
+    catch (error) { console.warn(`[agent-plugins:migration-failed] workspace ${workspaceId} ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
+  }
 }
