@@ -54,8 +54,11 @@ import { EventEncoder } from "@ag-ui/encoder";
 import { readAgUiLaunchFields, type AgUiLaunchFields } from "./assistant-ag-ui-launch.js";
 import { resolveAgUiRunInput, type AgUiChatMessage, type AgUiRunBody, type AgUiRunInput } from "@jini-ai/chat/server/ag-ui/run-input";
 import {
+  closeAgUiRun,
+  confirmationInterrupt,
   createAgUiTranslationState,
   drainRunFramesToAgUi,
+  readConfirmationResume,
   type AgUiEvent,
   type CustomEventNames,
   type EventIdGenerator,
@@ -69,6 +72,11 @@ import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import type { ServerModuleHandle } from "./types.js";
 import { acceptOwnedAssistantRun, assistantRunAcceptancePorts, type AssistantRunAcceptancePorts } from "./assistant-run-acceptance.js";
+import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+import { MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
+import { ADMIN_APPROVAL_EXPIRED, type AdminAgUiApprovals, type AdminApprovalCheckpoint, type AnswerAdminExchange } from "#src/assistant/admin-ag-ui-approvals";
+import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
+import { readAdminApprovalCard, tapSseCursor } from "./assistant-ag-ui-approval-segment.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
 
@@ -193,7 +201,7 @@ type AgUiRouteDeps = Pick<RouteDeps, "tracker" | "observability" | "chatRunLedge
  * @complexity O(h) in bounded history plus the drained run frames. */
 async function handleDurableAgUiRun(
   { req, res, run, identity, ports, deps }: { req: Request; res: Response; run: AgUiRunInput; identity: AgUiDurableIdentity; ports: AssistantRunAcceptancePorts; deps: AgUiRouteDeps },
-  _optional = {},
+  { approvals }: { approvals?: AdminAgUiApprovals } = {},
 ): Promise<void> {
   const principalId = getAuthedPrincipal(res).id;
   const accepted = await acceptOwnedAssistantRun({ principalId, workspaceId: deps.workspaceId, ports,
@@ -201,18 +209,132 @@ async function handleDurableAgUiRun(
     request: { ...(run.agentId ? { agentId: run.agentId } : {}), contextRef: agUiContextRef({ run, principalId }, { identity }) } }, {});
   if (!accepted) { res.status(404).json({ error: "not found", code: "NOT_FOUND" }); return; }
   if (accepted.message.runStatus === "canceled") { answerStoppedAgUiRun({ req, res, run, accepted }, {}); return; }
+  await followDaemonRun({ req, res, requestId: run.requestId, threadId: accepted.conversationId, runId: accepted.runId, daemonRunId: accepted.runId,
+    owner: principalId, observability: deps.observability, ...(approvals ? { approvals } : {}) }, {});
+}
+
+/** One AG-UI segment of an owned daemon run: subscribe (from `cursor`, when resuming), then drain.
+ *  Closing this response detaches the reader only; the run is never cancelled here.
+ * @complexity O(n) in the drained run frames. */
+async function followDaemonRun(
+  { req, res, requestId, threadId, runId, daemonRunId, owner, observability, approvals, parentRunId }: {
+    req: Request; res: Response; requestId: string; threadId: string; runId: string; daemonRunId: string; owner: string;
+    observability: AgUiRouteDeps["observability"]; approvals?: AdminAgUiApprovals; parentRunId?: string;
+  },
+  _optional = {},
+): Promise<void> {
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let detached = false;
   res.on("close", () => { detached = true; reader?.cancel().catch(() => undefined); });
-  const subscribed = await subscribeToDaemonEvents(req, res, accepted.runId, { observability: deps.observability });
+  const subscribed = await subscribeToDaemonEvents(req, res, daemonRunId, { observability });
   if (!subscribed) return;
   if (detached) { await subscribed.cancel().catch(() => undefined); return; }
   reader = subscribed;
-  beginAgUiStream(req, res, run.requestId);
-  writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: accepted.conversationId, runId: accepted.runId });
-  await drainRunFramesToAgUi({ reader: subscribed, threadId: accepted.conversationId, runId: accepted.runId, state: createAgUiTranslationState(AG_UI_TRANSLATION),
-    notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE, failureMessage: AG_UI_FAILURE_MESSAGE });
+  beginAgUiStream(req, res, requestId);
+  writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId, runId, ...(parentRunId ? { parentRunId } : {}) });
+  await drainAdminSegment({ res, reader: subscribed, threadId, runId, daemonRunId, owner, ...(approvals ? { approvals } : {}) }, {});
+}
+
+/**
+ * Drains one segment. With the resume path composed, an identified approval card parks FIRST (owner,
+ * thread, this segment's run id, daemon run, exchange, stream cursor, deadline); then the card itself
+ * streams exactly as on the ordinary path (the existing approval card renders unchanged), and the
+ * segment ends with the AG-UI interrupt (`RUN_FINISHED`, `outcome.type: "interrupt"`) naming that
+ * card's exchange, so the client routes THAT card's decision to the AG-UI resume.
+ * Without it — or when the caps refuse the park — the card streams as an ordinary card, as before.
+ * @complexity O(n) in the drained run frames. */
+async function drainAdminSegment(
+  { res, reader, threadId, runId, daemonRunId, owner, approvals }: {
+    res: Response; reader: ReadableStreamDefaultReader<Uint8Array>; threadId: string; runId: string; daemonRunId: string; owner: string; approvals?: AdminAgUiApprovals;
+  },
+  _optional = {},
+): Promise<void> {
+  const tap = approvals ? tapSseCursor({ reader }) : { reader, cursor: (): string | undefined => undefined };
+  const state = createAgUiTranslationState(AG_UI_TRANSLATION);
+  let parked = false;
+  const write = (event: AgUiEvent): void => {
+    // After the interrupt this segment is over; the drain's own words for the detached stream
+    // (an "interrupted" RUN_ERROR) describe our deliberate close, not the turn, so they are dropped.
+    if (parked) return;
+    const card = approvals ? readAdminApprovalCard({ event, extensionPrefix: AG_UI_TRANSLATION.customEventNames.extensionPrefix }) : undefined;
+    const cursor = tap.cursor();
+    const interruptId = card ? approvals?.parkAdminApproval({ owner, threadId, runId, daemonRunId, card, ...(cursor ? { cursor } : {}) }) : undefined;
+    writeAgUiEvent(res, event);
+    if (!card || !interruptId) return;
+    parked = true;
+    for (const closing of closeAgUiRun({ state })) writeAgUiEvent(res, closing);
+    // `metadata.exchangeId` only tells the client which rendered card this interrupt is; it is not
+    // authority. The exchange id already rides inside the card HTML today, the resume body never
+    // supplies it (the parked record does), and the daemon checks the run principal on every
+    // exchange answer — so knowing it lets nobody answer someone else's approval.
+    writeAgUiEvent(res, confirmationInterrupt({ threadId, runId,
+      interrupt: { id: interruptId, reason: "confirmation", message: card.message, metadata: { exchangeId: card.exchangeId } } }));
+    // Detach, never Stop: the held tool call keeps waiting in the daemon for the resume.
+    void reader.cancel().catch(() => undefined);
+  };
+  await drainRunFramesToAgUi({ reader: tap.reader, threadId, runId, state, notices: RUN_NOTICES, write },
+    { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE, failureMessage: AG_UI_FAILURE_MESSAGE });
   res.end();
+}
+
+/** The daemon's existing guarded answer for one exchange (`mcp-ui/tool-calls`, exchange delivery),
+ *  as the parked owner: the bearer says "Tovu's proxy", the principal header says "for this admin",
+ *  and the daemon compares it with the exchange's binding. `cancel` is the daemon's deny path.
+ * @complexity O(1) plus one daemon request. */
+export const answerDaemonApprovalExchange: AnswerAdminExchange = async ({ owner, toolId, exchangeId, allow }) => {
+  const token = assistantDaemonToken({}, {});
+  const response = await fetch(`${getAgentDaemonUrl()}${MCP_UI_TOOL_CALLS_PATH}`, { method: "POST",
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: owner, ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ toolName: toolId, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: allow ? "confirm" : "cancel" } }) }).catch(() => null);
+  return response?.ok === true;
+};
+
+const MAX_WIRE_ID_CHARS = 128;
+
+/** Only the addressing fields of an untrusted resume: one entry, bounded ids. The decision is read
+ *  later by Jini against the parked binding. */
+function addressedAdminResume({ body }: { body: unknown }, _optional = {}): { interruptId: string; runId: string } | undefined {
+  const { resume, runId } = (body ?? {}) as { resume?: unknown; runId?: unknown };
+  if (!Array.isArray(resume) || resume.length !== 1) return undefined;
+  const interruptId = (resume[0] as { interruptId?: unknown } | null)?.interruptId;
+  const bounded = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= MAX_WIRE_ID_CHARS;
+  return bounded(interruptId) && bounded(runId) ? { interruptId, runId } : undefined;
+}
+
+/** Validates a resume against its parked record before anything is consumed: the session owner (never
+ *  a body field), thread, parent run, interrupt id, a fresh run id and a recognized decision. */
+function validAdminResume(
+  { body, owner, approvals }: { body: unknown; owner: string; approvals: AdminAgUiApprovals }, _optional = {},
+): { parked: AdminApprovalCheckpoint; interruptId: string; runId: string; decision: "allow" | "deny" } | undefined {
+  const addressed = addressedAdminResume({ body });
+  const parked = addressed ? approvals.peekAdminApproval({ interruptId: addressed.interruptId }) : undefined;
+  if (!addressed || !parked || parked.owner !== owner || addressed.runId === parked.parentRunId) return undefined;
+  const answer = readConfirmationResume({ input: body, threadId: parked.threadId, runId: parked.parentRunId, interruptId: addressed.interruptId });
+  return answer ? { parked, ...addressed, decision: answer.decision } : undefined;
+}
+
+/**
+ * The resume branch of the AG-UI route, before any run start or acceptance. The approval owner is
+ * the authenticated admin session (the route's session gate ran first; there is no ownerless
+ * fallback). Valid → claim and answer the daemon's exchange once → follow the SAME daemon run in a
+ * new segment (the resume's own run id, the original thread, `parentRunId` = the interrupted run),
+ * reconnecting from the park cursor. Anything else → the one plain refusal, consuming nothing.
+ * @complexity O(1) plus the followed segment. */
+export async function handleAdminAgUiResume(
+  { req, res, ports }: { req: Request; res: Response; ports: { approvals: AdminAgUiApprovals; observability: AgUiRouteDeps["observability"] } },
+  _optional = {},
+): Promise<void> {
+  res.setHeader("Cache-Control", "no-store");
+  const owner = getAuthedPrincipal(res).id;
+  const valid = validAdminResume({ body: req.body, owner, approvals: ports.approvals });
+  const result = valid ? await ports.approvals.redeemAgUiApproval({ owner, threadId: valid.parked.threadId, parentRunId: valid.parked.parentRunId,
+    interruptId: valid.interruptId, decision: valid.decision }) : "expired";
+  if (!valid || result === "expired") { if (!res.headersSent) res.status(400).json({ error: ADMIN_APPROVAL_EXPIRED }); return; }
+  // The reconnect cursor is the park checkpoint, never a browser-chosen `Last-Event-ID`.
+  delete req.headers["last-event-id"];
+  if (valid.parked.cursor) req.headers["last-event-id"] = valid.parked.cursor;
+  await followDaemonRun({ req, res, requestId: randomUUID(), threadId: valid.parked.threadId, runId: valid.runId, parentRunId: valid.parked.parentRunId,
+    daemonRunId: valid.parked.daemonRunId, owner, observability: ports.observability, approvals: ports.approvals }, {});
 }
 
 /** A Stop that beat acceptance (by message id) leaves a terminal tombstone the acceptance replays
@@ -310,7 +432,12 @@ async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId:
  *  ended: the close handler only ends a tracker once a daemon run exists. */
 const UNSTARTED_RUN: TrackerSpan<AgentRunTrackingOutcome> = { setOutcome() {} };
 
-async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps): Promise<void> {
+async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps, { approvals }: { approvals?: AdminAgUiApprovals } = {}): Promise<void> {
+  // A resume answers a parked approval and starts nothing. Without the composed resume path no
+  // interrupt was ever emitted, so a resume-shaped body keeps today's handling.
+  if (approvals && Array.isArray((req.body as { resume?: unknown } | undefined)?.resume)) {
+    return handleAdminAgUiResume({ req, res, ports: { approvals, observability: deps.observability } }, {});
+  }
   const body = (req.body ?? {}) as AgUiRunBody;
   const run = resolveAgUiRunInput({ body, maxHistoryMessages: MAX_HISTORY_MESSAGES, ids: { newId: randomUUID } });
   if (!run) {
@@ -321,7 +448,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps): 
   // legacy per-request start during the handoff (they do not have parity, and are not told so).
   const identity = readDurableIdentity({ body });
   const ports = identity ? assistantRunAcceptancePorts({ deps, principalId: getAuthedPrincipal(res).id }, {}) : null;
-  if (identity && ports) return handleDurableAgUiRun({ req, res, run, identity, ports, deps }, {});
+  if (identity && ports) return handleDurableAgUiRun({ req, res, run, identity, ports, deps }, approvals ? { approvals } : {});
   return handleLegacyAgUiRun({ req, res, run, deps }, {});
 }
 
@@ -443,13 +570,15 @@ const AG_UI_START_REFUSAL_MESSAGE = "The assistant could not start that request.
  *  codes, transport errors) is not shown here; it stays in the run's status line and the logs. */
 const AG_UI_FAILURE_MESSAGE = "The assistant could not finish that request. Send it again, or try a shorter request.";
 
-export function createAssistantAgUiModule(routeDeps: RouteDeps & AgUiRouteDeps): ServerModuleHandle {
+/** `approvals` composes the approval park/resume (P6-T2.T). Absent, approval cards stream as
+ *  ordinary cards and no interrupt is ever emitted — the pre-resume behavior. */
+export function createAssistantAgUiModule(routeDeps: RouteDeps & AgUiRouteDeps, { approvals }: { approvals?: AdminAgUiApprovals } = {}): ServerModuleHandle {
   return {
     name: "assistant-ag-ui",
     registerRoutes: ({ app }, _options = {}) => {
       app.use(AG_UI_RUN_PATH, requireAdminSession(routeDeps));
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
-        void handleAgUiRun(req, res, routeDeps).catch((error: unknown) => {
+        void handleAgUiRun(req, res, routeDeps, approvals ? { approvals } : {}).catch((error: unknown) => {
           console.error("[assistant-ag-ui] unhandled error", error);
           routeDeps.tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "assistant.run" } });
           if (res.headersSent) {
