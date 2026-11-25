@@ -50,7 +50,7 @@ import { connectAndRecordDestination } from "./connect-destination.js";
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
-import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
+import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "@jini-ai/cms/publish/content/peer-registry";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "@jini-ai/cms/publish/content/permissions";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";

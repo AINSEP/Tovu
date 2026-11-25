@@ -5,7 +5,7 @@ import test from "node:test";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
 import { pullBlobsFromPeer } from "../peer-transport-binding.js";
-import type { ResolvedPeerCredential } from "../peers.js";
+import type { ResolvedPeerCredential } from "@jini-ai/cms/publish/content/peer-registry";
 import { computeBlobStorageKey } from "../../media/index.js";
 
 /**

@@ -9,7 +9,7 @@ import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run
 import type { PublishContentPullDeps } from "./pull.js";
 import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import type { resolvePublishDestinationCredential } from "./destination-credential.js";
-import type { PublishContentPeerRepoPort } from "./peers.js";
+import type { PublishContentPeerRepoPort } from "@jini-ai/cms/publish/content/peer-registry";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";

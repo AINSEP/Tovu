@@ -3,7 +3,9 @@ import test from "node:test";
 import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { createPublishContentPeer, updatePublishContentPeer, InMemoryPublishContentPeerRepo, PublishContentPeerDuplicateLabelError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerNotFoundError, VaultPublishContentPeerRepo, type PublishContentPeerWriteDeps } from "../peers.js";
+import { createPublishContentPeer, updatePublishContentPeer, type PublishContentPeerWriteDeps } from "@jini-ai/cms/publish/content/peer-registry";
+import { InMemoryPublishContentPeerRepo, VaultPublishContentPeerRepo } from "../peers.js";
+import { PublishContentPeerDuplicateLabelError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerNotFoundError } from "@jini-ai/cms/publish/content/peers";
 
 function fixture(_required = {}, _options = {}) {
   const repo = new InMemoryPublishContentPeerRepo();

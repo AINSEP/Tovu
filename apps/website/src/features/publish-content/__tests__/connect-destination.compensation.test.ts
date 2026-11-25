@@ -21,7 +21,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { connectAndRecordDestination, disconnectAndForgetDestination } from "../connect-destination.js";
-import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "../peers.js";
+import { InMemoryPublishContentPeerRepo } from "../peers.js";
+import { type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "@jini-ai/cms/publish/content/peer-registry";
 
 const WORKSPACE = "ws-1";
 const SITE = "https://site-a.example";

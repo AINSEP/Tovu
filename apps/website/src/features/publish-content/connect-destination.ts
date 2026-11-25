@@ -1,6 +1,6 @@
 import type { Clock } from "@jini-ai/core/primitives";
-import { saveConnectedDestination, removeConnectedDestination, selectConnectedDestination } from "./peers.js";
-import type { PublishContentPeerRepoPort, PublishContentPeerSummary } from "./peers.js";
+import { saveConnectedDestination, removeConnectedDestination, selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
+import type { PublishContentPeerRepoPort, PublishContentPeerSummary } from "@jini-ai/cms/publish/content/peer-registry";
 import { siteLabelFor } from "@jini-ai/cms/publish/content/publish-readiness";
 
 /**

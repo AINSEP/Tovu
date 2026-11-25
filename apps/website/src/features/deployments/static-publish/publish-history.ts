@@ -3,7 +3,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 import type { StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
 import type { DeployTargetDescriptor, DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
-import type { PublishContentPeerSummary } from "#src/features/publish-content/peers";
+import type { PublishContentPeerSummary } from "@jini-ai/cms/publish/content/peer-registry";
 
 /**
  * @file Durable, append-only publish-history ledger.

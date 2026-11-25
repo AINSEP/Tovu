@@ -110,7 +110,7 @@ import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "@jini-ai/cms/publish/content/gated-hooks";
 import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
-import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
+import type { PublishContentPeerRepoPort } from "@jini-ai/cms/publish/content/peer-registry";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
 
 /**

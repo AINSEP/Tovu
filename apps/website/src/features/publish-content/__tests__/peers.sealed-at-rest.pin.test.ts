@@ -5,8 +5,8 @@ import { AesGcmSecretSealer, FixedSiteKeyKeyring } from "@jini-ai/platform/secre
 import type { VaultRecord } from "@jini-ai/core/contracts/vault";
 import { PublishContentPeerNotFoundError } from "@jini-ai/cms/publish/content/peers";
 import { HKDF_EXTRACTION_SALT } from "../../webhooks/keyring.env.js";
-import { InMemoryPublishContentPeerRepo, resolvePeerCredential, updatePublishContentPeer } from "../peers.js";
-import { listPublishContentPeers } from "../peers.js";
+import { InMemoryPublishContentPeerRepo } from "../peers.js";
+import { listPublishContentPeers, resolvePeerCredential, updatePublishContentPeer } from "@jini-ai/cms/publish/content/peer-registry";
 
 /**
  * AT-REST COMPATIBILITY PIN for publish-peer credentials.

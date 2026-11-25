@@ -16,7 +16,7 @@ import {
 } from "../peer-transport-binding.js";
 import { PublishContentPeerTransportError, type PublishHistoryRecorder } from "@jini-ai/cms/publish/content/peer-transport";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import type { ResolvedPeerCredential } from "../peers.js";
+import type { ResolvedPeerCredential } from "@jini-ai/cms/publish/content/peer-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**

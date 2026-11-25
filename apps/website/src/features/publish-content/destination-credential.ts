@@ -3,7 +3,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { resolvePublishDestinationCredential as resolveDestinationCredential } from "@jini-ai/cms/publish/content/destination-credential";
 
-import { resolvePeerCredential, type PublishContentPeerRepoPort, type ResolvedPeerCredential } from "./peers.js";
+import { resolvePeerCredential, type PublishContentPeerRepoPort, type ResolvedPeerCredential } from "@jini-ai/cms/publish/content/peer-registry";
 
 /**
  * @file Host binding for `@jini-ai/cms`'s destination-credential decision: supplies the host's

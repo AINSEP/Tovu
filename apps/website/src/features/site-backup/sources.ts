@@ -54,7 +54,7 @@ const SOURCE_DEPS: SiteBackupSourceDeps = {
 };
 
 /** Every file on disk the switched-on scopes pick up (see the engine's `collectSiteBackupFiles`). */
-export function collectSiteBackupFiles(input: { sources: SiteBackupSources; include: SiteBackupInclude }, optional: Parameters<typeof collectBackupFiles>[1] = {}): Promise<CollectedSiteBackupFiles> {
+export function collectSiteBackupFiles(input: { sources: JiniSiteBackupSources; include: SiteBackupInclude }, optional: Parameters<typeof collectBackupFiles>[1] = {}): Promise<CollectedSiteBackupFiles> {
   return collectBackupFiles({ ...input, deps: SOURCE_DEPS }, optional);
 }
 

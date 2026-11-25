@@ -8,7 +8,8 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";
-import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
+import { InMemoryPublishContentPeerRepo } from "../peers.js";
+import { type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 import { createFileProvisioning, COMMITTED_JSON_CODEC } from "@jini-ai/cms/publish/trust/provisioning";
 import { describePublishReadiness, siteLabelFor } from "@jini-ai/cms/publish/content/publish-readiness";
 import { PUBLISH_READINESS_COPY } from "../publish-readiness-copy.js";

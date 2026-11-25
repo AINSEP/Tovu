@@ -20,12 +20,8 @@ import test from "node:test";
 
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 
-import {
-  InMemoryPublishContentPeerRepo,
-  saveConnectedDestination,
-  selectConnectedDestination,
-  type PublishContentPeerRecord,
-} from "../peers.js";
+import { InMemoryPublishContentPeerRepo } from "../peers.js";
+import { saveConnectedDestination, selectConnectedDestination, type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 
 const WORKSPACE = "ws-1";
 const SITE_A = "https://site-a.example";

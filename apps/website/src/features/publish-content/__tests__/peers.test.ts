@@ -6,7 +6,8 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerDuplicateLabelError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
-import { createPublishContentPeer, deletePublishContentPeer, getPublishContentPeerSummary, InMemoryPublishContentPeerRepo, listPublishContentPeers, maskApiKey, resolvePeerCredential, toPeerSummary, updatePublishContentPeer, type PublishContentPeerWriteDeps } from "../peers.js";
+import { createPublishContentPeer, deletePublishContentPeer, getPublishContentPeerSummary, listPublishContentPeers, maskApiKey, resolvePeerCredential, toPeerSummary, updatePublishContentPeer, type PublishContentPeerWriteDeps } from "@jini-ai/cms/publish/content/peer-registry";
+import { InMemoryPublishContentPeerRepo, publishPeerVaultBinding } from "../peers.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -96,9 +97,9 @@ test("the sealed key never appears in a list response, a get, or a stored record
 });
 
 test("maskApiKey reveals at most the last four characters, and nothing at all for a short key", () => {
-  assert.equal(maskApiKey({ apiKey: "tovu_live_0123456789abcdef" }), "••••cdef");
-  assert.equal(maskApiKey({ apiKey: "shortkey" }), "••••");
-  assert.equal(maskApiKey({ apiKey: "" }), "••••");
+  assert.equal(maskApiKey({ apiKey: "tovu_live_0123456789abcdef", binding: publishPeerVaultBinding }), "••••cdef");
+  assert.equal(maskApiKey({ apiKey: "shortkey", binding: publishPeerVaultBinding }), "••••");
+  assert.equal(maskApiKey({ apiKey: "", binding: publishPeerVaultBinding }), "••••");
 });
 
 test("resolvePeerCredential round-trips the key through the real sealer", async () => {
