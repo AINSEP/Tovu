@@ -73,7 +73,20 @@ export interface CanonicalSourceControlKeys {
   describe(input: { workspaceId: string; providerId: string }, options?: Record<string, never>): Promise<Pick<SourceControlCredentialSetRecord, "id" | "label" | "providerId"> | null>;
   resolve(input: { workspaceId: string; providerId: string }, options?: Record<string, never>): Promise<{ id: string; label: string; connection: SourceControlConnectionInput } | null>;
   create?(input: { workspaceId: string; connection: SourceControlConnectionInput }, options?: { signal?: AbortSignal }): Promise<SourceControlCredentialSummary>;
+  /** The site's own and granted canonical keys, one safe row per stable id; never opens a key. */
+  list(input: { workspaceId: string }, options?: Record<string, never>): Promise<SourceControlCredentialSummary[]>;
+  /** `owned: false` only when this store holds no canonical key with that id for the site. An owned key
+   *  that is refused or fails throws, so the caller never retries it as a legacy row. */
+  update(input: { workspaceId: string; id: string; patch: SourceControlCredentialPatch }, options?: Record<string, never>): Promise<CanonicalSourceControlUpdate>;
+  /** Same ownership contract as {@link CanonicalSourceControlKeys.update}; key-deletion rules still apply. */
+  remove(input: { workspaceId: string; id: string }, options?: Record<string, never>): Promise<{ readonly owned: boolean }>;
 }
+
+/** The editable fields of a Source Control credential, as the update route receives them. */
+export type SourceControlCredentialPatch = Pick<import("./store.js").UpdateSourceControlCredentialInput, "label" | "connection" | "isDefault">;
+
+/** "Not owned by this store" is the only result that may fall back to the legacy table. */
+export type CanonicalSourceControlUpdate = { readonly owned: false } | { readonly owned: true; readonly summary: SourceControlCredentialSummary };
 
 export interface SourceControlCredentialSetRepoPort {
   readonly canonical?: CanonicalSourceControlKeys;
