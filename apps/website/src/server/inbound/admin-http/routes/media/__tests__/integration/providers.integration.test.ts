@@ -338,8 +338,9 @@ test("Remove on a plugin-vendor key deletes that key and nothing else", async (t
 
 test("a stale legacy PUT preserves newer credentials", async (t) => {
   const base = createRouteDeps();
-  // Holds the FIRST provider-list read made after `armed` until the test releases it, so another
-  // window's write can land while a PUT waits — a basis compared there would already be stale.
+  // Takes the FIRST provider-list read made after `armed`, then holds its result until the test
+  // releases it, so another window's write lands after that read — a basis compared against such a
+  // read, outside the writer boundary, would wrongly pass.
   let armed = false;
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -347,8 +348,9 @@ test("a stale legacy PUT preserves newer credentials", async (t) => {
   const paused = new Promise<void>((resolve) => { reached = resolve; });
   const repo = Object.create(base.mediaProviderCredentialRepo) as RouteDeps["mediaProviderCredentialRepo"];
   repo.listByWorkspaceId = async (input) => {
+    const rows = await base.mediaProviderCredentialRepo.listByWorkspaceId(input);
     if (armed) { armed = false; reached(); await gate; }
-    return base.mediaProviderCredentialRepo.listByWorkspaceId(input);
+    return rows;
   };
   const deps = testDeps({ mediaProviderCredentialRepo: repo });
   const app = createApp(deps);
