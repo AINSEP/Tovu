@@ -54,6 +54,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
   let quitPhase: QuitPhase = "idle";
   let spawned = 0;
   const backendCalls: Array<{ siteDir: string; ctx: Ctx; port?: number }> = [];
+  const acquired: string[] = [];
   const ports: SiteWindowPorts<FakeServer, FakeWindow, Ctx> = {
     openSites,
     startSiteBackend: async ({ siteDir, ctx }, options = {}) => {
@@ -63,6 +64,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
       return { server: fakeServer(spawned), partition: `persist:${siteDir}` };
     },
     sitePartition: ({ siteDir }, _options = {}) => `persist:${siteDir}`,
+    acquirePartition: async ({ siteDir }) => { acquired.push(siteDir); },
     createWindow: ({ url, title, partition }) => { log.push(`window ${url} ${title} ${partition}`); return fakeWindow(`w${log.length}`); },
     readSiteName: ({ siteDir }) => `Name of ${siteDir}`,
     recordSiteClosed: ({ registryPath, siteDir, pid }) => { log.push(`row-closed ${registryPath} ${siteDir} ${pid}`); },
@@ -78,7 +80,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
     logError: ({ message }) => { log.push(`error ${message}`); },
     ...overrides,
   };
-  return { ports, log, openSites, tracker, backendCalls, setQuitPhase: (phase: QuitPhase) => { quitPhase = phase; } };
+  return { ports, log, openSites, tracker, backendCalls, acquired, setQuitPhase: (phase: QuitPhase) => { quitPhase = phase; } };
 }
 
 test("retainsSiteOnClose: only macOS with no quit under way keeps the site running", () => {
@@ -329,4 +331,52 @@ test("B2 a window restored after a crash stops its replacement server and cancel
   assert.equal(cancellations, 1);
   assert.equal(replacement.stops, 1);
   assert.equal(old.stops, 0);
+});
+
+test("site window opened directly acquires before creating the BrowserWindow", async () => {
+  const log: string[] = [];
+  const h = harness({
+    acquirePartition: async ({ siteDir }) => { log.push(`acquire ${siteDir}`); },
+    createWindow: ({ partition }) => { log.push(`window ${partition}`); return fakeWindow("w"); },
+  });
+  await openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports });
+  assert.deepEqual(log, ["acquire /a", "window persist:/a"], "the window's own open holds the partition, not only the backend's");
+  // A retained server (macOS) has no backend start at all, so the window open is its only acquire.
+  log.length = 0;
+  h.openSites.set("/b", { server: fakeServer(8), siteDir: "/b" });
+  await openSiteWindow({ siteDir: "/b", ctx: CTX, ports: h.ports });
+  assert.deepEqual(log, ["acquire /b", "window persist:/b"]);
+});
+
+test("attached app window acquires its site partition", async () => {
+  const log: string[] = [];
+  const attached = fakeServer(42);
+  const h = harness({
+    // Attaching to a server another Tovu window started: no spawn, no row, no backend-side session work here.
+    startSiteBackend: async ({ siteDir }) => { log.push(`attach ${siteDir}`); return { server: attached, partition: `persist:${siteDir}` }; },
+    acquirePartition: async ({ siteDir }) => { log.push(`acquire ${siteDir}`); },
+    createWindow: ({ url, partition }) => { log.push(`window ${url} ${partition}`); return fakeWindow("w"); },
+  });
+  await openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports });
+  assert.deepEqual(log, ["attach /a", "acquire /a", `window ${attached.adminUrl} persist:/a`]);
+  assert.equal(h.openSites.get("/a")?.server, attached);
+});
+
+test("refused acquire opens no window on that partition", async () => {
+  const refusal = Object.assign(new Error("Tovu is tidying website data. Try opening this website again in a moment."), { kind: "busy" });
+  let windows = 0;
+  const h = harness({ acquirePartition: async () => { throw refusal; }, createWindow: () => { windows++; return fakeWindow("w"); } });
+  await assert.rejects(openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports }), refusal);
+  assert.equal(windows, 0, "no BrowserWindow, so Electron never creates the partition's session implicitly");
+  assert.equal(h.openSites.has("/a"), false);
+  assert.deepEqual(h.log, ["spawn /a", "row-closed /registry /a 1"], "the just-spawned child is stopped and its row dropped");
+  // Over a retained server the refusal leaves that server supervised, untouched.
+  const retained = fakeServer(9);
+  h.openSites.set("/b", { server: retained, siteDir: "/b" });
+  h.log.length = 0;
+  await assert.rejects(openSiteWindow({ siteDir: "/b", ctx: CTX, ports: h.ports }), refusal);
+  assert.equal(windows, 0);
+  assert.equal(retained.stops, 0);
+  assert.deepEqual(h.log, []);
+  assert.equal(h.openSites.get("/b")?.window, undefined);
 });

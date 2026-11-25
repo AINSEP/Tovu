@@ -45,6 +45,11 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
   /** Spawn (or attach to) the site's server and arm its session — `main.ts`'s `startSiteBackend`. */
   startSiteBackend: (required: { siteDir: string; ctx: C }, optional?: { port?: number }) => Promise<{ server: S; partition: string }>;
   sitePartition: (input: { siteDir: string }, options?: Record<string, never>) => string;
+  /**
+   * `desktop-partition-lock.ts`'s `acquireSiteWindow`: hold the site's partition through the
+   * interlock. Rejects with a plain-words refusal (busy / refused / unknown); never falls back.
+   */
+  acquirePartition: (required: { siteDir: string }) => Promise<unknown>;
   /** `main.ts`'s `createWindow` (see `app-window.ts`). */
   createWindow: (required: { url: string; title: string; partition: string }) => W;
   readSiteName: (required: { siteDir: string }) => string;
@@ -193,7 +198,8 @@ function stopClosedWindowServer<S extends SiteWindowServer, W extends SiteWindow
  * `createWindow` runs) — a row must exist for the whole time the server is actually alive, since
  * that is exactly the window `reconcileOrphans()` on the NEXT launch needs to find it if this
  * process is killed before either commits — but if `createWindow` itself throws, this attempt
- * failed as a whole: no window means no way for THIS process to reach or stop that server again (no
+ * failed as a whole (as does a refused partition acquire just before it): no window means no
+ * way for THIS process to reach or stop that server again (no
  * `openSites` entry, no `closed` listener), so leaving its row behind would strand it silently —
  * recorded but untracked, both here and (should this same siteDir be tried again) unreachable
  * through `already.window` either. The `catch` below stops the just-spawned server and drops the
@@ -229,6 +235,11 @@ async function openSiteWindow<S extends SiteWindowServer, W extends SiteWindow, 
 
   let window: W;
   try {
+    // Every window open acquires for itself, not only the backend start: a retained (macOS) or
+    // attached server reaches this line without one, and `new BrowserWindow({ partition })` would
+    // otherwise make Electron create that jar's session while a partition pass may be renaming it.
+    // Held is sticky, so after the backend's acquire this is a no-op. A refusal opens no window.
+    await ports.acquirePartition({ siteDir });
     window = ports.createWindow({ url: server.adminUrl, title: ports.readSiteName({ siteDir }), partition });
   } catch (error) {
     if (!already) {
