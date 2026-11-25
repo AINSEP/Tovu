@@ -141,9 +141,10 @@ const SERVER_EVIDENCE: Record<string, string> = {
   pages: `${CMS_ROUTES}/pages/shared.js`,
   // The posts read routes are Jini specs now; their `content.read` check lives in the built guard they share.
   posts: "../../../node_modules/@jini-ai/cms/dist/admin-http/routes/posts/shared.js",
-  media: `${ROUTES}/media/list.ts`,
+  // The media list is a Jini spec behind `mountAdminJsonRoute` now; `media.read` ships in the package.
+  media: "@jini-ai/cms/admin-http/routes/media/list",
   // Library lists `media?kind=document` through the same route and permission.
-  library: `${ROUTES}/media/list.ts`,
+  library: "@jini-ai/cms/admin-http/routes/media/list",
   collections: cmsRoute("content-types/list", "list.js"),
   menus: cmsRoute("menus/list", "list.js"),
   taxonomy: cmsRoute("taxonomy/list", "shared.js"),
@@ -172,7 +173,8 @@ const SERVER_EVIDENCE: Record<string, string> = {
   // `seo/get-settings` authorizes through the seo shared module, which holds the literal.
   seo: `${CMS_ROUTES}/seo/shared.js`,
   redirects: cmsRoute("redirects/list", "shared.js"),
-  analytics: `${ROUTES}/analytics/recent-hits.ts`,
+  // The recent-hits route is a Jini spec behind `mountAdminJsonRoute` now; `analytics.read` ships in the package.
+  analytics: "@jini-ai/analytics/admin-http/routes/recent-hits",
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
   providers: `${ROUTES}/external-mcp/guard.ts`,
   // The routable-only webhook deliveries drill-down (`/admin/integrations/:subscriptionId`).

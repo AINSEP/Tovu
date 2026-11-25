@@ -78,23 +78,38 @@ const shared = (scope: string): Array<[string[], string[]]> => [
 ];
 
 describe('host CSS for the Jini screens keeps the generic look', () => {
-  it('content analysis card (styles/editor.css)', () => {
-    const scope = ':where(.jini-content-analysis)';
-    expectParity('src/styles/editor.css', [
-      ...shared(scope),
-      [['.card'], ['.jini-card:where(.jini-content-analysis)']],
-      [['.btn-secondary'], [`${scope} .jini-btn-secondary`]],
-      [['.editor-actions'], [`${scope} .jini-editor-actions`]],
-      [['.save-error'], [`${scope} .jini-save-error`]],
-      [['.dash-stat-label'], [`${scope} .jini-stat-label`]],
-      [['.dash-stat-value'], [`${scope} .jini-stat-value`]],
-      [['.dash-stat-meta'], [`${scope} .jini-stat-meta`]],
-      [['.field-label'], [`${scope} .jini-field-label`]],
-      [['.field-hint'], [`${scope} .jini-field-hint`]],
-      [['.status-warning'], [`${scope} .jini-status-warning`]],
-      [['.status-error'], [`${scope} .jini-status-error`]],
-      [[':where(.card p, .card li, .notice)'], [':where(.jini-content-analysis p, .jini-content-analysis li)']],
+  // The Jini content-analysis card renders flat `jini-content-analysis-*` classes (no scoping wrapper
+  // class), so the host paints them as twins listed on the app's own rules in styles.css/editor.css.
+  // Parity here = each twin is in the same declaration set as the generic rule it mirrors.
+  it('content analysis card (twins on the shared rules in styles.css and styles/editor.css)', () => {
+    const ca = (name: string) => `.jini-content-analysis-${name}`;
+    expectParity('src/styles.css', [
+      [['.card'], [ca('card')]],
+      [['.card-title'], [ca('title')]],
+      [['.card-lead'], [ca('lead')]],
+      [['.btn-secondary'], [ca('btn-secondary')]],
+      [['.btn-secondary:hover'], [`${ca('btn-secondary')}:hover`]],
+      [['.btn-secondary:where(:hover)'], [`${ca('btn-secondary')}:where(:hover)`]],
+      [['.btn-secondary:where(:not(:disabled):active)'], [`${ca('btn-secondary')}:where(:not(:disabled):active)`]],
+      [['.btn-secondary:disabled'], [`${ca('btn-secondary')}:disabled`]],
+      [['.status'], [ca('status')]],
+      [['.status-ok'], [ca('status-ok')]],
+      [['.status-warning'], [ca('status-warning')]],
+      [['.status-neutral'], [ca('status-neutral')]],
+      [['.status-error'], [ca('status-error')]],
+      [['.editor-actions'], [ca('editor-actions')]],
+      [['.save-error'], [ca('save-error')]],
+      [['.dash-stat-label'], [ca('stat-label')]],
+      [['.dash-stat-value'], [ca('stat-value')]],
+      [['.dash-stat-meta'], [ca('stat-meta')]],
+      [['.field-label'], [ca('field-label')]],
+      [['.field-hint'], [ca('field-hint')]],
+      [[':where(.card p, .card li, .notice, .jini-post-notice, .jini-notice)'], [':where(.jini-content-analysis-card p, .jini-content-analysis-card li)']],
     ]);
+    const editor = topLevelRules('src/styles/editor.css');
+    for (const name of ['stats', 'stat', 'list', 'toc-level', 'check']) {
+      expect({ name, decls: merged(editor, [ca(name)]) }).toEqual({ name, decls: merged(editor, [`.content-analysis-${name}`]) });
+    }
   });
 
   it('cookie consent page (integrations/jini-admin/consent-screen.css)', () => {
@@ -114,7 +129,7 @@ describe('host CSS for the Jini screens keeps the generic look', () => {
       [['.card-head'], [`${scope} .jini-card-head`]],
       [['.card-head .card-title'], [`${scope} .jini-card-head .jini-card-title`]],
       [['.card-head .status'], [`${scope} .jini-card-head .jini-status`]],
-      [[':where(.card p, .card li, .notice)'], [':where(.jini-consent-page .jini-card p, .jini-consent-page .jini-card li, .jini-consent-page .jini-notice)']],
+      [[':where(.card p, .card li, .notice, .jini-post-notice, .jini-notice)'], [':where(.jini-consent-page .jini-card p, .jini-consent-page .jini-card li, .jini-consent-page .jini-notice)']],
       [['.notice'], [`${scope} .jini-notice`]],
       [['.notice.error'], [`${scope} .jini-notice.jini-notice-error`]],
       [['.notice.warning'], [`${scope} .jini-notice.jini-notice-warning`]],

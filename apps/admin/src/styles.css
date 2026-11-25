@@ -4052,7 +4052,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 }
 .jini-agent-plugin-row-summary:hover { background: color-mix(in srgb, var(--jini-text) 3.5%, transparent); }
 .jini-agent-plugin-row-summary:focus-visible,
-:is(.jini-agent-plugin-switch, .agent-plugin-switch):focus-visible,
+.jini-agent-plugin-switch:focus-visible,
+.agent-plugin-switch:focus-visible,
 .jini-settings-interface-switch:focus-visible,
 .jini-agent-plugin-icon-btn:focus-visible {
   outline: 2px solid var(--jini-accent); outline-offset: 2px;
@@ -4138,11 +4139,12 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 }
 .jini-agent-plugin-row[data-enabled="true"] .jini-agent-plugin-state { color: var(--jini-text); }
 
-/* `Themes.tsx` keeps the unprefixed `agent-plugin-switch*` class names (the theme screen is not edited here), so every rule below also matches them via `:is(...)`.
+/* `Themes.tsx` keeps the unprefixed `agent-plugin-switch*` class names (the theme screen is not edited here), so every rule below is a plain selector list naming both families (the CSS unit tests parse top-level rules, which `:is(...)` hid).
    iOS-style switch. `role="switch"` + `aria-checked` in the markup; this is only its paint.
    The off track is a solid mid-grey, not `--jini-bg-subtle`: on that near-white fill the white knob
    disappeared (owner screenshot, 2026-10-06). */
-:is(.jini-agent-plugin-switch, .agent-plugin-switch),
+.jini-agent-plugin-switch,
+.agent-plugin-switch,
 .jini-settings-interface-switch {
   flex: 0 0 auto; position: relative;
   width: 38px; height: 22px; padding: 0;
@@ -4152,7 +4154,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   cursor: pointer;
   transition: background-color 160ms var(--jini-ease-out), border-color 160ms var(--jini-ease-out);
 }
-:is(.jini-agent-plugin-switch-knob, .agent-plugin-switch-knob),
+.jini-agent-plugin-switch-knob,
+.agent-plugin-switch-knob,
 .jini-settings-interface-switch-knob {
   position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px;
@@ -4160,24 +4163,29 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   box-shadow: var(--jini-control-thumb-shadow-strong);
   transition: transform 160ms var(--jini-ease-out);
 }
-:is(.jini-agent-plugin-switch, .agent-plugin-switch)[aria-checked="true"],
+.jini-agent-plugin-switch[aria-checked="true"],
+.agent-plugin-switch[aria-checked="true"],
 .jini-settings-interface-switch[aria-checked="true"] {
   background: var(--primary); border-color: var(--primary);
 }
-:is(.jini-agent-plugin-switch, .agent-plugin-switch)[aria-checked="true"] :is(.jini-agent-plugin-switch-knob, .agent-plugin-switch-knob),
+.jini-agent-plugin-switch[aria-checked="true"] .jini-agent-plugin-switch-knob,
+.agent-plugin-switch[aria-checked="true"] .agent-plugin-switch-knob,
 .jini-settings-interface-switch[aria-checked="true"] .jini-settings-interface-switch-knob { transform: translateX(16px); }
-:is(.jini-agent-plugin-switch, .agent-plugin-switch):hover:not(:disabled),
+.jini-agent-plugin-switch:hover:not(:disabled),
+.agent-plugin-switch:hover:not(:disabled),
 .jini-settings-interface-switch:hover:not(:disabled) { border-color: var(--primary); }
 /* In flight. Dimmed and inert rather than mid-travel: the position it will land on is not known
    until the server answers, and animating to the requested state first would show a position the
    server may refuse. */
-:is(.jini-agent-plugin-switch, .agent-plugin-switch):disabled,
+.jini-agent-plugin-switch:disabled,
+.agent-plugin-switch:disabled,
 .jini-settings-interface-switch:disabled { cursor: progress; opacity: 0.55; }
 /* A locked ("Soon") switch is not drawn: its padlock (`.jini-agent-plugin-linked-lock`) takes the switch's
    column, as on a linked row, so every row's divider, word, eye and trash line up. The disabled switch
    stays in the DOM for its accessible name and state; hiding it visually leaves no white empty switch
    (owner 2026-10-25). */
-:is(.jini-agent-plugin-switch--locked, .agent-plugin-switch--locked):disabled { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); border: 0; opacity: 0; pointer-events: none; }
+.jini-agent-plugin-switch--locked:disabled,
+.agent-plugin-switch--locked:disabled { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); border: 0; opacity: 0; pointer-events: none; }
 /* A provider plugin's assistant face (`AgentPluginLinkedLock`, owner 2026-10-25): a red padlock in
    the switch's column — it is switched on the Plugins page, which the padlock opens — and the row
    reads as disabled. The padlock itself stays at full strength: it is the one live control. */
@@ -4327,10 +4335,12 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   .jini-agent-plugin-row::before,
   .jini-agent-plugin-row-glyph,
   .jini-agent-plugin-chevron-glyph,
-  :is(.jini-agent-plugin-switch, .agent-plugin-switch),
+  .jini-agent-plugin-switch,
   .jini-settings-interface-switch,
-  :is(.jini-agent-plugin-switch-knob, .agent-plugin-switch-knob),
+  .jini-agent-plugin-switch-knob,
   .jini-settings-interface-switch-knob,
+  .agent-plugin-switch,
+  .agent-plugin-switch-knob,
   .jini-agent-plugin-icon-btn {
     transition: none;
   }
@@ -6866,8 +6876,8 @@ body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
    the pill switches draw their own fixed-size track.
    ------------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost, a.jini-btn-primary):not([role="switch"]),
-  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]),
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .jini-login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost, a.jini-btn-primary):not([role="switch"]) {
     min-height: 44px;
   }
   :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, [role="button"]):not([role="switch"]),
@@ -6927,7 +6937,9 @@ body:has(.jini-agent-plugin-source-modal) .chat-fab { display: none; }
      measured from the padding box (36x20 inside the agent / AI Assistant switch's 1px border), so
      -12px -5px makes it 46x44 / 44x44; -10px -4px left both short of 44 tall. The AI Assistant
      switch is an `appearance: none` checkbox whose `::after` is the knob, so `::before` is free. */
-  :is(:is(.jini-agent-plugin-switch, .agent-plugin-switch), .jini-settings-interface-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before { content: ""; position: absolute; inset: -12px -5px; }
+  :is(.jini-agent-plugin-switch, .jini-settings-interface-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before,
+  :is(.jini-agent-plugin-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before,
+  .agent-plugin-switch::before { content: ""; position: absolute; inset: -12px -5px; }
 
 }
 
