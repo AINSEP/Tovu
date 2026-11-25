@@ -15,7 +15,7 @@ import type { MigrationStep } from "@jini-ai/core/contracts/storage";
  *
  * NULL means "written before typed attribution existed, or by a writer without one": unknown, never
  * guessed from an id. No CHECK constraint (the code list owns the vocabulary), no backfill, no row
- * rewrite, no VACUUM: additive and O(1). Portable DDL for SQLite and Postgres, shared with the
+ * rewrite, no compaction: additive and O(1). Portable DDL for SQLite and Postgres, shared with the
  * fresh-database bootstrap. Added as an ADR-066 step: the Drizzle chain is frozen.
  */
 export const LEDGER_ACTOR_KIND_ID = "0050_ledger_actor_kind";
