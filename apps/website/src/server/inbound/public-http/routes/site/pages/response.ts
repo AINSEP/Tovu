@@ -3,14 +3,15 @@ import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import { injectListingScript } from "@jini-ai/cms/listing";
+import { resolveVisitorPagePolicy, publicPageCache, finalizePublicPageHtml as finalizePage, type PerVisitorResponse } from "@jini-ai/cms/public-http/routes/site/pages/response";
+import { CONFIG_ID } from "@jini-ai/cookie-consent";
+import { hasConsentGatedScripts } from "@jini-ai/cookie-consent/site/pre-consent-cache";
 import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
 import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../../../http/site/form-feedback-policy.js";
-import { decodeFormFlashCookieValue, mergeFormFlashIntoResult } from "@jini-ai/cms/forms/result-flash";
+import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
 import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS, MEMBER_AUTH_NAMES, MEMBER_AUTH_SCRIPT_MARKER } from "../../../http/site/form-wire-policy.js";
 import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
-import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
 import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import { injectMemberAuthScript } from "@jini-ai/cms/public-http/http/site/member-auth-script";
@@ -18,8 +19,6 @@ import { isHttpsRequest } from "../../../../../../platform/express/public-origin
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
-import { hasConsentGatedScripts } from "@jini-ai/cookie-consent/site/pre-consent-cache";
-import { CONFIG_ID } from "@jini-ai/cookie-consent";
 import { preConsentCacheControl } from "./pre-consent-cache.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE } from "./request-policy.js";
 
@@ -30,16 +29,6 @@ import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTR
  *  set/clear pair symmetric, same as `dev-auth.ts`'s own `setSessionCookie`/`clearSessionCookie`. */
 function clearFormFlashCookie(req: Request, res: Response): void {
   res.clearCookie(FORM_FLASH_COOKIE_NAME, { httpOnly: true, path: "/", sameSite: "lax", secure: isHttpsRequest(req) });
-}
-
-/** {@link resolvePerVisitorResponse}'s two outputs: the form result to splice into the HTML (if
- *  any), and the `Cache-Control` this response must therefore send. Returned together, from the one
- *  place that knows whether ANY per-visitor state was in play, so no render branch can splice
- *  per-visitor content in and then pick the header independently — the defect this shape replaces
- *  ({@link CACHE_CONTROL_PRIVATE_FORM_RESULT} documents it). */
-interface PerVisitorResponse {
-  readonly result: FormSubmissionRedirectResult | undefined;
-  readonly cacheControl: string;
 }
 
 /**
@@ -69,30 +58,12 @@ interface PerVisitorResponse {
 export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Response }, _optional: Record<string, never> = {}): PerVisitorResponse {
   const queryResult = decodeFormSubmissionResultFromQuery({ query: req.query, keys: FORM_RESULT_QUERY_KEYS });
   const flash = decodeFormFlashCookieValue({ raw: readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }) });
-  if (flash) clearFormFlashCookie(req, res);
-  const result = mergeFormFlashIntoResult({ result: queryResult, flash });
-  // Both arms matter, and neither implies the other. `result` covers a PRG landing whose body gets
-  // rewritten. `flash` covers the case where the merge dropped it (no `form_*` params, or a
-  // different form's slug) yet a read-once cookie was still consumed and cleared ON THIS RESPONSE —
-  // storing that response would let a shared cache replay the clearing `Set-Cookie` to other
-  // visitors and outlive the cookie it retired.
-  if (result !== undefined || flash !== undefined) {
-    return { result, cacheControl: CACHE_CONTROL_PRIVATE_FORM_RESULT };
-  }
-  // The member arm, checked on cookie PRESENCE alone — see
-  // {@link CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE}'s own doc for why not on "the filter dropped
-  // something." Ordering between the two private arms is cosmetic (both resolve to the same
-  // never-store literal); what matters is that `public` is reachable ONLY when NEITHER trigger
-  // fired, so a request carrying both cookies can never fall back to it through either path.
-  if (readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }) !== undefined) {
-    return { result, cacheControl: CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE };
-  }
-  // The static-export marker changes the body (no visitor-chat widget), so it is a per-visitor
-  // trigger too — see {@link isStaticExportRequest}.
-  if (isStaticExportRequest(req)) {
-    return { result, cacheControl: CACHE_CONTROL_PRIVATE_STATIC_EXPORT };
-  }
-  return { result, cacheControl: CACHE_CONTROL_PUBLIC_PAGE };
+  return resolveVisitorPagePolicy({ queryResult, flash,
+    clearFlash: () => clearFormFlashCookie(req, res),
+    memberCookiePresent: () => readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }) !== undefined,
+    staticExport: () => isStaticExportRequest(req),
+    cache: { form: CACHE_CONTROL_PRIVATE_FORM_RESULT, member: CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE, staticExport: CACHE_CONTROL_PRIVATE_STATIC_EXPORT, public: CACHE_CONTROL_PUBLIC_PAGE },
+  });
 }
 
 /**
@@ -123,28 +94,26 @@ function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: i
 }
 
 async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Request; html: string; formResult: FormSubmissionRedirectResult | undefined; deps: RouteDeps }, _optional = {}): Promise<string> {
-  const batchBody = listingState.listingBatchBody({ req, html });
-  if (batchBody !== undefined) {
-    // Every caller has already typed the response as html; the JSON form answers as JSON.
-    if (batchBody.format === "json") req.res?.type("json");
-    return batchBody.body;
-  }
-  listingState.assertListingPageServed({ req, html });
-  html = injectExtraHeadIntoStaticPage({ html, extraHead: deps.pluginExportRender?.headHtml({}) });
-  addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
-  html = injectListingScript({ html });
-  if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
-  const finished = injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
-  // Member sign-in needs this server's API, which an exported file never has: its header keeps the
-  // theme's plain "Sign in" link.
-  if (isStaticExportRequest(req)) return finished;
-  return injectMemberAuthScript({ html: injectFormAttemptTokens({ html: finished, newToken: ({ slug }) => {
-    const attemptToken = randomUUID();
-    // The composition supplies this same process-lifetime owner to submission. Static exports
-    // returned above never issue tokens; rendering observes time without claiming a submission.
-    deps.formSubmissionAttempts?.issue({ workspaceId: deps.workspaceId, slug, attemptToken, issuedAtMs: deps.clock.nowMs() }, {});
-    return attemptToken;
-  } }, {}), workspaceId: deps.workspaceId, marker: MEMBER_AUTH_SCRIPT_MARKER, names: MEMBER_AUTH_NAMES });
+  const result = await finalizePage({ html, formResult, ports: {
+    listingBatchBody: ({ html }) => listingState.listingBatchBody({ req, html }),
+    assertListingPageServed: ({ html }) => listingState.assertListingPageServed({ req, html }),
+    pluginHead: () => deps.pluginExportRender?.headHtml({}),
+    addPluginHosts: () => addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) }),
+    widgetPartials: async ({ html }) => deps.pluginContributions ? renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo }) : html,
+    finishFormResult: ({ html, formResult }) => injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }),
+    staticExport: () => isStaticExportRequest(req),
+    formAttemptTokens: ({ html }) => injectFormAttemptTokens({ html, newToken: ({ slug }) => {
+      const attemptToken = randomUUID();
+      // The composition supplies this same process-lifetime owner to submission. Static exports
+      // returned above never issue tokens; rendering observes time without claiming a submission.
+      deps.formSubmissionAttempts?.issue({ workspaceId: deps.workspaceId, slug, attemptToken, issuedAtMs: deps.clock.nowMs() }, {});
+      return attemptToken;
+    } }, {}),
+    memberAuthScript: ({ html }) => injectMemberAuthScript({ html, workspaceId: deps.workspaceId, marker: MEMBER_AUTH_SCRIPT_MARKER, names: MEMBER_AUTH_NAMES }),
+  } });
+  // Every caller has already typed the response as html; the JSON form answers as JSON.
+  if (result.contentType === "json") req.res?.type("json");
+  return result.html;
 }
 
 /** Sends a finished public page: this request's `Cache-Control`, the HTML type, and the finalized
@@ -152,13 +121,10 @@ async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Re
 export async function sendPublicPage({ req, res, deps, html, perVisitor }: {
   req: Request; res: Response; deps: RouteDeps; html: string; perVisitor: PerVisitorResponse;
 }): Promise<void> {
-  // Live comments never enter browser/CDN caches; approval, selection and disable take effect on the next request.
-  const routeCacheControl = html.includes('data-comments-surface') ? 'private, no-store' : perVisitor.cacheControl;
-  // G7-8: a pre-consent page carrying consent-gated tracking scripts never enters a shared cache.
-  const cacheControl = preConsentCacheControl({ html, request: req, cacheControl: routeCacheControl });
-  // A consent-gated page that is still cacheable here was rendered for a visitor with a consent choice,
-  // while the cookie-free variant is `no-store`: key shared caches on the cookie so one is never
-  // replayed to the other. `res.vary` merges with any Vary header already set.
-  if (!/\b(private|no-store)\b/.test(cacheControl) && hasConsentGatedScripts({ html, configId: CONFIG_ID })) res.vary("Cookie");
+  const { cacheControl, varyCookie } = publicPageCache({ html, cacheControl: perVisitor.cacheControl,
+    preConsentCacheControl: ({ html, cacheControl }) => preConsentCacheControl({ html, request: req, cacheControl }),
+    hasConsentGatedScripts: ({ html }) => hasConsentGatedScripts({ html, configId: CONFIG_ID }),
+  });
+  if (varyCookie) res.vary("Cookie");
   res.set("Cache-Control", cacheControl).type("html").send(await finalizePublicPageHtml({ req, html, formResult: perVisitor.result, deps }));
 }

@@ -9,6 +9,7 @@ import { CONFIG_ID, CONSENT_COOKIE } from "@jini-ai/cookie-consent";
 import type { RouteDeps } from "#src/server/routes/types";
 import { CACHE_CONTROL_PUBLIC_PAGE } from "../request-policy.js";
 import { CACHE_CONTROL_PRE_CONSENT_TRACKING } from "@jini-ai/cookie-consent/site/pre-consent-cache";
+import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
 import { sendPublicPage } from "../response.js";
 
 /**
@@ -76,4 +77,28 @@ test("an invalid cookie on a page with gated scripts does not make it public-cac
   const response = await fetch(`${base}/tracked`, { headers: { cookie: `${CONSENT_COOKIE}=${encodeURIComponent(JSON.stringify({ v: 1, a: "accept" }))}` } });
   assert.equal(response.headers.get("cache-control"), "private, no-store");
   assert.match(await response.text(), /analytics\.example\/t\.js/);
+});
+
+
+test("a later JSON listing type does not erase the cache decision or an existing Vary value", async (t) => {
+  const app = express();
+  const deps = { workspaceId: "ws", clock: { nowMs: () => Date.now() } } as unknown as RouteDeps;
+  app.get("/batch", async (req, res, next) => {
+    try {
+      const listingBatch = { pagePath: "/batch", key: 1, after: 12, format: "json" as const };
+      listingState.recordListingBatchRequest({ req, listingBatch });
+      await listingState.storeListingJsonPage({ listingBatch, keyed: new Map([[1, { posts: [], next: null }]]), toItem: ({ post }) => post });
+      res.vary("Accept-Encoding");
+      await sendPublicPage({ req, res, deps, html: TRACKED, perVisitor: { cacheControl: CACHE_CONTROL_PUBLIC_PAGE, result: undefined } });
+    } catch (error) { next(error); }
+  });
+  const server = createServer(app);
+  server.listen(0);
+  await once(server, "listening");
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/batch`, { headers: { cookie: CHOICE } });
+  assert.match(response.headers.get("content-type") ?? "", /^application\/json/);
+  assert.equal(response.headers.get("cache-control"), CACHE_CONTROL_PUBLIC_PAGE);
+  assert.deepEqual(varyTokens(response).sort(), ["accept-encoding", "cookie"]);
+  assert.deepEqual(await response.json(), { items: [], nextCursor: null });
 });

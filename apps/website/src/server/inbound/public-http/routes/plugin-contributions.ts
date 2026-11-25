@@ -2,7 +2,7 @@
  * Express stack surgery: disabled/reloaded handlers have no route entry to dispatch to. */
 import express, { type Express, type RequestHandler, type ErrorRequestHandler, type Response } from 'express';
 import type { PluginContributionsSnapshot } from '@jini-ai/core/contracts/site/plugins-host';
-import type { PluginAuthContext, PluginRouteResult } from '@jini-ai/core/contracts/plugin-sdk';
+import { isPluginActivated, invokeLivePluginRoute } from '@jini-ai/cms/public-http/routes/plugin-contributions';
 import type { RouteDeps } from '../../../routes/types.js';
 import { authorizeOrRespond } from '../../admin-http/authorize-guard.js';
 import { requireAdminSession } from '../../admin-http/dev-auth.js';
@@ -47,34 +47,10 @@ type PluginRouteErrorReporter = (required: { pluginId: string; error: unknown },
 const respondNotFound = (res: Response): void => { res.status(404).json({ code: 'NOT_FOUND' }); };
 const warnPluginRouteFailure: PluginRouteErrorReporter = ({ pluginId, error }, _optional = {}) => console.warn(`[plugins] Plugin '${pluginId}' route failed`, error);
 
-/** Whether the durable activation row says the plugin is enabled right now. */
-async function isPluginActivated({ deps, pluginId }: { deps: PluginRouteDeps; pluginId: string }): Promise<boolean> {
-  const row = await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId });
-  return Boolean(row?.enabled);
-}
-
-/** Whether this exact snapshot is still the live generation (a reload or disable retires it). */
-function isLiveGeneration({ deps, snapshot }: { deps: PluginRouteDeps; snapshot: PluginContributionsSnapshot }): boolean {
-  return Boolean(deps.pluginContributions?.list({}).includes(snapshot));
-}
-
-/** The principal the access level's auth port resolved; public routes carry none. */
-function principalFor({ access, locals }: { access: PluginRoute['access']; locals: Response['locals'] }): Pick<PluginAuthContext, 'principalId'> {
-  if (access === 'admin') return { principalId: locals.principal?.id };
-  if (access === 'member') return { principalId: locals.pluginMemberId };
-  return {};
-}
-
-function sendPluginRouteResult({ res, result }: { res: Response; result: PluginRouteResult | void }): void {
-  res.set('Cache-Control', 'no-store');
-  if (result === undefined) { res.status(204).end(); return; }
-  res.status(result.status ?? 200).json(result.body ?? null);
-}
-
 /** Gate before auth and body parsing: a disabled plugin's route answers 404 without reading anything. */
 const requireActivatedPlugin = (deps: PluginRouteDeps, snapshot: PluginContributionsSnapshot): RequestHandler => async (_req, res, next) => {
   try {
-    if (!(await isPluginActivated({ deps, pluginId: snapshot.pluginId }))) { respondNotFound(res); return; }
+    if (!(await isPluginActivated({ workspaceId: deps.workspaceId, pluginId: snapshot.pluginId, getActivation: (input) => deps.pluginActivationRepo.getActivation(input) }))) { respondNotFound(res); return; }
     res.locals.pluginOwnerId = snapshot.pluginId;
     next();
   } catch (error) { next(error); }
@@ -84,17 +60,19 @@ const invokePluginRoute = (
   { deps, snapshot, route }: { deps: PluginRouteDeps; snapshot: PluginContributionsSnapshot; route: PluginRoute },
   { onError }: { onError: PluginRouteErrorReporter },
 ): RequestHandler => async (req, res) => {
-  try {
-    if (!(await isPluginActivated({ deps, pluginId: snapshot.pluginId })) || !isLiveGeneration({ deps, snapshot })) { respondNotFound(res); return; }
-    const context: PluginAuthContext = { access: route.access, workspaceId: deps.workspaceId, ...principalFor({ access: route.access, locals: res.locals }) };
-    const result = await route.handler({ pluginId: snapshot.pluginId, sdk: snapshot.sdk, auth: context, body: req.body, params: req.params as Record<string, string>, query: req.query }, {});
-    // A disable/reload while the handler awaited must not emit a retired generation's result.
-    if (!isLiveGeneration({ deps, snapshot }) || !(await isPluginActivated({ deps, pluginId: snapshot.pluginId }))) { respondNotFound(res); return; }
-    sendPluginRouteResult({ res, result });
-  } catch (error) {
-    onError({ pluginId: snapshot.pluginId, error }, {});
-    res.status(500).json({ code: 'PLUGIN_ROUTE_FAILED' });
-  }
+  const result = await invokeLivePluginRoute({ workspaceId: deps.workspaceId, snapshot, route,
+    input: { body: req.body, params: Object.fromEntries(Object.entries(req.params).map(([key, value]) => [key, String(value)])), query: req.query },
+    ports: {
+      isActivated: ({ pluginId }) => isPluginActivated({ workspaceId: deps.workspaceId, pluginId, getActivation: (input) => deps.pluginActivationRepo.getActivation(input) }),
+      isLive: ({ snapshot }) => Boolean(deps.pluginContributions?.list({}).includes(snapshot)),
+      principalIdFor: ({ access }) => access === 'admin' ? res.locals.principal?.id : res.locals.pluginMemberId,
+      reportError: onError,
+    },
+  });
+  if (result.kind !== 'result') { res.status(result.status).json(result.body); return; }
+  res.set('Cache-Control', result.cacheControl);
+  if (result.response === 'empty') { res.status(result.status).end(); return; }
+  res.status(result.status).json(result.body);
 };
 
 const passThrough: RequestHandler = (_req, _res, next) => next();

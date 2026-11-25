@@ -1,8 +1,10 @@
 import { PublishContentPeerTransportError, type PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
-import type { Request, Response } from "express";
+import type { Response } from "express";
 
-import type { PublishScope } from "@jini-ai/cms/publish/content/ui";
+import { peerPushPlanRoute, peerPushConfirmRoute, peerPushExecuteRoute } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
+import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
+import { refuseUnlessSessionCredential } from "../../admin-request-facts.js";
 import { confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport-binding";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
@@ -13,15 +15,10 @@ import {
   PUBLISH_FROM_LIVE_SITE_ERROR,
 } from "@jini-ai/cms/publish/content/live-site-policy";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 
-import { bodyRecord } from "@jini-ai/cms/admin-http/routes/publish-content/transport-shared";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
 import {
-  acceptOverwriteEntityKeys,
-  authorizedPrincipalId,
   mappedErrorResponse,
-  OVERWRITE_REFUSED,
   sendRefusal,
 } from "./route-helpers.js";
 import type { MappedErrorClass, RouteRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
@@ -134,231 +131,47 @@ async function openPeer({ deps, peerId }: { deps: PublishContentRouteDeps; peerI
     publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock } };
 }
 
-/** Distinguishes "the body carried a malformed selection" (a 400) from "the body carried none"
- *  (`null`, publish everything) — two outcomes a bare `null` return could not tell apart. */
-const INVALID_SELECTION = Symbol("invalid-selection");
-
-/**
- * Reads `push/plan`'s optional per-row selection: the `entityKey` strings
- * (`planner.ts`'s `${entityType}:${entityId}`) the operator left checked in the dialog.
- *
- * Absent means "publish everything", which is what every caller before the checkbox column sent and
- * what the dialog still sends when nothing was unchecked — the common path stays a bodyless POST.
- * An empty ARRAY is a real, different answer ("the operator unchecked everything") and is honoured
- * as such: it stages an empty bundle and plans to zero rows rather than quietly publishing the lot.
- *
- * @complexity O(n) in the submitted key count.
- */
-function readSelectedEntityKeys({ body }: { body: unknown }, _options: Record<string, never> = {}): readonly string[] | null | typeof INVALID_SELECTION {
-  const raw = bodyRecord({ body });
-  if (raw.selectedEntityKeys === undefined || raw.selectedEntityKeys === null) return null;
-  if (!Array.isArray(raw.selectedEntityKeys)) return INVALID_SELECTION;
-  if (!raw.selectedEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_SELECTION;
-  return raw.selectedEntityKeys;
-}
-
-/** `scope`'s per-field cap, matching `readOverwriteEntityKeys`'s 1000-entry bound (`@jini-ai/cms/admin-http/routes/publish-content/import`). */
-const MAX_SCOPE_ARRAY_LENGTH = 1000;
-
-/** @complexity O(1). */
-function isNonEmptyStringArrayField(value: unknown): value is readonly string[] {
-  return Array.isArray(value) && value.length > 0 && value.length <= MAX_SCOPE_ARRAY_LENGTH && value.every((v) => typeof v === "string");
-}
-
-/**
- * Reads `push/plan`'s optional `scope` (`plan-publish-sections-2026-09-25.md` §1) — the section (or
- * section-plus-rows) this plan is about, applied BEFORE `selectedEntityKeys` narrows further (this
- * file's own `push/plan` handler). Absent/`null` means "publish everything", the same "absent, not an
- * empty real answer" contract every other optional array field on this route reads by.
- *
- * A present `entityTypes` or `entityKeys` must be a non-empty array of strings (at most
- * {@link MAX_SCOPE_ARRAY_LENGTH} entries): an empty array is refused rather than silently treated as
- * "everything" or "nothing", since `selectedEntityKeys` already uses an empty array for "nothing" and
- * a caller sending `scope: {entityTypes: []}` almost certainly meant something else.
- *
- * @returns `{scope: null}` when the body carries no `scope`, `{scope}` (the validated
- *   {@link PublishScope}) when it is well-formed, or `{invalidField}` naming which field was wrong
- *   (`"scope"` itself when it is not an object or names neither field — never read as "everything").
- * @complexity O(n) in the submitted array lengths.
- */
-function readPublishScope({ body }: { body: unknown }, _options: Record<string, never> = {}): { scope: PublishScope | null } | { invalidField: ScopeInvalidField } {
-  const raw = bodyRecord({ body });
-  if (raw.scope === undefined || raw.scope === null) return { scope: null };
-  if (typeof raw.scope !== "object" || Array.isArray(raw.scope)) return { invalidField: "scope" };
-  const scopeBody = raw.scope as Record<string, unknown>;
-  // A present scope naming neither field (`{}`, or a typo like `{types: [...]}`) would otherwise
-  // narrow nothing — silently widening a one-section dialog to "publish everything". Refused.
-  if (scopeBody.entityTypes === undefined && scopeBody.entityKeys === undefined) return { invalidField: "scope" };
-  const invalidField = SCOPE_FIELDS.find((field) => scopeBody[field] !== undefined && !isNonEmptyStringArrayField(scopeBody[field]));
-  return invalidField ? { invalidField } : { scope: presentScopeFields(scopeBody) };
-}
-
-const SCOPE_FIELDS = ["entityTypes", "entityKeys"] as const;
-type ScopeInvalidField = "scope" | (typeof SCOPE_FIELDS)[number];
-
-/** The scope fields the body carries, each already validated by {@link readPublishScope}.
- *  @complexity O(1) — two fixed fields. */
-function presentScopeFields(scopeBody: Record<string, unknown>): PublishScope {
-  return Object.fromEntries(SCOPE_FIELDS.filter((field) => scopeBody[field] !== undefined).map((field) => [field, scopeBody[field]]));
-}
-
-/** The 400 message for a malformed `scope`. @complexity O(1). */
-function scopeErrorMessage(invalidField: ScopeInvalidField): string {
-  return invalidField === "scope"
-    ? "'scope' must be an object with 'entityTypes' and/or 'entityKeys'"
-    : `'scope.${invalidField}' must be a non-empty array of strings`;
-}
-
-/**
- * Reads `push/plan`'s two narrowing fields: `selectedEntityKeys` first, then `scope`.
- * @returns the 400 message for the first malformed one, or both read values.
- * @complexity O(n) in the submitted array lengths.
- */
-function readPushPlanNarrowing({ body }: { body: unknown }, _options: Record<string, never> = {}): { error: string } | { scope: PublishScope | null; selectedEntityKeys: readonly string[] | null } {
-  const selectedEntityKeys = readSelectedEntityKeys({ body });
-  if (selectedEntityKeys === INVALID_SELECTION) return { error: "'selectedEntityKeys' must be an array of strings" };
-  const scopeResult = readPublishScope({ body });
-  if ("invalidField" in scopeResult) return { error: scopeErrorMessage(scopeResult.invalidField) };
-  return { scope: scopeResult.scope, selectedEntityKeys };
-}
-
-/**
- * publish-overwrite-live-plan §7: "Overwrite on live" ticks come only from a person's click. On
- * this relay that means a signed-in admin session; an API key (a script, or a model holding one) is
- * refused. The destination can't tell the difference — it only ever sees this instance's
- * publishing credential — so this is the one place the rule can hold for a push. Empty ticks ask
- * for nothing and pass.
- *
- * @returns `true` when the request may proceed. On `false` the 403 has already been sent.
- * @complexity O(1).
- */
-function mayOverwrite({ res, overwriteEntityKeys }: { res: Response; overwriteEntityKeys: readonly string[] | null }, _options: Record<string, never> = {}): boolean {
-  if (overwriteEntityKeys === null || overwriteEntityKeys.length === 0) return true;
-  return rejectUnlessSessionCredential({ res,
-    message: "'overwriteEntityKeys' can only be sent from a signed-in admin session",
-    permission: "publish_content.apply",
+function registerPushPlanRoute({ app, deps }: Parameters<PublishContentRouteRegistrar>[0]): void {
+  mountAdminJsonRoute({ app, spec: peerPushPlanRoute, deps: {
+    workspaceId: deps.workspaceId, authorize: deps.authorize,
+    requireOverwriteSession: (): void => { throw new Error("bound per request"); },
+    openPeer: ({ peerId }) => openPeer({ deps, peerId }),
+    plan: ({ peer, principalId, scope, selectedEntityKeys, overwriteEntityKeys }) => planPublishToPeer({ deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) }, peer, principalId }, { scope, selectedEntityKeys, overwriteEntityKeys }),
+  } }, {
+    preflight: { readHeaders: [], check: () => canPublishToLive({ resolveRuntimeMode }) ? undefined : { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE } } },
+    requestDeps: ({ res, deps: base }) => ({ ...base, requireOverwriteSession: () => refuseUnlessSessionCredential({ res, gate: { message: "'overwriteEntityKeys' can only be sent from a signed-in admin session", permission: "publish_content.apply" } }) }),
+    failureWriter: ({ res, error }) => respondWithError({ res, err: error }),
   });
 }
 
-type PeerRouteDeps = Parameters<PublishContentRouteRegistrar>[0]["deps"];
-type PeerGuard = (input: { req: Pick<Request, "params">; res: Response }) => Promise<string | null>;
-
-/** What each peer route registrar needs: the app, deps, the shared path prefix and the two guards. */
-interface PeerRouteContext {
-  app: Parameters<PublishContentRouteRegistrar>[0]["app"];
-  deps: PeerRouteDeps;
-  base: string;
-  pushGuard: PeerGuard;
-}
-
-/** Every route here shares the same preamble: mount-path 404, authenticated principal, and the
- *  `publish_content.apply` gate. Factored so a new peer action cannot accidentally ship without
- *  one of the three. Returns the principal id, or `null` when a response has already been sent. */
-async function peerGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "params">; res: Response }): Promise<string | null> {
-  const { deps, req, res } = input;
-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return null;
-  return authorizedPrincipalId({ res, deps, permission: "publish_content.apply" });
-}
-
-/** The push routes' extra preamble: the live site is the publish destination, so it never pushes
- *  (`live-site-policy.ts`). Runs before {@link peerGuard} — nothing about the caller changes the answer. */
-async function peerPushGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "params">; res: Response }): Promise<string | null> {
-  const { deps, req, res } = input;
-  if (!canPublishToLive({ resolveRuntimeMode })) {
-    res.status(403).json({ error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE });
-    return null;
-  }
-  return peerGuard({ deps, req, res });
-}
-
-function registerPushPlanRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
-  app.post(`${base}/push/plan`, async (req, res) => {
-    try {
-      const principalId = await pushGuard({ req, res });
-      if (principalId === null) return;
-
-      const narrowing = readPushPlanNarrowing({ body: req.body });
-      if ("error" in narrowing) {
-        res.status(400).json({ error: narrowing.error, code: "VALIDATION_ERROR" });
-        return;
-      }
-      const overwriteEntityKeys = acceptOverwriteEntityKeys({ res, raw: bodyRecord({ body: req.body }).overwriteEntityKeys, mayOverwrite });
-      if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
-
-      const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
-      res.json(await planPublishToPeer({
-        deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) },
-        peer,
-        principalId,
-      }, { scope: narrowing.scope, selectedEntityKeys: narrowing.selectedEntityKeys, overwriteEntityKeys }));
-    } catch (err) {
-      respondWithError({ res, err });
-    }
+function registerPushConfirmRoute({ app, deps }: Parameters<PublishContentRouteRegistrar>[0]): void {
+  mountAdminJsonRoute({ app, spec: peerPushConfirmRoute, deps: {
+    workspaceId: deps.workspaceId, authorize: deps.authorize,
+    openPeer: ({ peerId }) => openPeer({ deps, peerId }),
+    confirm: ({ peer, planId, planHash }) => confirmPeerImport({ deps: peer, required: { planId, planHash } }),
+  } }, {
+    preflight: { readHeaders: [], check: () => canPublishToLive({ resolveRuntimeMode }) ? undefined : { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE } } },
+    failureWriter: ({ res, error }) => respondWithError({ res, err: error }),
   });
 }
 
-function registerPushConfirmRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
-  app.post(`${base}/push/confirm`, async (req, res) => {
-    try {
-      const principalId = await pushGuard({ req, res });
-      if (principalId === null) return;
-
-      const { planId, planHash } = bodyRecord({ body: req.body });
-      if (typeof planId !== "string" || typeof planHash !== "string") {
-        res.status(400).json({ error: "'planId' and 'planHash' (strings) are required", code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
-      res.json(await confirmPeerImport({ deps: peer, required: { planId, planHash } }));
-    } catch (err) {
-      respondWithError({ res, err });
-    }
-  });
-}
-
-function registerPushExecuteRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
-  app.post(`${base}/push/execute`, async (req, res) => {
-    try {
-      const principalId = await pushGuard({ req, res });
-      if (principalId === null) return;
-
-      const body = bodyRecord({ body: req.body });
-      const { bundleId, confirmationToken } = body;
-      if (typeof bundleId !== "string" || typeof confirmationToken !== "string") {
-        res.status(400).json({ error: "'bundleId' and 'confirmationToken' (strings) are required", code: "VALIDATION_ERROR" });
-        return;
-      }
-      const overwriteEntityKeys = acceptOverwriteEntityKeys({ res, raw: body.overwriteEntityKeys, mayOverwrite });
-      if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
-
-      const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
-      res.json(
-        await executePeerImport({
-                                  deps: peer,
-                                  required: {
-            bundleId,
-            confirmationToken,
-            ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
-          }
-                                })
-      );
-    } catch (err) {
-      respondWithError({ res, err });
-    }
+function registerPushExecuteRoute({ app, deps }: Parameters<PublishContentRouteRegistrar>[0]): void {
+  mountAdminJsonRoute({ app, spec: peerPushExecuteRoute, deps: {
+    workspaceId: deps.workspaceId, authorize: deps.authorize,
+    openPeer: ({ peerId }) => openPeer({ deps, peerId }),
+    requireOverwriteSession: (): void => { throw new Error("bound per request"); },
+    execute: ({ peer, ...required }) => executePeerImport({ deps: peer, required }),
+  } }, {
+    preflight: { readHeaders: [], check: () => canPublishToLive({ resolveRuntimeMode }) ? undefined : { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE } } },
+    requestDeps: ({ res, deps: base }) => ({ ...base, requireOverwriteSession: () => refuseUnlessSessionCredential({ res, gate: { message: "'overwriteEntityKeys' can only be sent from a signed-in admin session", permission: "publish_content.apply" } }) }),
+    failureWriter: ({ res, error }) => respondWithError({ res, err: error }),
   });
 }
 
 /** The three push routes, in their registered order; the pull spec follows them
  *  (`modules/publish-content-transport.ts`'s `registerPublishContentPeerTransportRoutes`). */
 export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const context: PeerRouteContext = {
-    app,
-    deps,
-    base: "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId",
-    pushGuard: ({ req, res }) => peerPushGuard({ deps, req, res }),
-  };
-  registerPushPlanRoute(context);
-  registerPushConfirmRoute(context);
-  registerPushExecuteRoute(context);
+  registerPushPlanRoute({ app, deps });
+  registerPushConfirmRoute({ app, deps });
+  registerPushExecuteRoute({ app, deps });
 };

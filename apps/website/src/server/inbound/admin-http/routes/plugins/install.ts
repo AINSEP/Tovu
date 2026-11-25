@@ -1,125 +1,57 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
-import type { PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { raw, type Express, type Request, type Response } from "express";
-import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { folderPluginInstallPreviewRoute, folderPluginInstallRoute, zipPluginInstallPreviewRoute, zipPluginInstallRoute, pluginInstallErrorStatus, zipParserRefusal } from "@jini-ai/cms/admin-http/routes/plugins/install";
+import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
+import { mountAdminRawRoute } from "../../admin-raw-route-ports.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import { localPluginInstaller, type LocalInstallerDeps } from "./local-installer.js";
 
-const conflicts = new Set(["PLUGIN_SHADOWS_BUILT_IN", "PLUGIN_ID_CONFLICT", "PLUGIN_IN_TRASH", "PLUGIN_ENABLED", "PLUGIN_VERSION_EXISTS", "PLUGIN_DOWNGRADE", "PLUGIN_CHANGED_SINCE_PREVIEW", "PLUGIN_INSTALL_BUSY"]);
-const REVIEWED_DIGEST = /^sha256-[a-f0-9]{64}$/;
-const INPUT_INVALID = "PLUGIN_INSTALL_INPUT_INVALID";
-
 /** The deps the install routes read. */
 export type PluginInstallRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "tracker"> & LocalInstallerDeps;
 
-/** Which of the four install endpoints a request hit: ZIP upload or folder source, preview or install. */
-interface InstallRoute { readonly zip: boolean; readonly preview: boolean }
-/** A request refused with `{ code, error }` at `status`. */
-interface Refused { readonly refusal: { readonly status: number; readonly code: string; readonly error: string } }
-type ZipParser = ReturnType<typeof raw>;
-type InstallOptions = Readonly<Record<string, unknown>>;
-type InstallerInput = Parameters<PluginInstallerPort["preview"]>[0];
-interface InstallContext { readonly deps: PluginInstallRouteDeps; readonly route: InstallRoute; readonly parseZip: ZipParser }
-
-const refused = ({ status, code, error }: { status: number; code: string; error: string }, _optional = {}): Refused => ({ refusal: { status, code, error } });
-const LOCAL_INSTALL_DISABLED = refused({ status: 403, code: "PLUGIN_LOCAL_INSTALL_DISABLED", error: "Local folder installs are disabled on this server." });
-const OPTIONS_INVALID = refused({ status: 400, code: INPUT_INVALID, error: "Valid replacement options and the reviewed digest are required." });
-
-function respondRefused(res: Response, { refusal }: Refused): void {
-  res.status(refusal.status).json({ code: refusal.code, error: refusal.error });
-}
-
-/** `replace` may be absent, a JSON boolean (folder body) or "true"/"false" (ZIP query string). */
-function validReplacement({ replacement, zip }: { replacement: unknown; zip: boolean }, _optional = {}): boolean {
-  if (replacement === undefined) return true;
-  return zip ? replacement === "true" || replacement === "false" : typeof replacement === "boolean";
-}
-
-/** A preview needs no digest; an install needs the sha256 digest the admin reviewed. */
-function validDigest({ expectedDigest, preview }: { expectedDigest: unknown; preview: boolean }, _optional = {}): boolean {
-  return preview || (typeof expectedDigest === "string" && REVIEWED_DIGEST.test(expectedDigest));
-}
-
-function validOptions(options: InstallOptions | undefined, route: InstallRoute): options is InstallOptions {
-  // `!options` is a wiring guard: `req.body` is undefined when the route is mounted without express.json().
-  if (!options) return false;
-  return validReplacement({ replacement: options.replace, zip: route.zip }) && validDigest({ expectedDigest: options.expectedDigest, preview: route.preview });
-}
-
-/** Anything but `{ kind: "folder", path: <non-blank string> }` is refused; the path goes on untrimmed. */
-function readFolderSource({ source }: { source: unknown }, _optional = {}): Refused | { sourceDir: string } {
-  const folder = source as { kind?: unknown; path?: unknown } | null | undefined;
-  if (folder?.kind !== "folder" || typeof folder.path !== "string" || !folder.path.trim()) return refused({ status: 400, code: INPUT_INVALID, error: "A folder source is required." });
-  return { sourceDir: folder.path };
-}
-
-function zipParseRefusal({ parseError }: { parseError: unknown }, _optional = {}): Refused {
-  return (parseError as { type?: string }).type === "entity.too.large"
-    ? refused({ status: 413, code: "PLUGIN_PACKAGE_TOO_LARGE", error: "ZIP exceeds the 32 MiB upload limit." })
-    : refused({ status: 400, code: "PLUGIN_ARCHIVE_INVALID", error: "ZIP upload could not be read." });
-}
-
-async function readZipUpload(req: Request, res: Response, parseZip: ZipParser): Promise<Refused | { archive: Buffer }> {
-  // req.is() is true only for a non-empty application/zip body, and raw() then always leaves
-  // a Buffer in req.body, so the archive below needs no separate Buffer check.
-  if (!req.is("application/zip")) return refused({ status: 400, code: INPUT_INVALID, error: "An application/zip upload is required." });
+async function readZipUpload(req: Request, res: Response, parseZip: ReturnType<typeof raw>): ReturnType<Parameters<typeof zipPluginInstallRoute.handle>[0]["deps"]["readZipUpload"]> {
+  if (!req.is("application/zip")) return { ok: false, refusal: { status: 400, code: "PLUGIN_INSTALL_INPUT_INVALID", error: "An application/zip upload is required." } };
   const parseError = await new Promise<unknown>((resolve) => parseZip(req, res, (error?: unknown) => resolve(error)));
-  if (parseError) return zipParseRefusal({ parseError });
-  return { archive: req.body as Buffer };
-}
-
-/** Validates the options, then reads the ZIP upload or folder source into the installer's input. */
-async function readInstallInput(req: Request, res: Response, context: InstallContext): Promise<Refused | { input: InstallerInput; expectedDigest: unknown }> {
-  // ZIP options ride the query string; folder options are the JSON body.
-  const options: InstallOptions | undefined = context.route.zip ? req.query : req.body;
-  if (!validOptions(options, context.route)) return OPTIONS_INVALID;
-  const source = context.route.zip ? await readZipUpload(req, res, context.parseZip) : readFolderSource({ source: options.source });
-  if ("refusal" in source) return source;
-  return { input: { ...source, replace: options.replace === true || options.replace === "true" }, expectedDigest: options.expectedDigest };
-}
-
-async function handleInstall(req: Request, res: Response, context: InstallContext): Promise<void> {
-  const { deps, route } = context;
-  const principal = getAuthedPrincipal(res);
-  if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId } }))) return;
-  const installer = localPluginInstaller(deps);
-  if (!installer) { respondRefused(res, LOCAL_INSTALL_DISABLED); return; }
-  const read = await readInstallInput(req, res, context);
-  if ("refusal" in read) { respondRefused(res, read); return; }
-  // validDigest() admitted only a sha256 string on install (non-preview) routes.
-  const result = route.preview
-    ? await installer.preview(read.input)
-    : await installer.install({ ...read.input, expectedDigest: read.expectedDigest as string });
-  if (!route.preview) void deps.tracker.capture({ name: "plugin_installed", userId: principal.id }, { properties: { pluginId: result.id, pluginKind: "cms", source: "admin" } });
-  res.status(route.preview ? 200 : 201).json({ plugin: result });
-}
-
-function installErrorStatus({ code }: { code: string }, _optional = {}): number {
-  if (code === "PLUGIN_INSTALL_RECOVERY_REQUIRED") return 500;
-  return conflicts.has(code) ? 409 : 400;
+  if (parseError) return { ok: false, refusal: zipParserRefusal({ error: parseError, uploadLimitText: "ZIP exceeds the 32 MiB upload limit." }) };
+  if (!Buffer.isBuffer(req.body)) return { ok: false, refusal: zipParserRefusal({ error: undefined, uploadLimitText: "ZIP exceeds the 32 MiB upload limit." }) };
+  return { ok: true, archive: req.body };
 }
 
 function respondInstallFailure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
-  if (error instanceof PluginInstallError) { res.status(installErrorStatus({ code: error.code })).json({ code: error.code, error: error.message }); return; }
+  if (error instanceof PluginInstallError) { res.status(pluginInstallErrorStatus({ code: error.code })).json({ code: error.code, error: error.message }); return; }
   sendAdminFailure({ res, error }, { operation: "routes/plugins/install", code: "INTERNAL_ERROR" });
 }
 
 /** Local sources are explicitly opt-in, even for admins. ZIP parsing follows authorization. */
 export const registerPluginInstallRoutes = ({ app, deps }: { app: Express; deps: PluginInstallRouteDeps }, _optional: Record<string, never> = {}): void => {
   const parseZip = raw({ type: "application/zip", limit: MAX_PLUGIN_ARCHIVE_BYTES, inflate: false });
-  for (const [zip, preview] of [[false, true], [false, false], [true, true], [true, false]] as const) {
-    const context: InstallContext = { deps, route: { zip, preview }, parseZip };
-    app.post(`/api/admin/v1/workspaces/:workspaceId/plugins/install${zip ? "/zip" : ""}${preview ? "/preview" : ""}`, async (req, res) => {
-      if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
-      try {
-        await handleInstall(req, res, context);
-      } catch (error) {
-        if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
-        respondInstallFailure({ res, error });
-      }
-    });
+  for (const [spec, zip, preview] of [[folderPluginInstallPreviewRoute, false, true], [folderPluginInstallRoute, false, false], [zipPluginInstallPreviewRoute, true, true], [zipPluginInstallRoute, true, false]] as const) {
+    const mounted = {
+      workspaceId: deps.workspaceId, authorize: deps.authorize,
+      installer: () => localPluginInstaller(deps),
+      readZipUpload: (): ReturnType<Parameters<typeof zipPluginInstallRoute.handle>[0]["deps"]["readZipUpload"]> => { throw new Error("bound per request"); },
+      onInstalled: ({ actorId, pluginId }: { actorId: string; pluginId: string }) => {
+        void deps.tracker.capture({ name: "plugin_installed", userId: actorId }, { properties: { pluginId, pluginKind: "cms", source: "admin" } });
+      },
+    };
+    if (zip) {
+      mountAdminRawRoute({ app, spec, deps: mounted }, {
+        requestDeps: ({ req, res, deps: base }) => ({ ...base, readZipUpload: () => readZipUpload(req, res, parseZip) }),
+        failureWriter: ({ res, error }) => {
+          if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
+          respondInstallFailure({ res, error });
+        },
+      });
+    } else {
+      mountAdminJsonRoute({ app, spec, deps: mounted }, {
+        failureWriter: ({ res, error }) => {
+          if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
+          respondInstallFailure({ res, error });
+        },
+      });
+    }
   }
 };

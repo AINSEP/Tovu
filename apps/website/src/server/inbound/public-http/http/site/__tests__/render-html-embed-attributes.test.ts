@@ -160,3 +160,14 @@ test("renderHtmlPageBody: the same asset embedded twice with different attribute
       `<img src="/m/asset-1/public.v1/image.jpg" alt="" class="b" loading="lazy">`
   );
 });
+
+
+test("a media marker changes only its own occurrence through the bound renderer", () => {
+  const ir: WidgetRenderIR = { ...VIDEO_IR, props: { ...VIDEO_IR.props } };
+  const before = structuredClone(ir);
+  const resolved = resolvedMap("media", "asset-1", ir);
+  const html = `<video data-embed-config='{"type":"media","id":"asset-1"}' autoplay controls="false"></video><video data-embed-config='{"type":"media","id":"asset-1"}'></video>`;
+  const out = renderHtmlPageBody({ html, resolved });
+  assert.equal(out, `<video src="/m/asset-1/original.mp4" autoplay>${NO_SUPPORT_FALLBACK}</video><video src="/m/asset-1/original.mp4" controls>${NO_SUPPORT_FALLBACK}</video>`);
+  assert.deepEqual(ir, before);
+});

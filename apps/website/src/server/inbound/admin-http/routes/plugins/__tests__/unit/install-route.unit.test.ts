@@ -2,6 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
+import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
@@ -217,4 +218,22 @@ test("a JSON body on a ZIP route is refused as a non-zip upload before any parsi
   const h = await boot(t);
   assert.deepEqual(await read(await h.json("/zip/preview", { source: { kind: "folder", path: "/srv/plugin" } })), { status: 400, body: { code: "PLUGIN_INSTALL_INPUT_INVALID", error: "An application/zip upload is required." } });
   assert.deepEqual(h.calls, []);
+});
+
+
+test("unauthorized and digest-invalid ZIP requests never consume the archive stream", async t => {
+  for (const allowed of [false, true]) {
+    const h = await boot(t, { allowed });
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = httpRequest(h.base + "/zip?expectedDigest=invalid", { method: "POST", headers: {
+        "content-type": "application/zip", "content-length": String(MAX_PLUGIN_ARCHIVE_BYTES + 1),
+      } }, res => { res.resume(); resolve(res.statusCode!); });
+      req.on("error", reject);
+      req.setTimeout(2000, () => req.destroy(new Error("ZIP gate waited for the archive")));
+      t.after(() => req.destroy());
+      req.flushHeaders();
+    });
+    assert.equal(status, allowed ? 400 : 403);
+    assert.deepEqual(h.calls, []);
+  }
 });

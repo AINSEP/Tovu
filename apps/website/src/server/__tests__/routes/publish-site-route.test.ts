@@ -1,5 +1,8 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import express from "express";
+import { createPublishSiteContext, registerAdminPublishTriggerRoute, registerAdminPublishDestinationsRoute } from "../../inbound/admin-http/routes/system/publish-site.js";
+import { startTestServer } from "../helpers/http-test-server.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -1134,4 +1137,35 @@ test("publish-site: a fresh site's default-off banner does not block a static pu
     input: { namespace: SITE_CONSENT_NAMESPACE, key: "enabled", value: true, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: principalId } });
   const refusal = await deps.siteConsent.deploymentCheck({ principalId, permission: "system.publish" });
   assert.equal(refusal?.code, "CONSENT_REVIEW_REQUIRED");
+});
+
+
+test("auth denial writes once and records one blocked event, and a granted destination read still omits peers without peer capability", async t => {
+  const deps = { ...testRouteDeps(), publishHistoryStore: new InMemoryPublishHistoryStore() };
+  const order: string[] = [];
+  const permissions: string[] = [];
+  deps.authorize = async input => { permissions.push(input.permission); return { allowed: input.permission === "system.read", reason: "fixture" }; };
+  deps.tracker = { ...deps.tracker, capture: async (event, options) => {
+    if (event.name === "site_publish_blocked") order.push(`blocked:${options?.properties?.reasonClass}`);
+  } };
+  deps.publishContentPeerRepo.listByWorkspace = async () => assert.fail("peer rows need their own capability");
+  const app = express(); app.use(express.json());
+  app.use((_req, res, next) => {
+    res.locals.principal = { id: "owner" };
+    const json = res.json.bind(res);
+    res.json = body => { order.push("write"); return json(body); };
+    next();
+  });
+  const context = createPublishSiteContext({ deps });
+  registerAdminPublishTriggerRoute({ app, context }); registerAdminPublishDestinationsRoute({ app, context });
+  const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish`;
+  const denied = await fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  assert.equal(denied.status, 403);
+  assert.deepEqual(order, ["write", "blocked:auth"]);
+  order.length = 0;
+  const foreign = await fetch(root.replace(deps.workspaceId, "foreign"), { method: "POST" });
+  assert.equal(foreign.status, 404); assert.deepEqual(order, ["write"]);
+  const destinations = await fetch(root + "/destinations");
+  assert.equal(destinations.status, 200); assert.deepEqual(await destinations.json(), []);
+  assert.deepEqual(permissions, ["system.publish", "system.read", "publish_content.read"]);
 });

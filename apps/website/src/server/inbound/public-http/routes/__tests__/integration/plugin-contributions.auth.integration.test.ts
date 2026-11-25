@@ -9,7 +9,7 @@ import { createPluginContributionCapture, type PluginManifest } from '@jini-ai/p
 import { createRouteDeps } from '../../../../../runtime/composition/app.js';
 import { registerAuthRoutes } from '../../../../admin-http/dev-auth.js';
 import { parsePublicJsonBody } from '../../../../shared/json-body-parsers.js';
-import { bootAuthenticated, loginAsBarePrincipal } from '../../../../../__tests__/helpers/http-test-server.js';
+import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from '../../../../../__tests__/helpers/http-test-server.js';
 import { MEMBER_SESSION_COOKIE } from '../../members/complete-sign-in.js';
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from '../../plugin-contributions.js';
 test('host authenticates real member and operator cookies independently, including revocation and disabled members', async t => {
@@ -47,4 +47,41 @@ test('host authenticates real member and operator cookies independently, includi
   await deps.memberSessionRepo.save({...session,revokedAt:now});
   assert.equal((await call('member',memberCookie)).status,401);
   assert.equal((await call('admin',operatorCookie)).status,200);
+});
+
+
+test('disabled and retired routes refuse before parser work or after a pending handler respectively', { timeout: 5000 }, async t => {
+  const deps = createRouteDeps();
+  const id = 'retired-sample';
+  const manifest: PluginManifest = { id, name: 'Retired Sample', version: '0.1.0', sdkRange: '*', engine: 1, tier: 'tier-3', capabilities: ['http.route.register'], hooks: [], fields: [], integrity: {}, contributes: { routes: ['POST /pending'] } };
+  const capture = createPluginContributionCapture({ manifest });
+  let entered!: () => void;
+  let release!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  t.after(() => release());
+  let calls = 0;
+  capture.routes.add({ method: 'POST', path: '/pending', access: 'public', handler: async () => { calls++; entered(); await held; return { body: { secret: 'retired result' } }; } });
+  assert.ok(deps.pluginContributions);
+  const snapshot = capture.seal({ sdk: {} as never });
+  deps.pluginContributions.replace({ contributions: snapshot });
+  const activation = { pluginId: id, workspaceId: deps.workspaceId, version: manifest.version, enabled: false, updatedAt: deps.clock.nowIso() };
+  await deps.pluginActivationRepo.save(activation);
+  const app = express();
+  registerPluginContributionRoutes({ app, deps, auth: createPluginRouteAuthPorts({ deps }) });
+  const baseUrl = await startTestServer(app, t);
+  const disabled = await fetch(`${baseUrl}/api/p/${id}/pending`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{invalid' });
+  assert.equal(disabled.status, 404);
+  assert.deepEqual(await disabled.json(), { code: 'NOT_FOUND' });
+  assert.equal(calls, 0);
+  await deps.pluginActivationRepo.save({ ...activation, enabled: true });
+  const pending = fetch(`${baseUrl}/api/p/${id}/pending`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  await started;
+  deps.pluginContributions.replace({ contributions: { ...snapshot } });
+  release();
+  const retired = await pending;
+  assert.equal(retired.status, 404);
+  assert.deepEqual(await retired.json(), { code: 'NOT_FOUND' });
+  assert.equal(retired.headers.get('cache-control'), null);
+  assert.equal(calls, 1);
 });
