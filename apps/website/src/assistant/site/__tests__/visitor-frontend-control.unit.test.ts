@@ -10,11 +10,13 @@ import { requestHookInput } from '#src/platform/express/request-facts';
 import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/platform/express/jini-routes';
 import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
+import { createRouteIncidentReporter } from '#src/server/__tests__/helpers/route-incident-reporter';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/server/inbound/public-http/routes/site-assistant-confirm';
 
 /** What the composition root lends the visitor control: the real mount, host and timer, so these tests go through the same path the site uses. */
-const TEST_PORTS = { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput };
+// The composition root binds the owning site's reporter into every route host (P4-T3b); the test binds a recording one the same way.
+const TEST_PORTS = { mountRoutes: mountJiniRoutes, routeHost: (required: Omit<Parameters<typeof daemonRouteHost>[0], 'errors'>) => daemonRouteHost({ ...required, errors: createRouteIncidentReporter().errors }), parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput };
 
 /** Exercise the mounted routes and native HTTP objects without a listening socket. */
 function policyFixture() {

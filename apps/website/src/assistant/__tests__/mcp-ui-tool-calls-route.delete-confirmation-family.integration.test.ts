@@ -189,7 +189,7 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
 
   const { instance } = await createWidgetInstance({
     deps: buildWidgetsDeps(deps),
-    input: { workspaceId, actor: { principalId: PRINCIPAL }, widgetType: "text", title: "Announcement Bar", config: { body: "hi" } },
+    input: { workspaceId, actor: { principalId: PRINCIPAL, kind: "user" }, widgetType: "text", title: "Announcement Bar", config: { body: "hi" } },
   });
 
   const registry = createToolRegistry({});

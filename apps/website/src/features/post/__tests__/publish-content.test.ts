@@ -93,6 +93,9 @@ function makeApplyDeps(rows: PostRecord[]) {
     forgetRemovedPost,
     removePost,
     ports: { post: { repo: base.postRepo, forgetRemoved: forgetRemovedPost, remove: removePost } },
+    // The apply port merges the run's trusted actor into every handler's deps (`openRun`); a handler driven
+    // without one is refused before it writes (FIX 19 / H2). The operator these tests apply as.
+    mutationActor: { id: "operator-1", kind: "user" as const },
   };
 }
 

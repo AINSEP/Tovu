@@ -215,7 +215,9 @@ test("catalog schema, domain registration and derived risk declare a permission-
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required, ["root", "path"]);
   assert.deepEqual(schema.properties.root.enum, FS_ROOT_IDS);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["alt", "caption", "path", "root", "title"]);
+  // b-g5b added the searchable media description; its help text keeps the generation prompt out of it.
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["alt", "caption", "description", "path", "root", "title"]);
+  assert.match((schema.properties.description as { description?: string }).description ?? "", /never the generation prompt/);
   assert.match(definition.description, /saved in this site or the owner-picked folder/);
   assert.ok(definition.description.includes(RECOVERY));
   assert.doesNotMatch(definition.description, /retry with root 'custom'/);

@@ -957,7 +957,8 @@ test("a key sealed under the xai-grok-imagine alias still works and replacement 
   assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: XAI }))?.apiKey, "xai-replacement-5678");
   // The legacy envelope is never rewritten or relabelled: same id, revision and ciphertext.
   assert.deepEqual((await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine" })))[0], legacy);
-  assert.deepEqual(await storedXaiRows(repo), [{ id: mediaVaultId({ providerId: "xai-grok-imagine" }), provider: "xai-grok-imagine" }, { id: mediaVaultId({ providerId: XAI }), provider: XAI }]);
+  // storedXaiRows sorts by vault id, so the canonical `grok` row precedes the `xai-grok-imagine` legacy row.
+  assert.deepEqual(await storedXaiRows(repo), [{ id: mediaVaultId({ providerId: XAI }), provider: XAI }, { id: mediaVaultId({ providerId: "xai-grok-imagine" }), provider: "xai-grok-imagine" }]);
   assert.deepEqual(Object.keys(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE })), [XAI]);
 });
 
