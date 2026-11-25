@@ -31,6 +31,7 @@ type NotReady = Exclude<RoutineAvailability, "ready">;
 
 /** The stable `details.reason` and plain sentence for each non-ready availability (sheet P3-T1a.T step 6). */
 export const ROUTINE_AVAILABILITY_REFUSALS: Readonly<Record<NotReady, Readonly<{ reason: string; message: string }>>> = {
+  starting: { reason: "ROUTINES_STARTING", message: "Routines are still starting. Try again in a moment." },
   "desktop-only": { reason: "ROUTINES_UNAVAILABLE", message: "Routines run only while the desktop app is open." },
   "assistant-off": { reason: "ROUTINES_ASSISTANT_OFF", message: "Turn on the AI assistant to run routines." },
   "other-window": { reason: "ROUTINES_LEASE_HELD", message: "Routines for this site are running in another Tovu window." },

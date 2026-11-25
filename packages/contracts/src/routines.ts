@@ -20,7 +20,8 @@ export type RoutineActor = Readonly<{ principalId: string; workspaceId: string }
 export type RoutineTarget = Readonly<{ mode: "create_each_run" } | { mode: "reuse"; projectId: string }>;
 
 /** Why routines are not ready on this boot; each maps to one stable `details.reason` and one plain sentence. */
-export type RoutineAvailability = "ready" | "desktop-only" | "assistant-off" | "other-window" | "error";
+/** `starting`: the routines handle is still composing (not ready, and not a failure); `error`: the store really failed to open. */
+export type RoutineAvailability = "ready" | "starting" | "desktop-only" | "assistant-off" | "other-window" | "error";
 
 /**
  * `<dirname(contentDbPath)>/ops/routines-beacon.json`: a hint the desktop main process reads (bounded

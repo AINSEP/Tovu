@@ -74,8 +74,8 @@ export function servingRoutineToolOptions(required: ServingRoutineToolsRequired,
   const routines: RoutineToolHost = {
     commands: lazyCommands(ready), resolveOwnerActor,
     validateSchedule: ({ schedule }) => validateRoutineSchedule({ schedule: schedule as RoutineSchedule }),
-    // Still composing: answer as not ready (discovery hides the tools, handlers refuse) until the handle exists.
-    availability: (): RoutineAvailability => handle?.availability() ?? "error",
+    // Still composing: "starting" keeps discovery closed and handlers refusing, without the store-open failure copy.
+    availability: (): RoutineAvailability => handle?.availability() ?? "starting",
     copy: ({ key }) => approvalText({ locale, key }),
   };
   return { routines, routinesReleaseEnabled: releaseEnabled, routineApprovalReceiptsFor };

@@ -7,6 +7,7 @@ import {
 import { surfacesWithReceipts } from "#src/assistant/byok-tool-surface";
 import type { AssistantRoutinesHandle } from "../assistant-routines.js";
 import { servingRoutineToolOptions } from "../serving-routine-tools.js";
+import { ROUTINE_AVAILABILITY_REFUSALS } from "#src/features/routines/routine-commands";
 
 /**
  * Why: the four routine tools and the approval receipt port are only useful if serving composition
@@ -57,13 +58,28 @@ test("release off (the default) or an ineligible host: no routine tool is suppli
 test("the tools resolve the exact routes' command gate lazily, after routines compose", async () => {
   const gate = deferred();
   const host = servingRoutineToolOptions(base(gate.promise)).routines!;
-  assert.equal(host.availability(), "error");
+  // Pending composition is "starting", not a store-open failure: discovery stays closed (not "ready").
+  assert.equal(host.availability(), "starting");
   const { handle, listed } = fakeHandle();
   const pending = host.commands.list({ actor: { principalId: OWNER, workspaceId: "ws-1" } });
   gate.resolve(handle);
   assert.deepEqual(await pending, { ok: true, routines: [] });
   assert.deepEqual(listed, [{ actor: { principalId: OWNER, workspaceId: "ws-1" } }]);
   assert.equal(host.availability(), "ready");
+});
+
+test("pending composition refuses with not-ready copy, distinct from an actual store-open failure", async () => {
+  const pending = servingRoutineToolOptions(base(deferred().promise)).routines!;
+  assert.notEqual(pending.availability(), "ready");
+  assert.equal(pending.availability(), "starting");
+  assert.notEqual(ROUTINE_AVAILABILITY_REFUSALS.starting.message, ROUTINE_AVAILABILITY_REFUSALS.error.message);
+  assert.notEqual(ROUTINE_AVAILABILITY_REFUSALS.starting.reason, "ROUTINES_STORE_OPEN_FAILED");
+  // A composed handle that really failed to open still reports the failure.
+  const failed = deferred();
+  const host = servingRoutineToolOptions(base(failed.promise)).routines!;
+  failed.resolve({ ...fakeHandle().handle, availability: () => "error" as const });
+  await failed.promise; await new Promise((r) => setImmediate(r));
+  assert.equal(host.availability(), "error");
 });
 
 test("only the live owner resolves, bound to the mounted workspace; copy follows the owner's locale", async () => {
