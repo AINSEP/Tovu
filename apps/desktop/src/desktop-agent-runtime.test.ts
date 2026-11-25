@@ -161,7 +161,8 @@ test("desktop executor receives the supplied runtime as one bound port", async (
     assert.equal(removed in executorOptions, false, `${removed} is no longer an executor option`);
   }
   assert.equal(port.defs.get({ id: "codex" })?.id, runtime.getAgentDef({ id: "codex" })?.id);
-  assert.deepEqual(port.launch.hostEnvNames(), Object.values(runtime.state.executable.envNames));
+  // The state's own names, then the env keys the runtime's bound CLI strategies read (the daemon no longer lists them).
+  assert.deepEqual(port.launch.hostEnvNames(), [...Object.values(runtime.state.executable.envNames), "VELA_OPENCODE_BIN", "CLAUDE_CONFIG_DIR", "CODEX_HOME"]);
   runtime.state.capabilities.set("codex", { fixtureFlag: true });
   assert.deepEqual(port.defs.capabilities({ defId: "codex" }), { fixtureFlag: true });
   assert.equal(new URL(chat.daemonUrl).hostname, "127.0.0.1");
