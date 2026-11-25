@@ -1,18 +1,18 @@
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
-import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { readRequestCookie } from "#src/server/http/request-cookie";
-import type { Request } from "express";
+import type { Express } from "express";
 
-import { getPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
-import { PostNotFoundError } from "@jini-ai/cms/posts/post";
-import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
+import { contentPostGetRoute, type ContentPostGetRouteDeps } from "@jini-ai/cms/public-http/routes/content/posts/get-by-slug";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
-import { toContentPostResponse } from "@jini-ai/cms/public-http/http/content/posts";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
+import { mountPublicJsonRoute } from "../../../../admin-http/admin-json-route-ports.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 
-
+/**
+ * @file `GET /api/content/v1/workspaces/:workspaceId/posts/:slug`: the host binding of Jini's
+ * `contentPostGetRoute` (see its file doc for the member gate and the `private, no-store` answer).
+ * This file owns the member session cookie, the member access resolver and the visitor copy of the 500.
+ */
 
 /** No cookie-parser middleware is mounted. The shared reader preserves anonymous access
  * for direct handler tests with bare params and no headers, without duplicating pages.ts. */
@@ -29,56 +29,33 @@ function createMemberAccessResolver(deps: RouteDeps): MemberAccessResolver {
   });
 }
 
+/** The context `resolveContext` answered, handed back to `decide` unchanged. */
+type MemberContext = Parameters<MemberAccessResolver["decide"]>[0]["context"];
+
+/** Placeholder for a request-bound dep at mount time; `requestDeps` replaces it on every request. */
+const boundPerRequest = (): never => { throw new Error("bound per request by requestDeps"); };
+
 export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
-  app.get("/api/content/v1/workspaces/:workspaceId/posts/:slug", async (req, res) => {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-    try {
-      const slug = String(req.params.slug ?? "");
-      const memberAccessResolver = createMemberAccessResolver(deps);
-      const [{ post }, { settings }, memberContext] = await Promise.all([
-        getPublishedPostBySlug({
-          deps: { repo: deps.postRepo },
-          input: { workspaceId: deps.workspaceId, slug },
-        }),
-        getPresentationSettings({
-          deps: { repo: deps.presentationRepo },
-          input: { workspaceId: deps.workspaceId },
-        }),
-        memberAccessResolver.resolveContext({
-          workspaceId: deps.workspaceId,
-          sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }),
-          nowIso: new Date().toISOString(),
-        }),
-      ]);
-
-      // ADR-030 §4 gate, matching `routes/site/pages.ts`'s `GET /:slug` single-post gate: a denied
-      // caller gets the SAME `PostNotFoundError`-shaped 404 a nonexistent slug already gets below, so
-      // a gated post is indistinguishable from one that doesn't exist -- no separate 403/teaser
-      // response that would itself leak "a post exists at this slug, but you can't read it."
-      const decision = memberAccessResolver.decide({
-        access: resolvePostMemberAccess({ raw: post.memberAccessJson }),
-        context: memberContext,
-      });
-      if (!decision.allowed) {
-        throw new PostNotFoundError(`post '${slug}' was not found`);
-      }
-
-      // SECURITY FIX (2026-09-05, Gemini audit finding #7): this response depends on the caller's
-      // OWN member session cookie (the gate decision above is per-visitor), so a shared cache in
-      // front of the origin must never store and replay it to a later, different caller. Matches
-      // the convention every other gated route in this codebase already uses for exactly this
-      // reason -- `routes/site/pages.ts`'s `CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE` and
-      // `routes/site/media-rendition.ts`'s gated branch both send the identical `private, no-store`.
-      res.set("Cache-Control", "private, no-store").json(toContentPostResponse({ post, activeThemeId: settings.activeThemeId }));
-    } catch (err) {
-      if (err instanceof PostNotFoundError || err instanceof PresentationSettingsNotFoundError) {
-        res.status(404).json({ error: err.message });
-        return;
-      }
-
-      const { errorId } = reportServerFailure({ error: err, operation: "public:post" }, { tracker: res.locals.adminFailureTracker });
-      res.status(500).json({ error: "The site couldn’t load the post. Reload this page and report this error ID if it keeps happening.", errorId });
-    }
+  const mounted: ContentPostGetRouteDeps = {
+    workspaceId: deps.workspaceId,
+    postRepo: deps.postRepo,
+    presentationRepo: deps.presentationRepo,
+    sessionToken: boundPerRequest,
+    memberAccess: () => {
+      const resolver = createMemberAccessResolver(deps);
+      return {
+        resolveContext: (args) => resolver.resolveContext(args),
+        decide: ({ memberAccessJson, context }) => resolver.decide({ access: resolvePostMemberAccess({ raw: memberAccessJson }), context: context as MemberContext }),
+      };
+    },
+  };
+  mountPublicJsonRoute({
+    app: app as Express,
+    spec: contentPostGetRoute,
+    deps: mounted,
+    workspaceId: deps.workspaceId,
+    failure: { operation: "public:post", visitorError: "The site couldn’t load the post. Reload this page and report this error ID if it keeps happening." },
+  }, {
+    requestDeps: ({ req, deps: base }) => ({ ...base, sessionToken: () => readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }) }),
   });
 };

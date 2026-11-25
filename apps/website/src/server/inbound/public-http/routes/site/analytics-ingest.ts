@@ -1,93 +1,23 @@
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Request } from "express";
 
-import type { JsonObject } from "@jini-ai/core/primitives";
-import { createAnalyticsForwardLimiter, ingestHit } from "@jini-ai/analytics";
-import { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps as IngestDeps } from "@jini-ai/analytics/site/jini-adapters";
-import type { IngestBeacon, IngestContext } from "@jini-ai/core/contracts/site/analytics";
+import { createAnalyticsForwardLimiter } from "@jini-ai/analytics";
+import { analyticsIngestRoute, type AnalyticsIngestBeaconRouteDeps } from "@jini-ai/analytics/public-http/routes/analytics-ingest";
+import type { AnalyticsIngestRouteDeps as IngestDeps } from "@jini-ai/analytics/site/jini-adapters";
+
+import { mountPublicRawRoute } from "../../../admin-http/admin-raw-route-ports.js";
 
 type AnalyticsIngestRouteDeps = IngestDeps<Request>;
 
 /**
- * @file Public ingest beacon route for the `analytics` library (ADR-035 §5).
- *
- * Purpose:
- * Registers `POST /_analytics/e` — the unauthenticated, first-party beacon endpoint a site's
- * pages call via `navigator.sendBeacon`. This is intentionally a SITE route (mirrors
- * `routes/site/pages.ts`), not an admin route: no session is required or checked here, by design
- * (ADR-035 §5 — the beacon must work for anonymous visitors).
- *
- * How it relates to the project:
- * - Delegates normalization/policy logic to @jini-ai/analytics and owns the HTTP boundary: parsing the untrusted request body into an `IngestBeacon`, and
- *   pulling `ip`/`userAgent`/`acceptLanguage` off the request into an `IngestContext`.
- * - The response is ALWAYS `204 No Content`, regardless of `ingestHit`'s `{ accepted, reason }`
- *   result, and regardless of whether `ingestHit` itself throws. Leaking accept/reject (or a
- *   distinct error status) back to an anonymous caller would turn the beacon into an oracle for
- *   probing a site's exclusion rules, DNT/GPC handling, or PII-shape validation — the ADR's
- *   fire-and-forget beacon contract exists specifically to prevent that.
+ * @file The host binding of Jini's `analyticsIngestRoute` (`POST /_analytics/e`, see its file doc for the
+ * no-oracle 204 contract). This file owns what only this host and this request know: the consent-gated
+ * forwarders and plugin-hook gate, the visitor pageview capture, the hostname and the client address,
+ * each bound as a closure over THAT request by `requestDeps`.
  */
 
-/** Bounded input length caps applied at the HTTP boundary (secure-input-handling: untrusted body). */
-const MAX_HOST_LENGTH = 253; // max valid DNS hostname length
-const MAX_PATH_LENGTH = 2048;
-const MAX_REFERRER_LENGTH = 2048;
-const MAX_EVENT_NAME_LENGTH = 200;
-
-/** Truncates an untrusted string field to a bounded length; non-strings coerce to `""`. */
-function boundedString({ value, maxLength }: { value: unknown; maxLength: number }, _optional = {}): string {
-  const str = typeof value === "string" ? value : "";
-  return str.slice(0, maxLength);
-}
-
-/** True only for a plain JSON object (not an array, not `null`) — guards `eventProps`. */
-function isJsonObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Parses the untrusted POST body into an `IngestBeacon`. Every field is defensively coerced and
- * length-bounded — this body comes from an anonymous, unauthenticated client.
- *
- * @complexity O(1) (plus the bounded string truncation above).
- * @overallScore 100/100
- */
-function parseBeacon({ body, fallbackHost }: { body: unknown; fallbackHost: string }, _optional = {}): IngestBeacon {
-  const raw = (body ?? {}) as Record<string, unknown>;
-  const host = boundedString({ value: raw.host, maxLength: MAX_HOST_LENGTH }) || fallbackHost;
-  const referrer = typeof raw.referrer === "string" ? boundedString({ value: raw.referrer, maxLength: MAX_REFERRER_LENGTH }) : null;
-  const kind = raw.kind === "event" ? "event" : "pageview";
-  const eventName =
-    kind === "event" && typeof raw.eventName === "string"
-      ? boundedString({ value: raw.eventName, maxLength: MAX_EVENT_NAME_LENGTH })
-      : undefined;
-
-  return {
-    host,
-    path: boundedString({ value: raw.path, maxLength: MAX_PATH_LENGTH }),
-    referrer,
-    kind,
-    eventName,
-    eventProps: isJsonObject(raw.eventProps) ? raw.eventProps : undefined,
-    dnt: raw.dnt === true,
-    gpc: raw.gpc === true,
-  };
-}
-
-/** Builds the transient per-request context `ingestHit` consumes and then discards (no PII persisted). */
-function buildContext({ req, receivedAt }: { req: Request; receivedAt: string }, _optional = {}): IngestContext {
-  return {
-    ip: req.ip ?? req.socket.remoteAddress ?? "",
-    userAgent: req.get("user-agent") ?? "",
-    acceptLanguage: req.get("accept-language") ?? null,
-    receivedAt,
-  };
-}
-
-/** The browser contribution owns vendor pageviews when present; private routes never emit them.
- * @complexity O(1), no mutation or network. */
-function shouldCaptureVisitorPageview({ deps, beacon }: { deps: AnalyticsIngestRouteDeps; beacon: IngestBeacon }, _optional = {}): boolean {
-  return !(deps.browserAnalytics?.({ surface: 'site' }) ?? []).length && beacon.kind === "pageview" && !/^\/(admin|_preview|preview)(\/|$)/.test(beacon.path);
-}
+/** Placeholder for a request-bound dep at mount time; `requestDeps` replaces it on every request. */
+const boundPerRequest = (): never => { throw new Error("bound per request by requestDeps"); };
 
 /**
  * Registers the public analytics beacon route with host clock, configuration and sink ports.
@@ -96,27 +26,28 @@ function shouldCaptureVisitorPageview({ deps, beacon }: { deps: AnalyticsIngestR
  */
 export function registerAnalyticsIngestRoute({ app, deps }: { app: Express; deps: AnalyticsIngestRouteDeps }, _optional: Record<string, never> = {}): void {
   // One cap per route for every request's vendor calls: a beacon flood sheds vendor calls, never local hits.
-  const limiter = createAnalyticsForwardLimiter();
-  app.post("/_analytics/e", async (req, res) => {
-    // Browser headers are authoritative even if the body omits or contradicts its privacy signal.
-    if (req.get("dnt") === "1" || req.get("sec-gpc") === "1") { res.status(204).end(); return; }
-    const receivedAt = new Date(deps.clock.nowMs()).toISOString();
-    const beacon = parseBeacon({ body: req.body, fallbackHost: req.hostname ?? "" });
-    const context = buildContext({ req, receivedAt });
-
-    try {
-      // Never throws (fails toward no vendor); resolved before ingest because consent is per request.
-      const forwarders = deps.forwarders ? await deps.forwarders({ request: req }) : [];
-      const binding = createAnalyticsIngestBinding({ deps }, { forwarders, limiter, skipHooks: (await deps.vendorHooksAllowed?.({ request: req })) === false });
-      const outcome = await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
-      if (outcome.accepted && shouldCaptureVisitorPageview({ deps, beacon })) {
-        void captureVisitorEvent({ deps, request: req, name: "site_pageview", properties: { routeTemplate: "/:path" } });
-      }
-    } catch {
-      // Never let an ingest-side failure surface to the public beacon caller — see file header.
-    }
-
-    // Always 204, regardless of accept/reject or failure above (ADR-035 §5 — no oracle).
-    res.status(204).end();
+  const mounted: AnalyticsIngestBeaconRouteDeps = {
+    ingest: deps,
+    limiter: createAnalyticsForwardLimiter(),
+    browserAnalytics: deps.browserAnalytics,
+    capturePageview: boundPerRequest,
+    hostname: boundPerRequest,
+    clientAddress: boundPerRequest,
+  };
+  mountPublicRawRoute({
+    app,
+    spec: analyticsIngestRoute,
+    deps: mounted,
+    // Unreachable in practice: the spec swallows every ingest-side failure and always answers 204.
+    failure: { operation: "public:analytics-ingest", visitorError: "The analytics beacon couldn’t be recorded." },
+  }, {
+    requestDeps: ({ req, deps: base }) => ({
+      ...base,
+      ...(deps.forwarders ? { forwarders: () => deps.forwarders!({ request: req }) } : {}),
+      ...(deps.vendorHooksAllowed ? { vendorHooksAllowed: () => deps.vendorHooksAllowed!({ request: req }) } : {}),
+      capturePageview: ({ name, properties }) => { void captureVisitorEvent({ deps, request: req, name, properties }); },
+      hostname: () => req.hostname,
+      clientAddress: () => req.ip ?? req.socket.remoteAddress,
+    }),
   });
 }

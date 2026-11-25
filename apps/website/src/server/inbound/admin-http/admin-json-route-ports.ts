@@ -413,5 +413,5 @@ export function mountPublicJsonRoute<Input, Output, Deps extends object>(
 ): void {
   // Only a `:workspaceId` path can name a foreign workspace; elsewhere the option is inert.
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
-  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps }, routeMountOptionsFor({ requestDeps: optional.requestDeps }));
+  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps }, routeMountOptionsFor(optional));
 }

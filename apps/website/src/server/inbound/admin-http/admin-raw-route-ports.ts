@@ -92,5 +92,5 @@ export function mountPublicRawRoute<Deps extends object>(
       else failure({ res, error });
     },
   };
-  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter }, routeMountOptionsFor({ requestDeps: optional.requestDeps }));
+  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter }, routeMountOptionsFor(optional));
 }
