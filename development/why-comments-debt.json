@@ -13912,6 +13912,22 @@
     {
       "id": "854ecb2dca9d",
       "reason": "Reworded in place (same file): the 'stays inline in app.ts' paragraph described a layout that no longer exists; the header now states the current wiring (merge routes are registered from mount-admin-data.ts alongside the other gated-mutation ceremonies, per SPEC-016) and keeps the SPEC-034 rationale for keeping the ceremony apart from the nine plain routes."
+    },
+    {
+      "id": "48dfb5f00c66",
+      "reason": "Header of the deleted hand-written custom-credentials LIST/UPDATE file: its claim that both verbs stay hand-written (K1 STOP on res.locals.authCredentialKind) is now false; the remaining rationale (thin adapter, never the sealed connection, custom-credentials.write) lives in the header of Jini @jini-ai/cms admin-http/routes/system/custom-credentials.ts, which now holds the list/update specs (credentialKind bound per request)."
+    },
+    {
+      "id": "d7d00caf93d3",
+      "reason": "Documented the deleted CredentialRouteContext interface of the hand-written custom-credentials registrar; the specs in Jini @jini-ai/cms custom-credentials.ts take per-route deps instead and the interface no longer exists."
+    },
+    {
+      "id": "72200f42b487",
+      "reason": "The 'list and update stay hand-written (K1 STOP)' note in system-credentials.ts is obsolete: both are now mounted as Jini specs with requestDeps binding the credential kind, and the replacing comment there says so."
+    },
+    {
+      "id": "ba63557d5b0d",
+      "reason": "Moved with the code to authorizeCustom in Jini @jini-ai/cms admin-http/routes/system/custom-credentials.ts; its first two lines are kept verbatim, the third reworded because the spec throws a refusal instead of returning true after writing the response."
     }
   ]
 }

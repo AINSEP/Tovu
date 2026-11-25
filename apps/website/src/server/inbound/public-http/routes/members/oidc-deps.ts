@@ -86,7 +86,7 @@ export function redirectMemberOidcError({ res, error }: { res: Response; error: 
  * connect whose session went stale mid-flow still fails, because the sealed ownerKey differs.
  * O(1) indexed reads.
  */
-export async function currentOidcMember(required: { req: Request; deps: MemberPublicRouteDeps }, _options = {}):
+export async function currentOidcMember(required: { req: Pick<Request, "headers">; deps: MemberPublicRouteDeps }, _options = {}):
 Promise<{ session: MemberSessionRecord; member: MemberRecord } | null> {
   const { req, deps } = required;
   const token = uniqueMemberCookie({ req, name: MEMBER_SESSION_COOKIE });
