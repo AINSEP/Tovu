@@ -55,7 +55,7 @@ import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbou
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/index";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
-import { selectConnectedDestination } from "#src/features/publish-content/peers";
+import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
 import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
 import { registerDuplicateResourceHandler, listDuplicateResourceHandlers } from "#src/assistant/index";
 import { contributeAgentPluginConnectTools, contributeAgentPluginSearchTools } from "#src/features/agent-plugins/tool-registrations";

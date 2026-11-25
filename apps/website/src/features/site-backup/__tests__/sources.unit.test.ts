@@ -10,18 +10,8 @@ import test from "node:test";
 
 import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
-import {
-  buildSiteBackupManifest,
-  captureDatabaseSnapshot,
-  checkSiteBackupLimits,
-  collectSiteBackupFiles,
-  formatByteSize,
-  readPlannedFile,
-  SITE_BACKUP_LIMITS,
-  skipOversizedFiles,
-  type SiteBackupInclude,
-  type SiteBackupSources,
-} from "../sources.js";
+import { buildSiteBackupManifest, captureDatabaseSnapshot, checkSiteBackupLimits, collectSiteBackupFiles, readPlannedFile, SITE_BACKUP_LIMITS, type SiteBackupSources } from "../sources.js";
+import { formatByteSize, skipOversizedFiles, type SiteBackupInclude } from "@jini-ai/devops/backup/site/sources";
 import { installSitePlugin, jiniSitePlugins } from "./fixtures/site-plugin.fixture.js";
 
 /**

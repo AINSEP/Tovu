@@ -17,7 +17,7 @@ import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutati
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import { RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
-import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
+import { PublishContentBundleNotFoundError } from "@jini-ai/cms/publish/content/gated-hooks";
 import { importErrorResponse } from "../import-errors.js";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";

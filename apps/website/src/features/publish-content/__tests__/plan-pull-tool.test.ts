@@ -156,10 +156,10 @@ test("the production contributor projects the same content ports the import rout
 
 test("L163 pull boundary translates each known refusal and preserves unknown rejection identity", async () => {
   const { PlanStaleError, ForbiddenError } = await import("../../../contracts/core/gated-mutations/gateway.js");
-  const { PublishContentBundleNotFoundError } = await import("../gated-hooks.js");
+  const { PublishContentBundleNotFoundError } = await import("@jini-ai/cms/publish/content/gated-hooks");
   const { RestorePointUnavailableError } = await import("@jini-ai/cms/publish/content/execute-import");
   const { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } = await import("@jini-ai/cms/publish/content/peers");
-  const { PublishContentPeerTransportError } = await import("../peer-transport.js");
+  const { PublishContentPeerTransportError } = await import("@jini-ai/cms/publish/content/peer-transport");
   const { PublishTrustHandshakeError } = await import("../../publish-trust/handshake-client.js");
   const { PluginHookFailedError } = await import("@jini-ai/plugins/host");
   const cases: Array<{ error: unknown; message: string }> = [
@@ -171,7 +171,7 @@ test("L163 pull boundary translates each known refusal and preserves unknown rej
     ...[
       new ForbiddenError({ message: "permission denied", reasonCode: "denied" }),
       new PublishTrustHandshakeError({ message: "handshake refused", failure: "refused" }),
-      new PublishContentPeerTransportError({ message: "transport refused", code: "PEER_REJECTED" }),
+      new PublishContentPeerTransportError({ message: "transport refused", code: "PEER_REJECTED", redact: ({ text }) => ({ text }) }),
       new PublishContentPeerCredentialMissingError({ message: "credential absent" }),
       new PublishContentPeerSecretStoreUnconfiguredError({ message: "store absent" }),
     ].map(error => ({ error, message: error.message })),

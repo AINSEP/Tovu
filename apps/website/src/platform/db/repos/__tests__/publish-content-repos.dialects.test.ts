@@ -4,7 +4,7 @@ import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-r
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
+import type { PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 import type { PublishContentRunRecord } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
 import type { ContentKernel } from "../../content-kernel.js";

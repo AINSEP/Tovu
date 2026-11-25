@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
-import { SHARE_TOKEN_LENGTH, SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { SHARE_TOKEN_LENGTH } from "@jini-ai/devops/backup/site/share-registry";
 
 // RED gap: these routes previously had no assertion through the actual session/RBAC mount.
 test("all share routes including static export require authentication, site-backup.push and the correct workspace", async t => {

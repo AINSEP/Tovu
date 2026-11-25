@@ -2,7 +2,8 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import express from "express";
 
-import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "#src/features/publish-content/peers";
+import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
+import { type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 

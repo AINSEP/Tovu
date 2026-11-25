@@ -1,7 +1,9 @@
-import type { PublishContentApplyPort } from "./gated-hooks.js";
-import { applyPublishContentReport } from "./apply-report.js";
+import type { PublishContentApplyPort } from "@jini-ai/cms/publish/content/gated-hooks";
+import { applyPublishContentReport, type ApplyReportHost } from "@jini-ai/cms/publish/content/apply-report";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
+import { readBackstopMetadata } from "./backstop-service.js";
 import type { CreatePublishContentApplyPortInput } from "@jini-ai/cms/publish/content/apply-run";
-import type { PublishContentDeps } from "./type-registry.js";
+import { buildPublishContentCatalog, type PublishContentDeps } from "./type-registry.js";
 import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 
 /**
@@ -41,6 +43,20 @@ export function toPublishContentApplyDeps(required: PublishContentApplyDeps, _op
 }
 
 /**
+ * This site's values for the apply loop's injected seams: its publishable-type registry, its
+ * hand-send policy binding (`backstop-service.ts`), and the plugin host's refusal class (rebuilt
+ * with the item it refused, so the operator is told which items before it stay saved).
+ */
+const APPLY_REPORT_HOST: ApplyReportHost<TovuPublishPorts> = {
+  catalog: { build: buildPublishContentCatalog },
+  readBackstopMetadata,
+  pluginHooks: {
+    isPluginHookFailure: (candidate): candidate is PluginHookFailedError => candidate instanceof PluginHookFailedError,
+    attachRefusedItem: (failure, refusedItemRef) => new PluginHookFailedError(failure.pluginId, failure.message, { cause: failure, refusedItemRef }),
+  },
+};
+
+/**
  * Builds the real {@link PublishContentApplyPort} — Task 8's apply loop. See `apply-row.ts`'s header for
  * the apply-time race guards and the authorship-id disclosed deviation.
  *
@@ -52,6 +68,6 @@ export function toPublishContentApplyDeps(required: PublishContentApplyDeps, _op
 export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput<TovuPublishPorts>, _optional = {}): PublishContentApplyPort {
   return {
     applyReport: ({ report, principalId, bundleId, restorePointId, authorize, backstop }) =>
-      applyPublishContentReport({ input, report, principalId, bundleId, restorePointId, authorize, backstop }),
+      applyPublishContentReport({ input, host: APPLY_REPORT_HOST, report, principalId, bundleId, restorePointId, authorize, backstop }),
   };
 }

@@ -12,7 +12,8 @@ import test from "node:test";
 import { gzipSync } from "node:zlib";
 import { packAgentPluginDirectory } from "../../agent-plugins/lifecycle.js";
 import { readBundledImportPluginIds, readBundledPackageFiles } from "../package-file-inventory.js";
-import { claimSharePath, excludedSharePath, requireShareSecretFree, sharePathAlias, validateSharePath, type PackageFileInventory } from "../share-file-policy.js";
+import { sharePathAlias, type PackageFileInventory } from "@jini-ai/devops/backup/site/share-file-policy";
+import { claimSharePath, excludedSharePath, requireShareSecretFree, validateSharePath } from "../share-file-policy.js";
 import { archiveRefusalName } from "@jini-ai/devops/backup/site/share-refusal";
 
 const HEX = "a".repeat(64);
@@ -364,4 +365,10 @@ test("only notes and learned plugin memory travel, with the same credential scan
     assert.equal(excludedSharePath({ path }), false);
     assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(providerKey()) }), true);
   }
+});
+
+test("a file NAMED like a vendor token is a credential filename through the host redactor, even with plain bytes", () => {
+  const credentialWarnings: { path: string; kind: string }[] = [];
+  requireShareSecretFree({ path: `themes/${providerKey()}.txt`, bytes: Buffer.from("plain text") }, { credentialWarnings });
+  assert.deepEqual(credentialWarnings.map(warning => warning.kind), ["credential filename"]);
 });

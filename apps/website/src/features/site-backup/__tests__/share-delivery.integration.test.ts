@@ -9,7 +9,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { PeerCallDeps } from "../../publish-content/peer-transport.js";
+import type { PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { createPeerShareDelivery, resolveShareDelivery } from "../share-hosting.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { createSiteShare, revokeSiteShare } from "../share-service.js";

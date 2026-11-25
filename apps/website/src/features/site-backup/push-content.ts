@@ -3,7 +3,8 @@ import type { SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import type { CommitBackupTreeInput, CredentialedRepositoryTarget, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 import type { PushResult } from "./backup-service.js";
 import type { SiteBackupPlan } from "./plan-content.js";
-import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_MANIFEST_PATH } from "./sources.js";
+import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_MANIFEST_PATH } from "./sources.js";
+import { SITE_BACKUP_DATABASE_PATH } from "@jini-ai/devops/backup/site/sources";
 
 export const CANCELLED: PushFailure = { ok: false, code: "CANCELLED", message: "the push was stopped before anything was committed" };
 

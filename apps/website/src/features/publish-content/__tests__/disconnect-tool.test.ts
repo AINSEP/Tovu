@@ -5,8 +5,10 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import type { ProvisioningWrite, PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
-import { buildRegistrations, contributePublishContentDisconnectTools, derivedRisk, type Deps } from "../disconnect-tool.js";
-import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
+import { derivedRisk } from "@jini-ai/cms/publish/content/disconnect-tool";
+import { buildRegistrations, contributePublishContentDisconnectTools, type Deps } from "../disconnect-tool.js";
+import { InMemoryPublishContentPeerRepo } from "../peers.js";
+import { type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 
 /** @file `publish_content_disconnect` through its handler with an in-memory peer repo, a recording
  *  provisioning port and a deterministic keyring (no deploy config file is written). */

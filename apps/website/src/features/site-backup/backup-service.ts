@@ -31,25 +31,15 @@ import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, Sourc
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/index.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
-import type { SiteImportBackend } from "./import-backend.js";
-import type { SiteShareBackend } from "./share-backend.js";
+import { type SiteImportBackend } from "@jini-ai/devops/backup/site/import-backend";
+import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
 import { CANCELLED, commitBackupPlan, initialPushProgress, uploadBackupPlan } from "./push-content.js";
 import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
-import {
-  captureDatabaseSnapshot,
-  checkSiteBackupLimits,
-  collectSiteBackupFiles,
-  formatByteSize,
-  SITE_BACKUP_DATABASE_PATH,
-  SITE_BACKUP_SCOPES,
-  skipOversizedFiles,
-  type SiteBackupHostLimit,
-  type SiteBackupInclude,
-  type SiteBackupSources,
-} from "./sources.js";
+import { captureDatabaseSnapshot, checkSiteBackupLimits, collectSiteBackupFiles, type SiteBackupSources } from "./sources.js";
+import { formatByteSize, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_SCOPES, skipOversizedFiles, type SiteBackupHostLimit, type SiteBackupInclude } from "@jini-ai/devops/backup/site/sources";
 
 /**
  * @file The site-backup service behind the agent tools `site_backup_plan` (read-only) and

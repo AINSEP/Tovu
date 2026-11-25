@@ -14264,6 +14264,110 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "af092b4432b3",
+      "reason": "moved to Jini packages/core/src/tool-metadata/site-update.ts:4 (\"./index.ts\" became \"the host aggregator\"; the Tovu file was deleted with the move)."
+    },
+    {
+      "id": "43f27ef629fe",
+      "reason": "moved to Jini packages/cms/src/publish/content/destination-credential.ts:76 (Tovu word dropped from the @throws line; the Tovu file is now a host binding with its own doc)."
+    },
+    {
+      "id": "b76128b62a81",
+      "reason": "moved to Jini packages/cms/src/publish/content/disconnect-tool.ts:40 (\"the host's grant reversal\" replaces the Tovu config-write wording; the Tovu file is a binding)."
+    },
+    {
+      "id": "cb6d0c3cd713",
+      "reason": "moved to Jini packages/cms/src/publish/content/file-tree-policy.ts:192 (per-file cap is now the host's injected ceiling, so the TOVU_MAX_UPLOAD_BYTES name is dropped)."
+    },
+    {
+      "id": "05d782237772",
+      "reason": "moved to Jini packages/cms/src/publish/content/file-tree-policy.ts:211 (secret scanner is now the injected TextSecretScanner)."
+    },
+    {
+      "id": "bb26ea33e4ce",
+      "reason": "moved to Jini packages/cms/src/publish/content/file-tree-policy.ts:421 (Tovu word dropped)."
+    },
+    {
+      "id": "4a519a464102",
+      "reason": "moved to Jini packages/cms/src/publish/content/peer-transport.ts:1-47 (file header; \"another Tovu\" is now \"another instance\")."
+    },
+    {
+      "id": "c13911619edc",
+      "reason": "moved to Jini packages/cms/src/publish/content/peer-transport.ts:436 (\"an older Tovu\" is now \"an older instance\")."
+    },
+    {
+      "id": "0e29de700fdc",
+      "reason": "moved to Jini packages/cms/src/publish/content/peer-registry.ts:11 (file header; \"remote Tovu\" is now \"remote install\"; the Tovu peers.ts is now a vault binding)."
+    },
+    {
+      "id": "ab64d5ac4f9d",
+      "reason": "moved to Jini packages/cms/src/publish/content/peer-registry.ts:127 (write-side deps doc moved with the repo)."
+    },
+    {
+      "id": "9b9dc0754cc0",
+      "reason": "moved to Jini packages/cms/src/publish/content/permissions.ts:2 (file header moved with the grants)."
+    },
+    {
+      "id": "a8d2399564be",
+      "reason": "moved to Jini packages/cms/src/publish/content/permissions.ts:90 (registration doc moved with the function)."
+    },
+    {
+      "id": "6f628b9e5704",
+      "reason": "moved to Jini packages/cms/src/publish/content/publish-tool.ts:119 (doc of the autonomous push moved with it; the Tovu file is a binding)."
+    },
+    {
+      "id": "862c17662aea",
+      "reason": "obsolete: the `PostRecord` alias (a cast helper over Tovu's routing type) no longer exists; Jini packages/cms/src/publish/content/push-plan.ts:20 types the injected host `entryPublicPath` structurally with `RoutingContentRecord`, so there is no cast to explain."
+    },
+    {
+      "id": "6355f3fe5bee",
+      "reason": "moved to Jini packages/devops/src/backup/site/bundled-export-file-policy.ts:28 (\"Tovu's\" became \"the host's\"; the Tovu file is a binding)."
+    },
+    {
+      "id": "23af1dbf4223",
+      "reason": "moved to Jini packages/devops/src/backup/site/import-plugin-state.ts:84 (\"another Tovu version\" reworded neutral)."
+    },
+    {
+      "id": "d1c1b2c89fad",
+      "reason": "moved to Jini packages/devops/src/backup/site/import-registry.ts:67 (the injected durable store owns the atomic JSON replacement; the Tovu file only binds the node durable-file ports)."
+    },
+    {
+      "id": "3c7dc3856f9b",
+      "reason": "moved to Jini packages/devops/src/backup/site/import-restore-placement.ts:115 (full doc moved with explainThemeTree; the Tovu wrapper keeps a one-line doc and its own @complexity)."
+    },
+    {
+      "id": "58c025f6bf48",
+      "reason": "moved to Jini packages/devops/src/backup/site/share-hosting.ts:102 (Tovu word dropped; the Tovu file is a binding)."
+    },
+    {
+      "id": "f06db20a229d",
+      "reason": "moved to Jini packages/devops/src/backup/site/share-zip.ts:163 (Tovu word dropped; the Tovu file is a binding)."
+    },
+    {
+      "id": "a5d0fda6eea5",
+      "reason": "moved to Jini packages/devops/src/backup/site/sources.ts:14 (file header with the backup layout moved with the source reads)."
+    },
+    {
+      "id": "cab4805f4969",
+      "reason": "moved to Jini packages/devops/src/backup/site/sources.ts:65 (SITE_BACKUP_DATABASE_PATH carries \"where the database snapshot lives\"; Tovu keeps only the manifest path, whose own doc says so)."
+    },
+    {
+      "id": "ab8d97bb399a",
+      "reason": "moved to Jini packages/devops/src/backup/site/sources.ts:125 (TOVU_MEDIA_BLOB_STORE name dropped; the Tovu note text names it)."
+    },
+    {
+      "id": "738cd8a9ae8a",
+      "reason": "moved to Jini packages/devops/src/backup/site/sources.ts:661 (limits are now injected; the Tovu wrapper keeps a one-line doc)."
+    },
+    {
+      "id": "a5e923eccd36",
+      "reason": "moved to Jini packages/devops/src/backup/site/sources.ts:751 (\"tovu-backup.json\"/\"Tovu version\" are now host values passed in as format/producerKey/hostVersion)."
+    },
+    {
+      "id": "c20059e8f3c0",
+      "reason": "moved to Jini packages/devops/src/backup/site/static-download-layout.ts:258 (Tovu word dropped)."
     }
   ]
 }

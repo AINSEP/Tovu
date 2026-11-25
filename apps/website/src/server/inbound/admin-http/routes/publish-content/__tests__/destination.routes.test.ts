@@ -5,7 +5,8 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
-import { InMemoryPublishContentPeerRepo, saveConnectedDestination } from "#src/features/publish-content/peers";
+import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
+import { saveConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
 import { listPublishContentContributors, registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { PublishTrustProvisioningPort, ProvisioningWrite } from "@jini-ai/cms/publish/trust/provisioning";
 import type { HttpClientPort } from "#src/platform/http/index";

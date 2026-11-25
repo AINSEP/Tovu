@@ -32,14 +32,16 @@ import {
   type PublishContentApplyPort,
   type PublishContentDbOpsPort,
   type PublishContentRestorePointSavePort,
-} from "../gated-hooks.js";
+} from "@jini-ai/cms/publish/content/gated-hooks";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
 import { confirm, execute, plan } from "../../../contracts/core/gated-mutations/gateway.js";
+import { planHashOf, resolveActorClassIdentity } from "../../../contracts/core/gated-mutations/composition.js";
+import { createHash } from "node:crypto";
 
 const WORKSPACE_ID = "ws-1";
 const BUNDLE_ID = "bundle-1";
@@ -165,6 +167,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
     workspaceId: WORKSPACE_ID,
     bundleId: BUNDLE_ID,
     actorId: ACTOR_ID,
+    planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     clock,
     idGen,
     publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } } },
@@ -222,6 +225,7 @@ function minimalHooks(bundleRepo: InMemoryPublishContentBundleRepo, extraDeps: R
   const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
   const hooks = buildPublishContentImportHooks({
     workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ACTOR_ID, clock, idGen,
+    planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } }, ...extraDeps } as never,
     bundleRepo, baselineRepo: new InMemoryPublishContentBaselineRepo(), blobStore: { exists: async () => true },
     dbOps: { captureRestorePoint: async () => ({ artifactRef: "artifact-min", watermarkAtCapture: 1 }) },
@@ -277,4 +281,18 @@ test("execute threads this request's backstop and authorize into the apply port,
     assert.equal("authorize" in seen[0]!, "authorize" in extra);
     if ("backstop" in extra) assert.equal(seen[0]!.backstop, extra.backstop);
   }
+});
+
+// Host-binding pin (security seam): the approval token is bound to THIS host's `planHashOf` over the
+// planned report, and the audit identity comes from THIS host's `resolveActorClassIdentity`.
+test("the host binding hashes the planned report with the host planHashOf and resolves identity with the host resolver", async () => {
+  registerFakeHandler(new Map([[ENTITY_ID, { version: 1, hash: BASELINE_HASH }]]));
+  const bundleRepo = new InMemoryPublishContentBundleRepo();
+  await bundleRepo.save({ record: stagedBundle() });
+  const { hooks } = minimalHooks(bundleRepo, {}, []);
+  const { planHash, details } = await hooks.computePlan({});
+  assert.equal(planHash, planHashOf({ details }));
+  assert.equal(planHash, createHash("sha256").update(JSON.stringify(details)).digest("hex"));
+  assert.equal(hooks.resolveActorClassIdentity, resolveActorClassIdentity);
+  assert.equal(await hooks.resolveActorClassIdentity({ principalId: ACTOR_ID, principalKind: "user" }), ACTOR_ID);
 });

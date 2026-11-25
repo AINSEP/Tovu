@@ -7,7 +7,8 @@ import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
 import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
-import { createPublishContentPeer, InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "#src/features/publish-content/peers";
+import { createPublishContentPeer, type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
+import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { contentKernel } from "#src/platform/db/content-kernel";

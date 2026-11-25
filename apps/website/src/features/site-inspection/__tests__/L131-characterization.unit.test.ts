@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { Server } from "node:http";
 import test from "node:test";
-import { selectConnectedDestination, type PublishContentPeerRecord } from "#src/features/publish-content/peers";
+import { selectConnectedDestination, type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 import { listKnownLiveOrigins } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";

@@ -51,7 +51,7 @@ test("boot with the app's registry grants every host admin permission", async ()
 test("importing feature permission modules registers nothing: a fresh registry still holds only the library built-ins", async () => {
   await import("#src/features/pages/permissions");
   await import("@jini-ai/user-management/identity/site-key-permission");
-  await import("#src/features/publish-content/permissions");
+  await import("@jini-ai/cms/publish/content/permissions");
   await import("@jini-ai/cms/fs-files/custom-root-permission");
 
   const fresh = createPermissionGrantRegistry({});

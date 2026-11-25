@@ -56,9 +56,6 @@ test("v2 importer tells a v1 exporter to upgrade and re-export; v3 bundles requi
 
 test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserving edited rows", async () => {
   // Isolate the unrelated restore/backstop entrypoints; planner, apply loop and stored repos are real.
-  mock.module(new URL("../gated-hooks.ts", import.meta.url).href, {
-    namedExports: { PublishContentBundleNotFoundError: class extends Error {} },
-  });
   mock.module(new URL("../backstop-service.ts", import.meta.url).href, {
     namedExports: { readBackstopMetadata: () => null },
   });

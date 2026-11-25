@@ -1,13 +1,15 @@
-import type { PublishHistoryRecorder } from "./peer-transport.js";
+import type { PublishHistoryRecorder } from "@jini-ai/cms/publish/content/peer-transport";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { requireToolPermission } from "@jini-ai/cms/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
-import type { BuildPublishContentImportHooksInput } from "./gated-hooks.js";
+import type { BuildPublishContentImportHooksInput as EngineImportHooksInput } from "@jini-ai/cms/publish/content/gated-hooks";
+/** The import-hooks input, instantiated with this site's publish port bag. */
+type BuildPublishContentImportHooksInput = EngineImportHooksInput<TovuPublishPorts>;
 import type { PublishContentRunRepoPort } from "@jini-ai/cms/publish/content/run-repo";
 import type { PublishContentPullDeps } from "./pull.js";
 import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import type { resolvePublishDestinationCredential } from "./destination-credential.js";
-import type { PublishContentPeerRepoPort } from "./peers.js";
+import type { PublishContentPeerRepoPort } from "@jini-ai/cms/publish/content/peer-registry";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";

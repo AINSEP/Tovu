@@ -1,5 +1,5 @@
 import { postJsonToDaemon, readPromptFromFlags } from "@jini-ai/cli";
-import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
+import { parseSiteImportInput } from "@jini-ai/devops/backup/site/import-backend";
 import { ValidationError } from "#src/platform/site-dir/index";
 import { isLoopbackHost } from "@jini-ai/devops/local-dev";
 import { isIP } from "node:net";

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { staticDownloadLayout } from '../static-download-layout.js';
+import { staticDownloadLayout } from '../static-download-host.js';
 import { claimSharePath } from '../share-file-policy.js';
 
 /** Distinct URLs must remain distinct bytes after portable path relocation. */

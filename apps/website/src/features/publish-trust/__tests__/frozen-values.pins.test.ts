@@ -118,12 +118,14 @@ test("T-FROZEN: the provisioning environment variable and config file names", ()
 });
 
 test("T-FROZEN: the vault scope bound into every sealed peer credential", () => {
-  assert.deepEqual(linesMatching(/const peerScope = /), [
-    'publish-content/peers.ts: const peerScope = { kind: "publish-peer" as const, ownerKey: "tovu", principalId: null, provider: null };',
+  // The registry moved to Jini (`@jini-ai/cms/publish/content/peer-registry`), which seals AND refuses
+  // with the binding's kind/ownerKey only; the host binding is the one place both literals live, and
+  // `peers.sealed-at-rest.pin.test.ts` proves a record sealed before the move still opens with them.
+  assert.deepEqual(linesMatching(/^\s*kind: "publish-peer",$/), [
+    'publish-content/peers.ts: kind: "publish-peer",',
   ]);
-  // The read side refuses a record of any other kind or owner; it must name the same two literals.
-  assert.deepEqual(linesMatching(/const wrongKind = /), [
-    'publish-content/peers.ts: const wrongKind = record.kind !== "publish-peer" || record.ownerKey !== "tovu";',
+  assert.deepEqual(linesMatching(/^\s*ownerKey: "tovu",$/), [
+    'publish-content/peers.ts: ownerKey: "tovu",',
   ]);
 });
 
@@ -132,7 +134,7 @@ test("T-FROZEN: the history row kind already saved for a publish to a peer site"
   const rows = linesMatching(/(?<!readonly )kind: "tovu-peer"/);
 
   assert.equal(rows.length, 1, rows.join("\n"));
-  assert.match(rows[0] ?? "", /^publish-content\/peer-transport\.ts: kind: "tovu-peer", target: deps\.credential\.id,/);
+  assert.match(rows[0] ?? "", /^publish-content\/peer-transport-binding\.ts: history: \{ kind: "tovu-peer" \},/);
 });
 
 test("T-FROZEN: the deploy-config key that names a site's public address", () => {

@@ -15,7 +15,8 @@ import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { BackstopInverse } from "@jini-ai/cms/publish/transfer";
 import type { BackstopSelection, RawColumn, RawRowPort, RawRowSnapshot, RawValue } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { contributeRawRowPublish, rawRowId } from "../raw-row-contributor.js";
+import { contributeRawRowPublish } from "../raw-row-contributor.js";
+import { rawRowId } from "@jini-ai/cms/publish/content/raw-row-contributor";
 import type { PublishContentDeps } from "../type-registry.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
