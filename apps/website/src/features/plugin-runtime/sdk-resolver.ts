@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { LEGACY_PLUGIN_SDK_SPECIFIER, PLUGIN_SDK_SPECIFIERS } from "@jini-ai/plugins/host";
+import { TOVU_LEGACY_PLUGIN_SDK_SPECIFIER, TOVU_SITE_PLUGIN_SDK_SPECIFIERS } from "./site-plugin-vocabulary.js";
 import { registerPluginSdkResolver as registerResolver } from "@jini-ai/plugins/runtime/sdk-resolver";
 
 /** Used only by `resolveDefaultSdkModulePath()` below to reach real Node package resolution for
@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url);
  * exercises the `sdkModulePath` override instead. Jini's resolver cannot do this itself: a package
  * name resolved from Jini's dist would reach the wrong `node_modules`. */
 export function resolveDefaultSdkModulePath(): string {
-  return require.resolve(LEGACY_PLUGIN_SDK_SPECIFIER); // legacy alias: the bundled backing package keeps its workspace name.
+  return require.resolve(TOVU_LEGACY_PLUGIN_SDK_SPECIFIER); // legacy alias: the bundled backing package keeps its workspace name.
 }
 
 export interface RegisterPluginSdkResolverOptional {
@@ -36,5 +36,5 @@ export interface RegisterPluginSdkResolverOptional {
  * See `reports/pipeline/005-plugin-system/critical-internal-constraints.md` U-002.
  * @throws PluginSdkResolverAlreadyRegisteredError (Jini) if called twice in one process. */
 export function registerPluginSdkResolver(optional: RegisterPluginSdkResolverOptional = {}): void {
-  registerResolver({ sdkModulePath: optional.sdkModulePath ?? resolveDefaultSdkModulePath(), sdkSpecifiers: PLUGIN_SDK_SPECIFIERS });
+  registerResolver({ sdkModulePath: optional.sdkModulePath ?? resolveDefaultSdkModulePath(), sdkSpecifiers: TOVU_SITE_PLUGIN_SDK_SPECIFIERS });
 }

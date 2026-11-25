@@ -9,7 +9,7 @@ import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 import type { Tier2Request } from "@jini-ai/plugins/host/worker";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
-import { PLUGIN_SDK_SPECIFIERS } from "@jini-ai/plugins/host";
+import { TOVU_SITE_PLUGIN_SDK_SPECIFIERS } from "../../../../features/plugin-runtime/site-plugin-vocabulary.js";
 import { importPluginModule, main, startIfWorker, TIER2_IMPORT_POLICY } from "../worker.js";
 
 /**
@@ -113,7 +113,7 @@ for (const imported of [null, "a string module"] as const) {
 
 test("the C043 import policy is SDK-only, plus exactly the two specifiers content-analyzer's entry imports", () => {
   assert.deepEqual(TIER2_IMPORT_POLICY, {
-    sdkSpecifiers: PLUGIN_SDK_SPECIFIERS,
+    sdkSpecifiers: TOVU_SITE_PLUGIN_SDK_SPECIFIERS,
     trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analysis", "@jini-ai/cms/html/site/slug"] }],
   });
 });

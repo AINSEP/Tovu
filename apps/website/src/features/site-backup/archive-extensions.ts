@@ -2,8 +2,8 @@ import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-s
 import { prepareArchiveExtensions as prepareExtensions, type ArchiveExtensionsDeps } from "@jini-ai/devops/backup/site/archive-extensions";
 import type { ArchivePlugin } from "@jini-ai/devops/backup/site/archive-manifest";
 import type { PlannedDiskFile } from "@jini-ai/devops/backup/site/sources";
-import { PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import { TOVU_SITE_PLUGIN_MANIFEST_FILENAMES } from "#src/features/plugin-runtime/site-plugin-vocabulary";
 import { runtimeToArchivePath } from "./archive-paths.js";
 import { collectSiteBackupFiles, readPlannedFile, type SiteBackupSources } from "./sources.js";
 
@@ -14,7 +14,7 @@ const EXTENSION_DEPS: ArchiveExtensionsDeps = {
   createLifecycle: ({ layout }) => createTovuAgentPluginLifecycle({ layout }),
   resolveThemeOriginalSource,
   runtimeToArchivePath,
-  pluginManifestFilenames: PLUGIN_MANIFEST_FILENAMES,
+  pluginManifestFilenames: TOVU_SITE_PLUGIN_MANIFEST_FILENAMES,
 };
 
 /** Selects installed package versions through the lifecycle owner; includes reset baselines.

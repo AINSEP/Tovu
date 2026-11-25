@@ -1,5 +1,6 @@
 import { runResetOwnerCommand } from "./commands/reset-owner.js";
 import { Command } from "commander";
+import { TOVU_SITE_PLUGIN_MANIFEST_READ } from "#src/features/plugin-runtime/site-plugin-vocabulary";
 import { runPluginInstallCommand } from "./commands/plugin/install.js";
 import { runPluginIntegrityCommand } from "@jini-ai/plugins/host/node";
 
@@ -74,7 +75,7 @@ function registerPluginCommands(program: Command): void {
     });
   pluginProgram.command("integrity").argument("<dir>", "plugin package folder")
     .option("--write", "write the complete integrity map to jini.plugin.json")
-    .action(async (dir: string, options: { write?: boolean }) => { await runPluginIntegrityCommand({ dir, ...options }); });
+    .action(async (dir: string, options: { write?: boolean }) => { await runPluginIntegrityCommand({ dir, ...options }, TOVU_SITE_PLUGIN_MANIFEST_READ); });
 }
 
 function registerInitCommand(program: Command): void {
