@@ -9,6 +9,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 import { computeBlobStorageKey, isDocumentOnlyBlob, MAX_DOCUMENT_BYTES } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
 import { checkTreeFiles, checkTreePath, isIgnoredTreeFileName, MAX_SECRET_SCAN_BYTES, normalizeMode, resolveTreeRelativePath, wrapTreePolicyReason, type FileTreeFileInput } from "@jini-ai/cms/publish/content/file-tree-policy";
 import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
@@ -771,7 +772,7 @@ async function swapIntoPlace({ target, previousPath, stagingDir }: { target: str
       deps: { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize },
       command: {
         workspaceId: deps.workspaceId,
-        actor: { id: input.principalId, kind: "user" as const },
+        actor: applyRunActor({ deps, principalId: input.principalId }),
         summary: `Publish ${title} via publish-content`,
         permission: "theme.set",
         idempotencyKey: input.idempotencyKey,

@@ -313,6 +313,7 @@ function makeRepointDeps(input: {
     ...makePublishDeps({ menuRepo: input.menuRepo, outbox }),
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: input.authorize ?? (async () => ({ allowed: true, reason: "test-always-allow" })),
+    mutationActor: { id: "operator-1", kind: "user" },
   };
 }
 
@@ -434,6 +435,18 @@ test("repointReferences() rewrites a live menu's entryRef and records one revert
   assert.equal(updates[0].workspaceId, WORKSPACE_ID);
   assert.equal(updates[0].aggregateId, "menu-header");
   assert.deepEqual(updates[0].payload, { menuId: "menu-header", slug: "primary-nav" });
+});
+
+test("repointReferences() attributes the menu repoint to the apply run's actor, not an invented user", async () => {
+  const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }), version: 5 }),
+  ] });
+  const deps = { ...makeRepointDeps({ menuRepo }), mutationActor: { id: "operator-1", kind: "agent" as const } };
+  const result = await contributeMenusPublish().build(deps).repointReferences!({
+    replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-agent",
+  });
+  const recorded = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: result.changeSetIds[0]! });
+  assert.deepEqual(recorded?.changeSet.actor, { id: "operator-1", kind: "agent" });
 });
 
 test("repointReferences() leaves a menu named in skipIds untouched", async () => {

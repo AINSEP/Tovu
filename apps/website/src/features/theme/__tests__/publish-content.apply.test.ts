@@ -123,6 +123,7 @@ async function makeFixture(options: { sourceFiles?: Record<string, string>; dest
     outbox,
     changeSets,
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    mutationActor: { id: OPERATOR_ID, kind: "user" },
     ports: {
       // `blobStore` lives on `ports.media` — theme's own port has no store of its own; see
       // `theme/publish-content.ts`'s comment above `buildHandler`.
@@ -479,6 +480,25 @@ test("apply() refreshes the running site's theme cache so new partials render", 
   assert.equal(seen.length, 1);
   assert.match(seen[0], /<nav>new header<\/nav>/);
   assert.doesNotMatch(seen[0], /original header/);
+});
+
+test("the publish gateway's actor reaches the domain writer", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  await handlerFor({ ...fixture.deps, mutationActor: { id: OPERATOR_ID, kind: "agent" } })
+    .apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-agent-actor" });
+  const [recorded] = await fixture.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID });
+  assert.deepEqual([recorded?.actorId, recorded?.actor], [OPERATOR_ID, { id: OPERATOR_ID, kind: "agent" }]);
+});
+
+test("an apply with no run actor refuses before any theme write", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const { mutationActor: _runActor, ...unattributed } = fixture.deps;
+  await assert.rejects(handlerFor(unattributed).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-no-actor" }),
+    (error: Error) => error.name === "MissingMutationActorError");
+  assert.deepEqual(await fixture.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  assert.equal(await readFile(path.join(fixture.destThemes, "static/basic", Object.keys(ORIGINAL_BASIC)[0]!), "utf8"), Object.values(ORIGINAL_BASIC)[0]);
 });
 
 test("rollback refreshes the running site's cache so restored partials render", async () => {

@@ -6,7 +6,7 @@ import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { addressHeldByOther, trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
+import { applyRunActor, createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor, PublishContentDeps as EnginePublishContentDeps } from "@jini-ai/cms/publish/content/type-registry";
 import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { RemovePostFn } from "#src/platform/publish-contracts";
@@ -518,7 +518,8 @@ function contributePostKind(kind: PostKind): PublishContentContributor<PostBag> 
       );
     }
     const gatewayDeps = { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize };
-    const actor = { id: input.principalId, kind: "user" as const };
+    // The apply run's vouched actor (admin user or assistant agent), refused when absent — never an invented user.
+    const actor = applyRunActor({ deps, principalId: input.principalId });
     const { target } = input;
 
     let holder: PostRecord | null = null;
