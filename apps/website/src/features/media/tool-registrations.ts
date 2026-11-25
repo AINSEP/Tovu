@@ -1,3 +1,4 @@
+import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withLargeUploadRouting } from "./large-upload-routing.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
@@ -179,7 +180,7 @@ export function buildMediaRegistrationsForTovu(
     listContentTypes: routeDeps.mediaContentTypeStore,
     resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls({ deps: routeDeps, assets }),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
-    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
+    ...UPLOAD_CAPS,
     ...(transcoder ? { videoConversion: { transcoder, linkDerivedMedia: createDerivedMediaLink({ mediaRepo: routeDeps.mediaRepo, clock: routeDeps.clock }) } } : {}),
   });
 

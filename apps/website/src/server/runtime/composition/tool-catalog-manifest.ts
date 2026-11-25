@@ -130,6 +130,7 @@ import { contributeIdentityTools } from "#src/features/identity/tool-registratio
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
 import { contributeMediaTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
+import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { contributeMediaViewImageTools } from "@jini-ai/cms/media/site/view-image-tool";
 import { contributeImageTransformTools } from "#src/features/image-transform/tool";
@@ -746,7 +747,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   for (const contributor of [
     ...contributePostDuplicateHandlers(),
     ...contributeFormsDuplicateHandlers(),
-    ...contributeMediaDuplicateHandlers({ deriveDuplicateName }),
+    ...contributeMediaDuplicateHandlers({ deriveDuplicateName, ...UPLOAD_CAPS }),
   ]) {
     registerDuplicateResourceHandler(contributor);
   }

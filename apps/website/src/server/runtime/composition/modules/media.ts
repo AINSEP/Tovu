@@ -1,3 +1,9 @@
+/**
+ * Owner policy: 50 MiB for media uploads, including Library documents, and 500 MiB for video
+ * (owner 2026-11-24). One source: `@tovu/contracts/upload-limits`. Call sites pass the caps as
+ * uploadMedia's override; Jini's default for other consumers' image/video uploads stays 10 MiB.
+ */
+import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import type { Express } from "express";
 import { describeRequestFailure } from "@jini-ai/core";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
@@ -41,12 +47,6 @@ import { toStoredMediaResponse } from "#src/server/inbound/admin-http/routes/med
 import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
-/**
- * Owner policy: 50 MiB for media uploads, including Library documents. Reuse Jini's document
- * limit so upload validation and text extraction agree. Call sites pass it as uploadMedia's
- * maxUploadBytes override; Jini's default for other consumers' image/video uploads stays 10 MiB.
- */
-import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types.js";
@@ -183,8 +183,8 @@ export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; de
   const replaceDeps = {
     ...mediaPortDeps({ deps }),
     mediaRepo: deps.mediaRepo,
-    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
-    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    ...UPLOAD_CAPS,
+    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, UPLOAD_CAPS),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
   };
   mountAdminJsonRoute({ app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
@@ -225,7 +225,7 @@ export function registerAdminMediaUploadRoute(
   };
   // The owner's video import size rule (a video over the import size is converted after it is stored, the original stays)
   // is applied by the one shared uploader every import path uses; see import-video-conversion.ts.
-  const convertingUpload = createConvertingUploader({ uploadDeps: uploadPorts, maxUploadBytes: TOVU_MAX_UPLOAD_BYTES, mediaRepo: deps.mediaRepo, clock: deps.clock }, { video: videoImport });
+  const convertingUpload = createConvertingUploader({ uploadDeps: uploadPorts, caps: UPLOAD_CAPS, mediaRepo: deps.mediaRepo, clock: deps.clock }, { video: videoImport });
   const storeUpload = (input: MediaUploadInput) => convertingUpload({ workspaceId: deps.workspaceId, ...input });
   const uploadDeps = {
     ...mediaPortDeps({ deps }),
@@ -307,7 +307,7 @@ export function registerAdminMediaImportUrlRoute(
 ): void {
   const convertingUpload = createConvertingUploader({
     uploadDeps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
-    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES, mediaRepo: deps.mediaRepo, clock: deps.clock,
+    caps: UPLOAD_CAPS, mediaRepo: deps.mediaRepo, clock: deps.clock,
   }, { video: optional.videoImport });
   mountAdminJsonRoute({ app, spec: mediaImportUrlRoute, deps: {
     ...mediaPortDeps({ deps }),

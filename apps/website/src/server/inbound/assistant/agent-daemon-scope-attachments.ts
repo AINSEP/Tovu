@@ -5,6 +5,7 @@ import type { Principal } from "@jini-ai/core";
 import { prepareMessageAttachments as realPrepareMessageAttachments, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { createDiskAttachmentStore, stageAttachmentClaim as realStageAttachmentClaim, attachmentUploadRoutes, attachmentCleanupRoutes, type AttachmentsHttpDeps, type RunMessageRequest, type RunStartHandler, type StoredAttachment } from "@jini-ai/daemon/http";
 import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
+import { MAX_UPLOAD_BATCH_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import { sniffContentType as realSniffContentType, MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 import { registerDaemonAttachmentLookup, RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
@@ -19,15 +20,24 @@ export type AttachmentRunFields = { imagePaths?: readonly string[]; imageContent
   extraAllowedDirs?: readonly string[]; uploadRoot?: string };
 /**
  * Total bytes one composer turn's staged attachments may sum to (`createDiskAttachmentStore`'s
- * `maxBatchBytes`, `@jini-ai/http-kit`'s own default is 20 MB). Kept at twice
- * {@link TOVU_MAX_UPLOAD_BYTES} (below) — the daemon's own per-file cap — rather than left equal to
+ * `maxBatchBytes`, `@jini-ai/http-kit`'s own default is 20 MB). Kept ABOVE the largest per-file cap (since
+ * 2026-11-24: one 500 MiB video plus one 50 MiB file, `MAX_UPLOAD_BATCH_BYTES`) rather than left equal to
  * it, so a turn with one file at the cap still has room for a second small one; that default's own
  * doc says the per-file cap "should be at or below" this value, and an exact match would leave zero
  * headroom for any additional attachment in the same turn. Owner-directed (2026-09-21): the
  * per-file cap rose to 50 MiB alongside the media upload cap it mirrors, so this rose to 100 MiB to
  * keep that headroom.
  */
-const ATTACHMENT_MAX_BATCH_BYTES = TOVU_MAX_UPLOAD_BYTES * 2;
+const ATTACHMENT_MAX_BATCH_BYTES = MAX_UPLOAD_BATCH_BYTES;
+
+/** The staged-attachment limits, from the one upload-limit source (video 500 MiB, everything else 50 MiB, owner
+ *  2026-11-24). The batch cap now covers one largest video plus one other full-size file, so it never refuses a
+ *  file the per-file cap allows. The per-file cap is chosen by file name because nothing is sniffed until the
+ *  attachment is promoted to media, where the real bytes are held to 50 MiB unless they are truly a video. */
+export const SCOPE_ATTACHMENT_LIMITS = {
+  maxBatchBytes: ATTACHMENT_MAX_BATCH_BYTES,
+  maxAttachmentBytesFor: ({ name }: { name: string }): number => uploadLimitForFile({ name, type: "" }),
+} as const;
 
 type AttachmentPorts = {
   getAttachmentStore(): Pick<AttachmentStore, 'claim'> | undefined;
@@ -199,7 +209,7 @@ export function mountScopeAttachments({ app, attachmentStore, routeHost, authEnv
       // cap, not just the client's own pre-check (`AssistantDock.hooks.tsx`'s
       // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
       // the bytes are ever sent, not just after).
-      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES };
+      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES, maxAttachmentBytesFor: SCOPE_ATTACHMENT_LIMITS.maxAttachmentBytesFor };
   mountJiniRoutes({ app, routes: attachmentUploadRoutes({ deps: attachmentDeps, host: routeHost }) }, { rawBody: true });
   mountJiniRoutes({ app, routes: attachmentCleanupRoutes({ deps: attachmentDeps, host: routeHost }) });
 }

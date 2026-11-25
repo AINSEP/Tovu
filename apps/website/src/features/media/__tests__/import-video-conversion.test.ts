@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { shouldTranscodeOnImport, uploadMedia, type MediaTranscoderPort } from "@jini-ai/cms/media";
-import { MAX_UPLOAD_BYTES } from "@tovu/contracts/upload-limits";
+import { MAX_UPLOAD_BYTES, VIDEO_UPLOAD_LIMIT_BYTES, uploadLimitFor } from "@tovu/contracts/upload-limits";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo } from "../index.js";
 import { withVideoConversionOnImport, type ImportVideoConversion } from "../import-video-conversion.js";
 
@@ -160,9 +160,12 @@ test("with no conversion configured the store function is returned untouched", (
   assert.equal(withVideoConversionOnImport({ storeUpload: h.storeUpload, conversion: undefined }), h.storeUpload);
 });
 
-test("an upload at the 50 MiB cap is never over Jini's import threshold, so the hook is dormant for upload paths today", () => {
-  // Pinned on purpose: this explains why no real upload reaches the converter. If the cap is raised
-  // above the threshold this fails, which is the cue to re-read the owner's size rule.
+test("the video cap sits above Jini's import threshold, so the conversion is reachable; images stay at the old cap", () => {
+  // Pinned on purpose (owner 2026-11-24: video cap 500 MB). The conversion only runs for a video over
+  // the threshold, so a video limit at or below it would silently make the hook dead code again.
   assert.equal(shouldTranscodeOnImport({ sizeBytes: MAX_UPLOAD_BYTES, contentType: "video/quicktime" }), false);
   assert.equal(shouldTranscodeOnImport({ sizeBytes: MAX_UPLOAD_BYTES + 1, contentType: "video/quicktime" }), true);
+  assert.ok(uploadLimitFor({ contentType: "video/quicktime" }) > MAX_UPLOAD_BYTES, "a 60 MB video must pass the limit and reach the conversion");
+  assert.equal(shouldTranscodeOnImport({ sizeBytes: VIDEO_UPLOAD_LIMIT_BYTES, contentType: "video/quicktime" }), true);
+  assert.equal(uploadLimitFor({ contentType: "image/png" }), MAX_UPLOAD_BYTES);
 });

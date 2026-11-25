@@ -390,14 +390,48 @@ test("the production cap accepts a binary import above the old 10 MiB upload cap
   assert.deepEqual(Buffer.from(stored), bytes);
 });
 
-test("the production 50 MiB cap rejects a sparse oversized file before reading", async (t) => {
+test("the production 50 MiB cap rejects a sparse oversized non-video file before reading", async (t) => {
   const f = await setup(t);
-  const target = path.join(f.rootPath, "huge.mp4");
-  fs.writeFileSync(target, MP4);
+  const target = path.join(f.rootPath, "huge.png");
+  fs.writeFileSync(target, PNG);
   fs.truncateSync(target, 50 * 1024 * 1024 + 1);
   const readSpy = t.mock.method(fs, "createReadStream");
-  await assert.rejects(() => f.run({ root: "custom", path: "huge.mp4" }), rejection("file 'huge.mp4' is 52428801 bytes and exceeds the 52428800-byte import limit"));
+  await assert.rejects(() => f.run({ root: "custom", path: "huge.png" }), rejection("file 'huge.png' is 52428801 bytes and exceeds the 52428800-byte import limit"));
   assert.equal(readSpy.mock.callCount(), 0);
+  await f.noWrites();
+});
+
+const SIXTY_MIB = 60 * 1024 * 1024;
+
+test("a 60 MiB .mp4 passes the pre-read gate (video cap picked from the extension) and imports", async (t) => {
+  const f = await setup(t);
+  const target = path.join(f.rootPath, "clip.mp4");
+  fs.writeFileSync(target, MP4);
+  fs.truncateSync(target, SIXTY_MIB); // sparse: nothing is allocated on disk
+  const result = await f.run({ root: "site", path: "clip.mp4" });
+  assert.equal(result.media.status, "active");
+  assert.equal((await f.deps.mediaRepo.list({ workspaceId: "ws-local" })).length, 1);
+});
+
+test("a 60 MiB .png is refused at the 50 MiB ceiling before reading", async (t) => {
+  const f = await setup(t);
+  const target = path.join(f.rootPath, "poster.png");
+  fs.writeFileSync(target, PNG);
+  fs.truncateSync(target, SIXTY_MIB);
+  const readSpy = t.mock.method(fs, "createReadStream");
+  await assert.rejects(() => f.run({ root: "custom", path: "poster.png" }), rejection(`file 'poster.png' is ${SIXTY_MIB} bytes and exceeds the 52428800-byte import limit`));
+  assert.equal(readSpy.mock.callCount(), 0);
+  await f.noWrites();
+});
+
+test("an image renamed .mp4 passes the pre-read gate but uploadMedia's sniffed-type cap still refuses it", async (t) => {
+  const f = await setup(t);
+  const target = path.join(f.rootPath, "sneaky.mp4");
+  fs.writeFileSync(target, PNG);
+  fs.truncateSync(target, SIXTY_MIB);
+  const readSpy = t.mock.method(fs, "createReadStream");
+  await assert.rejects(() => f.run({ root: "site", path: "sneaky.mp4" }), /50 MB/);
+  assert.equal(readSpy.mock.callCount(), 1, "the file was read: the gate let it through, the sniffed type refused it");
   await f.noWrites();
 });
 
@@ -411,11 +445,11 @@ for (const [relativePath, message] of [["missing.png", "file 'missing.png' does 
 
 test("an injected local cap cannot widen the production 50 MiB ceiling", async (t) => {
   const f = await setup(t, { maxBytes: 100 * 1024 * 1024 });
-  const target = path.join(f.rootPath, "huge.mp4");
-  fs.writeFileSync(target, MP4);
+  const target = path.join(f.rootPath, "huge.png");
+  fs.writeFileSync(target, PNG);
   fs.truncateSync(target, 50 * 1024 * 1024 + 1);
   const readSpy = t.mock.method(fs, "createReadStream");
-  await assert.rejects(() => f.run({ root: "custom", path: "huge.mp4" }), rejection("file 'huge.mp4' is 52428801 bytes and exceeds the 52428800-byte import limit"));
+  await assert.rejects(() => f.run({ root: "custom", path: "huge.png" }), rejection("file 'huge.png' is 52428801 bytes and exceeds the 52428800-byte import limit"));
   assert.equal(readSpy.mock.callCount(), 0);
   await f.noWrites();
 });

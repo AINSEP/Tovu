@@ -132,14 +132,14 @@ function buildImportVideoConversion(
  */
 export function createConvertingUploader(
   required: {
-    uploadDeps: UploadMediaDeps; maxUploadBytes: number;
+    uploadDeps: UploadMediaDeps; caps: { maxUploadBytes: number; maxVideoUploadBytes?: number };
     mediaRepo: MediaRepoPort; clock: Clock;
   },
   optional: { video?: VideoImportOptions | undefined } = {},
 ): (input: UploadMediaInput) => Promise<{ media: MediaRecord }> {
-  const { uploadDeps, maxUploadBytes, mediaRepo, clock } = required;
+  const { uploadDeps, caps, mediaRepo, clock } = required;
   return withVideoConversionOnImport({
-    storeUpload: (input: UploadMediaInput) => uploadMedia({ deps: uploadDeps, input }, { maxUploadBytes }),
+    storeUpload: (input: UploadMediaInput) => uploadMedia({ deps: uploadDeps, input }, caps),
     conversion: buildImportVideoConversion({ uploadDeps, mediaRepo, clock, video: optional.video }),
   });
 }
