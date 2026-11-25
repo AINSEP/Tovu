@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process";
 import { resolveOnPath } from "@jini-ai/agent-runtime";
 import { pathToFileURL } from "node:url";
 
-import { PEM_PATTERN_NAME, SECRET_PATTERNS, scanTextForSecrets, type SecretPattern } from "@jini-ai/diagnostics/redaction/secrets-only";
-export { SECRET_PATTERNS, type SecretPattern };
+import { PEM_PATTERN_NAME } from "@jini-ai/diagnostics/redaction/secrets-only";
+import { scanTrackedRepo, scanRepoHistory, type SecretScanViolation } from "@jini-ai/diagnostics/redaction/repo-secret-scan";
 
 /**
  * @file Repo-scanning static check (same shape as `seal-aad-invariant.ts` in this folder): fails
@@ -169,22 +169,6 @@ function listTrackedFiles({ repoRoot }: { repoRoot: string }, _optional: Record<
   return out.split("\0").filter(Boolean);
 }
 
-export interface SecretScanViolation {
-  /** Repo-root-relative path, forward slashes. */
-  file: string;
-  patternName: string;
-  /** 1-based line number, or "binary" when the file's content is not text (a NUL byte was found in
-   *  its first 8000 bytes — the same heuristic `git`/`grep -I` use to classify binaries), or "path"
-   *  when the match sits in the file or directory NAME itself. */
-  line: number | "binary" | "path";
-}
-
-function lineNumberAt({ text, index }: { text: string; index: number }, _optional = {}): number {
-  let line = 1;
-  for (let i = 0; i < index; i++) if (text.charCodeAt(i) === 10) line++;
-  return line;
-}
-
 /** One tracked file's (or historical blob's) already-read, latin1-decoded content, ready to scan. */
 interface ScannableContent {
   readonly text: string;
@@ -195,9 +179,6 @@ interface ScannableContent {
  *  binary-media extension, missing from disk (e.g. removed locally but not yet staged as
  *  deleted), not a regular file, or over the size cap (see file header). */
 function readScannableFile({ repoRoot, relFile }: { repoRoot: string; relFile: string }, _optional: Record<string, never> = {}): ScannableContent | null {
-  const ext = path.extname(relFile).toLowerCase();
-  if (SKIP_EXTENSIONS.has(ext)) return null;
-
   const absFile = path.join(repoRoot, relFile);
   let stat: fs.Stats;
   try {
@@ -211,55 +192,17 @@ function readScannableFile({ repoRoot, relFile }: { repoRoot: string; relFile: s
   return { text: buf.toString("latin1"), isBinary: buf.subarray(0, 8000).includes(0) };
 }
 
-/** Stands in for every credential-shaped substring of a reported path. */
-const REDACTED = "[redacted]";
-
-/** A report must never repeat the value it found: redact credential-shaped substrings of a path. */
-function redactPath({ file }: { file: string }, _optional: Record<string, never> = {}): string {
-  let redacted = file;
-  for (const hit of scanTextForSecrets({ text: file })) redacted = redacted.split(hit.value).join(REDACTED);
-  return redacted;
-}
-
-/** A file or directory NAME can carry a credential too (an empty file still has one), so every
- *  tracked and historical path is scanned before extension filtering or blob dedupe. */
-function scanPathForViolations({ file }: { file: string }, _optional: Record<string, never> = {}): SecretScanViolation[] {
-  return scanTextForSecrets({ text: file })
-    .filter((hit) => !isAllowlisted({ file, patternName: hit.patternName, value: hit.value }))
-    .map((hit) => ({ file: redactPath({ file }), patternName: hit.patternName, line: "path" as const }));
-}
-
-/** Scans one already-read file's content for secret-shaped hits, filtering out allowlisted ones
- *  and shaping each remaining hit into a reportable {@link SecretScanViolation}. Shared by the
- *  tip scan ({@link scanRepoForSecrets}) and the history scan ({@link scanGitHistoryForSecrets}). */
-function scanContentForViolations(
-  { file, content }: { file: string; content: ScannableContent },
-  _optional = {}
-): SecretScanViolation[] {
-  const violations: SecretScanViolation[] = [];
-  for (const hit of scanTextForSecrets({ text: content.text })) {
-    if (isAllowlisted({ file, patternName: hit.patternName, value: hit.value })) continue;
-    violations.push({
-      file: redactPath({ file }),
-      patternName: hit.patternName,
-      line: content.isBinary ? "binary" : lineNumberAt({ text: content.text, index: hit.index }),
-    });
-  }
-  return violations;
-}
-
 /** Real-repo scan: every tracked file (per `git ls-files`), latin1-decoded so binary content is
  *  scanned byte-for-byte alongside text (see file header). */
 export function scanRepoForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
   const repoRoot = options?.repoRoot ?? REPO_ROOT;
-  const violations: SecretScanViolation[] = [];
-  for (const relFile of listTrackedFiles({ repoRoot })) {
-    violations.push(...scanPathForViolations({ file: relFile }));
-    const content = readScannableFile({ repoRoot, relFile });
-    if (!content) continue;
-    violations.push(...scanContentForViolations({ file: relFile, content }));
-  }
-  return violations;
+  return scanTrackedRepo({
+    ports: {
+      trackedPaths: () => listTrackedFiles({ repoRoot }),
+      readTracked: ({ file }) => readScannableFile({ repoRoot, relFile: file }),
+    },
+    policy: { selectPath: ({ file }) => !SKIP_EXTENSIONS.has(path.extname(file).toLowerCase()), maxScanBytes: MAX_SCAN_BYTES, isAllowlisted },
+  });
 }
 
 interface HistoricalBlob {
@@ -358,23 +301,6 @@ function readBlobContents(
   return contents;
 }
 
-// A single NUL character, built via fromCharCode rather than an inline escape literal so this
-// file's own source never embeds a raw control byte.
-const NUL_CHAR = String.fromCharCode(0);
-
-/** History scan: every blob ever committed to any local branch/tag, not just the current tip.
- *  Closes the gap where a secret committed then removed in a later commit is still fully
- *  recoverable from `git log`/`git show` while `scanRepoForSecrets` (tip-only) reports clean.
- *  `repoRoot` defaults to this repo but is overridable so tests can point it at a throwaway repo
- *  instead of mutating real history. */
-/** Converts one historical blob's raw latin1-decoded content into {@link ScannableContent}, or
- *  `null` when it's missing (shouldn't happen — `readBlobContents` was given this exact sha) or
- *  over the size cap (see file header's size-cap rationale). */
-function toScannableBlob({ text }: { text: string | undefined }, _optional = {}): ScannableContent | null {
-  if (text === undefined || text.length > MAX_SCAN_BYTES) return null;
-  return { text, isBinary: text.slice(0, 8000).includes(NUL_CHAR) };
-}
-
 /** Every distinct path any commit on any local branch/tag ever added or changed (merges included),
  *  sorted. Blob dedupe keys on content, so a credential-named file sharing its blob with another
  *  file never reaches the blob list under its own name; paths are listed separately. */
@@ -387,21 +313,21 @@ function listHistoricalPaths({ repoRoot }: { repoRoot: string }, _optional: Reco
   return [...new Set(out.split("\0").map((entry) => entry.replace(/^\n+/, "")).filter(Boolean))].sort();
 }
 
+/** History scan: every blob ever committed to any local branch/tag, not just the current tip.
+ *  Closes the gap where a secret committed then removed in a later commit is still fully
+ *  recoverable from `git log`/`git show` while `scanRepoForSecrets` (tip-only) reports clean.
+ *  `repoRoot` defaults to this repo but is overridable so tests can point it at a throwaway repo
+ *  instead of mutating real history. */
 export function scanGitHistoryForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
   const repoRoot = options?.repoRoot ?? REPO_ROOT;
-  const violations: SecretScanViolation[] = listHistoricalPaths({ repoRoot }).flatMap((file) => scanPathForViolations({ file }));
-
-  const blobs = listHistoricalBlobs({ repoRoot }).filter(
-    (b) => !SKIP_EXTENSIONS.has(path.extname(b.path).toLowerCase()),
-  );
-  const contents = readBlobContents({ repoRoot, shas: blobs.map((b) => b.sha) });
-
-  for (const { path: relPath, sha } of blobs) {
-    const content = toScannableBlob({ text: contents.get(sha) });
-    if (!content) continue;
-    violations.push(...scanContentForViolations({ file: relPath, content }));
-  }
-  return violations;
+  return scanRepoHistory({
+    ports: {
+      historicalPaths: () => listHistoricalPaths({ repoRoot }),
+      historicalBlobs: () => listHistoricalBlobs({ repoRoot }),
+      readBlobContents: ({ shas }) => readBlobContents({ repoRoot, shas }),
+    },
+    policy: { selectPath: ({ file }) => !SKIP_EXTENSIONS.has(path.extname(file).toLowerCase()), maxScanBytes: MAX_SCAN_BYTES, isAllowlisted },
+  });
 }
 
 function main(): void {
@@ -445,6 +371,7 @@ function main(): void {
 // exported functions are imported directly by `__tests__/secret-scan-guard.test.ts`, and an
 // unguarded `main()` would scan the real repo (and `process.exit(1)` if it ever regresses) as a
 // side effect of that import.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+const entry = process.argv[1];
+if (entry && import.meta.url === pathToFileURL(entry).href) {
   main();
 }

@@ -5,7 +5,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/backstop-sqlite-binding";
 import { contributeRawRowPublish, undoRawRow } from "../raw-row-contributor.js";
 import { rawRowId } from "@jini-ai/cms/publish/content/raw-row-contributor";
 import { contentKernel } from "#src/platform/db/content-kernel";

@@ -13,7 +13,9 @@ import { type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer
 import { createFileProvisioning, COMMITTED_JSON_CODEC } from "@jini-ai/cms/publish/trust/provisioning";
 import { describePublishReadiness, siteLabelFor } from "@jini-ai/cms/publish/content/publish-readiness";
 import { PUBLISH_READINESS_COPY } from "../publish-readiness-copy.js";
-import { buildPublishContentRegistrations, plainSentence, type PublishContentToolDeps } from "../tool-registrations.js";
+import { buildPublishContentRegistrations } from "../tool-registrations.js";
+import { plainSentence } from "@jini-ai/cms/publish/content/tool-helpers";
+import type { PublishContentToolDeps } from "../tool-deps.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createRouteDeps } from "#src/server/runtime/composition/app";

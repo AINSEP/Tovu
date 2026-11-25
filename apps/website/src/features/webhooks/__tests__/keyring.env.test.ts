@@ -610,7 +610,7 @@ test("sources: an env-kind source reads the named env var", async () => {
   }
 });
 
-test("sources: a present-but-invalid source throws immediately — it does not fall through to the next source", async () => {
+test("a present invalid source never falls through to a later source", async () => {
   await withTempDir(async (dir) => {
     const invalidFile = join(dir, "invalid.hex");
     const neverReadFile = join(dir, "never-read.hex");
@@ -690,7 +690,7 @@ test("sources: a whitespace-only env var is also treated as ABSENT", async () =>
   });
 });
 
-test("sources: a key file replaced while the process runs takes effect on the next call, without a restart", async () => {
+test("a changed recovery file is read on the next derivation", async () => {
   await withTempDir(async (dir) => {
     const keyFile = join(dir, "site.hex");
     writeFileSync(keyFile, "33".repeat(32), { mode: 0o600 });

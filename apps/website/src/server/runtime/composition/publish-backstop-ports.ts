@@ -1,6 +1,6 @@
 import { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/backstop-sqlite-binding";
 import type { BackstopPorts } from "@jini-ai/cms/publish/transfer";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { createRawFileSitePort } from "@jini-ai/cms/publish/content/publish-backstop-file";

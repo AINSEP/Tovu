@@ -1,3 +1,4 @@
+import { collectBundledSourceControlProviders } from "@jini-ai/devops/source-control/site/bundled-provider-registry";
 import path from "node:path";
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
@@ -139,34 +140,21 @@ export async function loadBundledSourceControlProviderRegistry(
   required: { readonly sourceRoot: string },
   optional: { sources?: typeof bundledContributionSources; load?: typeof loadSourceControlProviderRegistryFromSource } = {},
 ): Promise<SourceControlProviderRegistry> {
-  let sources: readonly TrustedPluginPackage[];
-  try { sources = (optional.sources ?? bundledContributionSources)({ ...required, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }); }
-  catch (error) {
-    console.warn('[source-control] bundled source-control provider sources could not be read; providers remain unavailable', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
-    return toRegistry({ providers: [], refusals: ['bundled source-control provider sources could not be read'] });
-  }
-  const providers = new Map<string, LoadedSourceControlProvider>();
-  const duplicates = new Set<string>();
-  const refusals: string[] = [];
-  for (const plugin of sources) {
-    let registry: SourceControlProviderRegistry;
-    try { registry = await (optional.load ?? loadSourceControlProviderRegistryFromSource)(plugin); }
-    catch {
-      // Import/read errors can contain paths or credentials; report only the product-owned id.
-      refusals.push(`source-control provider package '${plugin.pluginId}' was not loaded: package could not be read or imported`);
-      continue;
-    }
-    refusals.push(...registry.refusals);
-    for (const provider of registry.list()) {
-      if (providers.has(provider.descriptor.id)) duplicates.add(provider.descriptor.id);
-      providers.set(provider.descriptor.id, provider);
-    }
-  }
-  for (const id of duplicates) {
-    providers.delete(id);
-    refusals.push(`source-control provider '${id}' was not loaded: declared more than once`);
-  }
-  return toRegistry({ providers: [...providers.values()], refusals });
+  const result = await collectBundledSourceControlProviders({
+    sources: () => (optional.sources ?? bundledContributionSources)({ ...required, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }),
+    load: async ({ source }) => {
+      const registry = await (optional.load ?? loadSourceControlProviderRegistryFromSource)(source);
+      return { providers: registry.list(), refusals: registry.refusals };
+    },
+    providerId: ({ provider }) => provider.descriptor.id,
+    reportSourceFailure: ({ error }) => console.warn('[source-control] bundled source-control provider sources could not be read; providers remain unavailable', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)),
+    copy: {
+      sourceFailure: 'bundled source-control provider sources could not be read',
+      packageFailure: ({ pluginId }) => `source-control provider package '${pluginId}' was not loaded: package could not be read or imported`,
+      duplicateId: ({ id }) => `source-control provider '${id}' was not loaded: declared more than once`,
+    },
+  });
+  return toRegistry(result);
 }
 
 /** The provider ids a package declares, read as data only; none when its file is invalid. @complexity O(n). */

@@ -46,7 +46,7 @@ export function isPublishableThemePageCandidate({ theme, pageId }: { theme: Disc
  * class this codebase keeps hitting".
  *
  * The live `GET /:slug` resolver (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`'s `isMarketingPageSlug`) and the
- * static exporter's route enumeration (`apps/website/src/features/site-export/route-manifest.ts`) both have to answer this same
+ * static exporter's route enumeration (`@jini-ai/devops/static-export/site/route-manifest`) both have to answer this same
  * question, and previously each spelled its own answer — the exporter excluded shells and `404`,
  * the live route excluded neither, so `/blog-post` and `/404` were publicly reachable 200s on the
  * running server while the export correctly omitted them. Two resolvers for one question is a

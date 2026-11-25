@@ -13,7 +13,7 @@ import { PUBLISH_CONTENT_CONNECT_TOOL_ID } from "@jini-ai/cms/publish/content/ag
 import { PUBLISH_TRUST_CONFIG_PATH } from "@jini-ai/cms/publish/trust/provisioning";
 import { InMemoryPublishContentPeerRepo } from "../peers.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
-import type { PublishContentToolDeps } from "../tool-registrations.js";
+import type { PublishContentToolDeps } from "../tool-deps.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 

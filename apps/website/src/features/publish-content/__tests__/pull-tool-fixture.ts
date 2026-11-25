@@ -11,7 +11,7 @@ import { InMemoryPublishContentRunRepo } from "@jini-ai/cms/publish/content/run-
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
-import type { PublishContentToolDeps } from "../tool-registrations.js";
+import type { PublishContentToolDeps } from "../tool-deps.js";
 import type { HttpRequest } from "../../../platform/http/index.js";
 
 export const NOW = "2026-10-01T12:00:00.000Z";

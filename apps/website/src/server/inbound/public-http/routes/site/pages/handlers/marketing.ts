@@ -22,7 +22,7 @@ import { finishStaticTierDocument } from "../static-tier.js";
 // short-circuited straight past this check).
 //
 // The "is this page id actually its own public URL" half is `isStandaloneThemePage` (see its own
-// doc in `features/theme/theme.ts`) — shared with `apps/website/src/features/site-export/route-manifest.ts` rather than respelled
+// doc in `features/theme/theme.ts`) — shared with `@jini-ai/devops/static-export/site/route-manifest` rather than respelled
 // here, which is what let this route serve `/blog-post` and `/404` as 200s while the exporter
 // correctly omitted both.
 function isMarketingPageSlug({ theme, slug }: { theme: DiscoveredTheme; slug: string }, _optional = {}): boolean {

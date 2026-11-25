@@ -12,7 +12,7 @@ import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/backstop-sqlite-binding";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
