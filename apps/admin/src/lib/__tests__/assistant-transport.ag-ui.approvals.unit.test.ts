@@ -7,6 +7,7 @@ import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 import { AG_UI_RUN_PATH, createAdminAgUiRunClient, type AdminAgUiDurablePorts } from "../assistant-transport-ag-ui";
 import { EXPIRED_APPROVAL_MESSAGE, routeApprovalToolCall } from "../ag-ui-approval-relay";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
+import golden from "./fixtures/admin-ag-ui-approval-wire.golden.json";
 
 /**
  * @file P6-T2.T step 4 (admin client half) and the client part of the P6-T4.T Approvals gate: the
@@ -77,6 +78,30 @@ const resumed = () => sse([{ type: EventType.RUN_STARTED, threadId: "conv-1", ru
   { type: EventType.RUN_FINISHED, threadId: "conv-1", runId: "run-resume-2" }]);
 
 afterEach(() => { vi.unstubAllGlobals(); });
+
+/** One recorded server answer, replayed byte for byte (frame by frame, as the socket would deliver). */
+type RecordedAnswer = { status: number; contentType: string; body: string };
+const replay = (recorded: RecordedAnswer) => () => new Response(streamFromChunks(recorded.body.split(/(?<=\n\n)/)),
+  { status: recorded.status, headers: { "Content-Type": recorded.contentType } });
+const goldenFinished = JSON.parse(golden.firstSegment.body.trim().split("\n\n").at(-1)!.replace(/^data: /, "")) as
+  { threadId: string; runId: string; outcome: { interrupts: Array<{ id: string }> } };
+const FORM_CALL = { name: "forms.fill", arguments: { __exchangeId: "ex-form", decision: "submit" } };
+const APPROVE_CALL = { name: "posts.delete", arguments: { __exchangeId: "ex-1", decision: "confirm" } };
+
+/** A delivery-only turn on the recorded thread, so the segment frames themselves reach the dock. */
+async function replayedTurn(responses: Array<() => Response>) {
+  const { posts } = server(responses);
+  const client = createAdminAgUiRunClient({ durable: durablePorts().ports }, {});
+  const { rec, handlers } = recorder();
+  await client.startAgUiRun({ input: { history: [{ id: "1", role: "user", content: "delete it" }], conversationId: goldenFinished.threadId,
+    signal: new AbortController().signal }, handlers }, {});
+  await flush();
+  const fallback = vi.fn(async () => ({ routed: "mcp-ui" }));
+  return { posts, rec, fallback, route: routeApprovalToolCall({ approvals: client.approvals, fallback }, {}) };
+}
+const cardUris = (events: AgentEvent[]) => events.flatMap((event) => (event.kind === "ext" && event.name === "mcp-ui"
+  ? [(event.data as { resource: { uri: string } }).resource.uri] : []));
+const texts = (events: AgentEvent[]) => events.flatMap((event) => (event.kind === "text" ? [event.text] : []));
 
 describe("admin AG-UI approvals (P6-T2.T step 4, P6-T4.T Approvals gate)", () => {
   test("the existing approval card answers a live AG-UI interrupt with one resume", async () => {
@@ -160,6 +185,44 @@ describe("admin AG-UI approvals (P6-T2.T step 4, P6-T4.T Approvals gate)", () =>
     await flush();
     expect(rec.errors.map((error) => error.message)).toEqual([EXPIRED_APPROVAL_MESSAGE]);
     expect(rec.dones).toHaveLength(1);
+  });
+
+  /**
+   * The cross-stack half of the Approvals gate: the bytes replayed here are the live server route's,
+   * recorded and pinned by `apps/website/src/server/__tests__/assistant-ag-ui-resume.integration.test.ts`
+   * ("admin AG-UI golden wire"), so the two halves cannot drift. The server-side witnesses for allow,
+   * deny, expiry/shutdown, a foreign owner or run, and replay live in that same file and are not
+   * repeated here; this test proves the client accepts what that server actually emits.
+   */
+  test("admin AG-UI resumes a real parked approval and still renders ordinary cards", async () => {
+    const turn = await replayedTurn([replay(golden.firstSegment), replay(golden.resumeSegment)]);
+    expect(cardUris(turn.rec.events), "the existing card renders for both cards").toEqual(["ui://tovu/forms.fill/ex-form", "ui://tovu/posts.delete/ex-1"]);
+    expect(turn.rec.dones, "the interrupt segment end is not completion").toEqual([]);
+
+    await expect(turn.route(FORM_CALL)).resolves.toEqual({ routed: "mcp-ui" });
+    expect(turn.fallback.mock.calls, "the ordinary card's decision keeps its own mcp-ui route").toEqual([[FORM_CALL]]);
+    const results = await Promise.all([turn.route(APPROVE_CALL), turn.route(APPROVE_CALL)]);
+    await flush();
+    expect(turn.fallback).toHaveBeenCalledTimes(1);
+    expect(results.map((result) => (result as { isError: boolean }).isError)).toEqual([false, false]);
+    expect(turn.posts.map((post) => post.url), "one first segment, one resume").toEqual([AG_UI_RUN_PATH, AG_UI_RUN_PATH]);
+    expect(turn.posts[1]!.body).toMatchObject({ threadId: goldenFinished.threadId, parentRunId: goldenFinished.runId,
+      resume: [{ interruptId: goldenFinished.outcome.interrupts[0]!.id, status: "resolved", payload: "allow" }] });
+
+    expect(turn.rec.errors).toEqual([]);
+    expect(turn.rec.dones, "the logical turn settles once").toHaveLength(1);
+    expect(texts(turn.rec.events).join(""), "no delta repeats across the two segments").toBe("Checking.Deleted.");
+    expect(cardUris(turn.rec.events), "no card repeats").toHaveLength(2);
+    expect(texts(turn.rec.dones[0]!).join("")).toBe("Checking.Deleted.");
+    expect(cardUris(turn.rec.dones[0]!)).toHaveLength(2);
+
+    const refused = await replayedTurn([replay(golden.firstSegment), replay(golden.refusal)]);
+    await refused.route(APPROVE_CALL);
+    await refused.route(APPROVE_CALL);
+    await flush();
+    expect(JSON.parse(golden.refusal.body), "the server's refusal is the sentence the dock shows").toEqual({ error: EXPIRED_APPROVAL_MESSAGE });
+    expect(refused.rec.errors.map((error) => error.message), "the refusal shows the plain sentence once").toEqual([EXPIRED_APPROVAL_MESSAGE]);
+    expect(refused.rec.dones).toHaveLength(1);
   });
 
   test("Stop while an approval is parked cancels the owned run once", async () => {
