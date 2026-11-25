@@ -51,8 +51,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
-const ROLE = { id: "r1", workspaceId: "w1", name: "Editor", isBuiltin: false };
-const POLICY = { id: "p1", workspaceId: "w1", name: "Content", description: "d", isBuiltin: false, isFrozen: false };
+const ROLE = { id: "r1", workspaceId: "w1", name: "Editor", isBuiltin: false, version: 3 };
+const POLICY = { id: "p1", workspaceId: "w1", name: "Content", description: "d", isBuiltin: false, isFrozen: false, version: 3 };
 
 describe("roles port contracts", () => {
   it("the default createPolicy port sends its name and description through the API client", async () => {
@@ -88,8 +88,8 @@ describe("roles port contracts", () => {
     expect(await port.listPolicies({})).toEqual({ policies: [] });
     const { role } = await port.createRole({ name: "Writer" });
     const { policy } = await port.createPolicy({ name: "Read" });
-    expect(role).toEqual({ id: "fake-role-1", workspaceId: "fake-ws", name: "Writer", isBuiltin: false });
-    expect(policy).toEqual({ id: "fake-policy-1", workspaceId: "fake-ws", name: "Read", description: undefined, isBuiltin: false, isFrozen: false });
+    expect(role).toEqual({ id: "fake-role-1", workspaceId: "fake-ws", name: "Writer", isBuiltin: false, version: 1 });
+    expect(policy).toEqual({ id: "fake-policy-1", workspaceId: "fake-ws", name: "Read", description: undefined, isBuiltin: false, isFrozen: false, version: 1 });
     await port.updateRole({ roleId: role.id, name: "Editor" });
     await port.updatePolicy({ policyId: policy.id });
     expect(await port.listRoles({})).toEqual({ roles: [{ ...role, name: "Editor" }] });
@@ -341,6 +341,44 @@ describe("onDeletePolicy", () => {
   });
 });
 
+describe("identity editor compare-and-set basis", () => {
+  // The basis is the version the editor was SEEDED from, not whatever the list holds at save time:
+  // a refresh mid-edit must not quietly advance it past a change the operator never saw.
+  it("identity saves the loaded basis and preserves the draft on conflict", async () => {
+    const { result } = await renderLoaded();
+    act(() => result.current.startEditRole({ ...ROLE, version: 7 }));
+    act(() => result.current.setEditingRoleName("Draft name"));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "stale", code: "VERSION_CONFLICT", expectedVersion: 7, currentVersion: 8 }, 409));
+
+    await act(async () => {
+      await result.current.onSaveRole({ roleId: ROLE.id });
+    });
+
+    const rolePatches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+    expect(rolePatches).toHaveLength(1);
+    expect(JSON.parse(rolePatches[0]![1].body)).toEqual({ name: "Draft name", expectedVersion: 7 });
+    expect(result.current.editingRoleId).toBe(ROLE.id);
+    expect(result.current.editingRoleName).toBe("Draft name");
+    expect(result.current.rowError).toMatch(/Someone else changed this while you were editing/);
+
+    act(() => result.current.startEditPolicy({ ...POLICY, version: 4 }));
+    act(() => result.current.setEditingPolicyDescription("Draft description"));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "stale", code: "VERSION_CONFLICT", expectedVersion: 4, currentVersion: 5 }, 409));
+
+    await act(async () => {
+      await result.current.onSavePolicy({ policyId: POLICY.id });
+    });
+
+    const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+    // Exactly one more PATCH: a conflict is reported, never resubmitted on the operator's behalf.
+    expect(patches).toHaveLength(2);
+    expect(JSON.parse(patches[1]![1].body)).toEqual({ name: POLICY.name, description: "Draft description", expectedVersion: 4 });
+    expect(result.current.editingPolicyId).toBe(POLICY.id);
+    expect(result.current.editingPolicyDescription).toBe("Draft description");
+    expect(result.current.rowError).toMatch(/reload to see their version/);
+  });
+});
+
 describe("onSaveRole", () => {
   it("on failure, leaves editingRoleId set so the row stays in edit mode", async () => {
     const { result } = await renderLoaded();
@@ -374,7 +412,7 @@ describe("onSaveRole", () => {
     expect(result.current.editingRoleId).toBeNull();
     const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(String(patchCall?.[0])).toMatch(/\/roles\/r1$/);
-    expect(JSON.parse(patchCall![1].body)).toEqual({ name: "Renamed" });
+    expect(JSON.parse(patchCall![1].body)).toEqual({ name: "Renamed", expectedVersion: ROLE.version });
     // `waitFor`: the reload triggered by `invalidates: [KEYS.list]` is a separate, un-awaited
     // background refetch — see this file's identical note above.
     await waitFor(() => expect(result.current.roles?.[0].name).toBe("Renamed"));
@@ -896,7 +934,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // `activate`, `use-themes.hooks.ts`'s `activate`/`download`, and `use-theme-explore.hooks.ts`'s
   // rename were fixed for; see `loadPermissions`'s `permissionsGenerationRef` doc comment.
   it("switching panels while the first load is in flight must not let the stale panel's rows win", async () => {
-    const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+    const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, version: 1, isFrozen: false };
     const deferred: Record<string, { resolve: (v: { policyPermissions: AdminPolicyPermission[] }) => void }> = {};
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, otherPolicy] });
     port.listPolicyPermissions = vi.fn(({ policyId }: { policyId: string }) => {
@@ -968,7 +1006,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // from starting before the first settles, unlike a confirm-dialog-gated action. Same bug class as
   // `loadPermissions` above; see `onSaveRole`'s own doc comment.
   it("onSaveRole: a stale save settling after the operator moved to editing a DIFFERENT role must not close that row's edit UI", async () => {
-    const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false };
+    const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false, version: 1 };
     let resolveA!: (v: { role: typeof ROLE }) => void;
     const port = createFakeRolesPort({}, { roles: [ROLE, roleB], policies: [POLICY] });
     port.updateRole = vi.fn(() => new Promise<{ role: typeof ROLE }>((resolve) => { resolveA = resolve; }));
@@ -996,7 +1034,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   // Same bug, the policy-editing counterpart — see `onSavePolicy`'s own doc comment.
   it("onSavePolicy: a stale save settling after the operator moved to editing a DIFFERENT policy must not close that row's edit UI", async () => {
-    const policyB = { id: "pB", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+    const policyB = { id: "pB", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, version: 1, isFrozen: false };
     let resolveA!: (v: { policy: typeof POLICY }) => void;
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, policyB] });
     port.updatePolicy = vi.fn(() => new Promise<{ policy: typeof POLICY }>((resolve) => { resolveA = resolve; }));
@@ -1026,7 +1064,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // opening a new confirmation while an earlier delete is still in flight at the hook level. See
   // `runRowDelete`'s own doc comment.
   it("onDeleteRole: a stale delete settling after the operator opened a DIFFERENT row's delete confirmation must not silently close it", async () => {
-    const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false };
+    const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false, version: 1 };
     let resolveA!: () => void;
     const port = createFakeRolesPort({}, { roles: [ROLE, roleB], policies: [POLICY] });
     port.deleteRole = vi.fn(() => new Promise<void>((resolve) => { resolveA = resolve; }));
@@ -1057,7 +1095,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // flight. See `onWritePermission`'s own doc comment.
   it("onWritePermission: a stale write settling after the operator switched panels and typed a NEW value must not clear it", async () => {
     let resolveA!: (v: { policyPermission: unknown }) => void;
-    const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+    const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, version: 1, isFrozen: false };
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, otherPolicy] });
     port.writePolicyPermission = vi.fn(() => new Promise<{ policyPermission: unknown }>((resolve) => { resolveA = resolve; }));
 
@@ -1092,7 +1130,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // doc comment in `use-roles.hooks.ts`.
   describe("a policy write's trailing refresh must not repaint a DIFFERENT, now-open panel (C2)", () => {
     it("onWritePermission: a write settling after the operator opened a DIFFERENT policy's panel must not paint the old policy's rows into it", async () => {
-      const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+      const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, version: 1, isFrozen: false };
       const rowA = { id: "pp-a", workspaceId: "w1", policyId: POLICY.id, permission: "content.read", resourceType: null, constraintJson: null };
       const rowB = { id: "pp-b", workspaceId: "w1", policyId: otherPolicy.id, permission: "other.read", resourceType: null, constraintJson: null };
       const port = createFakeRolesPort({}, {
@@ -1140,7 +1178,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     it("onRemovePermission: a removal settling after the operator opened a DIFFERENT policy's panel must not paint the old policy's rows into it", async () => {
-      const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+      const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, version: 1, isFrozen: false };
       const rowA1 = { id: "pp-a1", workspaceId: "w1", policyId: POLICY.id, permission: "content.read", resourceType: null, constraintJson: null };
       const rowA2 = { id: "pp-a2", workspaceId: "w1", policyId: POLICY.id, permission: "content.write", resourceType: null, constraintJson: null };
       const rowB = { id: "pp-b", workspaceId: "w1", policyId: otherPolicy.id, permission: "other.read", resourceType: null, constraintJson: null };
