@@ -9,6 +9,7 @@ import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyPublish, contributeTermPublish } from "../publish-content.js";
+import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 function ports(): TaxonomyPublishPorts & { taxonomies: SqlTaxonomyRepo; terms: SqlTermRepo } {
   const db = openContentDb(":memory:");
   return {
@@ -90,9 +91,16 @@ test("taxonomy: the same id created at the destination after the plan is a confl
 test("import attribution: the taxonomy.imported event carries the channel's actor kind", async () => {
   const { source, dest } = await sites();
   const actor = { id: "owner", kind: "agent" } as const;
-  const attributed = { ...dest, mutationActor: actor };
   const entities = await packAll(source);
-  await applyReport(await plan(entities, attributed), entities, attributed);
+  const report = await plan(entities, dest);
+  // Why not `applyReport`: the harness stands in for the apply ceremony with a fixed `user` actor
+  // (as `apply-report.ts` merges the ceremony's actor over the run's deps), so a kind other than that
+  // default has to reach the handler the way the ceremony hands it over — on the catalog's deps.
+  const { handlerByType } = buildPublishContentCatalog({ ...dest, mutationActor: actor });
+  for (const row of report.rows.filter((r) => r.writes)) {
+    const entity = entities.find((e) => e.entityType === row.entityType && e.id === row.entityId)!;
+    await handlerByType.get(row.entityType)!.apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: `idem-${row.entityId}` });
+  }
   const records = await (dest.outbox as unknown as { claimPending(i: { batchSize: number; nowIso: string }): Promise<{ event: { name: string; actor?: unknown } }[]> }).claimPending({ batchSize: 500, nowIso: "2999-01-01T00:00:00.000Z" });
   const imported = records.map((r) => r.event).filter((e) => e.name === "taxonomy.imported");
   assert.equal(imported.length, 1);
