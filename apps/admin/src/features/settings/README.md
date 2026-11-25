@@ -30,7 +30,7 @@ stays here as the host-integration test of that binding), and `UserInterfaceSett
 (`SettingsUi.tsx` passes `hooks/use-user-interface-tab.hooks.ts`'s `useUserInterfaceTab` as the required
 `useUserInterfaceTabHook` and imports `user-interface-settings.css`; the switch renders
 `jini-settings-interface-switch` / `-switch-knob`, which `styles.css` paints by appending them to the
-`.agent-plugin-switch` selector lists — `integrations/jini-admin/__tests__/jini-class-host-css.unit.test.ts`
+`.jini-agent-plugin-switch` selector lists — `integrations/jini-admin/__tests__/jini-class-host-css.unit.test.ts`
 holds them to the same declarations; `__tests__/UserInterfaceSettingsPanel.unit.test.tsx` stays here as the
 host-integration test of that binding).
 Still here (blocked): `ai-agent-presentation.ts` and `hooks/use-ai-agent-presentation.hooks.ts` (`ExecutionPort` /

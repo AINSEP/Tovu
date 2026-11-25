@@ -5,17 +5,21 @@ import { SKILL_FAILURE_HOST } from "./skill-failure-host";
 
 /**
  * This app's design-system classes for the Skills screen's shared page, card, notice, button,
- * dialog and plugin-row looks, bound once here for the Skills page and the chat dock alike.
+ * dialog and jini-plugin-row looks, bound once here for the Skills page and the chat dock alike.
  */
 export const SKILLS_HOST_CLASSNAMES: SkillsScreenClassNames = {
   page: "page", section: "settings-ui-section", notice: "notice", card: "card", emptyState: "empty-state",
   pageDescription: "page-description", rows: "agent-plugin-rows", fieldHint: "field-hint",
   dialogBackdrop: "settings-dialog-backdrop", dialog: "settings-dialog", noticeError: "notice error", editorActions: "editor-actions",
   buttonPrimary: "btn-primary", buttonSecondary: "btn-secondary", buttonDanger: "btn-danger",
-  row: "agent-plugin-row", rowMain: "agent-plugin-row-main", rowSummary: "agent-plugin-row-summary", rowGlyph: "agent-plugin-row-glyph",
-  rowText: "agent-plugin-row-text", rowHeading: "agent-plugin-row-heading", rowName: "agent-plugin-row-name", rowDesc: "agent-plugin-row-desc",
-  iconButton: "agent-plugin-icon-btn", rowActions: "agent-plugin-row-actions", state: "agent-plugin-state", switch: "agent-plugin-switch",
-  switchKnob: "agent-plugin-switch-knob", rowDetail: "agent-plugin-row-detail", detailDescription: "agent-plugin-detail-description",
+  // The summary line above clips this same string to one line (`.jini-agent-plugin-row-desc`,
+  // `-webkit-line-clamp: 1`) — a hover tooltip covers a sighted mouse user, but expanding
+  // the row is the only path assistive tech and touch have, so the full text repeats here,
+  // unclamped, first — before every other per-plugin fact this panel already held.
+  row: "jini-agent-plugin-row", rowMain: "jini-agent-plugin-row-main", rowSummary: "jini-agent-plugin-row-summary", rowGlyph: "jini-agent-plugin-row-glyph",
+  rowText: "jini-agent-plugin-row-text", rowHeading: "jini-agent-plugin-row-heading", rowName: "jini-agent-plugin-row-name", rowDesc: "jini-agent-plugin-row-desc",
+  iconButton: "jini-agent-plugin-icon-btn", rowActions: "jini-agent-plugin-row-actions", state: "jini-agent-plugin-state", switch: "jini-agent-plugin-switch",
+  switchKnob: "jini-agent-plugin-switch-knob", rowDetail: "jini-agent-plugin-row-detail", detailDescription: "jini-agent-plugin-detail-description",
 };
 
 /**

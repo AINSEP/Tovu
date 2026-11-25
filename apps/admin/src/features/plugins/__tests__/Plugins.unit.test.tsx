@@ -145,7 +145,7 @@ describe("Installed tab scope: every installed plugin, on or off (owner 2026-10-
       expect(screen.getByRole("listitem", { name: "Word Count" })).not.toHaveAttribute("data-focused");
       expect(scrollIntoView).toHaveBeenCalledTimes(1);
       expect(scrollIntoView.mock.contexts[0]).toBe(row);
-      expect(document.activeElement).toBe(row.querySelector(".plugin-row-summary"));
+      expect(document.activeElement).toBe(row.querySelector(".jini-plugin-row-summary"));
     } finally {
       Element.prototype.scrollIntoView = original;
     }
@@ -700,7 +700,7 @@ describe("Accessibility (React Component Testing Policy)", () => {
     const invalidRow = await screen.findByRole("listitem", { name: "Invalid Site Plugin" });
     // The (collapsed) detail panel repeats the id `invalid-site-plugin` — the assertion is about the
     // always-visible subline, so the panel is excluded.
-    expect(within(invalidRow).getByText(/invalid/, { ignore: ".plugin-row-detail *" })).toBeVisible();
+    expect(within(invalidRow).getByText(/invalid/, { ignore: ".jini-plugin-row-detail *" })).toBeVisible();
   });
 });
 
