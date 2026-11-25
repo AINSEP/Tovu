@@ -116,6 +116,38 @@ function makeAfterCommit({ service, onCommandCommitted, log }: Pick<RoutineComma
   };
 }
 
+/** Commands that change nothing in the store: they share the gate, never the post-commit effects. */
+function makeReadCommands({ store, service, gate }: Pick<RoutineCommandsRequired, "store" | "service"> & { gate: ReturnType<typeof makeGate> }) {
+  return {
+    async list({ actor }: { actor: RoutineActor }, _optional = {}) {
+      const refusal = await gate(actor);
+      if (refusal) return refusal;
+      const routines = (await store.list({}, {})).map(toRoutineRow);
+      return { ok: true as const, routines, availability: "ready" as const };
+    },
+    async get({ actor, id }: { actor: RoutineActor; id: string }, _optional = {}) {
+      const refusal = await gate(actor);
+      if (refusal) return refusal;
+      const routine = await store.get({ id }, {});
+      return routine ? { ok: true as const, routine: toRoutineRow(routine) } : NOT_FOUND;
+    },
+    async runNow({ actor, id }: { actor: RoutineActor; id: string }, _optional = {}) {
+      const refusal = await gate(actor);
+      if (refusal) return refusal;
+      if (!(await store.get({ id }, {}))) return NOT_FOUND;
+      const { projectId, conversationId, agentRunId } = await service.runNow({ routineId: id });
+      return { ok: true as const, run: { projectId, conversationId, agentRunId } };
+    },
+    async listRuns({ actor, id }: { actor: RoutineActor; id: string }, { cursor, limit }: { cursor?: string | null; limit?: number } = {}) {
+      const refusal = await gate(actor);
+      if (refusal) return refusal;
+      if (!(await store.get({ id }, {}))) return NOT_FOUND;
+      const page = await store.listRuns({ routineId: id }, { cursor, limit });
+      return { ok: true as const, runs: page.items.map(toRunSummary), nextCursor: page.nextCursor };
+    },
+  };
+}
+
 export function createRoutineCommands(required: RoutineCommandsRequired, optional: RoutineCommandsOptional = {}) {
   const { store, service, access, onCommandCommitted, availability, target } = required;
   const { log = (entry: Parameters<CommandLog>[0]) => console.warn("[routines]", entry.event, entry.error) } = optional;
@@ -130,18 +162,7 @@ export function createRoutineCommands(required: RoutineCommandsRequired, optiona
   };
 
   return {
-    async list({ actor }: { actor: RoutineActor }, _optional = {}) {
-      const refusal = await gate(actor);
-      if (refusal) return refusal;
-      const routines = (await store.list({}, {})).map(toRoutineRow);
-      return { ok: true as const, routines, availability: "ready" as const };
-    },
-    async get({ actor, id }: { actor: RoutineActor; id: string }, _optional = {}) {
-      const refusal = await gate(actor);
-      if (refusal) return refusal;
-      const routine = await store.get({ id }, {});
-      return routine ? { ok: true as const, routine: toRoutineRow(routine) } : NOT_FOUND;
-    },
+    ...makeReadCommands({ store, service, gate }),
     async create({ actor, draft }: { actor: RoutineActor; draft: RoutineDraft }, _optional = {}) {
       const refusal = await gate(actor);
       if (refusal) return refusal;
@@ -169,20 +190,6 @@ export function createRoutineCommands(required: RoutineCommandsRequired, optiona
       if (!(await store.delete({ id }, { expectedRevision }))) return NOT_FOUND;
       afterCommit("delete", id, "unschedule");
       return { ok: true as const };
-    },
-    async runNow({ actor, id }: { actor: RoutineActor; id: string }, _optional = {}) {
-      const refusal = await gate(actor);
-      if (refusal) return refusal;
-      if (!(await store.get({ id }, {}))) return NOT_FOUND;
-      const { projectId, conversationId, agentRunId } = await service.runNow({ routineId: id });
-      return { ok: true as const, run: { projectId, conversationId, agentRunId } };
-    },
-    async listRuns({ actor, id }: { actor: RoutineActor; id: string }, { cursor, limit }: { cursor?: string | null; limit?: number } = {}) {
-      const refusal = await gate(actor);
-      if (refusal) return refusal;
-      if (!(await store.get({ id }, {}))) return NOT_FOUND;
-      const page = await store.listRuns({ routineId: id }, { cursor, limit });
-      return { ok: true as const, runs: page.items.map(toRunSummary), nextCursor: page.nextCursor };
     },
   };
 }
