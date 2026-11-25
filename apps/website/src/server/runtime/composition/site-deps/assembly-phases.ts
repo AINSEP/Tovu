@@ -1,3 +1,4 @@
+import { registerPageHtmlReverter } from "../../../../features/pages/html-reverter.js";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { CreateSiteRouteDepsOverrides } from "./overrides.js";
 import type { StoreCloseRegistration } from "./open-store.js";
@@ -239,6 +240,9 @@ export function assembleRouteDepsPhase(required: AssembleRouteDepsPhaseRequired,
     ...bindCredentialsHostPorts({ readDeps: () => routeDeps }),
     staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: resolvedSiteBinding.name }),
   };
+  // P1-T2.T: assistant HTML changes are undone through the same page-store factory that wrote them,
+  // registered here because this is the first point both the registry and that factory exist.
+  registerPageHtmlReverter({ registry: routeDeps.revertRegistry, store: routeDeps.pagesHtmlStore, postRepo });
   resolveRouteDeps(routeDeps);
   const { widgetAdoptionReady } = wireFormsAndSearch({ siteTitleReady, menuBindingsReady, mediaTransformReady, routeDeps, workspaceId, kernel, outbox, bus, clock, idGen, customCredentialSetRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, agentPluginLifecycle, settingsRepo, observability, formDeliveryRepo, agentPluginConnections, identity, settingsPrincipals, agentPluginLayout, consoleLogger });
 

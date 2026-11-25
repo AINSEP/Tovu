@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -35,6 +36,7 @@ function readerHarness(_required: Record<string, never>, { authorize, docBodyAsP
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const deps: PagesToolDeps = {
     workspaceId, postRepo: repo, authorize: authorize ?? (async () => ({ allowed: true, reason: "test" })),
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
     themes: [theme], resolveActiveThemeId: async () => "ink",
     ...(docBodyAsPageHtml ? { docBodyAsPageHtml } : {}),

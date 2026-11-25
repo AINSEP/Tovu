@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -41,12 +42,14 @@ function harness(
     // assertions below are about the tools' behavior rather than about authz plumbing.
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: storeFactory ?? ((scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock })),
   });
   // Keyed by `descriptor.id` — the registry's own key (`ToolRegistry.register` throws on a
   // duplicate id), which is what the catalog's `name` becomes once wired.
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
-  const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal };
+  // A fresh execution id per spread call, as the real executor gives each tool call its own.
+  const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal, get executionId() { return crypto.randomUUID(); } };
 
   async function call(name: string, input: Record<string, unknown>) {
     const entry = byName.get(name);

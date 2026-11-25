@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { executeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import { withBatchInput, type BatchResult } from "@jini-ai/core";
@@ -29,10 +30,12 @@ function harness() {
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
   });
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
-  const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal };
+  // A fresh execution id per spread call, as the real executor gives each tool call its own.
+  const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal, get executionId() { return crypto.randomUUID(); } };
 
   async function call(name: string, input: Record<string, unknown>) {
     const entry = byName.get(name);
@@ -71,7 +74,10 @@ test("the incident: moving 'agents' before 'admin-tour' swaps the two sections a
 
   const result = await h.call("pages_move_region", { id: "landing", handle: "agents", before: "admin-tour", expectedVersion: version });
 
-  assert.deepEqual(result, {
+  const { changeSetId, ...shape } = result as Record<string, unknown>;
+  // A committed move names its recorded Undo (P1-T2.T); the rest of the result is unchanged.
+  assert.equal(typeof changeSetId, "string");
+  assert.deepEqual(shape, {
     written: true,
     id: "landing",
     handle: "agents",
@@ -231,6 +237,7 @@ for (const selector of ["regionId", "handle", "region"]) {
         permissions.push(request.permission);
         return { allowed: false, reason: "permission denied" };
       },
+      ...pageHtmlChangeTestDeps(),
       pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock }); },
     }).find((entry) => entry.descriptor.id === "pages_move_region")!;
     const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, [selector]: "agents", before: "admin-tour" } });
@@ -267,6 +274,7 @@ test("pages_move_region: all coexisting target spellings are rejected, including
   let opened = 0;
   const registration = buildPagesRegistrations({
     workspaceId: WS, postRepo: h.repo, authorize: async () => ({ allowed: true, reason: "matched" }),
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock }); },
   }).find((entry) => entry.descriptor.id === "pages_move_region")!;
   for (const targets of [

@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { executeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import { withBatchInput, type BatchResult } from "@jini-ai/core";
@@ -42,6 +43,7 @@ function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => {
       const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
       if (afterRead) {
@@ -56,7 +58,8 @@ function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
     },
   });
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
-  const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal };
+  // A fresh execution id per spread call, as the real executor gives each tool call its own.
+  const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal, get executionId() { return crypto.randomUUID(); } };
 
   async function call(name: string, input: Record<string, unknown>) {
     const entry = byName.get(name);
@@ -596,6 +599,7 @@ for (const selector of ["regionId", "handle", "region"]) {
         permissions.push(request.permission);
         return { allowed: false, reason: "permission denied" };
       },
+      ...pageHtmlChangeTestDeps(),
       pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock }); },
     }).find((entry) => entry.descriptor.id === "pages_write_region")!;
     const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, [selector]: "page-hero", html: "<h1>Canonical edit</h1>" } });
@@ -632,6 +636,7 @@ test("pages_write_region: all coexisting target spellings are rejected, includin
   let opened = 0;
   const registration = buildPagesRegistrations({
     workspaceId: WS, postRepo: h.repo, authorize: async () => ({ allowed: true, reason: "matched" }),
+    ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock }); },
   }).find((entry) => entry.descriptor.id === "pages_write_region")!;
   for (const targets of [

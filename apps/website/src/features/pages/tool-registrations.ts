@@ -47,6 +47,9 @@ import {
   type PagesHtmlDocumentStorePort,
 } from "./html-document-store.sqlite.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
+import { recordAssistantPageHtmlWrite, type PageHtmlOperation, type PageHtmlWriteOutcome } from "./html-change-recording.js";
+import type { ChangeSetRepoPort, ExecuteCommandFn, OutboxPort } from "@jini-ai/core/contracts/events";
+import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
 import { scanHtmlRegions } from "@jini-ai/vibecoding/html/node";
 import {
@@ -418,6 +421,46 @@ export interface PagesToolDeps {
   resolveActiveThemeId?: () => Promise<string>;
   /** Renders a doc body as Page HTML. Absent only in standalone page-store consumers. */
   docBodyAsPageHtml?: (required: { bodyJson: unknown }, optional?: Record<string, never>) => string;
+  /** The command gateway every real assistant HTML change is recorded through (one scoped change set each). */
+  executeCommand: ExecuteCommandFn;
+  clock: Clock;
+  idGen: IdGenerator;
+  changeSets: ChangeSetRepoPort;
+  outbox?: OutboxPort;
+}
+
+/**
+ * Writes `html` on the store's captured basis. `basis: null` means this turn just converted a doc
+ * Page, which is always a change; otherwise an unchanged normalized write leaves the version alone.
+ * @complexity O(n) in the HTML's size (the store write).
+ */
+async function writeOnBasis({ store, html, basis }: { store: PagesHtmlDocumentStorePort; html: string; basis: number | null }, _optional = {}): Promise<PageHtmlWriteOutcome<null>> {
+  await store.write({ html });
+  const version = requireCapturedVersion(store);
+  return { changed: basis === null || version !== basis, version, value: null };
+}
+
+/**
+ * Records one assistant HTML operation through {@link recordAssistantPageHtmlWrite}, scoped to this
+ * handler's workspace, the resolved page id and the calling principal.
+ * @complexity O(1) besides `write`.
+ */
+function recordPageWrite<T>(
+  { routeDeps, ctx, id, expectedVersion, operation, write }: {
+    routeDeps: PagesToolDeps; ctx: Parameters<ToolHandler>[0]; id: string; expectedVersion: number; operation: PageHtmlOperation; write: () => Promise<PageHtmlWriteOutcome<T>>;
+  },
+  _optional = {},
+) {
+  return recordAssistantPageHtmlWrite({
+    deps: routeDeps,
+    target: { workspaceId: routeDeps.workspaceId, pageId: id, actorId: ctx.principal.id, executionId: ctx.executionId },
+    expectedVersion, operation, write, signal: ctx.signal,
+  });
+}
+
+/** Only a committed record earns an Undo claim: no id, no recorded Undo. */
+function undoField({ changeSetId }: { changeSetId: string | undefined }, _optional = {}): { changeSetId?: string } {
+  return changeSetId === undefined ? {} : { changeSetId };
 }
 
 /**
@@ -568,12 +611,17 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
 
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
+      let changeSetId: string | undefined;
       try {
-        const opening = await openForFullWrite({ store, seedHtml: html, scan, guard: { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion } });
-        // Returned, not thrown, like the region writer's collision refusal: the fix is in the model's own input.
-        if ("madeAmbiguous" in opening) return { written: false, reason: describeFullWriteHandleCollision({ id, collisions: opening.madeAmbiguous }) };
-        if (opening.basis !== null) assertExpectedVersion({ id, expectedVersion, basis: opening.basis });
-        await store.write({ html });
+        const recorded = await recordPageWrite({ routeDeps, ctx, id, expectedVersion, operation: "pages_write_html", write: async () => {
+          const opening = await openForFullWrite({ store, seedHtml: html, scan, guard: { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion } });
+          // Returned, not thrown, like the region writer's collision refusal: the fix is in the model's own input.
+          if ("madeAmbiguous" in opening) return { changed: false, version: null, value: { written: false as const, reason: describeFullWriteHandleCollision({ id, collisions: opening.madeAmbiguous }) } };
+          if (opening.basis !== null) assertExpectedVersion({ id, expectedVersion, basis: opening.basis });
+          return { ...(await writeOnBasis({ store, html, basis: opening.basis })), value: null };
+        } });
+        if (recorded.value) return recorded.value;
+        changeSetId = recorded.changeSetId;
       } catch (err) {
         if (err instanceof PageKindMismatchError) {
           // Surfaced as a model-facing reason rather than a thrown error: this is a mistake the
@@ -593,7 +641,7 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
       // A warning, not a refusal: hidden-until-script markup copied from another site is a fixable
       // mistake, but a deliberately hidden element is legal (see `@jini-ai/cms/pages/hidden-until-script`).
       const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html }), describeUnsafeRegions({ scan }), ...embedWarningMessages({ store })] });
-      return { written: true, id, regions: regionHandlesIn({ scan }), version: requireCapturedVersion(store), ...warning };
+      return { written: true, id, regions: regionHandlesIn({ scan }), version: requireCapturedVersion(store), ...undoField({ changeSetId }), ...warning };
     }
 
 
@@ -651,9 +699,9 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
         // here it only has to drop or rename the reused handle in its fragment.
         return { written: false, reason: describeHandleCollision({ id, handle, collisions: madeAmbiguous }) };
       }
+      let changeSetId: string | undefined;
       try {
-        ctx.signal.throwIfAborted();
-        await store.write({ html: next });
+        ({ changeSetId } = await recordPageWrite({ routeDeps, ctx, id, expectedVersion, operation: "pages_write_region", write: () => writeOnBasis({ store, html: next, basis }) }));
       } catch (err) {
         throw toModelFacingWriteError({ err });
       }
@@ -668,6 +716,7 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
         // is the failure that makes handle churn worse than no handles at all.
         regions: regionHandlesIn({ scan: nextScan }),
         version: requireCapturedVersion(store),
+        ...undoField({ changeSetId }),
         ...warning,
       };
     }
@@ -699,7 +748,8 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
             "content_post_update), or it is a page nobody has authored yet — author it in full with pages_write_html first.",
         };
       }
-      assertExpectedVersion({ id, expectedVersion, basis: requireCapturedVersion(store) });
+      const basis = requireCapturedVersion(store);
+      assertExpectedVersion({ id, expectedVersion, basis });
 
       const scan = scanHtmlRegions({ html: current });
       const moved = moveRegion({ html: current, moving: requireRegion({ scan, id, handle }), target: requireRegion({ scan, id, handle: targetHandle }), placement });
@@ -714,14 +764,14 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
             `Current order: ${regionHandlesIn({ scan }).join(", ")}.`,
         };
       }
+      let changeSetId: string | undefined;
       try {
-        ctx.signal.throwIfAborted();
-        await store.write({ html: moved.html });
+        ({ changeSetId } = await recordPageWrite({ routeDeps, ctx, id, expectedVersion, operation: "pages_move_region", write: () => writeOnBasis({ store, html: moved.html, basis }) }));
       } catch (err) {
         throw toModelFacingWriteError({ err });
       }
       const movedScan = scanHtmlRegions({ html: moved.html });
-      return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store), ...joinWarnings({ warnings: embedWarningMessages({ store }) }) };
+      return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store), ...undoField({ changeSetId }), ...joinWarnings({ warnings: embedWarningMessages({ store }) }) };
     }
 
 
