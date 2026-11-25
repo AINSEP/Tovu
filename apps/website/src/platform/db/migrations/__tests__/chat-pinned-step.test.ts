@@ -23,7 +23,11 @@ test("fresh bootstrap = migrated schema", async () => {
 });
 
 test("migration manifest is complete", () => {
-  assert.deepEqual(CHAT_MIGRATIONS.slice(-2).map(step => step.id), ["0003_active_run_index", "0004_chat_pinned"]);
+  // The whole ordered chat history, not its tail: later chat steps (0049, B140) land after this one.
+  assert.deepEqual(CHAT_MIGRATIONS.map(step => step.id), [
+    "0000_chat_baseline", "0001_sqlite_chat_tables", "0002_durable_run_attempts",
+    "0003_active_run_index", "0004_chat_pinned", "0049_scrub_assistant_chat_titles",
+  ]);
 });
 
 test("adopted SQLite parity", async () => {
