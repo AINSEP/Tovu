@@ -129,3 +129,11 @@ it.each(Object.keys(SITE_TRANSFER_DICT))("localizes the new-site live import cop
     expect(SITE_TRANSFER_DICT[locale]).not.toHaveProperty(gone);
   }
 });
+
+
+it.each(Object.keys(SITE_TRANSFER_DICT))("localizes import paging in %s", locale => {
+  for (const key of ["Show more imports", "This list of imports changed. Reload it to see the newest imports."]) {
+    expect(SITE_TRANSFER_DICT[locale]).toHaveProperty(key);
+    expect(t({ locale, key })).not.toBe(key);
+  }
+});

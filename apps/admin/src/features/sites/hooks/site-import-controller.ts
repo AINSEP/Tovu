@@ -10,11 +10,11 @@ export function createSiteImportController(
   {
     savedKeysPassword, setSavedKeysPassword, unavailable, list, t, link, setLink, file, chooseFiles, setFile, importing, importError, startImport, current,
     setPassword, setConfirm, setCurrent, setOwnerError, password, confirm, passwordProblem, settingOwner, ownerError, completeOwner, liveAddress, setLiveAddress,
-    arrivedForImport,
+    arrivedForImport, imports, nextCursor, loadingMore, moreError, loadMore, reset,
   }:
     Pick<ReturnType<typeof useSiteImportState>, "savedKeysPassword" | "setSavedKeysPassword" | "unavailable" | "list" | "link" | "setLink" | "file"
     | "chooseFiles" | "setFile" | "importing" | "importError" | "current" | "setPassword" | "setConfirm" | "setCurrent" | "setOwnerError" | "password" | "confirm"
-    | "settingOwner" | "ownerError" | "liveAddress" | "setLiveAddress" | "arrivedForImport"> &
+    | "settingOwner" | "ownerError" | "liveAddress" | "setLiveAddress" | "arrivedForImport" | "imports" | "nextCursor" | "loadingMore" | "moreError" | "loadMore" | "reset"> &
     Pick<Parameters<typeof useSiteImport>[0], "t"> &
     Pick<ReturnType<typeof createSiteImportAction>, "startImport"> &
     Pick<ReturnType<typeof createSiteOwnerAction>, "completeOwner"> &
@@ -23,7 +23,8 @@ export function createSiteImportController(
   return {
     savedKeysPassword,
     setSavedKeysPassword,
-    imports: unavailable ? [] : list.data?.imports,
+    imports: unavailable ? [] : imports,
+    nextCursor, loadingMore, moreError, loadMore, reset,
     listError: list.error && !unavailable ? describeApiError({ e: list.error, fallback: t("Couldn't load imports.") }) : null,
     link,
     setLink,

@@ -17,7 +17,7 @@ import { wasAdmittedInRequest } from "#src/server/inbound/shared/request-admissi
 
 
 export interface FailureOptions {
-  status?: 503;
+  status?: 503 | 507;
   operation?: string;
   code?: string;
   message?: string;

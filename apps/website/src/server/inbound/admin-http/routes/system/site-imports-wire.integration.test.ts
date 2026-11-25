@@ -24,7 +24,7 @@ function appWith(backend: SiteImportBackend | undefined, workspaceId = "ws") {
 }
 
 const backend = {
-  tidy: unexpected("tidy"), list: unexpected("list"), importBackup: unexpected("import"), completeOwner: unexpected("owner completion"), upload: unexpected("upload"),
+  tidy: unexpected("tidy"), listPage: unexpected("list"), list: unexpected("list"), importBackup: unexpected("import"), completeOwner: unexpected("owner completion"), upload: unexpected("upload"),
   get: () => view,
 } as unknown as SiteImportBackend;
 
@@ -58,4 +58,40 @@ test("site-import upload refusals: compressed body 400 and second concurrent upl
   const first = post(); await started;
   assert.deepEqual(await answer(await post()), { status: 409, body: { code: "BUSY", message: "Another ZIP upload is running." } });
   release(); assert.equal((await first).status, 201);
+});
+
+
+test("site import paging preserves gate precedence and private response headers", async t => {
+  let allowed = false;
+  let publishTrust = false;
+  let available = true;
+  const calls: unknown[] = [];
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; if (publishTrust) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: [], entityTypes: [], generation: 1 }; next(); });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), get siteImportBackend() { return available ? { ...backend, listPage: async input => { calls.push(input); return { imports: [], nextCursor: "next" }; } } : undefined; } } });
+  const origin = await startTestServer(app, t);
+  const root = origin + "/api/admin/v1/workspaces/ws/site-imports";
+  for (const [url, status] of [[root.replace("/ws/", "/foreign/") + "?extra=1", 404], [root + "?extra=1", 403]] as const) {
+    const response = await fetch(url);
+    assert.equal(response.status, status);
+    for (const [name, value] of [["cache-control", "no-store"], ["x-content-type-options", "nosniff"], ["x-robots-tag", "noindex, nofollow"], ["referrer-policy", "no-referrer"]]) assert.equal(response.headers.get(name!), value);
+  }
+  allowed = true; available = false;
+  assert.equal((await fetch(root + "?extra=1")).status, 503);
+  available = true;
+  publishTrust = true;
+  const grantRefusal = await fetch(root + "?extra=1");
+  assert.equal(grantRefusal.status, 403, "a publishing grant cannot inherit the principal's system.read permission");
+  assert.equal(grantRefusal.headers.get("cache-control"), "no-store");
+  publishTrust = false;
+  for (const query of ["extra=1", "cursor=a&cursor=b", "cursor[]=a", "cursor="]) {
+    const response = await fetch(root + "?" + query);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { code: "INVALID_CURSOR", message: "Import history failed: This list of imports changed. Reload it to see the newest imports." });
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+  assert.deepEqual(calls, []);
+  const response = await fetch(root + "?cursor=abc");
+  assert.deepEqual(await response.json(), { imports: [], nextCursor: "next" });
+  assert.deepEqual(calls, [{ principalId: "recipient", cursor: "abc" }]);
 });

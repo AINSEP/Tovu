@@ -29,7 +29,7 @@ function fixture(error: unknown, tracked: unknown[]) {
   });
   const fail = async () => { throw error; };
   const deps = { workspaceId: "ws", tracker, authorize: async () => ({ allowed: true }),
-    siteImportBackend: { importBackup: fail, list: fail, upload: fail, get: () => { throw error; }, completeOwner: fail },
+    siteImportBackend: { importBackup: fail, list: fail, listPage: fail, upload: fail, get: () => { throw error; }, completeOwner: fail },
     dbOps: { getCapabilities: fail }, gatedMutations: { gatewayDeps: { authorizeInstance: fail } },
   } as unknown as RouteDeps;
   registerAdminSiteImportRoutes({ app, deps });

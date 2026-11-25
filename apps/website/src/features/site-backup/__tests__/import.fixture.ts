@@ -1,3 +1,5 @@
+import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
+import { createSiteImportPayloadFs } from "#src/server/runtime/composition/site-import-payload-fs";
 import { createSite } from "#src/server/runtime/composition/site-dir";
 /** Real A→B fixtures, isolated catalog/home and real SQLite; no owner files or running server. */
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -27,7 +29,7 @@ import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import { buildShareZip } from "../share-zip.js";
 import { fixtureArchivePlan, fixtureManifest } from "./archive.fixture.js";
 import { createSiteImportBackend } from "../import-backend.js";
-import { SiteImportRegistry } from "../import-registry.js";
+import { SiteImportRegistry } from "@jini-ai/devops/backup/site/import-registry";
 import { createShareArchiveReader } from "../import-archive-reader.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import { prepareShareContent } from "../share-preparation.js";
@@ -138,9 +140,17 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     totalBytes: [...files.values()].reduce((n, bytes) => n + bytes.length, 0),
   };
   const plan = fixtureArchivePlan({ plan: runtimePlan });
-  const registry = new SiteImportRegistry({ directory: path.join(root, "private") });
+  const payload = {
+    fs: createSiteImportPayloadFs({}), clock: { nowMs: () => Date.now() }, lock: { withFileLock },
+    readJsonAt: ({ file }: { file: string }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).read({}),
+    writeJsonAt: ({ file, value }: { file: string; value: unknown }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).write({ value }),
+  };
+  const registry = new SiteImportRegistry({ directory: path.join(root, "private"), payload });
+  fs.mkdirSync(registry.payloadDirectory, { mode: 0o700 });
   const started: string[] = [];
-  const backendPorts = { registry, workspace, reader, createSite, restoreStagedImport, sanitize: rebuildImportDatabase, themeChecks: THEME_PLACEMENT_CHECKS, schema: runtimeSchemaVersion(),
+  // No index authority here: nothing is ever refused and there is no snapshot to retire.
+  const authority = { refusal: () => undefined, retire: () => ({ removed: 0, finished: true }) };
+  const backendPorts = { authority, registry, workspace, reader, createSite, restoreStagedImport, sanitize: rebuildImportDatabase, themeChecks: THEME_PLACEMENT_CHECKS, schema: runtimeSchemaVersion(),
     http: { send: async () => { throw new Error("unexpected network"); } },
     startSite: async ({ name }: { name: string }) => { started.push(name); return { adminUrl: "http://localhost:3101/admin", status: "running" }; },
     creationOptions: options,
@@ -205,7 +215,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
       await assert.rejects(login({ deps, input: { ...input, password: required.rejectedPassword } }), AuthInvalidCredentialsError);
     } finally { closeSqliteConnection({ source: imported }); }
   };
-  return { root, db, safe, files, archive, plan, registry, backend, backendPorts, workspace, started, assertOwnerLogin, archiveWithDatabase, prepareProductionShare };
+  return { root, db, safe, files, archive, plan, payload, registry, backend, backendPorts, workspace, started, assertOwnerLogin, archiveWithDatabase, prepareProductionShare };
 }
 
 /** Seed the real default list plus populated private tables; all private fields carry a sentinel. */
