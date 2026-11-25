@@ -55,3 +55,51 @@ test("a reseed after github's bytes move keeps its digest trusted: the list is s
   await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: moved });
   assert.deepEqual(await providerIds(layout, moved), { ids: ["github"], refusals: [] });
 });
+
+/** The bundle a pre-rename build shipped: github as `tovu/github`, its contributions under `tovu-*.json`. */
+async function preRenameBundle(): Promise<string> {
+  const { cp, readFile, rename, writeFile } = await import("node:fs/promises");
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-sc-prerename-"));
+  dirs.push(root);
+  await cp(bundledAgentPluginsDir(), root, { recursive: true });
+  const github = path.join(root, "github");
+  for (const kind of ["source-control", "deploy-ops"]) await rename(path.join(github, `jini-${kind}.json`), path.join(github, `tovu-${kind}.json`));
+  const manifest = path.join(github, "plugin.json");
+  await writeFile(manifest, (await readFile(manifest, "utf8")).replace('"jini/github"', '"tovu/github"'));
+  return root;
+}
+
+/** Seeds the pre-rename bundle, makes the publisher-ID upgrade hold github (`ledger`: the ledger no
+ * longer names the installed copy; `edited`: the installed copy was changed after install, so its
+ * re-pack no longer reproduces its digest), reseeds this build and lists the providers. */
+async function heldPreRenameProviders(hold: "ledger" | "edited") {
+  const { readFile, writeFile, readdir } = await import("node:fs/promises");
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-sc-held-"));
+  dirs.push(dir);
+  const layout = resolveAgentPluginLayout({ siteDir: dir });
+  await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: await preRenameBundle() });
+  const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
+  if (hold === "ledger") {
+    const ledgerFile = path.join(workspaceRoot, "bundled-digests.json");
+    const ledger = JSON.parse(await readFile(ledgerFile, "utf8"));
+    ledger.plugins.github.archiveDigest = "0".repeat(64);
+    await writeFile(ledgerFile, JSON.stringify(ledger));
+  } else {
+    const revisions = path.join(workspaceRoot, "github", "package", "sha256");
+    const [revision] = await readdir(revisions);
+    const skill = path.join(revisions, revision!, "skills");
+    const [skillDir] = await readdir(skill);
+    await writeFile(path.join(skill, skillDir!, "SKILL.md"), "edited after install", { flag: "a" });
+  }
+  const reseed = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundledAgentPluginsDir() });
+  assert.equal(reseed.idUpgrades?.find((upgrade) => upgrade.pluginId === "github")?.status, "held", JSON.stringify(reseed.idUpgrades));
+  return providerIds(layout, bundledAgentPluginsDir());
+}
+
+for (const hold of ["ledger", "edited"] as const) {
+  test(`a site held on the pre-rename github copy (${hold}) logs why github is missing instead of an empty list with no reason`, async () => {
+    const { ids, refusals } = await heldPreRenameProviders(hold);
+    assert.deepEqual(ids, []);
+    assert.equal(refusals.filter((refusal) => refusal.includes("'github'")).length, 1, `refusals: ${JSON.stringify(refusals)}`);
+  });
+}

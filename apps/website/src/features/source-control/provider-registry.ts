@@ -98,8 +98,25 @@ export async function loadSourceControlProviderRegistry(ctx: { readonly workspac
     },
   });
 
-  return toRegistry({ providers: load.items, refusals: load.refusals }, { switchedOff });
+  const preRename = await required.loadContributions({ ...ctx, definition: preRenameProviderContribution }, { orderByPluginId: true });
+  return toRegistry({ providers: load.items, refusals: [...load.refusals, ...preRename.refusals] }, { switchedOff });
 }
+
+/** Where a package from before `@jini-ai/agent-plugins` 0.7.3's `tovu/<id>` -> `jini/<id>` rename declares its providers. */
+const PRE_RENAME_SOURCE_CONTROL_PROVIDERS_FILENAME = "tovu-source-control.json";
+
+/**
+ * Bug 1 (combine-23): an active pre-rename copy the publisher-ID upgrade held (`bundled-id-upgrade.ts`)
+ * declares its hosts only in `tovu-source-control.json`, which no loader reads, so the Source Control
+ * list was empty with no refusal at all. Read as data only (never imported, never listed): it always
+ * refuses, so the `[source-control-providers]` log names the plugin and the remedy. A copy the ledger
+ * does not name is refused by the trust gate first, which names it too.
+ */
+const preRenameProviderContribution = {
+  filename: PRE_RENAME_SOURCE_CONTROL_PROVIDERS_FILENAME, contribution: "source-control providers", kind: "data" as const,
+  parse: () => ({ ok: false as const, reason: "this is the copy installed before the plugin's publisher-ID rename and this build no longer reads it; reinstall the plugin from Agent Plugins" }),
+  load: () => "never loaded",
+};
 
 /**
  * A registry read straight from a plugin's SOURCE directory, with no install, activation or digest
