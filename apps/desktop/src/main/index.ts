@@ -105,7 +105,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  */
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents, type MenuItemConstructorOptions, type WebContents } from "electron";
+import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents, powerMonitor, type MenuItemConstructorOptions, type WebContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import electronUpdater from "electron-updater";
 import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
@@ -185,6 +185,11 @@ import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
 import { installWebviewGuestPolicy } from "@jini-ai/desktop-host/shell/guest-navigation";
 import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./windows/site-open-actions.ts";
 import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
+import { open as openFileHandle } from "node:fs/promises";
+import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
+import { armDesktopRoutines } from "./boot/routine-desktop.ts";
+import { createRoutineBeaconReader, createRoutineWithdrawals } from "./boot/routine-sites.ts";
+import { startRoutineSiteInBackground } from "../project-ipc.server.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
 import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice } from "./updates/native-notices.ts";
 import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
@@ -436,6 +441,10 @@ const siteThemePreviews = createSiteThemePreviewSubscriptions({ ports: {
 
 /** Serializes site opens PER SITE DIR — see this file's own header on why. */
 const serializer = createKeyedSerializer({});
+/** Sites the owner stopped this session: routine background starts skip them (P3-T1b.T); explicit starts do not. */
+const routineWithdrawals = createRoutineWithdrawals();
+/** Set once routines arm on desktop ready; `before-quit` removes the resume listener and its debounce. */
+let disposeDesktopRoutines: () => void = () => {};
 
 /** Which sites are mid-start or mid-stop right now — the fact {@link openSites} cannot express,
  *  since its answer is two-valued and both transitions take seconds of wall clock. Read by
@@ -896,6 +905,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     dialog,
     shell,
     openSites,
+    routineWithdrawals,
     onRestartStopped: ({ siteDir, detail }: { siteDir: string; detail: string }) => {
       if (recoveringSiteWindows.has(siteDir)) dialog.showErrorBox("This site couldn’t stay running", detail);
     },
@@ -1052,8 +1062,8 @@ function bootAttachMode({ url }: { url: string }): void {
 }
 
 /** The launch, in order — see `boot-sequence.ts`'s `runDesktopBoot` for why each step sits where it does. */
-function bootDesktop(): Promise<void> {
-  return runDesktopBoot({ ports: {
+async function bootDesktop(): Promise<void> {
+  await runDesktopBoot({ ports: {
     armQuitSignals,
     initializeProductTelemetry: initializeDesktopProductTelemetry,
     registerAppWideIpc,
@@ -1067,6 +1077,36 @@ function bootDesktop(): Promise<void> {
     bootAttachMode,
     bootOwnServerMode,
   } });
+  // Attach mode serves another app's site: it owns no children, so it starts and wakes nothing.
+  if (chooseBootMode({ env: process.env }).kind !== "attach") armRoutinesOnReady();
+}
+
+/** The registered inventory, read through the same workspace metadata the child uses for its content path. */
+function registeredSiteRow({ siteDir }: { siteDir: string }) {
+  const row = sharedSites.registry({}).list({}).find((entry) => entry.path === siteDir);
+  if (row === undefined) throw new Error(`site is no longer registered: ${siteDir}`);
+  return row;
+}
+
+/** Desktop ready: start registered sites with enabled routines and relay `resume` to owned children (P3-T1b.T). */
+function armRoutinesOnReady(): void {
+  const armed = armDesktopRoutines({
+    releaseEnabled: ROUTINES_RELEASE_ENABLED,
+    listSites: async () => sharedSites.registry({}).list({}).map((entry) => ({ siteDir: entry.path })),
+    readBeacon: createRoutineBeaconReader({ fs: { open: (filePath, flags) => openFileHandle(filePath, flags) },
+      resolveContentDbPath: async ({ siteDir }) => sharedSites.databasePath({ dir: siteDir, id: registeredSiteRow({ siteDir }).id, filename: "content.db" }) }),
+    backgroundStart: ({ siteDir }) => startRoutineSiteInBackground({ siteDir, deps: { serializer, openSites, routineWithdrawals, ctx: sitesHomeCtx(),
+      openSiteServer: ({ siteDir: dir, ctx }) => siteBackend.openSiteServer({ siteDir: dir, ctx }) } }),
+    isRunning: ({ siteDir }) => openSites.get(siteDir) !== undefined || Boolean(sharedSites.running({ path: siteDir }).read({})),
+    isWithdrawn: routineWithdrawals.isWithdrawn,
+    powerMonitor,
+    ownedRunningSites: () => [...openSites.values()].map((entry) => ({ siteDir: entry.siteDir, owned: entry.server.external !== true,
+      ...(entry.server.sendRoutineReconcile ? { sendRoutineReconcile: entry.server.sendRoutineReconcile.bind(entry.server) } : {}) })),
+    timers: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (handle) => clearTimeout(handle as NodeJS.Timeout) },
+    log: (entry) => console.warn("[tovu-desktop] routines:", entry),
+  });
+  disposeDesktopRoutines = armed.dispose;
+  void armed.booted.catch((error: unknown) => console.warn("[tovu-desktop] routines: background start failed", error));
 }
 
 /**
@@ -1098,6 +1138,7 @@ app.whenReady().then(bootDesktop).catch((error: Error) => reportBootFailure({ er
 app.on("before-quit", (event) => {
   lastWindowQuit.onQuitStarted();
   stopSiteLifecycle();
+  disposeDesktopRoutines();
   siteDiscovery.abortAll();
   // Discovery can still be in flight even with no open sites; include its disposal in the same
   // awaited drain. Repeated quit attempts must not start another disposal while that drain runs.

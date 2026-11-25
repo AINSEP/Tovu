@@ -172,6 +172,21 @@ export async function handleStop({ id, deps }: { id: string; deps: Pick<ProjectI
 }
 
 /**
+ * A routine background start (P3-T1b.T). Why the withdrawal check lives INSIDE the site's serializer
+ * key rather than before it: {@link handleStop} records withdrawal before queuing its own work, so a
+ * start queued behind that Stop (or behind any other operation on the site) must re-ask at the only
+ * instant the answer still holds when acted on. Explicit owner starts go through {@link handleStart},
+ * which ignores withdrawal on purpose. Resolves `false` when it skipped the site.
+ */
+export async function startRoutineSiteInBackground<TCtx>({ siteDir, deps }: { siteDir: string; deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "openSiteServer" | "ctx" | "openSites"> & { routineWithdrawals: { isWithdrawn(required: { siteDir: string }): boolean } } }, _options = {}): Promise<boolean> {
+  return await deps.serializer.run({ key: siteDir, fn: async () => {
+    if (deps.routineWithdrawals.isWithdrawn({ siteDir }) || deps.openSites.get(siteDir) !== undefined) return false;
+    await deps.openSiteServer({ siteDir, ctx: deps.ctx });
+    return true;
+  } });
+}
+
+/**
  * {@link handleStop} for a site another process serves. This window's own attachment (if any) is
  * withdrawn FIRST, for the reason {@link stopSiteServer} drops its entry before stopping: the
  * attachment's lease watcher would otherwise report the exit the operator asked for as a crash.

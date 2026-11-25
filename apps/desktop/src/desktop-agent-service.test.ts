@@ -456,3 +456,64 @@ test("stopIfIdle request timeout is busy and never withdraws or signals", async 
     assert.equal(h.children.length, 0, 'no daemon demand or withdrawal for an idle probe');
   } finally { await h.service.shutdown({}, {}); }
 });
+
+test("routines desktop lifecycle: boot starts only registered enabled sites, a withdrawn site stays stopped, resume wakes the owned child once and never the attached one", async () => {
+  const { armDesktopRoutines } = await import("./main/boot/routine-desktop.ts");
+  const { createRoutineWithdrawals } = await import("./main/boot/routine-sites.ts");
+  const { createRoutineReconcileSender } = await import("./main/boot/routine-wake.ts");
+  const { startRoutineSiteInBackground } = await import("./project-ipc.server.ts");
+  const { createKeyedSerializer } = await import("@jini-ai/sidecar/supervisor");
+  // Registered inventory and each site's beacon; "/sites/unregistered" has a beacon but is never listed.
+  const beacons = new Map<string, number | null>([["/sites/a", 2], ["/sites/b", 0], ["/sites/c", 1], ["/sites/d", null], ["/sites/unregistered", 5]]);
+  const registered = ["/sites/a", "/sites/b", "/sites/c", "/sites/d"];
+  const withdrawals = createRoutineWithdrawals();
+  withdrawals.withdraw({ siteDir: "/sites/c" }); // the owner pressed Stop earlier this session
+  const opened: string[] = [];
+  const openSites = new Map<string, unknown>();
+  const projectDeps = { serializer: createKeyedSerializer({}), ctx: {}, openSites, routineWithdrawals: withdrawals,
+    openSiteServer: async ({ siteDir }: { siteDir: string }) => { opened.push(siteDir); openSites.set(siteDir, {}); } };
+  const power = new EventEmitter();
+  const pending = new Map<number, () => void>();
+  let nextTimer = 0;
+  const timers = { setTimeout: (fn: () => void) => { pending.set(++nextTimer, fn); return nextTimer; }, clearTimeout: (handle: unknown) => { pending.delete(handle as number); } };
+  const childSends: unknown[] = [];
+  const ownedChild = { connected: true, send: (message: unknown, callback: (error: Error | null) => void) => { childSends.push(message); callback(null); return true; } };
+  const attachedSends: unknown[] = [];
+  const armed = armDesktopRoutines({
+    releaseEnabled: true,
+    listSites: async () => registered.map((siteDir) => ({ siteDir })),
+    readBeacon: async ({ siteDir }) => { const enabled = beacons.get(siteDir); return enabled == null ? null : { v: 1, enabled, updatedAt: 1 }; },
+    backgroundStart: ({ siteDir }) => startRoutineSiteInBackground({ siteDir, deps: projectDeps as never }),
+    isRunning: ({ siteDir }) => openSites.has(siteDir),
+    isWithdrawn: withdrawals.isWithdrawn,
+    powerMonitor: power as never,
+    ownedRunningSites: () => [
+      { siteDir: "/sites/a", owned: true, sendRoutineReconcile: createRoutineReconcileSender({ child: ownedChild as never }) },
+      { siteDir: "/sites/attached", owned: false, sendRoutineReconcile: (message: unknown) => { attachedSends.push(message); } },
+    ],
+    timers,
+    log: () => {},
+  });
+  await armed.booted;
+  assert.deepEqual(opened, ["/sites/a"]);
+  power.emit("resume");
+  power.emit("resume"); // a second resume inside the debounce replaces the first
+  assert.equal(pending.size, 1);
+  for (const fn of pending.values()) fn();
+  assert.deepEqual(childSends, [{ type: "routines.reconcile", reason: "wake" }]);
+  assert.deepEqual(attachedSends, []);
+  armed.dispose();
+  assert.equal(power.listenerCount("resume"), 0);
+});
+
+test("routines desktop lifecycle stays dark while the release flag is off", async () => {
+  const { armDesktopRoutines } = await import("./main/boot/routine-desktop.ts");
+  const power = new EventEmitter();
+  let listed = 0;
+  const armed = armDesktopRoutines({ releaseEnabled: false, listSites: async () => { listed += 1; return []; }, readBeacon: async () => null,
+    backgroundStart: async () => true, isRunning: () => false, isWithdrawn: () => false, powerMonitor: power as never,
+    ownedRunningSites: () => [], timers: { setTimeout: () => 0, clearTimeout: () => {} }, log: () => {} });
+  assert.deepEqual(await armed.booted, { started: [] });
+  assert.equal(listed, 0);
+  assert.equal(power.listenerCount("resume"), 0);
+});
