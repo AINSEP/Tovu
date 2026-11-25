@@ -51,3 +51,22 @@ test("a cancelled read stays a cancellation and reports nothing", async () => {
   await assert.rejects(readSiteUpdateStatus(cancelled, { signal: controller.signal }), { name: "AbortError" });
   assert.deepEqual(cancelled.reports, []);
 });
+
+test("the last attempt is readable even when the release feed check fails", async () => {
+  const attempt = { status: "updating" as const, toVersion: "1.3.0", summary: "Updating to 1.3.0." };
+  const signals: (AbortSignal | undefined)[] = [];
+  const readLastAttempt = async (_required: Record<string, never>, optional?: { signal?: AbortSignal | undefined }) => {
+    signals.push(optional?.signal);
+    // A journal row carries internals; only the safe projection may reach the admin.
+    return { ...attempt, backupPath: "/srv/site/ops/restore-points/x.db", error: SECRET } as typeof attempt;
+  };
+  const failing = reader({ latest: async () => { throw new Error(`fetch failed for ${SECRET}`); } });
+  const signal = new AbortController().signal;
+  const reply = await readSiteUpdateStatus({ runtime: failing.runtime, reportFailure: failing.reportFailure, readLastAttempt }, { signal });
+  assert.deepEqual(reply, { availability: { kind: "check-failed" }, lastAttempt: attempt });
+  assert.equal(signals[0], signal, "cancellation is forwarded to the journal read");
+  const current = reader({ latest: async () => null });
+  assert.deepEqual(await readSiteUpdateStatus({ runtime: current.runtime, reportFailure: current.reportFailure, readLastAttempt }), { availability: { kind: "current", runningVersion: "1.2.0" }, lastAttempt: attempt });
+  assert.deepEqual(await readSiteUpdateStatus({ runtime: current.runtime, reportFailure: current.reportFailure }), { availability: { kind: "current", runningVersion: "1.2.0" } }, "no journal reader: no lastAttempt");
+  assert.deepEqual(await readSiteUpdateStatus({ runtime: current.runtime, reportFailure: current.reportFailure, readLastAttempt: async () => undefined }), { availability: { kind: "current", runningVersion: "1.2.0" } });
+});

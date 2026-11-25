@@ -3,6 +3,7 @@
  * (no default URL, ever); the JSON fetcher, host ports and shared ports are all injected, so building a runtime is inert.
  */
 import { createGithubReleaseFeed, type GithubReleaseFeedRequired } from "./github-release-feed.js";
+import type { ReleaseFeedPort } from "@jini-ai/devops/deploy";
 import { createSiteUpdateRuntime, type SiteUpdateHost, type SiteUpdateSharedPorts } from "./host-runtime.js";
 import type { SiteUpdateRuntime } from "./tools.js";
 
@@ -21,7 +22,17 @@ export interface ConfiguredSiteUpdateRequired {
  * @complexity O(1).
  */
 export function composeConfiguredSiteUpdateRuntime({ config, host, shared, getJson }: ConfiguredSiteUpdateRequired, _optional = {}): SiteUpdateRuntime | null {
+  const feed = createConfiguredReleaseFeed({ config, getJson });
+  if (feed === null) return null;
+  return createSiteUpdateRuntime({ host, shared: { ...shared, feed } });
+}
+
+/**
+ * @returns The configured release feed, or null when no feed URL is configured (there is no default URL, ever).
+ * @complexity O(1); builds the feed without calling it.
+ */
+export function createConfiguredReleaseFeed({ config, getJson }: Pick<ConfiguredSiteUpdateRequired, "config" | "getJson">, _optional = {}): ReleaseFeedPort | null {
   const feedUrl = config.feedUrl?.trim() ?? "";
   if (feedUrl === "") return null;
-  return createSiteUpdateRuntime({ host, shared: { ...shared, feed: createGithubReleaseFeed({ feedUrl, getJson }) } });
+  return createGithubReleaseFeed({ feedUrl, getJson });
 }
