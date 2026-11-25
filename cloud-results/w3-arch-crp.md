@@ -1,4 +1,4 @@
-PARTIAL T TOVU_SHA J JINI_SHA: api baselines not regenerated (pre-existing drift); 6 Tovu named mutations not re-run (R01.T, R02.T, R03.T x2, P10-H2.T x2)
+PARTIAL T 57079db4f J f6503fb8f: api baselines not regenerated (pre-existing drift); 6 Tovu named mutations not re-run (R01.T, R02.T, R03.T x2, P10-H2.T x2)
 
 # W3 ARCH + EXT-CRP — review, test, fix (Opus cloud run, 2026-11-25)
 

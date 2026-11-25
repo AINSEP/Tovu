@@ -2246,3 +2246,5 @@ G06 from `codex/w3-noj`; Tovu `codex/tv-w3-arch2`, `codex/tv-w3-ext-crp2`). Fixe
 - Tovu `features/agent-plugins/__tests__/unit/tw2-L224-characterization.unit.test.ts` "site migration skips files and invalid workspace folders…".
 - Tovu `npm ci` fails in `packages/contracts` `prepare` against the registry `@jini-ai/core` (no `contracts/site/media-upload-limits`); install needs the Jini link first.
 - Environment: this sandbox has Node 22, the repos want Node 24 (`RegExp.escape`); route suites were run with a one-line polyfill import.
+- `w3-crp11-worker-budget` (fixed) — CRP-11: the Handlebars/Liquid worker module budgets (179/136) were exceeded by exactly the 4 new Jini renderer leaves; raised +4 with the file's documented-bump precedent (database/blob/agent exclusion pins unchanged).
+- `w3-surface-exchanges-flake` (OPEN, flaky) — `contracts/core/__tests__/tool-surface-exchanges.test.ts` failed wholesale in a 1189-file parallel run but passes 45/45 alone (timing-sensitive deadlines under load).
