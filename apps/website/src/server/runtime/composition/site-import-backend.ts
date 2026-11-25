@@ -76,8 +76,10 @@ export function composeSiteImportBackend(
   });
   const registry = new SiteImportRegistry({ directory, history: authority.history, payload: {
     fs: payloadFs, clock, lock: { withFileLock },
-    readJsonAt: ({ file }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).read({}),
-    writeJsonAt: ({ file, value }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).write({ value }),
+    // Typed here: the published registry types its `payload` as an index into a private member,
+    // which declaration emit erases (NEEDS-JINI: export the payload-ports type by name).
+    readJsonAt: ({ file }: { file: string }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).read({}),
+    writeJsonAt: ({ file, value }: { file: string; value: unknown }, _optional = {}) => createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: file, notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } }).write({ value }),
   } });
   const args: Parameters<typeof createSiteImportBackend>[0] & { backfill: ReturnType<typeof bindSiteImportBackfill> } = {
     registry, backfill, authority,
