@@ -91,6 +91,41 @@ test('the final / check names the published and live readers', async () => {
   assert.match(guidance, /`fetch_live_url` only reads THIS site's own published copy/);
 });
 
+const squash = (text) => text.replace(/\s+/g, ' ');
+
+test('the public-URL order is survey, stage, verify the draft, one cutover card, then / only after the switch', async () => {
+  const guidance = squash((await overlayTexts())[0].text);
+  const steps = [
+    'Survey and classify read-only',
+    'stage away from the live homepage',
+    'verify the draft',
+    'show the one existing cutover card',
+    'Leave `/` alone without the approved switch',
+  ].map((step) => guidance.indexOf(step));
+  assert.ok(steps.every((at) => at >= 0), `every step of the public-URL order is named: ${steps}`);
+  assert.deepEqual([...steps].sort((a, b) => a - b), steps, 'the public-URL order is explicit');
+  assert.match(guidance, /homepage address or replacement, menu placement, theme switch and publication actions/);
+  assert.match(guidance, /\| Read a page's HTML and version \| `pages_read_html \{ id \}`/, 'pages_read_html is in the tool table');
+  assert.match(guidance, /`content_post_preview \{ id \}`/, 'draft preview names the entry id');
+  assert.match(guidance, /`themeId`[^|]*inactive theme[^|]*not `content_post_preview`/, 'themeId is for screenshots only');
+});
+
+test('the layout write contract is versioned and counts only written:true', async () => {
+  const mapping = squash((await overlayTexts()).find(({ name }) => name === 'host/content-mapping.md').text);
+  assert.match(mapping, /create the draft with no body\. Read it with `pages_read_html \{ id \}`, then call `pages_write_html \{ id, html, expectedVersion \}` using the returned `version`/);
+  assert.match(mapping, /count the page only when that item has `ok: true` and `result\.written === true`/);
+  assert.match(mapping, /Report `written: false` and tool errors as not imported\. Re-read and reconcile before retrying\. Report warnings separately/);
+  assert.doesNotMatch(mapping, /pages_write_html \{ id, html \}/);
+  assert.match(mapping, /before forming the cutover proposal[^.]*without starting the public crawl/);
+});
+
+test('the draft is previewed by entry id before the approved / check', async () => {
+  const guidance = squash((await overlayTexts())[0].text);
+  const preview = guidance.indexOf('`content_post_preview { id }`');
+  const check = guidance.indexOf('Check `/` only after the agreed switch');
+  assert.ok(preview >= 0 && check > preview, 'preview by entry id comes before the approved / check');
+});
+
 test('the overlay is vendor-neutral: no model or vendor names', async () => {
   for (const { name, text } of await overlayTexts()) {
     assert.doesNotMatch(text, /\b(Claude|Anthropic|Codex|OpenAI|GPT|Gemini|Copilot)\b/, name);

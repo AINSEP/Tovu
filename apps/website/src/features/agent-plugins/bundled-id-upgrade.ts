@@ -23,7 +23,7 @@
  * package index never reads it as a plugin) and is put back when the replacement does not seed.
  */
 import { RENAMED_TO_JINI } from "../../contracts/core/renamed-bundled-plugin-ids.js";
-import { upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort, type BundledPluginRenames } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
+import { seedWithBundledIdUpgrade, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort, type BundledPluginRenames } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
 
 /** Local id -> the pre-rename and canonical publisher-qualified ids. The exact map stays in Tovu. */
 export const RENAMED_BUNDLED_PLUGIN_IDS: BundledPluginRenames =
@@ -38,4 +38,15 @@ export function upgradeTovuRenamedBundledPlugins(
   _optional: Record<string, never> = {},
 ): Promise<BundledIdUpgradeOutcome[]> {
   return upgradeRenamedBundledPlugins({ ...required, renamed: RENAMED_BUNDLED_PLUGIN_IDS, ledgerMismatchReason: LEDGER_MISMATCH_REASON });
+}
+
+/** Jini's locked move/seed/put-back window with Tovu's rename map and wording; the host injects the
+ * lock effect and the seed. If the installed-package listing fails, nothing is moved and seeding still
+ * runs. Listing failed before anything moved: seeding below reports each affected plugin itself.
+ * @complexity as `seedWithBundledIdUpgrade`. */
+export function seedWithTovuRenamedBundledPlugins<R extends { readonly outcomes: readonly { readonly pluginId: string; readonly status: string }[] }>(
+  required: Omit<Parameters<typeof seedWithBundledIdUpgrade<R>>[0], "renamed" | "ledgerMismatchReason">,
+  _optional: Record<string, never> = {},
+) {
+  return seedWithBundledIdUpgrade<R>({ ...required, renamed: RENAMED_BUNDLED_PLUGIN_IDS, ledgerMismatchReason: LEDGER_MISMATCH_REASON });
 }

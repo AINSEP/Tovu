@@ -284,7 +284,10 @@ test("Tovuize asks exactly one unchecked static opt-out before either conversion
   assert.match(question, /`selections: \[\]` selects\s+B2/);
   assert.match(question, /`selections: \["static"\]` selects B3/);
   assert.match(question, /Cancellation, expiry, no answer or ambiguous\s+free text stops conversion/);
-  assert.ok(partB.indexOf("## B1") < partB.indexOf("## Survey"));
+  const surveyAt = partB.indexOf("## Survey");
+  const choiceAt = partB.indexOf("## B1");
+  assert.ok(surveyAt >= 0 && choiceAt >= 0, "Part B keeps both the survey and the one choice");
+  assert.ok(surveyAt < choiceAt, "the read-only survey now precedes the single choice card");
   assert.match(partB, /ask no plugin-enabling question, second scope question or second activation approval/);
 });
 
@@ -315,7 +318,73 @@ test("Tovuize reuses local Media and shared Page mapping with matching family sh
   assert.equal(plugin.name, "tovu-theme");
   assert.equal(plugin.extensions.jini.id, "tovu/tovu-theme");
   // f871c3ec2 shipped default motion as plugin 1.1.1; 1.1.2 starts new designs from structure only.
-  assert.equal(plugin.version, "1.1.3");
+  // 1.1.4 surveys first, writes pages with a version and keeps the homepage staged.
+  assert.equal(plugin.version, "1.1.4");
+});
+
+const partBOf = (skill: string) => skill.slice(skill.indexOf("# Part B"), skill.indexOf("# Part C"));
+const headingSlice = (text: string, from: string, to: string) => text.slice(text.indexOf(from), text.indexOf(to));
+
+test("survey comes before the single choice card", async () => {
+  const skill = await themeSkill();
+  const partB = partBOf(skill);
+  const order = ["## Survey", "## B1", "## What this job", "## B2", "## B3", "## B4"].map(heading => partB.indexOf(heading));
+  assert.ok(order.every(at => at >= 0), "every Part B heading survives the move");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "Part B order is Survey, B1, What this job, B2, B3, B4");
+  const survey = headingSlice(partB, "## Survey", "## B1");
+  assert.match(survey, /read-only/i, "the survey stays read-only");
+  assert.match(survey, /current homepage, menu and theme/, "the survey reads the current homepage, menu and theme");
+  assert.doesNotMatch(survey, /assistant_ask_choice|content_post_create|pages_write_html|theme_duplicate|theme_write_file|media_import_local_file/, "no write and no card inside the survey");
+  const choice = headingSlice(partB, "## B1", "## What this job");
+  assert.match(choice, /After the read-only survey and before any write/);
+  assert.match(choice, /actual proposed changes/);
+  assert.doesNotMatch(choice, /Before surveying or writing/);
+  const bootstrap = headingSlice(partB, "## Shared bootstrap", "## B2");
+  assert.ok(partB.indexOf("## Shared bootstrap") > choiceOf(partB), "theme_duplicate (a write) waits for the submitted card");
+  assert.match(bootstrap, /theme_duplicate/);
+  assert.match(headingSlice(skill, "## Set expectations up front", "## Tools"), /survey[^.]*read-only[^.]*before[^.]*choice card/i, "the opening summary says survey first");
+  assert.match(skill, /no writes before the card|writes nothing before the card/i);
+});
+
+function choiceOf(partB: string) { return partB.indexOf("## B1"); }
+
+test("writes carry expectedVersion and count only written:true", async () => {
+  const skill = await themeSkill();
+  const partB = partBOf(skill);
+  const editable = headingSlice(partB, "## B2", "## B3");
+  const mapping = await importHostMapping();
+  const layoutBullet = mapping.slice(mapping.indexOf("- **Layout pages:**"), mapping.indexOf("## 6. Body conversion")).replace(/\s+/g, " ");
+  for (const [name, raw] of [["B2", editable], ["host mapping §5", layoutBullet]] as const) {
+    const text = raw.replace(/\s+/g, " ");
+    assert.match(text, /pages_read_html \{ id \}/, `${name} reads the draft first`);
+    assert.match(text, /pages_write_html \{ id, html, expectedVersion \}/, `${name} writes with the returned version`);
+    assert.match(text, /`ok: true` and `result\.written === true`/, `${name} counts only a written page`);
+    assert.match(text, /`written: false`/, `${name} reports a refused body as not imported`);
+    assert.match(text, /[Rr]e-read and reconcile before retrying/, `${name} reconciles before a retry`);
+    assert.doesNotMatch(text, /pages_write_html \{ id, html \}/, `${name} never writes without a version`);
+  }
+  assert.doesNotMatch(mapping, /pages_write_html \{ id, html \}/);
+  assert.match(layoutBullet, /Keep stable `data-agent-element="<handle>"` and `data-agent-role="region"` attributes on top-level sections/);
+  assert.match(layoutBullet, /Report warnings separately/);
+});
+
+test("draft homepage is previewed by entry id before / is checked", async () => {
+  const partB = partBOf(await themeSkill());
+  const slashCheck = /Check `\/` only after the named switch has been approved and applied/;
+  for (const [name, text] of [["B2", headingSlice(partB, "## B2", "## B3")], ["B4", headingSlice(partB, "## B4", "# Part C")]] as const) {
+    const preview = text.indexOf("`content_post_preview { id }`");
+    const check = text.search(slashCheck);
+    assert.ok(preview >= 0, `${name} previews the draft by entry ID`);
+    assert.ok(check >= 0, `${name} checks / only after the approved, applied switch`);
+    assert.ok(preview < check, `${name} previews the draft before the public route is checked`);
+  }
+});
+
+test("tovu-theme packages the versioned import recipe as 1.1.4", async () => {
+  const plugin = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "tovu-theme", "plugin.json"), "utf8"));
+  assert.equal(plugin.version, "1.1.4");
+  const skill = await themeSkill();
+  assert.match(headingSlice(partBOf(skill), "## B2", "## B3"), /pages_write_html \{ id, html, expectedVersion \}/);
 });
 
 test("W1 imports stage with provenance and only the named approved cutover", async () => {

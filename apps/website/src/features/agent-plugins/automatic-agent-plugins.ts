@@ -2,7 +2,7 @@
 import { createAutomaticAgentPluginUse, readChatAgentPluginState, type AutomaticAgentPluginPorts, type ChatAgentPluginState, type ChatAgentPlugins } from '@jini-ai/agent-plugins/lifecycle';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, optionalString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
 import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
-import type { PrepareToolGuidance } from '@jini-ai/core/contracts/site/daemon';
+import type { AgentPluginGuidanceAttempt, AgentPluginGuidanceOffer, PrepareToolGuidance } from '@jini-ai/core/contracts/site/daemon';
 import type { ChatDeleteSurfaceDeps } from '../../contracts/core/chat-delete-grant.js';
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from './tool-registrations.js';
 import { formatPluginToolPointer } from './bundled-catalog.js';
@@ -40,7 +40,7 @@ export interface AutomaticPluginRun {
   maxPromptArgBytes?: number | undefined;
   publish(input: { conversationId: string; state: ChatAgentPluginState; plugins: readonly { id: string; name: string }[] }): Promise<void>;
 }
-type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; preflight?: Promise<string> | undefined; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
+type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; preflight?: Promise<string> | undefined; attempts: Set<string>; offerIds: Map<string, string>; maturities: Map<string, PluginMaturity | undefined> };
 
   const chatKey = (context: AutomaticPluginRun) => JSON.stringify([context.principal.id, context.conversationId]);
 
@@ -66,13 +66,16 @@ type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgen
 
   /** Attach a restarted attempt to its live turn's controller; refuses another principal, chat or turn.
    * @throws Error('Agent Plugin run is unavailable') on any identity mismatch. @complexity O(1). */
-  function rejoin({ existing, runId, messageId, context }: { existing: Entry; runId: string; messageId?: string; context: AutomaticPluginRun }, { runs, turns }: { runs: Map<string, Entry>; turns: Map<string, Entry> }): Promise<string> {
+  function rejoin({ existing, runId, messageId, context }: { existing: Entry; runId: string; messageId?: string; context: AutomaticPluginRun }, { runs }: { runs: Map<string, Entry> }): Entry {
     if (existing.context.principal.id !== context.principal.id || existing.context.conversationId !== context.conversationId || (messageId !== undefined && existing.turnId !== messageId)) throw new Error('Agent Plugin run is unavailable');
     existing.context = context;
     existing.attempts.add(runId);
     runs.set(runId, existing);
-    return preflight({ entry: existing }).finally(() => releaseDetached(existing, turns));
+    return existing;
   }
+
+  type OfferLiveness = Parameters<ReturnType<typeof createAutomaticAgentPluginUse>['offer']>[0]['isAttemptLive'];
+  const attemptKey = (scope: AgentPluginGuidanceAttempt) => JSON.stringify([scope.runId, scope.attempt, scope.principalId]);
 function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, abort }: Parameters<typeof createAutomaticPluginRuns>[0] & { context: AutomaticPluginRun; abort: AbortController }, { getEntry, approve }: { getEntry: () => Entry; approve: (revisionSeq: number) => void }): AutomaticAgentPluginPorts['ask'] {
   return async ({ matches }) => {
         const entry = getEntry();
@@ -107,6 +110,21 @@ function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, 
 }
 
 
+/** The automatic resolver port: rechecks activation and trust on every read. Off plugins are read
+ * only when Jini's explicit loader asks with `allowInactiveGuidance`; automatic delivery omits it,
+ * so a plugin switched off after ranking is never inlined. Read-only setup guidance is not activation,
+ * authorization or delivery. O(1) plus one resolver read.
+ */
+export function bindAutomaticGuidanceResolver(
+  { workspaceLayout, resolveGuidance }: { workspaceLayout: Parameters<typeof resolveAgentPluginGuidance>[0]['workspaceLayout']; resolveGuidance: typeof resolveAgentPluginGuidance },
+  _optional = {},
+): AutomaticAgentPluginPorts['resolve'] {
+  return ({ pluginId, ...request }, { allowInactiveGuidance = false } = {}) => resolveGuidance(
+    { pluginRefIds: [pluginId], workspaceLayout },
+    { ...request, deliveryMode: 'inject', allowInactiveGuidance },
+  );
+}
+
   /** One logical turn's controller wired to the existing catalog, resolver, consent card and settings ports. */
   function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }, { deps, surfaces, askAgentPluginChoice, lateAnswers }: Parameters<typeof createAutomaticPluginRuns>[0] & { lateAnswers: Map<string, ChatAgentPluginState> }): Entry {
     const abort = new AbortController();
@@ -122,7 +140,7 @@ function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, 
         return candidates;
       },
       rank: (input) => rankInstalledAgentPlugins({ query: input.query.slice(0, 16000), candidates: input.candidates, limit: input.limit }, { automatic: true }),
-      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
+      resolve: bindAutomaticGuidanceResolver({ workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }), resolveGuidance: resolveAgentPluginGuidance }),
       ask: createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, abort }, { getEntry: () => entry, approve: revisionSeq => { approvedPreferenceRevisionSeq = revisionSeq; } }),
       saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id, expectedRevisionSeq: approvedPreferenceRevisionSeq }),
       publish: async value => {
@@ -131,7 +149,7 @@ function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, 
         await entry.context.publish({ conversationId: context.conversationId, ...value });
       },
     } });
-    entry = { turnId, controller, context, abort, pending: false, attempts: new Set([runId]), maturities };
+    entry = { turnId, controller, context, abort, pending: false, attempts: new Set([runId]), maturities, offerIds: new Map() };
     return entry;
   }
   // Existing per-plugin tools read their boot-time source, not the run's consent/exclusion owner.
@@ -185,24 +203,56 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
    * throw before using consent. Settings/catalog effects stay in their existing ports.
    * @complexity O(1) ownership lookup plus the automatic-use owner's catalog work.
    */
-  async function start({ runId, messageId, context }: { runId: string; messageId?: string; context: AutomaticPluginRun }, _options = {}): Promise<string> {
+  async function bind({ runId, messageId, context }: { runId: string; messageId?: string | undefined; context: AutomaticPluginRun }, _options = {}): Promise<Entry | undefined> {
     // core.interface definitions are in this existing boot chain, after the UI-tab definitions.
     await deps.siteTitleReady;
     const mode = await deps.preferences.mode({ workspaceId: deps.workspaceId, principalId: context.principal.id });
-    if (context.signal.aborted) return '';
+    if (context.signal.aborted) return undefined;
     // A restarted attempt still owns the same pending/answered question. Reuse the controller's
     // serialized preparation instead of rebuilding consent from the frozen request state.
     // Check after setup awaits so simultaneous starts cannot replace one another's controller.
     const turnId = messageId ?? runId;
     const existing = runs.get(runId) ?? turns.get(turnId);
-    if (existing) return rejoin({ existing, runId, messageId, context }, { runs, turns });
+    if (existing) return rejoin({ existing, runId, ...(messageId === undefined ? {} : { messageId }), context }, { runs });
     const current = withLateAnswer({ context }, lateAnswers);
     const entry = createEntry({ mode, context: current, turnId, runId }, { deps, surfaces, askAgentPluginChoice, lateAnswers });
     turns.set(turnId, entry);
     runs.set(runId, entry);
     // An Off event clears an earlier usage strip without reading the catalog or loading guidance.
-    if (mode === 'off') await current.publish({ conversationId: current.conversationId, state: current.state, plugins: [] });
+    if (mode === 'off') {
+      try { await current.publish({ conversationId: current.conversationId, state: current.state, plugins: [] }); }
+      catch (error) { releaseDetached(entry, turns); throw error; }
+    }
+    return entry;
+  }
+  async function start({ runId, messageId, context }: { runId: string; messageId?: string; context: AutomaticPluginRun }, _options = {}): Promise<string> {
+    const entry = await bind({ runId, messageId, context });
+    if (!entry) return '';
     try { return await preflight({ entry }); }
+    finally { releaseDetached(entry, turns); }
+  }
+  /** Draft guidance for one live attempt without recording delivery. Ownership (principal, chat,
+   * turn) binds exactly as `start` does; the host owns the attempt scope, offer id and liveness.
+   * The first successful offer id is cached per attempt, so a repeated offer cannot re-key a receipt;
+   * a replacement attempt has another key and never inherits it. @complexity O(1) plus the owner's draft.
+   */
+  async function offer({ runId, messageId, context, scope, offerId, isAttemptLive }: { runId: string; messageId?: string | undefined; context: AutomaticPluginRun; scope: AgentPluginGuidanceAttempt; offerId: string; isAttemptLive: OfferLiveness }, _options = {}): Promise<AgentPluginGuidanceOffer> {
+    if (scope.runId !== runId || scope.principalId !== context.principal.id) throw new Error('Agent Plugin run is unavailable');
+    const entry = await bind({ runId, messageId, context });
+    if (!entry) throw new Error('Agent Plugin preparation was cancelled');
+    const key = attemptKey(scope);
+    try {
+      const drafted = await entry.controller.offer({ scope, offerId: entry.offerIds.get(key) ?? offerId, isAttemptLive, input: { query: context.query, loaded: context.pinned, signal: context.signal } });
+      entry.offerIds.set(key, drafted.offerId);
+      return drafted;
+    } finally { releaseDetached(entry, turns); }
+  }
+  /** Record the delivered ids of this attempt's offer. Only a live alias of the same principal may
+   * commit; Jini refuses a retired, replaced or older attempt and replays a same-choice receipt. */
+  async function commit({ scope, offerId, deliveredIds }: { scope: AgentPluginGuidanceAttempt; offerId: string; deliveredIds: readonly string[] }, { signal }: { signal?: AbortSignal | undefined } = {}): Promise<{ readonly guidanceIds: readonly string[] }> {
+    const entry = runs.get(scope.runId);
+    if (!entry || entry.context.principal.id !== scope.principalId) throw new Error('Agent Plugin run is unavailable');
+    try { return await entry.controller.commit({ scope, offerId, deliveredIds }, signal ? { signal } : {}); }
     finally { releaseDetached(entry, turns); }
   }
   const prepareGuidance: PrepareToolGuidance = async ({ run, tool, signal }) => {
@@ -226,5 +276,5 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     entry.abort.abort();
     if (turns.get(entry.turnId) === entry) turns.delete(entry.turnId);
   }
-  return { start, prepareGuidance, loadRegistration, forget, guidanceIds: ({ runId }: { runId: string }, _options = {}) => runs.get(runId)?.controller.guidanceIds({}) ?? [] };
+  return { start, offer, commit, prepareGuidance, loadRegistration, forget, guidanceIds: ({ runId }: { runId: string }, _options = {}) => runs.get(runId)?.controller.guidanceIds({}) ?? [] };
 }

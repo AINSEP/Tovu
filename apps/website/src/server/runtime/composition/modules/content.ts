@@ -5,7 +5,11 @@ import { hasPostBeenPublished } from "@jini-ai/cms/posts/post-slugs";
 import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
-import { registerAdminPostTemplatePreviewRoute } from "#src/server/inbound/admin-http/routes/posts/template-preview";
+import { registerAdminPostTemplatePreviewRoute, renderAuthorizedTemplatePreview } from "#src/server/inbound/admin-http/routes/posts/template-preview";
+import { TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
+import { projectPreviewYoutubeIds } from "#src/server/inbound/admin-http/routes/posts/template-preview-youtube";
+import { createTemplatePreviewEmbedsRoute, type PreviewEmbedsInput } from "@jini-ai/cms/admin-http/routes/posts/template-preview-embeds";
+import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 import { registerAdminPostAutosaveRoute, registerAdminPostCreateRoute, registerAdminPostDeleteRoute, registerAdminPostUpdateRoute } from "./posts.js";
 import {
   registerAdminPageListRoute, registerAdminPageGetRoute, registerAdminPageUpdateHtmlRoute, registerAdminPageCreateRoute, registerAdminPageUpdateRoute, registerAdminPageDeleteRoute,
@@ -237,6 +241,43 @@ async function readAdminPost(
   return { post: toAdminPostResponse(post).post, everPublished: await hasPostBeenPublished({ post }, { repo: deps.postRepo }) };
 }
 
+/** The embed inspection spec, built once: the host injects every collaborator at mount. */
+const templatePreviewEmbedsRoute = createTemplatePreviewEmbedsRoute<{ youtubeIds: string[] }>({});
+
+/** The shared draft render with the HTML preview's known outcomes as plain JSON refusals; anything
+ *  else stays private and reaches the mount's failure reporter.
+ *  @complexity One post lookup plus one template render. */
+async function renderPreviewForEmbeds(
+  { deps, input }: { deps: ContentRouteDeps; input: PreviewEmbedsInput },
+  _options: Record<string, never> = {},
+): Promise<{ html: string }> {
+  try {
+    return await renderAuthorizedTemplatePreview({ deps, ...input });
+  } catch (err) {
+    if (err instanceof TemplatePreviewRenderError) throw new RouteRefusalError({ status: err.status, body: { error: err.message } });
+    if (err instanceof PostNotFoundError) throw new RouteRefusalError({ status: 404, body: { error: err.message } });
+    throw err;
+  }
+}
+
+/**
+ * `POST .../posts/:postId/template-preview/embeds` (Jini spec `createTemplatePreviewEmbedsRoute`) — the
+ * sibling of the HTML preview above. It sees the same authorized draft render (the shared
+ * `renderAuthorizedTemplatePreview`, never a fetch of the HTML route) but answers only validated video
+ * ids, so the admin frame gets its links without ever reading the sandboxed preview document.
+ * `"direct"`: the spec asks the HTML handler's own type-free, id-free `content.read`, never a
+ * publishing grant (the neighbouring post CRUD routes' guarded semantics would widen who may read a
+ * draft). `deps.authorize` is read per request, as the HTML handler reads it.
+ */
+export const registerAdminPostTemplatePreviewEmbedsRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: templatePreviewEmbedsRoute, deps: {
+    workspaceId: deps.workspaceId,
+    authorize: (params) => deps.authorize(params),
+    renderPreview: (input) => renderPreviewForEmbeds({ deps, input }),
+    projectEmbeds: projectPreviewYoutubeIds,
+  } }, { authorization: "direct", failure: { operation: "routes/posts/template-preview-embeds", code: "INTERNAL_ERROR" } });
+};
+
 export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
   return {
     name: "content",
@@ -245,6 +286,7 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPostCreateRoute({ app, deps });
       registerAdminPostGetRoute({ app, deps });
       registerAdminPostTemplatePreviewRoute({ app, deps });
+      registerAdminPostTemplatePreviewEmbedsRoute({ app, deps });
       registerAdminPostUpdateRoute({ app, deps });
       registerAdminPostDeleteRoute({ app, deps });
       // Standing-draft autosave (2026-09-06) — kind-blind, serves both Posts and Pages (see the

@@ -14,6 +14,7 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 const requiredPageEditorHooks = {
   useTabBarKeyboardHook: useTabBarKeyboard,
   useThemePreviewFrameHook: useThemePreviewFrame,
+  usePreviewEmbedIds: () => [],
 };
 
 // Only jsdom's unimplemented DOM submit is observed; services are injected fakes, no module mocks.

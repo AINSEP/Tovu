@@ -8,7 +8,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai
 import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { toAdminFormDefinitionDto } from "@jini-ai/cms/admin-http/http/forms";
-import { registerAdminFormsAuthoringRoute } from "#src/server/runtime/composition/modules/forms-admin";
+import { registerAdminFormsAuthoringRoute, registerAdminFormsUpdateRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
 import { buildFormsRegistrations } from "../tool-registrations.js";
 
@@ -57,4 +57,100 @@ test("form authoring maps a stale version to 409 and malformed versions to 400",
   const malformed = await dispatchJsonRequest(app, "PUT", path, { name: "Edit", expectedVersion: "1" });
   assert.equal(malformed.status, 400);
   assert.equal(toAdminFormDefinitionDto({ definition: record }).version, 1);
+});
+
+/** The real ordinary PUT route over the real in-memory repo, with recording change-set and outbox ports. */
+async function ordinaryPutFixture() {
+  const { repo, deps } = await fixture();
+  const counts = { changeSets: 0, outbox: 0 };
+  const changeSets = new InMemoryChangeSetRepo();
+  const insert = changeSets.insert.bind(changeSets);
+  changeSets.insert = (async (...args: Parameters<typeof insert>) => { counts.changeSets += 1; return insert(...args); }) as typeof changeSets.insert;
+  const outbox = { ...deps.outbox, enqueue: async () => { counts.outbox += 1; } };
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; next(); });
+  registerAdminFormsUpdateRoute({ app, deps: { ...deps, changeSets, outbox } as FormsRouteDeps });
+  const put = (body: unknown) => dispatchJsonRequest(app, "PUT", "/api/admin/v1/workspaces/ws/forms/form", body);
+  const stored = async () => structuredClone(await repo.findById({ workspaceId: "ws", id: "form" }));
+  return { put, stored, counts };
+}
+
+const dataOf = (body: unknown) => (body as { data: { name: string; status: string; version: number } }).data;
+const errorOf = (body: unknown) => body as { error?: string; code?: string };
+
+test("ordinary PUT with a stale expectedVersion is refused with 409 and changes no row and no outbox", async () => {
+  const { put, stored, counts } = await ordinaryPutFixture();
+  // Advance the real row from version 1 to 2 through the real legacy path; no stubbed repo.
+  const advanced = await put({ name: "Someone else" });
+  assert.equal(advanced.status, 200);
+  assert.equal(dataOf(advanced.body).version, 2);
+  const rowBefore = await stored();
+  const before = { ...counts };
+  const stale = await put({ name: "Old basis", expectedVersion: 1 });
+  assert.equal(stale.status, 409);
+  assert.equal(errorOf(stale.body).code, "VERSION_CONFLICT");
+  assert.equal(errorOf(stale.body).error, "This form changed since you opened it. Reload it before saving.");
+  assert.deepEqual(await stored(), rowBefore);
+  assert.equal(rowBefore?.name, "Someone else");
+  assert.deepEqual(counts, before);
+});
+
+test("fresh expectedVersion saves", async () => {
+  const { put, stored } = await ordinaryPutFixture();
+  const saved = await put({ name: "Fresh", expectedVersion: 1 });
+  assert.equal(saved.status, 200);
+  assert.equal(dataOf(saved.body).version, 2);
+  assert.equal((await stored())?.version, 2);
+  assert.equal((await stored())?.name, "Fresh");
+  const again = await put({ name: "Fresh again", expectedVersion: 2 });
+  assert.equal(again.status, 200);
+  assert.equal(dataOf(again.body).version, 3);
+  assert.equal((await stored())?.version, 3);
+});
+
+test("versioned PUT with status is refused before either write", async () => {
+  const { put, stored, counts } = await ordinaryPutFixture();
+  const rowBefore = await stored();
+  const mixed = await put({ name: "Both", status: "disabled", expectedVersion: 1 });
+  assert.equal(mixed.status, 400);
+  assert.equal(errorOf(mixed.body).error, "Save the form and change its status as two separate actions.");
+  const statusOnly = await put({ status: "disabled", expectedVersion: 1 });
+  assert.equal(statusOnly.status, 400);
+  assert.deepEqual(await stored(), rowBefore);
+  assert.deepEqual(counts, { changeSets: 0, outbox: 0 });
+});
+
+test("malformed version is a 400", async () => {
+  const { put, stored, counts } = await ordinaryPutFixture();
+  const rowBefore = await stored();
+  for (const expectedVersion of ["1", -1, 1.5, null, Number.MAX_SAFE_INTEGER + 2]) {
+    const response = await put({ name: "Edit", expectedVersion });
+    assert.equal(response.status, 400, JSON.stringify(expectedVersion));
+  }
+  const noDefinition = await put({ expectedVersion: 1 });
+  assert.equal(noDefinition.status, 400);
+  assert.equal(errorOf(noDefinition.body).error, "Send at least one form field you want to change.");
+  assert.deepEqual(await stored(), rowBefore);
+  assert.deepEqual(counts, { changeSets: 0, outbox: 0 });
+});
+
+test("legacy unversioned field patch, status-only and mixed requests behave as before", async () => {
+  const { put, stored } = await ordinaryPutFixture();
+  const patch = await put({ name: "Legacy" });
+  assert.equal(patch.status, 200);
+  assert.equal(dataOf(patch.body).name, "Legacy");
+  assert.equal(dataOf(patch.body).version, 2);
+  const statusOnly = await put({ status: "disabled" });
+  assert.equal(statusOnly.status, 200);
+  assert.equal(dataOf(statusOnly.body).status, "disabled");
+  const mixed = await put({ name: "Mixed", status: "active" });
+  assert.equal(mixed.status, 200);
+  assert.equal(dataOf(mixed.body).name, "Mixed");
+  assert.equal(dataOf(mixed.body).status, "active");
+  const row = await stored();
+  assert.equal(row?.name, "Mixed");
+  assert.equal(row?.status, "active");
+  const noop = await put({});
+  assert.equal(noop.status, 200);
+  assert.equal(dataOf(noop.body).version, row?.version);
 });

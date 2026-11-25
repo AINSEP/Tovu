@@ -1,3 +1,4 @@
+import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -411,6 +412,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
       workspaceId: WS,
       authorize: async () => ({ allowed: true, reason: "matched" }),
       postRepo: postRepoFor(db, { mediaAccessEvidence: createMediaAccessEvidence() }),
+      ...pageHtmlChangeTestDeps(),
       pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore(scope, { kernel: db, clock }),
     });
     const call = (name: string, input: Record<string, unknown>) => {

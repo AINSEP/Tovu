@@ -13,6 +13,12 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { fixture as pullFixture, context, tool, OWNER } from "./pull-tool-fixture.js";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { planPublishToPeer } from "../push-plan.js";
+import { createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { applyToolApprovalPolicy } from "../../../assistant/tool-approval-policy.js";
 
 const ID = "publish_content_publish";
 function post(id: string, title: string): PackedEntity {
@@ -35,17 +41,20 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
   let beforeExecute: (() => void) | undefined;
   let downgrade: string | undefined;
   let legacy = false;
-  let supportedTypes = ["post"];
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({
-                                      contributor: { entityType: "post", dependsOn: [], build: () => ({
-      entityType: "post", schemaVersion: 1, permission: "content.write", dependsOn: [],
-      pack: async function* () { yield* entities; },
+  // One contributor per advertised type, each packing only its own entities, so a fixture can hold a
+  // page and a same-title post side by side.
+  const entityTypes = [...new Set(entities.map(entity => entity.entityType))];
+  let supportedTypes = entityTypes;
+  for (const entityType of entityTypes) registerPublishContentContributor({
+    contributor: { entityType, dependsOn: [], build: () => ({
+      entityType, schemaVersion: 1, permission: "content.write", dependsOn: [],
+      pack: async function* () { yield* entities.filter(entity => entity.entityType === entityType); },
       inspect: async ({ id }) => f.destination.get(id) ?? null,
       precheck: async () => null,
       apply: async () => { throw new Error("use apply port"); },
     }) }
-                                    });
+  });
   f.deps.fileBlobIndex = new Map();
   f.deps.blobStore.get = async () => new Uint8Array();
   const hooks = (bundleId: string, overwrite?: string[]) => buildPublishContentImportHooks({
@@ -182,6 +191,63 @@ test("selects an exact title and excludes named items before staging the confirm
   assert.equal(result.published.length, 1);
   assert.equal(result.skipped[0].title, "contact");
   assert.match(result.skipped[0].reason, /Excluded/);
+});
+
+/** A page and a same-title post of a different type, both pending: only `page:one` is asked for. */
+function pageAndNeighbour(): PackedEntity[] {
+  const page = (id: string, title: string): PackedEntity => {
+    const state = { title, slug: title.toLowerCase().replaceAll(" ", "-"), status: "published", deletedAt: null, kind: "page" };
+    return { entityType: "page", id, schemaVersion: 1, hashVersion: 1, state, contentHash: contentHash({ entityType: "page", state }), requiredBlobs: [] };
+  };
+  return [page("one", "Pricing"), post("neighbour", "Pricing")];
+}
+
+test("one named item among other pending work → only that key reaches the confirmed plan", async () => {
+  const f = await fixture(pageAndNeighbour());
+  const result = await publish(f, { items: ["page:one"] });
+  // The initial dry plan inspects both; the bundle that is confirmed carries the target alone.
+  assert.deepEqual(f.staged.at(-1)?.map(({ entityType, id }) => `${entityType}:${id}`), ["page:one"]);
+  assert.deepEqual(f.applied.at(-1)?.rows.filter(row => row.writes).map(row => `${row.entityType}:${row.entityId}`), ["page:one"]);
+  assert.deepEqual(result.published.map((row: any) => row.entityKey), ["page:one"]);
+  assert.deepEqual(result.published.map((row: any) => row.publicUrl), ["https://live.example/pricing"]);
+  assert.deepEqual(f.counts(), { confirms: 1, executes: 1 });
+});
+
+/** The real registration, wrapped by the real approval policy, run through a real exchange store. */
+async function approvalRun(f: Awaited<ReturnType<typeof fixture>>, decision: "confirm" | "cancel") {
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const registry = createToolRegistry({});
+  registry.register(applyToolApprovalPolicy({ registration: await tool(f.deps, ID, surfaces), surfaces }));
+  let html = "";
+  const pending = createToolExecutor({ registry }).execute({ toolId: ID, principal: { id: OWNER }, run: { id: "run" }, input: { items: ["page:one"] } }, {
+    emitSurface: async emission => { html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text; },
+  });
+  // Bounded wait: a publish that skips the card must fail here, not hang the suite.
+  for (let tick = 0; html === "" && tick < 200; tick++) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.notEqual(html, "", "the approval card must open before anything is published");
+  const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1]!;
+  const before = { staged: f.staged.length, applied: f.applied.length, ...f.counts() };
+  const deliver = (principalId: string) => surfaces.surfaceExchanges.deliver({ exchangeId, principalId, params: { decision } }, { toolId: ID });
+  return { html, pending, before, deliver };
+}
+
+test("publish_content_publish opens the approval card before any publish when the policy asks", async () => {
+  const f = await fixture(pageAndNeighbour());
+  const cancelled = await approvalRun(f, "cancel");
+  assert.match(cancelled.html, /page:one/);
+  assert.deepEqual(cancelled.before, { staged: 0, applied: 0, confirms: 0, executes: 0 });
+  assert.equal(cancelled.deliver("intruder").ok, false);
+  cancelled.deliver(OWNER);
+  await cancelled.pending;
+  assert.deepEqual([f.staged.length, f.applied.length, f.counts()], [0, 0, { confirms: 0, executes: 0 }]);
+
+  const confirmed = await approvalRun(f, "confirm");
+  assert.deepEqual(confirmed.before, { staged: 0, applied: 0, confirms: 0, executes: 0 });
+  confirmed.deliver(OWNER);
+  const result = await confirmed.pending;
+  assert.equal(result.status, "completed");
+  assert.deepEqual(f.applied.map(report => report.rows.filter(row => row.writes).map(row => `${row.entityType}:${row.entityId}`)), [["page:one"]]);
+  assert.deepEqual(f.counts(), { confirms: 1, executes: 1 });
 });
 
 test("default skips conflicts; explicit overwrite forces only selected items", async () => {

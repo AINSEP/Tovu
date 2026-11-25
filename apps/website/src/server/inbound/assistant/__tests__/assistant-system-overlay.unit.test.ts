@@ -89,6 +89,27 @@ test("search-first applies when no visible tool fits or before a native fallback
   }
 });
 
+test("publish this page resolves the current entry and sends only its exact page key", () => {
+  for (const nativeToolAccess of [false, true]) {
+    const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess });
+    const start = overlay.indexOf("When asked to publish a named page or \u201cthis page\u201d");
+    assert.notEqual(start, -1, "the publish-this-page guidance is present");
+    const paragraph = overlay.slice(start, overlay.indexOf("Report only the live URLs the result verified.", start) + "Report only the live URLs the result verified.".length);
+    // Readiness is checked first, then the key is selected, then it is the only thing sent.
+    const order = ["publish_content_status", "content_post_search", "content_read.content_post", "page:<id>", "items"].map(part => paragraph.indexOf(part));
+    assert.ok(order.every(index => index >= 0), `every step is named (${order.join(",")})`);
+    assert.deepEqual(order, [...order].sort((a, b) => a - b), "readiness precedes key selection precedes items");
+    assert.match(paragraph, /Use the current page\u2019s actual entry ID/);
+    assert.match(paragraph, /Send only its exact `page:<id>` key in `items`/);
+    assert.match(paragraph, /pass the chosen saved `peerId`/);
+    assert.match(paragraph, /If you cannot identify the page or destination, ask before publishing/);
+    assert.match(paragraph, /Publish everything pending only when the owner asks for everything/);
+    assert.match(paragraph, /Report only the live URLs the result verified/);
+    // The existing local-versus-live and explicit-overwrite language is kept.
+    assert.match(overlay, /Set overwrite:true only when the user explicitly asked to replace live conflicts/);
+  }
+});
+
 test("native file fallbacks and Tool gap reports require a search and retry with named queries", () => {
   assert.match(TOOLS_FIRST_RULE, /Before any shell command or direct file read\/edit\/write of site files \(themes, content, config\), call search_tools describing the job/);
   assert.match(TOOLS_FIRST_RULE, /retry with different phrasing or a higher limit/);

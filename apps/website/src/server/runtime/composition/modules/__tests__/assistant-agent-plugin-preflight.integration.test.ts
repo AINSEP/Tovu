@@ -15,6 +15,7 @@ import path from "node:path";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { createAssistantByokModule } from "../assistant-byok.js";
+import { createDaemonSiteTools } from "#src/server/inbound/assistant/agent-daemon-site-tools";
 
 test("preflight keeps pinned guidance when its credential-bearing controller fails", async (t) => {
   const source = ts.createSourceFile("assistant-tool-exec.ts", readFileSync(new URL("../assistant-tool-exec.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
@@ -135,4 +136,131 @@ test("pinned preflight always inlines text and carries its identity, even with p
   const response = await fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify({ runId }) });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { prefix: expected.promptPrefix, refusalPrefix: "", pluginIds: [pluginId] });
+});
+
+/** A real BYOK-composed site with one pinned plugin; `bump` advances the stored attempt like a recovery would. */
+async function pinnedOfferSite(t: import("node:test").TestContext, { runId }: { runId: string }) {
+  const site = createTempSiteLayoutFixture({});
+  t.after(site.cleanup);
+  const base = { ...createRouteDeps(), ...site.deps };
+  await Promise.all([base.pluginRuntimeReady, base.siteTitleReady]);
+  const pluginId = "offer-notes", digest = "b".repeat(64);
+  const workspace = base.agentPluginLayout.forWorkspace({ workspaceId: base.workspaceId });
+  const packageDir = path.join(workspace.pluginPackagesDir({ pluginId }), digest);
+  await mkdir(path.join(packageDir, "skills", pluginId), { recursive: true });
+  await writeFile(path.join(packageDir, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0" }));
+  await writeFile(path.join(packageDir, "skills", pluginId, "SKILL.md"), `---\nname: ${pluginId}\ndescription: Notes\n---\nOFFER_PINNED_TEXT`);
+  await writeFile(path.join(workspace.root, "activations.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { enabled: true, origin: "bundled", updatedAt: "2026-10-18T00:00:00.000Z", updatedBy: "fixture" } } }));
+  await writeFile(path.join(workspace.root, "bundled-digests.json"), JSON.stringify({ schemaVersion: 1, plugins: { [pluginId]: { archiveDigest: digest } } }));
+  const durable = base.chatRunLedger.durable!;
+  let bump = 0;
+  const store = Object.assign(Object.create(durable) as typeof durable, {
+    find: async (required: Parameters<typeof durable.find>[0], optional: Parameters<typeof durable.find>[1]) => {
+      const head = await durable.find(required, optional);
+      return head && { ...head, recoveryCount: head.recoveryCount + bump };
+    },
+  });
+  const deps = { ...base, chatRunLedger: { ...base.chatRunLedger, durable: store } };
+  const principalId = await deps.ownerPrincipalId, conversationId = `${runId}-chat`;
+  await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: principalId }).create({ id: conversationId });
+  await durable.accept({ conversationId, messageId: `${runId}-answer`, runId, principalId, workspaceId: deps.workspaceId,
+    now: Date.now(), request: { contextRef: JSON.stringify({ prompt: "Read notes", pluginRefIds: [pluginId] }) } }, {});
+  const app = express();
+  createAssistantByokModule({ routeDeps: deps }).registerToolExecRoutes({ router: app });
+  const baseUrl = await startTestServer(app, t);
+  const post = (body: unknown) => fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify(body) });
+  return { post, pluginId, durable, baseUrl, principalId, recover: () => { bump++; } };
+}
+
+test("a recovered run's old offer cannot commit", async t => {
+  const site = await pinnedOfferSite(t, { runId: "recovered-run" });
+  const offered = await site.post({ op: "offer", runId: "recovered-run" });
+  assert.equal(offered.status, 200);
+  assert.equal(offered.headers.get("cache-control"), "no-store");
+  const first = await offered.json() as { prefix: string; pluginIds: string[]; offer: { offerId: string } | null };
+  assert.match(first.prefix, /OFFER_PINNED_TEXT/);
+  assert.deepEqual(first.pluginIds, [], "offering records nothing");
+  assert.ok(first.offer?.offerId);
+  site.recover();
+  const stale = await site.post({ op: "commit", runId: "recovered-run", offerId: first.offer.offerId, deliveredIds: [] });
+  assert.equal(stale.status, 409);
+  assert.doesNotMatch(await stale.text(), /OFFER_PINNED_TEXT/);
+  const current = await (await site.post({ op: "offer", runId: "recovered-run" })).json() as { pluginIds: string[]; offer: { offerId: string } };
+  assert.deepEqual(current.pluginIds, [], "the refused commit changed no delivery");
+  assert.notEqual(current.offer.offerId, first.offer.offerId, "a replacement attempt does not inherit an old offer");
+  const committed = await site.post({ op: "commit", runId: "recovered-run", offerId: current.offer.offerId, deliveredIds: [] });
+  assert.equal(committed.status, 200);
+  assert.deepEqual(await committed.json(), { pluginIds: [site.pluginId] });
+  const replay = await site.post({ op: "commit", runId: "recovered-run", offerId: current.offer.offerId, deliveredIds: [] });
+  assert.deepEqual(await replay.json(), { pluginIds: [site.pluginId] }, "a lost reply's retry returns the cached receipt");
+});
+
+test("stopped and replaced attempts cannot commit a live offer", async t => {
+  const site = await pinnedOfferSite(t, { runId: "stopped-offer-run" });
+  const { offer } = await (await site.post({ op: "offer", runId: "stopped-offer-run" })).json() as { offer: { offerId: string } };
+  site.recover();
+  assert.equal((await site.post({ op: "commit", runId: "stopped-offer-run", offerId: offer.offerId, deliveredIds: [] })).status, 409, "a replaced attempt is refused");
+  const replacement = await (await site.post({ op: "offer", runId: "stopped-offer-run" })).json() as { offer: { offerId: string } };
+  await site.durable.cancel({ runId: "stopped-offer-run", reason: "user-stop" }, {});
+  assert.equal((await site.post({ op: "commit", runId: "stopped-offer-run", offerId: replacement.offer.offerId, deliveredIds: [] })).status, 404, "a stopped attempt is refused");
+  assert.equal((await site.post({ op: "commit", runId: "stopped-offer-run", offerId: "forged-offer", deliveredIds: ["offer-notes"], attempt: 0 })).status, 400);
+});
+
+test("preflight refusal logs neither server secrets nor candidate text", async t => {
+  const deps = createRouteDeps();
+  await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: "member" }).create({ id: "canary-chat" });
+  await deps.chatRunLedger.durable!.accept({ conversationId: "canary-chat", messageId: "canary-answer", runId: "canary-run", principalId: "member", workspaceId: deps.workspaceId,
+    now: Date.now(), request: { contextRef: JSON.stringify({ prompt: "CANDIDATE_PROMPT_CANARY" }) } }, {});
+  const warnings = t.mock.method(console, "warn", () => undefined);
+  const leak = () => Object.assign(new Error("tovu_ak_0123456789ab.SERVER_SECRET_CANARY CANDIDATE_PROMPT_CANARY"), { code: "EIO" });
+  const app = express();
+  registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore: deps.chatRunLedger.durable,
+    toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
+    plugins: { controller: { start: async () => { throw leak(); }, offer: async () => { throw leak(); }, commit: async () => { throw leak(); }, forget() {} },
+      pinnedPrefix: async () => "", emit: async () => {}, refusalPrefix: () => "" },
+  }, {});
+  const baseUrl = await startTestServer(app, t);
+  const post = (body: unknown) => fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify(body) });
+  const offered = await post({ op: "offer", runId: "canary-run" });
+  assert.equal(offered.status, 200, "optional guidance stays fail-open");
+  assert.deepEqual(await offered.json(), { prefix: "", refusalPrefix: "", pluginIds: [], offer: null });
+  const refused = await post({ op: "commit", runId: "canary-run", offerId: "offer-1", deliveredIds: [] });
+  assert.equal(refused.status, 409);
+  assert.doesNotMatch(await refused.text(), /CANARY/);
+  const logged = JSON.stringify(warnings.mock.calls.map(call => call.arguments.map(String)));
+  assert.match(logged, /EIO/, "safe diagnostics remain");
+  assert.doesNotMatch(logged, /SERVER_SECRET_CANARY|CANDIDATE_PROMPT_CANARY|tovu_ak_/);
+  assert.equal(warnings.mock.calls.length, 2);
+});
+
+for (const lost of ["retry", "abort"] as const) test(lost === "retry" ? "cached retry does not double-commit" : "an aborted run never retries a lost commit reply", async t => {
+  const runId = `lost-commit-${lost}`;
+  const site = await pinnedOfferSite(t, { runId });
+  const abort = new AbortController();
+  const commits: string[] = [];
+  const lossy: typeof fetch = async (input, init) => {
+    if (!String(init?.body).includes('"op":"commit"')) return fetch(input, init);
+    // Count every attempted send, including one an aborted signal would stop before the network.
+    commits.push(String(init?.body));
+    const reply = await fetch(input, init);
+    if (commits.length > 1) return reply;
+    // The server recorded the commit; only its reply is lost on the way back.
+    if (lost === "abort") abort.abort();
+    throw new Error("socket hang up");
+  };
+  const host = createDaemonSiteTools({ baseUrl: site.baseUrl, token: ensureToolExecToken({}, {}), localRegistry: { list: () => [] }, contextFor: () => ({}) }, { fetch: lossy });
+  await host.start({ runId, principalId: site.principalId });
+  t.after(() => host.finish({ runId }));
+  const { offer } = await host.offerPluginGuidance({ runId });
+  assert.ok(offer);
+  if (lost === "abort") {
+    await assert.rejects(host.commitPluginGuidance({ runId, offerId: offer.offerId, deliveredIds: [] }, { signal: abort.signal }));
+    assert.equal(commits.length, 1, "an aborted run sends one commit request only");
+    return;
+  }
+  assert.deepEqual(await host.commitPluginGuidance({ runId, offerId: offer.offerId, deliveredIds: [] }), { pluginIds: [site.pluginId] });
+  assert.equal(commits.length, 2, "exactly one retry");
+  assert.equal(commits[0], commits[1], "the retry repeats the same run, offer and ids");
+  const different = await site.post({ op: "commit", runId, offerId: offer.offerId, deliveredIds: [site.pluginId] });
+  assert.equal(different.status, 409, "a recorded receipt is never re-keyed to another selection");
 });

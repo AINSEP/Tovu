@@ -55,7 +55,11 @@ const VERSION_CONFLICT_GUIDANCE =
   "\n\n" + ASSISTANT_CONTENT_EDIT_GUIDANCE +
   "\n\nCONCURRENCY: read with pages_read_html and pass its version as expectedVersion before " +
   "editing it. On VERSION_CONFLICT nothing was written — read again and retry only if the affected content is unchanged. " +
-  "If it changed, show the overlap and ask which edit to keep.";
+  "If it changed, show the overlap and ask which edit to keep." +
+  // Only a committed change-set record earns an Undo claim (P1-T2.T): the handler adds
+  // `changeSetId` after the record commits, and an unchanged write records nothing.
+  "\n\nUNDO: a result with changeSetId can be undone with change_sets_revert. No changeSetId means no recorded Undo " +
+  "(for example, nothing changed).";
 
 export const pagesAgentToolCatalog: AgentToolDefinition[] = [
   {

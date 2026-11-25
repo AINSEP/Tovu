@@ -1,3 +1,4 @@
+import { registerPageHtmlReverter } from "../../../../../features/pages/html-reverter.js";
 import { memoryTrashCoreDeps, memoryTrashRemoverDeps, memoryTrashSweepDeps, memoryPostChatDeps, memorySettingsSeoDeps } from "./trash-and-content.js";
 import { memoryAssistantCredentialDeps, memoryMcpOAuthDeps, memoryReadinessRevertDeps, memorySiteBindingDeps } from "./assistant-and-site.js";
 import { memoryMemberMediaDeps, memoryNewsletterFormsDeps } from "./members-media-newsletter-forms.js";
@@ -10,7 +11,7 @@ import type { MemoryRootContext } from "./context.js";
  * spread may override an earlier key only because the runs are spread in the order they always had.
  */
 export function assembleMemoryRouteDeps(required: MemoryRootContext, _optional = {}) {
-  return {
+  const deps = {
     ...memoryTrashCoreDeps(required),
     ...memoryTrashRemoverDeps(required),
     ...memoryTrashSweepDeps(required),
@@ -28,4 +29,7 @@ export function assembleMemoryRouteDeps(required: MemoryRootContext, _optional =
     ...memoryDeployRegistryDeps(required),
     ...memoryClientsAndSiteContextDeps(required),
   };
+  // P1-T2.T: same page-store factory as the assistant write path, once registry and factory both exist.
+  registerPageHtmlReverter({ registry: deps.revertRegistry, store: deps.pagesHtmlStore, postRepo: deps.postRepo });
+  return deps;
 }

@@ -225,6 +225,10 @@ describe("PostEditor DOM — states", () => {
       post: SAVED_POST,
       overrides: { saveConflict: { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined } },
     }));
+    const button = screen.getByRole("button", { name: "Load latest" });
+    expect(button).toHaveAttribute("data-agent-element", "post-version-conflict-load-latest");
+    expect(button).toHaveAttribute("data-agent-role", "button");
+    expect(button).toHaveAttribute("data-agent-label", "Load latest version, discarding my unsaved edits");
     expect(normalizedHtml(container)).toMatchSnapshot();
   });
 
