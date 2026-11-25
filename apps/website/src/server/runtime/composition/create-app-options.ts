@@ -6,6 +6,7 @@
 import type { Express } from "express";
 import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import type { createAssistantByokModule } from "./modules/assistant-byok.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
@@ -40,4 +41,7 @@ export interface CreateAppOptions {
   /** The dev-only CORS policy `createApp` installs on its express app; defaults to the admin-dev-server allow-list in
    *  `inbound/shared/dev-cors.ts`. A host or test hands in its own so the middleware never hard-codes one. */
   applyDevCors?: (app: Express) => void;
+  /** The site's error reporter when the host already built one (a daemon scope, a test). Otherwise
+   *  `createApp` builds one per site composition over `routeDeps.tracker` and `routeDeps.clock`. */
+  errorReporter?: ErrorReporter;
 }

@@ -6,6 +6,7 @@ import type { Tracker, TrackerSpan } from "@jini-ai/core/contracts/site/diagnost
 import type { RequestTrackingOutcome } from "@jini-ai/core/contracts/observability";
 
 import { runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
+import { createRequestReportScope } from "#src/server/inbound/shared/request-admissions";
 import { REQUEST_ID_HEADER, resolveRequestId } from "@jini-ai/http-kit/request-id";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
@@ -83,7 +84,9 @@ export function applyRequestTracking({ app, deps }: { app: Express; deps: {
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
     res.locals.adminFailureTracker = deps.tracker;
-    const scope: ErrorReportScope = { reported: false };
+    // Queryable per error object, so the admin responder skips the tracker only for a failure this
+    // request already admitted, not for every failure after any unrelated report.
+    const scope: ErrorReportScope = createRequestReportScope({});
     // A tracked operation can report before passing its error to the final admin responder.
     // Share this request-owned admission flag so that responder logs its reference once without
     // submitting a new wrapper of the same exception to the tracker again.

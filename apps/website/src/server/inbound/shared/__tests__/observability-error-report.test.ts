@@ -10,6 +10,7 @@ import {
 } from "@jini-ai/core/contracts/observability";
 
 import { applyRequestTracking, captureRouteError } from "../observability-middleware.js";
+import { createTovuErrorReporter } from "#src/server/runtime/composition/error-reporter";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 
 /**
@@ -187,4 +188,71 @@ test("admin errors with statusCode 413 are delegated unchanged before a response
   assert.equal(delegated, error);
   assert.equal(responseStatus, undefined);
   assert.equal(logged.mock.callCount(), 0);
+});
+
+/** The bound host shape `createApp` installs: one site reporter over the request's real tracker, on `res.locals`. */
+async function bootWithReporter(t: test.TestContext, routes: (app: express.Express, tracker: ReturnType<typeof createTracker>) => void) {
+  const { port, reports } = recording();
+  const tracker = createTracker({ observability: port });
+  const hostRecords: unknown[][] = [];
+  const reporter = createTovuErrorReporter({ logger: { warn: () => {}, error: (...args: unknown[]) => { hostRecords.push(args); } }, tracker,
+    clock: { nowMs: () => Date.UTC(2026, 10, 25) }, versions: { app: "1.2.3", jini: "0.7.3" } });
+  const app = express();
+  app.use((_req, res, next) => { res.locals.failureReporter = reporter; next(); });
+  applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
+  routes(app, tracker);
+  app.use(captureRouteError);
+  return { baseUrl: await startTestServer(app, t), reports, hostRecords };
+}
+
+test("an admin 500 produces one tracker report, not also the http.request 5xx marker", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const { baseUrl, reports, hostRecords } = await bootWithReporter(t, app => {
+    app.get("/api/admin/v1/pages/:id", (_req, res) => { res.locals.principal = { id: "owner" }; throw new Error("PRIVATE_BACKEND password=SECRET_CANARY"); });
+  });
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages/PRIVATE_ID`);
+  assert.equal(response.status, 500);
+  const body = await response.json() as any;
+  assert.equal(body.details.failure.errorId, body.errorId);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports.map(report => report.context.operation), ["admin-route.uncaught"]);
+  assert.equal(reports[0]!.context.attributes?.incidentId, body.errorId);
+  assert.equal(hostRecords.length, 1);
+  assert.ok(JSON.stringify(hostRecords[0]).includes(body.errorId));
+  assert.equal(logged.mock.callCount(), 0);
+  for (const canary of ["SECRET_CANARY", "PRIVATE_ID"]) assert.equal(JSON.stringify([body, reports.map(r => [(r.error as Error).message, (r.error as Error).stack, r.context])]).includes(canary), false);
+});
+
+test("a failure already admitted in this request is recorded with tracker skip and keeps its id", async t => {
+  t.mock.method(console, "error", () => {});
+  const { baseUrl, reports, hostRecords } = await bootWithReporter(t, (app, tracker) => {
+    app.get("/api/admin/v1/pages", (_req, res, next) => {
+      res.locals.principal = { id: "owner" };
+      void tracker.trace({ name: "pages.load", run: async () => { throw new Error("load failed"); } }).catch(next);
+    });
+  });
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages`);
+  assert.equal(response.status, 500);
+  const body = await response.json() as any;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports.map(report => report.context.operation), ["pages.load"]);
+  assert.equal(hostRecords.length, 1);
+  assert.ok(JSON.stringify(hostRecords[0]).includes(body.errorId));
+  assert.equal(body.details.failure.errorId, body.errorId);
+});
+
+test("an unrelated earlier report in the request does not skip this failure's tracker report", async t => {
+  t.mock.method(console, "error", () => {});
+  const { baseUrl, reports } = await bootWithReporter(t, (app, tracker) => {
+    app.get("/api/admin/v1/pages", async (_req, res, next) => {
+      res.locals.principal = { id: "owner" };
+      await tracker.trace({ name: "pages.prefetch", run: async () => { throw new Error("prefetch failed"); } }).catch(() => {});
+      next(new Error("render failed"));
+    });
+  });
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages`);
+  const body = await response.json() as any;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports.map(report => report.context.operation), ["pages.prefetch", "admin-route.uncaught"]);
+  assert.equal(reports[1]!.context.attributes?.incidentId, body.errorId);
 });
