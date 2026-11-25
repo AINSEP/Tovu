@@ -20,6 +20,16 @@ export const readTovuSiteUpdateStatus: ReadSiteUpdateStatus = ({ workspaceId }, 
 
 const NOTICE_KIT = { components: { Notice: adminKit.components.Notice } };
 
+/** The injected status hook closed over this identity and the real client, in the zero-argument
+ *  shape the Jini view calls once per render. @complexity O(1). */
+function bindStatusHook(
+  required: { statusHook: typeof useTovuSiteUpdateStatus; workspaceId: string; principalId: string },
+  _optional: Record<string, never> = {},
+): () => ReturnType<typeof useTovuSiteUpdateStatus> {
+  const { statusHook, workspaceId, principalId } = required;
+  return () => statusHook({ workspaceId, principalId, readStatus: readTovuSiteUpdateStatus });
+}
+
 /** The Jini notice bound to this principal/workspace and the admin dictionary. */
 export function TovuSiteUpdateNotice(
   required: { workspaceId: string; principalId: string; locale: string; useSiteUpdateStatusHook: typeof useTovuSiteUpdateStatus },
@@ -35,7 +45,7 @@ export function TovuSiteUpdateNotice(
   return (
     <SiteUpdateNotice
       kit={NOTICE_KIT}
-      useSiteUpdateStatusHook={() => useSiteUpdateStatusHook({ workspaceId, principalId, readStatus: readTovuSiteUpdateStatus })}
+      useSiteUpdateStatusHook={bindStatusHook({ statusHook: useSiteUpdateStatusHook, workspaceId, principalId })}
       copy={copy}
     />
   );
