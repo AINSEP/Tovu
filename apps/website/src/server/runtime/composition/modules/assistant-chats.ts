@@ -35,6 +35,8 @@ import type { ServerModuleHandle } from "./types.js";
 import { type AssistantRunFinalizer } from "./run-finalizer/entry.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
+import { cancelOwnedRun } from "./assistant-run-acceptance.js";
+import { createRoutineRecoveryAdmission } from "./routine-recovery-admission.js";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
@@ -90,6 +92,8 @@ export interface AssistantChatsModuleOptions {
   readonly finalizer?: AssistantRunFinalizer;
   /** Only the site-serving composition opts in; export apps must never repair live turns. */
   readonly recoverInterrupted?: boolean;
+  /** The routine host's boot handoff. Only the current lease owner waits for it; a passive or no-slot boot never does. */
+  readonly routineBoot?: { isLeaseOwner: () => boolean; whenInterrupted: () => Promise<void> };
   readonly onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
 }
 
@@ -106,15 +110,27 @@ function storeFor({ deps, res }: { deps: RouteDeps; res: Response }) {
   });
 }
 
+/** Admission for every serving boot that repairs chats (web-only included): routine turns are reserved from generic recovery. */
+function routineAdmissionFor({ deps, getFinalizer }: { deps: RouteDeps; getFinalizer: () => AssistantRunFinalizer }) {
+  const durable = deps.chatRunLedger.durable;
+  if (!durable) return undefined;
+  return createRoutineRecoveryAdmission({ store: durable, workspaceId: deps.workspaceId,
+    cancel: (required, optional) => cancelOwnedRun({ store: durable, recover: ({ messageId }) => getFinalizer().recover({ messageId, trigger: "browser" }, {}) }, required, optional),
+    log: ({ event, error }) => console.error(`[assistant-chats] ${event}`, error) }, {});
+}
+
 function buildChatsFinalizer({ deps, options }: { deps: RouteDeps; options: AssistantChatsModuleOptions }): AssistantRunFinalizer {
-  return options.finalizer ?? assistantRunFinalizerFor({
+  if (options.finalizer) return options.finalizer;
+  const finalizer: AssistantRunFinalizer = assistantRunFinalizerFor({
     ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability,
+    ...(options.recoverInterrupted ? { admit: routineAdmissionFor({ deps, getFinalizer: () => finalizer }) } : {}),
     ...(options.recoverInterrupted && deps.siteBinding?.dir ? {
       recoveryDaemon: createHttpRunDaemonClient({ observability: deps.observability ?? createNoopObservabilityPort({}) }, {
         previousDaemon: () => readPreviousAssistantDaemon({ siteDir: deps.siteBinding.dir }, {}),
       }),
     } : {}),
   });
+  return finalizer;
 }
 
 /*
@@ -126,7 +142,10 @@ function buildChatsFinalizer({ deps, options }: { deps: RouteDeps; options: Assi
  * daemon (and eagerly on importing app.ts); those are not restarts and must never sweep.
  */
 function startBootReconcile({ finalizer, options }: { finalizer: AssistantRunFinalizer; options: AssistantChatsModuleOptions }): Promise<void> {
-  const reconciled = (options.recoverInterrupted ? finalizer.reconcileInterrupted({}, {}) : Promise.resolve(0)).then(
+  const boot = options.routineBoot;
+  // Routine runs the previous process left are recorded first, so repair sees a settled routine side.
+  const barrier = options.recoverInterrupted && boot?.isLeaseOwner() ? boot.whenInterrupted().catch(() => undefined) : Promise.resolve();
+  const reconciled = (options.recoverInterrupted ? barrier.then(() => finalizer.reconcileInterrupted({}, {})) : Promise.resolve(0)).then(
     (repaired) => {
       if (repaired > 0) console.log(`[assistant-chats] dispatched ${repaired} unfinished chat turn(s) to recovery`);
     },

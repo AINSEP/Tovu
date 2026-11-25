@@ -41,6 +41,7 @@ import { toolMetadata as post } from '@jini-ai/core/tool-metadata/post';
 import { toolMetadata as publish_content } from '@jini-ai/cms/publish/content/tool-metadata';
 import { toolMetadata as recovery } from '@jini-ai/core/tool-metadata/recovery';
 import { toolMetadata as redirects } from '@jini-ai/core/tool-metadata/redirects';
+import { toolMetadata as routines } from './routines.js';
 import { toolMetadata as search } from '@jini-ai/core/tool-metadata/search';
 import { toolMetadata as seo } from '@jini-ai/core/tool-metadata/seo';
 import { toolMetadata as server_logs } from '@jini-ai/core/tool-metadata/server-logs';
@@ -138,6 +139,7 @@ export const nativeToolMetadata = projectToolMetadata<HostToolApprovalPolicy>({ 
   { domain: 'publish-content', tools: publish_content },
   { domain: 'recovery', tools: recovery },
   { domain: 'redirects', tools: redirects },
+  { domain: 'routines', tools: routines },
   { domain: 'search', tools: search },
   { domain: 'seo', tools: seo },
   { domain: 'server-logs', tools: server_logs },

@@ -66,6 +66,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
     lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     siteDiscovery: { abortAll: () => {} },
+    disposeDesktopRoutines: () => {},
     quitPhase: "idle", openSites: new Map(),
     pendingTeardowns: createShutdownTracker({}), decideBeforeQuit,
     productState: { disposers: [() => { shutdownOrder.push("product-listeners"); }, () => { shutdownOrder.push("product-memory"); }],

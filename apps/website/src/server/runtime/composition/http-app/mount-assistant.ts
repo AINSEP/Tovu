@@ -17,11 +17,15 @@ import type { Router } from "express";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { siteAppBootWorkByDeps } from "../site-app-boot-work.js";
 import type { MountInput } from "./module-handles.js";
+import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 
 /** Builds the BYOK assistant module once, tracks its boot pass, and mounts the admin/BYOK assistant surfaces and the daemon-facing router, in registration order. */
 /** @param required.reporter The site composition's one reporter (`createApp`'s), so BYOK tool incidents share its records. */
 export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps, reporter }: MountInput & { internalRouter: Router; bootWorkByDeps: typeof siteAppBootWorkByDeps; reporter: ErrorReporter },
-  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "onBootWork"> = {}): void {
+  options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "assistantRoutineBoot" | "onBootWork" | "mountAssistantRoutines"
+    | "routines" | "routinesReleaseEnabled" | "routineApprovalReceiptsFor"> = {}): void {
+  // Serving composition supplies the bound routine commands (`modules/serving-routine-tools.ts`); absent or flag off, no routine tool exists.
+  const routines = (options.routinesReleaseEnabled ?? ROUTINES_RELEASE_ENABLED) ? options.routines : undefined;
   // Built ONCE, by calling `createAssistantByokModule` here (rather than at its original position
   // below) so its returned `.toolSurface` can be handed to `createAssistantModule` immediately after
   // — never folded into `routeDeps` (that bag already carries 53 back-edges into this file, a
@@ -32,7 +36,8 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
   // both fan-in and fan-out above the graph median) — this file already transitively reaches that
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
-  const byokAssistantModule = createAssistantByokModule({ routeDeps, reporter }, { toolSurface: options.assistantToolSurface });
+  const byokAssistantModule = createAssistantByokModule({ routeDeps, reporter }, { toolSurface: options.assistantToolSurface, ...(routines ? { routines } : {}),
+    ...(options.routineApprovalReceiptsFor ? { routineApprovalReceiptsFor: options.routineApprovalReceiptsFor } : {}) });
   trackByokBootWork({ routeDeps, byokAssistantModule, bootWorkByDeps }, options);
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
   byokAssistantModule.registerToolExecRoutes({ router: internalRouter });
@@ -65,6 +70,7 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
     mountRoutes({ app, mod: createAssistantChatsModule(routeDeps, {
       recoverInterrupted: options.recoverAssistantChatRuns,
       onBootWork: options.onBootWork,
+      ...(options.assistantRoutineBoot ? { routineBoot: options.assistantRoutineBoot } : {}),
     }) });
   }
 
@@ -73,6 +79,8 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
   // no dependencies and no path prefix (see `modules/assistant-settings.ts`'s header), and both sit
   // inside the `/api/admin` session gate, so this position is not load-bearing.
   mountRoutes({ app, mod: createAssistantSettingsModule(routeDeps) });
+  // Routines (P3-T1a.T): mounted even with the admin assistant off, so the API answers its refusal copy.
+  options.mountAssistantRoutines?.({ app });
   // The same admin section's "Execution mode" tab — Local CLI detection + BYOK connection
   // test/model discovery. Separate module from the settings pair above for the reason
   // `modules/assistant-execution.ts`'s header gives (stateless egress probes, not settings CRUD).

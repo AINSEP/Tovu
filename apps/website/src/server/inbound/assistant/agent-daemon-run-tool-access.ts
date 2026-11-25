@@ -56,6 +56,8 @@ async function prepareAgentToolChoice(ports: RunPorts, { selected }: { selected:
   const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!resolveAgentLaunch({ def: snapshot.def }).launchPath,
     ...(detected?.authStatus ? { auth: detected.authStatus } : {}) });
   if (plan.verdict === 'RUN') return true;
+  // Strict routine branch, before ANY interactive alternative or consent card: nobody is watching.
+  if (ports.routine) return prepareRoutineToolChoice(ports, { selected, snapshot, plan });
   if (plan.verdict === 'SETUP' || !snapshot.def) return prepareUnavailableToolChoice(ports, { selected, snapshot, plan, inventory });
   // A425: a plan that only asks for read-only switches starts without a card; the access is disclosed instead.
   if (await grantReadOnlyRunTools(ports, { snapshot, keys: plan.keys })) return selected;
@@ -63,6 +65,18 @@ async function prepareAgentToolChoice(ports: RunPorts, { selected }: { selected:
   if (result.status === 'alternative') return result.agentId;
   if (result.status === 'allowed') return selected;
   await runLifecycle.finish({ runId: run.id, status: 'cancelled', code: null, signal: null, resumable: false }); return null;
+}
+
+/** An unattended routine run never opens a card or offers another agent. Only no-card read-only grants
+ * proceed; anything else fails the run with a plain reason so the owner can fix access in the chat. */
+async function prepareRoutineToolChoice(ports: RunPorts, { selected, snapshot, plan }: {
+  selected: string; snapshot: Awaited<ReturnType<typeof readAssistantRunToolPolicy>>; plan: ReturnType<typeof assistantRunPlan>;
+}): Promise<string | null> {
+  if (plan.verdict === 'ASK' && snapshot.def && await grantReadOnlyRunTools(ports, { snapshot, keys: plan.keys })) return selected;
+  const name = snapshot.def?.name ?? selected;
+  await ports.failRunBeforeStart({ lifecycle: ports.runLifecycle, runId: ports.run.id,
+    message: `This routine could not run: ${name} needs tool access that only a person can approve. Open the assistant, allow it there, then run the routine again.` }, {});
+  return null;
 }
 
 async function prepareUnavailableToolChoice(ports: RunPorts, { selected, snapshot, plan, inventory }: {

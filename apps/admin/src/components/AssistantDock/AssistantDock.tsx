@@ -1,4 +1,5 @@
 import "@jini-ai/chat/react/styles/chat-settings.css";
+import type { useApplyConversationDeepLink, DeepLinkPorts } from "../../features/routines/use-conversation-deep-link";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
 import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";
@@ -85,6 +86,12 @@ declare global {
  */
 
 export interface AssistantDockProps {
+  /** The route query when the AI Assistant panel is showing, else null: `?conversation=` is applied only from there. */
+  query: URLSearchParams | null;
+  /** Applies an authorized `?conversation=` link; required so no live hook is a hidden default. */
+  useConversationDeepLink: typeof useApplyConversationDeepLink;
+  /** Overrides for the link's lookup/URL/notice/dock-open ports; production defaults live in the state hook. */
+  deepLinkPorts?: Partial<DeepLinkPorts>;
   /** The dock's state hook seam (`useAssistantDockState`); a test passes a fake. */
   useAssistantDockStateHook?: typeof useAssistantDockState;
   /** Pane implementation seam: host wiring tests inject a recorder without replacing Jini's module. */

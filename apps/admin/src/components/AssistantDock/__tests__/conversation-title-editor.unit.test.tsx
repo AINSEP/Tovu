@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { AssistantDock } from "../AssistantDock";
+import { DOCK_DEEP_LINK_OFF } from "./deep-link-off";
 
 /** Real dock header and Jini editor, with existing hook seams replacing IO. */
 function mountDock(title: string | null = "Original title", activeId: string | null = "chat") {
@@ -19,7 +20,7 @@ function mountDock(title: string | null = "Original title", activeId: string | n
     executionConfig: config, executionConfigRef: { current: config },
     setExecutionConfig: vi.fn(), handleExecutionModeChange: vi.fn(), hasStoredAdminKey: true, configLoaded: true,
   };
-  render(<AssistantDock
+  render(<AssistantDock {...DOCK_DEEP_LINK_OFF}
     ChatPane={({ header }) => <>{header}</>}
     useChats={() => chats} useAdminLocale={() => "en"}
     useExecutionConfig={() => execution}

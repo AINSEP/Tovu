@@ -81,12 +81,14 @@ import {
   WidgetRegionEditor,
   WorkspaceRedirect,
   AiAssistant,
+  Routines,
   Playground,
   Sites,
 } from "./panel-pages";
 import { commentsMount, formsMount, widgetsMount } from "./integrations/jini-admin/panel-mounts";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { t as tApp } from "./app-i18n";
+import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 
 /**
  * @file The single declaration of every Tovu admin section — one `AdminPanel` per screen, in one
@@ -157,6 +159,24 @@ export type TovuAdminPanel = AdminPanel<PanelRenderer>;
 /** The one route-key store of this admin composition; `<PostEditor>` receives the same instance it is keyed with. */
 const postEditorRouteKeys = createPostEditorRouteKeyStore();
 
+/**
+ * The Routines panel, or nothing while the release flag is off. Why: ADMIN_PANELS feeds navigation,
+ * route visibility and agent reachability, so one gate here keeps all three in agreement; tests pass
+ * `enabled: true` rather than flipping the shipped constant.
+ */
+export function routinesPanelsFor({ enabled }: { enabled: boolean }, _optional: Record<string, never> = {}): readonly TovuAdminPanel[] {
+  if (!enabled) return [];
+  return [{
+    id: "routines",
+    description: "Recurring AI jobs that run while the desktop app is open.",
+    render: (_ctx, _options = {}) => <Routines releaseEnabled={enabled} />,
+    nav: {
+      label: "Routines",
+      icon: '<circle cx="9" cy="9" r="6.5"/><path d="M9 5v4l2.5 2"/>',
+    },
+  }];
+}
+
 const PANELS: readonly TovuAdminPanel[] = [
   // --- Ungrouped top row ---
   {
@@ -215,7 +235,9 @@ const PANELS: readonly TovuAdminPanel[] = [
   {
     id: "ai-assistant",
     description: "Configure the assistant, agent runtimes and model access.",
-    allowedQueryParams: {"tab": null},
+    // `conversation` is the dock deep link (Routines' "Open conversation"): the dock applies it only
+    // after checking the owner's own conversation list, so the panel itself ignores it.
+    allowedQueryParams: {"tab": null, "conversation": null},
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `AiAssistant`'s `tabId` prop) — same `?tab=` deep-linking convention as `settings`'s and
     // `deployment`'s own entries elsewhere in this file.
@@ -238,6 +260,9 @@ const PANELS: readonly TovuAdminPanel[] = [
     // land here; operating the kill switch or reading a credential would need those specific
     // controls individually tagged with `data-agent-element`, which none of them are.
   },
+
+  // Routines: dark until the one Tovu release flag is on, so the panel list, nav and route table agree.
+  ...routinesPanelsFor({ enabled: ROUTINES_RELEASE_ENABLED }),
 
   // --- Content ---
   {

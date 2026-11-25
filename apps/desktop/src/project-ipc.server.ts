@@ -148,7 +148,11 @@ async function explainMissingSiteDir({ siteDir, starting }: { siteDir: string; s
  * @complexity O(1) beyond `server.stop()`'s own drain (bounded by grace plus exit wait), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-export async function handleStop({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites"> }, _options = {}) {
+export async function handleStop({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites" | "routineWithdrawals"> }, _options = {}) {
+  // Recorded BEFORE the stop is queued, not inside it: a routine background start that is already
+  // past its first check re-checks withdrawal right before it starts, and must see this Stop even
+  // while the stop itself still waits for this site's serializer key.
+  deps.routineWithdrawals?.withdraw({ siteDir: id });
   return await deps.serializer.run({ key: id, fn: async () => {
     const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -164,6 +168,21 @@ export async function handleStop({ id, deps }: { id: string; deps: Pick<ProjectI
     if (running && !openEntry) throw new Error(`Running in ${running.app} (port ${running.port}). Stop it in that app.`);
     await markTransition({ transitions: deps.transitions, siteDir: id, transition: "stopping", body: () => stopSiteServer({ id, deps }) });
     return buildSiteRecord(row, deps);
+  } });
+}
+
+/**
+ * A routine background start (P3-T1b.T). Why the withdrawal check lives INSIDE the site's serializer
+ * key rather than before it: {@link handleStop} records withdrawal before queuing its own work, so a
+ * start queued behind that Stop (or behind any other operation on the site) must re-ask at the only
+ * instant the answer still holds when acted on. Explicit owner starts go through {@link handleStart},
+ * which ignores withdrawal on purpose. Resolves `false` when it skipped the site.
+ */
+export async function startRoutineSiteInBackground<TCtx>({ siteDir, deps }: { siteDir: string; deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "openSiteServer" | "ctx" | "openSites"> & { routineWithdrawals: { isWithdrawn(required: { siteDir: string }): boolean } } }, _options = {}): Promise<boolean> {
+  return await deps.serializer.run({ key: siteDir, fn: async () => {
+    if (deps.routineWithdrawals.isWithdrawn({ siteDir }) || deps.openSites.get(siteDir) !== undefined) return false;
+    await deps.openSiteServer({ siteDir, ctx: deps.ctx });
+    return true;
   } });
 }
 

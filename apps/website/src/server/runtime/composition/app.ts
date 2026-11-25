@@ -99,7 +99,6 @@ import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
 import { createTovuErrorReporter } from "./error-reporter.js";
 import { processBuildConstants, type BuildVersions } from "./build-constants.js";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
-import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { subscribeSiteEventHandlersOnce } from "./site-event-subscriptions.js";
 import { applyPublicMiddleware, registerAdminSpa, registerSiteIdlePark } from "./http-app/public-middleware.js";
 import { mountPublicSite } from "./http-app/mount-public-site.js";

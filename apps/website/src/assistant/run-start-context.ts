@@ -1,6 +1,7 @@
 import { readChatAgentPluginState, type ChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { CREDENTIAL_PASTE_MODEL_NOTE } from "./credential-guidance.js";
 import { guardUserText, redactUserText } from "@jini-ai/chat/core";
+import { parseRoutineRunMarker, type RoutineRunMarker } from "@tovu/contracts/routines";
 /**
  * @file `parseRunStartContextRef` — the decode/validate step for a run-start request's
  * `contextRef` JSON. Kept outside the daemon entry point because importing that side-effecting
@@ -47,6 +48,18 @@ function readRecoveryContext(
     ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.recoveryMode } : {}),
     ...(recoverySessionId ? { recoverySessionId } : {}),
   };
+}
+
+/** The trusted routine marker, validated strictly: an absent marker is a normal chat turn, a present but
+ * malformed one (or one that disagrees with its own `routine-<runId>` conversation) fails the run, because
+ * recovery and tool access treat a marked turn as unattended and must never act on a half-trusted marker. */
+export function readRoutineContext(
+  { parsed }: { parsed: { routine?: unknown; conversationId?: unknown } }, _optional = {},
+): { routine?: RoutineRunMarker } {
+  if (parsed.routine === undefined) return {};
+  const marker = parseRoutineRunMarker({ value: parsed.routine }, {});
+  if (!marker || parsed.conversationId !== `routine-${marker.runId}`) throw new Error("contextRef carries a malformed routine marker");
+  return { routine: marker };
 }
 
 /** The optional per-run settings of the envelope: each is omitted, never defaulted, when absent. */
@@ -133,6 +146,7 @@ export function parseRunStartContextRef({ contextRef }: { contextRef: string }, 
   assistantMessageId?: string;
   recoveryMode?: "native" | "reconstruction";
   recoverySessionId?: string;
+  routine?: RoutineRunMarker;
 } {
   const parsed = readRunContextEnvelope(contextRef);
   const rawPrompt = requireNonEmptyContextField({ value: parsed.prompt, label: "prompt" });
@@ -158,5 +172,6 @@ export function parseRunStartContextRef({ contextRef }: { contextRef: string }, 
     ...(typeof parsed.userPrompt === "string" ? { userPrompt: guardUserText({ text: parsed.userPrompt.slice(0, 16000) }, guardOptions) } : {}),
     ...readRunSettings({ parsed }, {}),
     ...readRecoveryContext({ parsed }, {}),
+    ...readRoutineContext({ parsed }, {}),
   };
 }

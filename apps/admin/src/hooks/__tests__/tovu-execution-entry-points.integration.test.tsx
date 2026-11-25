@@ -16,6 +16,7 @@ import { emptyComposerCapabilityProjection } from '@jini-ai/admin/screens/plugin
 import { useTovuExecutionPolicy } from '../use-tovu-execution-policy.hooks';
 import { DEPLOYED_LOCAL_CLI_NOTE } from '@/lib/tovu-execution-policy';
 import { t } from '@jini-ai/admin/screens/settings/settings-execution-i18n';
+import { DOCK_DEEP_LINK_OFF } from "../../components/AssistantDock/__tests__/deep-link-off";
 
 const requiredAdminExecutionModeHooks = {
   useAdminLocaleHook: useAdminLocale,
@@ -97,7 +98,7 @@ it('local dev retains the CLI tab, selected agent list and discovery', async () 
 it('deployed composer hides the portaled Local CLI row and code-agent list, even for a saved CLI', async () => {
   const runtime = { listAgents: vi.fn(async () => [{ id: 'codex', name: 'Codex', available: true }]), rescanAgents: vi.fn(async () => []), daemonOnline: vi.fn(async () => true) };
   const write = vi.fn();
-  render(<AssistantDock
+  render(<AssistantDock {...DOCK_DEEP_LINK_OFF}
     useExecutionPolicy={useDeployed} useAdminLocale={() => 'en'}
     useExecutionConfig={() => ({ executionConfig: saved, executionConfigRef: { current: saved }, setExecutionConfig: write, handleExecutionModeChange: write, hasStoredAdminKey: true, configLoaded: true })}
     useChats={() => ({ conversations: [], activeId: null, paneKey: 'deployed-test', initialMessages: [], select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn(), onMessagesChange: vi.fn(), persistUserTurn: async () => {}, ensureConversationId: async () => null })}

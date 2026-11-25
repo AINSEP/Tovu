@@ -375,6 +375,8 @@ test("the scan finds the known exchange openers (guards against a scan that sile
     "backup_execute_restore",
     // Through a tool-id constant imported from a Jini package, resolved from its real export.
     "publish_content_execute_pull",
+    // Routine writers open their own card inside the handler (P3-T4.T), through the injected requireHumanConfirm.
+    "routine_create", "routine_set_enabled", "routine_delete",
   ]) {
     assert.ok(scan.toolIds.has(id), `expected the scan to find '${id}'`);
   }
@@ -394,4 +396,14 @@ test("every allowlisted id opens an exchange or is a named carve-out", () => {
     .filter((id) => !scan.toolIds.has(id) && !PARAMETERISED_EXCHANGE_TOOL_IDS.has(id) && !NON_EXCHANGE_CARVE_OUTS.has(id))
     .sort();
   assert.deepEqual(unexplained, []);
+});
+
+// P3-T4.T: the three routine writers open a card inside the handler and are redeemable; the read-only list opens nothing.
+test("routine create, set-enabled and delete are card-opening and redeemable; routine_list is neither and is not on the callback allowlist", () => {
+  for (const id of ["routine_create", "routine_set_enabled", "routine_delete"]) {
+    assert.ok(scan.toolIds.has(id), `${id} opens a human-confirm card`);
+    assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has(id), `${id} is redeemable`);
+  }
+  assert.equal(scan.toolIds.has("routine_list"), false);
+  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("routine_list"), false);
 });

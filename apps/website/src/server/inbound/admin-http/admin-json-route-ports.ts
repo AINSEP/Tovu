@@ -1,6 +1,6 @@
 import type { Express, RequestHandler, Response } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec, type RouteMountOptions } from "@jini-ai/http-kit";
-import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from "@jini-ai/core/contracts/server";
+import { isSameOriginBrowserWrite, type JsonRouteAuthorizeScope, type RouteHostContext, type RouteInputContext, type ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 import type { RouteDeps } from "#src/server/routes/types";
@@ -426,20 +426,41 @@ export function adminPortsFor(
   return customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...options, workspaceScoped, requireSameOrigin }) : adminJsonRoutePorts;
 }
 
+/** Header-only reads, because http-kit hands the policy the raw Node request (no Express `req.get`). */
+function headerText({ req, name }: { req: { headers?: Record<string, unknown> }; name: string }, _optional: Record<string, never> = {}): string | undefined {
+  const value = req.headers?.[name];
+  return typeof value === "string" ? value : undefined;
+}
+
+/** The admin's own same-origin rule for a guarded JSON write: the exact browser-write check the
+ *  hand-written saved-keys write applies (`isSameOriginBrowserWrite` — an `Origin` naming this host, and
+ *  `sec-fetch-site`, when sent, `same-origin`). A JSON admin route only ever serves the admin's own pages,
+ *  so this is the mount's default; without one http-kit throws and a cross-origin write became a 500. */
+export const adminBrowserWriteOrigin: RouteHostContext = {
+  originPolicy: {
+    isSameOrigin: ({ req }) => isSameOriginBrowserWrite({
+      origin: headerText({ req, name: "origin" }), host: headerText({ req, name: "host" }), fetchSite: headerText({ req, name: "sec-fetch-site" }),
+    }),
+  },
+};
+
 /** Mount a Jini admin route spec behind the admin ports. `deps` is the route's own small deps type
  * plus the two port fields — built from `RouteDeps` at registration, never passed whole.
+ * `origin` replaces {@link adminBrowserWriteOrigin} as the policy for a `requireSameOrigin` spec; a spec
+ * without that flag never consults it.
  * @returns Void; registers one endpoint.
  * @complexity O(1) setup; per request as `createAdminJsonRoutePorts`.
  */
 export function mountAdminJsonRoute<Input, Output, Deps>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: RouteHostContext },
   optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
   const { forwardRejection, bodyParsers, requestDeps, ...portOptions } = optional;
+  const adapter = required.spec.requireSameOrigin ? { adapter: required.origin ?? adminBrowserWriteOrigin } : {};
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
   const app = forwardRejection || portOptions.forwardUncaughtErrors ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps }, routeMountOptionsFor({ bodyParsers, requestDeps }));
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, routeMountOptionsFor({ bodyParsers, requestDeps }));
 }
 
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
