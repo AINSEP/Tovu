@@ -6,7 +6,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installRoutineWakeReceiver, type RoutineWakeChannel } from "../routine-wake-receiver.ts";
+import { installRoutineWakeReceiver, type RoutineWakeChannel } from "../routine-wake-receiver.js";
 
 function fakeChannel() {
   const listeners = new Set<(message: unknown) => void>();

@@ -25,7 +25,7 @@ async function serve(t: TestContext, { override = () => ({}), local = false }: {
   t.mock.method(console, "warn", () => {});
   const app = express();
   app.use(parseAuthenticatedJsonBody);
-  registerAuthRoutes({ app, deps: { ...deps, ...override(deps) } }, local ? { localOwnerSignIn: { enabled: true } } : {});
+  registerAuthRoutes({ app, deps: { ...deps, ...override(deps) } }, local ? { localOwnerSignIn: { enabled: true, routineDesktopEligible: false } } : {});
   // The wire answer of a forwarded error and of the auth envelope coincide for an anonymous caller,
   // so the pin also records what reached Express's error chain (observability reads it there).
   const forwarded: unknown[] = [];

@@ -190,7 +190,7 @@ test("a local owner cookie on a listener without a TCP port (a unix socket) is k
   });
   assert.equal(login.status, 200);
   const rawToken = (login.headers.get("set-cookie") ?? "").split(";")[0]!.split("=")[1]!;
-  const localOwnerSignIn = { enabled: true };
+  const localOwnerSignIn = { enabled: true, routineDesktopEligible: false };
   const portless = (name: string) => ({ headers: { cookie: `${name}=${rawToken}` }, socket: {} }) as unknown as Request;
 
   const resolved = await currentCredential({ deps, req: portless("tovu_session_local_0") }, { localOwnerSignIn });
