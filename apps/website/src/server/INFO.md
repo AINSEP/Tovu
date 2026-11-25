@@ -86,7 +86,7 @@ owner MFA/passkey/recovery route files stay hand-written in `inbound/admin-http/
 Newsletter (`modules/newsletter.ts`) mounts all 19 `@jini-ai/cms/admin-http/routes/newsletter/*`
 specs, `"direct"`, `failure.operation` `http/newsletter` with the pre-move 500 copy pinned
 (`NEWSLETTER_FAILURE_COPY`). The newsletter services stay in `features/newsletter/` and are bound per
-route; `features/newsletter/http-error-responses.ts` is the injected error-class → response table
+route; `@jini-ai/user-management/newsletter/http-error-responses` is the injected error-class → response table
 (`http/newsletter.ts` is gone). `routes/newsletter/deps.ts` stays (its bag + `toSendPipelineDeps`).
 
 Members (`runtime/composition/modules/members.ts`) mount `@jini-ai/cms/admin-http/routes/members/{list,get-by-id,disable,delete}`

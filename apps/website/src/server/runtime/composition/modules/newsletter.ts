@@ -25,7 +25,7 @@ import { newsletterSendTestCampaignRoute } from "@jini-ai/cms/admin-http/routes/
 import { newsletterUpdateCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/update-campaign";
 import { cancelCampaign, saveCampaign, scheduleCampaign } from "@jini-ai/user-management/newsletter/campaign-write-service";
 import { issueConfirmationToken } from "#src/features/newsletter/confirmation";
-import { newsletterErrorResponse } from "#src/features/newsletter/http-error-responses";
+import { newsletterErrorResponse } from "@jini-ai/user-management/newsletter/http-error-responses";
 import { archiveList, saveList } from "@jini-ai/user-management/newsletter/lists";
 import { authorizeSend, claimBatch, freezeAudience, pauseCampaign, resumeCampaign, sendTestCampaign, type SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { importSubscriptions, saveSubscription, unsubscribeSubscription } from "#src/features/newsletter/subscriptions";
@@ -106,7 +106,7 @@ const consoleLogger = createConsoleLogger({ prefix: "" });
  * is read only here, at registration: each mount builds that route's own small deps object. The
  * newsletter domain is this host's, so every service a spec calls (campaign-write-service,
  * send-pipeline) is bound here with its deps bundle, as is the typed-error table
- * (`features/newsletter/http-error-responses.ts`).
+ * (`@jini-ai/user-management/newsletter/http-error-responses`).
  */
 
 /** The 500 copy the hand-written routes' shared `newsletterErrorToResponse` fallback wrote. It called

@@ -6,7 +6,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * catalog entries onto existing campaign/list/subscription services as ToolRegistrations.
  * Delivery operations are contributed separately from delivery/tool-registrations.ts; bulk import is absent.
  *
- * Authorization shape: `features/newsletter/http-error-responses.ts`'s consumers (the admin route specs in Jini's
+ * Authorization shape: `@jini-ai/user-management/newsletter/http-error-responses`'s consumers (the admin route specs in Jini's
  * `@jini-ai/cms/admin-http/routes/newsletter/*`) record that "none of Newsletter's domain functions call authorize() ...
  * every admin route therefore asks for its own permission as its first step". Every handler here does the same via
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route

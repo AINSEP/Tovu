@@ -20,7 +20,7 @@ import type { NewsletterRouteDeps } from "../deps.js";
  * @file The typed-error -> HTTP contract of the admin newsletter routes, asserted at the wire. It
  * replaces `http/__tests__/newsletter-errors.test.ts`, which tested the deleted `http/newsletter.ts`
  * helper (`newsletterErrorToResponse` / `mapNewsletterErrorToResponse`) in isolation; the rule now lives
- * in `features/newsletter/http-error-responses.ts` and is applied by the Jini route specs, so it is
+ * in `@jini-ai/user-management/newsletter/http-error-responses` and is applied by the Jini route specs, so it is
  * proven here through a real registrar: the list route's repo read throws, and the response is read.
  */
 
