@@ -9,14 +9,33 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
+import { SHARE_EXPIRY_COPY, isShareExpiryChoice, type ShareExpiryDays } from "#src/features/site-backup/share-expiry";
 
-export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } {
+type ShareExpiryInput = { expiresInDays?: ShareExpiryDays | null };
+
+export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } & ShareExpiryInput {
   const raw = body ?? {};
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId" && key !== "expiresInDays")) {
     throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Start an export with {}, or poll with jobId only." });
   }
   const jobId = shareInputJob({ value: (raw as Record<string, unknown>).jobId });
-  return jobId ? { jobId } : {};
+  return { ...(jobId ? { jobId } : {}), ...shareInputExpiry({ value: (raw as Record<string, unknown>).expiresInDays }) };
+}
+
+/** The static-export body: the owner's expiry beside the static selection the shared parser owns. */
+export function readStaticShareInput({ body }: { body: unknown }, _options = {}): ReturnType<typeof parseStaticExportInput> & ShareExpiryInput {
+  if (typeof body !== "object" || body === null || Array.isArray(body) || !("expiresInDays" in body)) return parseStaticExportInput({ input: body === undefined ? {} : body });
+  const { expiresInDays, ...selection } = body as Record<string, unknown>;
+  const expiry = shareInputExpiry({ value: expiresInDays });
+  return { ...parseStaticExportInput({ input: selection }), ...expiry };
+}
+
+/** P11 ST-12a: the owner's link expiry, Never (absent or null) unless 7, 30 or 90 days was chosen. */
+function shareInputExpiry(required: { value: unknown }, _options = {}): ShareExpiryInput {
+  const days = required.value;
+  if (days === undefined) return {};
+  if (days !== null && !isShareExpiryChoice({ days })) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: SHARE_EXPIRY_COPY.choices });
+  return { expiresInDays: days as ShareExpiryDays | null };
 }
 
 function shareInputJob(required: { value: unknown }, _options = {}): string | undefined {

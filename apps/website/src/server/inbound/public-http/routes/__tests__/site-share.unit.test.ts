@@ -150,3 +150,21 @@ test("an old 64-hex share still revokes cleanly and deletes its ZIP, and its lin
   const base = await serve(t, registry);
   assert.equal((await fetch(`${base}/_share/${old}/main.tovu.zip`)).status, 404);
 });
+
+test("P11 ST-12a: an expired owner-chosen link is a plain 404 on the public route; a link without expiry still downloads", async t => {
+  const dir = shareDir(t);
+  const clock = { now: Date.parse("2026-12-01T00:00:00.000Z") };
+  const registry = new SiteShareRegistry({ directory: dir, now: () => clock.now });
+  const archive = Buffer.from("PK\u0003\u0004zip");
+  const expiring = await receiveSiteShareArtifact({ registry, site: "main", token: "a".repeat(16), file: "main.tovu.zip", archive });
+  await registry.put({ record: { ...expiring, expiresAt: "2026-12-08T00:00:00.000Z" } });
+  const lasting = await receiveSiteShareArtifact({ registry, site: "main", token: "b".repeat(16), file: "main.tovu.zip", archive });
+  const base = await serve(t, registry);
+  assert.equal((await fetch(base + DOWNLOAD)).status, 200, "served before its own date");
+  clock.now = Date.parse("2026-12-08T00:00:00.000Z");
+  const expired = await fetch(base + DOWNLOAD);
+  assert.equal(expired.status, 404);
+  assert.equal(expired.headers.get("content-disposition"), null);
+  assert.equal((await fetch(`${base}/_share/${lasting.token}/main.tovu.zip`)).status, 200, "absent expiry never expires");
+  assert.ok(existsSync(path.join(dir, `${expiring.shareId}.tovu.zip`)), "the expired ZIP is not removed here");
+});
