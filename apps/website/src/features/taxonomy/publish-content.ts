@@ -1,8 +1,8 @@
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
+import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 
 import {
@@ -19,6 +19,10 @@ import {
   type Term,
 } from "@jini-ai/cms/taxonomy";
 
+/** The slice of the host's publish bag this file reads. The host registry (`features/publish-content/type-registry.ts`) is
+ *  instantiated with the full product bag, which satisfies this slice, so this file names no other feature. */
+type TaxonomyBag = Pick<CmsPublishPorts, "taxonomy" | "term">;
+
 /**
  * @file `taxonomy` and `term` on the publish factory. Both keep the source's own id (Jini's
  * `importTaxonomy`/`importTerm`), so a term's `taxonomyId`/`parentId` point at the same rows on the
@@ -29,7 +33,7 @@ import {
 const TRASH = "trash";
 
 /** The Jini write-service deps for one apply. */
-function writeDeps({ ctx, entityType }: { ctx: RepoWriteContext<unknown, TaxonomyPublishPorts, TovuPublishPorts>; entityType: string }, _optional = {}) {
+function writeDeps({ ctx, entityType }: { ctx: RepoWriteContext<unknown, TaxonomyPublishPorts, TaxonomyBag>; entityType: string }, _optional = {}) {
   const { deps, workspaceId, ports } = ctx;
   const gateway = gatewayDeps({ deps, entityType });
   return {
@@ -47,8 +51,8 @@ const errors = {
   blocked: [ForbiddenError, TaxonomyRecordNotFoundError, TermNotFoundError, HierarchyCycleDetectedError, ParentCrossTaxonomyError, TaxonomyNotHierarchicalError],
 };
 
-export const contributeTaxonomyPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<Taxonomy, TaxonomyPublishPorts, TovuPublishPorts>({
+export const contributeTaxonomyPublish = (): PublishContentContributor<TaxonomyBag> =>
+  createRepoPublishHandler<Taxonomy, TaxonomyPublishPorts, TaxonomyBag>({
     entityType: "taxonomy",
     coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",
@@ -84,8 +88,8 @@ function parentFirst({ rows }: { rows: readonly Term[] }, _optional = {}): Term[
   return ordered;
 }
 
-export const contributeTermPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<Term, TaxonomyPublishPorts, TovuPublishPorts>({
+export const contributeTermPublish = (): PublishContentContributor<TaxonomyBag> =>
+  createRepoPublishHandler<Term, TaxonomyPublishPorts, TaxonomyBag>({
     entityType: "term",
     coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",

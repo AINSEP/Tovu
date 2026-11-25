@@ -2,13 +2,17 @@ import { FORMS_TABLES } from "#src/platform/db/content-tables";
 import { executeCommand } from "@jini-ai/cms/core/commands";
 import { trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
+import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 
 import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "@jini-ai/cms/forms";
 import type { FieldDescriptor, FormDefinitionStatus } from "@jini-ai/cms/forms";
 import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
 import type { HtmlFormDefinitionRecord, FormAuthoring } from "@jini-ai/cms/forms";
+
+/** The slice of the host's publish bag this file reads. The host registry (`features/publish-content/type-registry.ts`) is
+ *  instantiated with the full product bag, which satisfies this slice, so this file names no other feature. */
+type FormBag = Pick<CmsPublishPorts, "form">;
 /**
  * @file `form` on the publish factory (`features/publish-content/repo-handler.ts`). Carries the form's
  * structure only — submissions are visitor data and never travel (plan §1).
@@ -22,8 +26,8 @@ import type { HtmlFormDefinitionRecord, FormAuthoring } from "@jini-ai/cms/forms
  * @complexity O(schema bytes) time/space per form; existing repo/command I/O only.
  * @overallScore 98 — Minor: the factory's typed state is trusted until existing command validation. */
 
-export const contributeFormPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<HtmlFormDefinitionRecord, TovuPublishPorts["form"], TovuPublishPorts>({
+export const contributeFormPublish = (): PublishContentContributor<FormBag> =>
+  createRepoPublishHandler<HtmlFormDefinitionRecord, FormBag["form"], FormBag>({
     entityType: "form",
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",

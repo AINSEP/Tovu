@@ -1,8 +1,6 @@
 import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
-import type { RemovePostFn } from "#src/features/post/contracts";
+import type { ActiveThemePublishPorts, RemovePostFn } from "#src/platform/publish-contracts";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
-import type { DiscoveredTheme } from "#src/features/theme/catalog";
-import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 
 /**
  * @file The port bag of THIS product's publishable types: the CMS capability's bag
@@ -50,5 +48,5 @@ export type TovuPublishPorts = CmsPublishPorts & {
     readonly fileBlobIndex?: FileBlobIndexPort;
   };
   /** `themes` is the root's live array (`rescanThemes` refills it in place after `theme-files` applies). */
-  readonly "active-theme": { readonly presentation: PresentationSettingsRepoPort; readonly themes: readonly DiscoveredTheme[] };
+  readonly "active-theme": ActiveThemePublishPorts;
 };
