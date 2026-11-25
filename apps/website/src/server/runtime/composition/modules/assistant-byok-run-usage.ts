@@ -9,8 +9,13 @@ const NOTHING: Counters = { inputTokens: null, outputTokens: null, costUsd: null
 const KEYS = ["inputTokens", "outputTokens", "costUsd"] as const;
 
 /** Adds two nullable counter sets; `null + null` stays `null`, so "never reported" survives the sum. */
+function addNullable(x: number | null, y: number | null): number | null {
+  if (x === null && y === null) return null;
+  return (x ?? 0) + (y ?? 0);
+}
+
 function addCounters(a: Counters, b: Counters): Counters {
-  const sum = (x: number | null, y: number | null) => (x === null && y === null ? null : (x ?? 0) + (y ?? 0));
+  const sum = addNullable;
   return { inputTokens: sum(a.inputTokens, b.inputTokens), outputTokens: sum(a.outputTokens, b.outputTokens), costUsd: sum(a.costUsd, b.costUsd) };
 }
 
