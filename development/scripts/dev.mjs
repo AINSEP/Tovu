@@ -32,7 +32,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
-import { existsSync, readFileSync, unlinkSync, unwatchFile, watchFile } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, unlinkSync, unwatchFile, watchFile, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -55,6 +55,7 @@ import { listenersOn } from "./port-listeners.mjs";
 import { selectNodeRuntime } from "@jini-ai/devops/local-dev";
 import { createRequire } from "node:module";
 import { prepareLiteAdmin } from "./dev-lite.mjs";
+import { prepareDependencyCacheStamp } from "./lib/dependency-cache-stamp.mjs";
 import { randomBytes } from "node:crypto";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -740,11 +741,32 @@ export function buildApiEnv({ scheme, apiPort, vitePort, supervisorPid }, { env 
   };
 }
 
-/** Starts the admin child with the ports and scheme this stack has already checked. */
-export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, startChild = start) {
+/** Real-filesystem binder for the admin dev server's linked-`@jini-ai` stamp (private to this launcher). */
+function prepareHostAdminDepsCache() {
+  const fs = {
+    exists: ({ path: p }) => existsSync(p),
+    readText: ({ path: p }) => readFileSync(p, "utf8"),
+    list: ({ path: p }) => readdirSync(p, { withFileTypes: true }).map((e) => ({ name: e.name, isDirectory: e.isDirectory() })),
+    resolveRealPath: ({ path: p }) => realpathSync(p),
+    mtimeMs: ({ path: p }) => statSync(p).mtimeMs,
+    ensureDir: ({ path: p }) => { mkdirSync(p, { recursive: true }); },
+    writeText: ({ path: p, value }) => { writeFileSync(p, value); },
+  };
+  return prepareDependencyCacheStamp({
+    scopeDir: path.join(REPO_ROOT, "apps/admin/node_modules/@jini-ai"),
+    stampFile: path.join(REPO_ROOT, "apps/admin/node_modules/.vite/tovu-jini-deps.json"),
+    fs,
+  });
+}
+
+/** Starts the admin child with the ports and scheme this stack has already checked. Vite is forced to
+ * re-optimize only when the linked `@jini-ai` packages changed since the last launch. */
+export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, { startChild = start, prepareDepsCache = prepareHostAdminDepsCache } = {}) {
   const env = buildAdminViteEnv({ apiPort, vitePort, apiScheme });
   if (extraCaCerts) env.NODE_EXTRA_CA_CERTS = extraCaCerts;
-  return startChild("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], env);
+  const { force } = prepareDepsCache();
+  const args = ["--prefix", "apps/admin", "run", "dev", ...(force ? ["--", "--force"] : [])];
+  return startChild("admin vite", "npm", args, env);
 }
 
 /** Wait for the boot result, not the early 503 listener. Reuse the shared polling owner and the
