@@ -38,9 +38,11 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
 import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
 const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS, mediaAssetReadToolId: "content_read.media_asset" });
-import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
+import { mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";
+// The registry the host actually composes (built-ins plus the xAI vendor plugin), so the published catalog matches production.
+import { createHostMediaProviderRegistry } from "#src/server/runtime/composition/host-media-provider-registry";
 
 const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
@@ -153,7 +155,7 @@ function fakeRouteDeps(
     mediaGenerationHttpClient: options.httpClient ?? {
       send: async () => { throw new Error("fixture forbids external media HTTP"); },
     },
-    mediaProviderRegistry: options.mediaProviderRegistry ?? createMediaProviderRegistry(),
+    mediaProviderRegistry: options.mediaProviderRegistry ?? createHostMediaProviderRegistry(),
     generateMedia: options.generateMedia === null ? undefined : (options.generateMedia ?? fakeGenerateMedia(generateCalls)),
     env: options.env ?? {},
     authorize: async (params: Record<string, unknown>) => {
@@ -754,7 +756,7 @@ function acmeVendor(): MediaProviderContribution {
 }
 
 function registryWithAcme(): MediaProviderRegistry {
-  const registry = createMediaProviderRegistry();
+  const registry = createHostMediaProviderRegistry();
   assert.equal(registry.providers.contribute({ definition: mediaProviderDefinition({ contribution: acmeVendor() }), pluginId: "acme-plugin" }), true);
   return registry;
 }
