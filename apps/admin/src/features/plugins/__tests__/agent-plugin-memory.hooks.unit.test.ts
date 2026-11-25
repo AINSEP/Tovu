@@ -100,7 +100,7 @@ test('status moves from loading to idle and reports a failed save with the bound
     read: async () => listing('example', 'Original'),
     saveNote: async () => { throw failure; },
   };
-  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t: key => `T:${key}` }));
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t: key => `T:${key}`, describeApiError }));
   expect(result.current.status).toBe('T:Loading memory…');
   await waitFor(() => expect(result.current.editorDisabled).toBe(false));
   expect(result.current.status).toBeNull();
