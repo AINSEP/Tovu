@@ -2,7 +2,8 @@ import { useEffect, useRef, type RefObject } from "react";
 
 import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 
-import { buildPluginRemoveConfirmCopy, type PluginRemoveConfirmCopy } from "../rules";
+import { buildPluginRemoveConfirmCopy } from "../rules";
+import type { PluginRemoveConfirmCopy } from "@jini-ai/admin/screens/plugins/rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
