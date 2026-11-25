@@ -100,7 +100,8 @@ test("a provider omitted from the payload is DELETED, not left alone", async () 
     providers: { openai: { apiKey: ("s" + "k-one-1111") }, fal: { apiKey: "xai-two-2222" } },
   });
 
-  // The tab expresses "Clear fal" by sending a map that simply lacks it.
+  // The tab expresses "Clear grok" by sending a map that simply lacks it.
+  // fal stands in for grok here: xAI media is now a plugin vendor, not a built-in one.
   const saved = await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKeyConfigured: true, apiKeyTail: "1111" } },
