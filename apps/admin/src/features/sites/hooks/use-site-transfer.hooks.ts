@@ -10,6 +10,7 @@ import { useSiteImportState as useSiteImportStateHook } from "./use-site-import-
 import { createSiteOwnerAction, createSiteImportAction } from "./site-import-actions";
 import { createSiteImportController } from "./site-import-controller";
 import { passwordProblemFor } from "./site-transfer-rules";
+import { useShareExpiryState, type ShareExpiryController } from "./use-share-expiry.hooks";
 
 /**
  * @file State for the Sites screen's Export Site and Import Site tabs (owner, 2026-10-18). Every
@@ -46,6 +47,8 @@ export interface SiteExportController extends StaticExportSelection {
   download: (share: SiteShare) => Promise<void>;
   /** True when the newest backup has no recipient link; static-only exports always stay private. */
   zipOnly: boolean;
+  /** Link expiry for the next export and the expired-row filter, injected into `ShareExpiryControls`. */
+  shareExpiry: ShareExpiryController;
 }
 
 /**
@@ -62,16 +65,18 @@ export function useSiteExport(
     scope, canManageSavedKeys, passwordDisplay, list, staticSelection, invalidate, exportKind, setExportKind, exportError, setExportError, exportFailure,
     setExportFailure, revokingId, setRevokingId, copiedId, setCopiedId, credentials, alive,
   } = useSiteExportState({ port, t, clipboard });
+  const shares = list.data?.shares;
+  // Static downloads stay private even when a link host is configured; only backups diagnose its absence.
+  const newestBackup = shares?.find(share => share.file.endsWith(".tovu.zip"));
+  const shareExpiry = useShareExpiryState({ offered: list.data?.expiryChoices, newestBackup });
   const { exportSite } = createSiteExportActions({
     alive, setExportError, t, credentials, passwordDisplay, exportKind, staticSelection, setExportKind, setExportFailure, port, invalidate, scope,
+    expiresInDays: shareExpiry.expiresInDays,
   });
   const { revoke, copyLink } = createSiteShareActions({
     revokingId, passwordDisplay, setRevokingId, setExportError, setExportFailure, port, t, invalidate, scope, clipboard, credentials, setCopiedId,
   });
 
-  const shares = list.data?.shares;
-  // Static downloads stay private even when a link host is configured; only backups diagnose its absence.
-  const newestBackup = shares?.find(share => share.file.endsWith(".tovu.zip"));
   return {
     ...passwordDisplay,
     canManageSavedKeys,
@@ -93,6 +98,7 @@ export function useSiteExport(
     acknowledge: credentials.acknowledge,
     download: credentials.download,
     zipOnly: newestBackup !== undefined && newestBackup.url === null,
+    shareExpiry,
   };
 }
 

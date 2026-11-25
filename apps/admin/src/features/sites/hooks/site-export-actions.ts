@@ -1,7 +1,7 @@
 import { describeApiError } from "@/lib/admin-http/request";
 import { siteExportFailure } from "../site-export-error";
 import { SITE_TRANSFER_KEYS } from "./site-transfer-rules";
-import type { SiteShare, SiteShareCreateResult, SiteTransferPort } from "./site-transfer-dependencies.hooks";
+import type { ShareExpiryDays, SiteShare, SiteShareCreateResult, SiteTransferPort } from "./site-transfer-dependencies.hooks";
 import type { useSiteExport } from "./use-site-transfer.hooks";
 import type { useSiteExportState } from "./use-site-export-state.hooks";
 
@@ -16,7 +16,9 @@ function isFinishedShare(result: SiteShareCreateResult): result is SiteShare & {
 /** Starts an export and re-posts its job id until a finished share returns, the caller stops
  *  wanting it (`alive()` false, the tab unmounted) or the poll cap is spent.
  *  @returns The last answer: a finished share, or a still-running job. */
-async function createShareUntilDone({ create, alive, initial = {} }: { create: SiteTransferPort["createStaticShare"]; alive: () => boolean; initial?: { themeIds?: readonly string[] } }, _options = {}): Promise<SiteShareCreateResult> {
+type ShareCreateInput = { jobId?: string; themeIds?: readonly string[]; expiresInDays?: ShareExpiryDays | null };
+
+async function createShareUntilDone({ create, alive, initial = {} }: { create: (input: ShareCreateInput) => Promise<SiteShareCreateResult>; alive: () => boolean; initial?: Omit<ShareCreateInput, "jobId"> }, _options = {}): Promise<SiteShareCreateResult> {
   let result = await create(initial);
   for (let polls = 0; !isFinishedShare(result) && alive() && polls < MAX_EXPORT_POLLS; polls += 1) {
     result = await create({ jobId: result.jobId });
@@ -27,12 +29,13 @@ async function createShareUntilDone({ create, alive, initial = {} }: { create: S
 /** Capture the selected export format and its initial request; polls send only the job id.
  * Static exports retain theme selection; backups always exclude saved keys. O(1).
  */
-function selectExportRequest({ port, format, themeIds }: {
-  port: SiteTransferPort; format: "backup" | "static"; themeIds: readonly string[];
-}, _options = {}) {
+function selectExportRequest({ port, format, themeIds, expiresInDays }: {
+  port: SiteTransferPort; format: "backup" | "static"; themeIds: readonly string[]; expiresInDays: ShareExpiryDays | null;
+}, _options = {}): { create: (input: ShareCreateInput) => Promise<SiteShareCreateResult>; initial: Omit<ShareCreateInput, "jobId"> } {
+  // Only a backup can land in this server's own share folder; a static export never expires.
   return format === "static"
     ? { create: port.createStaticShare.bind(port), initial: { themeIds } }
-    : { create: port.createShare.bind(port), initial: {} };
+    : { create: port.createShare.bind(port), initial: expiresInDays === null ? {} : { expiresInDays } };
 }
 
 export function createSiteShareActions(
@@ -68,10 +71,11 @@ export function createSiteShareActions(
 }
 
 export function createSiteExportActions(
-  { alive, setExportError, t, credentials, passwordDisplay, exportKind, staticSelection, setExportKind, setExportFailure, port, invalidate, scope }:
+  { alive, setExportError, t, credentials, passwordDisplay, exportKind, staticSelection, setExportKind, setExportFailure, port, invalidate, scope, expiresInDays }:
     Pick<ReturnType<typeof useSiteExportState>, "alive" | "setExportError" | "credentials" | "passwordDisplay" | "exportKind" | "staticSelection"
     | "setExportKind" | "setExportFailure" | "invalidate" | "scope"> &
-    Pick<Parameters<typeof useSiteExport>[0], "t" | "port">
+    Pick<Parameters<typeof useSiteExport>[0], "t" | "port"> &
+    { expiresInDays: ShareExpiryDays | null }
 ) {
   async function finishExport({ result, format }: { result: SiteShareCreateResult; format: "backup" | "static" }, _options = {}) {
     if (!alive.current) return;
@@ -88,7 +92,7 @@ export function createSiteExportActions(
     setExportFailure(null);
     passwordDisplay.hidePassword();
     try {
-      const { create, initial } = selectExportRequest({ port, format, themeIds: [...staticSelection.selectedThemeIds] });
+      const { create, initial } = selectExportRequest({ port, format, themeIds: [...staticSelection.selectedThemeIds], expiresInDays });
       const result = await createShareUntilDone({ create, alive: () => alive.current, initial });
       await finishExport({ result, format });
     } catch (failure) {

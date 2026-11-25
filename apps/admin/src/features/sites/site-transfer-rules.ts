@@ -15,6 +15,20 @@ export function formatTransferBytes({ bytes }: { bytes: number | null | undefine
 }
 
 /** The pill for one export: its label and the shared `.status-*` tone class. */
+/**
+ * True only when the server says the link expired. Why a date is not consulted: rows made before
+ * expiry existed and peer-uploaded rows have no `expiresAt`, and a missing date says nothing about
+ * whether a link should stop, so it never reads as expired (owner rule (c): live links never break).
+ */
+export function isExpiredShare({ share }: { share: Pick<SiteShare, "status" | "expiresAt"> }, _optional = {}): boolean {
+  return share.status === "expired";
+}
+
+/** The export rows the list draws: all of them, or all but the expired ones when the owner hides those. O(n). */
+export function visibleShares<T extends Pick<SiteShare, "status" | "expiresAt">>({ shares, showExpired }: { shares: readonly T[]; showExpired: boolean }, _optional = {}): readonly T[] {
+  return showExpired ? shares : shares.filter(share => !isExpiredShare({ share }));
+}
+
 export function shareStatusView({ status, t }: { status: SiteShare["status"]; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   if (status === "active") return { label: t("Active"), className: "status status-ok" };
   if (status === "revoked") return { label: t("Revoked"), className: "status status-neutral" };
