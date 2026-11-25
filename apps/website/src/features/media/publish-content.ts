@@ -11,6 +11,7 @@ import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult }
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
 import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "./verify-published-media.js";
+import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 
 /**
  * @file `media`'s publish-content contribution, built on `createRepoPublishHandler`
@@ -197,7 +198,7 @@ const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecor
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
         deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen,
-          sha256: { isValidSha256Hex, bytesMatchSha256 }, outwardErrorMessage: ({ error }) => error.message },
+          sha256: { isValidSha256Hex, bytesMatchSha256 }, outwardErrorMessage: ({ error }) => error.message, ...UPLOAD_CAPS },
         input: {
           workspaceId,
           record,
