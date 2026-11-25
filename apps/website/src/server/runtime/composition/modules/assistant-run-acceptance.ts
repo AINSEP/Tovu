@@ -67,6 +67,19 @@ async function readOwned(store: DurableRunStore, scope: OwnerScope, cursor: stri
   return { message: head.message as SavedMessage };
 }
 
+/** Cancels this owner's run for `messageId` (by the saved assistant message, scoped to the current attempt),
+ * or returns false when it is not theirs / not accepted. Shared by `cancelChatRun` and boot admission. */
+export async function cancelOwnedRun(
+  ports: { store: DurableRunStore; recover: OwnerChatAcceptancePorts["recover"] },
+  required: OwnerScope & { conversationId: string }, optional: { reason?: string } = {},
+): Promise<boolean> {
+  const head = await (ports.store.head ?? ports.store.load)({ messageId: required.messageId }, {});
+  if (!head || head.principalId !== required.principalId || head.workspaceId !== required.workspaceId) return false;
+  await ports.store.cancel({ runId: head.runId, reason: optional.reason ?? "user-stop" }, {});
+  await ports.recover({ messageId: required.messageId }, {});
+  return true;
+}
+
 /** Builds the three owner-chat operations over injected ports. */
 export function createOwnerChatAcceptance(ports: OwnerChatAcceptancePorts, _optional = {}) {
   const acceptance = createRunAcceptance({ store: ports.store, now: ports.now, mintRunId: ports.mintRunId, launch: ports.launch,
@@ -100,14 +113,8 @@ export function createOwnerChatAcceptance(ports: OwnerChatAcceptancePorts, _opti
     }
   }
 
-  /** Cancels this owner's run for `messageId`, or false when it is not theirs / not accepted. */
-  async function cancelChatRun(required: Omit<OwnerScope, never> & { conversationId: string }, optional: { reason?: string } = {}): Promise<boolean> {
-    const head = await (ports.store.head ?? ports.store.load)({ messageId: required.messageId }, {});
-    if (!head || head.principalId !== required.principalId || head.workspaceId !== required.workspaceId) return false;
-    await ports.store.cancel({ runId: head.runId, reason: optional.reason ?? "user-stop" }, {});
-    await ports.recover({ messageId: required.messageId }, {});
-    return true;
-  }
+  const cancelChatRun = (required: OwnerScope & { conversationId: string }, optional: { reason?: string } = {}) =>
+    cancelOwnedRun({ store: ports.store, recover: ports.recover }, required, optional);
 
   return { acceptOwnerChatRun, watchSettlement, cancelChatRun };
 }
