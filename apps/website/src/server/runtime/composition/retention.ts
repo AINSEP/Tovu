@@ -1,5 +1,9 @@
 import type { createRetentionRunner, RetentionPolicy } from "@jini-ai/platform/retention";
 import type { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import fsPromises from "node:fs/promises";
+import { sweepOwnedTempRoots } from "@jini-ai/platform/fs";
+import { SITE_TEMP_ROOTS, siteTempRootLock } from "#src/platform/temp/site-temp-roots";
+import { createSiteTempRootPolicy } from "./retention-policies/temp-roots.js";
 import { createShareMutex, createShareRetention, type ShareRetentionFs } from "#src/features/site-backup/share-retention";
 
 export function startSiteRetention(
@@ -46,16 +50,19 @@ export function startSiteRetention(
 }
 
 /**
- * The serving process's retention policies: today only the share expiry pass (`share-files`, kind
- * `old-copy` — never a content class), and only when this site has a share catalog. Scheduled passes stay
- * measure-only (`scheduledDryRun: true`); a sweep expires nothing but links whose owner chose a date.
+ * The serving process's retention policies: the share expiry pass (`share-files`, kind `old-copy` —
+ * never a content class) when this site has a share catalog, and always the owned temp-root tidy
+ * (`temp-roots`, kind `old-copy`) over the same resolved parent and prefixes the writers use.
+ * Scheduled passes stay measure-only (`scheduledDryRun: true`); a sweep expires nothing but links whose
+ * owner chose a date and temporary roots whose owning process is proven dead.
  */
 export function siteRetentionPolicies(
   required: { registry: SiteShareRegistry | undefined; fs: ShareRetentionFs; clock: { now(): number }; signal: AbortSignal; reportError: (required: { error: Error; policyId?: string }, optional: Record<string, never>) => void },
   _optional: Record<string, never> = {},
 ): RetentionPolicy[] {
   const { registry, fs, clock, signal, reportError } = required;
-  if (!registry) return [];
+  const tempRoots = createSiteTempRootPolicy({ roots: SITE_TEMP_ROOTS, sweepOwnedTempRoots, fs: fsPromises, fileLock: siteTempRootLock, signal });
+  if (!registry) return [tempRoots];
   return [createShareRetention({ registry, shareMutex: createShareMutex({}), fs, clock, signal,
-    reportError: ({ error }, {}) => reportError({ error, policyId: "share-files" }, {}) })];
+    reportError: ({ error }, {}) => reportError({ error, policyId: "share-files" }, {}) }), tempRoots];
 }

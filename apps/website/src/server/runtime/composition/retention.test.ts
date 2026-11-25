@@ -91,12 +91,12 @@ test("no chat, revision, screenshot or media policy is registered", () => {
   assert.doesNotMatch(source("./retention.ts"), /id: ["'][^"']*(chat|revision|screenshot|media)|kind: ["'](content|history)/i);
 });
 
-test("the only serving policy is the share expiry pass, an old-copy class, and only with a share catalog", async () => {
+test("the serving policies are the share expiry pass (only with a share catalog) and the temp-root tidy, both old-copy classes", async () => {
   const deps = { fs: { stat: async () => ({ size: 0 }), unlink: async () => {} }, clock: { now: () => 0 }, signal: new AbortController().signal, reportError: () => {} };
-  assert.deepEqual(siteRetentionPolicies({ registry: undefined, ...deps }), []);
+  assert.deepEqual(siteRetentionPolicies({ registry: undefined, ...deps }).map(({ id, kind }) => ({ id, kind })), [{ id: "temp-roots", kind: "old-copy" }]);
   const directory = await mkdtemp(path.join(tmpdir(), "retention-policies-"));
   try {
     const policies = siteRetentionPolicies({ registry: new SiteShareRegistry({ directory, now: () => 0 }), ...deps });
-    assert.deepEqual(policies.map(({ id, kind }) => ({ id, kind })), [{ id: "share-files", kind: "old-copy" }]);
+    assert.deepEqual(policies.map(({ id, kind }) => ({ id, kind })), [{ id: "share-files", kind: "old-copy" }, { id: "temp-roots", kind: "old-copy" }]);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

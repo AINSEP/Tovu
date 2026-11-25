@@ -3,7 +3,8 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { checkShareLimits } from "./share-policy.js";
 import { createHash } from "node:crypto";
 import type { BigIntStats, Dirent, Stats } from "node:fs";
-import { lstat, mkdtemp, readdir, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
+import { lstat, readdir, readFile, realpath, stat, unlink } from "node:fs/promises";
+import { siteTempRoot, SITE_TEMP_PREFIXES, type OwnedTempRootScope } from "#src/platform/temp/site-temp-roots";
 import path from "node:path";
 import { readReviewedFile, reviewedFileIdentity, type ReviewedFile, type ReviewedFileHandle, type ReviewedFileSystem } from "@jini-ai/platform/fs";
 
@@ -539,7 +540,7 @@ const SNAPSHOT_FAILED = "the database snapshot failed; nothing was backed up";
  *   capture failure's own text stays in `logDetail`, which is for the server log only).
  * @complexity O(database size) — one full copy, one read, one unlink.
  */
-export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number; snapshotRoot?: string } = {}): Promise<DatabaseSnapshotResult> {
+export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number; snapshotRoot?: string; tempRoot?: OwnedTempRootScope } = {}): Promise<DatabaseSnapshotResult> {
   const { restorePoint } = await input.dbOps.getCapabilities();
   if (restorePoint.costClass !== "cheap" || restorePoint.kind !== "file-snapshot") {
     return {
@@ -547,17 +548,14 @@ export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId
       message: `this site's database cannot be snapshotted into a backup file: only SQLite sites are supported (this database reports a '${restorePoint.kind}' restore mechanism)`,
     };
   }
-  if (optional.snapshotRoot === undefined) return readRestorePoint(input, optional);
-  let directory: string;
+  const scope = optional.tempRoot ?? (optional.snapshotRoot === undefined ? undefined : siteTempRoot({ prefix: SITE_TEMP_PREFIXES.snapshot, parent: optional.snapshotRoot }));
+  if (scope === undefined) return readRestorePoint(input, optional);
   try {
-    directory = await mkdtemp(path.join(optional.snapshotRoot, "tovu-snapshot-"));
+    // The restore-point read happens inside `work`: the owned root stays locked until the bytes are in
+    // memory, so the temp-root tidy can never remove the snapshot while it is still being read.
+    return await scope({ work: ({ root }) => readRestorePoint(input, { maxBytes: optional.maxBytes, directory: root }) });
   } catch (err) {
     return { ok: false, message: SNAPSHOT_FAILED, logDetail: describeErrorForLog({ err }) };
-  }
-  try {
-    return await readRestorePoint(input, { ...optional, directory });
-  } finally {
-    await rm(directory, { recursive: true, force: true }).catch((error: unknown) => console.error("[site-backup] Could not remove the snapshot directory", describeErrorForLog({ err: error })));
   }
 }
 
