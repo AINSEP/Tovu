@@ -7,7 +7,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT } from "../deployment-host-i18n";
 import { exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
-import { DEPLOYMENT_EXPORT_RESOURCE } from "../rules";
+import { DEPLOYMENT_EXPORT_RESOURCE } from "@jini-ai/devops/deploy/react/rules";
 
 import { defaultStaticExportPort } from "./static-export-dependencies.hooks";
 import type { StaticExportPort } from "@jini-ai/core/contracts/site/deployment-admin";

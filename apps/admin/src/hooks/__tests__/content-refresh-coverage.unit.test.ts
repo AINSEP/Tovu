@@ -78,7 +78,7 @@ const WIRED_HOOKS: readonly string[] = [
   "features/members/hooks/members-controller.hooks.ts",
   // Jini owns both list lifecycles; the resource-filtered host port retains their subscription.
   "integrations/jini-admin/widgets-ports.ts",
-  "features/integrations/hooks/use-integrations.hooks.ts",
+  "../node_modules/@jini-ai/integrations/dist/react/webhooks/hooks/use-integrations.hooks.js",
   // The package owns the Recovery read lifecycle; this host binding retains the bus subscription.
   "features/recovery/hooks/recovery-dependencies.hooks.ts",
   // Screen and sidebar share this read/subscription owner; Jini owns it (built output, read through
@@ -91,7 +91,7 @@ const WIRED_HOOKS: readonly string[] = [
 ];
 
 /** Parse real calls, so commented-out subscriptions cannot satisfy the guard. */
-const SUBSCRIPTION_NAMES = new Set(["useContentRefreshSubscription", "subscribeToContentRefresh"]);
+const SUBSCRIPTION_NAMES = new Set(["useContentRefreshSubscriptionHook", "useContentRefreshSubscription", "subscribeToContentRefresh"]);
 
 describe("content-refresh coverage (staleness-bug guard)", () => {
   it.each(WIRED_HOOKS)("%s contains an executable content-refresh subscription call", (relativePath) => {

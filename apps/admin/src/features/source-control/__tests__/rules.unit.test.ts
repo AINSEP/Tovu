@@ -1,3 +1,4 @@
+import { classifyCredentialSubmitError } from "@/lib/shell-collaborators";
 import { describe, expect, it } from "vitest";
 
 import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
@@ -12,7 +13,7 @@ import {
   sourceControlProviderInfoFromDescriptor,
   sourceControlProviders,
   type SourceControlCredentialFormFields,
-} from "../rules";
+} from "@jini-ai/devops/source-control/react/rules";
 import { FORGE_PROVIDER, GITHUB_PROVIDER, SOURCE_CONTROL_PROVIDER_DESCRIPTORS } from "./source-control-providers.fixture";
 
 /** A blank form for one provider — every test below overrides only the fields it cares about. */
@@ -22,8 +23,8 @@ function blankFields(providerId: string): SourceControlCredentialFormFields {
 
 const SYNTHETIC_TOKEN = ["ghp", "abc"].join("_");
 
-const GITHUB = sourceControlProviderInfoFromDescriptor(GITHUB_PROVIDER);
-const FORGE = sourceControlProviderInfoFromDescriptor(FORGE_PROVIDER);
+const GITHUB = sourceControlProviderInfoFromDescriptor({ descriptor: GITHUB_PROVIDER });
+const FORGE = sourceControlProviderInfoFromDescriptor({ descriptor: FORGE_PROVIDER });
 
 function credential(overrides: Partial<AdminSourceControlCredentialSummary> = {}): AdminSourceControlCredentialSummary {
   return {
@@ -50,7 +51,7 @@ describe("sourceControlProviderInfoFromDescriptor", () => {
         fields: [username, token, { ...token, label: "Second token" }, endpoint],
       },
     };
-    const info = sourceControlProviderInfoFromDescriptor(descriptor);
+    const info = sourceControlProviderInfoFromDescriptor({ descriptor: descriptor });
     expect(info).toEqual({
       id: "custom", label: "Custom", tokenField: "access", tokenLabel: "First token",
       tokenPageUrl: "", scopeGuidanceKey: "", fields: [username, endpoint], listed: true,
@@ -61,18 +62,18 @@ describe("sourceControlProviderInfoFromDescriptor", () => {
 
   it("omits tokenLabel when the declared token field is absent and defaults missing guidance", () => {
     const username = { name: "username", label: "Username" };
-    expect(sourceControlProviderInfoFromDescriptor({
+    expect(sourceControlProviderInfoFromDescriptor({ descriptor: {
       id: "custom", label: "Custom", credential: { tokenField: "access", fields: [username] },
-    })).toEqual({
+    } })).toEqual({
       id: "custom", label: "Custom", tokenField: "access", tokenPageUrl: "",
       scopeGuidanceKey: "", fields: [username], listed: true,
     });
   });
 
   it("preserves empty token names and empty token labels", () => {
-    expect(sourceControlProviderInfoFromDescriptor({
+    expect(sourceControlProviderInfoFromDescriptor({ descriptor: {
       id: "custom", label: "Custom", credential: { tokenField: "", fields: [{ name: "", label: "" }] },
-    })).toEqual({
+    } })).toEqual({
       id: "custom", label: "Custom", tokenField: "", tokenLabel: "", tokenPageUrl: "",
       scopeGuidanceKey: "", fields: [], listed: true,
     });
@@ -93,7 +94,7 @@ describe("sourceControlProviderInfoFromDescriptor", () => {
   });
 
   it("gives a descriptor with no credential form a bare token field and no guidance", () => {
-    expect(sourceControlProviderInfoFromDescriptor({ id: "plain", label: "Plain" })).toEqual({
+    expect(sourceControlProviderInfoFromDescriptor({ descriptor: { id: "plain", label: "Plain" } })).toEqual({
       id: "plain", label: "Plain", tokenPageUrl: "", scopeGuidanceKey: "", tokenField: "token", fields: [], listed: true,
     });
   });
@@ -123,12 +124,12 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
 
 describe("buildSourceControlConnectionInput", () => {
   it("normalizes a non-default declared token name to the canonical wire token", () => {
-    const info = sourceControlProviderInfoFromDescriptor({ id: "example-access", label: "Example Access", credential: {
+    const info = sourceControlProviderInfoFromDescriptor({ descriptor: { id: "example-access", label: "Example Access", credential: {
       tokenField: "accessToken", fields: [
         { name: "accessToken", label: "Access token", secret: true, required: true },
         { name: "username", label: "Username", required: true },
       ],
-    } });
+    } } });
     const connection = buildSourceControlConnectionInput({ fields: { providerId: info.id, token: " selected-secret ", values: { username: " operator ", accessToken: "stray-secret" } }, declaredFields: info.fields });
     expect(connection).toEqual({ providerId: "example-access", token: " selected-secret ", username: "operator" });
   });
@@ -210,26 +211,26 @@ describe("sourceControlCredentialsForProvider / defaultSourceControlCredentialFo
 
 describe("classifySourceControlCredentialSubmitError", () => {
   it("classifies a non-ApiError as generic", () => {
-    expect(classifySourceControlCredentialSubmitError({ e: new Error("boom") })).toEqual({ kind: "generic" });
+    expect(classifySourceControlCredentialSubmitError({ classifyCredentialSubmitError, e: new Error("boom") })).toEqual({ kind: "generic" });
   });
 
   it("classifies a DUPLICATE_LABEL code as duplicate-label", () => {
     const err = new ApiError({ message: "dup", status: 409 }, { code: "DUPLICATE_LABEL" });
-    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "duplicate-label" });
+    expect(classifySourceControlCredentialSubmitError({ classifyCredentialSubmitError, e: err })).toEqual({ kind: "duplicate-label" });
   });
 
   it("classifies a VALIDATION code, carrying the body's detail text", () => {
     const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } });
-    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "token is required" });
+    expect(classifySourceControlCredentialSubmitError({ classifyCredentialSubmitError, e: err })).toEqual({ kind: "validation", detail: "token is required" });
   });
 
   it("falls back to the message as detail when a VALIDATION error carries no body.detail", () => {
     const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION" });
-    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "bad request" });
+    expect(classifySourceControlCredentialSubmitError({ classifyCredentialSubmitError, e: err })).toEqual({ kind: "validation", detail: "bad request" });
   });
 
   it("classifies any other ApiError as generic", () => {
     const err = new ApiError({ message: "server exploded", status: 500 });
-    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "generic" });
+    expect(classifySourceControlCredentialSubmitError({ classifyCredentialSubmitError, e: err })).toEqual({ kind: "generic" });
   });
 });

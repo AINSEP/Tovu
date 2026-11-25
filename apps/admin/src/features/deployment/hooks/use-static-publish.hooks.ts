@@ -18,7 +18,7 @@ import {
   staticPublishProjectNameCopy,
   staticPublishProjectNameToSend,
   type StaticPublishProjectNameCopy,
-} from "../rules";
+} from "@jini-ai/devops/deploy/react/rules";
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "@jini-ai/core/contracts/site/deployment-admin";
 

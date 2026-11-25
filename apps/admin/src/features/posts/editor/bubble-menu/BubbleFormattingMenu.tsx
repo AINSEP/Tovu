@@ -3,7 +3,7 @@ import { useEditorState, type Editor } from "@tiptap/react";
 import type { Translate } from "@jini-ai/core/text";
 
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
-import type { PostUrlDialogController } from "../../hooks/use-post-url-dialog.hooks";
+import type { PostUrlDialogController } from "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks";
 import { toolbarBtnClass } from "../../rules";
 import { probeBubbleMenu } from "./bubble-menu-state";
 

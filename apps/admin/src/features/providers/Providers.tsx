@@ -1,3 +1,6 @@
+import { routinesKit } from "@/integrations/jini-kits";
+import { ServerLabel } from "@/components/status-labels";
+import { actionsForWebhookLabel, deleteWebhookBody } from "@jini-ai/admin/screens/integrations/integrations-i18n";
 import { navigateProvidersTab } from "@jini-ai/admin/screens/providers/Providers.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
@@ -12,8 +15,8 @@ import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
 import { AlwaysAllowPanel } from "@jini-ai/admin/screens/providers/AlwaysAllowPanel";
 import "@jini-ai/admin/screens/providers/always-allow.css";
 import { useWiredAlwaysAllow } from "./hooks/use-always-allow.hooks";
-import { Integrations } from "../integrations/Integrations";
-import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
+import { Integrations } from "@jini-ai/integrations/react/webhooks/Integrations";
+import { useWiredIntegrations } from "../integrations/hooks/integrations-dependencies.hooks";
 import { tProviders as t, tIntegrations } from "../../lib/i18n-common";
 import { useProviders, type ProvidersController as JiniProvidersController } from "@jini-ai/admin/screens/providers/hooks/use-providers.hooks";
 import { useExternalMcp, type ExternalMcpController } from "../settings/hooks/use-external-mcp.hooks";
@@ -318,7 +321,7 @@ function ProvidersView(props: ProvidersProps & {
             label={tIntegrations({ locale: locale, key: "Coming soon" })}
             note={tIntegrations({ locale: locale, key: "Webhooks can't fire yet — nothing here is wired up." })}
           >
-            <Integrations useIntegrationsHook={props.useIntegrationsHook} />
+            <Integrations useIntegrationsHook={props.useIntegrationsHook ?? useWiredIntegrations} kit={routinesKit} ServerLabel={ServerLabel} translate={tIntegrations} actionsForWebhookLabel={actionsForWebhookLabel} deleteWebhookBody={deleteWebhookBody} />
           </ComingSoonPanel>
         ) : null}
       </div>

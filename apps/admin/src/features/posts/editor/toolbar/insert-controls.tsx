@@ -4,7 +4,7 @@ import type { Translate } from "@jini-ai/core/text";
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
 import { EmbedInsertControl } from "../../../../components/EmbedInsertControl/EmbedInsertControl";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
-import type { PostUrlDialogController } from "../../hooks/use-post-url-dialog.hooks";
+import type { PostUrlDialogController } from "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks";
 
 /** Insertion controls: embed, image/YouTube by URL, and mentioning another post. Tovu CMS code (it
  *  reads `AdminPost`), not a generic formatting control. */

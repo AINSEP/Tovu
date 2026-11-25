@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Deployment } from "../Deployment";
+import { Deployment } from "@/features/deployment/deployment-panel";
 
 /**
  * @file `Deployment` — the five-tab shell. Mounts through the REAL wired hooks (unlike

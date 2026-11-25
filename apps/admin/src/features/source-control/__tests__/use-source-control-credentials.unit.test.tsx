@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { useSourceControlCredentials, useWiredSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
+import { useSourceControlCredentials, useWiredSourceControlCredentials } from "@/features/source-control/hooks/source-control-credentials-dependencies.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
 import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";

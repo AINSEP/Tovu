@@ -1,7 +1,7 @@
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
-import { useSkillFiles } from "../use-skill-files.hooks";
+import { useSkillFiles } from "../skills-host.hooks";
 import type { SkillFiles } from "../api";
 import { t as translateSkills } from "@jini-ai/admin/screens/skills/skills-i18n";
 

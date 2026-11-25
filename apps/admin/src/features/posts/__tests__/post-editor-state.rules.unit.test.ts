@@ -1,3 +1,4 @@
+import { isoToLocalDateTimeInput, localDateTimeInputToIso, postSlugForTitle, postSlugFollowsTitle, isScheduledPost } from "../rules";
 import { describe, expect, it } from "vitest";
 
 import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
@@ -9,8 +10,7 @@ import {
   resolveActivePostTheme,
   resolveEditorSlug,
   savedHideCoverImageInBody,
-} from "../hooks/post-editor-state.rules";
-import { isoToLocalDateTimeInput, localDateTimeInputToIso } from "../rules";
+} from "@jini-ai/cms/react/posts/hooks/post-editor-state.rules";
 
 /**
  * @file Pure load/render derivations `usePostEditor` reads (`post-editor-state.rules.ts`). The hook's
@@ -38,16 +38,16 @@ function settings(activeThemeId: string): PresentationSettings {
 
 describe("resolveActivePostTheme", () => {
   it("reads tier and apiVersion from the theme whose id is active", () => {
-    const resolved = resolveActivePostTheme({
+    const resolved = resolveActivePostTheme({ presentation: {
       settings: settings("basic"),
       availableThemes: [{ id: "other", tier: "code" }, { id: "basic", tier: "static", apiVersion: 2 }] satisfies AdminThemeSummary[],
-    });
+    } });
 
     expect(resolved).toEqual({ activeThemeId: "basic", activeThemeTier: "static", activeThemeApiVersion: 2 });
   });
 
   it("reports an active theme missing from availableThemes as unknown tier and v1", () => {
-    const resolved = resolveActivePostTheme({ settings: settings("gone"), availableThemes: [{ id: "basic", tier: "static", apiVersion: 2 }] });
+    const resolved = resolveActivePostTheme({ presentation: { settings: settings("gone"), availableThemes: [{ id: "basic", tier: "static", apiVersion: 2 }] } });
 
     expect(resolved).toEqual({ activeThemeId: "gone", activeThemeTier: null, activeThemeApiVersion: undefined });
   });
@@ -55,36 +55,36 @@ describe("resolveActivePostTheme", () => {
 
 describe("savedHideCoverImageInBody", () => {
   it("is true when the row stores no presentation setting", () => {
-    expect(savedHideCoverImageInBody({ ext: undefined })).toBe(true);
+    expect(savedHideCoverImageInBody({ post: { ext: undefined } })).toBe(true);
   });
 
   it("is true when the presentation extension exists without the flag", () => {
-    expect(savedHideCoverImageInBody({ ext: { "post-presentation": {} } })).toBe(true);
+    expect(savedHideCoverImageInBody({ post: { ext: { "post-presentation": {} } } })).toBe(true);
   });
 
   it("is false only when the row explicitly stored false", () => {
-    expect(savedHideCoverImageInBody({ ext: { "post-presentation": { hideCoverImageInBody: false } } })).toBe(false);
+    expect(savedHideCoverImageInBody({ post: { ext: { "post-presentation": { hideCoverImageInBody: false } } } })).toBe(false);
   });
 });
 
 describe("loadedPostForm", () => {
   it("defaults an unset template to the theme's first template", () => {
-    expect(loadedPostForm({ post: POST, activeThemeTemplates: ["a.html", "b.html"] }).templateChoice).toBe("a.html");
+    expect(loadedPostForm({ isoToLocalDateTimeInput, localDateTimeInputToIso, post: POST, activeThemeTemplates: ["a.html", "b.html"] }).templateChoice).toBe("a.html");
   });
 
   it("leaves an unset template unset when the theme offers none", () => {
-    expect(loadedPostForm({ post: POST, activeThemeTemplates: [] }).templateChoice).toBeNull();
+    expect(loadedPostForm({ isoToLocalDateTimeInput, localDateTimeInputToIso, post: POST, activeThemeTemplates: [] }).templateChoice).toBeNull();
   });
 
   it("keeps a saved template choice over the theme default", () => {
-    expect(loadedPostForm({ post: { ...POST, templateChoice: "b.html" }, activeThemeTemplates: ["a.html"] }).templateChoice).toBe("b.html");
+    expect(loadedPostForm({ isoToLocalDateTimeInput, localDateTimeInputToIso, post: { ...POST, templateChoice: "b.html" }, activeThemeTemplates: ["a.html"] }).templateChoice).toBe("b.html");
   });
 
   it("normalizes absent optional fields to their undecided/empty defaults", () => {
     // A pre-feature fixture: no `overridesThemePage` key at all.
     const { overridesThemePage: _absent, ...legacy } = POST;
 
-    expect(loadedPostForm({ post: legacy, activeThemeTemplates: [] })).toEqual({
+    expect(loadedPostForm({ isoToLocalDateTimeInput, localDateTimeInputToIso, post: legacy, activeThemeTemplates: [] })).toEqual({
       title: "Hello World",
       slug: "hello-world",
       status: "draft",
@@ -109,7 +109,7 @@ describe("loadedPostForm", () => {
       ext: { "post-presentation": { hideCoverImageInBody: false } },
     };
 
-    expect(loadedPostForm({ post: stored, activeThemeTemplates: [] })).toMatchObject({
+    expect(loadedPostForm({ isoToLocalDateTimeInput, localDateTimeInputToIso, post: stored, activeThemeTemplates: [] })).toMatchObject({
       overridesThemePage: true,
       publishAt: localDateTimeInputToIso({ value: isoToLocalDateTimeInput({ iso: "2026-11-01T10:15:42.000Z" }) }),
       featuredMediaId: "m1",
@@ -136,13 +136,13 @@ describe("postFormSnapshot", () => {
 
 describe("resolveEditorSlug", () => {
   it("shows the stored slug before any row has loaded", () => {
-    expect(resolveEditorSlug({ post: null, title: "New", storedSlug: "", slugEdited: false })).toEqual({ followsTitle: false, slug: "" });
+    expect(resolveEditorSlug({ postSlugForTitle, postSlugFollowsTitle, post: null, title: "New", storedSlug: "", slugEdited: false })).toEqual({ followsTitle: false, slug: "" });
   });
 
   it("derives the slug from a changed title while the slug still follows it", () => {
     const untitled = { ...POST, title: "", slug: "untitled", everPublished: false };
 
-    expect(resolveEditorSlug({ post: untitled, title: "My First Post", storedSlug: "untitled", slugEdited: false })).toEqual({
+    expect(resolveEditorSlug({ postSlugForTitle, postSlugFollowsTitle, post: untitled, title: "My First Post", storedSlug: "untitled", slugEdited: false })).toEqual({
       followsTitle: true,
       slug: "my-first-post",
     });
@@ -151,13 +151,13 @@ describe("resolveEditorSlug", () => {
   it("keeps the stored slug while the followed title is unchanged", () => {
     const untitled = { ...POST, title: "", slug: "untitled", everPublished: false };
 
-    expect(resolveEditorSlug({ post: untitled, title: "", storedSlug: "untitled", slugEdited: false })).toEqual({ followsTitle: true, slug: "untitled" });
+    expect(resolveEditorSlug({ postSlugForTitle, postSlugFollowsTitle, post: untitled, title: "", storedSlug: "untitled", slugEdited: false })).toEqual({ followsTitle: true, slug: "untitled" });
   });
 
   it("stops following once the operator edits the slug by hand", () => {
     const untitled = { ...POST, title: "", slug: "untitled", everPublished: false };
 
-    expect(resolveEditorSlug({ post: untitled, title: "Renamed", storedSlug: "manual", slugEdited: true })).toEqual({ followsTitle: false, slug: "manual" });
+    expect(resolveEditorSlug({ postSlugForTitle, postSlugFollowsTitle, post: untitled, title: "Renamed", storedSlug: "manual", slugEdited: true })).toEqual({ followsTitle: false, slug: "manual" });
   });
 });
 
@@ -165,13 +165,13 @@ describe("loadedPostHandles", () => {
   const NOW = Date.parse("2026-10-20T00:00:00.000Z");
 
   it("targets the route segment and has no preview target before a row loads", () => {
-    expect(loadedPostHandles({ post: null, postId: "hello-world", nowMs: NOW })).toEqual({
+    expect(loadedPostHandles({ isScheduledPost, post: null, postId: "hello-world", nowMs: NOW })).toEqual({
       entryId: "hello-world", loadedId: null, scheduled: false, previewFormTarget: "",
     });
   });
 
   it("targets the loaded row's id once it has loaded", () => {
-    expect(loadedPostHandles({ post: POST, postId: "hello-world", nowMs: NOW })).toEqual({
+    expect(loadedPostHandles({ isScheduledPost, post: POST, postId: "hello-world", nowMs: NOW })).toEqual({
       entryId: "p1", loadedId: "p1", scheduled: false, previewFormTarget: "post-preview-pending-p1",
     });
   });
@@ -179,6 +179,6 @@ describe("loadedPostHandles", () => {
   it("reports a published row whose go-live time is still ahead as scheduled", () => {
     const future = { ...POST, status: "published" as const, publishAt: "2026-12-01T00:00:00.000Z" };
 
-    expect(loadedPostHandles({ post: future, postId: "p1", nowMs: NOW }).scheduled).toBe(true);
+    expect(loadedPostHandles({ isScheduledPost, post: future, postId: "p1", nowMs: NOW }).scheduled).toBe(true);
   });
 });

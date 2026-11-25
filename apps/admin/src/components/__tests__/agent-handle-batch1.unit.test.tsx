@@ -1,3 +1,5 @@
+import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
+import { resolveByokFooterStatusLine } from "@/hooks/use-admin-execution-credential.hooks";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -5,7 +7,7 @@ import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 
 import { ImagePreviewModal, InfoTip, SeeMore } from "@jini-ai/ui/admin-widgets";
 import { Select, type SelectOption } from "../Select/Select";
-import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../AdminByokKeyPanel";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "@jini-ai/integrations/react/admin-credentials/AdminByokKeyPanel";
 import { ComingSoonNotice, Placeholder } from "../Placeholder";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";
 
@@ -172,13 +174,13 @@ describe("ImagePreviewModal agentHandle", () => {
 
 describe("AdminByokMigrationPrompt agentHandle", () => {
   it("omits data-agent-* on both buttons when agentHandle is not passed", () => {
-    render(<AdminByokMigrationPrompt controller={controller({ legacyKey: "sk-legacy" })} />);
+    render(<AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocaleHook} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ legacyKey: "sk-legacy" })} />);
     expect(screen.getByRole("button", { name: /save to my account/i })).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByRole("button", { name: /not now/i })).not.toHaveAttribute(AGENT_ELEMENT);
   });
 
   it("derives distinct -save/-dismiss sub-handles from the one base the caller supplies", () => {
-    render(<AdminByokMigrationPrompt controller={controller({ legacyKey: "sk-legacy" })} agentHandle="byok-migration" />);
+    render(<AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocaleHook} createTranslator={createAdminByokKeyPanelTranslator} controller={controller({ legacyKey: "sk-legacy" })} agentHandle="byok-migration" />);
     expect(screen.getByRole("button", { name: /save to my account/i })).toHaveAttribute(AGENT_ELEMENT, "byok-migration-save");
     expect(screen.getByRole("button", { name: /not now/i })).toHaveAttribute(AGENT_ELEMENT, "byok-migration-dismiss");
   });
@@ -186,12 +188,12 @@ describe("AdminByokMigrationPrompt agentHandle", () => {
 
 describe("AdminByokKeyFooter agentHandle", () => {
   it("omits data-agent-* on the Save key button when agentHandle is not passed", () => {
-    render(<AdminByokKeyFooter controller={controller()} />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocaleHook} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller()} />);
     expect(screen.getByRole("button", { name: /save key/i })).not.toHaveAttribute(AGENT_ELEMENT);
   });
 
   it("publishes the single Save key button directly under the caller's base handle (no suffix)", () => {
-    render(<AdminByokKeyFooter controller={controller()} agentHandle="byok-footer" />);
+    render(<AdminByokKeyFooter useAdminLocaleHook={useAdminLocaleHook} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveByokFooterStatusLine} controller={controller()} agentHandle="byok-footer" />);
     expect(screen.getByRole("button", { name: /save key/i })).toHaveAttribute(AGENT_ELEMENT, "byok-footer");
   });
 });
@@ -203,12 +205,12 @@ describe("AdminByokKeyFooter agentHandle", () => {
  */
 describe("AdminByokSettingsFooter agentHandle", () => {
   it("omits data-agent-* on the Save settings button when agentHandle is not passed", () => {
-    render(<AdminByokSettingsFooter controller={controller()} />);
+    render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocaleHook} createTranslator={createAdminByokKeyPanelTranslator} controller={controller()} />);
     expect(screen.getByRole("button", { name: /save settings/i })).not.toHaveAttribute(AGENT_ELEMENT);
   });
 
   it("publishes the single Save settings button directly under the caller's base handle (no suffix)", () => {
-    render(<AdminByokSettingsFooter controller={controller()} agentHandle="byok-settings-footer" />);
+    render(<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocaleHook} createTranslator={createAdminByokKeyPanelTranslator} controller={controller()} agentHandle="byok-settings-footer" />);
     expect(screen.getByRole("button", { name: /save settings/i })).toHaveAttribute(AGENT_ELEMENT, "byok-settings-footer");
   });
 });

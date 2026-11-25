@@ -1,6 +1,12 @@
+import { useIntegrations, type IntegrationsController } from "@jini-ai/integrations/react/webhooks/hooks/use-integrations.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { tIntegrations as defaultT } from "@/lib/i18n-common";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { integrationsApi } from "@/features/integrations/integrations-host-ports";
-import type { IntegrationsPort } from "@jini-ai/admin/screens/integrations/integrations-ports";
+import type { IntegrationsPort } from "@jini-ai/integrations/react/webhooks/hooks/use-integrations.hooks";
 
 /**
  * @file The only place under `features/integrations/hooks` that reaches `lib/api` for
@@ -73,4 +79,19 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
       return { subscription: removed };
     },
   };
+}
+
+/**
+ * Binds the real `/api/.../integrations/subscriptions` client, and a `t` bound to the real
+ * resolved locale (`useAdminLocale()`, called here and ONLY here — see this file's header) — see
+ * `integrations-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Integrations.tsx`
+ * composes this and a test composes {@link useIntegrations} with `createFakeIntegrationsPort` and
+ * a fake `t`/`locale`.
+ */
+export function useWiredIntegrations(): IntegrationsController {
+  const locale = useAdminLocale();
+  const t = ({ key }: { key: string }, _optional = {}): string => defaultT({ locale, key });
+  return useIntegrations({ port: defaultIntegrationsPort, t: t, locale: locale, queryHooks: { useFetchQuery, useFetchMutation, useInvalidate }, useContentRefreshSubscriptionHook: useContentRefreshSubscription, describeApiError, translate: defaultT });
 }

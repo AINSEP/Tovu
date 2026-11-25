@@ -1,7 +1,8 @@
+import { readApiRefusal } from "../hooks/site-key-dependencies.hooks";
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "@/lib/admin-http/request";
-import { classifySiteKeyGenerateError } from "../hooks/use-site-key.hooks";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+import { classifySiteKeyGenerateError } from "@jini-ai/integrations/react/site-key/hooks/use-site-key.hooks";
 
 /**
  * @file `classifySiteKeyGenerateError` against the refusals `POST .../site-key/generate` sends
@@ -19,32 +20,32 @@ function refusal(code: string, detail: string): ApiError {
 describe("classifySiteKeyGenerateError", () => {
   it("KEY_DEPENDENT_DATA → 'locked', carrying the server's own words", () => {
     const detail = "This site has saved credentials locked with a site key that is not on this computer.";
-    expect(classifySiteKeyGenerateError({ e: refusal("KEY_DEPENDENT_DATA", detail), t })).toEqual({ kind: "locked", code: "KEY_DEPENDENT_DATA", detail });
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: refusal("KEY_DEPENDENT_DATA", detail), t })).toEqual({ kind: "locked", code: "KEY_DEPENDENT_DATA", detail });
   });
 
   it("KEY_MISMATCH → 'locked'", () => {
     const detail = "The site key on this computer is not the one this site's saved credentials were locked with.";
-    expect(classifySiteKeyGenerateError({ e: refusal("KEY_MISMATCH", detail), t })).toEqual({ kind: "locked", code: "KEY_MISMATCH", detail });
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: refusal("KEY_MISMATCH", detail), t })).toEqual({ kind: "locked", code: "KEY_MISMATCH", detail });
   });
 
   it("KEY_INVALID and SITE_META_UNREADABLE → 'refused', carrying the server's own words", () => {
-    expect(classifySiteKeyGenerateError({ e: refusal("KEY_INVALID", "not a valid key"), t })).toEqual({ kind: "refused", code: "KEY_INVALID", detail: "not a valid key" });
-    expect(classifySiteKeyGenerateError({ e: refusal("SITE_META_UNREADABLE", "cannot be read"), t })).toEqual({ kind: "refused", code: "SITE_META_UNREADABLE", detail: "cannot be read" });
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: refusal("KEY_INVALID", "not a valid key"), t })).toEqual({ kind: "refused", code: "KEY_INVALID", detail: "not a valid key" });
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: refusal("SITE_META_UNREADABLE", "cannot be read"), t })).toEqual({ kind: "refused", code: "SITE_META_UNREADABLE", detail: "cannot be read" });
   });
 
   it("ALREADY_EXISTS (a production race) → 'already-exists'", () => {
-    expect(classifySiteKeyGenerateError({ e: refusal("ALREADY_EXISTS", "exists"), t })).toEqual({ kind: "already-exists" });
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: refusal("ALREADY_EXISTS", "exists"), t })).toEqual({ kind: "already-exists" });
   });
 
   it("ENV_VAR_ACTIVE is no longer a known code → 'generic'", () => {
-    expect(classifySiteKeyGenerateError({ e: new ApiError({ message: "ENV_VAR_ACTIVE", status: 409 }), t }).kind).toBe("generic");
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: new ApiError({ message: "ENV_VAR_ACTIVE", status: 409 }), t }).kind).toBe("generic");
   });
 
   it("a non-ApiError → 'generic'", () => {
-    expect(classifySiteKeyGenerateError({ e: new Error("boom"), t })).toEqual({ kind: "generic", detail: "boom" });
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: new Error("boom"), t })).toEqual({ kind: "generic", detail: "boom" });
   });
 
   it("classifies a null rejection as a generic failure with the unknown-error fallback", () => {
-    expect(classifySiteKeyGenerateError({ e: null, t })).toEqual({ kind: "generic", detail: "unknown error" });
+    expect(classifySiteKeyGenerateError({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, e: null, t })).toEqual({ kind: "generic", detail: "unknown error" });
   });
 });

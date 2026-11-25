@@ -227,7 +227,8 @@ describe("AdminExecutionMode — OpenAI selected while the saved key is Google's
   it("asks for OpenAI's key, hides the Google key's mask, and keeps Test connection disabled", async () => {
     renderWithKeySaved(formOn(OPENAI, "gpt-4o"));
 
-    expect(await screen.findByText(OTHER_PROVIDER_COPY)).toBeInTheDocument();
+    expect(await screen.findByText(OTHER_PROVIDER_COPY, { selector: "p.assistant-save-line" })).toBeInTheDocument();
+    expect(screen.queryByText("Stored on the server, encrypted. Paste a new key to replace it.")).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText("••••mw4w")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Test connection" })).toBeDisabled();
   });

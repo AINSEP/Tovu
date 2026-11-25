@@ -1,3 +1,6 @@
+import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
+import { ApiError } from "@/lib/admin-http/request";
+import { publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { readVersionConflict } from "../../../lib/shell-collaborators";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
@@ -43,6 +46,9 @@ import {
 import {
   buildPostAutosaveDraft,
   isoToLocalDateTimeInput,
+  isScheduledPost,
+  postSlugForTitle,
+  postSlugFollowsTitle,
   localDateTimeInputToIso,
   handleImageDrop,
   titleNodeText,
@@ -55,10 +61,10 @@ import { t as translate } from "../posts-i18n";
 import { t as translatePageEditor } from "../../pages/page-editor-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
-import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMessage, POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure, type SaveStatusOverride } from "./post-editor-messages";
+import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMessage, POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure, type SaveStatusOverride } from "@jini-ai/cms/react/posts/hooks/post-editor-messages";
 import { useLoadedPostApply, type LoadedPostRow } from "./use-loaded-post-apply.hooks";
 import { FILE_HANDLER_ALLOWED_MIME_TYPES, handleFileDrop, handleFilePaste, uploadFailureReporter } from "./post-editor-file-upload";
-import type { PostEditorPort } from "./post-editor-port.hooks";
+import type { PostEditorPort } from "./post-editor-dependencies.hooks";
 import { usePostEditorUi, type PostEditorUiController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import { unchangedSaveHandlers } from "@jini-ai/admin/shell/lib/unchanged-save-warning";
 import {
@@ -67,8 +73,8 @@ import {
   postFormSnapshot,
   resolveActivePostTheme,
   resolveEditorSlug,
-} from "./post-editor-state.rules";
-import { buildPostUpdatePatch, keepNewerEdit, savedPostFields, withEverPublished } from "./post-editor-save.rules";
+} from "@jini-ai/cms/react/posts/hooks/post-editor-state.rules";
+import { buildPostUpdatePatch, keepNewerEdit, savedPostFields, withEverPublished } from "@jini-ai/cms/react/posts/hooks/post-editor-save.rules";
 
 /** A save that also moves the post to this status; `undefined` keeps its current one. */
 
@@ -110,8 +116,7 @@ import { buildPostUpdatePatch, keepNewerEdit, savedPostFields, withEverPublished
 /** What `useDirtyGuard` compares — every field this editor lets an operator change. `bodyJson` is
  *  typed loosely (not TipTap's `JSONContent`) since the guard only ever serializes it for
  *  comparison, never reads its shape. */
-export type { PostFormState } from './post-editor-state.rules';
-import type { PostFormState } from './post-editor-state.rules';
+import type { PostFormState } from "@jini-ai/cms/react/posts/hooks/post-editor-state.rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -421,7 +426,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   const [title, setTitle] = useState("");
   const [storedSlug, setStoredSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
-  const { followsTitle, slug } = resolveEditorSlug({ post, title, storedSlug, slugEdited });
+  const { followsTitle, slug } = resolveEditorSlug({ post, title, storedSlug, slugEdited, postSlugForTitle, postSlugFollowsTitle });
   function setSlug({ value }: { value: string }, _options: Record<string, never> = {}) { setSlugEdited(true); setStoredSlug(value); }
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [templateChoice, setTemplateChoice] = useState<string | null>(null);
@@ -511,7 +516,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // operator renames the slug and saves — see `entryId` below.
   // `entryId`, `loadedId`, `scheduled` and `previewFormTarget` all come from the loaded row — see
   // `loadedPostHandles` (`post-editor-state.rules.ts`) for why writes target the row's id.
-  const { entryId, loadedId, scheduled, previewFormTarget } = loadedPostHandles({ post, postId, nowMs: Date.now() });
+  const { entryId, loadedId, scheduled, previewFormTarget } = loadedPostHandles({ post, postId, nowMs: Date.now(), isScheduledPost });
   // The loaded row only once it exists server-side — a new post's local working copy (id `""`)
   // has no row to autosave against, name to the assistant, refresh or preview yet.
   const savedPost = persistedPost({ post: post });
@@ -690,7 +695,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    *  by the load effect and an external (assistant) write landing while the editor is clean. Only
    *  `useLoadedPostApply` calls it, with the live instance it checked, never one a closure kept. */
   function applyLoadedPost({ post, activeThemeTemplates, liveEditor }: LoadedPostRow & { liveEditor: Editor }, _options: Record<string, never> = {}): void {
-    const form = loadedPostForm({ post, activeThemeTemplates });
+    const form = loadedPostForm({ post, activeThemeTemplates, isoToLocalDateTimeInput, localDateTimeInputToIso });
     // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
     // every post saved before this feature has a `bodyJson` with no `title` node, which the
     // editor's own custom `doc` schema (`content: "title block+"`) would otherwise reject on
@@ -753,7 +758,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
         const { activeThemeTemplates } = presentation;
         setAvailableTemplates(editorTemplateOptions({ templates: activeThemeTemplates, savedTemplate: post.templateChoice }));
         setStaticPageIds(presentation.activeThemeStaticPageIds);
-        const theme = resolveActivePostTheme(presentation);
+        const theme = resolveActivePostTheme({ presentation });
         setActiveThemeId(theme.activeThemeId);
         setActiveThemeTier(theme.activeThemeTier);
         setActiveThemeApiVersion(theme.activeThemeApiVersion);
@@ -769,7 +774,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => {
-        if (!cancelled) setError(reportPostLoadFailure({ error: e, t: t }));
+        if (!cancelled) setError(reportPostLoadFailure({ error: e, t: t, isUnexpectedServerFailure, isApiError: (error): error is ApiError => error instanceof ApiError, publishLocalFailure: publishLocalAdminFailure }));
       });
     return () => { cancelled = true; };
   }, [postId]);
@@ -1012,14 +1017,14 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     bodyJson: Record<string, unknown>;
   }): void {
     const { saved, nextStatus } = outcome;
-    const fields = savedPostFields(saved);
+    const fields = savedPostFields({ saved });
     setPost(withEverPublished({ previous: post, saved }));
     setStoredSlug(keepNewerEdit({ sent: storedSlug, fromSaved: fields.slug }));
     setHideCoverImageInBody(keepNewerEdit({ sent: hideCoverImageInBody, fromSaved: fields.hideCoverImageInBody }));
     setStatus(nextStatus);
     setAuthor(keepNewerEdit({ sent: author, fromSaved: fields.author }));
     setShowAuthor(keepNewerEdit({ sent: showAuthor, fromSaved: fields.showAuthor }));
-    setMessage(formatSaveSuccessMessage({ statusOverride: outcome.statusOverride, saved: saved, t: t }, { expectedVersion: outcome.expectedVersion }));
+    setMessage(formatSaveSuccessMessage({ statusOverride: outcome.statusOverride, saved: saved, t: t, isoToLocalDateTimeInput, isScheduledPost }, { expectedVersion: outcome.expectedVersion }));
     setOriginal({ title, slug: fields.slug, status: nextStatus, bodyJson: outcome.bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: fields.author, showAuthor: fields.showAuthor, hideCoverImageInBody: fields.hideCoverImageInBody });
     // The save can move the slug (it follows the title until first publish, `0e8ca8ac7`, or the
     // operator renamed it) — the old slug in the address bar then 404s on reload or in a new tab.
@@ -1047,7 +1052,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
       setSaveConflict(conflict);
       return;
     }
-    setError(formatSaveErrorMessage({ error: e, statusOverride: statusOverride, t: t }));
+    setError(formatSaveErrorMessage({ error: e, statusOverride: statusOverride, t: t, isUnexpectedServerFailure }));
   }
 
   /**

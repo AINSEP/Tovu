@@ -1,3 +1,7 @@
+import { unsafeOwnerPasswordVar } from "@/features/deployment/deployment-host-policy";
+import { copy } from "@/features/deployment/deployment-host-policy";
+import { envVarNotes } from "@/features/deployment/deployment-host-policy";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import { describe, expect, it } from "vitest";
 
 import type { AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
@@ -32,7 +36,7 @@ import {
   staticPublishFormReadyToPublish,
   staticPublishProjectNameCopy,
   staticPublishProjectNameToSend,
-} from "../rules";
+} from "@jini-ai/devops/deploy/react/rules";
 import { CLOUDFLARE_PAGES_TARGET, GITHUB_PAGES_TARGET, PLAIN_TARGET, PUBLISH_TARGETS, VERCEL_TARGET } from "./publish-targets.fixture";
 
 /**
@@ -52,10 +56,10 @@ describe("runtimeModeLabelKey", () => {
 
 describe("productionGateLabelKey", () => {
   it("reports Passed when the gate applied (production mode, boot already succeeded)", () => {
-    expect(productionGateLabelKey({ applicable: true, passed: true })).toBe("Passed");
+    expect(productionGateLabelKey({ gate: { applicable: true, passed: true } })).toBe("Passed");
   });
   it("reports not-applicable when the gate never ran (local mode) — never a false Passed", () => {
-    expect(productionGateLabelKey({ applicable: false, passed: false })).toBe("Not applicable (local mode)");
+    expect(productionGateLabelKey({ gate: { applicable: false, passed: false } })).toBe("Not applicable (local mode)");
   });
 });
 
@@ -70,24 +74,24 @@ describe("daemonStatusLabelKey", () => {
 
 describe("ownerPasswordLabelKey", () => {
   it("warns when the password is still the default", () => {
-    expect(ownerPasswordLabelKey({ defaultOwnerPasswordUnsafe: true })).toBe("Still the default — set TOVU_ADMIN_PASSWORD.");
+    expect(ownerPasswordLabelKey({ copy, defaultOwnerPasswordUnsafe: true })).toBe("Still the default — set TOVU_ADMIN_PASSWORD.");
   });
   it("confirms when it's been changed", () => {
-    expect(ownerPasswordLabelKey({ defaultOwnerPasswordUnsafe: false })).toBe("Changed from the default.");
+    expect(ownerPasswordLabelKey({ copy, defaultOwnerPasswordUnsafe: false })).toBe("Changed from the default.");
   });
 });
 
 describe("isEnvVarRowUnsafe", () => {
   it("flags an UNSET owner password as unsafe", () => {
-    expect(isEnvVarRowUnsafe({ name: "TOVU_ADMIN_PASSWORD", set: false })).toBe(true);
+    expect(isEnvVarRowUnsafe({ varStatus: { name: "TOVU_ADMIN_PASSWORD", set: false }, unsafeOwnerPasswordVar })).toBe(true);
   });
   it("does not flag a SET owner password", () => {
-    expect(isEnvVarRowUnsafe({ name: "TOVU_ADMIN_PASSWORD", set: true })).toBe(false);
+    expect(isEnvVarRowUnsafe({ varStatus: { name: "TOVU_ADMIN_PASSWORD", set: true }, unsafeOwnerPasswordVar })).toBe(false);
   });
   it("does not flag any other unset var — only the password has a real safety consequence at boot", () => {
-    expect(isEnvVarRowUnsafe({ name: "TOVU_SITE_KEY", set: false })).toBe(false);
-    expect(isEnvVarRowUnsafe({ name: "TOVU_ADMIN_USER", set: false })).toBe(false);
-    expect(isEnvVarRowUnsafe({ name: "JINI_AGENT_DAEMON_PORT", set: false })).toBe(false);
+    expect(isEnvVarRowUnsafe({ varStatus: { name: "TOVU_SITE_KEY", set: false }, unsafeOwnerPasswordVar })).toBe(false);
+    expect(isEnvVarRowUnsafe({ varStatus: { name: "TOVU_ADMIN_USER", set: false }, unsafeOwnerPasswordVar })).toBe(false);
+    expect(isEnvVarRowUnsafe({ varStatus: { name: "JINI_AGENT_DAEMON_PORT", set: false }, unsafeOwnerPasswordVar })).toBe(false);
   });
 });
 
@@ -95,18 +99,18 @@ describe("isEnvVarRowUnsafe", () => {
 // file; the row must say which, and a malformed key must read as a warning, not a neutral "Not set".
 describe("envVarStatusLabelKey / isEnvVarRowUnsafe — site key source and validity", () => {
   it("labels a site key resolved from the generated key file", () => {
-    expect(envVarStatusLabelKey({ name: "TOVU_SITE_KEY", set: true, source: "file" })).toBe("Set (generated key file)");
+    expect(envVarStatusLabelKey({ varStatus: { name: "TOVU_SITE_KEY", set: true, source: "file" } })).toBe("Set (generated key file)");
   });
   it("labels a site key from the env var as plain Set", () => {
-    expect(envVarStatusLabelKey({ name: "TOVU_SITE_KEY", set: true, source: "env" })).toBe("Set");
+    expect(envVarStatusLabelKey({ varStatus: { name: "TOVU_SITE_KEY", set: true, source: "env" } })).toBe("Set");
   });
   it("labels malformed site key material as invalid, and flags the row unsafe", () => {
     const row = { name: "TOVU_SITE_KEY", set: false, source: "env" as const, invalid: true as const };
-    expect(envVarStatusLabelKey(row)).toBe("Invalid — the keyring rejects it");
-    expect(isEnvVarRowUnsafe(row)).toBe(true);
+    expect(envVarStatusLabelKey({ varStatus: row })).toBe("Invalid — the keyring rejects it");
+    expect(isEnvVarRowUnsafe({ varStatus: row, unsafeOwnerPasswordVar })).toBe(true);
   });
   it("labels an absent var Not set", () => {
-    expect(envVarStatusLabelKey({ name: "TOVU_ADMIN_USER", set: false })).toBe("Not set");
+    expect(envVarStatusLabelKey({ varStatus: { name: "TOVU_ADMIN_USER", set: false } })).toBe("Not set");
   });
 });
 
@@ -115,35 +119,35 @@ describe("envVarStatusLabelKey / isEnvVarRowUnsafe — site key source and valid
 describe("credentialVerifyStatusClass", () => {
   const checkedAt = "2026-09-24T00:00:00.000Z";
   it("styles a valid verdict as ok", () => {
-    expect(credentialVerifyStatusClass({ verifyError: null, verification: { status: "valid", message: "ok", checkedAt } })).toBe("save-ok");
+    expect(credentialVerifyStatusClass({ row: { verifyError: null, verification: { status: "valid", message: "ok", checkedAt } } })).toBe("save-ok");
   });
   it("styles an unreachable verdict as a warning, not ok", () => {
-    expect(credentialVerifyStatusClass({ verifyError: null, verification: { status: "unreachable", message: "x", checkedAt } })).toBe("save-warning");
+    expect(credentialVerifyStatusClass({ row: { verifyError: null, verification: { status: "unreachable", message: "x", checkedAt } } })).toBe("save-warning");
   });
   it("styles an invalid verdict and a request failure as errors", () => {
-    expect(credentialVerifyStatusClass({ verifyError: null, verification: { status: "invalid", message: "x", checkedAt } })).toBe("save-error");
-    expect(credentialVerifyStatusClass({ verifyError: "network down", verification: undefined })).toBe("save-error");
+    expect(credentialVerifyStatusClass({ row: { verifyError: null, verification: { status: "invalid", message: "x", checkedAt } } })).toBe("save-error");
+    expect(credentialVerifyStatusClass({ row: { verifyError: "network down", verification: undefined } })).toBe("save-error");
   });
 });
 
 describe("deploymentEnvVarNoteKey", () => {
   it("returns a distinct note per known var", () => {
     const names = ["TOVU_ADMIN_PASSWORD", "TOVU_ADMIN_USER", "TOVU_SITE_KEY", "JINI_AGENT_DAEMON_PORT"];
-    const notes = names.map((name) => deploymentEnvVarNoteKey({ name }));
+    const notes = names.map((name) => deploymentEnvVarNoteKey({ envVarNotes, name }));
     expect(new Set(notes).size).toBe(names.length);
     expect(notes.every((n) => n.length > 0)).toBe(true);
-    expect(deploymentEnvVarNoteKey({ name: "TOVU_ADMIN_PASSWORD" })).toBe("Falls back to a public default.");
-    expect(deploymentEnvVarNoteKey({ name: "TOVU_ADMIN_USER" })).toBe('Falls back to "admin".');
-    expect(deploymentEnvVarNoteKey({ name: "JINI_AGENT_DAEMON_PORT" })).toBe("Falls back to port 4319.");
+    expect(deploymentEnvVarNoteKey({ envVarNotes, name: "TOVU_ADMIN_PASSWORD" })).toBe("Falls back to a public default.");
+    expect(deploymentEnvVarNoteKey({ envVarNotes, name: "TOVU_ADMIN_USER" })).toBe('Falls back to "admin".');
+    expect(deploymentEnvVarNoteKey({ envVarNotes, name: "JINI_AGENT_DAEMON_PORT" })).toBe("Falls back to port 4319.");
   });
 
   it("states the integrations Site key is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
-    expect(deploymentEnvVarNoteKey({ name: "TOVU_SITE_KEY" })).toMatch(/required to boot in production/i);
-    expect(deploymentEnvVarNoteKey({ name: "TOVU_SITE_KEY" })).toMatch(/503/);
+    expect(deploymentEnvVarNoteKey({ envVarNotes, name: "TOVU_SITE_KEY" })).toMatch(/required to boot in production/i);
+    expect(deploymentEnvVarNoteKey({ envVarNotes, name: "TOVU_SITE_KEY" })).toMatch(/503/);
   });
 
   it("returns an empty string for an unrecognized name rather than throwing or fabricating a note", () => {
-    expect(deploymentEnvVarNoteKey({ name: "SOME_UNKNOWN_VAR" })).toBe("");
+    expect(deploymentEnvVarNoteKey({ envVarNotes, name: "SOME_UNKNOWN_VAR" })).toBe("");
   });
 });
 
@@ -267,16 +271,16 @@ describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
   const spec = CLOUDFLARE_PAGES_TARGET.credential!;
 
   it("needs a non-blank token plus every required credential field", () => {
-    expect(credentialFormReadyToSave(spec, {})).toBe(false);
-    expect(credentialFormReadyToSave(spec, { token: "tok" })).toBe(false);
-    expect(credentialFormReadyToSave(spec, { token: " ", accountId: "acct" })).toBe(false);
-    expect(credentialFormReadyToSave(spec, { token: "tok", accountId: "acct" })).toBe(true);
+    expect(credentialFormReadyToSave({ spec: spec, values: {} })).toBe(false);
+    expect(credentialFormReadyToSave({ spec: spec, values: { token: "tok" } })).toBe(false);
+    expect(credentialFormReadyToSave({ spec: spec, values: { token: " ", accountId: "acct" } })).toBe(false);
+    expect(credentialFormReadyToSave({ spec: spec, values: { token: "tok", accountId: "acct" } })).toBe(true);
   });
 
   it("reads the token from the descriptor's tokenField, whatever it is named", () => {
     const keyed = { tokenField: "secretKey", fields: [{ name: "secretKey", label: "Secret key", required: true }] };
-    expect(credentialFormReadyToSave(keyed, { secretKey: "s" })).toBe(true);
-    expect(credentialFormReadyToSave(keyed, { token: "s" })).toBe(false);
+    expect(credentialFormReadyToSave({ spec: keyed, values: { secretKey: "s" } })).toBe(true);
+    expect(credentialFormReadyToSave({ spec: keyed, values: { token: "s" } })).toBe(false);
   });
 
   it("builds the connection from declared fields only, trimming ordinary fields and preserving the token for store validation", () => {
@@ -297,18 +301,18 @@ describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
 
 describe("agent handle ids", () => {
   it("keeps the ids agent tooling already uses for config and credential inputs", () => {
-    expect(publishConfigFieldHandleId({ fieldName: "owner" })).toBe("deployment-static-site-publish-owner");
-    expect(publishConfigFieldHandleId({ fieldName: "teamId" })).toBe("deployment-static-site-publish-team");
-    expect(credentialFieldHandleId({ providerId: "host", fieldName: "token", tokenField: "token" })).toBe("deployment-static-site-credentials-token-host");
-    expect(credentialFieldHandleId({ providerId: "host", fieldName: "accountId", tokenField: "token" })).toBe("deployment-static-site-credentials-account-host");
-    expect(credentialFieldHandleId({ providerId: "host", fieldName: "region", tokenField: "secretKey" })).toBe("deployment-static-site-credentials-region-host");
+    expect(publishConfigFieldHandleId({ asciiSlug, fieldName: "owner" })).toBe("deployment-static-site-publish-owner");
+    expect(publishConfigFieldHandleId({ asciiSlug, fieldName: "teamId" })).toBe("deployment-static-site-publish-team");
+    expect(credentialFieldHandleId({ asciiSlug, providerId: "host", fieldName: "token", tokenField: "token" })).toBe("deployment-static-site-credentials-token-host");
+    expect(credentialFieldHandleId({ asciiSlug, providerId: "host", fieldName: "accountId", tokenField: "token" })).toBe("deployment-static-site-credentials-account-host");
+    expect(credentialFieldHandleId({ asciiSlug, providerId: "host", fieldName: "region", tokenField: "secretKey" })).toBe("deployment-static-site-credentials-region-host");
   });
 
   it("hyphenates a camelCase field name, since agentHandle() throws on capitals and one throw blanks the admin", () => {
     // S3-compatible's `accessKeyId` crashed the Static Site tab on 2026-09-29 (seen in the browser).
-    expect(credentialFieldHandleId({ providerId: "s3-compatible", fieldName: "accessKeyId", tokenField: "secretAccessKey" })).toBe("deployment-static-site-credentials-access-key-id-s3-compatible");
-    expect(publishConfigFieldHandleId({ fieldName: "basePath" })).toBe("deployment-static-site-publish-base-path");
-    expect(fieldNameHandleSegment({ fieldName: "publicURL" })).toBe("public-url");
+    expect(credentialFieldHandleId({ asciiSlug, providerId: "s3-compatible", fieldName: "accessKeyId", tokenField: "secretAccessKey" })).toBe("deployment-static-site-credentials-access-key-id-s3-compatible");
+    expect(publishConfigFieldHandleId({ asciiSlug, fieldName: "basePath" })).toBe("deployment-static-site-publish-base-path");
+    expect(fieldNameHandleSegment({ asciiSlug, fieldName: "publicURL" })).toBe("public-url");
   });
 });
 
@@ -316,22 +320,22 @@ describe("credentialNoun / credentialStepSubtitle", () => {
   const spec = (label: string) => ({ tokenField: "token", fields: [{ name: "token", label, required: true, secret: true as const }] });
 
   it("names the host's own credential mid-sentence, keeping a leading acronym", () => {
-    expect(credentialNoun(spec("API token"))).toBe("API token");
-    expect(credentialNoun(spec("Secret access key"))).toBe("secret access key");
-    expect(credentialNoun({ tokenField: "token", fields: [] })).toBe("access token");
+    expect(credentialNoun({ credential: spec("API token") })).toBe("API token");
+    expect(credentialNoun({ credential: spec("Secret access key") })).toBe("secret access key");
+    expect(credentialNoun({ credential: { tokenField: "token", fields: [] } })).toBe("access token");
   });
 
   it("says 'Save your <credential>' unless the workspace cannot reach a terminal", () => {
     const identity = (key: string) => key;
-    expect(credentialStepSubtitle({ executionMode: "self-hosted-cli", credential: spec("API token"), translate: identity })).toBe("Save your API token so Tovu can publish on your behalf.");
-    expect(credentialStepSubtitle({ executionMode: "hosted-api-only", credential: spec("API token"), translate: identity })).toBe(
+    expect(credentialStepSubtitle({ copy, executionMode: "self-hosted-cli", credential: spec("API token"), translate: identity })).toBe("Save your API token so Tovu can publish on your behalf.");
+    expect(credentialStepSubtitle({ copy, executionMode: "hosted-api-only", credential: spec("API token"), translate: identity })).toBe(
       "This workspace can't use your computer's terminal — connecting here is the only way to publish."
     );
   });
 
   it("fills the host's credential into a translated template", () => {
     const spanish = (key: string) => (key === "Save your {credential} so Tovu can publish on your behalf." ? "Guarda tu {credential} para que Tovu pueda publicar en tu nombre." : key);
-    expect(credentialStepSubtitle({ executionMode: "self-hosted-cli", credential: spec("Access token"), translate: spanish })).toBe("Guarda tu access token para que Tovu pueda publicar en tu nombre.");
+    expect(credentialStepSubtitle({ copy, executionMode: "self-hosted-cli", credential: spec("Access token"), translate: spanish })).toBe("Guarda tu access token para que Tovu pueda publicar en tu nombre.");
   });
 });
 
@@ -361,8 +365,8 @@ describe("publishTargetById / fieldLabelParts", () => {
   });
 
   it("adds the optional suffix key only to optional fields", () => {
-    expect(fieldLabelParts({ name: "owner", label: "Owner", required: true })).toEqual({ label: "Owner", suffixKey: null });
-    expect(fieldLabelParts({ name: "branch", label: "Branch" })).toEqual({ label: "Branch", suffixKey: "(optional)" });
+    expect(fieldLabelParts({ field: { name: "owner", label: "Owner", required: true } })).toEqual({ label: "Owner", suffixKey: null });
+    expect(fieldLabelParts({ field: { name: "branch", label: "Branch" } })).toEqual({ label: "Branch", suffixKey: "(optional)" });
   });
 });
 

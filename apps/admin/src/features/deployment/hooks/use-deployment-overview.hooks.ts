@@ -1,3 +1,4 @@
+import { useDeploymentOverview as useJiniDeploymentOverview } from "@jini-ai/devops/deploy/react";
 import type { AdminDeploymentOverview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
@@ -34,16 +35,7 @@ export function useDeploymentOverview(
   { port, t, locale }: { port: DeploymentOverviewPort; t: Translate; locale: string },
   _options = {},
 ): DeploymentOverviewController {
-  const query = useFetchQuery({
-    key: ["deployment", "overview"],
-    fetch: () => port.getDeploymentOverview(),
-  });
-
-  const error = query.error
-    ? deploymentOverviewLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) })
-    : null;
-
-  return { snapshot: query.data, error, t };
+  return useJiniDeploymentOverview({ port, t, locale, useFetchQueryHook: useFetchQuery, describeError: ({ error, locale }) => deploymentOverviewLoadErrorMessage({ locale, error: describeApiError({ e: error, fallback: "unknown error" }) }) });
 }
 
 /**

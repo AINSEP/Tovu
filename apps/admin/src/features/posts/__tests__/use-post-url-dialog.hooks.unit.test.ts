@@ -1,6 +1,7 @@
+import { getEmbedUrlFromYoutubeUrl } from "@tiptap/extension-youtube";
 import { act, renderHook } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { usePostUrlDialog, type PostUrlEditorPort } from "../hooks/use-post-url-dialog.hooks";
+import { usePostUrlDialog, type PostUrlEditorPort } from "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks";
 
 // F1: real state/validation, injected command fake, exact URL/alt payloads and no module mocks.
 it("validates URLs, submits the existing commands and cancels without inserting or leaking image state", () => {
@@ -22,7 +23,7 @@ it("validates URLs, submits the existing commands and cancels without inserting 
   let prevented = 0;
   const submit = { preventDefault: () => { prevented += 1; } };
   const afterFocus: Array<() => void> = [];
-  const { result, rerender, unmount } = renderHook(({ editor }) => usePostUrlDialog({ editor }, { afterEditorFocus: (close) => { afterFocus.push(close); } }), {
+  const { result, rerender, unmount } = renderHook(({ editor }) => usePostUrlDialog({ editor, getEmbedUrlFromYoutubeUrl }, { afterEditorFocus: (close) => { afterFocus.push(close); } }), {
     initialProps: { editor: editor as PostUrlEditorPort | null },
   });
   act(() => result.current.openLink(opener));
@@ -68,7 +69,8 @@ it("validates URLs, submits the existing commands and cancels without inserting 
   expect(result.current.alt).toBe("");
   act(() => result.current.changeUrl({ value: "https://example.com/no-alt.png" }));
   act(() => result.current.submit(submit));
-  expect(calls.splice(0)).toEqual([["focus"], ["setImage", { src: "https://example.com/no-alt.png", alt: undefined }], ["run"]]);
+  expect(calls[1]?.[1]).not.toHaveProperty("alt");
+  expect(calls.splice(0)).toEqual([["focus"], ["setImage", { src: "https://example.com/no-alt.png" }], ["run"]]);
   act(() => afterFocus.shift()!());
   expect(calls.splice(0)).toEqual([["focus"], ["run"]]);
   act(() => result.current.openImage(opener));
@@ -124,7 +126,7 @@ it.each([
   ["HTTP://localhost:3000/image.png", ""],
   ["https://[::1]:3000/image.png?size=20#preview", ""],
 ] as const)("validates the exact URL %s with the native parser", (value, error) => {
-  const { result, unmount } = renderHook(() => usePostUrlDialog({ editor: null }));
+  const { result, unmount } = renderHook(() => usePostUrlDialog({ editor: null, getEmbedUrlFromYoutubeUrl }, { afterEditorFocus: close => close() }));
   const button = document.createElement("button");
   act(() => result.current.openImage({ currentTarget: button }));
   expect(result.current.error).toBe("");

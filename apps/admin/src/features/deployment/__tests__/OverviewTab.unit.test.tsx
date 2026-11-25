@@ -1,7 +1,10 @@
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
+import { STATIC_SITE_CAPABILITIES, FULL_SITE_CAPABILITIES, envVarNotes, unsafeOwnerPasswordVar, copy } from "../deployment-host-policy";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { OverviewTab } from "../OverviewTab";
+import { OverviewTab } from "@jini-ai/devops/deploy/react/OverviewTab";
 import type { DeploymentOverviewController } from "../hooks/use-deployment-overview.hooks";
 import type { AdminDeploymentOverview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 
@@ -40,13 +43,13 @@ function controllerFixture(overrides: Partial<DeploymentOverviewController> = {}
 
 describe("loading and error states", () => {
   it("shows a loading notice while snapshot is undefined", () => {
-    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture({ snapshot: undefined })} />);
+    render(<OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON} useDeploymentOverviewHook={() => controllerFixture({ snapshot: undefined })} />);
     expect(screen.getByText("Loading deployment status…")).toBeInTheDocument();
   });
 
   it("shows the error alone when the load failed and nothing has ever loaded", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() => controllerFixture({ snapshot: undefined, error: "network down" })}
       />,
     );
@@ -56,7 +59,7 @@ describe("loading and error states", () => {
 
   it("shows a poll error ALONGSIDE the last-loaded snapshot, rather than blanking it", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() => controllerFixture({ snapshot: snapshotFixture(), error: "poll failed" })}
       />,
     );
@@ -68,7 +71,7 @@ describe("loading and error states", () => {
 describe("real fields, honestly labeled", () => {
   it("renders the runtime mode, gate, daemon, and both filesystem paths verbatim", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() =>
           controllerFixture({
             snapshot: snapshotFixture({
@@ -90,7 +93,7 @@ describe("real fields, honestly labeled", () => {
 
   it("renders a known daemon failure as a warning tone, not the default ok tone", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() => controllerFixture({ snapshot: snapshotFixture({ daemonKnownFailed: true }) })}
       />,
     );
@@ -100,7 +103,7 @@ describe("real fields, honestly labeled", () => {
 
   it("shows the production-readiness gate as not applicable in local mode, never a false Passed", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() =>
           controllerFixture({ snapshot: snapshotFixture({ mode: "local", productionReadinessGate: { applicable: false, passed: false } }) })
         }
@@ -112,7 +115,7 @@ describe("real fields, honestly labeled", () => {
 
   it("renders the default-password row as a warning, distinguishable from the ok tone", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() =>
           controllerFixture({ snapshot: snapshotFixture({ defaultOwnerPasswordUnsafe: true }) })
         }
@@ -124,7 +127,7 @@ describe("real fields, honestly labeled", () => {
 
   it("renders a changed password as the ok tone, not a warning", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() =>
           controllerFixture({ snapshot: snapshotFixture({ defaultOwnerPasswordUnsafe: false }) })
         }
@@ -135,7 +138,7 @@ describe("real fields, honestly labeled", () => {
   });
 
   it("lists all four required env vars with their real set/not-set state, one row each", () => {
-    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture()} />);
+    render(<OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON} useDeploymentOverviewHook={() => controllerFixture()} />);
     expect(screen.getByText("TOVU_ADMIN_PASSWORD")).toBeInTheDocument();
     expect(screen.getByText("TOVU_ADMIN_USER")).toBeInTheDocument();
     expect(screen.getByText("TOVU_SITE_KEY")).toBeInTheDocument();
@@ -156,7 +159,7 @@ describe("real fields, honestly labeled", () => {
 
   it("frames an unset TOVU_SITE_KEY as a warning tone, not the neutral 'not set' every other absent var gets", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() =>
           controllerFixture({
             snapshot: snapshotFixture({
@@ -181,7 +184,7 @@ describe("real fields, honestly labeled", () => {
   });
 
   it("shows a malformed site key as invalid with a warning tone", () => {
-    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture({
+    render(<OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON} useDeploymentOverviewHook={() => controllerFixture({
       snapshot: snapshotFixture({ envVars: [{ name: "TOVU_SITE_KEY", set: false, source: "env", invalid: true }] }),
     })} />);
     const row = screen.getByText("TOVU_SITE_KEY").closest("li")!;
@@ -189,7 +192,7 @@ describe("real fields, honestly labeled", () => {
   });
 
   it("labels a site key resolved from the generated key file", () => {
-    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture({
+    render(<OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON} useDeploymentOverviewHook={() => controllerFixture({
       snapshot: snapshotFixture({ envVars: [{ name: "TOVU_SITE_KEY", set: true, source: "file" }] }),
     })} />);
     const row = screen.getByText("TOVU_SITE_KEY").closest("li")!;
@@ -198,7 +201,7 @@ describe("real fields, honestly labeled", () => {
 
   it("frames the TOVU_ADMIN_PASSWORD row itself as a warning when unset, unlike every other absent var", () => {
     render(
-      <OverviewTab
+      <OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON}
         useDeploymentOverviewHook={() =>
           controllerFixture({
             snapshot: snapshotFixture({
@@ -222,7 +225,7 @@ describe("agent handles", () => {
   // Pins the ids the AI assistant relies on to drive this tab — same `data-agent-element` querying
   // convention `PostEditor.unit.test.tsx` uses. Guards against a handle silently rotting.
   it("tags both path cards, their details links, and both diagnostics cards", () => {
-    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture()} />);
+    render(<OverviewTab staticSiteCapabilities={STATIC_SITE_CAPABILITIES} fullSiteCapabilities={FULL_SITE_CAPABILITIES} envVarNotes={envVarNotes} unsafeOwnerPasswordVar={unsafeOwnerPasswordVar} copy={copy} agentHandle={agentHandle} lineIcon={LINE_ICON} useDeploymentOverviewHook={() => controllerFixture()} />);
     expect(document.querySelector('[data-agent-element="deployment-overview-static-path-card"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-overview-full-path-card"]')).toBeInTheDocument();
     expect(

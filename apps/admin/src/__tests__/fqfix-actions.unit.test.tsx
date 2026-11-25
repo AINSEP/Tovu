@@ -5,7 +5,7 @@ import { useRecovery } from '@jini-ai/admin/recovery/hooks/use-recovery.hooks';
 import { RECOVERY_HOST, createFakeRecoveryPort } from '@/features/recovery/hooks/recovery-dependencies.hooks';
 import { usePlugins } from '@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks';
 import { createFakePluginsPort } from '@/features/plugins/hooks/plugins-dependencies.hooks';
-import { useSkills } from '@/features/skills/use-skills.hooks';
+import { useSkills } from '@/features/skills/skills-host.hooks';
 import { useInvalidate } from '@jini-ai/ui/fetch-query';
 import type { InstalledSkill } from '@jini-ai/core/contracts/site/installed-skill';
 

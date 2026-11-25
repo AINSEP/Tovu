@@ -17,7 +17,7 @@ import {
   useWiredPostEditor,
 } from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
-import type { PostEditorPort } from "../hooks/post-editor-port.hooks";
+import type { PostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 
 /**
  * @file `usePostEditor` — first coverage for this hook (none existed before the `useWiredX`

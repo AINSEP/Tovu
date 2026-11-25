@@ -3,7 +3,7 @@ import { render } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_PANELS } from "../../panels";
-import { Recovery, type RecoveryProps } from "../../features/recovery/Recovery";
+import { Recovery } from "../../features/recovery/recovery-panel";
 import { t } from "@jini-ai/admin/recovery/recovery-i18n";
 import type { RecoveryController } from "@jini-ai/admin/recovery/hooks/use-recovery.hooks";
 
@@ -76,7 +76,7 @@ describe("REQ-01/REQ-22/REQ-27: recovery and database stay distinct, single, raw
       createRestorePoint: async () => {}, selected: null, setSelected: () => {},
       locale: "en", t: (key) => t({ locale: "en", key: key }),
     });
-    const { container } = render(createElement<RecoveryProps>(Recovery, { useRecoveryHook }));
+    const { container } = render(createElement(Recovery, { useRecoveryHook }));
     const description = container.querySelector(".page-description");
     expect(description).toBeVisible();
     expect(description).toHaveTextContent("Restore this site to a previous point in time using a captured restore point.");

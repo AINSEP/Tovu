@@ -1,8 +1,9 @@
+import { useWiredRestoreFlow } from "../hooks/restore-flow-dependencies.hooks";
 import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Recovery } from "../Recovery";
+import { Recovery } from "../recovery-panel";
 import { t as recoveryT } from "@jini-ai/admin/recovery/recovery-i18n";
 import type { RecoveryController } from "@jini-ai/admin/recovery/hooks/use-recovery.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
@@ -66,7 +67,7 @@ function recoveryController(overrides: Partial<RecoveryController> = {}): Recove
 function renderRecovery(overrides: Partial<RecoveryController> = {}, renderOverrides: { tabId?: string | null } = {}) {
   const c = recoveryController(overrides);
   const useRecoveryHook = () => c;
-  render(<Recovery useRecoveryHook={useRecoveryHook} tabId={renderOverrides.tabId} />);
+  render(<Recovery useRecoveryHook={useRecoveryHook} {...(renderOverrides.tabId === undefined ? {} : { tabId: renderOverrides.tabId })} />);
   return c;
 }
 
@@ -270,9 +271,11 @@ describe("tabs", () => {
   });
 
   it("on the Restore tab with nothing selected, prompts back to Restore points instead of rendering the ceremony", () => {
-    renderRecovery({ selected: null }, { tabId: "restore" });
+    const useRestoreFlowHook = vi.fn(useWiredRestoreFlow);
+    render(<Recovery useRecoveryHook={() => recoveryController({ selected: null })} useRestoreFlowHook={useRestoreFlowHook} tabId="restore" />);
     expect(screen.getByText("Select a restore point from the Restore points tab to begin.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^Restore to/ })).not.toBeInTheDocument();
+    expect(useRestoreFlowHook).not.toHaveBeenCalled();
   });
 });
 
@@ -424,6 +427,11 @@ describe("ceremony: idle -> planned -> confirmed -> done", () => {
   it("startPlan (Continue to confirm) moves to the planned step and shows the plan id", async () => {
     const user = userEvent.setup();
     await renderFlowWithDisclosure();
+    expect(screen.getByRole("button", { name: "Continue to confirm" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Continue to confirm" }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/admin/v1/recovery/disclosure");
+    expect(screen.queryByRole("button", { name: "Execute restore" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("checkbox"));
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
 
@@ -465,6 +473,15 @@ describe("ceremony: idle -> planned -> confirmed -> done", () => {
     expect(screen.getByText(/cannot be undone/)).toBeInTheDocument();
   });
 
+  it("withholds execute when confirmation returns no usable token", async () => {
+    const { user } = await planned();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ confirmationToken: "" }));
+    await user.click(screen.getByRole("button", { name: "Confirm restore" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^(Confirm restore|Confirming…)$/ })).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Execute restore" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/recovery/restore/execute"))).toHaveLength(0);
+  });
+
   async function confirmed() {
     const { user } = await planned();
     fetchMock.mockResolvedValueOnce(jsonResponse({ confirmationToken: "tok1" }));
@@ -482,6 +499,10 @@ describe("ceremony: idle -> planned -> confirmed -> done", () => {
     await waitFor(() => expect(screen.getByText("run1")).toBeInTheDocument());
     expect(screen.getByText("succeeded")).toBeInTheDocument();
     expect(screen.queryByText(/Restart the server now/)).not.toBeInTheDocument();
+    const executeCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/recovery/restore/execute"));
+    expect(executeCalls).toHaveLength(1);
+    expect(executeCalls[0]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(executeCalls[0]?.[1]?.body))).toEqual({ confirmationToken: "tok1", restorePointId: "rp1" });
   });
 
   it("shows the restart-required warning when the response sets restartRequired:true", async () => {

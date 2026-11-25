@@ -1,7 +1,7 @@
 import { File as NativeFile } from "node:buffer";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { useSkillInstall } from "../use-skill-install.hooks";
+import { useSkillInstall } from "../skills-host.hooks";
 import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
 afterEach(() => vi.unstubAllGlobals());
 const md = (new NativeFile(["---\nname: dropped-skill\ndescription: Drop test.\n---\nUse me."], "SKILL.md") as unknown as File);

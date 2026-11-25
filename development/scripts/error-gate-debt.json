@@ -50,16 +50,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts",
-    "rule": "no-generic-failure-text",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -77,11 +67,6 @@
   {
     "file": "apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts",
     "rule": "no-generic-failure-text",
-    "value": 3
-  },
-  {
-    "file": "apps/admin/src/features/integrations/hooks/use-integrations.hooks.ts",
-    "rule": "catch-reads-error",
     "value": 3
   },
   {
@@ -155,21 +140,6 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/features/security/hooks/use-site-key-recovery.hooks.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/security/hooks/use-site-key.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/security/hooks/use-site-key.hooks.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/security/security-i18n.ts",
     "rule": "no-generic-failure-text",
     "value": 23
@@ -198,16 +168,6 @@
     "file": "apps/admin/src/features/sites/sites-i18n.ts",
     "rule": "no-generic-failure-text",
     "value": 21
-  },
-  {
-    "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 3
-  },
-  {
-    "file": "apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts",
-    "rule": "no-generic-failure-text",
-    "value": 2
   },
   {
     "file": "apps/admin/src/features/source-control/source-control-i18n.ts",

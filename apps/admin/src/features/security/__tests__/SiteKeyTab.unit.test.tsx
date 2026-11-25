@@ -1,11 +1,16 @@
+import { siteKeyStatusBadgeLabel } from "@jini-ai/admin/security/host/hooks/site-key-status.rules";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useRevealedKeyCopy } from "@jini-ai/admin/security/host/SiteKeyTab.hooks";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
+import { siteKeyGenerateErrorMessage } from "@jini-ai/admin/security/security-i18n";
 import { render, screen, fireEvent } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import userEvent from "@testing-library/user-event";
 
-import { SiteKeyGenerateAction, SiteKeyTab } from "../SiteKeyTab";
-import type { SiteKeyController } from "../hooks/use-site-key.hooks";
-import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";
+import { SiteKeyGenerateAction, SiteKeyTab } from "@jini-ai/integrations/react/site-key/SiteKeyTab";
+import type { SiteKeyController } from "@jini-ai/integrations/react/site-key/hooks/use-site-key.hooks";
+import type { SiteKeyRecoveryController } from "@jini-ai/integrations/react/site-key/hooks/use-site-key-recovery.hooks";
 import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/core/agent-handles";
 import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 
@@ -17,6 +22,15 @@ import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
  * noted there was no `*.unit.test.tsx` here. Each test below pins one of the strings that pass
  * introduced, because they are the user-facing names an operator reads, not incidental markup.
  */
+
+const siteKeyCopy = {
+  siteKeyEnvVarName: "TOVU_SITE_KEY",
+  scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",
+  invalidEnv: "A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.",
+  invalidFileSuffix: "isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.",
+  siteKeyStatusBadgeLabel,
+  siteKeyGenerateErrorMessage,
+};
 
 const ACTIVE_FILE_STATUS: AdminSiteKeyStatus = {
   active: true,
@@ -71,7 +85,7 @@ function makeRecovery(overrides: Partial<SiteKeyRecoveryController> = {}): SiteK
 }
 
 function renderTab(status: AdminSiteKeyStatus = ACTIVE_FILE_STATUS) {
-  return render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status })} />);
+  return render(<SiteKeyTab useSiteKeyRecoveryHook={() => makeRecovery()} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyHook={() => makeSiteKey({ status })} />);
 }
 
 describe("SiteKeyTab — status card copy", () => {
@@ -207,7 +221,7 @@ describe("SiteKeyTab — recovery card for a locked site", () => {
 
   function renderLocked(status: AdminSiteKeyStatus, recovery: Partial<SiteKeyRecoveryController> = {}) {
     return render(
-      <SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status })} useSiteKeyRecoveryHook={() => makeRecovery(recovery)} />
+      <SiteKeyTab useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyHook={() => makeSiteKey({ status })} useSiteKeyRecoveryHook={() => makeRecovery(recovery)} />
     );
   }
 
@@ -318,7 +332,7 @@ describe("SiteKeyTab — load, reveal and env-source states", () => {
   const ACTIVE_ENV_STATUS: AdminSiteKeyStatus = { ...ACTIVE_FILE_STATUS, source: "env" };
 
   it("shows a status read failure instead of the cards", () => {
-    render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ loadError: "Couldn't load the site key status." })} />);
+    render(<SiteKeyTab useSiteKeyRecoveryHook={() => makeRecovery()} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyHook={() => makeSiteKey({ loadError: "Couldn't load the site key status." })} />);
     expect(screen.getByRole("status").textContent).toBe("Couldn't load the site key status.");
     expect(screen.queryByRole("heading", { name: "Site key" })).not.toBeInTheDocument();
   });
@@ -330,19 +344,19 @@ describe("SiteKeyTab — load, reveal and env-source states", () => {
 
   it("reveals on click, shows the in-flight label disabled, and surfaces a reveal failure", () => {
     const reveal = vi.fn(async () => {});
-    const { unmount } = render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, reveal })} />);
+    const { unmount } = render(<SiteKeyTab useSiteKeyRecoveryHook={() => makeRecovery()} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, reveal })} />);
     fireEvent.click(screen.getByRole("button", { name: "Reveal" }));
     expect(reveal).toHaveBeenCalledTimes(1);
     unmount();
 
-    render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, revealing: true, revealError: "Reveal refused." })} />);
+    render(<SiteKeyTab useSiteKeyRecoveryHook={() => makeRecovery()} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, revealing: true, revealError: "Reveal refused." })} />);
     expect(screen.getByRole("button", { name: "Revealing…" })).toBeDisabled();
     expect(screen.getByText("Reveal refused.")).toBeInTheDocument();
   });
 
   it("copies the revealed value to the clipboard and confirms it", async () => {
     const user = userEvent.setup();
-    render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, revealedHex: "00ff".repeat(16) })} />);
+    render(<SiteKeyTab useSiteKeyRecoveryHook={() => makeRecovery()} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, revealedHex: "00ff".repeat(16) })} />);
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(await navigator.clipboard.readText()).toBe("00ff".repeat(16));
     expect(await screen.findByRole("button", { name: "Copied!" })).toBeInTheDocument();
@@ -354,7 +368,7 @@ describe("SiteKeyTab — load, reveal and env-source states", () => {
       return Response.json(ACTIVE_ENV_STATUS);
     });
     try {
-      render(<SiteKeyTab useSiteKeyRecoveryHook={() => makeRecovery()} />);
+      render(<SiteKeyTab useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocale} kit={{ SecretInput }} copy={siteKeyCopy} useSiteKeyRecoveryHook={() => makeRecovery()} />);
       expect(await screen.findByText(/This key was set up directly on the server rather than as a file/)).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
@@ -366,28 +380,28 @@ describe("SiteKeyGenerateAction — kept wired but hidden by default (§A.6)", (
   const NO_KEY: AdminSiteKeyStatus = { active: false, source: "none", keyFilePath: "/data/tovu/site-key.hex", runtimeMode: "local", state: "missing" };
 
   it("renders nothing until a status has loaded, or once any key source exists", () => {
-    const { container, rerender } = render(<SiteKeyGenerateAction controller={makeSiteKey()} />);
+    const { container, rerender } = render(<SiteKeyGenerateAction useAdminLocaleHook={useAdminLocale} copy={{ siteKeyGenerateErrorMessage }} controller={makeSiteKey()} />);
     expect(container.innerHTML).toBe("");
-    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: ACTIVE_FILE_STATUS })} />);
+    rerender(<SiteKeyGenerateAction useAdminLocaleHook={useAdminLocale} copy={{ siteKeyGenerateErrorMessage }} controller={makeSiteKey({ status: ACTIVE_FILE_STATUS })} />);
     expect(container.innerHTML).toBe("");
   });
 
   it("generates on click when there is no key, and shows the in-flight label disabled", () => {
     const generate = vi.fn(async () => {});
-    const { rerender } = render(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generate })} />);
+    const { rerender } = render(<SiteKeyGenerateAction useAdminLocaleHook={useAdminLocale} copy={{ siteKeyGenerateErrorMessage }} controller={makeSiteKey({ status: NO_KEY, generate })} />);
     fireEvent.click(screen.getByRole("button", { name: "Generate a key" }));
     expect(generate).toHaveBeenCalledTimes(1);
-    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generating: true })} />);
+    rerender(<SiteKeyGenerateAction useAdminLocaleHook={useAdminLocale} copy={{ siteKeyGenerateErrorMessage }} controller={makeSiteKey({ status: NO_KEY, generating: true })} />);
     expect(screen.getByRole("button", { name: "Generating…" })).toBeDisabled();
   });
 
   it("explains each generate failure kind in its own words", () => {
-    const { rerender } = render(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "already-exists" } })} />);
+    const { rerender } = render(<SiteKeyGenerateAction useAdminLocaleHook={useAdminLocale} copy={{ siteKeyGenerateErrorMessage }} controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "already-exists" } })} />);
     expect(screen.getByRole("status").textContent).toBe("A key file already exists. This tab only creates a new key — it never overwrites one.");
-    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "generic", detail: "disk full" } })} />);
+    rerender(<SiteKeyGenerateAction useAdminLocaleHook={useAdminLocale} copy={{ siteKeyGenerateErrorMessage }} controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "generic", detail: "disk full" } })} />);
     expect(screen.getByRole("status").textContent).toContain("disk full");
     expect(screen.getByRole("status").textContent).not.toBe("disk full");
-    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "refused", code: "KEY_INVALID", detail: "The key on disk is unreadable." } })} />);
+    rerender(<SiteKeyGenerateAction useAdminLocaleHook={useAdminLocale} copy={{ siteKeyGenerateErrorMessage }} controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "refused", code: "KEY_INVALID", detail: "The key on disk is unreadable." } })} />);
     expect(screen.getByRole("status").textContent).toBe("The key on disk is unreadable.");
   });
 });

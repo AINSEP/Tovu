@@ -1,3 +1,4 @@
+import { STATIC_SITE_CAPABILITIES } from "@/features/deployment/deployment-host-policy";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,12 +9,11 @@ import type { StaticPublishController } from "../hooks/use-static-publish.hooks"
 import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
 import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
 import {
-  STATIC_SITE_CAPABILITIES,
   publishTargetById,
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
   staticPublishProjectNameCopy,
-} from "../rules";
+} from "@jini-ai/devops/deploy/react/rules";
 import { CREDENTIAL_TARGET_IDS, NETLIFY_TARGET, PLAIN_TARGET, PUBLISH_TARGETS } from "./publish-targets.fixture";
 import { usePublishCredentials } from "../hooks/use-publish-credentials.hooks";
 import { createFakePublishCredentialsPort } from "../hooks/publish-credentials-dependencies.hooks";

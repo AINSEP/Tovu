@@ -9,7 +9,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
-import { fieldHelpText } from "../deployment/rules";
+import { fieldHelpText } from "@jini-ai/devops/deploy/react/rules";
 import { removeDialogBody, removeDialogTitle } from "@/lib/i18n-common";
 import { removeDialogLastRowNote, sharedKeyReplaceWarning } from "@jini-ai/admin/security/security-i18n";
 import { ACCESS_TOKEN_CATEGORIES } from "./rules";

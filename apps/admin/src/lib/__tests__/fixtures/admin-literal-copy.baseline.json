@@ -43,13 +43,6 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/integrations/Integrations.tsx",
-      "line": 74,
-      "kind": "placeholder",
-      "text": "https://example.com/hooks",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
       "file": "features/media/Media.tsx",
       "line": 951,
       "kind": "text",

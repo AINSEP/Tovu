@@ -9,7 +9,7 @@
   "code": "try {\n    parsed = new URL(url);\n  } catch {\n    throw new Error(\"This link is not a valid https:// address, so it was not opened.\");\n  }"
  },
  {
-  "site": "apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts:36",
+  "site": "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks:35",
   "kind": "parse-refusal",
   "expect": "passes",
   "catchLine": 3,

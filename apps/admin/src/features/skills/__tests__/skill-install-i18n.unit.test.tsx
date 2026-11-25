@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
 import { SKILL_INSTALL_CONFIRMATION_HOST } from "../skill-install-confirmation-host";
-import type { useSkillInstall } from "../use-skill-install.hooks";
+import type { useSkillInstall } from "../skills-host.hooks";
 
 /**
  * Bug class (11-02 o2): user-facing copy in the skill-install surface was hard-coded English, so a

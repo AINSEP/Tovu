@@ -1,14 +1,18 @@
+import { readApiRefusal } from "../hooks/site-key-dependencies.hooks";
+import { useWiredSiteKeyRecovery } from "../hooks/site-key-dependencies.hooks";
 import { act, renderHook } from "@/__tests__/fetch-query-render";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
-import { ApiError } from "@/lib/admin-http/request";
-import { isSiteKeyLocked, useSiteKeyRecovery, type SiteKeyRecoveryPort } from "../hooks/use-site-key-recovery.hooks";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+import { isSiteKeyLocked, useSiteKeyRecovery, type SiteKeyRecoveryPort } from "@jini-ai/integrations/react/site-key/hooks/use-site-key-recovery.hooks";
 
 /**
  * @file The Site key tab's recovery controller (`use-site-key-recovery.hooks.ts`): "Paste your
  * old token" and "Start fresh" against a fake port. Refusals show the server's own sentence.
  */
+
+afterEach(() => vi.unstubAllGlobals());
 
 const t = (key: string): string => key;
 const HEX = "ab".repeat(32);
@@ -51,7 +55,7 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
   it("unlocks with the pasted token, clears it from state, reports the result and refreshes the tab", async () => {
     const port = makePort({ importSiteKey: vi.fn(async () => ({ outcome: "unlocked" as const, fingerprint: "fp", keyFilePath: "/k", resealed: 2, runtimeMode: "local" as const })) });
     const onRecovered = vi.fn(async () => {});
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered }));
 
     act(() => result.current.setSiteKey(`  ${HEX}\n`));
     await act(async () => result.current.unlock());
@@ -67,7 +71,7 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
     const detail = "That site key does not open this site's saved credentials. Nothing was changed.";
     const port = makePort({ importSiteKey: vi.fn(async () => { throw new ApiError({ message: "SITE_KEY_DOES_NOT_OPEN", status: 409 }, { code: undefined, body: { error: "SITE_KEY_DOES_NOT_OPEN", detail } }); }) });
     const onRecovered = vi.fn();
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered }));
 
     act(() => result.current.setSiteKey(HEX));
     await act(async () => result.current.unlock());
@@ -80,7 +84,7 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
 
   it("does nothing for an empty paste", async () => {
     const port = makePort();
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: vi.fn() }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.unlock());
 
@@ -95,7 +99,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
       if (fail) throw new Error("Preview service unavailable");
       return PREVIEW;
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered: undefined }));
     await act(async () => result.current.openStartFresh());
     expect(result.current.preview).toEqual(PREVIEW);
     act(() => result.current.cancelStartFresh());
@@ -111,7 +115,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   });
 
   it("finishes recovery without a refresh callback", async () => {
-    const { result } = renderHook(() => useSiteKeyRecovery({ port: makePort(), t, onRecovered: undefined }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port: makePort(), t, onRecovered: undefined }));
     act(() => result.current.setSiteKey(HEX));
     await act(async () => result.current.unlock());
     expect(result.current.resultMessage).toBe("Unlocked. Your saved credentials work again.");
@@ -133,7 +137,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
     const port = makePort({ importSiteKey: async () => {
       throw failure;
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered: undefined }));
     act(() => result.current.setSiteKey(HEX));
     await act(async () => result.current.unlock());
     expect(result.current.unlockError).toBe(message);
@@ -150,7 +154,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
       await new Promise<void>(resolve => { release = resolve; });
       return base.importSiteKey({ siteKey });
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered: undefined }));
     act(() => result.current.setSiteKey(HEX));
     let pending!: Promise<void>;
     act(() => { pending = result.current.unlock(); });
@@ -171,7 +175,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
       await new Promise<void>(resolve => { release = resolve; });
       return base.startFresh({ confirm });
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered: undefined }));
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START FRESH"));
     let pending!: Promise<void>;
@@ -193,7 +197,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
         affectedWebhooks: [], runtimeMode: "local" as const,
       })),
     });
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: vi.fn() }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START FRESH"));
@@ -203,24 +207,36 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   });
 
   it("loads the preview first, confirms only on the exact phrase, then names the affected webhooks", async () => {
-    const port = makePort();
+    const request = vi.fn(async (_url: string, init?: RequestInit) => new Response(JSON.stringify(
+      init?.method === "POST" ? {
+        outcome: "started-fresh", fingerprint: "fp2", keyFilePath: "/k", discarded: 2, kept: 0, restorePointId: "rp-1",
+        affectedWebhooks: PREVIEW.affectedWebhooks, runtimeMode: "local",
+      } : PREVIEW,
+    ), { headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => String(url).includes("/settings/effective")
+      ? Promise.resolve(new Response(JSON.stringify({ data: [] }), { headers: { "content-type": "application/json" } }))
+      : request(url, init));
     const onRecovered = vi.fn(async () => {});
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered }));
+    const { result } = renderHook(() => useWiredSiteKeyRecovery({ onRecovered }));
 
     await act(async () => result.current.openStartFresh());
     expect(result.current.startFreshStep).toBe("confirm");
     expect(result.current.preview?.detail).toBe(PREVIEW.detail);
+    expect(request.mock.calls).toEqual([["/api/admin/v1/workspaces/workspace-local/system/site-key/start-fresh", expect.objectContaining({ method: "GET" })]]);
 
     act(() => result.current.setConfirmText("start fresh"));
     expect(result.current.canConfirmStartFresh).toBe(false);
     await act(async () => result.current.startFresh());
-    expect(port.startFresh).not.toHaveBeenCalled();
+    expect(request.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
 
     act(() => result.current.setConfirmText("START FRESH"));
     expect(result.current.canConfirmStartFresh).toBe(true);
     await act(async () => result.current.startFresh());
 
-    expect(port.startFresh).toHaveBeenCalledWith({ confirm: "START FRESH" });
+    const writes = request.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.[0]).toBe("/api/admin/v1/workspaces/workspace-local/system/site-key/start-fresh");
+    expect(JSON.parse(String(writes[0]?.[1]?.body))).toEqual({ confirm: "START FRESH" });
     expect(result.current.startFreshStep).toBe("closed");
     expect(result.current.resultMessage).toBe(
       "Done. Re-enter any credentials that were removed. Update these webhooks' receivers with their new signing secret: Order sync (https://hooks.example.test/orders)."
@@ -231,7 +247,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   it("shows the server's sentence when start fresh is refused, and keeps the confirm step open", async () => {
     const detail = "A restore point can't be made for this site's database right now, so nothing was changed.";
     const port = makePort({ startFresh: vi.fn(async () => { throw new ApiError({ message: "RESTORE_POINT_UNAVAILABLE", status: 409 }, { code: undefined, body: { error: "RESTORE_POINT_UNAVAILABLE", detail } }); }) });
-    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: vi.fn() }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port, t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START FRESH"));
@@ -243,7 +259,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   });
 
   it("cancel closes the confirm step and clears the typed phrase", async () => {
-    const { result } = renderHook(() => useSiteKeyRecovery({ port: makePort(), t, onRecovered: vi.fn() }));
+    const { result } = renderHook(() => useSiteKeyRecovery({ describeApiError, readApiRefusal, copy: { unknownError: "unknown error" }, port: makePort(), t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START"));
