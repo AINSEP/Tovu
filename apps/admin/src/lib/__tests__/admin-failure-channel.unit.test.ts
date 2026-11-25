@@ -241,11 +241,9 @@ it("the incident reference is the details id first, then the flat id, then the r
   expect(noticeFor({ body: nested({ other: true }) })?.errorId).toBe("id-flat");
 });
 
-// KNOWN DISCREPANCY (reported, production untouched): `failureReference` uses `??`, so a NON-STRING
-// `details.errorId` (here 123) is not nullish, wins the chain, then `optionalString` drops it and the
-// flat id / request id are lost. The sheet's precedence implies a lower source should still be used.
-// `it.fails` keeps the contract assertion live: it passes today and turns red once the reader is fixed.
-it.fails("a non-string details id falls through to the flat id instead of hiding it", () => {
+// A NON-STRING `details.errorId` (here 123) must not win the precedence chain and then be dropped:
+// the reader checks each source for a string, so the flat id / request id still reach the notice.
+it("a non-string details id falls through to the flat id instead of hiding it", () => {
   const body = { errorId: "id-flat", error: { code: "INTERNAL_ERROR", message: "boom", requestId: "id-request", details: { errorId: 123 } } };
   expect(noticeFor({ body })?.errorId).toBe("id-flat");
 });
