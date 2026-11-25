@@ -1,5 +1,5 @@
 import { sitesApi } from "@/features/sites/api/sites-api";
-import type { SiteKeyPort } from "./site-key-port.hooks";
+import type { SiteKeyPort } from "@jini-ai/core/contracts/site/site-key";
 
 /** The live implementation, as a module-level singleton — matches
  *  `defaultAccessTokensPort`'s own convention. Every method is a thin bind onto an existing

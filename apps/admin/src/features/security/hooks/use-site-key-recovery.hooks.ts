@@ -6,7 +6,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { tSecurity as defaultT } from "../../../lib/i18n-common";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
-import type { SiteKeyPort } from "./site-key-port.hooks";
+import type { SiteKeyPort } from "@jini-ai/core/contracts/site/site-key";
 import type { SiteKeyGenerateFailure } from "./use-site-key.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
