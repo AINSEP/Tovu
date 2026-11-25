@@ -481,7 +481,7 @@ test("routines desktop lifecycle: boot starts only registered enabled sites, a w
   const attachedSends: unknown[] = [];
   const armed = armDesktopRoutines({
     releaseEnabled: true,
-    listSites: async () => registered.map((siteDir) => ({ siteDir })),
+    registeredSites: async () => registered.map((siteDir) => ({ siteDir })),
     readBeacon: async ({ siteDir }) => { const enabled = beacons.get(siteDir); return enabled == null ? null : { v: 1, enabled, updatedAt: 1 }; },
     backgroundStart: ({ siteDir }) => startRoutineSiteInBackground({ siteDir, deps: projectDeps as never }),
     isRunning: ({ siteDir }) => openSites.has(siteDir),
@@ -510,7 +510,7 @@ test("routines desktop lifecycle stays dark while the release flag is off", asyn
   const { armDesktopRoutines } = await import("./main/boot/routine-desktop.ts");
   const power = new EventEmitter();
   let listed = 0;
-  const armed = armDesktopRoutines({ releaseEnabled: false, listSites: async () => { listed += 1; return []; }, readBeacon: async () => null,
+  const armed = armDesktopRoutines({ releaseEnabled: false, registeredSites: async () => { listed += 1; return []; }, readBeacon: async () => null,
     backgroundStart: async () => true, isRunning: () => false, isWithdrawn: () => false, powerMonitor: power as never,
     ownedRunningSites: () => [], timers: { setTimeout: () => 0, clearTimeout: () => {} }, log: () => {} });
   assert.deepEqual(await armed.booted, { started: [] });

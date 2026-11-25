@@ -1092,7 +1092,7 @@ function registeredSiteRow({ siteDir }: { siteDir: string }) {
 function armRoutinesOnReady(): void {
   const armed = armDesktopRoutines({
     releaseEnabled: ROUTINES_RELEASE_ENABLED,
-    listSites: async () => sharedSites.registry({}).list({}).map((entry) => ({ siteDir: entry.path })),
+    registeredSites: async () => sharedSites.registry({}).list({}).map((entry) => ({ siteDir: entry.path })),
     readBeacon: createRoutineBeaconReader({ fs: { open: (filePath, flags) => openFileHandle(filePath, flags) },
       resolveContentDbPath: async ({ siteDir }) => sharedSites.databasePath({ dir: siteDir, id: registeredSiteRow({ siteDir }).id, filename: "content.db" }) }),
     backgroundStart: ({ siteDir }) => startRoutineSiteInBackground({ siteDir, deps: { serializer, openSites, routineWithdrawals, ctx: sitesHomeCtx(),

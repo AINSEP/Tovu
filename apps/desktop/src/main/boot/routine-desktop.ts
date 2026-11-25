@@ -12,7 +12,7 @@ import { relayWake, type RoutineWakeLogEntry, type RoutineWakeSiteHandle, type W
 
 export interface DesktopRoutinesDeps {
   releaseEnabled: boolean;
-  listSites: RoutineSitesDeps["listSites"];
+  registeredSites: RoutineSitesDeps["listSites"];
   readBeacon: RoutineSitesDeps["readBeacon"];
   /** The serialized background start (`startRoutineSiteInBackground`): withdrawal is rechecked inside the site's key. */
   backgroundStart: (input: { siteDir: string }) => Promise<unknown>;
@@ -29,7 +29,7 @@ export interface DesktopRoutinesDeps {
 export function armDesktopRoutines(deps: DesktopRoutinesDeps, _optional = {}): { booted: Promise<{ started: string[] }>; dispose: () => void } {
   if (!deps.releaseEnabled) return { booted: Promise.resolve({ started: [] }), dispose: () => {} };
   const dispose = relayWake({ powerMonitor: deps.powerMonitor, ownedRunningSites: deps.ownedRunningSites, timers: deps.timers, log: deps.log });
-  const booted = startRoutineSites({ listSites: deps.listSites, readBeacon: deps.readBeacon, startSite: deps.backgroundStart,
+  const booted = startRoutineSites({ listSites: deps.registeredSites, readBeacon: deps.readBeacon, startSite: deps.backgroundStart,
     isRunning: deps.isRunning, isWithdrawn: deps.isWithdrawn, log: deps.log, policy: "registered-enabled-except-withdrawn" }, { releaseEnabled: true });
   return { booted, dispose };
 }
