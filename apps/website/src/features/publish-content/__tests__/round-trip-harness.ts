@@ -101,7 +101,8 @@ export async function plan(entities: readonly PackedEntity[], destination: Publi
 /** Applies every writing row of `report` in its apply order; `expectedVersion` from `inspect()`. The
  *  idempotency key names the content hash, as the apply loop's does, so a later edit re-applies. */
 export async function applyReport(report: PublishContentReport, entities: readonly PackedEntity[], destination: PublishContentDeps): Promise<void> {
-  const { handlerByType } = buildPublishContentCatalog(destination);
+  // As the apply port: merge the ceremony's trusted actor into the run's deps (FIX 19 / H2).
+  const { handlerByType } = buildPublishContentCatalog({ ...destination, mutationActor: { id: "owner", kind: "user" } });
   const byKey = new Map(entities.map((e) => [entityKey({ entityType: e.entityType, entityId: e.id }), e] as const));
   for (const row of report.rows) {
     if (!row.writes) continue;

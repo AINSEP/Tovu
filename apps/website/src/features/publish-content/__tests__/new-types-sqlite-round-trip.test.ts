@@ -94,7 +94,7 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
     version: 3,
     tombstonedAt: null,
   });
-  const actor = { principalId: "owner" };
+  const actor = { principalId: "owner", kind: "user" as const };
   const { instance: about } = await createWidgetInstance({
     deps: { host: buildWidgetHostPorts({}, {}), ...src.service },
     input: { workspaceId: WORKSPACE_ID, actor, widgetType: "text", title: "About", config: { body: "Hello" }, slug: "about" },
@@ -191,7 +191,7 @@ test("a contact-form widget lands pointing at the destination's own form (forms 
   });
   const { instance: widget } = await createWidgetInstance({
     deps: { host: buildWidgetHostPorts({}, {}), ...src.service },
-    input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner" }, widgetType: "contact-form", title: "Talk", config: { formDefinitionId: "src-form-1" }, slug: "talk" },
+    input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner", kind: "user" as const }, widgetType: "contact-form", title: "Talk", config: { formDefinitionId: "src-form-1" }, slug: "talk" },
   });
 
   const { first, second } = await roundTrip(src.site, dst.site);

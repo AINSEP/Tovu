@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
+import { applyRunActor, createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
 import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
@@ -86,6 +86,8 @@ async function writeCollectionEntry({ ports, deps, workspaceId, id, state, expec
         },
         input: {
           actorId: principalId,
+          // The import origin's actor, merged in by the apply port — never a guessed kind (FIX 19 / H2).
+          actor: applyRunActor({ deps, principalId }),
           workspaceId,
           id,
           type: state.type as string,

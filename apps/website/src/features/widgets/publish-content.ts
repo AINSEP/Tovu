@@ -2,7 +2,7 @@ import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
 import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { collectPlacementReferences } from "@jini-ai/cms/publish/content/content-references";
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
-import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
+import { applyRunActor, createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "@jini-ai/cms/publish/content/type-registry";
 import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { PublishContentReference } from "@jini-ai/cms/publish/content/type-registry";
@@ -219,7 +219,7 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor<WidgetB
         : (await bindWidgetArea({ deps, input: { workspaceId, regionKey } })).areaEntry;
       const { areaEntry } = await mutateWidgetAreaPlacements({
         deps,
-        input: { workspaceId, actor: { principalId }, areaEntryId: area.id, baseVersion: area.version, placements },
+        input: { workspaceId, actor: { principalId, kind: applyRunActor({ deps: ctx.deps, principalId }).kind }, areaEntryId: area.id, baseVersion: area.version, placements },
       });
       await reconcileWidgetRegionBindings({ deps, input: { workspaceId } });
       return { version: areaEntry.version };
@@ -255,7 +255,8 @@ async function writePublishedWidget(ctx: Parameters<NonNullable<Parameters<typeo
         deps: serviceDeps({ ctx, entityType: "widget" }),
         input: {
           workspaceId,
-          actor: { principalId },
+          // The import origin's actor kind, merged in by the apply port (FIX 19 / H2).
+          actor: { principalId, kind: applyRunActor({ deps: ctx.deps, principalId }).kind },
           id,
           slug: state.slug as string,
           title: state.title as string,
