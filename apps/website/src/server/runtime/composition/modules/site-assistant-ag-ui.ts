@@ -1,5 +1,5 @@
 import { EventType } from "@ag-ui/core";
-import { closeAgUiRun, createAgUiTranslationState, translateAgentEventToAgUi, type AgUiEvent, type EventIdGenerator } from "@jini-ai/chat/core/ag-ui";
+import { closeAgUiRun, confirmationInterrupt, createAgUiTranslationState, translateAgentEventToAgUi, type AgUiEvent, type EventIdGenerator } from "@jini-ai/chat/core/ag-ui";
 
 /**
  * @file Negotiated wire construction for the PUBLIC site chat (P6-T1.T): which wire a visitor
@@ -101,6 +101,12 @@ export interface VisitorTurnWriter {
   settle(required?: Record<string, never>, optional?: Record<string, never>): void;
 }
 
+/** The AG-UI writer adds the one standard pause terminal; the legacy wire has no equivalent. */
+export interface VisitorAgUiWriter extends VisitorTurnWriter {
+  /** Ends this segment with `RUN_FINISHED` `outcome.type: "interrupt"`. A pause is not a success. */
+  interrupt(required: { interrupt: Parameters<typeof confirmationInterrupt>[0]["interrupt"] }, optional?: Record<string, never>): void;
+}
+
 export interface VisitorAgUiCopy {
   /** The turn ended with no visible reply. Matches the widget's existing no-reply wording. */
   readonly noReply: string;
@@ -122,7 +128,7 @@ export function createVisitorAgUiWriter(
     threadId: string; runId: string; copy: VisitorAgUiCopy;
   },
   _optional = {},
-): VisitorTurnWriter {
+): VisitorAgUiWriter {
   const state = createAgUiTranslationState({ ids, customEventNames: { usage: "usage", status: "status", extensionPrefix: "ext." } });
   const turn = { terminal: false, visible: false, pendingWhitespace: "" };
   const emit = (events: AgUiEvent[]) => { for (const event of events) write(encode(event)); };
@@ -147,6 +153,9 @@ export function createVisitorAgUiWriter(
       if (outcome.kind === "error") terminate({ type: EventType.RUN_ERROR, message: outcome.message, ...(outcome.code ? { code: outcome.code } : {}) });
       else if (!turn.visible) terminate({ type: EventType.RUN_ERROR, message: copy.noReply, code: "NO_REPLY" });
       else terminate({ type: EventType.RUN_FINISHED, threadId, runId, result: { reason: outcome.reason } });
+    },
+    interrupt: ({ interrupt }) => {
+      if (!turn.terminal) terminate(confirmationInterrupt({ threadId, runId, interrupt }));
     },
     settle: () => {
       if (!turn.terminal) terminate({ type: EventType.RUN_ERROR, message: copy.interrupted, code: "INTERRUPTED" });
