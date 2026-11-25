@@ -32,7 +32,7 @@ export function mediaProviderVault({ vault, providerId }: { vault: VaultRepoPort
 
 // Why-comment — public aliases can converge without making sealed credential identities interchangeable.
 /** Canonical credential id -> legacy ids whose sealed rows stay readable (never rewritten) after it. */
-const LEGACY_MEDIA_CREDENTIAL_IDS: Readonly<Record<string, readonly string[]>> = { "xai-grok-imagine": ["grok"] };
+const LEGACY_MEDIA_CREDENTIAL_IDS: Readonly<Record<string, readonly string[]>> = { grok: ["xai-grok-imagine"] };
 
 /**
  * The one id a credential write may seal under, and the stored ids a read may select, in priority order.

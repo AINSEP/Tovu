@@ -916,34 +916,34 @@ test("an envelope whose payload apiKey is not a string fails closed with the saf
     (err: unknown) => err instanceof MediaProviderCredentialSecretStoreUnconfiguredError && err.message === CREDENTIAL_MESSAGES.storage);
 });
 
-// --- xAI's public id moved from `grok` to `xai-grok-imagine`; sealed `grok` envelopes must keep working. ---
+// --- xAI's persisted id stays `grok` (one plugin, one registration); a row sealed under the `xai-grok-imagine` alias must keep working. ---
 
-const XAI = "xai-grok-imagine";
-const xaiCatalog = { findProvider: ({ id }: { id: string }) => (id === XAI || id === "grok" ? { id: XAI } : null) };
+const XAI = "grok";
+const xaiCatalog = { findProvider: ({ id }: { id: string }) => (id === XAI || id === "xai-grok-imagine" ? { id: XAI } : null) };
 
 /** A real legacy envelope sealed under the OLD `grok` id/scope: vault AAD binds both, so opening it
  *  under the canonical identity (or copying its ciphertext onto the canonical row) fails closed. */
 async function seedLegacyGrokRow(deps: ReturnType<typeof makeDeps>["deps"], apiKey: string) {
   const vault = createTovuStoreVault({ ...deps, kind: "media-provider", storageError: () => new Error("unexpected storage error") });
-  const scope = mediaVaultScope({ workspaceId: WORKSPACE, providerId: "grok" });
-  await deps.repo.vault.put({ record: await vault.prepare({ ...scope, id: mediaVaultId({ providerId: "grok" }), expectedRevision: null,
-    provider: "grok", label: "grok", meta: { baseUrl: null, model: "grok-imagine-image" }, payload: { apiKey }, hintToken: apiKey }), expectedRevision: null });
+  const scope = mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine" });
+  await deps.repo.vault.put({ record: await vault.prepare({ ...scope, id: mediaVaultId({ providerId: "xai-grok-imagine" }), expectedRevision: null,
+    provider: "xai-grok-imagine", label: "xai-grok-imagine", meta: { baseUrl: null, model: "grok-imagine-image" }, payload: { apiKey }, hintToken: apiKey }), expectedRevision: null });
   return (await deps.repo.vault.list(scope))[0]!;
 }
 
 const storedXaiRows = async (repo: InMemoryMediaProviderCredentialRepo) =>
   (await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE }))).map(row => ({ id: row.id, provider: row.provider })).sort((a, b) => a.id.localeCompare(b.id));
 
-test("xAI credential ids: one canonical write id, legacy grok readable after it; other providers unchanged", () => {
-  assert.deepEqual(resolveMediaCredentialIds({ providerId: XAI }), { writeId: XAI, readIds: [XAI, "grok"] });
-  assert.deepEqual(resolveMediaCredentialIds({ providerId: "grok" }), { writeId: XAI, readIds: [XAI, "grok"] });
+test("xAI credential ids: one canonical write id, legacy xai-grok-imagine readable after it; other providers unchanged", () => {
+  assert.deepEqual(resolveMediaCredentialIds({ providerId: XAI }), { writeId: XAI, readIds: [XAI, "xai-grok-imagine"] });
+  assert.deepEqual(resolveMediaCredentialIds({ providerId: "xai-grok-imagine" }), { writeId: XAI, readIds: [XAI, "xai-grok-imagine"] });
   assert.deepEqual(resolveMediaCredentialIds({ providerId: "openai" }), { writeId: "openai", readIds: ["openai"] });
 });
 
-test("a previously sealed grok key still works and replacement writes only the new id", async () => {
+test("a key sealed under the xai-grok-imagine alias still works and replacement writes only the new id", async () => {
   const { repo, deps } = makeDeps();
   const legacy = await seedLegacyGrokRow(deps, "xai-legacy-key-1234");
-  for (const providerId of [XAI, "grok"]) {
+  for (const providerId of [XAI, "xai-grok-imagine"]) {
     assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId }))?.apiKey, "xai-legacy-key-1234");
   }
   // Metadata-only edit migrates: open under the old identity, seal a new canonical envelope.
@@ -956,8 +956,8 @@ test("a previously sealed grok key still works and replacement writes only the n
   await saveMediaProviderCredentials({ ...deps, providerCatalog: xaiCatalog }, { workspaceId: WORKSPACE, providers: { [XAI]: { apiKey: "xai-replacement-5678" } } });
   assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: XAI }))?.apiKey, "xai-replacement-5678");
   // The legacy envelope is never rewritten or relabelled: same id, revision and ciphertext.
-  assert.deepEqual((await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "grok" })))[0], legacy);
-  assert.deepEqual(await storedXaiRows(repo), [{ id: mediaVaultId({ providerId: "grok" }), provider: "grok" }, { id: mediaVaultId({ providerId: XAI }), provider: XAI }]);
+  assert.deepEqual((await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine" })))[0], legacy);
+  assert.deepEqual(await storedXaiRows(repo), [{ id: mediaVaultId({ providerId: "xai-grok-imagine" }), provider: "xai-grok-imagine" }, { id: mediaVaultId({ providerId: XAI }), provider: XAI }]);
   assert.deepEqual(Object.keys(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE })), [XAI]);
 });
 
@@ -977,6 +977,6 @@ test("a canonical marker shadows a legacy sealed key even when canonical has no 
   await repo.upsert({ workspaceId: WORKSPACE, providerId: XAI, baseUrl: null, model: "grok-imagine-video", sealed: null, keyTail: null,
     aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
   assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: XAI }), null);
-  assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "grok" }), null);
+  assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "xai-grok-imagine" }), null);
   assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), { [XAI]: { model: "grok-imagine-video" } });
 });

@@ -7,21 +7,23 @@ import {
   type MediaProviderContribution,
   type MediaProviderRegistry,
 } from "@jini-ai/integrations/media-providers";
-import { createXaiMediaContribution } from "@jini-ai/provider-plugins/xai-grok-imagine/media";
+import { createXaiMediaContribution, XAI_MEDIA_PROVIDER_ALIASES, XAI_MEDIA_PROVIDER_ID } from "@jini-ai/provider-plugins/xai/media";
 
 /**
  * @file The host's media-generation vendor set: the engine's built-in vendors plus the provider
- * plugins this host mounts by default (xAI Grok Imagine moved out of the engine's built-ins), with
- * the legacy public ids and environment-key fallbacks those plugins used to get for free.
+ * plugins this host mounts by default (xAI moved out of the engine's built-ins), with the public-id
+ * aliases and environment-key fallbacks those plugins used to get for free. This is the ONE registry
+ * factory the host builds: xAI is registered exactly once, under its persisted id `grok`, so a sealed
+ * `grok` credential row keeps resolving; `xai-grok-imagine` is only a lookup alias.
  */
 
-/** Legacy public provider ids accepted on lookups (old id -> registered id). */
-export const MEDIA_PROVIDER_ALIASES: Readonly<Record<string, string>> = { grok: "xai-grok-imagine" };
+/** Alternate public provider ids accepted on lookups (alias -> registered id), owned by each plugin. */
+export const MEDIA_PROVIDER_ALIASES: Readonly<Record<string, string>> = { ...XAI_MEDIA_PROVIDER_ALIASES };
 
 /** The env-key fallback table: the engine's rows plus each host-mounted plugin vendor's own key. */
 export const MEDIA_PROVIDER_ENV_VARS: Readonly<Record<string, readonly string[]>> = {
   ...PROVIDER_CREDENTIAL_ENV_VARS,
-  "xai-grok-imagine": ["XAI_API_KEY"],
+  [XAI_MEDIA_PROVIDER_ID]: ["XAI_API_KEY"],
 };
 
 /** Built-in contributions followed by the host-mounted plugin contributions. @complexity O(p + m). */
