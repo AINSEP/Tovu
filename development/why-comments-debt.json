@@ -14264,6 +14264,18 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "35aa3824fd7f",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-timezone-fallback (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
+    },
+    {
+      "id": "51b55d477d5c",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-reporter (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
+    },
+    {
+      "id": "82e5cc11b6f7",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/site-title-reporter (Jini x9-op-smst SM-J04); the logger became a required host-supplied arg, so '(default: the console logger)' was reworded to '(supplied by the host)' and the Tovu callers now pass createConsoleLogger({ prefix: \"\" }) explicitly."
     }
   ]
 }
