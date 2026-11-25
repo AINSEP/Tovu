@@ -262,6 +262,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "site-inspection",
     // 2026-10-09 (83d4dff4f): `site_guide`, the "How Tovu works" meta tool.
     "site-guide",
+    // 2026-11-23 (9ab2fbb4f, H4): `resume_agent_work`, the owner-approved release of the agent-pause hold.
+    "agent-pause",
+    // bf3cea774 (bt2-todos): site-update tools; the domain registers always, the runtime is host-composed.
+    "site-update",
     // 2026-10-11 (7d5f99033): `assistant_chats_list`/`assistant_chats_read`.
     "assistant-history",
     "sites",
