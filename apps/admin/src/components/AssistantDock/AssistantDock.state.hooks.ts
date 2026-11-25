@@ -35,7 +35,8 @@ import { useRunContext } from "@jini-ai/admin/shell/components/AssistantDock/hoo
 import { useAttachmentUploaderSeam, useSkillAwareAttachmentUploader, resolveSkillsAvailable, useAttachmentValidatorSeam, useFolderDropBridge } from "./hooks/composer-files.hooks";
 import { useComposerCapabilitiesSeam, useComposerDiscoverySelect } from "./hooks/composer-discovery.hooks";
 import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
-import { useAssistantTransportSeam, useLocalCliDaemonPrewarm } from "./hooks/assistant-transport.hooks";
+import { useAssistantTransportSeam, useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
+import { useTovuAssistantTransport } from "./hooks/assistant-transport.binding";
 import { useAgentsPlaceholderSeam, useRuntimeAccessSeam } from "./hooks/runtime-access.hooks";
 import { useByokRuntimeSeam } from "./hooks/byok-runtime.hooks";
 import { useExecutionConfigSeam } from "./hooks/execution-config.hooks";
@@ -149,7 +150,7 @@ function useDockTransport({ props, execution }: { props: DockProps; execution: D
     // a run that may fail to deliver it exists at all — see `persistUserTurn`'s own doc in
     // `use-assistant-chats.hooks.ts`.
     persistUserTurn,
-  }, { useTransport: useAssistantTransportOverride });
+  }, { useTransport: useAssistantTransportOverride ?? useTovuAssistantTransport });
   const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride });
   const skillInstall = useSkillInstall();
   const uploadAttachments = useSkillUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });

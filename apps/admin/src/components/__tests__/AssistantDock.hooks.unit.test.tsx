@@ -102,7 +102,8 @@ import { useAssistantDockChrome, useChatI18n, useChatsSeam } from "../AssistantD
 import { useAttachmentUploader, useWorkingDirectoryAccess, useWorkingDirectoryAccessSeam, useFolderDropBridge } from "../AssistantDock/hooks/composer-files.hooks";
 import { useComposerDiscoverySelect } from "../AssistantDock/hooks/composer-discovery.hooks";
 import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
-import { useAssistantTransport, useLocalCliDaemonPrewarm } from "../AssistantDock/hooks/assistant-transport.hooks";
+import { useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
+import { useTovuAssistantTransport as useAssistantTransport } from "../AssistantDock/hooks/assistant-transport.binding";
 import { useAgentsPlaceholder, useRuntimeAccess } from "../AssistantDock/hooks/runtime-access.hooks";
 import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventory.hooks";
 import { useByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";

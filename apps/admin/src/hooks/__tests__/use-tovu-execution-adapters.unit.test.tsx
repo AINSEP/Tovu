@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it, vi } from 'vitest';
-import { useAssistantTransport } from '@/components/AssistantDock/hooks/assistant-transport.hooks';
+import { useTovuAssistantTransport as useAssistantTransport } from '@/components/AssistantDock/hooks/assistant-transport.binding';
 import type { UseExecutionConfig } from '@/components/AssistantDock/hooks/execution-config.hooks';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
 import { useTovuDockExecution, useTovuSettingsExecution } from '../use-tovu-execution-adapters.hooks';
