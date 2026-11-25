@@ -13,7 +13,7 @@ import { OTHER_CREDENTIAL_STORES, envNamesFact, maskedTailFact, mediaProviderLab
 import { ACCESS_TOKENS_RESOURCE } from "../rules";
 import { accessTokenCategoryMatches, type AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
 import { defaultOtherCredentialsPort } from "./other-credentials-dependencies.hooks";
-import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
+import type { OtherCredentialsPort } from "@jini-ai/admin/security/host/hooks/other-credentials-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
