@@ -1930,3 +1930,29 @@ Un-hidden by the fixture fix: `plugin-host.integration.test.ts` `an approved ena
 | m21-replace-captions-shape | FIXED (wip22-cap) | `uploadMedia` returned a record without `captions` while the SQLite repo reads back `captions: null`; producer now sets `captions: null` (Jini `fix(cms)` e4b864468). Replace route now also words the over-limit refusal in the plain-words sentence. Mutation: remove `captions: null` -> Tovu replace.test red. |
 | m21-architecture-edges | OPEN (not done, budget) | `check:architecture` still red: back-edges into composition root 0 -> 3, +1 cycle pair, `api-connections/host-bindings -> agent-plugins/lifecycle`. Not yet traced to commits. |
 | bt3-video-cap-owner-decision | DECIDED/FIXED for media store, replace, assistant upload/URL import, generation, body parser (Jini a7894709a + Tovu commit) | Video 500 MiB via `@tovu/contracts/upload-limits` (`VIDEO_UPLOAD_LIMIT_BYTES`, `uploadLimitFor`, `UPLOAD_CAPS`). Images and other files stay 50 MiB by decision. W6 follow-up 2026-11-25: the 700 MB JSON body limit now applies ONLY to media upload + replace (`MEDIA_UPLOAD_JSON_BODY_LIMIT`; publish-content stays 75 MB); chat composer pre-check and the staged-attachment stream cap (Jini `maxAttachmentBytesFor`) are video-aware via `uploadLimitForFile`, batch cap = one video + one 50 MiB file. W8 follow-up 2026-11-25: local-file import picks its pre-read ceiling from the file extension (Tovu fc558d1334; a mis-named non-video that passes the gate is still refused by `uploadMedia`'s sniffed-type cap); Jini `duplicateMediaAsset` and `importMediaEntity` (reviewed replacement) take optional `maxVideoUploadBytes` (Jini 6426c0ae4, default = general cap), and Tovu passes `UPLOAD_CAPS` where it wires them (Tovu 5ad18e8858); Jini api baselines + changesets 6151d2ce8. FIXED (all commits on `integ/wip22-cap`); nothing left. Caveat: the Tovu wiring of `UPLOAD_CAPS` into the duplicate and publish-content calls is covered by Jini unit tests and tsc, not by a Tovu-level test. |
+
+## b-g5b (cloud run 2026-11-25)
+
+### `g5b-agent-routine-runs-while-assistant-off` — OPEN (logged, not fixed)
+
+An agent-created routine still runs while the assistant switch is off. Tovu composes no routine runner
+that consults `agentPauseGate` before a routine fires, and Jini's `Routine` / `RoutineCreateInput` have
+no creator-kind field, so a host cannot tell agent routines from person routines. Witness:
+`apps/website/src/server/runtime/composition/__tests__/assistant-off-artifacts.test.ts` (three routine
+sub-tests marked `todo: "P3 lane: ..."`). Owner lane: P3.
+
+### `g5b-postgres-schema-hand-edited` — FIXED (Tovu, P10-M5.T commit)
+
+`schema.postgres.ts` is generated, but merge-21 carried hand-added 0044 lines, so the drift test was red.
+Regenerated; the 0044 why-comments stay in `schema.sqlite.ts`, the source of truth.
+
+### `g5b-media-description-dropped-by-jini` — FIXED (Jini follow-up commit to P10-M5.J)
+
+The admin PATCH body parser, import/generate tool input schemas and admin `MediaMetadataPatch` dropped
+`description`. Fixed test-first; blank clears, omitted is unchanged.
+
+### `g5b-stale-env-access-debt-rows` — OPEN (pre-existing, Jini)
+
+`scripts/env-access-debt.json` has 2 stale HW9 rows (`packages/cli/src/daemon-url.ts`,
+`packages/devops/src/local-dev/node-runtime.ts`) whose code no longer reads `process.env`, so
+`scripts/__tests__/check-env-access.test.ts` "is current" expects 81 and gets 79. Unchanged since merge-21.
