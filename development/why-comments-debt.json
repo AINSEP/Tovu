@@ -14296,6 +14296,10 @@
     {
       "id": "3ffb6f663da7",
       "reason": "P6-T1.T intentionally reverses this rule: EOF without RUN_FINISHED/RUN_ERROR is now an interrupted reply (fixed recovery wording), never a success; the new complete() comment states that."
+    },
+    {
+      "id": "6085146c9055",
+      "reason": "P6-T1.T: documented the legacy SSE parser's `event: message` default (defaultEventFrame); that parser is gone (Jini's AG-UI fetch agent owns SSE parsing), and the replacement test now covers an unrecognized CUSTOM event name."
     }
   ]
 }
