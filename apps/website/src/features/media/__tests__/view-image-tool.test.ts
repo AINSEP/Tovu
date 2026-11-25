@@ -103,7 +103,7 @@ async function seed(
 const MEDIA_ASSET_READ_TOOL_ID = "content_read.media_asset";
 
 function viewTool(harness: Harness): ToolRegistration {
-  const found = withContentTargets({ registrations: buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: MEDIA_ASSET_READ_TOOL_ID }), deps: harness.deps }).find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID);
+  const found = withContentTargets({ registrations: buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: MEDIA_ASSET_READ_TOOL_ID, mediaMetadataWriteToolId: "media_update_metadata" }), deps: harness.deps }).find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID);
   assert.ok(found, `expected ${MEDIA_VIEW_IMAGE_TOOL_ID} to be registered`);
   return found;
 }
@@ -309,7 +309,7 @@ test("PASS-THROUGH: through the real ToolExecutor and the daemon's read-only del
   const direct = imageBlockOf(await call(viewTool(harness), { mediaId: asset.id }));
 
   const registry = createToolRegistry({});
-  for (const registration of buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: MEDIA_ASSET_READ_TOOL_ID })) registry.register(registration);
+  for (const registration of buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: MEDIA_ASSET_READ_TOOL_ID, mediaMetadataWriteToolId: "media_update_metadata" })) registry.register(registration);
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-view-image" });
   const routeDeps = { toolExecutor: createToolExecutor({ registry }), lifecycle, toolRegistry: registry, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
@@ -362,12 +362,12 @@ test("an EXIF orientation below the quarter turns (orientation 1) keeps the stor
 
 test("the catalog contributor installs this tool's own builder and risk map under the media-view domain", () => {
   const harness = makeHarness();
-  const contributor = contributeMediaViewImageTools({ mediaAssetReadToolId: "host_read.asset" });
+  const contributor = contributeMediaViewImageTools({ mediaAssetReadToolId: "host_read.asset", mediaMetadataWriteToolId: "host_write.asset_metadata" });
   assert.equal(contributor.domain, "media-view");
   // Behavioural equivalent of "build is this tool's builder": the contributor yields exactly the
   // builder's registrations, with the injected read tool id bound into the description.
   const built = contributor.build(harness.deps, undefined);
-  const direct = buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset" });
+  const direct = buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset", mediaMetadataWriteToolId: "host_write.asset_metadata" });
   assert.deepEqual(built.map((r) => r.descriptor), direct.map((r) => r.descriptor));
   assert.deepEqual(built.map((r) => r.descriptor.id), [MEDIA_VIEW_IMAGE_TOOL_ID]);
   assert.match(String(built[0]!.descriptor.description), /find them with host_read\.asset\)/);
@@ -376,7 +376,7 @@ test("the catalog contributor installs this tool's own builder and risk map unde
 
 test("the not-found refusal names the injected media-asset read tool id", async () => {
   const harness = makeHarness();
-  const registration = buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset" })
+  const registration = buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset", mediaMetadataWriteToolId: "host_write.asset_metadata" })
     .find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID)!;
   await assert.rejects(call(registration, { mediaId: "missing-id" }), (error: Error) => {
     assert.equal(error.message, "media_view_image: no media asset with id or slug 'missing-id'. Use host_read.asset to list the library and find the right id or slug.");
@@ -400,4 +400,22 @@ test("media view uses the injected codec for oriented dimensions and model bytes
   assert.deepEqual(metadataOf(output).original, { contentType: "image/png", width: 10, height: 20 });
   assert.deepEqual(requests, [{ source: Buffer.from(source),
     autoOrient: true, format: "webp", quality: 80, resize: { width: 1568, height: 1568, fit: "inside", withoutEnlargement: true } }]);
+});
+
+test("view image gives the authorized metadata follow-up and performs no write", async () => {
+  // A read can supply evidence without changing human-authored metadata.
+  const harness = makeHarness();
+  const seeded = await seed(harness, { bytes: await splitColorPng(120, 40), filename: "pic.png", contentType: "image/png", alt: "A human-written alt" });
+  const before = await harness.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
+  const registration = withContentTargets({ registrations: buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset", mediaMetadataWriteToolId: "host_write.asset_metadata" }), deps: harness.deps })
+    .find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID)!;
+  assert.match(String(registration.descriptor.description), /When asked to save what you see, call host_write\.asset_metadata with a short factual description/);
+  assert.doesNotMatch(String(registration.descriptor.description), /media_update_metadata/);
+  let writes = 0;
+  const save = harness.mediaRepo.save.bind(harness.mediaRepo);
+  harness.mediaRepo.save = async (record) => { writes += 1; await save(record); };
+  await call(registration, { mediaId: seeded.id });
+  assert.equal(writes, 0, "viewing performs no media write");
+  const after = await harness.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
+  assert.deepEqual(after, before, "viewing leaves the stored record, its version and its human alt text untouched");
 });
