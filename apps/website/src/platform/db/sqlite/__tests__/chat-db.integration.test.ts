@@ -58,6 +58,8 @@ test("openSiteChatDb migrates fresh and legacy files, preserves conversations an
           { id: "0002_durable_run_attempts" },
           { id: "0003_active_run_index" },
           { id: "0004_chat_pinned" },
+          // B140 (d0f5d57dc): the historical assistant-chat title scrub is part of every chat file's ordered history.
+          { id: "0049_scrub_assistant_chat_titles" },
         ]);
         if (mode === "fresh") seed(db);
         const chats = db.prepare("SELECT * FROM ai_chats ORDER BY id").all();
