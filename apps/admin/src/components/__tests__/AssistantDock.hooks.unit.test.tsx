@@ -127,6 +127,7 @@ import {
 } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import type { ComposerCapability as TovuComposerCapability } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
+import { MAX_UPLOAD_BATCH_BYTES, VIDEO_UPLOAD_LIMIT_BYTES } from "@tovu/contracts/upload-limits";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
 const mockSaveExecutionConfig = vi.mocked(saveExecutionConfig);
@@ -1536,7 +1537,7 @@ describe("useAttachmentUploader", () => {
     }));
   });
 
-  it("enforces the host's 50 MiB per-file and 100 MiB per-turn limits across rerenders", async () => {
+  it("enforces the host's 50 MiB per-file and shared per-turn limits across rerenders", async () => {
     const attachment = { path: "attachments/large.bin", name: "large.bin", mimeType: "application/octet-stream", size: 50 * 1024 * 1024 };
     const fetchSpy = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ attachment }), { status: 200 }));
     vi.stubGlobal("fetch", fetchSpy);
@@ -1551,11 +1552,16 @@ describe("useAttachmentUploader", () => {
     const { result, rerender } = renderHook(() => useAttachmentUploader());
     await expect(result.current([sizedFile(maxFile + 1)], options)).rejects.toThrow("That file is 50.1 MB; the limit is 50 MB.");
     expect(fetchSpy).not.toHaveBeenCalled();
-    await expect(result.current([sizedFile(maxFile)], options)).resolves.toEqual([attachment]);
+    // The per-turn total is the shared contracts limit: one full-size video plus one 50 MiB file
+    // (owner 2026-11-24), filled across a rerender; one more byte must then be refused.
+    const video = new File(["bytes"], "clip.mp4", { type: "video/mp4" });
+    Object.defineProperty(video, "size", { value: VIDEO_UPLOAD_LIMIT_BYTES });
+    expect(VIDEO_UPLOAD_LIMIT_BYTES + maxFile).toBe(MAX_UPLOAD_BATCH_BYTES);
+    await expect(result.current([video], options)).resolves.toEqual([attachment]);
     rerender();
     await expect(result.current([sizedFile(maxFile)], options)).resolves.toEqual([attachment]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-    await expect(result.current([sizedFile(1)], options)).rejects.toThrow("Attachments for one message must total 100 MB or less.");
+    await expect(result.current([sizedFile(1)], options)).rejects.toThrow(`Attachments for one message must total ${MAX_UPLOAD_BATCH_BYTES / (1024 * 1024)} MB or less.`);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
