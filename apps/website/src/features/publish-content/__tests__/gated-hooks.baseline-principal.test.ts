@@ -19,7 +19,7 @@ import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content
 import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
-import type { PublishContentReport } from "../plan-rows.js";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";

@@ -1,4 +1,4 @@
-import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
+import { toolMetadata } from '@jini-ai/chat/core/assistant-tool-metadata';
 import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { describeComponentTool, searchComponentsTool } from "@jini-ai/mcp";

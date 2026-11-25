@@ -6,6 +6,7 @@
  * walker, and a DESTINATION themes dir standing in for a peer site. Bytes reach the destination the
  * way the real transport delivers them: into its blob store under `computeBlobStorageKey`.
  */
+import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, type PathLike } from "node:fs";
@@ -23,8 +24,8 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import { planImport } from "#src/features/publish-content/planner";
-import { entityKey } from "#src/features/publish-content/plan-rows";
+import { planImport } from "@jini-ai/cms/publish/content/planner";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import {
   registerPublishContentContributor,
@@ -389,7 +390,7 @@ test("discovery never lists .publish-staging or .publish-previous as themes", as
 
 function planDeps(fixture: Fixture, forced?: ReadonlySet<string>) {
   return {
-    publishContentDeps: fixture.deps,
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: fixture.deps,
     getBaseline: async () => null,
     hasBlob: async () => true,
     ...(forced ? { forcedEntityKeys: forced } : {}),

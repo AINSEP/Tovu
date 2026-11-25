@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/trash.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/trash';
 /**
  * @file `trash_item` — one generic "move this to the Trash" tool, built as a fifth DOOR onto the four
  * per-domain delete tools rather than a fifth PATH around them.

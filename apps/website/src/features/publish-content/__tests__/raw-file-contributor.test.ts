@@ -5,7 +5,8 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
+import { createRawFileSitePort } from "@jini-ai/cms/publish/content/publish-backstop-file";
+import { BACKSTOP_RAW_FILE_POLICY } from "#src/features/publish-content/backstop-policy";
 import { BackstopRefusal } from "@jini-ai/cms/publish/content/backstop-refusal";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
@@ -19,7 +20,7 @@ import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
 async function fixture(t: test.TestContext) {
   const siteDir = await mkdtemp(path.join(tmpdir(), "backstop-files-"));
   t.after(() => rm(siteDir, { recursive: true, force: true }));
-  const files = createRawFileSitePort({ siteDir });
+  const files = createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir });
   const blobs = new InMemoryBlobStore();
   const outbox = new InMemoryOutbox();
   let id = 0;

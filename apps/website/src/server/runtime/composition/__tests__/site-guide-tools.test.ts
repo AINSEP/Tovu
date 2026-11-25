@@ -10,8 +10,7 @@ import { buildBaseSystemOverlay } from "#src/server/inbound/assistant/assistant-
 import { SYSTEM_PREAMBLE } from "../modules/assistant-byok.js";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { buildSiteGuideRegistrations, readSiteGuideInput, siteGuideDerivedRisk } from "../site-guide-tools.js";
-import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
-import { toolMetadata } from "#src/contracts/core/tool-metadata/site-guide";
+import { nativeToolMetadata, siteGuideToolMetadata as toolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
 import { realToolCatalog } from "#src/assistant/__tests__/real-tool-catalog.fixture";

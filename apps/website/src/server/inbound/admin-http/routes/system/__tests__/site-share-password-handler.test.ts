@@ -11,7 +11,7 @@ import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { createSiteSavedKeys } from "#src/features/site-backup/saved-keys";
+import { createSiteSavedKeys } from "@jini-ai/devops/backup/site/saved-keys";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import fs from "node:fs";
 import os from "node:os";
@@ -48,7 +48,7 @@ test("only the same-origin browser owner can open this share's real sealed passw
   await registry.put({ record: { shareId: identity.shareId, site: "ws", token: "ABCDEFGHIJKLMNOP", file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null,
     status: "active", createdAt: "2026-10-31T00:00:00Z", revokedAt: null, hasEncryptedKeys: true, sealedPassword } });
   const unexpected = async (): Promise<never> => { throw new Error("Unrelated export/import operation invoked"); };
-  const savedKeys = createSiteSavedKeys({ workspaceId: "ws", sealer });
+  const savedKeys = createSiteSavedKeys({ workspaceId: "ws", sealer, passwordAadDomain: "tovu-share-password" });
   const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined, ownerPrincipalId: "owner", savedKeys });
   const app = express();
   app.use((req, res, next) => {

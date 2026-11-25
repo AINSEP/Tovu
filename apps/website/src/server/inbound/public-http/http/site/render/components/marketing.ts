@@ -2,7 +2,7 @@ import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import { obj, str, arr } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { escapeHtml } from "@jini-ai/core/text";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
-import type { SiteRenderContext } from "../../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { mediaPlaceholder } from "@jini-ai/cms/public-http/http/site/render/media-placeholder";
 import { TOVU_DOC_RENDER_CLASSES } from "#src/server/runtime/composition/doc-render-host";
 

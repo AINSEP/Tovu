@@ -32,7 +32,7 @@ import { durableAttemptOwnsAnswer } from "@jini-ai/daemon/run-start-decisions";
 import { TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/daemon-access";
 import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
-import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
+import { createNativeApprovalMemory } from "@jini-ai/core/native-approval-memory";
 import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
 import { buildPromoteChatAttachmentTool } from "#src/features/media/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "@jini-ai/cms/media/site/list-pending-chat-attachments";

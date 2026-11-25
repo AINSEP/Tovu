@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/web.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/web';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";

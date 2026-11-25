@@ -4,7 +4,7 @@ import test from "node:test";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { callPeer, pullBlobsFromPeer, pushBundleToPeer, PublishContentPeerTransportError } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
-import type { PublishContentExportEnvelope } from "../export-bundle.js";
+import type { PublishContentExportEnvelope } from "@jini-ai/cms/publish/content/export-bundle";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 
 const credential: ResolvedPeerCredential = { id: "peer", label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: ["fixture", "credential"].join("-") };

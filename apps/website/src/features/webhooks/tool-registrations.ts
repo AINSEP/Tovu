@@ -9,7 +9,7 @@
 import { withToolMetadata, type ToolContributor, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import {
   buildWebhooksToolRegistrations,
   webhooksDerivedRisk,
@@ -22,7 +22,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
-import { toolMetadata } from "../../contracts/core/tool-metadata/webhooks.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/webhooks";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 
 /**

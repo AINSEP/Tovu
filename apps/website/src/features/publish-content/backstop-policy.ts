@@ -1,4 +1,5 @@
-import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
+import { checkTreePath, credentialBaseName, normalizeMode } from "./file-tree-policy.js";
+import type { RawBackstopPolicy, RawFilePolicy } from "@jini-ai/cms/publish/content/backstop-refusal";
 import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 
 /** CMS-specific, immutable boundaries, run on BOTH peers. Neither a grant nor a confirmation
@@ -113,3 +114,9 @@ function checkInstallationSetting({ values }: { values: Readonly<Record<string, 
   }
   return null;
 }
+
+/** The immutable raw-send rules above, bound for the CMS preview that takes them injected. */
+export const BACKSTOP_RAW_POLICY: RawBackstopPolicy = { checkRawTable, checkRawFilePath, checkRawValues };
+
+/** The raw site-file adapter's host rules (deny-list, byte cap, mode normalizer), bound for injection. */
+export const BACKSTOP_RAW_FILE_POLICY: RawFilePolicy = { checkRawFilePath, maxBytes: BACKSTOP_LIMITS.bytes, normalizeMode };

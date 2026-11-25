@@ -97,7 +97,7 @@ import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { type CapabilityDef } from "@jini-ai/core/contracts/capabilities";
 import type { ToolRegistration } from "@jini-ai/core";
 import { withToolMetadata } from "@jini-ai/core";
-import { toolMetadata } from "../contracts/core/tool-metadata/frontend-control.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/frontend-control";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
 import { PUBLISH_CONTENT_CAPABILITY } from "../features/publish-content/ui/index.js";
 

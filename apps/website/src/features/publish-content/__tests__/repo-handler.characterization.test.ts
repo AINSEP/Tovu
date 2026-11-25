@@ -3,6 +3,7 @@
  * (`repo-handler.test.ts`) does not pin, written before the factory was split by responsibility
  * (publish-engine P0.6). Each case names the config field or step it guards.
  */
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -11,8 +12,8 @@ import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "@j
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { changedSincePlan, notWired } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "../repo-handler.js";
-import type { RepoPublishTypeConfig, RepoWriteContext } from "../repo-handler.js";
+import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
+import type { RepoPublishTypeConfig, RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentDeps } from "../type-registry.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
@@ -189,7 +190,7 @@ test("a PublishContentApplyRowError and a non-Error thrown by write pass through
 test("the write context carries the ports, deps, ids, state, existing row, expected version, principal and replacement", async () => {
   const ports: Ports = { rows: new Map([["w1", row()]]) };
   const deps = makeDeps(ports);
-  let seen: RepoWriteContext<Row, Ports> | undefined;
+  let seen: RepoWriteContext<Row, Ports, TovuPublishPorts> | undefined;
   const handler = createRepoPublishHandler(config({ write: async (ctx) => { seen = ctx; } })).build(deps);
   const replacement = { version: 3, sourceSha256: "b".repeat(64) };
   const result = await handler.apply(applyInput("w1", { expectedVersion: 3, sourceReplacement: replacement as never }));

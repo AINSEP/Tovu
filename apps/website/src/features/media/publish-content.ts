@@ -1,4 +1,4 @@
-import { createRepoPublishHandler, type FieldDisposition } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, type FieldDisposition } from "@jini-ai/cms/publish/content/repo-handler";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
 import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
@@ -187,7 +187,7 @@ function importedOrThrow(
   return outcome;
 }
 
-const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>>[0]['write'] = async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
+const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"], TovuPublishPorts>>[0]['write'] = async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
       await assertPublishableMedia({ ports, workspaceId, state, existing });
       const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
@@ -218,7 +218,7 @@ const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecor
       // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.
       return { blobWritten: outcome.blobWritten, version: saved?.version };
     };
-const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>>[0]['validate'] = async ({ ports, workspaceId, entity, existing }) => {
+const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"], TovuPublishPorts>>[0]['validate'] = async ({ ports, workspaceId, entity, existing }) => {
       if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
       const source = entity.state.source as { sha256?: string } | undefined;
       const malformed = malformedHashRefusal({ sourceSha256: source?.sha256, requiredBlobs: entity.requiredBlobs });
@@ -234,7 +234,7 @@ const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRe
 
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMediaPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>({
+  createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"], TovuPublishPorts>({
     entityType: "media",
     // Operational sidecars are also media-owned; raw-row fallback must not export a private
     // document's slug history or original-rendition storage key after typed pack excluded it.

@@ -1,5 +1,5 @@
 import { expandPartials } from "@jini-ai/cms/widgets/markers";
-import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
+import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { injectListingScript } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript } from "@jini-ai/cms/navigation/dropdown";
 import { escapeHtml } from "@jini-ai/core/text";

@@ -5,7 +5,7 @@ import test from "node:test";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import { expandPartials } from "@jini-ai/cms/widgets/markers";
-import { DEFAULT_THEME_SLOTS } from "../../../contracts/core/theme-slots.js";
+import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 

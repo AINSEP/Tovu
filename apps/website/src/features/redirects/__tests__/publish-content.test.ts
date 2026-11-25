@@ -16,7 +16,7 @@ import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
 import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
-import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
 import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";

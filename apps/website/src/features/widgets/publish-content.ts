@@ -1,8 +1,9 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { collectPlacementReferences } from "#src/features/publish-content/content-references";
+import { collectPlacementReferences } from "@jini-ai/cms/publish/content/content-references";
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
-import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { PublishContentReference } from "@jini-ai/cms/publish/content/type-registry";
 import type { WidgetPublishPorts } from "@jini-ai/cms/widgets/publish-ports";
@@ -37,7 +38,7 @@ import { importWidgetInstance } from "@jini-ai/cms/widgets";
 
 /** The widgets write-service deps for one apply. */
 function serviceDeps(
-  { ctx, entityType }: { ctx: RepoWriteContext<unknown, WidgetPublishPorts>; entityType: string },
+  { ctx, entityType }: { ctx: RepoWriteContext<unknown, WidgetPublishPorts, TovuPublishPorts>; entityType: string },
   _optional = {}
 ) {
   const { deps, ports } = ctx;
@@ -122,7 +123,7 @@ async function portableRow(
 }
 
 export const contributeWidgetPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<WidgetRow, WidgetPublishPorts>({
+  createRepoPublishHandler<WidgetRow, WidgetPublishPorts, TovuPublishPorts>({
     entityType: "widget",
     coversTables: ["entries", "entry_refs", WIDGET_REGION_BINDINGS_TABLE],
     permission: "widgets.update",
@@ -184,7 +185,7 @@ async function listAreas({ ports: p, workspaceId }: { ports: WidgetPublishPorts;
 }
 
 export const contributeWidgetAreaPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<WidgetAreaRow, WidgetPublishPorts>({
+  createRepoPublishHandler<WidgetAreaRow, WidgetPublishPorts, TovuPublishPorts>({
     entityType: "widget-area",
     coversTables: ["entries", "entry_refs", WIDGET_REGION_BINDINGS_TABLE],
     permission: "widgets.place",
@@ -225,7 +226,7 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
     },
   });
 
-function collectWidgetPublishReferences({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["references"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["references"]>> {
+function collectWidgetPublishReferences({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts, TovuPublishPorts>>[0]["references"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts, TovuPublishPorts>>[0]["references"]>> {
       const config = (entity.state.config ?? {}) as Record<string, unknown>;
       const refs = Object.entries(WIDGET_CONFIG_REFERENCES).flatMap(([field, entityType]) => {
         const key = config[field];
@@ -234,7 +235,7 @@ function collectWidgetPublishReferences({ entity }: Parameters<NonNullable<Param
       return [...refs, ...widgetMediaReferences({ widgetType: String(entity.state.widgetType), config })];
     }
 
-async function validateWidgetPublish({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["validate"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["validate"]>> {
+async function validateWidgetPublish({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts, TovuPublishPorts>>[0]["validate"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts, TovuPublishPorts>>[0]["validate"]>> {
       const widgetType = entity.state.widgetType as WidgetTypeKey;
       const registration = findWidgetTypeRegistration({ raw: widgetType });
       if (!registration) return `widget '${entity.id}': widget type '${widgetType}' is not installed on the destination`;
@@ -242,7 +243,7 @@ async function validateWidgetPublish({ entity }: Parameters<NonNullable<Paramete
       return check.valid ? null : `widget '${entity.id}': its settings do not fit the destination's '${widgetType}' widget`;
     }
 
-async function writePublishedWidget(ctx: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["write"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["write"]>> {
+async function writePublishedWidget(ctx: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts, TovuPublishPorts>>[0]["write"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts, TovuPublishPorts>>[0]["write"]>> {
       const { id, state, expectedVersion, principalId, workspaceId, ports } = ctx;
       const widgetType = state.widgetType as WidgetTypeKey;
       const config = await swapFormRef({ widgetType, config: state.config as Record<string, unknown>, swap: async (slug) => (await ports.forms.findBySlug({ workspaceId, slug }))?.id });

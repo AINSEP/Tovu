@@ -6,7 +6,7 @@ import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-ht
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
 import { renderHtmlPageBody } from "../render/page-body.js";
 import { renderWidgetRegion, renderWidgetIr } from "../render/content-html.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 
 test("repeated Builder forms across embeds and regions keep every ID and association within its occurrence", () => {
   for (const collectionPlan of [undefined, { kind: "post", external: true, action: "https://forms.example.test/submit" }]) {

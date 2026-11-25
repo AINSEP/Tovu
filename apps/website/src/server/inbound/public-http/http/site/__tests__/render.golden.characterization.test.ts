@@ -9,7 +9,7 @@ import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
 import { renderSite } from "../render-site.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { COMPONENTS } from "../render/components/registry.js";
 import { renderDocBodyAsPageHtml, renderDocNode, renderWidgetIr } from "../render/content-html.js";

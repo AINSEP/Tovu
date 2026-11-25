@@ -7,7 +7,7 @@ import test from "node:test";
 
 import type { NavMenuEntry } from "@jini-ai/cms/navigation";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { createPublishContentSeedHash } from "@jini-ai/cms/publish/content/seed-hash";
 import { createRedirect } from "@jini-ai/cms/redirects";

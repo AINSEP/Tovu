@@ -1,4 +1,4 @@
-import { toolMetadata } from "../../contracts/core/tool-metadata/web-screenshot.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/web-screenshot";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 

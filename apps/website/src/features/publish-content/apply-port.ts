@@ -1,6 +1,6 @@
 import type { PublishContentApplyPort } from "./gated-hooks.js";
 import { applyPublishContentReport } from "./apply-report.js";
-import type { CreatePublishContentApplyPortInput } from "./apply-run.js";
+import type { CreatePublishContentApplyPortInput } from "@jini-ai/cms/publish/content/apply-run";
 import type { PublishContentDeps } from "./type-registry.js";
 import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 
@@ -49,7 +49,7 @@ export function toPublishContentApplyDeps(required: PublishContentApplyDeps, _op
  * per call — dominated by whatever I/O those individually cost, not by this function's own control
  * flow.
  */
-export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput, _optional = {}): PublishContentApplyPort {
+export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput<TovuPublishPorts>, _optional = {}): PublishContentApplyPort {
   return {
     applyReport: ({ report, principalId, bundleId, restorePointId, authorize, backstop }) =>
       applyPublishContentReport({ input, report, principalId, bundleId, restorePointId, authorize, backstop }),

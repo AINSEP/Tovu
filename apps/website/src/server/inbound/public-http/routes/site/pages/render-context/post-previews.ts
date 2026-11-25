@@ -19,7 +19,7 @@ import { ListingBatchNotFoundError } from "@jini-ai/cms/listing/request-state";
 import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import { deriveExcerpt, extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
-import { resolveAssignedTermsForRender } from "./taxonomy.js";
+import { resolveAssignedTermsForRender } from "@jini-ai/cms/public-http/routes/site/pages/render-context/taxonomy";
 import { decidePostMemberAccess } from "./member-access.js";
 import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender } from "./media-metadata.js";
 

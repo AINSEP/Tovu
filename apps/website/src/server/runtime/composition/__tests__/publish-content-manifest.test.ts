@@ -40,7 +40,8 @@ import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
-import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
+import { createRawFileSitePort } from "@jini-ai/cms/publish/content/publish-backstop-file";
+import { BACKSTOP_RAW_FILE_POLICY } from "#src/features/publish-content/backstop-policy";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
@@ -203,7 +204,7 @@ test("the registered raw-file contributor creates the exact bytes on disk", asyn
       repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}),
       blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
     } }, "raw-file-registry"),
-      backstop: { files: createRawFileSitePort({ siteDir: root }), blobs, fileBlobIndex: createFileBlobIndex(),
+      backstop: { files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: root }), blobs, fileBlobIndex: createFileBlobIndex(),
         fileRollbacks: [], coveredTables: [], coveredRoots: [] } };
     const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-file");
     assert.ok(handler);

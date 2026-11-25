@@ -1,6 +1,6 @@
-import type { SiteRenderContext } from "../../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./layout.js";
+import { siteHeader, siteFooter, siteNav, siteFooterRich } from "@jini-ai/cms/public-http/http/site/render/components/layout";
 import { entryList } from "./entry-lists.js";
 import { entryContent } from "../post-body.js";
 import { hero, section, featureGrid, announcement, ctaBand } from "./marketing.js";
@@ -25,7 +25,7 @@ export const COMPONENTS: Record<string, Component> = {
   "tovu/site-header": siteHeader,
   "tovu/entry-list": entryList,
   "tovu/entry-content": entryContent,
-  "tovu/site-footer": siteFooter,
+  "tovu/site-footer": (ctx) => siteFooter(ctx, { creditText: "powered by Tovu" }),
   "tovu/hero": hero,
   "tovu/section": section,
   "tovu/feature-grid": featureGrid,

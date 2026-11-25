@@ -24,8 +24,8 @@ storage, SQL query bodies and row codecs. Tovu imports these owners directly.
   `redirectsTable: REDIRECT_TABLES.redirects`.
 - The agent-tool binding moved to `@jini-ai/cms/redirects/site/tool-registrations`.
   Tovu binds it in `server/runtime/composition/tool-catalog-manifest.ts`,
-  injecting its tool metadata (`contracts/core/tool-metadata/redirects.ts`) and
-  read vocabulary (`contracts/core/tool-metadata/content-read.ts`). The route
+  injecting its tool metadata (`@jini-ai/core/tool-metadata/redirects`) and
+  read vocabulary (`apps/website/src/contracts/core/tool-metadata/content-read.ts`). The route
   deps type is Jini's `RedirectsPackageToolDeps` from `@jini-ai/cms/redirects`.
 - The `index.ts` barrel was removed: it only forwarded `repo.sqlite.ts`, so
   composition imports `#src/features/redirects/repo.sqlite` directly.

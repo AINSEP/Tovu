@@ -4,7 +4,7 @@ import { resolveFeaturedMediaIdForWrite } from "@jini-ai/cms/posts/featured-imag
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { createPost, deletePost, getAdminPostByIdOrSlug, restorePostForward, updatePost, type UpdatePostInput } from "#src/features/post/index";
-import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
+import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { rejectPluginHookFailure } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps } from "./content.js";

@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { toolMetadata } from '../../contracts/core/tool-metadata/fs-files.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/fs-files';
 import { ToolInputError, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";

@@ -1,4 +1,4 @@
-import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
+import { toolMetadata } from '@jini-ai/chat/core/assistant-tool-metadata';
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 

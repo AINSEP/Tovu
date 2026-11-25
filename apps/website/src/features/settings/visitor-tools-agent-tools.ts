@@ -1,7 +1,7 @@
 import type { AgentToolDefinition } from "@jini-ai/core";
 import type { VisitorToolsToolHostPolicy } from "@jini-ai/cms/settings/site/visitor-tools-registrations";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
-import { toolMetadata } from "../../contracts/core/tool-metadata/visitor-tools.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/visitor-tools";
 import { VISITOR_TOOLS_PERMISSION } from "../../contracts/site-assistant/visitor-tools.js";
 import { VISITOR_TOOLS_HOST } from "./settings-write-policies.js";
 

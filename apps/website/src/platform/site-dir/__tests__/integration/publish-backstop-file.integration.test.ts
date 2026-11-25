@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
-import { createRawFileSitePort, type BackstopFilesystem } from "../../../../features/publish-content/publish-backstop-file.js";
+import { createRawFileSitePort, type BackstopFilesystem } from "@jini-ai/cms/publish/content/publish-backstop-file";
+import { BACKSTOP_RAW_FILE_POLICY } from "#src/features/publish-content/backstop-policy";
 
 /**
  * @file Real-filesystem pins for the CMS raw site-file adapter: every path-safety refusal, the size
@@ -23,7 +24,7 @@ function fixture() {
   const siteDir = path.join(parent, "site");
   fs.mkdirSync(path.join(siteDir, "assets"), { recursive: true });
   fs.writeFileSync(path.join(siteDir, "assets", "logo.txt"), "logo bytes", { mode: 0o644 });
-  return { parent, siteDir, port: createRawFileSitePort({ siteDir }), cleanup: () => fs.rmSync(parent, { recursive: true, force: true }) };
+  return { parent, siteDir, port: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir }), cleanup: () => fs.rmSync(parent, { recursive: true, force: true }) };
 }
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
@@ -39,7 +40,7 @@ test("check refuses a site folder that is a regular file", async () => {
   try {
     const file = path.join(f.parent, "file-site");
     fs.writeFileSync(file, "");
-    assert.equal(await createRawFileSitePort({ siteDir: file }).check({ relPath: "a.txt" }), "The site folder must be a real directory, never a link.");
+    assert.equal(await createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: file }).check({ relPath: "a.txt" }), "The site folder must be a real directory, never a link.");
   } finally { f.cleanup(); }
 });
 
@@ -48,14 +49,14 @@ test("check refuses a site folder reached through a link", async () => {
   try {
     const link = path.join(f.parent, "linked-site");
     fs.symlinkSync(f.siteDir, link);
-    assert.equal(await createRawFileSitePort({ siteDir: link }).check({ relPath: "assets/logo.txt" }), "The site folder must be a real directory, never a link.");
+    assert.equal(await createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: link }).check({ relPath: "assets/logo.txt" }), "The site folder must be a real directory, never a link.");
   } finally { f.cleanup(); }
 });
 
 test("check reports a missing site folder as unavailable", async () => {
   const f = fixture();
   try {
-    assert.equal(await createRawFileSitePort({ siteDir: path.join(f.parent, "gone") }).check({ relPath: "a.txt" }), "The site folder is unavailable.");
+    assert.equal(await createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: path.join(f.parent, "gone") }).check({ relPath: "a.txt" }), "The site folder is unavailable.");
   } finally { f.cleanup(); }
 });
 
@@ -268,7 +269,7 @@ test("read surfaces an open failure other than a missing file", async () => {
   const f = fixture();
   try {
     const filesystem: BackstopFilesystem = { ...fs, openSync: (() => { throw fault("ELOOP"); }) as typeof fs.openSync };
-    await assert.rejects(createRawFileSitePort({ siteDir: f.siteDir }, { filesystem }).read({ relPath: "assets/logo.txt" }), { code: "ELOOP" });
+    await assert.rejects(createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: f.siteDir }, { filesystem }).read({ relPath: "assets/logo.txt" }), { code: "ELOOP" });
   } finally { f.cleanup(); }
 });
 
@@ -278,7 +279,7 @@ test("replace refuses staged bytes whose checksum changed and removes the stage"
     const staging = path.join(f.siteDir, ".publish-staging");
     const filesystem: BackstopFilesystem = { ...fs, readFileSync: ((file: fs.PathOrFileDescriptor, options?: unknown) =>
       String(file).startsWith(staging) ? Buffer.from("flipped bits") : fs.readFileSync(file, options as undefined)) as typeof fs.readFileSync };
-    await assert.rejects(createRawFileSitePort({ siteDir: f.siteDir }, { filesystem }).replace({ relPath: "assets/logo.txt", bytes: Buffer.from("x"), mode: 0o644 }), {
+    await assert.rejects(createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: f.siteDir }, { filesystem }).replace({ relPath: "assets/logo.txt", bytes: Buffer.from("x"), mode: 0o644 }), {
       message: "The staged file failed its checksum check.",
     });
     assert.deepEqual(fs.readdirSync(staging), []);
@@ -296,7 +297,7 @@ test("replace refuses a parent folder swapped for a non-directory after the chec
       writeFileSync: ((...args: Parameters<typeof fs.writeFileSync>) => { staged = true; fs.writeFileSync(...args); }) as typeof fs.writeFileSync,
       lstatSync: ((file: fs.PathLike) => staged && String(file) === swapped ? fs.lstatSync(path.join(f.siteDir, "assets", "logo.txt")) : fs.lstatSync(file)) as typeof fs.lstatSync,
     };
-    await assert.rejects(createRawFileSitePort({ siteDir: f.siteDir }, { filesystem }).replace({ relPath: "new/file.txt", bytes: Buffer.from("x"), mode: 0o644 }), { message: LINK });
+    await assert.rejects(createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: f.siteDir }, { filesystem }).replace({ relPath: "new/file.txt", bytes: Buffer.from("x"), mode: 0o644 }), { message: LINK });
   } finally { f.cleanup(); }
 });
 
@@ -304,7 +305,7 @@ test("replace surfaces a stage cleanup failure other than a missing stage", asyn
   const f = fixture();
   try {
     const filesystem: BackstopFilesystem = { ...fs, unlinkSync: (() => { throw fault("EBUSY"); }) as typeof fs.unlinkSync };
-    await assert.rejects(createRawFileSitePort({ siteDir: f.siteDir }, { filesystem }).replace({ relPath: "assets/logo.txt", bytes: Buffer.from("x"), mode: 0o644 }), { code: "EBUSY" });
+    await assert.rejects(createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: f.siteDir }, { filesystem }).replace({ relPath: "assets/logo.txt", bytes: Buffer.from("x"), mode: 0o644 }), { code: "EBUSY" });
   } finally { f.cleanup(); }
 });
 
@@ -312,7 +313,7 @@ test("restore without a backup surfaces a removal failure other than a missing f
   const f = fixture();
   try {
     const filesystem: BackstopFilesystem = { ...fs, unlinkSync: (() => { throw fault("EBUSY"); }) as typeof fs.unlinkSync };
-    await assert.rejects(createRawFileSitePort({ siteDir: f.siteDir }, { filesystem }).restore({ inverse: { relPath: "assets/logo.txt", backupName: null, sha256: null, size: null, mode: 0o644 } }), { code: "EBUSY" });
+    await assert.rejects(createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: f.siteDir }, { filesystem }).restore({ inverse: { relPath: "assets/logo.txt", backupName: null, sha256: null, size: null, mode: 0o644 } }), { code: "EBUSY" });
     assert.equal(fs.existsSync(path.join(f.siteDir, "assets", "logo.txt")), true);
   } finally { f.cleanup(); }
 });

@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/ui";
-import { entityKey } from "../../plan-rows.js";
+import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
 import {
   addressHeldByOther,
   addressHeldInTrash,

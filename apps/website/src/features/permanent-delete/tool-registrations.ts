@@ -1,5 +1,5 @@
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
-import { toolMetadata } from '../../contracts/core/tool-metadata/permanent-delete.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/permanent-delete';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import {

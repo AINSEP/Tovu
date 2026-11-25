@@ -1,4 +1,4 @@
-import { toolMetadata } from "../../contracts/core/tool-metadata/settings.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/settings";
 import { buildUiLocalesRegistrations, uiLocalesDerivedRisk, type UiLocalesToolDeps } from "@jini-ai/cms/settings/site/ui-locales-tool";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { withToolMetadata } from "@jini-ai/core";

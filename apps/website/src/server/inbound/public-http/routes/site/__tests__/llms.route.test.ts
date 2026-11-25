@@ -17,7 +17,7 @@ import {
   OriginNotVerifiedError,
   type OriginRegistryPort,
 } from "@jini-ai/core/contracts/server/verified-origin";
-import { registerLlmsTxtRoute } from "../llms.js";
+import { registerLlmsTxtRoute } from "../seo-documents.js";
 
 /**
  * @file `registerLlmsTxtRoute` (`routes/site/llms.ts`) — 2026-09-04 rewrite from a hand-curated

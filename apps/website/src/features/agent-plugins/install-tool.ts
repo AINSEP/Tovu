@@ -1,6 +1,6 @@
 import { createAgentPluginUpdateEffects, requireUpdateMcpDeps, type UpdateMcpDeps } from "./update-effects.js";
 import { AgentPluginUpdateError, AgentPluginHostIncompatibleError, isAgentPluginName, type UpdateAgentPluginRequired } from "@jini-ai/agent-plugins/lifecycle";
-import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
+import { agentPluginsToolMetadata as toolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import { createHash } from "node:crypto";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration, type ToolExecutionContext } from "@jini-ai/core";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { renderHandlebarsInSandbox } from "../handlebars-sandbox.js";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**

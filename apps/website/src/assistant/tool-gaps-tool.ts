@@ -1,5 +1,5 @@
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
-import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
+import { toolMetadata } from '@jini-ai/chat/core/assistant-tool-metadata';
 import type { ToolGapsToolDeps } from '@jini-ai/core/contracts/site/assistant-host-ports';
 
 export const toolGapsDerivedRisk: DerivedRiskByToolId = new Map([['tool_gaps_list', 'none']]);

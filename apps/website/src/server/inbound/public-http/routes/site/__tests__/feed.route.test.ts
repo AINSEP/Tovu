@@ -13,7 +13,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
-import { registerFeedRoute } from "../feed.js";
+import { registerFeedRoute } from "../seo-documents.js";
 
 /**
  * @file `GET /feed.xml` (RSS 2.0): the latest published, publicly visible, indexable blog posts

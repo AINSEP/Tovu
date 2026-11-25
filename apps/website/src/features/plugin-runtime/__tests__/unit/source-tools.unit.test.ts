@@ -7,7 +7,7 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { PluginInstallError, PluginSourceError, type PluginSourcePort, type PluginInstallPreview } from '@jini-ai/plugins/host/node';
 import { buildPluginSourceRegistrations, contributePluginSourceTools, pluginSourceDerivedRisk } from '../../source-tools.js';
 import { pluginAgentToolCatalog, pluginSourceAgentToolCatalog } from '../../plugin-host-copy.js';
-import { toolMetadata } from '../../../../contracts/core/tool-metadata/plugin-runtime.js';
+import { pluginRuntimeToolMetadata as toolMetadata } from '../../../../contracts/core/tool-metadata/index.js';
 import { resolveBatchableTools } from '../../../../assistant/batch-tool-inputs.js';
 import { isMcpUiToolCallPermitted } from '../../../../assistant/mcp-ui-tool-calls.js';
 

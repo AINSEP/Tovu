@@ -7,7 +7,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { collectBodyReferences } from "#src/features/publish-content/content-references";
+import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";

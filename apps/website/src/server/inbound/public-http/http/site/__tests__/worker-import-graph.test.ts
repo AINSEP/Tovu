@@ -251,7 +251,7 @@ for (const entry of [
   "../../routes/site/products.ts", "../../routes/site/media-rendition.ts",
   "../../routes/site/member-pages.ts", "../../routes/content/posts/get-by-slug.ts",
   "../../middleware/site-consent.ts", "../../middleware/theme-preview-switcher.ts",
-  "../../http/shared/post.ts", "../../routes/site/feed.ts", "../../middleware/theme-static-assets.ts",
+  "../../routes/site/seo-documents.ts", "../../middleware/theme-static-assets.ts",
   "../../middleware/theme-preview-refresh.ts", "../../routes/plugin-contributions.ts",
 ]) {
   test(`${entry} keeps public reads separate from feature-wide write/tool barrels`, () => {

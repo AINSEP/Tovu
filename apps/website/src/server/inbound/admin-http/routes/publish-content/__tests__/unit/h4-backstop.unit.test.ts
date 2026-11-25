@@ -3,7 +3,7 @@ import test from 'node:test';
 import express from 'express';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
-import { BACKSTOP_FORBIDDEN } from '#src/features/publish-content/backstop-service';
+import { BACKSTOP_FORBIDDEN } from '@jini-ai/cms/publish/content/backstop-service';
 import type { PublishContentRouteDeps } from '../../deps.js';
 import { registerPublishBackstopRoutes } from '#src/server/runtime/composition/modules/publish-content-backstop';
 

@@ -1,5 +1,5 @@
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
-import { toolMetadata } from "../../contracts/core/tool-metadata/site-inspection.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/site-inspection";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";

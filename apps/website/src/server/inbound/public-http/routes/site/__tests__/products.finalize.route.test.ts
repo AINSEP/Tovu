@@ -9,7 +9,7 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import { CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE, CACHE_CONTROL_PUBLIC_PAGE } from "../pages/request-policy.js";
-import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render-context";
+import type { SiteProduct } from "@jini-ai/cms/public-http/http/site/render-context";
 
 /**
  * @file B230 — `/products` and `/products/:id` must finish their HTML through the same public-page

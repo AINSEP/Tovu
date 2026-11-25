@@ -1,7 +1,7 @@
 import { formatIsoDate } from "@jini-ai/cms/widgets/date-label";
 import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
 import { escapeHtml } from "@jini-ai/core/text";
-import type { SiteRenderContext } from "../render-context.js";
+import type { SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { renderHtmlPageBody } from "./page-body.js";
 import { renderDocNode } from "./content-html.js";

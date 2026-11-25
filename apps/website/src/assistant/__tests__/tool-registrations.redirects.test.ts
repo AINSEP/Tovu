@@ -40,7 +40,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
-import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { toolMetadata as redirectsToolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {

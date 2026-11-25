@@ -20,7 +20,7 @@ import { buildRedirectsRegistrations } from "@jini-ai/cms/redirects/site/tool-re
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
-import { toolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

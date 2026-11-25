@@ -7,7 +7,7 @@ import { FIRST_PARTY_DATA_MODULES } from "./data-modules.js";
 import { restoreStagedImport as restoreWithLayout } from "#src/features/site-backup/import-restore";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
-import { createSiteSavedKeys } from "#src/features/site-backup/saved-keys";
+import { createSiteSavedKeys } from "@jini-ai/devops/backup/site/saved-keys";
 import { recordHeldBackChoice } from "#src/features/theme/held-back-choice";
 /**
  * Bind the newly allocated destination, never the requesting site's layout or ambient overrides.
@@ -55,10 +55,13 @@ export function rebuildImportDatabase(required: { snapshot: Buffer }, optional: 
   return rebuildWithWorker({ ...required, moduleUrl: optional.moduleUrl ?? import.meta.url }, optional);
 }
 
+/** Persisted inside every sealed share password's AAD: changing it makes existing exports unrevealable. */
+const SHARE_PASSWORD_AAD_DOMAIN = "tovu-share-password";
+
 /** Portable sites cannot inherit owner authority. Historical password reveal needs the site
  * sealer only; restore intentionally opens no recipient database and copies no credential.
  * @complexity O(1) composition, no I/O.
  */
 export function composeSiteSavedKeys(required: { workspaceId: string; sealer: SecretSealerPort }, _optional = {}) {
-  return createSiteSavedKeys(required);
+  return createSiteSavedKeys({ ...required, passwordAadDomain: SHARE_PASSWORD_AAD_DOMAIN });
 }

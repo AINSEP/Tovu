@@ -7,7 +7,7 @@ import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-gran
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { requireHumanConfirm } from "#src/contracts/core/human-confirm";
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
-import { toolMetadata } from "#src/contracts/core/tool-metadata/search";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/search";
 import type { SiteSearchRuntime } from "./modules/site-search.js";
 
 /**
@@ -23,7 +23,7 @@ import type { SiteSearchRuntime } from "./modules/site-search.js";
  * The two writes ask the human through `requireHumanConfirm` — the same exchange, dialog and
  * fail-closed classification every confirmed tool uses — so each tool id is a literal here: the
  * MCP-UI allowlist scan (`mcp-ui-allowlist-completeness.test.ts`) resolves it, and the click is
- * admitted because both ids are `confirmation: 'plan'` in `contracts/core/tool-metadata/search.ts`.
+ * admitted because both ids are `confirmation: 'plan'` in `@jini-ai/core/tool-metadata/search`.
  */
 
 export const SEARCH_REINDEX_TOOL_ID = "search_reindex";

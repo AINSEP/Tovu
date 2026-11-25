@@ -6,14 +6,14 @@ import { FormsPullFailedError, formsPullSubmissionsRoute, type FormsPullSubmissi
 import type { FormSubmissionsPullResult } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import { formsProvidersRoute } from "@jini-ai/cms/admin-http/routes/forms/providers";
 import { formsUpdateRoute } from "@jini-ai/cms/admin-http/routes/forms/update";
-import { setFormDefinitionStatus, updateFormDefinition, type FormWriteServiceDeps } from "#src/features/forms/index";
+import { formsAuthoringRoute } from "@jini-ai/cms/admin-http/routes/forms/authoring";
+import { formsCreateRoute } from "@jini-ai/cms/admin-http/routes/forms/create";
+import { formsDeleteSubmissionRoute } from "@jini-ai/cms/admin-http/routes/forms/delete-submission";
+import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition, type FormWriteServiceDeps } from "#src/features/forms/index";
 import { mountJsonRoute, type JsonRoutePorts } from "@jini-ai/http-kit";
 import { createAdminJsonRoutePorts, mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { registerAdminFormsAuthoringRoute } from "#src/server/inbound/admin-http/routes/forms/authoring";
-import { registerAdminFormsCreateRoute } from "#src/server/inbound/admin-http/routes/forms/create";
-import { registerAdminFormsDeleteSubmissionRoute } from "#src/server/inbound/admin-http/routes/forms/delete-submission";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "#src/server/inbound/admin-http/routes/forms/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -23,9 +23,12 @@ import type { ServerModuleHandle } from "./types.js";
  *
  * Owns the admin registrations (list/create/get-by-id/update/authoring/list-submissions/get-submission/
  * delete-submission, and pull-submissions for form destinations) — moved here verbatim from `app.ts`'s `createApp()`, same registrar function
- * bodies, no behavior change, same relative order. Seven of them are Jini route specs
+ * names, no behavior change, same relative order. All ten are Jini route specs
  * (`@jini-ai/cms/admin-http/routes/forms/*`) mounted behind the admin ports; `create`, `authoring`
- * and `delete-submission` are still hand-written Express routes.
+ * and `delete-submission` are specs too (K1 admin forms). `create` and `authoring` read the
+ * `Idempotency-Key` header (`readHeaders`); `authoring` mounts `"guarded"` (it called
+ * `authorizeOrRespond`), `delete-submission` `"direct"` (it called `authorizeDirectOrRespond`), and
+ * `create` makes no route-level check at all (the command gateway authorizes inside the write).
  *
  * Named distinctly from `src/server/modules/forms.ts` (SPEC-031, already existing), which owns
  * the unrelated Forms-to-webhook-notify-subscriber concern, not HTTP routes — mirrors how
@@ -41,6 +44,12 @@ function formsPortDeps({ deps }: { deps: FormsRouteDeps }, _options: Record<stri
 /** These routes never consulted the publishing-credential override (`authorizeDirectOrRespond`,
  *  or `deps.authorize` read directly). */
 const directMountOptions = (operation: string) => ({ authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } });
+
+/** The one request header the create and authoring specs read (an absent or empty one is no key). */
+const IDEMPOTENCY_HEADERS = ["idempotency-key"];
+
+/** The admin surface's outward copy for a classified domain error is that error's own message. */
+const outwardErrorMessage = ({ error }: { error: Error }) => error.message;
 
 /** The write-service deps the update route's host write functions bind, built per call as the
  *  hand-written route built them per request. */
@@ -75,11 +84,28 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }
   mountAdminJsonRoute({ app, spec: formsUpdateRoute, deps: {
     ...formsPortDeps({ deps }),
     formDefinitionRepo: deps.formDefinitionRepo,
-    // The admin surface's outward copy for a classified domain error is that error's own message.
-    outwardErrorMessage: ({ error }) => error.message,
+    outwardErrorMessage,
     updateFormDefinition: ({ input }) => updateFormDefinition({ deps: formWriteDeps({ deps }), input }),
     setFormDefinitionStatus: ({ input }) => setFormDefinitionStatus({ deps: formWriteDeps({ deps }), input }),
   } }, { failure: { operation: "routes/forms/update", code: "INTERNAL_ERROR" } });
+};
+
+/** Authoring write: guarded, like the hand-written route's `authorizeOrRespond`. */
+export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: { ...formsAuthoringRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...formsPortDeps({ deps }),
+    outwardErrorMessage,
+    updateFormDefinition: ({ input }, optional) => updateFormDefinition({ deps: formWriteDeps({ deps }), input }, optional),
+  } }, { failure: { operation: "routes/forms/authoring", code: "INTERNAL_ERROR" } });
+};
+
+/** The command gateway authorizes `admin.forms.manage` inside the write, so the spec makes no `authorize` call. */
+export const registerAdminFormsCreateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: { ...formsCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...formsPortDeps({ deps }),
+    outwardErrorMessage,
+    createFormDefinition: ({ input }) => createFormDefinition({ deps: formWriteDeps({ deps }), input }),
+  } }, { failure: { operation: "routes/forms/create", code: "INTERNAL_ERROR" } });
 };
 
 export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -90,6 +116,17 @@ export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = ({ app,
   mountAdminJsonRoute({ app, spec: formsGetSubmissionRoute, deps: {
     ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo, formSubmissionRepo: deps.formSubmissionRepo, formDeliveryStatus: deps.formDeliveryStatus,
   } }, directMountOptions("routes/forms/get-submission"));
+};
+
+/** `authorizeDirectOrRespond`: RBAC only, never the publishing-credential override. */
+export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: formsDeleteSubmissionRoute, deps: {
+    ...formsPortDeps({ deps }),
+    formDefinitionRepo: deps.formDefinitionRepo,
+    formSubmissionRepo: deps.formSubmissionRepo,
+    removeFormSubmission: deps.removeFormSubmission,
+    clock: deps.clock,
+  } }, directMountOptions("routes/forms/delete-submission"));
 };
 
 /**

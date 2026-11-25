@@ -1,7 +1,7 @@
 import { FORMS_TABLES } from "#src/platform/db/content-tables";
 import { executeCommand } from "@jini-ai/cms/core/commands";
 import { trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
@@ -23,7 +23,7 @@ import type { HtmlFormDefinitionRecord, FormAuthoring } from "@jini-ai/cms/forms
  * @overallScore 98 — Minor: the factory's typed state is trusted until existing command validation. */
 
 export const contributeFormPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<HtmlFormDefinitionRecord, TovuPublishPorts["form"]>({
+  createRepoPublishHandler<HtmlFormDefinitionRecord, TovuPublishPorts["form"], TovuPublishPorts>({
     entityType: "form",
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",

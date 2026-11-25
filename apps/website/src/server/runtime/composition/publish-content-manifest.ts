@@ -1,3 +1,4 @@
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { contributeContentTypePublish } from "#src/features/content-types/publish-content";
 import { contributeCollectionEntryPublish } from "#src/features/entries/publish-content";
 import { contributeFormPublish } from "#src/features/forms/publish-content";
@@ -9,7 +10,7 @@ import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-c
 import { contributeRawFilePublish } from "#src/features/publish-content/raw-file-contributor";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
-import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
 import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
 import { contributeSiteSettingPublish } from "@jini-ai/cms/settings/site/publish-content";
 import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
@@ -68,7 +69,7 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor({ contributor: contributeCollectionEntryPublish() });
   registerPublishContentContributor({ contributor: contributeWidgetPublish() });
   registerPublishContentContributor({ contributor: contributeWidgetAreaPublish() });
-  registerPublishContentContributor({ contributor: contributeSiteSettingPublish({ createRepoPublishHandler, gatewayDeps, publishableSettings: PUBLISHABLE_SETTINGS, writePolicies: SETTINGS_WRITE_POLICIES, principalLookup: createSettingsPrincipalLookup }) });
+  registerPublishContentContributor({ contributor: contributeSiteSettingPublish({ createRepoPublishHandler, gatewayDeps: gatewayDeps<TovuPublishPorts>, publishableSettings: PUBLISHABLE_SETTINGS, writePolicies: SETTINGS_WRITE_POLICIES, principalLookup: createSettingsPrincipalLookup }) });
   registerPublishContentContributor({ contributor: contributeActiveThemePublish() });
   registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   registerPublishContentContributor({ contributor: contributeRawFilePublish() });

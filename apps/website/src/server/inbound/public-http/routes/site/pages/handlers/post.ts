@@ -10,7 +10,7 @@ import { postPublicPath } from "#src/platform/routing/index";
 import { renderSite } from "../../../../http/site/render-site.js";
 import { renderBareEntryDocument } from "../../../../http/site/bare-page.js";
 import type { RouteDeps } from "#src/server/routes/types";
-import { resolveAssignedTermsForRender } from "../render-context/taxonomy.js";
+import { resolveAssignedTermsForRender } from "@jini-ai/cms/public-http/routes/site/pages/render-context/taxonomy";
 import { resolveSiteTitleForRender, resolveSiteTimeZoneForRender } from "../render-context/site-title.js";
 import { resolveWidgetsForRender, resolveHtmlEmbedsForRender } from "../render-context/widgets.js";
 import type { StaticMenuMap } from "../render-context/static-menus.js";

@@ -16,7 +16,7 @@ import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
-import type { PublishContentOutcomeRow, PublishContentReport } from "../plan-rows.js";
+import type { PublishContentOutcomeRow, PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { InMemoryPublishContentRunRepo, type PublishContentRunRecord } from "@jini-ai/cms/publish/content/run-repo";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps, type PublishContentHandler, type PackedEntity } from "../type-registry.js";
 

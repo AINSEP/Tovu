@@ -1,4 +1,5 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { buildPublishContentCatalog } from "../type-registry.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,7 +13,7 @@ for (const root of ["memory", "sqlite"] as const) {
     const { createSiteRouteDeps } = await import("#src/server/runtime/composition/deps");
     const { createRouteDeps, createApp } = await import("#src/server/runtime/composition/app");
     const { stageBundle } = await import("@jini-ai/cms/publish/transfer");
-    const { planImport } = await import("../planner.js");
+    const { planImport } = await import("@jini-ai/cms/publish/content/planner");
     const { contentHash, CONTENT_HASH_VERSION } = await import("@jini-ai/cms/publish/content/content-hash");
     const { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } = await import("@jini-ai/cms/publish/transfer");
     const { getPublishContentRunStatus } = await import("@jini-ai/cms/publish/content/run-repo");
@@ -59,7 +60,7 @@ for (const root of ["memory", "sqlite"] as const) {
     const report = await planImport({
       bundle,
       deps: {
-        publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
+        catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
           ports: { post: { repo: deps.postRepo } } },
         getBaseline: async () => null, hasBlob: async () => true,
       },

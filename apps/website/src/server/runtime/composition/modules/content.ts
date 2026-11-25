@@ -4,7 +4,7 @@ import { getAdminPostByIdOrSlug, listAdminPosts } from "#src/features/post/index
 import { hasPostBeenPublished } from "@jini-ai/cms/posts/post-slugs";
 import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
+import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { registerAdminPostTemplatePreviewRoute } from "#src/server/inbound/admin-http/routes/posts/template-preview";
 import { registerAdminPostAutosaveRoute, registerAdminPostCreateRoute, registerAdminPostDeleteRoute, registerAdminPostUpdateRoute } from "./posts.js";
 import {

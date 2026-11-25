@@ -2,7 +2,7 @@ import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { bytesMatchSha256 } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { peerHostname, peerUrl } from "@jini-ai/cms/publish/content/peer-url";
-import type { PublishContentExportEnvelope } from "./export-bundle.js";
+import type { PublishContentExportEnvelope } from "@jini-ai/cms/publish/content/export-bundle";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { ResolvedPeerCredential } from "./peers.js";
