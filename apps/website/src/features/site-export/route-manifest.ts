@@ -177,7 +177,9 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   return buildWithSources({
     sources: {
       readThemeAndPosts: async () => {
-        const [activeThemeId, { posts }] = await Promise.all([deps.resolveActiveThemeId(), deps.listPublishedPosts()]);
+        const [activeThemeId, { posts: rows }] = await Promise.all([deps.resolveActiveThemeId(), deps.listPublishedPosts()]);
+        // A stored NULL `overridesThemePage` means "not set", the same as an absent value (post wins).
+        const posts = rows.map(({ overridesThemePage, ...row }) => ({ ...row, ...(overridesThemePage == null ? {} : { overridesThemePage }) }));
         const selected = resolveActiveTheme({ deps, activeThemeId });
         // Slugs claimed by a theme-owned static page THIS pass are tracked inside `resolveThemeAndPostRoutes`
         // so the post loop can skip a post shadowed at its own slug (pages.ts:765-786: tri-state

@@ -12,12 +12,12 @@ export function createRawRowSqlitePort({ kernel, tableInfo, checkedTransaction }
     kernel: {
       dialect: kernel.dialect,
       inTransaction: () => kernel.inTransaction(),
-      query: <Row>({ statement }: { statement: RawBuilder<unknown> }) => kernel.query<Row>(statement),
+      query: <Row>({ statement }: { statement: RawBuilder<unknown> }) => kernel.query<Row>(statement.$castTo<Row>()),
       execute: ({ statement }) => kernel.execute(statement),
     },
     tableInfo: ({ table }) => tableInfo({ kernel, table }),
     checkedTransaction: ({ work, onViolation }) => checkedTransaction({ kernel, work, onViolation }),
-    checkTable: checkRawTable,
+    checkTable: (required) => checkRawTable(required) ?? undefined,
     copy: {
       notSqlite: "Send by hand currently requires a SQLite content database.",
       foreignKeyViolation: ({ table, rowid, parent }) => `Foreign key check failed: '${table}' row '${rowid}' points at a missing '${parent}' row; this send was rolled back.`,

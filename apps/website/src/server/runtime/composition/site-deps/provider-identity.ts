@@ -3,7 +3,7 @@ import { withAttachedProject, withUnavailableProject } from "../provider-config-
 import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import { bootProviderPlugins, type SiteIdentity } from "../provider-plugins.js";
-import type { SiteKeyReferences } from "#src/features/project-keys/site-references";
+import type { SiteKeyReferences } from "@jini-ai/core/contracts/site/project-key-attachments";
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";

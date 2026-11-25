@@ -36,13 +36,15 @@ import { TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/da
 import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import { createNativeApprovalMemory } from "@jini-ai/core/native-approval-memory";
-import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
-import { buildPromoteChatAttachmentTool } from "#src/features/media/promote-chat-attachment";
+import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { AttachmentRejectedError } from "@jini-ai/daemon/http";
+import { buildLibrarySaveAttachmentTool } from "@jini-ai/cms/media/site/library-save-attachment";
+import { buildPromoteChatAttachmentTool } from "@jini-ai/cms/media/site/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "@jini-ai/cms/media/site/list-pending-chat-attachments";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
-import type { InstallAttachmentReader } from '#src/contracts/headless/index';
+import type { InstallAttachmentReader } from "@jini-ai/core/contracts/headless/plugin-install-source";
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
@@ -315,7 +317,7 @@ const messageAttachmentRefs = (): readonly string[] => readDaemonCallContext()?.
  * @complexity O(registrations) to find `media_upload_asset`.
  */
 export function buildDaemonAttachmentTools(
-  { deps, registrations }: { deps: Parameters<typeof buildLibrarySaveAttachmentTool>[0]["deps"]; registrations: readonly ToolRegistration[] },
+  { deps, registrations }: { deps: Omit<Parameters<typeof buildLibrarySaveAttachmentTool>[0]["deps"], "refuseUnexpectedKeys">; registrations: readonly ToolRegistration[] },
   { getLookup = defaultDaemonAttachmentLookup }: { getLookup?: () => AttachmentLookup | undefined } = {},
 ): ToolRegistration[] {
   const getStore = (): AttachmentLookup | undefined => (readDaemonCallContext() ? getLookup() : undefined);
@@ -324,14 +326,11 @@ export function buildDaemonAttachmentTools(
   const readAttachmentFile = ({ path }: { path: string }, _optional = {}): Promise<Uint8Array> =>
     openFsFileForRead({ rootPath: dirname(path), relativePath: basename(path), maxBytes: MAX_DOCUMENT_BYTES });
   const tools: ToolRegistration[] = [
-    buildLibrarySaveAttachmentTool({
-      deps, getStore, getMessageAttachmentRefs: messageAttachmentRefs, archiveReader: createDocumentArchiveReader(documentArchiveDeps),
-      readFile: readAttachmentFile,
-    }),
+    buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys }, getStore, getMessageAttachmentRefs: messageAttachmentRefs, archiveReader: createDocumentArchiveReader(documentArchiveDeps), readFile: readAttachmentFile, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' }),
     buildListPendingChatAttachmentsTool({ getStore, getMessageAttachmentRefs: messageAttachmentRefs }),
   ];
   const mediaUpload = registrations.find((registration) => registration.descriptor.id === "media_upload_asset");
-  if (mediaUpload) tools.push(buildPromoteChatAttachmentTool({ getStore, mediaUploadHandler: mediaUpload.handler, readFile: readAttachmentFile }));
+  if (mediaUpload) tools.push(buildPromoteChatAttachmentTool({ getStore, mediaUploadHandler: mediaUpload.handler, readFile: readAttachmentFile, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") }));
   return tools;
 }
 

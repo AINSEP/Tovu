@@ -13,7 +13,8 @@ import { createDatabaseTransferAdapters } from "./database-transfer-adapters.js"
 import { toolSearchKeywords } from "#src/assistant/tool-registrations";
 import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
-import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
+import { buildProjectKeyRegistrations } from "#src/features/project-keys/host-bindings";
+import { projectKeysRisk } from "@jini-ai/user-management/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { deployConfigGenerators } from "#src/features/deployments/index";
 import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
@@ -46,9 +47,10 @@ import { buildProviderStatusRegistrations, providerStatusDerivedRisk } from "#sr
 import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
 import { saveAgentPluginToken } from "#src/features/agent-plugins/access-token-tool";
 import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
-import { readPluginInstallRequest, readPluginInstallArchive } from "#src/features/plugin-runtime/install-source";
+import { createHostPluginInstallSource } from "#src/features/plugin-runtime/host-install-source";
+import { bindPagesToolHost } from "#src/features/pages/tool-host";
 import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
-import type { InstallAttachmentReader } from "#src/contracts/headless/index";
+import type { InstallAttachmentReader } from "@jini-ai/core/contracts/headless/plugin-install-source";
 import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createToolHumanConfirmer } from "#src/assistant/tool-approval-policy";
 import { ToolInputError, withToolMetadata } from "@jini-ai/core";
@@ -118,7 +120,7 @@ import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-too
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { bindAssetHost } from "./asset-tool-host.js";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
-import { contributePagesTools } from "#src/features/pages/tool-registrations";
+import { contributePagesTools } from "@jini-ai/cms/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
@@ -130,7 +132,7 @@ import { installFirstPartyPublishContentTypes } from "./publish-content-manifest
 import { contributePostTools } from "#src/features/post/tool-registrations";
 import { contributePostDuplicateHandlers } from "#src/features/post/post-tool-duplicate";
 // Keep the standalone read tool on the existing registration seam, outside the content barrel.
-import { contributeContentStatsTools } from "#src/features/post/content-stats-tool";
+import { contributeContentStatsTools } from "@jini-ai/cms/posts/content-stats-tool";
 // Keep assistant contribution ports on the registration seam, outside the general post barrel.
 import { contributePostPreviewTools } from "#src/features/post/preview-tool";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
@@ -580,7 +582,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeMenusTools() });
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
-  contributions.contributors.register({ contribution: contributePagesTools() });
+  contributions.contributors.register({ contribution: contributePagesTools({ host: bindPagesToolHost({}) }) });
   contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
   return bundledPluginsRoot;
 }
@@ -599,7 +601,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   }) } });
   contributions.contributors.register({ contribution: contributePluginSourceTools() });
   const agentPluginsInstall = contributeAgentPluginsInstallTools({ readInstallAttachment,
-    pluginInstallSource: { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive },
+    pluginInstallSource: createHostPluginInstallSource({}),
   });
   contributions.contributors.register({ contribution: { ...agentPluginsInstall, build: (deps, surfaces) => agentPluginsInstall.build({ ...deps, bundledAgentPluginsSourceRoot: bundledAgentPluginsDir() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });

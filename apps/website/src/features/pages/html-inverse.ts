@@ -1,6 +1,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { extractEntryRefs, extractHtmlEntryRefs, type EntryRefRow } from "@jini-ai/cms/widgets";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
+import type { PageHtmlInverse } from "@jini-ai/core/contracts/site/page-html-store";
 
 import { warnUnindexedEntryRef } from "../../contracts/core/entry-refs/unindexed-ref-warning.js";
 

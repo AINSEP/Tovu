@@ -38,7 +38,7 @@ export const registerPluginInstallRoutes = ({ app, deps }: { app: Express; deps:
       },
     };
     if (zip) {
-      mountAdminRawRoute({ app, spec, deps: mounted }, {
+      mountAdminRawRoute<typeof mounted>({ app, spec, deps: mounted }, {
         requestDeps: ({ req, res, deps: base }) => ({ ...base, readZipUpload: () => readZipUpload(req, res, parseZip) }),
         failureWriter: ({ res, error }) => {
           if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });

@@ -9,6 +9,7 @@ import type { OverwritablePrecheckRefusal } from "@jini-ai/cms/publish/content/t
 
 import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "@jini-ai/cms/media/site/import-media-entity";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
+import { createHostBlobWriteBindings } from "./blob-write-bindings.js";
 import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "@jini-ai/cms/media/site/verify-published-media";
 import { orFallback } from "@jini-ai/core/errors/idioms";
@@ -202,7 +203,7 @@ const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecor
       if (sha256 && !isValidSha256Hex({ value: sha256 })) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
-        deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen,
+        deps: { mediaRepo, assetBlobRepo, blobStore, ...createHostBlobWriteBindings({ blobStore }), clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen,
           sha256: { isValidSha256Hex, bytesMatchSha256 }, outwardErrorMessage: ({ error }) => error.message, ...UPLOAD_CAPS },
         input: {
           workspaceId,
@@ -276,7 +277,7 @@ export const contributeMediaPublish = (): PublishContentContributor<MediaBag> =>
       // An update restores the prior record verbatim; a create removes its row. The blob row and bytes
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
       restore: ({ ctx: { ports, deps }, prior }, _optional = {}) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
-        assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, idGen: deps.idGen,
+        assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, ...createHostBlobWriteBindings({ blobStore: ports.blobStore }), idGen: deps.idGen,
         clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, sha256: { isValidSha256Hex, bytesMatchSha256 },
         outwardErrorMessage: ({ error }) => error.message }, prior }),
       remove: ({ ports, workspaceId, id }) => ports.repo.remove({ workspaceId, id }),

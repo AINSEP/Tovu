@@ -3,6 +3,7 @@ import { blobGetRoute, type BlobGetRouteDeps } from "@jini-ai/cms/admin-http/rou
 import { blobPutRoute, type BlobPutRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-put";
 import { exportRoute, type ExportRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/export";
 import { computeBlobStorageKey, isDocumentOnlyBlob, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
+import { createHostBlobWriteBindings } from "#src/features/media/blob-write-bindings";
 import { createCompositePeerBlobSource } from "@jini-ai/cms/publish/content/composite-blob-source";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { packAuthorizedEntities } from "@jini-ai/cms/publish/content/export-bundle";
@@ -40,6 +41,7 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
   const routeDeps: BlobPutRouteDeps & AdminJsonRoutePortDeps = {
     ...blobPortDeps({ deps }),
     blobStore: { putIfAbsent: (input) => deps.blobStore.putIfAbsent(input) },
+    ...createHostBlobWriteBindings({ blobStore: deps.blobStore }),
     maxUploadBytes: MAX_DOCUMENT_BYTES,
   };
   mountAdminJsonRoute(
