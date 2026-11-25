@@ -196,6 +196,11 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   readPreviewVersion: (required: { siteDir: string }) => number | null;
   readPreviewDataUrl: (required: { id: string }) => string | null;
   deletePreview: (required: { id: string }) => void;
+  /** Clears a REMOVED site's regenerable web caches (HTTP + code cache) in its own partition only.
+   * Called only after the row is untracked; see `site-cache-trim.ts` for what it must never clear. */
+  trimRetiredSiteCache: (required: { siteDir: string }, optional?: Record<string, never>) => Promise<void>;
+  /** The host diagnostic sink (main binds `console.warn`). Messages must carry no local paths. */
+  warn: (required: { message: string }) => void;
   removeSiteTree?: typeof removeDirectoryTree;
   /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
