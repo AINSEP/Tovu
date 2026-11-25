@@ -30,12 +30,12 @@ const token = (): string => "a".repeat(16);
 test("get rethrows a non-ENOENT failure reading the share's metadata", async t => {
   const directory = await tempDir(t);
   await mkdir(path.join(directory, `${SHARE_ID}.json`));
-  await assert.rejects(new SiteShareRegistry({ directory }).get({ shareId: SHARE_ID }), { code: "EISDIR" });
+  await assert.rejects(new SiteShareRegistry({ directory, now: () => Date.now() }).get({ shareId: SHARE_ID }), { code: "EISDIR" });
 });
 
 test("get rethrows a non-ENOENT failure reading the revoked marker instead of reporting the share active", async t => {
   const directory = await tempDir(t);
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   await registry.put({ record: record(token()) });
   await mkdir(path.join(directory, `${SHARE_ID}.revoked`));
   await assert.rejects(registry.get({ shareId: SHARE_ID }), { code: "EISDIR" });
@@ -45,26 +45,26 @@ test("list rethrows when the registry path exists but is not a directory", async
   const directory = await tempDir(t);
   const file = path.join(directory, "not-a-dir");
   await writeFile(file, "x");
-  await assert.rejects(new SiteShareRegistry({ directory: file }).list({}), { code: "ENOTDIR" });
+  await assert.rejects(new SiteShareRegistry({ directory: file, now: () => Date.now() }).list({}), { code: "ENOTDIR" });
 });
 
 test("findToken rethrows a non-ENOENT failure reading the token index", async t => {
   const directory = await tempDir(t);
   await mkdir(path.join(directory, `${token()}.token`));
-  await assert.rejects(new SiteShareRegistry({ directory }).findToken({ token: token(), file: "site.tovu.zip" }), { code: "EISDIR" });
+  await assert.rejects(new SiteShareRegistry({ directory, now: () => Date.now() }).findToken({ token: token(), file: "site.tovu.zip" }), { code: "EISDIR" });
 });
 
 test("reserveToken surfaces a registry directory that cannot be created", async t => {
   const directory = await tempDir(t);
   const file = path.join(directory, "occupied");
   await writeFile(file, "x");
-  await assert.rejects(new SiteShareRegistry({ directory: path.join(file, "nested") }).reserveToken({ token: token(), shareId: SHARE_ID }),
+  await assert.rejects(new SiteShareRegistry({ directory: path.join(file, "nested"), now: () => Date.now() }).reserveToken({ token: token(), shareId: SHARE_ID }),
     { code: "ENOTDIR" });
 });
 
 test("disable rethrows a non-EEXIST failure writing the revoked marker", async t => {
   const directory = await tempDir(t);
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   await registry.put({ record: record(token()) });
   await mkdir(path.join(directory, `${SHARE_ID}.revoked`, "child"), { recursive: true });
   await assert.rejects(registry.disable({ shareId: SHARE_ID, site: "ws" }), { code: "EISDIR" });
@@ -72,7 +72,7 @@ test("disable rethrows a non-EEXIST failure writing the revoked marker", async t
 
 test("deleteArtifact rethrows a non-ENOENT failure and ignores a missing artifact", async t => {
   const directory = await tempDir(t);
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   await registry.deleteArtifact({ shareId: SHARE_ID });
   await mkdir(path.join(directory, `${SHARE_ID}.tovu.zip`));
   // unlink(2) on a directory: Linux answers EISDIR, macOS EPERM. Either is the non-ENOENT failure.
@@ -106,8 +106,8 @@ test("an old 64-hex token is never found, even with its token index and record s
   const old = "0f".repeat(32);
   await writeFile(path.join(directory, `${old}.token`), SHARE_ID);
   await writeFile(path.join(directory, `${SHARE_ID}.json`), JSON.stringify(record(old)));
-  assert.equal(await new SiteShareRegistry({ directory }).findToken({ token: old, file: "site.tovu.zip" }), null);
-  await assert.rejects(new SiteShareRegistry({ directory }).reserveToken({ token: old, shareId: SHARE_ID }), { code: "INVALID_INPUT" });
+  assert.equal(await new SiteShareRegistry({ directory, now: () => Date.now() }).findToken({ token: old, file: "site.tovu.zip" }), null);
+  await assert.rejects(new SiteShareRegistry({ directory, now: () => Date.now() }).reserveToken({ token: old, shareId: SHARE_ID }), { code: "INVALID_INPUT" });
 });
 
 test("a token differing only in letter case never resolves, even where the disk folds case", async t => {
@@ -115,7 +115,7 @@ test("a token differing only in letter case never resolves, even where the disk 
   // writing the variant's index file; only the exact minted token may resolve.
   const directory = await tempDir(t);
   const minted = "AbCdEfGhIjKlMnOp", variant = minted.toLowerCase();
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   await registry.put({ record: record(minted) });
   await writeFile(path.join(directory, `${variant}.token`), SHARE_ID);
   assert.equal((await registry.findToken({ token: minted, file: "site.tovu.zip" }))?.shareId, SHARE_ID);

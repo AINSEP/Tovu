@@ -34,7 +34,7 @@ function normalize(text: string): unknown {
 
 async function serve(t: test.TestContext) {
   const directory = fs.mkdtempSync(path.join(tmpdir(), "share-wire-")); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const state = { principal: true, trusted: false, allowed: true, available: true, failure: undefined as unknown, permissions: [] as string[], tracked: [] as unknown[] };
   const answer = async <T>(value: T): Promise<T> => { if (state.failure) throw state.failure; return value; };
   const backend = {

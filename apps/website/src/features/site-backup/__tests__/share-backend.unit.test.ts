@@ -52,7 +52,7 @@ for (const step of ["prepare", "archive", "delivery"] as const) {
 async function registryIn(t: TestContext): Promise<SiteShareRegistry> {
   const directory = await mkdtemp(path.join(tmpdir(), "share-backend-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  return new SiteShareRegistry({ directory });
+  return new SiteShareRegistry({ directory, now: () => Date.now() });
 }
 const SETTINGS = { path: "settings.json", content: Buffer.from("{}") };
 function content(overrides: Partial<SiteSharePlanContent> = {}): SiteSharePlanContent {

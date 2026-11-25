@@ -17,7 +17,7 @@ const bytes = Buffer.from("PK artifact contract");
 async function runtime(t: TestContext): Promise<ArtifactStorePort> {
   const directory = await mkdtemp(path.join(tmpdir(), "share-contract-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const app = express();
   registerPublicShareRoutes({ app, registry });
   const server = app.listen(0, "127.0.0.1");
@@ -45,7 +45,7 @@ test(`runtime artifact contract: upload/anonymous verify/delete/confirmed absenc
 test("failed deletion never reports success, and the token is disabled before the provider is called", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "share-revoke-failure-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   const delivery = { provider: "fixture", store: {
     upload: async () => ({ url: "https://share.example.test/export" }),
     verify: async () => true,
@@ -62,7 +62,7 @@ test("failed deletion never reports success, and the token is disabled before th
 test("changing the default storage cannot delete objects in a different bucket", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "share-storage-binding-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory });
+  const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
   let wrongBucketDeletes = 0;
   const store = { upload: async () => ({ url: "https://share.example.test/site.tovu.zip" }), verify: async () => true, delete: async () => { wrongBucketDeletes++; } };
   const row = await createSiteShare({ registry, site: "ws", name: "site", archive: bytes }, { delivery: { provider: "example-store", binding: "bucket-a", store } });

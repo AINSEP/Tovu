@@ -39,7 +39,7 @@ async function request(app: express.Express, options: { principal?: string; cred
 test("only the same-origin browser owner can open this share's real sealed password; every response is no-store", { timeout: 10000 }, async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "share-password-handler-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const registry = new SiteShareRegistry({ directory: root });
+  const registry = new SiteShareRegistry({ directory: root, now: () => Date.now() });
   const keyring = new InMemoryKeyring({ hkdfSalt: "password-handler" });
   const sealer = new AesGcmSecretSealer({ keyring });
   const identity = { shareId: "00000000-0000-0000-0000-000000000000", workspaceId: "ws" };

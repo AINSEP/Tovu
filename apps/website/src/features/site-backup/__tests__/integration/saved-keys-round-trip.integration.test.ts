@@ -135,7 +135,7 @@ for (const placement of ["inSite", "appData"] as const) {
     for (const keyId of ["attached", "shadow"]) await project.attachments.attach({ siteId: "source-meta", keyId, siteName: "Source" });
     const savedKeys = composeSiteSavedKeys({ workspaceId, sealer });
     const sourceDir = path.join(h.root, "source"); fs.mkdirSync(sourceDir); fs.writeFileSync(path.join(sourceDir, "config.json"), '{"name":"Portable"}');
-    const shares = new SiteShareRegistry({ directory: path.join(h.root, "shares") });
+    const shares = new SiteShareRegistry({ directory: path.join(h.root, "shares"), now: () => Date.now() });
     const backend = createSiteShareBackend({ registry: shares, site: workspaceId, ownerPrincipalId: "owner", savedKeys, zip: zipFolderFiles, delivery: async () => undefined,
       prepare: input => prepareShareContent({ ...input, savedKeys, snapshotRoot: h.root, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia,
         sources: { siteDir: sourceDir, mediaUploadsDir: null, themesDir: path.join(sourceDir, "themes"), skillsDir: path.join(sourceDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir: sourceDir }, { env: {} }), tovuVersion: "test" },
