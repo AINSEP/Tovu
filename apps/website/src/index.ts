@@ -325,13 +325,14 @@ async function main(): Promise<void> {
       setImmediate(() => stop(input));
     },
   };
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork } = createServingApp(deps, servingOptions);
+  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork, releaseOnShutdown } = createServingApp(deps, servingOptions);
   bootWork.push(...servingBootWork);
   const daemonCallback = await startSiteDaemonListener({
     publicOrigin: pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port }), handler: app,
   });
   server.once("close", () => { void daemonCallback.close(); });
-  stopServing = () => stopServingWithinGrace({ server, workers: [{ stop: () => daemonCallback.close() }, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
+  // First worker: a parked AG-UI approval is denied and its held call ended, never left to its expiry.
+  stopServing = () => stopServingWithinGrace({ server, workers: [{ stop: async () => releaseOnShutdown() }, { stop: () => daemonCallback.close() }, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so

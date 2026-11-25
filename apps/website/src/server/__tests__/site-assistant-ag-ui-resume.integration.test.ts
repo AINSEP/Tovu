@@ -73,6 +73,8 @@ const start = (baseUrl: string, tab: Record<string, string>) => post(baseUrl, ta
   messages: [{ id: "m1", role: "user", content: "List the categories." }] });
 const resume = (baseUrl: string, tab: Record<string, string>, interruptId: string, payload: string, runId = "run-2") => post(baseUrl, tab, { ...empty,
   threadId: "thread-1", runId, parentRunId: "run-1", messages: [], resume: [{ interruptId, status: "resolved", payload }] });
+const cancelResume = (baseUrl: string, tab: Record<string, string>, interruptId: string) => post(baseUrl, tab, { ...empty,
+  threadId: "thread-1", runId: "run-2", parentRunId: "run-1", messages: [], resume: [{ interruptId, status: "cancelled" }] });
 
 function events(raw: string): Array<Record<string, any>> {
   return [...raw.matchAll(/^data: (.+)$/gm)].map((match) => JSON.parse(match[1]!) as Record<string, any>);
@@ -151,4 +153,17 @@ test("ordinary non-approval cards still render", { timeout: 10_000 }, async (t) 
   assert.equal(all.at(-1)?.outcome?.type, undefined, "an allowed tool is not an interrupt");
   assert.equal(requests.length, 2);
   assert.ok(toolResultSeen(requests[1]));
+});
+
+test("visitor Stop while an approval is parked sends one cancelled resume and runs nothing", { timeout: 10_000 }, async (t) => {
+  const { baseUrl, requests } = await boot({ t, ask: true });
+  const tab = await guestTab(baseUrl);
+  const interruptId = await interruptOf(await start(baseUrl, tab));
+  const stopped = await cancelResume(baseUrl, tab, interruptId);
+  assert.equal(stopped.status, 204, "Stop gets no segment: there is nothing more to stream");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(requests.length, 1, "the held call ended: the model gets no continuation, so nothing runs");
+  const late = await resume(baseUrl, tab, interruptId, "allow");
+  assert.deepEqual([late.status, (await late.json() as { error: string }).error], [400, VISITOR_APPROVAL_EXPIRED]);
+  assert.equal(requests.length, 1);
 });

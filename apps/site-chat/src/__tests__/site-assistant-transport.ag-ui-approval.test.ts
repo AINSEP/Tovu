@@ -100,3 +100,47 @@ it("the live approval posts a resume to chat and keeps its nonce out of storage"
   assert.ok(!persisted.includes(CHALLENGE), "the challenge never enters events, history or storage");
   assert.ok(!persisted.includes("Open the page"), "the prompt text stays in the live card only");
 });
+
+it("visitor Stop while an approval is parked sends one cancelled resume and runs nothing", async () => {
+  const calls: { url: string; body: Record<string, unknown>; headers: Record<string, string> }[] = [];
+  const fetch = (async (url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body)) as Record<string, unknown> & { threadId: string; runId: string };
+    calls.push({ url, body, headers: init.headers as Record<string, string> });
+    if (calls.length === 1) {
+      return sse(frame({ type: "RUN_STARTED", threadId: body.threadId, runId: body.runId })
+        + frame({ type: "RUN_FINISHED", threadId: body.threadId, runId: body.runId,
+          outcome: { type: "interrupt", interrupts: [{ id: CHALLENGE, reason: "confirmation", message: "Open the page: Go to /docs" }] } }));
+    }
+    return new Response(null, { status: 204 });
+  }) as typeof globalThis.fetch;
+  const shown: (ToolConfirmationDirective | null)[] = [];
+  const frontend = { headers: async () => ({ "x-frontend-tab": "tab-cred" }), acceptBrowserInvocation: () => {}, finish: () => {} };
+  const transport = createSiteAssistantTransport({}, { fetch, frontend, onToolConfirmation: ({ directive }) => { shown.push(directive); } });
+  const errors: Error[] = [];
+  let doneCount = 0;
+  const handlers: RunHandlers = { onEvent: () => {}, onError: (err) => errors.push(err), onDone: () => { doneCount += 1; } };
+  const { runId } = await transport.startRun({ history: [{ id: "u1", role: "user", content: "open the docs" }], signal: new AbortController().signal }, handlers);
+  for (let i = 0; i < 50 && shown.length === 0; i += 1) await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(shown.length, 1, "the approval is parked");
+
+  await transport.stopRun(runId);
+  await transport.stopRun(runId);
+  for (let i = 0; i < 50 && calls.length < 2; i += 1) await new Promise<void>((resolve) => setImmediate(resolve));
+  for (let i = 0; i < 10; i += 1) await new Promise<void>((resolve) => setImmediate(resolve));
+
+  // Stop is the owner's answer: one deny on the same correlators, never a silent wait for expiry.
+  assert.equal(calls.length, 2, "exactly one cancelled resume");
+  const [start, cancelled] = calls as [typeof calls[number], typeof calls[number]];
+  assert.equal(cancelled.url, "/api/site-assistant/chat", "the existing chat route, no new one");
+  assert.deepEqual(cancelled.body, {
+    threadId: start.body.threadId, runId: cancelled.body.runId, parentRunId: start.body.runId,
+    state: null, messages: [], tools: [], context: [],
+    resume: [{ interruptId: CHALLENGE, status: "cancelled" }],
+  });
+  assert.notEqual(cancelled.body.runId, start.body.runId);
+  assert.equal(cancelled.headers["x-frontend-tab"], "tab-cred", "the tab identity that owns the approval travels with the answer");
+  assert.deepEqual(errors, [], "a visitor's own Stop is not an error");
+  assert.equal(doneCount, 1);
+  assert.equal(await transport.answerApproval({ challengeId: CHALLENGE, allow: true }), false, "a stopped approval cannot be allowed afterwards");
+  assert.equal(calls.length, 2);
+});

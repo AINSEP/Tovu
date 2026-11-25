@@ -75,15 +75,19 @@ const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError })
  *   `siteSearchMaintenance.stop` wait for a running pass), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
  *   (`CreateAppOptions.onBootWork`). A caller that closes the store awaits these first.
+ *   `releaseOnShutdown`: runs every process-local release `createApp` handed out
+ *   (`CreateAppOptions.onShutdown`, the parked AG-UI approvals); the host calls it when it stops.
  * @complexity O(1) beyond `createApp`.
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[]; releaseOnShutdown: () => void } {
   const bootWork: Promise<void>[] = [];
+  const shutdownReleases: Array<() => void> = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
-  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn });
+  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,
+    onShutdown: ({ shutdown }) => { shutdownReleases.push(shutdown); } });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker }
@@ -124,5 +128,6 @@ export function createServingApp(
   // yet). Serving-only for the sweeper's reason: it writes to search backends on a schedule, which only
   // the process serving the site may do. A no-op handle when the composition has no search runtime.
   const siteSearchMaintenance = startSiteSearchMaintenance({ runtime: routeDeps.siteSearch });
-  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
+  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork,
+    releaseOnShutdown: () => { for (const release of shutdownReleases) release(); } };
 }
