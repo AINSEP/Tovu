@@ -67,6 +67,12 @@ export interface AdminJsonRouteMountOptions {
    *  failing) then reaches `next(error)` and the app's error middleware instead of leaving the
    *  request open; the route-table pin sees the same registration as before the move. */
   forwardRejection?: boolean;
+  /** Opt-in (rv1124e FIX 4): an unexpected failure that no `failureFor` claims is rethrown out of `onError`
+   *  instead of becoming the generic redacted 500, so `forwardRejection`'s `asyncRoute` hands it to
+   *  `next(error)` exactly as the hand-written route did (the app's error middleware picks the status,
+   *  including a 4xx `status` passthrough, and sets `res.locals.routeError`). Refusals and failures a
+   *  `failureFor` claims (a handler-local catch's own copy) still answer here. Implies `forwardRejection`. */
+  forwardUncaughtErrors?: boolean;
   /** Refuse every credential but a session with `rejectUnlessSessionCredential`'s exact 403, in
    *  `authenticate` — after the workspace 404, before parse, authorization or any side effect.
    *  Not combinable with {@link AdminJsonRouteMountOptions.deferMissingPrincipal} (refused at registration):
@@ -294,6 +300,18 @@ function writeAdminFailure({ res, error, options, authorized }: { res: Response;
   res.status(status).json(body);
 }
 
+/** `forwardUncaughtErrors`: a failure `failureFor` claims is written as usual; anything else is rethrown so the
+ * mount's `asyncRoute` forwards it to `next(error)`. `failureFor` runs once (it may consume the error, as the
+ * folder picker's set does), and its answer is reused for the write.
+ * @throws The original error, when unclaimed.
+ * @complexity O(1).
+ */
+function forwardUnlessClaimed({ res, error, options }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): void {
+  const claimed = options.failureFor?.(error);
+  if (!claimed) throw error;
+  writeAdminFailure({ res, error, options: { ...options, failureFor: () => claimed }, authorized: true });
+}
+
 /** Build the admin ports; `failure` carries the per-route `sendAdminFailure` options (operation, status…).
  * @throws At registration, for `deferMissingPrincipal` together with `sessionCredentialOnly`.
  * @returns Ports for `mountJsonRoute`; the workspace and authorize ports read only `AdminJsonRoutePortDeps`.
@@ -350,6 +368,7 @@ export function createAdminJsonRoutePorts(
       if (error instanceof RouteRefusalError) { (required.refusalWriter ?? writeRefusal)({ res, error }); return; }
       if (error instanceof AdminWorkspaceRefusal) { writeWorkspaceRefusal({ res, reply: error.reply }); return; }
       if (required.failureWriter) { required.failureWriter({ res, error }); return; }
+      if (required.forwardUncaughtErrors) { forwardUnlessClaimed({ res, error, options: required }); return; }
       writeAdminFailure({ res, error, options: required, authorized: phase?.authorized({ res }) ?? false });
     },
     onReturnedError: writeReturnedFailure,
@@ -418,7 +437,7 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
 ): void {
   const { forwardRejection, bodyParsers, requestDeps, ...portOptions } = optional;
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
-  const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
+  const app = forwardRejection || portOptions.forwardUncaughtErrors ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
   mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps }, routeMountOptionsFor({ bodyParsers, requestDeps }));
 }

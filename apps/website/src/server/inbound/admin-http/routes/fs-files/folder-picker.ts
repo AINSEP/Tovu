@@ -70,7 +70,9 @@ export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Exp
    *  (Now the spec's `refusal`, which returns the refusal instead; the mount writes it.) */
   for (const spec of [get, post]) {
     mountAdminJsonRoute({ app, spec, deps: mounted }, {
-      forwardRejection: true,
+      // Uncaught errors (an authorize crash, ...) reach `next(error)` as the hand-written route's did; only the
+      // chooser's own failure, claimed by `failureFor` below, is answered here.
+      forwardUncaughtErrors: true,
       // A missing session reaches the spec, whose local-request check still answers first.
       deferMissingPrincipal: true,
       workspaceRefusal: () => ({ status: 404, body: { error: "not found" } }),

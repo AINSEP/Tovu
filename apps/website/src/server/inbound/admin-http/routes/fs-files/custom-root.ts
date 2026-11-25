@@ -52,10 +52,10 @@ export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "author
   readonly storeOptional?: CustomFsRootStoreOptional;
 };
 
-/** `GET`/`DELETE` never caught anything: an unexpected failure left through `asyncRoute` and was
- *  answered by `captureRouteError` with exactly these options. Only `PUT` wrapped its store calls in
- *  its own `sendAdminFailure`, under its own operation and code. */
-const UNCAUGHT_FAILURE = { operation: "admin-route.uncaught" } as const;
+/** `GET`/`DELETE` never caught anything: an unexpected failure left through `asyncRoute` to `next(error)`
+ *  and was answered by the app's error middleware (`captureRouteError`: 4xx `status` passthrough,
+ *  `res.locals.routeError`), so they mount with `forwardUncaughtErrors`. Only `PUT` wrapped its store calls
+ *  in its own `sendAdminFailure`, under its own operation and code. */
 const PUT_FAILURE = { operation: "routes/fs-files/custom-root", code: "INTERNAL_ERROR" } as const;
 
 export function registerAdminFsFilesCustomRootRoutes({ app, deps }: { app: Express; deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): void {
@@ -65,9 +65,9 @@ export function registerAdminFsFilesCustomRootRoutes({ app, deps }: { app: Expre
   const writeCustomRoot = ({ workspaceId, path }: { workspaceId: string; path: string | null }) => setCustomFsRoot({ workspaceId, path, optional: storeOptional() });
   const port = { workspaceId: deps.workspaceId, authorize: deps.authorize };
   const managePermission = FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION;
-  mountAdminJsonRoute({ app, spec: fsCustomRootGetRoute, deps: { ...port, readPermission: FS_FILES_READ_PERMISSION, readCustomRoot } }, { forwardRejection: true, failure: UNCAUGHT_FAILURE });
+  mountAdminJsonRoute({ app, spec: fsCustomRootGetRoute, deps: { ...port, readPermission: FS_FILES_READ_PERMISSION, readCustomRoot } }, { forwardUncaughtErrors: true });
   mountAdminJsonRoute({ app, spec: fsCustomRootPutRoute, deps: {
     ...port, managePermission, readCustomRoot, writeCustomRoot, isInvalidRootError: ({ err }) => err instanceof CustomFsRootError,
   } }, { forwardRejection: true, failure: PUT_FAILURE });
-  mountAdminJsonRoute({ app, spec: fsCustomRootDeleteRoute, deps: { ...port, managePermission, writeCustomRoot } }, { forwardRejection: true, failure: UNCAUGHT_FAILURE });
+  mountAdminJsonRoute({ app, spec: fsCustomRootDeleteRoute, deps: { ...port, managePermission, writeCustomRoot } }, { forwardUncaughtErrors: true });
 }
