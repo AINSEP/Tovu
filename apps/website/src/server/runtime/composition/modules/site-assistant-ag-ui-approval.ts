@@ -103,16 +103,27 @@ export interface VisitorResumePorts {
 }
 
 /**
+ * The resume's gates before any owner lookup or claim, in `/confirm`'s order (rate limit, enabled,
+ * then closed shape/JSON/same-origin): the HTTP status of the first one refused, or undefined.
+ * @complexity O(1).
+ */
+async function resumePreflightStatus({ req, ports }: { req: Request; ports: VisitorResumePorts }, _optional = {}): Promise<429 | 404 | 400 | undefined> {
+  if (!(await ports.limiter.check({ key: resolveClientIp(req) })).allowed) return 429;
+  if (!await ports.enabled()) return 404;
+  const sameOrigin = await allowsVisitorRequestOrigin({ ...requestHookInput({ req }), allowsOrigin: ports.allowsOrigin });
+  if (!boundedResumeShape({ body: req.body }) || !req.is("application/json") || !sameOrigin) return 400;
+  return undefined;
+}
+
+/**
  * The resume branch of visitor `/chat`, before any provider start. Carries `/confirm`'s rate limit,
  * enabled check, closed body shape and JSON/same-origin protection. Missing, expired, foreign,
  * mismatched, replayed and ownerless answers all get the same plain sentence.
  */
 export async function handleVisitorAgUiResume({ req, res, ports }: { req: Request; res: Response; ports: VisitorResumePorts }, _optional = {}): Promise<void> {
   res.setHeader("Cache-Control", "no-store");
-  if (!(await ports.limiter.check({ key: resolveClientIp(req) })).allowed) { res.status(429).json({ error: VISITOR_TOOL_REFUSAL }); return; }
-  if (!await ports.enabled()) { res.status(404).json({ error: VISITOR_TOOL_REFUSAL }); return; }
-  const sameOrigin = await allowsVisitorRequestOrigin({ ...requestHookInput({ req }), allowsOrigin: ports.allowsOrigin });
-  if (!boundedResumeShape({ body: req.body }) || !req.is("application/json") || !sameOrigin) { res.status(400).json({ error: VISITOR_TOOL_REFUSAL }); return; }
+  const refusedStatus = await resumePreflightStatus({ req, ports }, {});
+  if (refusedStatus) { res.status(refusedStatus).json({ error: VISITOR_TOOL_REFUSAL }); return; }
   const owner = await ports.resolveApprovalOwner(requestHookInput({ req }));
   const result = await ports.resume.resumeVisitorApproval({ input: req.body, owner,
     attachResponse: ({ threadId, runId }) => ports.openSegment({ req, res, threadId, runId }) });

@@ -435,7 +435,7 @@ const UNSTARTED_RUN: TrackerSpan<AgentRunTrackingOutcome> = { setOutcome() {} };
 async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps, { approvals }: { approvals?: AdminAgUiApprovals } = {}): Promise<void> {
   // A resume answers a parked approval and starts nothing. Without the composed resume path no
   // interrupt was ever emitted, so a resume-shaped body keeps today's handling.
-  if (approvals && Array.isArray((req.body as { resume?: unknown } | undefined)?.resume)) {
+  if (approvals && isResumeBody({ body: req.body })) {
     return handleAdminAgUiResume({ req, res, ports: { approvals, observability: deps.observability } }, {});
   }
   const body = (req.body ?? {}) as AgUiRunBody;
@@ -444,12 +444,25 @@ async function handleAgUiRun(req: Request, res: Response, deps: AgUiRouteDeps, {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
     return undefined;
   }
+  const durable = resolveDurableStart({ body, res, deps }, {});
+  if (durable) return handleDurableAgUiRun({ req, res, run, identity: durable.identity, ports: durable.ports, deps }, approvals ? { approvals } : {});
+  return handleLegacyAgUiRun({ req, res, run, deps }, {});
+}
+
+/** A body carrying a `resume` array answers a parked approval instead of starting a turn.
+ * @complexity O(1). */
+function isResumeBody({ body }: { body: unknown }, _optional = {}): boolean {
+  return Array.isArray((body as { resume?: unknown } | undefined)?.resume);
+}
+
+/** The durable identity and its acceptance ports, or undefined for the legacy start.
+ * @complexity O(1). */
+function resolveDurableStart({ body, res, deps }: { body: AgUiRunBody; res: Response; deps: AgUiRouteDeps }, _optional = {}) {
   // Clients that send durable identity get the owned durable run; clients without it keep the
   // legacy per-request start during the handoff (they do not have parity, and are not told so).
   const identity = readDurableIdentity({ body });
   const ports = identity ? assistantRunAcceptancePorts({ deps, principalId: getAuthedPrincipal(res).id }, {}) : null;
-  if (identity && ports) return handleDurableAgUiRun({ req, res, run, identity, ports, deps }, approvals ? { approvals } : {});
-  return handleLegacyAgUiRun({ req, res, run, deps }, {});
+  return identity && ports ? { identity, ports } : undefined;
 }
 
 /** The legacy per-request run's mutable lifecycle, shared by its close handler and its stream. */
