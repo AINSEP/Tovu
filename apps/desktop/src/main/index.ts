@@ -153,7 +153,7 @@ import { randomBytes } from "node:crypto";
 import { withFileLock } from "@jini-ai/platform/fs";
 import { readBootIdentity } from "@jini-ai/platform/fs/file-lock";
 import { presenceClaimSource } from "@jini-ai/desktop-host/electron/partitions";
-import { bindDesktopPartitions, nodePartitionFs, NO_RETIREMENT } from "../desktop-partition-lock.ts";
+import { bindDesktopPartitions, nodePartitionFs } from "../desktop-partition-lock.ts";
 import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
 import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
@@ -300,11 +300,17 @@ const userDataProfile = applyUserDataDir({ env: process.env, defaultUserDataDir:
 // above and registered synchronously here, before `ready` and before any window, guest or session
 // exists (ALGO §24 ST-2a): an unregistered process never holds a partition, so a sibling's
 // next-start pass cannot miss one. Registration failure is logged; every open is then refused.
-// Retirement stays `NO_RETIREMENT` until ST-2b.T binds the erase arm's ledger.
 /** Signal-zero liveness; EPERM means alive under another user, so only ESRCH reads as gone. */
 function isPidAlive({ pid }: { pid: number }): boolean {
   try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
 }
+// One retirement ledger per profile (ST-2b): the erase arm appends to it and the interlock invalidates
+// a pending record when its partition is acquired or tracked again. A second instance over the same
+// file could act on a stale in-memory copy, so both sides share this binding.
+const desktopRetirement = bindDesktopRetirement({ userDataDir: app.getPath("userData"), sessionDataDir: app.getPath("sessionData"),
+  eraseVersion: app.getVersion(), partitionFor: sitePartition, fs, clock: Date, id: randomUUID, durableJsonFor: desktopJsonFile });
+/** Ledger records carry the partition folder name, so the `persist:` scheme is dropped here. */
+const retiredFolder = (partition: string) => partition.replace(/^persist:/, "");
 const desktopPartitions = bindDesktopPartitions<Electron.Session>({
   app: { getPath: (name) => app.getPath(name) }, session,
   fs: nodePartitionFs({ fs }), fileLock: { withFileLock },
@@ -317,7 +323,11 @@ const desktopPartitions = bindDesktopPartitions<Electron.Session>({
   catalog: { listSiteDirs: () => sharedSites.registry({}).list({}).map((entry) => entry.path) },
   instances: [presenceClaimSource({ directory: presenceDirPath({ userDataDir: app.getPath("userData") }),
     fs: { readdirSync: ({ path: dir }) => fs.readdirSync(dir), readFileSync: ({ path: file, encoding }) => fs.readFileSync(file, encoding) }, liveness: isPidAlive })],
-  retirement: NO_RETIREMENT, openMaintenance: async () => {},
+  retirement: {
+    invalidate: async ({ partition, reason }) => { desktopRetirement.port.invalidate({ partition: retiredFolder(partition), reason }, {}); },
+    invalidateSync: ({ partition, reason }) => { desktopRetirement.port.invalidate({ partition: retiredFolder(partition), reason }, {}); },
+  },
+  openMaintenance: async () => {},
   log: ({ event, partition, detail }) => console.warn(`[partitions] ${event}${partition ? ` ${partition}` : ""}${detail ? `: ${detail}` : ""}`),
 });
 { const registered = desktopPartitions.registerHolder(); if (registered.state === "failed") console.error(`[partitions] holder registration failed: ${registered.reason}`); }
@@ -976,10 +986,8 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
       siteThemePreviews.stop({ siteDir }, {});
     },
     sharedSites,
-    // The erase arm's sign-in removal proof (ST-2b), bound to this profile. Built per deps bag,
-    // which `runSitesHomeBoot` builds once.
-    retirement: bindDesktopRetirement({ userDataDir: app.getPath("userData"), sessionDataDir: app.getPath("sessionData"),
-      eraseVersion: app.getVersion(), partitionFor: sitePartition, fs, clock: Date, id: randomUUID, durableJsonFor: desktopJsonFile }).port,
+    // The erase arm's sign-in removal proof (ST-2b): the profile's one ledger, shared with the interlock.
+    retirement: desktopRetirement.port,
     // The card's Stop for a site `npm run dev` (or another instance) serves — owner 2026-10-13.
     // Signals dev.mjs, never the lease pid's watcher-held server; see `external-site-stop.ts`.
     externalSites: createExternalSiteStopper({}),

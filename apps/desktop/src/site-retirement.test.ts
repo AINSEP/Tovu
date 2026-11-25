@@ -166,7 +166,8 @@ test("production binding is not NO_RETIREMENT", () => {
   const source = fs.readFileSync(new URL("./main/index.ts", import.meta.url), "utf8");
   const start = source.indexOf("function buildProjectDeps(");
   const body = source.slice(start, source.indexOf("\n}\n", start));
-  assert.match(body, /retirement: bindDesktopRetirement\(\{/);
+  assert.match(body, /retirement: desktopRetirement\.port/);
+  assert.match(source, /const desktopRetirement = bindDesktopRetirement\(\{/);
   assert.doesNotMatch(source, /NO_RETIREMENT/);
   assert.match(source, /durableJsonFor: desktopJsonFile/);
 });
