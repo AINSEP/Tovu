@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from '@testing-library/user-event';
+import { describeApiError } from '@/lib/admin-http/request';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { AgentPluginMemoryPanel } from '../AgentPluginMemoryPanel';
+import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
 import { AgentPluginDetailsModal } from '../AgentPluginDetailsModal';
-import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
+import { useAgentPluginMemory } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-memory.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks';
 
 const memoryPort = vi.hoisted(() => ({ read: vi.fn(), saveNote: vi.fn() }));
@@ -16,7 +17,7 @@ const empty = (): PluginMemoryListing => ({ pluginId: 'higgsfield-media', notes:
   limits: { learned: 1048576, notes: 16384, files: 128 } });
 
 function MemoryHarness({ port }: { port: AgentPluginMemoryPort }) {
-  const controller = useAgentPluginMemory({ pluginId: 'higgsfield-media', port, t });
+  const controller = useAgentPluginMemory({ pluginId: 'higgsfield-media', port, t, describeApiError });
   return <AgentPluginMemoryPanel controller={controller} />;
 }
 
