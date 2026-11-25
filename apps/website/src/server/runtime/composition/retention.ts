@@ -1,4 +1,6 @@
-import type { createRetentionRunner } from "@jini-ai/platform/retention";
+import type { createRetentionRunner, RetentionPolicy } from "@jini-ai/platform/retention";
+import type { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { createShareMutex, createShareRetention, type ShareRetentionFs } from "#src/features/site-backup/share-retention";
 
 export function startSiteRetention(
   { createRunner, policiesForSignal, clock, scheduler, reportError, log }: {
@@ -41,4 +43,19 @@ export function startSiteRetention(
       await runner.stop();
     },
   };
+}
+
+/**
+ * The serving process's retention policies: today only the share expiry pass (`share-files`, kind
+ * `old-copy` — never a content class), and only when this site has a share catalog. Scheduled passes stay
+ * measure-only (`scheduledDryRun: true`); a sweep expires nothing but links whose owner chose a date.
+ */
+export function siteRetentionPolicies(
+  required: { registry: SiteShareRegistry | undefined; fs: ShareRetentionFs; clock: { now(): number }; signal: AbortSignal; reportError: (required: { error: Error; policyId?: string }, optional: Record<string, never>) => void },
+  _optional: Record<string, never> = {},
+): RetentionPolicy[] {
+  const { registry, fs, clock, signal, reportError } = required;
+  if (!registry) return [];
+  return [createShareRetention({ registry, shareMutex: createShareMutex({}), fs, clock, signal,
+    reportError: ({ error }, {}) => reportError({ error, policyId: "share-files" }, {}) })];
 }

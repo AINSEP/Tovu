@@ -47,6 +47,12 @@ export async function createSiteShare(required: { registry: SiteShareRegistry; s
   return deliverShare({ registry: required.registry, row, delivery: optional.delivery, key, file, archive: required.archive }, { signal: optional.signal });
 }
 
+/** The plain-words answer for an expired link (P11 ST-12b), shared by acknowledgement and the owner download. */
+export function shareExpiredMessage(required: { row: Pick<SiteShareRecord, "expiresAt"> }, _optional: Record<string, never> = {}): string {
+  const on = required.row.expiresAt ? ` on ${required.row.expiresAt.slice(0, 10)}` : "";
+  return `This link expired${on} and its file was removed.`;
+}
+
 /** A lowercase, dash-separated file stem of at most 80 characters; `site` when nothing is left. */
 export function shareFileStem(required: { name: string }, _options = {}): string {
   return required.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "site";
@@ -127,6 +133,7 @@ async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: N
 export async function acknowledgeSiteShare(required: { registry: SiteShareRegistry; site: string; shareId: string }, optional: { delivery?: ShareDelivery } = {}): Promise<SiteShareRecord> {
   const row = await required.registry.get(required);
   if (!row || row.status === "revoked") throw new SiteShareRefusal({ code: "NOT_FOUND", message: "This export is missing or was revoked." });
+  if (row.status === "expired") throw new SiteShareRefusal({ code: "EXPIRED", message: shareExpiredMessage({ row }) });
   if (!row.needsAcknowledgement) return row;
   const acknowledged = { ...row, needsAcknowledgement: false };
   const deliveryStorage = !row.credentialWarnings?.length ? row.storage : undefined;

@@ -9,7 +9,7 @@ import type { prepareShareContent } from "./share-preparation.js";
 import { SiteBackupPushJobs, type PushJobKey, type PushJobWait, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import { buildShareZip, buildStaticSiteZip } from "./share-zip.js";
 import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./static-copy.js";
-import { createSiteShare, acknowledgeSiteShare, revokeSiteShare, type ShareDelivery } from "./share-service.js";
+import { createSiteShare, acknowledgeSiteShare, revokeSiteShare, shareExpiredMessage, type ShareDelivery } from "./share-service.js";
 import { isOwnShareFolder } from "./share-own-folder.js";
 import { SHARE_EXPIRY_COPY, isShareExpiryChoice, shareExpiresAt } from "./share-expiry.js";
 import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
@@ -253,6 +253,7 @@ async function acknowledgeShare({ ctx, shareId }: { ctx: ShareBackendContext; sh
   try {
     const row = await required.registry.get({ site: required.site, shareId });
     if (!row || row.status === "revoked") throw new SiteShareRefusal({ code: "NOT_FOUND", message: "This export is missing or was revoked." });
+    if (row.status === "expired") throw new SiteShareRefusal({ code: "EXPIRED", message: shareExpiredMessage({ row }) });
     const delivery = row.needsAcknowledgement && row.storage && !row.credentialWarnings?.length ? await required.delivery({ provider: row.storage.provider, binding: row.storage.binding }) : undefined;
     return view(await acknowledgeSiteShare({ registry: required.registry, site: required.site, shareId }, { delivery }));
   } finally { lane.active = null; }

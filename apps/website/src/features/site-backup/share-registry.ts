@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rename, statfs, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, readdir, rename, statfs, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "./share-policy.js";
@@ -13,7 +13,7 @@ export interface SiteShareRecord {
   readonly bytes: number;
   readonly sha256: string;
   readonly url: string | null;
-  readonly status: "active" | "revoked" | "failed";
+  readonly status: "active" | "revoked" | "failed" | "expired";
   readonly createdAt: string;
   readonly revokedAt: string | null;
   readonly hasEncryptedKeys?: boolean;
@@ -94,7 +94,27 @@ export class SiteShareRegistry {
       const revokedAt = await readFile(path.join(this.directory, `${row.shareId}.revoked`), "utf8");
       return { ...row, status: "revoked", revokedAt };
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    // Checked after `.revoked` so `revoked > expired`; like revocation, a racing whole-record `put`
+    // (acknowledge, delivery rewrite) cannot bring an expired link back to `active`.
+    try {
+      await readFile(path.join(this.directory, `${row.shareId}.expired`), "utf8");
+      return { ...row, status: "expired" };
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     return row;
+  }
+  /**
+   * The permanent, create-only expiry tombstone (content: the stated `expiresAt`), synced to disk
+   * before returning so the ZIP is never unlinked while a reader could still see `active` (P11 ST-12b).
+   * An existing tombstone is success: a crash between this and the unlink is retried by the next pass.
+   */
+  async markExpired(required: { shareId: string; expiresAt: string }, _optional: Record<string, never> = {}): Promise<void> {
+    const file = path.join(this.directory, `${required.shareId}.expired`);
+    this.meta({ id: required.shareId });
+    let handle: Awaited<ReturnType<typeof open>>;
+    try { handle = await open(file, "wx", 0o600); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "EEXIST") return; throw error; }
+    try { await handle.writeFile(required.expiresAt); await handle.sync(); }
+    finally { await handle.close(); }
   }
   async list(required: { site?: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord[]> {
     let names: string[];

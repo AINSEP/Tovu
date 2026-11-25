@@ -2,7 +2,8 @@ import { createRetentionRunner } from "@jini-ai/platform/retention";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
-import { startSiteRetention } from "./retention.js";
+import { siteRetentionPolicies, startSiteRetention } from "./retention.js";
+import { stat, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
@@ -86,11 +87,13 @@ export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { runningLease?: ReturnType<typeof claimSiteRunning>; stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
 ): { siteRetention?: ReturnType<typeof startSiteRetention>; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
+  const reportRetentionError = ({ error }: { error: Error }, _optional: Record<string, never>) => console.warn(formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
   // Exporter, daemon, attached serve and memory-only roots do not own this runner.
   const siteRetention = optional.runningLease && !optional.runningLease.attached
     ? startSiteRetention({
-      createRunner: createRetentionRunner, policiesForSignal: () => [], clock: Date, scheduler: globalThis,
-      reportError: ({ error }, {}) => console.warn(formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)),
+      createRunner: createRetentionRunner, clock: Date, scheduler: globalThis,
+      policiesForSignal: signal => siteRetentionPolicies({ registry: routeDeps.siteShareBackend?.registry, fs: { stat, unlink }, clock: { now: () => routeDeps.clock.nowMs() }, signal, reportError: reportRetentionError }),
+      reportError: reportRetentionError,
       log: line => console.log(line),
     }, {})
     : undefined;

@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { createRetentionRunner } from "@jini-ai/platform/retention";
-import { startSiteRetention } from "./retention.js";
+import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { siteRetentionPolicies, startSiteRetention } from "./retention.js";
 
-const source = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+const source = (file: string) => readFileSync(new URL(file, import.meta.url), "utf8");
 
 test("never starts on a client role", () => {
   assert.match(source("./serving-app.ts"), /optional\.runningLease && !optional\.runningLease\.attached[\s\S]*?startSiteRetention/);
@@ -81,6 +85,18 @@ test("boot pass waits for ready", async () => {
 
 test("no chat, revision, screenshot or media policy is registered", () => {
   const serving = source("./serving-app.ts");
-  assert.match(serving, /policiesForSignal: \(\) => \[\]/);
+  // P11 ST-12b: the one registered source of policies is the share expiry pass (asserted below).
+  assert.match(serving, /policiesForSignal: signal => siteRetentionPolicies\(/);
   assert.doesNotMatch(serving, /id: ["'][^"']*(chat|revision|screenshot|media)|kind: ["'](content|history)/i);
+  assert.doesNotMatch(source("./retention.ts"), /id: ["'][^"']*(chat|revision|screenshot|media)|kind: ["'](content|history)/i);
+});
+
+test("the only serving policy is the share expiry pass, an old-copy class, and only with a share catalog", async () => {
+  const deps = { fs: { stat: async () => ({ size: 0 }), unlink: async () => {} }, clock: { now: () => 0 }, signal: new AbortController().signal, reportError: () => {} };
+  assert.deepEqual(siteRetentionPolicies({ registry: undefined, ...deps }), []);
+  const directory = await mkdtemp(path.join(tmpdir(), "retention-policies-"));
+  try {
+    const policies = siteRetentionPolicies({ registry: new SiteShareRegistry({ directory, now: () => 0 }), ...deps });
+    assert.deepEqual(policies.map(({ id, kind }) => ({ id, kind })), [{ id: "share-files", kind: "old-copy" }]);
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

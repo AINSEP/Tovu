@@ -176,6 +176,14 @@ test("site-shares wire: download refusals, acknowledgement and the ZIP itself", 
   assert.match(String(got.body), /zip body/);
 });
 
+test("P11 ST-12b: the owner download of an expired export answers the expired message, not the ZIP", async (t) => {
+  const { call, registry } = await serve(t);
+  const row = await createSiteShare({ registry, site: "ws", name: "site", archive: ZIP });
+  await registry.markExpired({ shareId: row.shareId, expiresAt: "2026-11-20T00:00:00.000Z" });
+  await registry.put({ record: { ...row, expiresAt: "2026-11-20T00:00:00.000Z" } });
+  assert.deepEqual(await call("GET", `/${row.shareId}/download`), wire(410, { code: "EXPIRED", message: "This link expired on 2026-11-20 and its file was removed." }));
+});
+
 /** Streams `bytes` bytes (a ZIP signature, then zeros), stopping once the server closes or answers. */
 async function sendAll({ socket, bytes }: { socket: net.Socket; bytes: number }): Promise<void> {
   const chunk = Buffer.alloc(1 << 20);

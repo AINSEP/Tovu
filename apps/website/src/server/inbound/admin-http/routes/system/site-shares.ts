@@ -8,7 +8,7 @@ import { parseStaticExportInput } from "#src/features/site-backup/static-export-
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
-import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
+import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact, shareExpiredMessage } from "#src/features/site-backup/share-service";
 import { SHARE_EXPIRY_COPY, isShareExpiryChoice, type ShareExpiryDays } from "#src/features/site-backup/share-expiry";
 
 type ShareExpiryInput = { expiresInDays?: ShareExpiryDays | null };
@@ -94,6 +94,8 @@ export function registerAdminSiteShareDownloadRoute(required: { app: Express; de
       const registry = backend.registry;
       const row = await registry.get({ shareId: String(req.params.shareId), site: deps.workspaceId });
       if (!row || row.status === "revoked") { res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: this export is missing or was revoked." }); return; }
+      // The expiry tombstone is published before the ZIP is unlinked, so this refuses before the file goes.
+      if (row.status === "expired") { res.status(410).json({ code: "EXPIRED", message: shareExpiredMessage({ row }) }); return; }
       if (row.needsAcknowledgement) {
         res.status(403).json({ code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: row.credentialWarnings ?? [] });
         return;
