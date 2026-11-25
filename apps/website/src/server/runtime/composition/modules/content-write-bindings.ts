@@ -8,6 +8,7 @@ import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { rejectPluginHookFailure } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps } from "./content.js";
+import { actorForMutation } from "../mutation-actor.js";
 
 /**
  * @file Tovu's half of the posts/pages create, update and delete route specs
@@ -37,7 +38,8 @@ export function contentWriteBaseDeps({ deps }: { deps: ContentRouteDeps }, _opti
     restoreEntry: async ({ prior, actorId }: { prior: PostRecord; actorId: string }): Promise<void> => {
       await restorePostForward({
         deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, forgetRemoved: deps.forgetRemovedPost },
-        input: { prior, actorId },
+        // Every binding in this file serves the admin channel, so its writes are the owner's own (`user`).
+        input: { prior, actorId, actor: actorForMutation({ principalId: actorId, origin: "admin" }) },
       });
     },
   };
@@ -85,6 +87,7 @@ export function postCreateInput(required: { body: unknown; workspaceId: string; 
     publishAt: body.publishAt as CreatePostInput["publishAt"],
     featuredMediaId: body.featuredMediaId as CreatePostInput["featuredMediaId"],
     actorId: required.actorId,
+    actor: actorForMutation({ principalId: required.actorId, origin: "admin" }),
     analyticsSource: "admin",
   };
 }
@@ -101,6 +104,7 @@ export function pageCreateInput(required: { body: unknown; workspaceId: string; 
     bodyJson: body.bodyJson as CreatePostInput["bodyJson"],
     status: body.status as CreatePostInput["status"],
     actorId: required.actorId,
+    actor: actorForMutation({ principalId: required.actorId, origin: "admin" }),
     analyticsSource: "admin",
   };
 }
@@ -169,6 +173,7 @@ export async function applyContentUpdate(
         input: { workspaceId: deps.workspaceId, featuredMediaId: body.featuredMediaId },
       }),
       actorId,
+      actor: actorForMutation({ principalId: actorId, origin: "admin" }),
       analyticsSource: "admin",
     },
   });
@@ -218,6 +223,6 @@ export function pageUpdateInverse({ prior }: { prior: PostRecord }, _optional = 
 export function trashContentEntry({ deps }: { deps: ContentRouteDeps }, _optional: Record<string, never> = {}) {
   return ({ workspaceId, id, actorId }: { workspaceId: string; id: string; actorId: string }) => deletePost({
     deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
-    input: { workspaceId, id, actorId },
+    input: { workspaceId, id, actorId, actor: actorForMutation({ principalId: actorId, origin: "admin" }) },
   });
 }

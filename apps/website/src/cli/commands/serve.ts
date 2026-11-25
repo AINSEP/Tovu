@@ -33,6 +33,8 @@ import { resolveBindHost, DEFAULT_LOCAL_BIND_HOST } from "@jini-ai/devops/local-
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 import { serveListening } from "./serve-listen.js";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { EnvConfigError } from "@jini-ai/core/config/env-schema";
+import { readTovuBootEnv, type TovuBootConfig } from "../../server/runtime/configuration/env-schema.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
@@ -102,22 +104,34 @@ function parsePort({ raw }: { raw: string | number }, _options = {}): number {
 }
 
 /** BR-02: `--port` flag, then `config.json.port`, then `PORT` env, then 3000 — first PRESENT value wins; a present-but-invalid value at any tier is VALIDATION, never a fall-through to the next tier. */
-function resolveServePort(input: RunServeCommandInput, config: ConfigJson): number {
+function resolveServePort(input: RunServeCommandInput, config: ConfigJson, envPort: number | undefined): number {
   if (input.port !== undefined) return parsePort({ raw: input.port });
   if (config.port !== null && config.port !== undefined) return parsePort({ raw: config.port });
-  if (process.env.PORT !== undefined) return parsePort({ raw: process.env.PORT });
+  // Already validated by `readServeBootEnv` before `bootSiteDir` opened anything.
+  if (envPort !== undefined) return envPort;
   return DEFAULT_PORT;
 }
 
+/**
+ * Reads this process's boot env once, before `bootSiteDir` opens a store or anything listens. An
+ * explicit `--port` on this invocation outranks the ambient `PORT`, so a stale `PORT` is not
+ * validated when the flag is given. A bad value surfaces as VALIDATION, as a bad `--port` does.
+ */
+function readServeBootEnv({ input }: { input: RunServeCommandInput }, _optional = {}): TovuBootConfig<"website"> {
+  const env = input.port === undefined ? process.env : { ...process.env, PORT: undefined };
+  try { return readTovuBootEnv({ env, scope: "website", warn: ({ message }) => { process.stderr.write(`tovu: warning: ${message}\n`); } }); }
+  catch (error) { throw error instanceof EnvConfigError ? new ValidationError({ message: error.message }) : error; }
+}
+
 /** BR-04/EC-08: a `dir` argument overrides legacy env vars — logs a warning naming whichever is set, rather than silently ignoring it. */
-function warnIfLegacyEnvVarsIgnored(): void {
-  if (process.env.TOVU_CHAT_DB !== undefined) {
+function warnIfLegacyEnvVarsIgnored({ bootEnv }: { bootEnv: TovuBootConfig<"website"> }, _optional = {}): void {
+  if (bootEnv.TOVU_CHAT_DB !== undefined) {
     process.stderr.write("tovu: warning: TOVU_CHAT_DB is ignored when a dir argument is given\n");
   }
-  if (process.env.TOVU_CONTENT_DB !== undefined) {
+  if (bootEnv.TOVU_CONTENT_DB !== undefined) {
     process.stderr.write("tovu: warning: TOVU_CONTENT_DB is ignored when a dir argument is given\n");
   }
-  if (process.env.TOVU_DB !== undefined) {
+  if (bootEnv.TOVU_DB !== undefined) {
     process.stderr.write("tovu: warning: TOVU_DB is ignored when a dir argument is given\n");
   }
 }
@@ -199,12 +213,13 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   await initializeStartupSecrets({}, {});
   ensureAgentDaemonToken({}, {});
   ensureToolExecToken({}, {});
+  const bootEnv = readServeBootEnv({ input });
 
   // The shared gate contains unsafe defaults for production CLI boots and is inert locally.
   // See runtime/boot/boot-readiness-gate.ts for the policy.
   await runProductionReadinessGateOrExit();
 
-  warnIfLegacyEnvVarsIgnored();
+  warnIfLegacyEnvVarsIgnored({ bootEnv });
 
   const target = resolveDirectoryTarget({ dirArg: input.dir });
   // Must precede EVERY `siteDir()`-derived read below (and the daemon spawn much further down) —
@@ -215,7 +230,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   const logFiles = serverLogFilePaths({ siteDir: target });
   attachServerLogFile({ filePath: logFiles.server }, { alsoRead: [logFiles.daemon] });
   pinPlainHttpIntoEnv();
-  const runningLease = claimSiteRunning({ dir: target, app: process.env.TOVU_RUNNING_APP === "Desktop" ? "Desktop" : "Web" });
+  const runningLease = claimSiteRunning({ dir: target, app: bootEnv.TOVU_RUNNING_APP === "Desktop" ? "Desktop" : "Web" });
   if (runningLease.attached) return;
   let bootResult: BootSiteDirResult;
   try { bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId }); }
@@ -226,7 +241,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   // refused boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
   const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [], bootWork: [], runningLease };
   try {
-    await serveBootedSite({ input: input, target: target, owned: owned, optional: optional });
+    await serveBootedSite({ input: input, target: target, owned: owned, optional: optional, bootEnv });
   } catch (err) {
     await releaseServeOwnership(owned);
     runningLease.release();
@@ -348,13 +363,13 @@ async function runServeBootLifecycle({ deps, dbPath }: { deps: Awaited<ReturnTyp
  * {@link runServeCommand} after `bootSiteDir`: compose, run the boot lifecycle, bind the listener and
  * install the BR-07 shutdown. Records what it starts in `owned`, so a rejection can be cleaned up.
  */
-async function serveBootedSite({ input, target, owned, optional }: { input: RunServeCommandInput; target: string; owned: ServeOwnership; optional: RunServeCommandOptional }, _options = {}): Promise<void> {
+async function serveBootedSite({ input, target, owned, optional, bootEnv }: { input: RunServeCommandInput; target: string; owned: ServeOwnership; optional: RunServeCommandOptional; bootEnv: TovuBootConfig<"website"> }, _options = {}): Promise<void> {
   const { bootResult } = owned;
-  const port = resolveServePort(input, bootResult.config);
+  const port = resolveServePort(input, bootResult.config, bootEnv.PORT);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
   // than after `bootSiteDir`'s migrations/side effects have already run.
-  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
+  const host = resolveBindHost({ raw: input.host ?? bootEnv.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) });
   pinSiteListenerOrigin({ scheme: "http", host, port });
 
   await prepareSiteKey({ target });

@@ -139,7 +139,7 @@ export function createConvertingUploader(
 ): (input: UploadMediaInput) => Promise<{ media: MediaRecord }> {
   const { uploadDeps, caps, mediaRepo, clock } = required;
   return withVideoConversionOnImport({
-    storeUpload: (input: UploadMediaInput) => uploadMedia({ deps: uploadDeps, input }, caps),
+    storeUpload: (input: UploadMediaInput) => uploadMedia({ deps: uploadDeps, input }, { ...caps, videoCodecProbe: optional.video?.ports.videoCodecProbe }),
     conversion: buildImportVideoConversion({ uploadDeps, mediaRepo, clock, video: optional.video }),
   });
 }

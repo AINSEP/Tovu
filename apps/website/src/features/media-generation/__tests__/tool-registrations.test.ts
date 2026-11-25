@@ -38,9 +38,10 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
 import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
 const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS, mediaAssetReadToolId: "content_read.media_asset" });
-import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
+import { mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";
+import { createHostMediaProviderRegistry } from "../host-media-providers.js";
 
 const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
@@ -153,7 +154,7 @@ function fakeRouteDeps(
     mediaGenerationHttpClient: options.httpClient ?? {
       send: async () => { throw new Error("fixture forbids external media HTTP"); },
     },
-    mediaProviderRegistry: options.mediaProviderRegistry ?? createMediaProviderRegistry(),
+    mediaProviderRegistry: options.mediaProviderRegistry ?? createHostMediaProviderRegistry(),
     generateMedia: options.generateMedia === null ? undefined : (options.generateMedia ?? fakeGenerateMedia(generateCalls)),
     env: options.env ?? {},
     authorize: async (params: Record<string, unknown>) => {
@@ -235,12 +236,20 @@ test("exactly one tool is wired: media_generate_asset", () => {
   assert.deepEqual([...mediaGenerationRegistrations(deps).keys()], ["media_generate_asset"]);
 });
 
+type ModelEnumSchema = { properties: { model: { enum: string[] } } };
+/** The host mounts the xAI plugin by default: its image model follows the catalog's built-in enum. */
+const HOST_PLUGIN_IMAGE_MODELS = ["grok-imagine-image"];
+function withHostPluginModels<T>(schema: T): T {
+  const typed = schema as T & ModelEnumSchema;
+  return { ...typed, properties: { ...typed.properties, model: { ...typed.properties.model, enum: [...typed.properties.model.enum, ...HOST_PLUGIN_IMAGE_MODELS] } } };
+}
+
 test("media_generate_asset publishes its catalog entry's inputSchema and description", () => {
   const { deps } = fakeRouteDeps();
   const registration = wired("media_generate_asset", deps);
   assert.ok(registration.descriptor.inputSchema);
   const published = publishedCatalogDescriptor({ registration, entry: catalogEntry("media_generate_asset") });
-  assert.deepEqual(registration.descriptor.inputSchema, published.inputSchema);
+  assert.deepEqual(registration.descriptor.inputSchema, withHostPluginModels(published.inputSchema));
   assert.equal(registration.descriptor.description, published.description);
   assert.equal(registration.descriptor.description?.includes("call credential_save with kind media-provider in this turn, then retry the original generation exactly once after the key is saved."), true);
   assert.equal(registration.descriptor.description?.includes("Do not retry"), false);
@@ -754,7 +763,7 @@ function acmeVendor(): MediaProviderContribution {
 }
 
 function registryWithAcme(): MediaProviderRegistry {
-  const registry = createMediaProviderRegistry();
+  const registry = createHostMediaProviderRegistry();
   assert.equal(registry.providers.contribute({ definition: mediaProviderDefinition({ contribution: acmeVendor() }), pluginId: "acme-plugin" }), true);
   return registry;
 }
@@ -763,7 +772,7 @@ test("a plugin-contributed image model is in the published model enum, built fro
   const withPlugin = wired("media_generate_asset", fakeRouteDeps({ mediaProviderRegistry: registryWithAcme() }).deps);
   const builtinOnly = wired("media_generate_asset", fakeRouteDeps().deps);
   const enumOf = (registration: ToolRegistration) => ((registration.descriptor.inputSchema as { properties: { model: { enum: string[] } } }).properties.model.enum);
-  assert.deepEqual(enumOf(builtinOnly), (catalogEntry("media_generate_asset").inputSchema as { properties: { model: { enum: string[] } } }).properties.model.enum);
+  assert.deepEqual(enumOf(builtinOnly), [...(catalogEntry("media_generate_asset").inputSchema as ModelEnumSchema).properties.model.enum, ...HOST_PLUGIN_IMAGE_MODELS]);
   assert.deepEqual(enumOf(withPlugin), [...enumOf(builtinOnly), "acme-image-1"]);
 });
 

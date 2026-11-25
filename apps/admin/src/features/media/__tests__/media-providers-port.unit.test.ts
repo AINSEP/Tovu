@@ -11,9 +11,10 @@ import type { MediaProviderRowsPort } from "@jini-ai/ui";
  * `save-error` state. Both branches of that asymmetry are asserted here.
  */
 
-const { getMediaProviders, request } = vi.hoisted(() => ({
+const { getMediaProviders, request, getMediaProviderCatalog } = vi.hoisted(() => ({
   getMediaProviders: vi.fn(),
   request: vi.fn(),
+  getMediaProviderCatalog: vi.fn(),
 }));
 
 vi.mock("../../../lib/admin-http/request", async (importOriginal) => {
@@ -23,12 +24,12 @@ vi.mock("../../../lib/admin-http/request", async (importOriginal) => {
 
 vi.mock("../api/media-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/media-api")>();
-  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders } };
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, getMediaProviderCatalog } };
 });
 
 const { WORKSPACE_ID } = await import("@jini-ai/admin/shell/lib/admin-http/config");
 
-const { mediaProvidersPort } = await import("../media-providers-port");
+const { mediaProvidersPort, mediaProviderCatalogPort } = await import("../media-providers-port");
 
 describe("mediaProvidersPort.fetchMediaProviders", () => {
   it("returns the provider map on success", async () => {
@@ -91,5 +92,24 @@ describe("mediaProvidersPort per-provider writes", () => {
     const port = mediaProvidersPort as MediaProviderRowsPort;
     await expect(port.patchProvider({ providerId: "openai", fields: { model: "m" } })).rejects.toThrow("no site key");
     await expect(port.removeProvider({ providerId: "openai" })).rejects.toThrow("no site key");
+  });
+});
+
+describe("mediaProviderCatalogPort.fetchMediaProviderCatalog", () => {
+  it("returns the host's live cards", async () => {
+    getMediaProviderCatalog.mockResolvedValue({ providers: [{ id: "xai-grok-imagine", label: "xAI Grok Imagine", models: ["grok-imagine-image"] }] });
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toEqual([{ id: "xai-grok-imagine", label: "xAI Grok Imagine", models: ["grok-imagine-image"] }]);
+  });
+
+  it("resolves null (never [], never rejects) when the host is unreachable, so the tab shows no made-up count", async () => {
+    getMediaProviderCatalog.mockRejectedValue(new Error("network down"));
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toBeNull();
+  });
+
+  it("resolves null for a body that is not a catalog, and drops malformed cards from one that is", async () => {
+    getMediaProviderCatalog.mockResolvedValueOnce({ openai: { apiKeyConfigured: true } });
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toBeNull();
+    getMediaProviderCatalog.mockResolvedValueOnce({ providers: [{ id: "openai", label: "OpenAI" }, { id: 7 }, null] });
+    await expect(mediaProviderCatalogPort.fetchMediaProviderCatalog()).resolves.toEqual([{ id: "openai", label: "OpenAI" }]);
   });
 });

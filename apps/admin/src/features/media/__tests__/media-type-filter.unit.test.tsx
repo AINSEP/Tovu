@@ -17,6 +17,8 @@ import { Media } from "../Media";
 import { filterMediaByTab, hasUntypedMedia, showsUntypedMediaNote } from "@jini-ai/admin/screens/media/rules";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
+import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,
@@ -29,7 +31,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
 };
 
 /**
@@ -147,12 +149,22 @@ function renderScreen(props: Partial<React.ComponentProps<typeof Media>> = {}) {
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
+/** The grid route's answer for `items`: filtered by the tab the screen asks for, with the server's counts. */
 function mockList(items: AdminMedia[]) {
   fetchMock.mockImplementation((input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     if (url.includes("/locale")) return Promise.resolve(jsonResponse({ locale: "en" }));
+    if (isGridUrl({ url })) return Promise.resolve(jsonResponse(gridResponseBody({ url, media: items })));
     return Promise.resolve(jsonResponse({ media: items }));
   });
+}
+
+/** The tabs the screen has asked the grid route for, in order. */
+function requestedTabs(): string[] {
+  return fetchMock.mock.calls
+    .map(([input]) => (typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url))
+    .filter((url) => isGridUrl({ url }))
+    .map((url) => new URL(url, "http://localhost").searchParams.get("tab") ?? "");
 }
 
 beforeEach(() => {
@@ -172,6 +184,8 @@ describe("Media screen type tabs", () => {
 
     // why: a card title is now its file name with the extension, split by MiddleTruncate into head/tail spans, so cards are found by the title trigger's accessible name (anchored regexes keep the absence checks from passing vacuously on a renamed title).
     expect(await screen.findByRole("button", { name: "Sunset Photo.png" })).toBeInTheDocument();
+    // The server does the filtering: the screen asks for the Images tab and renders what comes back.
+    expect(requestedTabs()).toEqual(["images"]);
     expect(screen.getByRole("button", { name: "Banner Art.webp" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Launch Clip/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Mystery Blob/ })).not.toBeInTheDocument();
@@ -183,6 +197,7 @@ describe("Media screen type tabs", () => {
 
     // why: a card title is now its file name with the extension, split by MiddleTruncate into head/tail spans, so cards are found by the title trigger's accessible name (anchored regexes keep the absence checks from passing vacuously on a renamed title).
     expect(await screen.findByRole("button", { name: "Launch Clip.mp4" })).toBeInTheDocument();
+    expect(requestedTabs()).toEqual(["videos"]);
     expect(screen.queryByRole("button", { name: /^Sunset Photo/ })).not.toBeInTheDocument();
   });
 

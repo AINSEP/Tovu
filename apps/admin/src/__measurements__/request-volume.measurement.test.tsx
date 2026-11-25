@@ -19,6 +19,7 @@ import { FormsControllerContext } from "@jini-ai/admin/forms/react";
 import { RedirectsControllerContext } from "@jini-ai/admin/redirects/react";
 import { Media } from "../features/media/Media";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
+import { useMediaProviderCatalog } from "../features/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,
@@ -31,7 +32,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
 };
 
 /**

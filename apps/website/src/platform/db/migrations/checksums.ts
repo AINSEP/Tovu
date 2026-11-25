@@ -68,4 +68,6 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0043_webhook_subscription_creator_kind": "e5acaafff22bfc4f7747139e2c7cf2c20b71ffaa31c15e634392cd485b1029ce",
   "0044_agent_pause_creator_kind": "532d51463fafb6f9edbb79f0b027106f31fae854ef47d4284e1e7ab80c5d9fc8",
   "0045_media_captions": "1ee6820db03385b6df3539815f4caf035d30aced21148ec0b8b3e9e897697944",
+  "0046_media_description": "3f7d0d70e20a881b7267a2ff6dd05d13670b2235c5dc1d7ff79061fd5feb45b1",
+  "0047_change_set_actor_kind": "576afd8e38e34e4b5b4f06d2aca407fec3767bd3984516db33d327b0b20a6887",
 };

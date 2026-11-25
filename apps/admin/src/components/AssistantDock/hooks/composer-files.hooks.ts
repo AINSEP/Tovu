@@ -1,14 +1,17 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { describeUploadOverLimit } from "@jini-ai/core/text";
 import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import {
   useAttachmentUploader as useAdminAttachmentUploader, useAttachmentValidator as useAdminAttachmentValidator,
   useFolderDropBridge as useAdminFolderDropBridge, useWorkingDirectoryAccess as useAdminWorkingDirectoryAccess,
 } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-files.hooks";
 import type { ChatPaneWorkingDirectoryAccess } from "@jini-ai/admin/react/kit";
+import { useMemo } from "react";
 import type { UseFolderDrop } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
 
 import { CHAT_ATTACHMENT_ROUTE_RULES } from "@/lib/chat-attachment-liveness";
 import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
+import { fileSizeRefusal } from "@/features/media/upload-size-copy";
 
 /**
  * The same limits the server enforces, read from the shared contract (`apps/admin` is a browser
@@ -37,10 +40,35 @@ export const TOVU_LEGACY_MANIFEST_NAMES: readonly string[] = ["tovu.plugin.json"
  *
  * @returns The memoized uploader instance.
  * @example
- * const uploadAttachments = useAttachmentUploader();
+ * const uploadAttachments = useAttachmentUploader({ t });
  */
-export function useAttachmentUploader(): ReturnType<typeof useAdminAttachmentUploader> {
-  return useAdminAttachmentUploader({ fetch }, { maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES, maxAttachmentBytesFor: uploadLimitForFile, maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES });
+type AttachmentUploader = ReturnType<typeof useAdminAttachmentUploader>;
+
+/**
+ * Wraps the uploader so a file over its own limit is refused with the host's copy: the ordinary 50 MB limit gets
+ * the translated sentence, while the larger video limit keeps its plain "That file is N MB; the limit is M MB."
+ * wording (converting cannot bring a file under it). The uploader would refuse the same first file with English
+ * text, so checking here first changes only the wording, never which files are accepted.
+ *
+ * @complexity O(files) per call; the wrapped uploader's cost is unchanged.
+ */
+export function withSizeRefusalCopy(
+  { uploader, t }: { uploader: AttachmentUploader; t: (key: string) => string },
+  _optional: Record<string, never> = {},
+): AttachmentUploader {
+  return async (files, options) => {
+    const oversize = files.find((file) => file.size > uploadLimitForFile(file));
+    if (oversize) {
+      const limitBytes = uploadLimitForFile(oversize);
+      throw new Error(fileSizeRefusal({ t, limitBytes, fallback: describeUploadOverLimit({ fileBytes: oversize.size, limitBytes }) }));
+    }
+    return options === undefined ? uploader(files) : uploader(files, options);
+  };
+}
+
+export function useAttachmentUploader({ t }: { t: (key: string) => string }, _optional: Record<string, never> = {}): AttachmentUploader {
+  const uploader = useAdminAttachmentUploader({ fetch }, { maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES, maxAttachmentBytesFor: uploadLimitForFile, maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES });
+  return useMemo(() => withSizeRefusalCopy({ uploader, t }), [uploader, t]);
 }
 
 /** Stable across renders (the shared hook memoizes on it); `fetch` resolves at probe time, as the pre-move `bind` at mount did for a stubbed global. */
@@ -92,9 +120,9 @@ export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | un
   return useAdminWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY, orFallbackSync });
 }
 
-export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}
+export function useAttachmentUploaderSeam({ override, t }: { override: typeof useAttachmentUploader | undefined; t: (key: string) => string }, _options: Record<string, never> = {}
 ): ReturnType<typeof useAttachmentUploader> {
-  return (override ?? useAttachmentUploader)();
+  return (override ?? useAttachmentUploader)({ t });
 }
 
 export function useAttachmentValidatorSeam({ override }: { override: typeof useAttachmentValidator | undefined }, _options: Record<string, never> = {}

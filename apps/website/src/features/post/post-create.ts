@@ -7,7 +7,8 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { assertTitleWithinLimit, isJsonObject, isValidPostStatus, resolveBodyFields, normalizePostAuthor, normalizeShowPostAuthor, assertOptionalBoolean, assertPostPresentationFields, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
 import { assertValidExplicitSlug, resolveCreateSlug, releaseTrashedSlug } from "@jini-ai/cms/posts/post-slugs";
 
-import { appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
+import { appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent, postEventActor } from "@jini-ai/cms/posts/post-write-effects";
+import type { MutationActor } from "@jini-ai/core/contracts/events";
 
 export interface CreatePostInput {
   /** Host-selected entry point; never taken from authored content. */
@@ -46,6 +47,9 @@ export interface CreatePostInput {
    *  repo's own ~9 direct-unit-test call sites (documented on {@link CreatePostDeps}) keep
    *  compiling and behaving exactly as before. */
   actorId?: UUID;
+  /** The trusted actor this write's channel vouched for (`user` for the admin, `agent` for the assistant),
+   *  stamped on its outbox events; its `id` must be `actorId`. Omitted, the events record no kind. */
+  actor?: MutationActor | undefined;
   /** Who is creating the row, recorded once as `posts.created_by_kind` (H4, 2026-11-24). Omitted
    *  means `"person"` — the owner/admin routes pass nothing; every agent-tool call site passes
    *  `"agent"`, since an agent acts under the real human's `actorId` and the kind cannot be
@@ -224,6 +228,8 @@ export async function createPost(
   _optional: CreatePostOptional = {}
 ): Promise<{ post: PublicPostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
+  // The channel vouches for the kind, the principal authorizes: an actor naming somebody else is refused before any write.
+  postEventActor({ actorId: input.actorId, actor: input.actor });
   assertOptionalBoolean({ value: input.hideCoverImageInBody, name: "hideCoverImageInBody" });
   assertPostPresentationFields(input);
   const { title, explicitSlug, bodyJson, status, bodyFormat, bodyHtml } = resolveCreateFields(input);
@@ -301,8 +307,8 @@ function persistCreatedPost(
     // (no event) when the caller created a plain draft, same as it always has. Inside the
     // transaction (2026-10-21), so the row and its event commit or roll back together.
     if (deps.outbox) {
-      await enqueueContentWrite({ outbox: deps.outbox, post, actorId: input.actorId, source: input.analyticsSource, operation: "created" });
-      await emitPublicTransitionEvent({ outbox: deps.outbox, previous: null, next: post, nowIso: now, actorId: input.actorId, source: input.analyticsSource });
+      await enqueueContentWrite({ outbox: deps.outbox, post, actorId: input.actorId, source: input.analyticsSource, operation: "created", actor: input.actor });
+      await emitPublicTransitionEvent({ outbox: deps.outbox, previous: null, next: post, nowIso: now, actorId: input.actorId, source: input.analyticsSource, actor: input.actor });
     }
     return revision;
   } });

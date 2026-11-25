@@ -14,6 +14,7 @@ import { Media } from "./panel-pages";
 // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
 // import { ModulePanel } from "./integrations/jini-admin/ModulePanel";
 import type { PanelRouteContext } from "./panel-contracts";
+import { useMediaProviderCatalog } from "./features/media/use-media-provider-catalog.hooks";
 
 // Keep render dispatch outside the JSX-only panel registry. Both screens use App's host chrome.
 export function renderMediaPanel(ctx: PanelRouteContext, _optional: Record<string, never> = {}) {
@@ -26,5 +27,5 @@ export function renderMediaPanel(ctx: PanelRouteContext, _optional: Record<strin
   // Legacy Media owns `/admin/media` in every build until owner visual-parity sign-off.
   // Pass its existing tab prop through so direct links and its tab buttons use the same URL.
   // `?id=` names one item whose detail dialog opens (use-media-item-link.hooks.ts).
-  return createElement(Media, { useMediaHook: useWiredMedia, useMediaTabsHook: useMediaTabs, useMediaPreviewHook: useWiredMediaPreview, useEditMediaPanelHook: useWiredEditMediaPanel, useEditMediaModalHook: useEditMediaModal, useAdminKitValuesHook: useAdminKitValues, useMediaCardMetadataHook: useMediaCardMetadata, useMediaCardDetailsHook: useMediaCardDetails, useMediaGridSizeHook: useMediaGridSize, useAdminThemeBoundaryHook: useAdminThemeBoundary, useMediaItemLinkHook: useMediaItemLink, tabId: ctx.query.get("tab"), itemId: ctx.query.get("id") });
+  return createElement(Media, { useMediaHook: useWiredMedia, useMediaTabsHook: useMediaTabs, useMediaPreviewHook: useWiredMediaPreview, useEditMediaPanelHook: useWiredEditMediaPanel, useEditMediaModalHook: useEditMediaModal, useAdminKitValuesHook: useAdminKitValues, useMediaCardMetadataHook: useMediaCardMetadata, useMediaCardDetailsHook: useMediaCardDetails, useMediaGridSizeHook: useMediaGridSize, useAdminThemeBoundaryHook: useAdminThemeBoundary, useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog, tabId: ctx.query.get("tab"), itemId: ctx.query.get("id") });
 }

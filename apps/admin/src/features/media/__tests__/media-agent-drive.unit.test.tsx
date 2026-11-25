@@ -17,6 +17,7 @@ import { Media } from "../Media";
 import type { MediaController } from "../hooks/use-media.hooks";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaTabsHook: useMediaTabs,
@@ -28,7 +29,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
 };
 
 /**
@@ -76,6 +77,12 @@ function item(overrides: Partial<AdminMedia> = {}): AdminMedia {
 function mediaController(overrides: Partial<MediaController> = {}): MediaController {
   return {
     media: [],
+    counts: null,
+    hasUntypedActive: false,
+    hasMore: false,
+    loadingMore: false,
+    loadMoreError: null,
+    loadMore: vi.fn(async () => {}),
     error: null,
     uploading: false,
     uploadOpen: false,
@@ -106,6 +113,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     setOrderBy: vi.fn(),
     t: (key: string) => key,
     locale: "en",
+    lookupMedia: overrides.media ?? [],
     ...overrides,
   };
 }

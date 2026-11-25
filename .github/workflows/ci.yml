@@ -162,6 +162,14 @@ jobs:
         continue-on-error: true
         run: npm run check:hooks
 
+      - name: Check env-read ratchet
+        # Every env read in shipped website/desktop source is declared in the boot env schema
+        # (apps/website/src/server/runtime/configuration/env-schema.ts). Older reads sit in the
+        # shrink-only baseline development/env-read-debt.json (names and paths, never values).
+        id: gate-env
+        continue-on-error: true
+        run: npm run check:env
+
       - name: Check why-comments ratchet
         # Owner HARD rule: refactors MOVE "why" comments with the code, never delete them. Fails when a
         # comment block deleted in this push/PR survives nowhere (this repo, or ../Jini when checked out)
@@ -312,6 +320,7 @@ jobs:
           check "${{ steps.gate-src-complexity.outcome }}"     "check:complexity"
           check "${{ steps.gate-size.outcome }}"               "check:size"
           check "${{ steps.gate-hooks.outcome }}"              "check:hooks"
+          check "${{ steps.gate-env.outcome }}"                "check:env"
           check "${{ steps.gate-why-comments.outcome }}"       "check:why-comments"
           check "${{ steps.gate-error-rule-copies.outcome }}"  "check:error-rule-copies"
           check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"

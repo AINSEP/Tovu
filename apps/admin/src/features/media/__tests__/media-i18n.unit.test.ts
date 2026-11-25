@@ -19,8 +19,11 @@ import { MEDIA_DICT, t } from "../media-i18n";
 import { MEDIA_ORDER_OPTIONS } from "@jini-ai/admin/screens/media/rules";
 import { Media } from "../Media";
 import { useMedia } from "../hooks/use-media.hooks";
-import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
+import { useGridPages } from "../hooks/use-grid-pages.hooks";
+import { useMediaWrites } from "../hooks/use-media-writes.hooks";
+import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaTabsHook: useMediaTabs,
@@ -32,7 +35,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -79,7 +82,7 @@ describe("Media copy reaches the active locale", () => {
       await port.uploadMedia({ filename: "Sunset $&", contentType: "image/png", dataBase64: "aGk=" });
       const translate = (key: string) => t({ locale: copy.locale, key });
       render(createElement(FetchQueryProvider, {}, createElement(Media, { ...requiredMediaHooks,
-        useMediaHook: () => useMedia({ port, locale: copy.locale, t: translate }),
+        useMediaHook: ({ tab, itemId }) => useMedia({ port, useGridPages, useMediaWrites, tab, itemId, locale: copy.locale, t: translate }),
       })));
       return { port, translate };
     }

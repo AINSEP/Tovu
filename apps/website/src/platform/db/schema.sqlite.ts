@@ -1410,6 +1410,10 @@ export const changeSets = sqliteTable(
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
     actorId: text("actor_id"),
+    /** P10-H2.T (migration 0047): `user` | `agent` | `system`, stamped from the trusted origin at host
+     *  composition — an assistant acting for an owner does not turn the action into an owner click.
+     *  NULL is a change set recorded before provenance existed: unknown, never guessed from `actor_id`. */
+    actorKind: text("actor_kind"),
     status: text("status").notNull(),
     summary: text("summary").notNull(),
     idempotencyKey: text("idempotency_key"),
@@ -1581,6 +1585,9 @@ export const media = sqliteTable(
     captionsMediaId: text("captions_media_id"),
     captionsSrclang: text("captions_srclang"),
     captionsLabel: text("captions_label"),
+    /** P10-M5.T (migration 0046): plain-language description for search — `MediaRecord.description`.
+     *  NULL means never described; an empty string is an explicit clear. */
+    description: text("description"),
   },
   (table) => [
     // Mirrors the inline CHECK that 0014_media_library adds to the kind column.

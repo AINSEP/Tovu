@@ -32,7 +32,8 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 
 import { loadMediaProviderRegistry } from "@jini-ai/cms/media/site-generation/media-provider-registry";
 import { contributeProviders, defineProviderContribution, type ProviderContributionDescriptor } from "@jini-ai/agent-plugins/lifecycle";
-import { createMediaProviderRegistry, MEDIA_PROVIDER_CONTRACT, mediaProviderRegistryId, type MediaProviderContribution } from "@jini-ai/integrations/media-providers";
+import { MEDIA_PROVIDER_CONTRACT, type MediaProviderContribution } from "@jini-ai/integrations/media-providers";
+import { createHostMediaProviderRegistry, hostMediaProviderRegistryId } from "#src/features/media-generation/host-media-providers";
 
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
@@ -132,8 +133,8 @@ async function composeSiteRouteDeps(
   // Awaited in the prelude, before the first fire-and-forget boot promise below (boot-order rule
   // pinned by composition-boot-order.unit.test.ts); it needs only the workspace and plugin layout.
   const mediaProviders = await loadMediaProviderRegistry({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
-    filename: "tovu-media-providers.json", contract: MEDIA_PROVIDER_CONTRACT, createRegistry: createMediaProviderRegistry,
-    registryId: mediaProviderRegistryId, contributeProviders,
+    filename: "tovu-media-providers.json", contract: MEDIA_PROVIDER_CONTRACT, createRegistry: createHostMediaProviderRegistry,
+    registryId: hostMediaProviderRegistryId, contributeProviders,
     defineProviderContribution: defineProviderContribution<ProviderContributionDescriptor, MediaProviderContribution> });
   const { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo, pluginRuntime, identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, menuRepo, navLocationBindingRepo, menuBindingsReady, newsletterListRepo, newsletterReady, commentsReady, transformDefinitionRepo, mediaTransformReady, blobHydrationReady, outbox, bus, devCapabilityScheme, originReady, originRegistry, redirectRepo, redirectHitSink, assetRenditionRepo, trashRegistry, sqliteTrashDb, trashRepo, formDeliveryRepo, trashAdapters, trashTransaction, trash, removePlugin, removeUser, isInTrash, redirectsWriteDeps, databaseLedgerRepo, migrationRunsRepo, publishContentRunRepo, restorePointsRepo, dbOps, databaseIntrospection, entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, widgetBindingRepo, entryRefsRepo, formDefinitionRepo, formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability, runtimeMode, siteDirForKeyring, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, siteAssistantSecretKeyring, siteAssistantSecretSealer } = composeSiteServicesPhase({ mediaAccessEvidence, dbPath, overrides, onStoreClose, lifecycleTracker: () => lifecycleTracker, routeDepsBuiltForPluginHost: () => routeDepsBuiltForPluginHost, formCollectionProviders: () => formCollectionProviders, agentPluginLayout, resolvedSiteBinding, kernel, blobStore, storeBound, workspaceId, mediaProviders, assetBlobRepo: () => assetBlobRepo, mediaRepo: () => mediaRepo, postRepo: () => postRepo, mediaContentTypeStore: () => mediaContentTypeStore, routeDeps: () => routeDeps, consoleLogger });
   // 0012 retains legacy AAD until this fenced pass; no credential consumer may start first.

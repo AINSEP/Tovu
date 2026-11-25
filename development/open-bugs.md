@@ -2001,3 +2001,20 @@ New / confirmed open (verify-first witnesses landed as `todo`, not failing tests
 - `b-g2-p2t4t-mode-witness` [OPEN] P2-T4.T mutation `choose-preflight-mode-from-original-agent` not run: no fixture drives an original argv agent to a selected non-argv alternative (consent-card path) without stubbing tool-access selection.
 - `b-g2-consent-publication-at-commit` [OPEN, review] P2-J2.J: `offer` does not publish consent/usage state, even after an Ask answer during the offer; it is first published at `commit`. An attempt that never commits does not publish that Ask answer. The sheet says preserve consent publication behaviour. Confirm or adjust.
 - Pre-existing at merge-21 (seen by b-g2, files untouched): Tovu website: 7 `createApp route table` pins, `agent-daemon-server.typed-tools` 11, site-deps source-order characterizations (B01–B25, H1–H4, L1–L6, R, M3), BYOK attachment pins, `bundled-automatic-relevance` 4, `automatic-agent-plugins` 2 (note >600 bytes; ask-mode note now carries a catalog list), `bundled-agent-plugin-selection` id set (calendly, commerce, google-forms, stripe extra), `tw2-L224` warning text, `check:size` (Media, use-media, use-page-editor, use-post-editor, desktop main, SiteGrid, assistant-byok, site-assistant). Jini: cms `universal-entries.boundary` (document-ingress → jsdom), cms forms CHANGELOG version pin, pglite timeouts, core `tool-metadata/provider-neutral` 3, admin `theme-boundaries` + `AlwaysAllowPanel`, daemon `uploads.characterization` 14 + `paths-queries-state` 1 (upload routes answer 500; untouched by b-g2, not bisected), guard HW3 `admin/shell/lib/shell-failure-log.ts`, complexity/size ratchet items in untouched files (chat ag-ui event-projection, agent-plugins search-tool/plugin-host, agent-runtime acp session-results, server builtin-features, sidecar stale entries).
+## b-g5b (cloud run 2026-11-25)
+### `g5b-agent-routine-runs-while-assistant-off` — OPEN (logged, not fixed)
+An agent-created routine still runs while the assistant switch is off. Tovu composes no routine runner
+that consults `agentPauseGate` before a routine fires, and Jini's `Routine` / `RoutineCreateInput` have
+no creator-kind field, so a host cannot tell agent routines from person routines. Witness:
+`apps/website/src/server/runtime/composition/__tests__/assistant-off-artifacts.test.ts` (three routine
+sub-tests marked `todo: "P3 lane: ..."`). Owner lane: P3.
+### `g5b-postgres-schema-hand-edited` — FIXED (Tovu, P10-M5.T commit)
+`schema.postgres.ts` is generated, but merge-21 carried hand-added 0044 lines, so the drift test was red.
+Regenerated; the 0044 why-comments stay in `schema.sqlite.ts`, the source of truth.
+### `g5b-media-description-dropped-by-jini` — FIXED (Jini follow-up commit to P10-M5.J)
+The admin PATCH body parser, import/generate tool input schemas and admin `MediaMetadataPatch` dropped
+`description`. Fixed test-first; blank clears, omitted is unchanged.
+### `g5b-stale-env-access-debt-rows` — OPEN (pre-existing, Jini)
+`scripts/env-access-debt.json` has 2 stale HW9 rows (`packages/cli/src/daemon-url.ts`,
+`packages/devops/src/local-dev/node-runtime.ts`) whose code no longer reads `process.env`, so
+`scripts/__tests__/check-env-access.test.ts` "is current" expects 81 and gets 79. Unchanged since merge-21.

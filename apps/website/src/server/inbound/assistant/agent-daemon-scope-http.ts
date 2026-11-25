@@ -3,7 +3,7 @@ import express from "express";
 import type { Principal } from "@jini-ai/core";
 import { stopRunsForToolAccessChange, type createAgentExecutor, type ToolExecutor, type RunLifecycle, type UserMessageDelivery, type ToolAccessRun } from "@jini-ai/daemon";
 import { frontendRequestRoutes, agentRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes, type createFrontendControl, type RunStartHandler, type RunMessageRequest, type DelegatedToolExecuteRequest } from "@jini-ai/daemon/http";
-import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteErrorPorts, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { bearerTokenFromHeader, type RouteErrorPorts, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 import { createRunScopedCredentials, createRunOwnerRegistry, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, requireRunOwnership, createOwnedRunListHandler } from "#src/assistant/daemon-access";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
@@ -20,6 +20,7 @@ import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler, NO_OPERATION_T
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { Logger } from "@jini-ai/core/primitives";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
+import { createDaemonOriginPolicy } from "./daemon-origin-policy.js";
 import { registerToolAccessLoweringRoute } from "./tool-access-lowering-route.js";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import type { AgentDaemonCoreDeps } from "../../runtime/composition/agent-daemon-core-deps.js";
@@ -71,10 +72,8 @@ export function createScopeApp(required: ScopeAppPorts, _optional = {}) {
   const app = express();
   mountIntake({ ...required, app });
   mountGuards({ ...required, app, resolveDiscoveryCaller: req => resolveDiscoveryCaller(required, req) });
-const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
-  // These are the environment names the previously imported http-kit origin guard read.
-  // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+// The resolved website listener port is injected here; see `daemon-origin-policy.ts`.
+const adapter: RouteHostContext = { originPolicy: createDaemonOriginPolicy({ port, env }) };
 // This scope has no operation-tracking port (only the site tracker the reporter forwards to), so
 // the explicit no-op keeps reporter mode on rather than falling back to legacy SEC-005 logging.
 // Every route host of the scope (surface routes included) shares this one binding.

@@ -3,7 +3,7 @@ import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withLargeUploadRouting } from "@jini-ai/cms/media/site/large-upload-routing";
 import { LARGE_UPLOAD_ROUTING } from "./large-upload-routing-copy.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
-import { CONVERT_VIDEO_TOOL_ID, type ImageCodecPort, type MediaTranscoderPort } from "@jini-ai/cms/media";
+import { CONVERT_VIDEO_TOOL_ID, type ImageCodecPort, type MediaTranscoderPort, type VideoCodecProbePort } from "@jini-ai/cms/media";
 import { createDerivedMediaLink } from "./derived-media-link.js";
 import { toolMetadata as jiniMediaMetadata } from '@jini-ai/core/tool-metadata/media';
 import { toolMetadata as videoConversionMetadata } from '../../contracts/core/tool-metadata/media-video-conversion.js';
@@ -68,7 +68,8 @@ function buildRecordUploadContentType(
 
 /** Host-injected video converter (an ffmpeg adapter built at the composition root). Absent means this
  * host cannot convert video, so `media_convert_video` is not offered. Never vendored into core. */
-export interface MediaConversionPorts { transcoder?: MediaTranscoderPort }
+/** The host video adapters: the converter, and the codec probe whose result the store keeps as a playback hint. */
+export interface MediaConversionPorts { transcoder?: MediaTranscoderPort; videoCodecProbe?: VideoCodecProbePort }
 
 const MEDIA_TRASH_TOOL_ID = "media_trash_asset";
 

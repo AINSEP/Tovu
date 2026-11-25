@@ -45,6 +45,7 @@ import { useByokRuntimeSeam } from "./hooks/byok-runtime.hooks";
 import { useExecutionConfigSeam } from "./hooks/execution-config.hooks";
 import { useLocalCliSelectionSeam } from "./hooks/local-cli-selection.hooks";
 import { useCallback } from "react";
+import { t as translateMedia } from "@/features/media/media-i18n";
 import { useAssistantPromptRequests } from "@jini-ai/admin/shell/lib/assistant-prompt-bus";
 import type { AssistantDockProps } from "./AssistantDock";
 
@@ -126,7 +127,7 @@ function useDockExecution({ props, locale }: { props: DockProps; locale: string 
 type DockExecution = ReturnType<typeof useDockExecution>;
 
 /** Conversation history, the run transport and the attachment upload/validation ports. */
-function useDockTransport({ props, execution }: { props: DockProps; execution: DockExecution }, { useSkillUploader = useSkillAwareAttachmentUploader }: { useSkillUploader?: typeof useSkillAwareAttachmentUploader } = {}) {
+function useDockTransport({ props, execution, locale }: { props: DockProps; execution: DockExecution; locale: string }, { useSkillUploader = useSkillAwareAttachmentUploader }: { useSkillUploader?: typeof useSkillAwareAttachmentUploader } = {}) {
   const {
     agentBridge = null,
     useChats,
@@ -155,7 +156,9 @@ function useDockTransport({ props, execution }: { props: DockProps; execution: D
     // `use-assistant-chats.hooks.ts`.
     persistUserTurn,
   }, { useTransport: useAssistantTransportOverride ?? useTovuAssistantTransport });
-  const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride });
+  // The size-refusal sentence is translated in the host's Media dictionary; memoized because the uploader is memoized on it.
+  const translateUpload = useCallback((key: string): string => translateMedia({ locale, key }), [locale]);
+  const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride, t: translateUpload });
   const skillInstall = useSkillInstall();
   const uploadAttachments = useSkillUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles, legacyManifestNames: TOVU_LEGACY_MANIFEST_NAMES });
   const validateAttachments = useAttachmentValidatorSeam({ override: useAttachmentValidatorOverride });
@@ -295,7 +298,7 @@ export function useAssistantDockState(props: AssistantDockProps) {
   const chrome = useDockChrome({ props });
   const preferences = useDockPreferences({ props, t: chrome.t });
   const execution = useDockExecution({ props, locale: chrome.locale });
-  const transport = useDockTransport({ props, execution });
+  const transport = useDockTransport({ props, execution, locale: chrome.locale });
   const agent = useDockAgent({ props, execution, locale: chrome.locale, runtimePreferences: preferences.runtimePreferences });
   const composer = useDockComposer({ props, renderers: chrome.renderers, execution, agent, transportState: transport });
   const run = useDockRun({ props, t: chrome.t, execution, agent, transportState: transport, composer });

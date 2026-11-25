@@ -5,9 +5,11 @@
  * The server enforces Jini's `MAX_DOCUMENT_BYTES`; `apps/website/src/features/media/__tests__/
  * upload-limit-single-source.test.ts` fails if that value and this one ever differ.
  */
+import { MEDIA_MAX_UPLOAD_BYTES } from "@jini-ai/core/contracts/site/media-upload-limits";
 
 /** The largest single non-video file any surface accepts (Library, Media, chat attachments, assistant imports): 50 MiB. */
-export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+// Bound to the engine's one media policy value so staging, final import and the copy can never name different limits.
+export const MAX_UPLOAD_BYTES = MEDIA_MAX_UPLOAD_BYTES;
 
 /** The largest single VIDEO file the media store accepts: 500 MiB (owner 2026-11-24). Images and every other file stay at {@link MAX_UPLOAD_BYTES}. */
 export const VIDEO_UPLOAD_LIMIT_BYTES = 500 * 1024 * 1024;

@@ -12,7 +12,6 @@ import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExe
 type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
-import { createMediaProviderRegistry } from '@jini-ai/integrations/media-providers';
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from '../../media/provider-credential-store.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
@@ -25,6 +24,7 @@ import type { ToolExecutor } from '@jini-ai/daemon';
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { createHostMediaProviderRegistry } from "../host-media-providers.js";
 
 
 const SECRET = 't10-media-secret-unique-731';
@@ -71,7 +71,7 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   const auth: unknown[] = [];
-  const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer, mediaProviderRegistry: createMediaProviderRegistry(),
+  const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer, mediaProviderRegistry: createHostMediaProviderRegistry(),
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });

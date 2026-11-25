@@ -210,7 +210,9 @@ test("serve: with no --port and no config.json port, a present-but-invalid PORT 
   const dir = await pgliteSite();
   await assert.rejects(runServeCommand({ dir, host: "127.0.0.1" }, commandEffects), (error: unknown) => {
     assert.ok(error instanceof ValidationError);
-    assert.equal(error.message, '--port must be an integer between 1 and 65535 (got " 80a ")');
+    // The boot env schema reads PORT before bootSiteDir and names the variable, never its value.
+    assert.equal(error.message, "PORT: must be a whole number from 1 to 65535 when set (the website listener port).");
+    assert.ok(!error.message.includes("80a"));
     return true;
   });
   await assertOwnerReleased(dir);

@@ -1,19 +1,16 @@
 import type { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+import { ChromePlaybackNote } from "./chrome-playback-note";
+import { EyeIcon, ExpandIcon, PlaceholderIcon, PlayIcon, UploadIcon } from "./media-icons";
 import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { I18nProvider, Icon, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
-import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
+import { Icon } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
 import {
-  filterMediaByTab,
-  showsUntypedMediaNote,
-  mediaContentTabCounts,
   mediaRowMenuItems,
-  sortMediaByOrder,
   MEDIA_ORDER_OPTIONS,
   resolveLightboxItem,
   mediaFillsPreview,
@@ -24,6 +21,7 @@ import {
   type MediaOrderBy,
 } from "@jini-ai/admin/screens/media/rules";
 import type { useWiredMedia, MediaController } from "./hooks/use-media.hooks";
+import { MediaLoadMore } from "./MediaLoadMore";
 import { t as mediaTranslate } from "./media-i18n";
 import type { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
@@ -36,9 +34,9 @@ import type { useAdminKitValues } from "@jini-ai/admin/react/kit";
 import type { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
 import type { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
 import type { useMediaTabs, MediaContentTabId, MediaTabId, MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
-import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
-import { PINNED_MEDIA_PROVIDER_IDS } from "@jini-ai/admin/screens/media/pinned-media-providers";
-import { mediaProvidersPort } from "./media-providers-port";
+import { mediaProviderCatalogPort } from "./media-providers-port";
+import type { useMediaProviderCatalog } from "./use-media-provider-catalog.hooks";
+import { ExternalProvidersPanel } from "./ExternalProvidersPanel";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
@@ -131,57 +129,6 @@ const IMPORT_DIALOG_KIT = { Button, Dialog, TextField } satisfies ImportDialogKi
  * `Roles.tsx` incident (see that component's own doc comment), and a future caller mounting a
  * second `MediaLightbox` elsewhere should not have to rediscover that the hard way.
  */
-
-/** Generic "file" glyph for an asset that fails both the image and video probe — stroke-based,
- *  matching `nav.ts`'s icon convention elsewhere in this app (viewBox 0 0 18 18, currentColor). */
-function PlaceholderIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M5 2h6l3 3v11H5V2z" strokeLinejoin="round" />
-      <path d="M11 2v3h3" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** "Edit metadata" glyph for the card's own eye-icon trigger (owner's chosen affordance for
- *  reaching `EditMediaModal` — see this file's header) — an open-eye shape, same stroke style as
- *  this file's other icons. */
-function EyeIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M1.5 9S4.5 3.5 9 3.5 16.5 9 16.5 9 13.5 14.5 9 14.5 1.5 9 1.5 9Z" strokeLinejoin="round" />
-      <circle cx="9" cy="9" r="2.25" />
-    </svg>
-  );
-}
-
-/** "View larger" glyph for the lightbox trigger overlaid on a card's preview (four open corners —
- *  the conventional expand/fullscreen affordance), same stroke style as this file's other icons. */
-function ExpandIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M6 2H2v4M12 2h4v4M6 16H2v-4M12 16h4v-4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** Upload glyph for the toolbar's icon button (tray with an up arrow), same stroke style as the others. */
-function UploadIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M9 12V3M5.5 6.5 9 3l3.5 3.5M3 12v2.5h12V12" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** "Play" cue on a video card's still frame — the card no longer carries the player itself. */
-function PlayIcon() {
-  return (
-    <svg className="media-card-play" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
-      <path d="M6 3.5v11l9-5.5-9-5.5z" />
-    </svg>
-  );
-}
 
 interface MediaPreviewProps {
   item: AdminMedia;
@@ -957,6 +904,22 @@ function MediaSizeControl({ size, setSize, t }: { size: MediaGridSize; setSize: 
   );
 }
 
+/** The "Order by" and "Size" dropdowns side by side, split out of `MediaLibraryPanel`'s toolbar row. */
+function MediaOrderControls({ orderBy, setOrderBy, size, setSize, t }: {
+  orderBy: MediaOrderBy;
+  setOrderBy: (value: MediaOrderBy) => void;
+  size: MediaGridSize;
+  setSize: (value: MediaGridSize) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="media-order-controls">
+      <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
+      <MediaSizeControl size={size} setSize={setSize} t={t} />
+    </div>
+  );
+}
+
 /** The purge-confirmation dialog — extracted out of `Media` for the same reason as
  *  `MediaToolbar`: its `pendingPurge`-derived `body`/`pending` expressions were two more of that
  *  component's independent branches. */
@@ -1015,6 +978,8 @@ export interface MediaProps {
    * own doc for why this pure-UI-state hook has no `useWiredX()` pair to default to instead).
    */
   useMediaTabsHook: typeof useMediaTabs;
+  /** The External Providers catalog read (same convention as `useMediaHook`). */
+  useMediaProviderCatalogHook: typeof useMediaProviderCatalog;
   /** The `?tab=` query value from `panels.tsx`'s `media` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See `use-media-tabs.hooks.ts`'s `resolveActiveTab`. */
   tabId?: string | null;  /** The `?id=` query value — the one media item whose detail (metadata) dialog the URL opens.
@@ -1097,6 +1062,7 @@ function MediaCard({ item, handle, onExpand, menu, t, useMediaPreviewHook, useMe
           />
         </div>
         <MediaCardMetadata useMediaCardMetadataHook={useMediaCardMetadataHook} item={item} locale={menu.locale} shape={preview.shape} t={t} />
+        <ChromePlaybackNote item={item} t={t} />
       </div>
     </div>
   );
@@ -1211,7 +1177,6 @@ function MediaCardTitle({ item, isPhone, onOpenDetails, t }: {
  */
 function MediaLibraryPanel(
   props: Omit<MediaController, "media"> & {
-    media: AdminMedia[];
     activeTab: MediaContentTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
@@ -1225,23 +1190,10 @@ function MediaLibraryPanel(
   },
 ) {
   const {
-    media,
     error,
     activeTab,
     visibleMedia,
     mediaExpandHandles,
-    uploading,
-    uploadOpen,
-    openUpload,
-    closeUpload,
-    uploadError,
-    canUpload,
-    altDraft,
-    setAltDraft,
-    selectedFileName,
-    onFileChange,
-    fileInputRef,
-    upload,
     editingId,
     editingItem,
     toggleEditing,
@@ -1257,6 +1209,11 @@ function MediaLibraryPanel(
     setLightboxIndex,
     orderBy,
     setOrderBy,
+    hasUntypedActive,
+    hasMore,
+    loadingMore,
+    loadMoreError,
+    loadMore,
     t,
     locale,
   } = props;
@@ -1268,27 +1225,9 @@ function MediaLibraryPanel(
       {/* One row: "Order by" on the left, the two entry points (owner item #9, 2026-10-13) pushed to
           the right edge. Each button owns its dialog. */}
       <div className="toolbar media-order-row">
-        <div className="media-order-controls">
-          <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
-          <MediaSizeControl size={gridSize} setSize={setGridSize} t={t} />
-        </div>
+        <MediaOrderControls orderBy={orderBy} setOrderBy={setOrderBy} size={gridSize} setSize={setGridSize} t={t} />
         <div className="media-actions">
-          <MediaToolbar
-            fileInputRef={fileInputRef}
-            altDraft={altDraft}
-            setAltDraft={setAltDraft}
-            selectedFileName={selectedFileName}
-            onFileChange={onFileChange}
-            upload={upload}
-            uploading={uploading}
-            uploadOpen={uploadOpen}
-            openUpload={openUpload}
-            closeUpload={closeUpload}
-            uploadError={uploadError}
-            canUpload={canUpload}
-            activeTab={activeTab}
-            t={t}
-          />
+          <MediaToolbar {...props} />
           <RemoteImageImport useRemoteImageImportHook={useRemoteImageImport} t={t} kit={IMPORT_DIALOG_KIT} HeaderTip={DockHeaderTip} port={defaultMediaImportPort}
             describeError={describeApiError} useFetchMutation={useFetchMutation} />
         </div>
@@ -1309,7 +1248,7 @@ function MediaLibraryPanel(
           comment for why the `key` lives on `EditMediaPanel`, not on the `<dialog>` around it. */}
       <EditMediaModal useEditMediaPanelHook={props.useEditMediaPanelHook} useEditMediaModalHook={props.useEditMediaModalHook} useAdminKitValuesHook={props.useAdminKitValuesHook} item={editingItem} onSaved={onMetadataSaved} onCancel={() => setEditingId(null)} t={t} />
 
-      {showsUntypedMediaNote({ media, tab: activeTab }) ? <UntypedMediaNote t={t} /> : null}
+      {(activeTab === "images" || activeTab === "videos") && hasUntypedActive ? <UntypedMediaNote t={t} /> : null}
 
       <MediaGridOrEmpty
         useMediaCardDetailsHook={props.useMediaCardDetailsHook}
@@ -1329,6 +1268,7 @@ function MediaLibraryPanel(
         rowSavingId={rowSavingId}
         onRequestPurge={setPendingPurge}
       />
+      <MediaLoadMore hasMore={hasMore} loading={loadingMore} error={loadMoreError} onLoadMore={() => void loadMore()} t={t} />
 
       {/* `items` MUST be the same array the grid above maps, not the unfiltered `media`:
           `lightboxIndex` is a positional index produced by that map, so handing the lightbox a
@@ -1405,41 +1345,6 @@ function UntypedMediaNote({ t }: { t: (key: string) => string }) {
 }
 
 /**
- * The "External Providers" tab body — credentials for outside media generation services (API
- * keys for image/video/audio-generation vendors), extracted the same way `MediaToolbar`/
- * `MediaGridOrEmpty` above are: an independent branch of `Media`'s own render, scored in its own
- * scope.
- *
- * Landed here 2026-09-10 (owner call, second pass) after one day on
- * `features/providers/Providers.tsx` as its "Media" tab — see that file's own header for the full
- * move history, and `media-provider-catalog.ts`/`media-providers-port.ts` (both moved into this
- * feature alongside it) for why the catalog is keyed off the generation engine's own spellings, not
- * `@jini-ai/ui`'s sample one.
- *
- * `I18nProvider` is load-bearing here, not decoration — same trap `Providers.tsx`'s own header
- * documents in full: `MediaProvidersTab` resolves its own copy through `@jini-ai/ui`'s `useT()`,
- * which silently falls through to raw English keys with no ancestor provider, in every non-English
- * locale, with no error anywhere. Classic's light pin on the inner wrapper is the same
- * `media-providers-panel` class `styles.css`'s "Media providers tab: neutralize Jini's warm 'paper'
- * tokens" section targets — kept byte-for-byte through both moves so that CSS keeps applying
- * unmoved. Glass follows the document scheme through the shared controller boundary instead.
- */
-function ExternalProvidersPanel({ locale, useAdminThemeBoundaryHook }: { locale: string; useAdminThemeBoundaryHook: typeof useAdminThemeBoundary }) {
-  const themeBoundary = useAdminThemeBoundaryHook({}, {});
-  return (
-    <I18nProvider
-      initialLocale={locale}
-      dictionaries={SETTINGS_DIALOG_DICTIONARIES}
-      fallbackLocale="en"
-      syncDocumentAttributes={false}
-    >
-      <div className="media-providers-panel" {...themeBoundary}>
-        <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} catalogPolicy={mediaProviderCatalogPolicy} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
-      </div>
-    </I18nProvider>
-  );
-}
-
 /**
  * The page header and tab bar every `Media` tab shares — extracted so `Media`'s own early return
  * on the External Providers tab (see that function's own comment) does not have to duplicate this
@@ -1506,6 +1411,21 @@ function MediaPageShell({
  *  `useMediaGridSize` live in `@jini-ai/admin/screens/media`; this product key is passed in at the call site. */
 const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
 
+/** The grid tab a screen tab reads: the Providers tab has no grid, so it reads All. @complexity O(1). */
+function gridTabFor({ activeTab }: { activeTab: MediaTabId }, _optional: Record<string, never> = {}): MediaContentTabId {
+  return activeTab === "external-providers" ? "all" : activeTab;
+}
+
+/** One badge per tab: server counts for the grid tabs, the live catalog length for Providers. @complexity O(1). */
+function mediaTabCounts(
+  { counts, providerCatalog }: { counts: Partial<Record<MediaTabId, number>> | null; providerCatalog: readonly unknown[] | null },
+  _optional: Record<string, never> = {},
+): Partial<Record<MediaTabId, number>> {
+  // The server's counts over every matching row, not the length of the loaded page.
+  const catalogCount = providerCatalog ? { "external-providers": providerCatalog.length } : {};
+  return { ...counts, ...catalogCount };
+}
+
 export function Media(props: MediaProps) {
   // No `MediaProps = {}` default on the parameter itself (same reasoning as `App.tsx`'s own
   // `AppProps` — see that file's comment): every real call site is JSX (`<Media />` in
@@ -1518,13 +1438,15 @@ export function Media(props: MediaProps) {
   // for the complexity gate; Media is small enough to resolve them directly.
   const useMediaHook = props.useMediaHook;
   const useMediaTabsHook = props.useMediaTabsHook;
-  const controller = useMediaHook();
-  const { media, error, t } = controller;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
+  const providerCatalog = props.useMediaProviderCatalogHook({ port: mediaProviderCatalogPort });
+  // The Providers tab has no grid; it still reads page one of All for the server's tab counts.
+  const controller = useMediaHook({ tab: gridTabFor({ activeTab }), itemId: props.itemId });
+  const { media, error, t } = controller;
   const { notFound } = props.useMediaItemLinkHook({
     itemId: props.itemId,
     activeTab,
-    media,
+    media: controller.lookupMedia,
     editingId: controller.editingId,
     setEditingId: controller.setEditingId,
   });
@@ -1535,15 +1457,9 @@ export function Media(props: MediaProps) {
   // Per-tab item counts (owner ask, 2026-09-26) — computed once here, after the loading guard above
   // so `media` is non-null, and shared by BOTH of this function's returns below (External Providers
   // included), since the tab bar itself renders identically regardless of which tab is active.
-  // "External Providers" is not `media`-derived at all: it counts the fixed provider CATALOG
-  // (`MEDIA_PROVIDER_CATALOG`, imported above) rather than a live server fetch — that catalog is the
-  // exact same array `ExternalProvidersPanel`'s `MediaProvidersTab` maps one card per entry from, so
-  // its length is already "what that tab lists" with no extra request and nothing that could ever
-  // go stale relative to what renders when the tab opens.
-  const tabCounts: Partial<Record<MediaTabId, number>> = {
-    ...mediaContentTabCounts({ media }),
-    "external-providers": MEDIA_PROVIDER_CATALOG.length,
-  };
+  // "External Providers" counts the host's live provider catalog — the same array its panel maps one
+  // card per entry from, so badge and cards agree; no badge while it loads or the host is unreachable.
+  const tabCounts = mediaTabCounts({ counts: controller.counts, providerCatalog });
 
   // External Providers renders no grid, no filter, and has no concept of the grid's "empty" state —
   // an early return here (rather than a ternary further down) is what lets `MediaContentTabId`
@@ -1553,7 +1469,7 @@ export function Media(props: MediaProps) {
   if (activeTab === "external-providers") {
     return (
       <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab} tabCounts={tabCounts}>
-        <ExternalProvidersPanel locale={controller.locale} useAdminThemeBoundaryHook={props.useAdminThemeBoundaryHook} />
+        <ExternalProvidersPanel locale={controller.locale} catalog={providerCatalog} useAdminThemeBoundaryHook={props.useAdminThemeBoundaryHook} />
       </MediaPageShell>
     );
   }
@@ -1562,7 +1478,9 @@ export function Media(props: MediaProps) {
   // `MediaContentTabId`. Not memoized: a single filter over a media library is cheap next to the
   // render it feeds, and a `useMemo` here cannot be hoisted above the early returns without
   // changing hook order.
-  const visibleMedia = sortMediaByOrder({ media: filterMediaByTab({ media, tab: activeTab }), orderBy: controller.orderBy });
+  // `media` is already this tab's rows in the chosen order: the server filters and sorts, because one
+  // fetched page cannot be re-sorted or re-filtered into a globally ordered list.
+  const visibleMedia = media;
   // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
   // same reasoning as every other list on this workstream.
   const mediaExpandHandles = buildAgentListHandles({ prefix: "media-item", ids: visibleMedia.map((item) => item.id) }
@@ -1583,7 +1501,6 @@ export function Media(props: MediaProps) {
         useMediaCardDetailsHook={props.useMediaCardDetailsHook}
         useMediaGridSizeHook={props.useMediaGridSizeHook}
         {...controller}
-        media={media}
         activeTab={activeTab}
         visibleMedia={visibleMedia}
         mediaExpandHandles={mediaExpandHandles}

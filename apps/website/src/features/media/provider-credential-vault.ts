@@ -30,6 +30,27 @@ export function mediaProviderVault({ vault, providerId }: { vault: VaultRepoPort
     } };
 }
 
+// Why-comment — public aliases can converge without making sealed credential identities interchangeable.
+/** Canonical credential id -> legacy ids whose sealed rows stay readable (never rewritten) after it. */
+const LEGACY_MEDIA_CREDENTIAL_IDS: Readonly<Record<string, readonly string[]>> = { grok: ["xai-grok-imagine"] };
+
+/**
+ * The one id a credential write may seal under, and the stored ids a read may select, in priority order.
+ * A read opens the FIRST STORED row of `readIds` under that row's own id/scope, so a legacy envelope is
+ * never relabelled as canonical; only `writeId` is ever sealed.
+ * @complexity O(a) over the small legacy table.
+ */
+export function resolveMediaCredentialIds({ providerId }: { providerId: string }, _optional = {}): { writeId: string; readIds: readonly string[] } {
+  const writeId = Object.keys(LEGACY_MEDIA_CREDENTIAL_IDS).find(id => id === providerId || LEGACY_MEDIA_CREDENTIAL_IDS[id]?.includes(providerId)) ?? providerId;
+  return { writeId, readIds: [writeId, ...(LEGACY_MEDIA_CREDENTIAL_IDS[writeId] ?? [])] };
+}
+
+/** Clearing a canonical id also clears its legacy rows, so a later read cannot fall back to an old key. */
+function clearedIds({ providerId }: { providerId: string }, _optional = {}): readonly string[] {
+  const { writeId, readIds } = resolveMediaCredentialIds({ providerId });
+  return providerId === writeId ? readIds : [providerId];
+}
+
 /** Deterministic id for a provider's first row; later writes keep whatever id is stored. */
 export function mediaVaultId({ providerId }: { providerId: string }, _options = {}): string {
   return `vault:${JSON.stringify([MEDIA_PROVIDER_KIND, providerId])}`;
@@ -119,7 +140,7 @@ export class MediaProviderCredentialVaultRepo implements MediaProviderCredential
       const existing = byProvider.get(record.providerId);
       return { put: { record: this.row({ record, existing }), expectedRevision: existing?.revision ?? null } };
     });
-    for (const providerId of new Set(plan.tombstoneProviderIds)) {
+    for (const providerId of new Set(plan.tombstoneProviderIds.flatMap(id => clearedIds({ providerId: id })))) {
       const row = byProvider.get(providerId);
       if (row) ops.push({ delete: { workspaceId: input.workspaceId, id: row.id, expectedRevision: row.revision } });
     }

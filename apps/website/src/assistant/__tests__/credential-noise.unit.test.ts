@@ -3,7 +3,7 @@ import test from 'node:test';
 import { redactAdminRunContextRef } from '../credential-chat-intake.js';
 import { parseRunStartContextRef } from '../run-start-context.js';
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from '../credential-guidance.js';
-import { resolveMessages } from '../../server/runtime/composition/modules/assistant-byok.js';
+import { resolveMessages } from '../../server/runtime/composition/modules/assistant-byok-history.js';
 
 const secret = 'sk-' + 'A1b2C3d4E5f6G7h8I9j0';
 

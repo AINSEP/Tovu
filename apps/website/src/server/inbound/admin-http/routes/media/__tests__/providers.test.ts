@@ -10,7 +10,8 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminMediaGetProvidersRoute } from "#src/server/runtime/composition/modules/media";
 import { registerAdminMediaPutProvidersRoute } from "#src/server/runtime/composition/modules/media";
 import type { MediaProviderRouteDeps } from "../deps.js";
-import { createMediaProviderRegistry, mediaProviderDefinition } from "@jini-ai/integrations/media-providers";
+import { mediaProviderDefinition } from "@jini-ai/integrations/media-providers";
+import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
 
 /**
  * @file Unit-tier coverage for `GET`/`PUT .../media/providers` (`registerAdminMediaGetProvidersRoute`/
@@ -135,7 +136,7 @@ test("put-providers: unknown provider id 400s", async (t) => {
 });
 
 test("put-providers: a plugin vendor id the composed registry holds is accepted", async (t) => {
-  const registry = createMediaProviderRegistry();
+  const registry = createHostMediaProviderRegistry();
   const contribution = {
     provider: { id: "acme-media", label: "Acme Media", hint: "", integrated: true },
     models: [],

@@ -65,6 +65,7 @@
     "check:complexity": "node --import tsx development/scripts/check-src-complexity-drift.ts",
     "check:size": "node --import tsx development/scripts/check-size-drift.ts",
     "check:hooks": "node development/scripts/check-hook-injection.mjs",
+    "check:env": "node --import tsx development/scripts/check-env-schema.mjs",
     "check:why-comments": "node development/scripts/check-why-comments.mjs",
     "check:admin-complexity-drift": "npm run check:complexity",
     "check:src-complexity-drift": "npm run check:complexity",

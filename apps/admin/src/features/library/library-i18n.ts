@@ -4,8 +4,12 @@
  * Tovu's own `COMMON_I18N` as the shared-words fallback and re-exports the host-facing `t` the
  * feature's importers already use. No entry of this dictionary names the product today — one that
  * does goes in `productEntries`, never into the Jini package.
+ *
+ * The base upload-size refusal sentence is bound here as a product entry, translated once in
+ * `features/media/media-i18n.ts`, so Library and Media say the same words.
  */
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { UPLOAD_SIZE_PRODUCT_ENTRIES } from "../media/media-i18n";
 import { createLibraryDictionary } from "@jini-ai/admin/screens/library/library-i18n/create-library-dictionary";
 
-export const { t } = createLibraryDictionary({ commonDictionary: COMMON_I18N });
+export const { t } = createLibraryDictionary({ commonDictionary: COMMON_I18N, productEntries: UPLOAD_SIZE_PRODUCT_ENTRIES });

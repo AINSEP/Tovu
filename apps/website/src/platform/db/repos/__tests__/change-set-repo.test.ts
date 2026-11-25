@@ -93,6 +93,8 @@ describeEachDialect("SqlChangeSetRepo.insert", { tables: TABLES, make }, (makeRe
       id: "cs-1",
       workspace_id: WORKSPACE,
       actor_id: "user-1",
+      // No `actor` on the record: the 0047 column is written as NULL (unknown), never guessed from actor_id.
+      actor_kind: null,
       status: "reverted",
       summary: "Renamed a post",
       idempotency_key: "idem-1",
@@ -113,6 +115,7 @@ describeEachDialect("SqlChangeSetRepo.insert", { tables: TABLES, make }, (makeRe
       id: "cs-1",
       workspace_id: WORKSPACE,
       actor_id: null,
+      actor_kind: null,
       status: "proposed",
       summary: "Renamed a post",
       idempotency_key: null,

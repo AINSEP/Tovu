@@ -122,6 +122,7 @@ import { contributeContentStatsTools } from "#src/features/post/content-stats-to
 import { contributePostPreviewTools } from "#src/features/post/preview-tool";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
+import { actorForMutation } from "./mutation-actor.js";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
 import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
 import { contributePreviewSwitcherTools } from "#src/features/theme/preview-switcher-tools";
@@ -133,7 +134,7 @@ import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-regis
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
-import { contributeMediaTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
+import { contributeMediaTools, contributeMediaViewVideoTools, type MediaConversionPorts, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
@@ -393,6 +394,8 @@ export function installFirstPartyToolContributors(
     readExternalMcpToolNames,
     chatAttachmentsDir,
     mediaVideoPorts = createMediaVideoToolPorts({}, { uploadDirectory: chatAttachmentsDir }),
+    env = process.env,
+    mediaConversionPorts = createMediaConversionPorts({ env }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
     routines,
   }: {
@@ -407,13 +410,17 @@ export function installFirstPartyToolContributors(
      *  tests), those readers refuse every ref instead of resolving a directory from env. */
     chatAttachmentsDir?: string;
     mediaVideoPorts?: MediaVideoToolPorts;
+    /** Binary-discovery environment for the video converter (`FFMPEG_PATH`, `PATH`); defaults to the process's. */
+    env?: NodeJS.ProcessEnv;
+    /** One converter bundle per catalog, shared by `media_convert_video` and the import tools. */
+    mediaConversionPorts?: MediaConversionPorts;
     readInstallAttachment?: InstallAttachmentReader;
     /** The serving site's bound routine commands. Absent (release flag off, web-only, export) the four routine tools are never registered. */
     routines?: RoutineToolHost;
   } = {},
 ): void {
   installStatusAndAgentTools(contributions, () => findPublishCandidate, () => publishTrustProvisioning);
-  const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts });
+  const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts, mediaConversionPorts });
   installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate, getPublishTrustProvisioning: () => publishTrustProvisioning });
   installWebReadTools(contributions, { createHttpClient, observability });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
@@ -488,7 +495,7 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   } } });
 }
 
-function installResourceTools(contributions: AssistantToolContributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts }: { deployOpsRegistry?: DeployOpsRegistry; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; readExternalMcpToolNames?: NonNullable<Parameters<typeof installFirstPartyToolContributors>[1]>["readExternalMcpToolNames"]; readAdmissions: ExternalMcpOperations["admissions"]; mediaVideoPorts: MediaVideoToolPorts }) {
+function installResourceTools(contributions: AssistantToolContributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts, mediaConversionPorts }: { deployOpsRegistry?: DeployOpsRegistry; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; readExternalMcpToolNames?: NonNullable<Parameters<typeof installFirstPartyToolContributors>[1]>["readExternalMcpToolNames"]; readAdmissions: ExternalMcpOperations["admissions"]; mediaVideoPorts: MediaVideoToolPorts; mediaConversionPorts: MediaConversionPorts }) {
 
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
@@ -530,13 +537,13 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
-  contributions.contributors.register({ contribution: contributeMediaTools(createMediaConversionPorts()) });
-  contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset" }) });
+  contributions.contributors.register({ contribution: contributeMediaTools(mediaConversionPorts) });
+  contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset", mediaMetadataWriteToolId: "media_update_metadata" }) });
   contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });
-  contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: createMediaConversionPorts(), reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
+  contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: mediaConversionPorts, reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
   contributions.contributors.register({ contribution: contributeMembersTools() });
   contributions.contributors.register({ contribution: contributeMenusTools() });
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
@@ -726,7 +733,11 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
       authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.read' }, { entityType: 'plugin' }),
     } }),
   } });
-  contributions.contributors.register({ contribution: contributeTaxonomyTools() });
+  // The assistant tool channel (the CLI and BYOK executors share these registrations) stamps its
+  // writes `agent`: an assistant acting for an owner does not turn the action into an owner click.
+  contributions.contributors.register({ contribution: contributeTaxonomyTools({}, {
+    mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "assistant" }),
+  }) });
   contributions.contributors.register({ contribution: contributeThemesTools() });
   // `theme_set_active` (F7a, 2026-09-24) — a SEPARATE contributor, own domain key
   // (`"theme-set-active"`), because re-registering under `contributeThemesTools()`'s own `"theme"`
