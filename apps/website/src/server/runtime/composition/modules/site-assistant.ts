@@ -22,6 +22,8 @@ import { readVisitorToolsSnapshot } from "@jini-ai/cms/settings/site/visitor-too
 import { VISITOR_TOOLS_HOST } from "#src/features/settings/settings-write-policies";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler, type SchedulerPort } from "@jini-ai/daemon/scheduler";
+import { createVisitorAgUiResume, VISITOR_APPROVAL_EXPIRED } from "#src/assistant/site/visitor-ag-ui-resume";
+import { agUiApprovalChannel, createVisitorTurnSegments, handleVisitorAgUiResume, isVisitorAgUiResume, type VisitorSegment, type VisitorTurnSegments } from "./site-assistant-ag-ui-approval.js";
 import { randomBytes } from "node:crypto";
 import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/core/contracts/server/verified-origin";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -42,7 +44,7 @@ import { listPublishedPosts } from "#src/features/post/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 import { EventEncoder } from "@ag-ui/encoder";
-import { createVisitorAgUiWriter, readVisitorChatInput, selectVisitorChatWire, type VisitorAgUiCopy, type VisitorChatWire, type VisitorTurnWriter } from "./site-assistant-ag-ui.js";
+import { createVisitorAgUiWriter, readVisitorChatInput, selectVisitorChatWire, type VisitorAgUiCopy, type VisitorAgUiWriter, type VisitorChatWire, type VisitorTurnWriter } from "./site-assistant-ag-ui.js";
 
 /**
  * @file The PUBLIC site assistant's HTTP surface (ADR-054) — the visitor-facing chat, distinct from
@@ -252,10 +254,14 @@ const VISITOR_AG_UI_COPY: VisitorAgUiCopy = { noReply: "the assistant sent no re
 const visitorAgUiEncoder = new EventEncoder();
 
 /** The negotiated wire of one request, and its writer once the body named the turn. */
-interface VisitorTurnStream { readonly wire: VisitorChatWire; writer?: VisitorTurnWriter }
+interface VisitorTurnStream { readonly wire: VisitorChatWire; writer?: VisitorSegment["writer"]; wireIds?: { threadId: string; runId: string } | undefined }
 
-function createVisitorTurnWriter({ res, deps, stream, wireIds }: { res: Response; deps: RouteDeps; stream: VisitorTurnStream; wireIds: { threadId: string; runId: string } | undefined }): VisitorTurnWriter {
+function createVisitorTurnWriter({ res, deps, stream, wireIds }: { res: Response; deps: RouteDeps; stream: VisitorTurnStream; wireIds: { threadId: string; runId: string } | undefined }): VisitorSegment["writer"] {
   if (stream.wire !== "ag-ui" || !wireIds) return createVisitorLegacyWriter({ res });
+  return createVisitorAgUiSegmentWriter({ res, deps, wireIds });
+}
+
+function createVisitorAgUiSegmentWriter({ res, deps, wireIds }: { res: Response; deps: RouteDeps; wireIds: { threadId: string; runId: string } }): VisitorAgUiWriter {
   return createVisitorAgUiWriter({ ids: { next: ({ prefix }) => `${prefix}_${deps.idGen.newId()}` }, encode: (event) => visitorAgUiEncoder.encodeSSE(event),
     write: (chunk) => { res.write(chunk); }, threadId: wireIds.threadId, runId: wireIds.runId, copy: VISITOR_AG_UI_COPY });
 }
@@ -654,22 +660,33 @@ function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantM
     canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },
   });
   const turnDedupe = createVisitorTurnDedupe({ clock: deps.clock });
-  return { deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend, turnDedupe };
+  // Process-local AG-UI approval handoff; the same scheduler port as the exchange expiry.
+  const approvalResume = createVisitorAgUiResume<VisitorSegment>({ nowMs: () => deps.clock.nowMs(),
+    scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}), confirm: (required) => confirmations.confirm(required),
+    reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); } });
+  return { approvalResume, deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend, turnDedupe };
 }
 
 function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof createSiteAssistantContext>): void {
       const { deps, env, confirmations, confirmLimiter, reporter, frontend } = context;
       frontend.mount({ app });
+      const enabled = async () => env.TOVU_VISITOR_TOOLS_POLICY !== "off" && await isPublicAssistantEnabled(
+        { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId });
+      const allowsOrigin = async ({ origin }: { origin: string }) => {
+        const target = normalizeOriginCandidate({ rawUrl: origin });
+        if (!target) return false;
+        const canonical = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
+        return isSameOrigin({ target, canonical });
+      };
+      const resumePorts = { enabled, allowsOrigin, limiter: confirmLimiter, resolveApprovalOwner: frontend.resolveApprovalOwner, resume: context.approvalResume,
+        openSegment: ({ req, res, threadId, runId }: { req: Request; res: Response; threadId: string; runId: string }): VisitorSegment => {
+          beginStream(req, res);
+          const writer = createVisitorAgUiSegmentWriter({ res, deps, wireIds: { threadId, runId } });
+          writer.start();
+          return { res, writer, runId };
+        } };
       registerSiteAssistantConfirm({ app, ports: {
-        confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner,
-        enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== "off" && await isPublicAssistantEnabled(
-          { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
-        allowsOrigin: async ({ origin }) => {
-          const target = normalizeOriginCandidate({ rawUrl: origin });
-          if (!target) return false;
-          const canonical = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
-          return isSameOrigin({ target, canonical });
-        },
+        confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner, enabled, allowsOrigin,
         reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
       } });
       // The app's public JSON parser runs before this module. Handle its errors here, before the
@@ -694,6 +711,14 @@ function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof cr
         // refusals included. Legacy responses keep their pinned headers.
         const stream: VisitorTurnStream = { wire: selectVisitorChatWire({ accept: req.get("accept") }) };
         if (stream.wire === "ag-ui") res.vary("Accept");
+        // An answer to a parked approval, not a new turn: recognized before any provider start.
+        if (stream.wire === "ag-ui" && isVisitorAgUiResume({ body: req.body })) {
+          void handleVisitorAgUiResume({ req, res, ports: resumePorts }).catch((error: unknown) => {
+            reporter({ code: "visitor_tools_confirm", diagnostic: error });
+            if (!res.headersSent) res.status(400).json({ error: VISITOR_APPROVAL_EXPIRED }); else res.end();
+          });
+          return;
+        }
         void handleChat(req, res, { ...context, reportError, secrets, stream }).catch((error: unknown) => {
           // The stream may already be open, in which case status codes are no longer available —
           // report on the stream if we can, and never leave a visitor's connection hanging.
@@ -724,6 +749,7 @@ async function handleChat(req: Request, res: Response, context: ReturnType<typeo
           return;
         }
         context.stream.writer = createVisitorTurnWriter({ res, deps, stream: context.stream, wireIds });
+        context.stream.wireIds = wireIds;
         try { await handleAdmittedChat({ req, res, context, preflight: { message, priorTurns, provider }, turn }); }
         finally { turn.finish({ delivered: res.writableEnded }); }
       }
@@ -734,7 +760,8 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
   turn: { providerStarted(): void };
 }): Promise<void> {
         const { deps, frontend, reportError, secrets } = context;
-        const writer = context.stream.writer ?? createVisitorLegacyWriter({ res });
+        const segments = createVisitorTurnSegments({ initial: { res, writer: context.stream.writer ?? createVisitorLegacyWriter({ res }), runId: context.stream.wireIds?.runId ?? "" } });
+        const writer = segments.writer;
         const { message, priorTurns, provider } = preflight;
         secrets.push(provider.apiKey);
         const provenance = await visitorAnalyticsProvenance({ deps, request: req });
@@ -764,11 +791,13 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
         res.on("close", () => { if (!res.writableEnded) abort.abort(); });
         const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId });
         const { owner, publication, release: releaseFrontend } = binding;
-        res.once('close', releaseFrontend);
-        const capabilities = await createVisitorCapabilities({ req, writer, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
-        const executeTool = createVisitorToolExecutor({ capabilities, res, writer, releaseFrontend, abort, reportError }, navigation);
+        // A parked approval keeps its frontend binding past this segment's close; the run's own end releases it.
+        res.once('close', () => { if (!segments.parked) releaseFrontend(); });
+        const confirmationChannel = await turnConfirmationChannel({ req, context, segments, abort });
+        const capabilities = await createVisitorCapabilities({ req, confirmationChannel, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
+        const executeTool = createVisitorToolExecutor({ capabilities, segments, writer, releaseFrontend, abort, reportError }, navigation);
 
-        await runVisitorProviderTurn({ req, res, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted: () => turn.providerStarted() });
+        await runVisitorProviderTurn({ req, res, segments, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted: () => turn.providerStarted() });
       }
 
 /**
@@ -786,8 +815,8 @@ async function handleAdmittedChat({ req, res, context, preflight, turn }: {
          * for human confirmation. The visitor delegate separately emits that summary
          * while held; its challenge is human-only and never part of this model-facing return value.
          */
-function createVisitorToolExecutor({ capabilities, res, writer, releaseFrontend, abort, reportError }: {
-  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; res: Response; writer: VisitorTurnWriter; releaseFrontend: () => void;
+function createVisitorToolExecutor({ capabilities, segments, writer, releaseFrontend, abort, reportError }: {
+  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; segments: VisitorTurnSegments; writer: VisitorTurnWriter; releaseFrontend: () => void;
   abort: AbortController; reportError: SiteAssistantErrorReporter;
 }, navigation: { terminalNavigation: boolean }): (call: ProviderToolCall) => Promise<ProviderToolResult> {
   return async (call: ProviderToolCall): Promise<ProviderToolResult> => {
@@ -802,7 +831,7 @@ function createVisitorToolExecutor({ capabilities, res, writer, releaseFrontend,
                 writer.text({ delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' });
                 writer.finish({ outcome: { kind: 'ok', reason: 'navigation' } });
                 releaseFrontend();
-                res.end();
+                segments.current.res.end();
                 abort.abort();
               }
               return { content: JSON.stringify(outcome.result) };
@@ -847,8 +876,20 @@ function visitorConfirmationChannel({ confirmations, writer }: { confirmations: 
   return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { writer.directive({ value: directive }); } } };
 }
 
-async function createVisitorCapabilities({ req, writer, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
-  req: Request; writer: VisitorTurnWriter; reportError: SiteAssistantErrorReporter; abort: AbortController;
+/** AG-UI turns park Ask approvals and resume them on `/chat`; legacy turns keep the in-band card
+ *  answered through `/confirm` for the one-release window. */
+async function turnConfirmationChannel({ req, context, segments, abort }: {
+  req: Request; context: ReturnType<typeof createSiteAssistantContext> & { stream: VisitorTurnStream }; segments: VisitorTurnSegments; abort: AbortController;
+}) {
+  const { stream, deps, confirmations, frontend, approvalResume } = context;
+  if (stream.wire !== "ag-ui" || !stream.wireIds) return visitorConfirmationChannel({ confirmations, writer: segments.writer });
+  const owner = await frontend.resolveApprovalOwner(requestHookInput({ req }));
+  return agUiApprovalChannel({ confirmations, resume: approvalResume, segments, owner, quotaKey: resolveClientIp(req), threadId: stream.wireIds.threadId,
+    nowMs: () => deps.clock.nowMs(), waitMs: VISITOR_CONFIRMATION_WAIT_MS, abort });
+}
+
+async function createVisitorCapabilities({ req, confirmationChannel, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
+  req: Request; confirmationChannel: Awaited<ReturnType<typeof turnConfirmationChannel>>; reportError: SiteAssistantErrorReporter; abort: AbortController;
   binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>;
   owner: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["owner"];
   publication: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["publication"];
@@ -865,7 +906,7 @@ async function createVisitorCapabilities({ req, writer, reportError, abort, bind
             const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId, visitorTools: VISITOR_TOOLS_HOST });
             return { policy: snapshot.policy, revision: String(snapshot.revisionSeq) };
           },
-          ...visitorConfirmationChannel({ confirmations, writer }),
+          ...confirmationChannel,
           ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: logicalRunId, owner: owner ?? undefined, publicationRevision: publication?.revision, clock: deps.clock,
           ids: deps.idGen, sink: { async append(event: Parameters<typeof deps.toolAttemptAuditSink.append>[0], optional?: Parameters<typeof deps.toolAttemptAuditSink.append>[1]) {
             const sink = deps.toolAttemptAuditSink as typeof deps.toolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>;
@@ -887,8 +928,8 @@ async function createVisitorCapabilities({ req, writer, reportError, abort, bind
 }
 
 
-async function runVisitorProviderTurn({ req, res, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted }: {
-  req: Request; res: Response; writer: VisitorTurnWriter; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
+async function runVisitorProviderTurn({ req, res, segments, writer, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation, providerStarted }: {
+  req: Request; res: Response; segments: VisitorTurnSegments; writer: VisitorTurnWriter; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
   capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; executeTool: ReturnType<typeof createVisitorToolExecutor>;
   abort: AbortController; releaseFrontend: () => void; capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
   logicalRunId: string; reportError: SiteAssistantErrorReporter; navigation: { terminalNavigation: boolean }; providerStarted: () => void;
@@ -947,7 +988,7 @@ async function runVisitorProviderTurn({ req, res, writer, provider, priorTurns, 
         });
         } catch (error) { if (!navigation.terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
         finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation: navigation.terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }
-        if (!res.writableEnded) writer.settle();
-        res.end();
+        if (!segments.current.res.writableEnded) writer.settle();
+        segments.current.res.end();
       
 }

@@ -107,12 +107,15 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
     if (!owner || !readVisitorPagePublication({ revision, workspaceId })) return null;
     return { ...owner, tabId: `${owner.tabId}:${revision}` };
   };
+  // Approval identity is the signed guest cookie plus tab credential alone: an Ask card must stay
+  // answerable on a page with no publication. DOM control keeps the stricter revision-bound owner.
+  const resolveApprovalOwner = (input: FrontendHookInput) => scope.resolveOwner(input);
   const control = createFrontendControl({ capabilities: PAGE_CAPABILITIES, resolveBindToken: () => undefined, setTimer: ports.setTimer,
     // The capacity key is the address the host's facts hold (the same answer the IP gate above keys on), never the bridge's socket peer.
     session: { routePrefix: '/api/site-assistant/frontend-sessions', resolveOwner, maxSessions: 256, maxSessionsPerKey: 3,
       resolveCapacityKeys: ({ locals, owner }) => [`ip:${readRequestFacts({ locals }).clientAddress}`, `guest:${owner!.principalId}`],
     } }, { maxOutputBytes: 24_000 });
-  return { control, resolveOwner,
+  return { control, resolveOwner, resolveApprovalOwner,
     bindRequest: ({ req, signal, runId }: { req: Request; signal: AbortSignal; runId: string }, _optional = {}) =>
       bindVisitorRequest({ req, signal, runId, workspaceId, control, resolveOwner, hookInput: ports.hookInput }),
     mount: ({ app }: { app: Express }, _optional = {}) => mountVisitorFrontendRoutes({ app, scope, control, limiter, reportError, ports }),
