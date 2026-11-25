@@ -341,7 +341,7 @@ test('a refused model call never becomes a browser tool call', () => {
     invocation: { invocationId: 'inv-1', capabilityId: 'page.click', input: { handle: 'h1' }, raw: 'provider secret' } as never });
   assert.equal(delivered, true);
   assert.deepEqual(calls, [{ toolCallId: 'inv-1', toolCallName: 'tovu.page_action',
-    args: JSON.stringify({ invocationId: 'inv-1', capabilityId: 'page.click', input: { handle: 'h1' } }) }]);
+    args: JSON.stringify({ runId: 'run-1', invocationId: 'inv-1', capabilityId: 'page.click', input: { handle: 'h1' } }) }]);
 });
 
 /** A real visitor tab (credentials + stream) and a test route that binds a chat request the way `/chat` does. */
@@ -390,7 +390,7 @@ async function nextDelivery(delivered: ReturnType<typeof recordingToolCallWriter
   for (let i = 0; i < 200 && delivered.calls.length < count; i++) await new Promise(resolve => setTimeout(resolve, 5));
   const call = delivered.calls[count - 1];
   assert.ok(call, `invocation ${count} was delivered to the bound run`);
-  return { call, args: JSON.parse(call.args) as { invocationId: string; capabilityId: string; input: Record<string, unknown> } };
+  return { call, args: JSON.parse(call.args) as { runId: string; invocationId: string; capabilityId: string; input: Record<string, unknown> } };
 }
 
 test('a disconnected page cannot begin or settle its old invocation', async t => {
@@ -401,21 +401,24 @@ test('a disconnected page cannot begin or settle its old invocation', async t =>
   assert.equal(filled.call.toolCallId, filled.args.invocationId);
   assert.equal(filled.args.capabilityId, 'page.fill');
   assert.doesNotMatch((await f.post('responses', { invocationId: filled.args.invocationId, ok: true, output: { filled: true } })).body, /"settled":true/, 'no settlement before begin');
-  assert.match((await f.post('begin', { runId: f.runId, invocationId: filled.args.invocationId })).body, /"begun":true/);
-  assert.match((await f.post('begin', { runId: f.runId, invocationId: filled.args.invocationId })).body, /"begun":false/, 'begin claims once');
+  // The page begins with the run id the delta carries; the AG-UI segment's own RUN_STARTED run id is not the bound run.
+  assert.equal(filled.args.runId, f.runId);
+  assert.match((await f.post('begin', { runId: 'run-ag-ui-segment', invocationId: filled.args.invocationId })).body, /"begun":false/);
+  assert.match((await f.post('begin', { runId: filled.args.runId, invocationId: filled.args.invocationId })).body, /"begun":true/);
+  assert.match((await f.post('begin', { runId: filled.args.runId, invocationId: filled.args.invocationId })).body, /"begun":false/, 'begin claims once');
   assert.match((await f.post('responses', { invocationId: filled.args.invocationId, ok: true, output: { filled: true } })).body, /"settled":true/);
   assert.deepEqual(await fill, { filled: true }, 'the filled form is reported, not submitted');
   // An accepted form submission follows the same begin-then-settle order.
   const submit = f.invoke('page.click', { handle: 'submit' });
   const submitted = await nextDelivery(f.delivered, 2);
-  assert.match((await f.post('begin', { runId: f.runId, invocationId: submitted.args.invocationId })).body, /"begun":true/);
+  assert.match((await f.post('begin', { runId: submitted.args.runId, invocationId: submitted.args.invocationId })).body, /"begun":true/);
   assert.match((await f.post('responses', { invocationId: submitted.args.invocationId, ok: true, output: { terminalSubmission: true } })).body, /"settled":true/);
   assert.deepEqual(await submit, { terminalSubmission: true });
   // The page disconnects from this chat request: its already-delivered invocation is dead.
   const stale = f.invoke('page.click', { handle: 'submit' });
   const old = await nextDelivery(f.delivered, 3);
   f.release();
-  assert.doesNotMatch((await f.post('begin', { runId: f.runId, invocationId: old.args.invocationId })).body, /"begun":true/);
+  assert.doesNotMatch((await f.post('begin', { runId: old.args.runId, invocationId: old.args.invocationId })).body, /"begun":true/);
   const late = await f.post('responses', { invocationId: old.args.invocationId, ok: true, output: { terminalSubmission: true } });
   assert.doesNotMatch(late.body, /"settled":true/);
   // The stale call is left to the registry's own timeout; this test only proves the page lost it.

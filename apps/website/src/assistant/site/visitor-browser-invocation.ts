@@ -20,7 +20,7 @@ export interface VisitorBrowserToolCallWriter {
   toolCall(required: { toolCallId: string; toolCallName: string; args: string }, optional?: Record<string, never>): void;
 }
 
-/** The bounded projection the page driver already receives on the session stream, and nothing more. */
+/** The bounded projection the page driver already receives on the session stream, and nothing more (the delta adds only the begin correlator `runId`). */
 interface VisitorBrowserAction { readonly invocationId: string; readonly capabilityId: string; readonly input: Record<string, unknown> }
 
 function readRegistryInvocation({ invocation }: { invocation: unknown }): VisitorBrowserAction | null {
@@ -46,6 +46,8 @@ export function projectVisitorBrowserInvocation(
   if (runId.length === 0) return false;
   const action = readRegistryInvocation({ invocation });
   if (!action) return false;
-  writer.toolCall({ toolCallId: action.invocationId, toolCallName: VISITOR_PAGE_ACTION_TOOL_NAME, args: JSON.stringify(action) });
+  // `runId` is the internal logical run the registry binding is keyed by. It is a correlator for
+  // `begin`, not authority: begin is still owner- and bind-token-gated against the live binding.
+  writer.toolCall({ toolCallId: action.invocationId, toolCallName: VISITOR_PAGE_ACTION_TOOL_NAME, args: JSON.stringify({ runId, ...action }) });
   return true;
 }
