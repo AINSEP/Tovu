@@ -14268,6 +14268,50 @@
     {
       "id": "573256b59bfc",
       "reason": "Reworded above the UPLOAD_CAPS import in apps/website/src/server/runtime/composition/modules/media.ts:2: the policy is now a 50 MiB document cap plus a 500 MiB video cap from @tovu/contracts/upload-limits, so the old single-limit wording (and the MAX_DOCUMENT_BYTES alias it described) no longer holds."
+    },
+    {
+      "id": "ee7c4727b7e2",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; the test file's @file summary was reworded to say apply is no longer bound (no record + restart)."
+    },
+    {
+      "id": "8e5ea8eda359",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; the record-target-tag host was removed; the replacement @file explains why no target tag is written."
+    },
+    {
+      "id": "cfd44fd97cc8",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; runningTag port removed; the check-only runningVersion field carries the TOVU_IMAGE_TAG explanation."
+    },
+    {
+      "id": "d873238f2f67",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; recordTargetTag port removed by the sheet: a target tag is an instruction, not an observation."
+    },
+    {
+      "id": "e6c45f82dd4b",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; readHealth port removed with the self-hosted apply host; verification belongs to the future SelfHostedUpdateDriver.checkLive."
+    },
+    {
+      "id": "5f02ea2d4ad0",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; the optional restart port was removed; SelfHostedUpdateDriver.restart documents the future contract."
+    },
+    {
+      "id": "aab1d9b641fb",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; the record-and-instruct apply path this described was removed by the sheet."
+    },
+    {
+      "id": "8475f63923c7",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; reworded: runtime null still means no tools, and a check-only runtime now registers the check alone."
+    },
+    {
+      "id": "df0277b3da8c",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; recordTargetTag binding option removed by the sheet."
+    },
+    {
+      "id": "a7f56eb726f6",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; resolveHost removed; its desktop half moved to bindDesktopRuntime (moved comments kept), self-hosted half is check-only."
+    },
+    {
+      "id": "383aeccca880",
+      "reason": "P10-U4a.T (OWNER-DEFAULT 8): self-hosted is check-only; createTargetTagRecorder removed by the sheet (no driver, so no marker write)."
     }
   ]
 }
