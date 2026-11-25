@@ -136,7 +136,8 @@ const MISSING_SESSION_BODIES: Record<string, unknown> = {
 test("site-shares wire: input refusals and successes of the admin operations", async (t) => {
   const { state, call } = await serve(t);
   const invalid = (step: string, message: string) => wire(400, { code: "INVALID_INPUT", message: `${step} failed: ${message}` });
-  assert.deepEqual(await call("GET", ""), wire(200, { shares: [{ shareId: "s1" }] }));
+  // Jini f942eb533 (P11 ST-12b): the list answers expiryChoices beside shares — Never (null) first; this backend offers no day counts.
+  assert.deepEqual(await call("GET", ""), wire(200, { shares: [{ shareId: "s1" }], expiryChoices: [null] }));
   assert.deepEqual(await call("POST", "", { body: { share: true } }), invalid("Export creation", "Exports no longer include saved keys. Start an export with {}, or poll with jobId only."));
   assert.deepEqual(await call("POST", "", { body: { jobId: "x" } }), invalid("Export creation", "jobId must be a share job id."));
   assert.deepEqual(await call("POST", "", { body: { jobId: UUID } }), wire(200, { status: "active", input: { principalId: "owner", signal: true, jobId: UUID } }));

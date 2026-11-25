@@ -39,7 +39,8 @@ test("share routes validate sources and authorize before effects, preserve downl
   allowed = false; assert.equal((await fetch(root)).status, 403); assert.equal((await post({})).status, 403); allowed = true;
   trusted = true; assert.equal((await fetch(root)).status, 403); assert.equal((await post({})).status, 403); trusted = false;
   assert.equal(calls.length, 0);
-  assert.deepEqual(await (await fetch(root)).json(), { shares: [] });
+  // Jini f942eb533 (P11 ST-12b): the list answers expiryChoices beside shares — Never (null) first, then the backend's day counts (none here).
+  assert.deepEqual(await (await fetch(root)).json(), { shares: [], expiryChoices: [null] });
   assert.deepEqual(calls.pop(), ["list", {}]);
   for (const body of [[], "text", 1, { other: true }, { jobId: 1 }, { jobId: "bad-id" }, { jobId: "A".repeat(36) }]) { const result = await post(body); assert.equal(result.status, 400); assert.equal((await result.json()).code, "INVALID_INPUT"); }
   assert.equal(calls.length, 0);
