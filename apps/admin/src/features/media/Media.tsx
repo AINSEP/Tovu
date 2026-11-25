@@ -24,7 +24,7 @@ import {
   type MediaOrderBy,
 } from "@jini-ai/admin/screens/media/rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
-import { t as mediaTranslate } from "./media-i18n";
+import { t as mediaTranslate, VIDEO_CONVERSION_NOTICE_KEY } from "./media-i18n";
 import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
 import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
@@ -1212,6 +1212,7 @@ function MediaLibraryPanel(
     openUpload,
     closeUpload,
     uploadError,
+    conversionNotice,
     canUpload,
     altDraft,
     setAltDraft,
@@ -1243,6 +1244,8 @@ function MediaLibraryPanel(
   return (
     <>
       {error ? <div className="notice error">{error}</div> : null}
+      {/* On the page, not in the upload dialog: the dialog closes on success, and the notice reports that success. */}
+      <UploadConversionStatus notice={conversionNotice} t={t} />
       {/* One row: "Order by" on the left, the two entry points (owner item #9, 2026-10-13) pushed to
           the right edge. Each button owns its dialog. */}
       <div className="toolbar media-order-row">
@@ -1366,6 +1369,13 @@ function MediaTrashEmptyState({ t }: { t: (key: string) => string }) {
       </div>
     </div>
   );
+}
+
+/** Non-error status for an upload that was stored as-is because its web-playable copy could not be made.
+ *  The server sends only the fixed code; the sentence is localized here. */
+function UploadConversionStatus({ notice, t }: { notice: MediaController["conversionNotice"]; t: (key: string) => string }) {
+  if (notice !== "web-copy-unavailable") return null;
+  return <div role="status" className="notice">{t(VIDEO_CONVERSION_NOTICE_KEY)}</div>;
 }
 
 /** Note shown on a filtered tab when some assets have no detected type. See `rules.ts`'s
