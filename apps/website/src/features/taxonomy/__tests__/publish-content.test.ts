@@ -84,3 +84,17 @@ test("taxonomy: the same id created at the destination after the plan is a confl
   await dst.taxonomies.insert({ id: "tx-cat", name: "Category", hierarchical: true, status: "active", updatedAt: at, version: 1 });
   await assert.rejects(applyReport(report, entities, dest), (err: Error & { rowOutcome?: string }) => err.rowOutcome === "conflict");
 });
+
+// FIX 19 (P10-H2): the import writer records the trusted actor its channel supplied — on the change
+// on the `taxonomy.imported` event (taxonomy records a revision row, not a change set) — not no kind at all.
+test("import attribution: the taxonomy.imported event carries the channel's actor kind", async () => {
+  const { source, dest } = await sites();
+  const actor = { id: "owner", kind: "agent" } as const;
+  const attributed = { ...dest, mutationActor: actor };
+  const entities = await packAll(source);
+  await applyReport(await plan(entities, attributed), entities, attributed);
+  const records = await (dest.outbox as unknown as { claimPending(i: { batchSize: number; nowIso: string }): Promise<{ event: { name: string; actor?: unknown } }[]> }).claimPending({ batchSize: 500, nowIso: "2999-01-01T00:00:00.000Z" });
+  const imported = records.map((r) => r.event).filter((e) => e.name === "taxonomy.imported");
+  assert.equal(imported.length, 1);
+  assert.deepEqual(imported[0]?.actor, actor);
+});

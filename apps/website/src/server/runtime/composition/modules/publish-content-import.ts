@@ -26,6 +26,7 @@ import { adminPublishTrustFor, adminRequestFactsFor } from "#src/server/inbound/
 import { gatedPrincipalKindFor, type OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import { withGrantAuthorize, withGrantContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { IMPORT_FAILURE, knownImportErrorResponse } from "#src/server/inbound/admin-http/routes/publish-content/import-errors";
+import { actorForMutation } from "../mutation-actor.js";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 
 /**
@@ -62,7 +63,10 @@ function confirmOnlyHooks({ workspaceId }: { workspaceId: string }, _optional: R
 function buildHooks({ deps, context, bundleId, overwriteEntityKeys }: { deps: PublishContentRouteDeps; context: { id: string }; bundleId: string; overwriteEntityKeys: OverwriteEntityKeys }, _optional: Record<string, never> = {}) {
   const publishContentDeps = toPublishContentDeps(deps);
   return buildPublishContentImportHooks({
-    workspaceId: deps.workspaceId, bundleId, actorId: context.id, clock: deps.clock, idGen: deps.idGen,
+    workspaceId: deps.workspaceId, bundleId, actorId: context.id,
+    // The import ceremony is an authenticated admin command (session or publishing credential, both
+    // owned by this principal): its writes are the operator's, attributed as `user` (P10-H2).
+    actor: actorForMutation({ principalId: context.id, origin: "admin" }), clock: deps.clock, idGen: deps.idGen,
     planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     // The apply loop authorizes each entity against its TYPE's own write permission. For a human
     // that is RBAC, unchanged. For a publishing credential it has to be the grant, or the

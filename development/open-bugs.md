@@ -2137,3 +2137,5 @@ New / logged (not fixed here):
 - **NOT DELIVERED, do not count:** the executor launch split (K01–K03 dependent sheet G06,
   `daemon/src/agent-executor/launch.ts`) and the server builtin-feature split (G08 server half,
   `server/src/builtin-features.ts`, after K04/K06) were not built by b-g6c; their size-debt rows remain.
+
+- **Resolved in combine-23 continuation (FIX 19, Codex review):** import, restore and assistant post writers recorded only `actorId` (import change sets hardcoded `kind: "user"`; `taxonomy.imported`, restore ledger and assistant `content.*`/`entry.*` events carried no kind). Typed actor now required at those seams. Tests: `taxonomy/__tests__/publish-content.test.ts` "import attribution…", `recovery/__tests__/unit/gated-hooks.unit.test.ts` ledger detail, `assistant/__tests__/tool-registrations.post.test.ts` "…agent actor kind". Mutations `M writer-drops-actor-kind` (import 1 red, restore 2 red, assistant 1 red). Remaining debt in todos H2 line.

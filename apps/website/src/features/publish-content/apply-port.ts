@@ -67,7 +67,7 @@ const APPLY_REPORT_HOST: ApplyReportHost<TovuPublishPorts> = {
  */
 export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput<TovuPublishPorts>, _optional = {}): PublishContentApplyPort {
   return {
-    applyReport: ({ report, principalId, bundleId, restorePointId, authorize, backstop }) =>
-      applyPublishContentReport({ input, host: APPLY_REPORT_HOST, report, principalId, bundleId, restorePointId, authorize, backstop }),
+    applyReport: ({ report, principalId, actor, bundleId, restorePointId, authorize, backstop }) =>
+      applyPublishContentReport({ input, host: APPLY_REPORT_HOST, report, principalId, actor, bundleId, restorePointId, authorize, backstop }),
   };
 }

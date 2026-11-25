@@ -11,6 +11,7 @@ import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/compo
 import { buildRestoreHooks, toRecoveryResult } from "#src/features/recovery/gated-hooks";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
+import { actorForMutation } from "../mutation-actor.js";
 
 /**
  * @file SPEC-019 C-301/C-302/C-303 — host side of `POST /api/admin/v1/recovery/restore/{plan,confirm,execute}`
@@ -36,7 +37,7 @@ function confirmOnlyRestoreHooks({ deps }: { deps: RouteDeps }, _optional: Recor
 /** The restore hooks every plan/execute call builds the same way. */
 function restoreHooksFor({ deps, actorId, restorePointId }: { deps: RouteDeps; actorId: string; restorePointId: string }, _optional: Record<string, never> = {}) {
   return buildRestoreHooks({
-    workspaceId: deps.workspaceId, actorId, restorePointId, clock: deps.clock, idGen: deps.idGen,
+    workspaceId: deps.workspaceId, actorId, actor: actorForMutation({ principalId: actorId, origin: "admin" }), restorePointId, clock: deps.clock, idGen: deps.idGen,
     restorePointsRepo: deps.restorePointsRepo, databaseLedgerRepo: deps.databaseLedgerRepo, dbOps: deps.dbOps,
     migrationRunsRepo: deps.migrationRunsRepo, siteStatus: deps.siteStatusRepo,
   });

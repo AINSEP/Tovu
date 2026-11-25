@@ -27,7 +27,7 @@ function harness(options: { missing?: boolean; failRestore?: boolean; restartReq
   const trace: unknown[] = [];
   let seq = 0;
   const input: BuildRestoreHooksInput = {
-    workspaceId: "ws", actorId: "operator", restorePointId: "chosen", clock: createFakeClock({ startIso: "2026-10-01T12:00:00.000Z" }), idGen: { newId: () => `id-${++seq}` },
+    workspaceId: "ws", actorId: "operator", actor: { id: "operator", kind: "user" }, restorePointId: "chosen", clock: createFakeClock({ startIso: "2026-10-01T12:00:00.000Z" }), idGen: { newId: () => `id-${++seq}` },
     restorePointsRepo: { list: async () => options.missing ? [] : [
       { id: "decoy", createdAt: "newer", artifactRef: "/snapshots/decoy.db" },
       { id: "chosen", createdAt: "older", artifactRef: "/snapshots/chosen.db" },
@@ -79,7 +79,7 @@ for (const restartRequired of [true, false]) {
     assert.deepEqual(h.trace, [
       ["restore", { artifactRef: "/snapshots/chosen.db" }],
       ["ledger", { id: "id-2", kind: "restore.executed", restorePointId: "chosen", outcome: "success",
-        detailJson: `{"restoreRunId":"id-1","restartRequired":${restartRequired}}`, actorWorkspaceId: "ws", actorId: "operator", createdAt: "2026-10-01T12:00:00.000Z" }],
+        detailJson: `{"restoreRunId":"id-1","restartRequired":${restartRequired},"actor":{"id":"operator","kind":"user"}}`, actorWorkspaceId: "ws", actorId: "operator", createdAt: "2026-10-01T12:00:00.000Z" }],
       ["resolve", { id: "interrupted" }],
       ...(restartRequired ? [] : [["status", "ws", "SERVING"]]),
     ]);

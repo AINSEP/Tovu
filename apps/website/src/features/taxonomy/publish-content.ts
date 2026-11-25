@@ -66,7 +66,7 @@ export const contributeTaxonomyPublish = (): PublishContentContributor<TaxonomyB
     write: async (ctx) => {
       const { id, state, expectedVersion, principalId } = ctx;
       const deps = writeDeps({ ctx, entityType: "taxonomy" });
-      const saved = await importTaxonomy({ deps, principalId, id, name: state.name as string, hierarchical: state.hierarchical as boolean, expectedVersion });
+      const saved = await importTaxonomy({ deps, principalId, actor: ctx.deps.mutationActor, id, name: state.name as string, hierarchical: state.hierarchical as boolean, expectedVersion });
       return { version: saved.version };
     },
     errors,
@@ -115,7 +115,7 @@ export const contributeTermPublish = (): PublishContentContributor<TaxonomyBag> 
       const { id, state, expectedVersion, principalId } = ctx;
       const deps = writeDeps({ ctx, entityType: "term" });
       const parentId = (state.parentId ?? null) as string | null;
-      const saved = await importTerm({ deps, principalId, id, taxonomyId: state.taxonomyId as string, name: state.name as string, expectedVersion }, { parentId });
+      const saved = await importTerm({ deps, principalId, actor: ctx.deps.mutationActor, id, taxonomyId: state.taxonomyId as string, name: state.name as string, expectedVersion }, { parentId });
       return { version: saved.version };
     },
     errors,

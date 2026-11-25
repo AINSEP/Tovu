@@ -190,6 +190,8 @@ function createRecoveryPlanner(routeDeps: RecoveryToolDeps) {
     buildRestoreHooks({
       workspaceId: routeDeps.workspaceId,
       actorId,
+      // Assistant tool path (P10-H2): the restore ledger records the agent kind.
+      actor: { id: actorId, kind: "agent" },
       restorePointId,
       clock: routeDeps.clock,
       idGen: routeDeps.idGen,

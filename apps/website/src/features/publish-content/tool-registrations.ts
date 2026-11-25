@@ -449,7 +449,9 @@ function pullHooks({ deps, bundleId, actorId }: { deps: PublishContentToolDeps; 
     ports: { ...(deps.publishContentPorts ?? {}), hooks: { beforeSave: deps.pluginBeforeSaveHook } }, outbox: deps.outbox,
   };
   return buildPublishContentImportHooks({
-    workspaceId: deps.workspaceId, bundleId, actorId, clock: deps.clock, idGen: deps.idGen,
+    workspaceId: deps.workspaceId, bundleId, actorId,
+    // Assistant tool path (P10-H2): every write this import applies is the agent's.
+    actor: { id: actorId, kind: "agent" }, clock: deps.clock, idGen: deps.idGen,
     planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { ...contentDeps, authorize: deps.authorize }, bundleRepo: deps.publishContentBundleRepo,
     baselineRepo: deps.publishContentBaselineRepo, blobStore: deps.blobStore, dbOps: deps.dbOps,
