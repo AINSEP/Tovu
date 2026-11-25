@@ -65,6 +65,9 @@ export interface AssistantRunFinalizerOptions {
   /** Previous site daemon, used only for adopted watches; new sends always use the current daemon. */
   readonly recoveryDaemon?: RunDaemonClient;
   readonly now?: () => number;
+  /** Host admission for boot repair: `leave-owned` keeps a turn out of generic recovery (routine turns).
+   * Read at call time so a shared finalizer can have it installed after construction. */
+  admit?: NonNullable<Parameters<ChatRunLedger["reconcileInterrupted"]>[1]>["admit"];
   /** Wait between reconnects when the stream drops but the daemon still has the run. */
   readonly reconnectDelayMs?: number;
   /** Reconnects before resolving uncertainty. Runs with fresh live proof keep watching. */
@@ -283,7 +286,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const finalizer: AssistantRunFinalizer = {
     recover: async (required, optional) => recovery ? recovery.recover(required, optional) : "gone",
     reconcileInterrupted(required = {}, _optional = {}) {
-      return options.ledger.reconcileInterrupted({ now: required.now ?? now() }, { recover: ({ message }) => recoverAtBoot({ recovery, message }) });
+      return options.ledger.reconcileInterrupted({ now: required.now ?? now() }, {
+        recover: ({ message }) => recoverAtBoot({ recovery, message }),
+        // Forwarded beside `recover`: the ledger consults admission first, so an owned turn is never recovered here.
+        ...(options.admit ? { admit: options.admit } : {}),
+      });
     },
     watch: createRunWatcher({ active, registry, daemon, now, settings }),
     async idle() {

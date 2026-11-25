@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
@@ -15,6 +16,7 @@ import { createByokToolSurface } from "#src/assistant/index";
 import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { BYOK_TURN_PATH, createAssistantByokModule } from "../assistant-byok.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** @file A failed admin BYOK turn reaches `ObservabilityPort.reportError` once, without the key or chat text. */
 
@@ -49,8 +51,8 @@ test(`a failed BYOK turn reports once, including a throw after its error event (
     }
     next();
   });
-  registerAuthRoutes({ app, deps });
-  createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({
     messages: [{ role: "user", content: "my private question" }],

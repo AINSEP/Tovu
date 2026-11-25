@@ -4,6 +4,7 @@
  * order. Statements moved verbatim out of `app.ts`.
  */
 
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { bindSiteConsentService } from '../site-consent.js';
 import { registerAdminConsentRoutes } from '../modules/consent.js';
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
@@ -46,6 +47,7 @@ import { isLocalTovuHost } from "../registered-sites.js";
 import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";
+import type { CreateAppOptions } from "../create-app-options.js";
 
 /** `GET .../system/module-status` (Jini spec) over this process's boot readiness snapshot; direct
  * authorization and the route's own failure copy, as the hand-written route answered.
@@ -112,9 +114,9 @@ export function registerAdminAssistantDaemonRoutes(
     { authorization: "direct", failure: { operation: "routes/system/assistant-daemon", code: "INTERNAL_ERROR" } });
 }
 
-/** The system-admin registrations of `createApp`, as five sub-mounts called in the original statement order. */
-export function mountAdminSystem({ app, routeDeps }: MountInput, _optional = {}): void {
-  mountAnalyticsAndSiteAssistant({ app, routeDeps });
+/** The system-admin registrations of `createApp`, as five sub-mounts called in the original statement order. `reporter` is the site's one reporter (the visitor assistant's routes record through it). */
+export function mountAdminSystem({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown"> = {}): void {
+  mountAnalyticsAndSiteAssistant({ app, routeDeps, reporter }, options);
   mountObservability({ app, routeDeps });
   mountMail({ app, routeDeps });
   mountSiteAdmin({ app, routeDeps });
@@ -122,7 +124,7 @@ export function mountAdminSystem({ app, routeDeps }: MountInput, _optional = {})
 }
 
 /** The analytics admin module, then the public site-assistant module (started BEFORE it is mounted). */
-function mountAnalyticsAndSiteAssistant({ app, routeDeps }: MountInput, _optional = {}): void {
+function mountAnalyticsAndSiteAssistant({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, options: Pick<CreateAppOptions, "onShutdown"> = {}): void {
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
   mountRoutes({ app, mod: createAnalyticsModule(routeDeps) });
@@ -130,8 +132,10 @@ function mountAnalyticsAndSiteAssistant({ app, routeDeps }: MountInput, _optiona
   // the one assistant surface anonymous traffic may reach, which is why it runs on its own
   // in-process provider relay with a read-only published-content tool surface rather than the
   // admin's process-spawning agent daemon. `start()` logs the demo-gate state at boot.
-  const siteAssistantModule = createSiteAssistantModule(routeDeps);
+  const siteAssistantModule = createSiteAssistantModule({ deps: routeDeps, reporter });
   startModule(siteAssistantModule);
+  // Parked visitor approvals hold a running provider call; shutdown denies and ends each one.
+  options.onShutdown?.({ shutdown: siteAssistantModule.shutdown });
   mountRoutes({ app, mod: siteAssistantModule });
 }
 

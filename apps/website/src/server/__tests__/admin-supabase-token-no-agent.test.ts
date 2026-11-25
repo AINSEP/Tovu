@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
@@ -53,7 +54,7 @@ async function buildAdminOnlyApp() {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   createExternalMcpModule(deps).registerRoutes?.({ app });
   const supabase = parsed.config.servers.supabase;

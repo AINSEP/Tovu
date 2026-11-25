@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 
@@ -82,7 +83,7 @@ function buildApp(options: BuildOptions = {}) {
   // Sign-in still needs its JSON body; `parseJson: false` leaves only the surface routes unparsed.
   const json = express.json();
   app.use((req, res, next) => (options.parseJson === false && req.path.includes("/surfaces/") ? next() : json(req, res, next)));
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerAgentPluginAdminSurfaceRoutes({ app, deps });
   registerAdminSurfaceFilesRoute({ app, deps });

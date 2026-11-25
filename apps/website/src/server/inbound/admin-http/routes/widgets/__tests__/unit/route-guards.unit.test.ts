@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -44,7 +45,7 @@ function harness({ allowed = true }: { allowed?: boolean } = {}) {
     registerAdminWidgetEmbedReorderRoute, registerAdminWidgetGetRoute, registerAdminWidgetListRoute,
     registerAdminWidgetRegionBindRoute, registerAdminWidgetRegionGetRoute, registerAdminWidgetRegionMutatePlacementsRoute,
     registerAdminWidgetRegionsListRoute, registerAdminWidgetTrashRoute, registerAdminWidgetAgentToolsRoutes,
-  ]) register({ app, deps });
+  ]) register({ app, deps, errors: createRouteIncidentReporter().errors });
   registerAdminWidgetPreviewRoute({ app, deps });
   return {
     entryRepo,

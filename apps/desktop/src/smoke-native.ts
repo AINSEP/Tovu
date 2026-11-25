@@ -250,7 +250,7 @@ function buildEntryResolutionScript(): string {
         if (url.startsWith("file:")) loaded.add(url);
         if (!url.startsWith("smoke:")) return next(url, context);
         const source = url === "smoke:stop" ? "throw Symbol.for('tovu.smoke.stop')"
-          : url === "smoke:electron" ? "export const app = undefined, BrowserWindow = undefined, dialog = undefined, shell = undefined, Menu = undefined, ipcMain = undefined, net = undefined, session = undefined, screen = undefined, crashReporter = undefined, webContents = undefined; export default undefined;" : "";
+          : url === "smoke:electron" ? "export const app = undefined, BrowserWindow = undefined, dialog = undefined, shell = undefined, Menu = undefined, ipcMain = undefined, net = undefined, session = undefined, screen = undefined, crashReporter = undefined, webContents = undefined, powerMonitor = undefined; export default undefined;" : "";
         return { format: "module", source, shortCircuit: true };
       },
     });

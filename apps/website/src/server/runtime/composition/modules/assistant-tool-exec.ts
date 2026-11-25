@@ -24,7 +24,8 @@ import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createRemoteAttachmentLookup, toolExecutionRoutes, DEFAULT_TOOL_EXEC_MAX_BODY_BYTES, type AttachmentLookup, type AuthorizeToolRun } from "@jini-ai/daemon/http";
 import { jsonResponse } from "@jini-ai/core/contracts/server";
 import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
-import { daemonRouteHost, mountJiniRoutes } from "../../../../platform/express/jini-routes.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { daemonRouteHost, mountJiniRoutes, NO_OPERATION_TRACKING } from "../../../../platform/express/jini-routes.js";
 import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunHead, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
@@ -86,20 +87,21 @@ type ComponentCatalogDeps = {
  * Mounts the tool RPC on `router`, which `app.ts` mounts ahead of the public JSON parser (the route
  * gates on token + loopback, then parses its own 16 MiB body). The token is read per request from
  * module memory (`currentToolExecToken`), never from `process.env`.
+ * @param required.reporter The site's one reporter: a tool-RPC route incident, and a stream the bridge loses after headers, are each one record under one ERR- id.
  * @complexity O(1) setup.
  */
-export function registerAssistantToolExecRoutes({ router, toolSurface, runStore, workspaceId, components, plugins, core }: {
-  router: InternalRouteTarget; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
+export function registerAssistantToolExecRoutes({ router, reporter, toolSurface, runStore, workspaceId, components, plugins, core }: {
+  router: InternalRouteTarget; reporter: ErrorReporter; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
 } & ComponentCatalogDeps, _optional = {}): void {
   if (core) registerAgentDaemonCoreRoutes({ router, deps: core });
   const tokenEnv: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
   // The routes read their own body after their caller gate, so no parser sits above the list and the raw stream is handed on.
-  const routes = toolExecutionRoutes({ executor: toolSurface.daemonCalls.executor, listToolsFor: toolSurface.daemonCalls.listToolsFor, env: tokenEnv, host: toolRpcRouteHost() }, {
+  const routes = toolExecutionRoutes({ executor: toolSurface.daemonCalls.executor, listToolsFor: toolSurface.daemonCalls.listToolsFor, env: tokenEnv, host: toolRpcRouteHost({ reporter }) }, {
     tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR,
     authorizeRun: requireSiteToolRun({ runStore, workspaceId, plugins }),
     runWithContext: ({ context, fn }) => runWithDaemonCallContext({ context: parseDaemonCallContext({ value: context }), fn }),
   });
-  mountJiniRoutes({ app: router, routes }, { rawBody: true });
+  mountJiniRoutes({ app: router, routes }, { rawBody: true, reporter });
   // Same private caller gate as execution; never mounted through browser-auth routes.
   router.get("/internal/component-catalog", requireToolExecutionCallerExpress({ env: tokenEnv }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }),
     componentCatalogHandler({ runStore, workspaceId, plugins, ...(components ? { components } : {}) }));
@@ -254,8 +256,10 @@ function requireSiteToolRun({ runStore, workspaceId, plugins }: {
 }
 
 /** The host the tool RPC list is given. These routes are called by a local process, never a browser, so no request counts as same-origin; the list never asks. Its body limit is its own (`maxBodyBytes`), not a parser's. */
-function toolRpcRouteHost() {
-  return daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => false } }, parserLimitBytes: DEFAULT_TOOL_EXEC_MAX_BODY_BYTES });
+function toolRpcRouteHost({ reporter }: { reporter: ErrorReporter }) {
+  // The site's own reporter owns a tool-RPC route incident; this process tracks no operations, hence the explicit no-op.
+  return daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => false } }, parserLimitBytes: DEFAULT_TOOL_EXEC_MAX_BODY_BYTES,
+    errors: { reporter, observability: NO_OPERATION_TRACKING } });
 }
 
 /** The daemon's attachment store, reached over its lookup route with the daemon token; `undefined` with no token. */

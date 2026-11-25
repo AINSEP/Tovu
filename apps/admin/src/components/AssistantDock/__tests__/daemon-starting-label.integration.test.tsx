@@ -10,6 +10,7 @@ import { resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-b
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { AssistantDock } from "../AssistantDock";
 import { useTovuAssistantTransport as useAssistantTransport } from "../hooks/assistant-transport.binding";
+import { DOCK_DEEP_LINK_OFF } from "./deep-link-off";
 
 const STARTING = "Starting assistant…";
 type PaneProps = ComponentProps<typeof ChatPane> & { sendingLabel?: string };
@@ -60,7 +61,7 @@ function mountDock({ locale = "en", attached = true } = {}, _options = {}) {
     select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn(), onMessagesChange: vi.fn(),
     persistUserTurn: async () => {}, ensureConversationId: async () => null,
   };
-  render(<AssistantDock ChatPane={PaneRecorder} agentBridge={bridge}
+  render(<AssistantDock {...DOCK_DEEP_LINK_OFF} ChatPane={PaneRecorder} agentBridge={bridge}
     useAdminLocale={() => locale} useChats={() => chats} useExecutionConfig={() => execution}
     useExecutionPolicy={(input, options = {}) => useTovuExecutionPolicy(input, { ...options, desktop: true })}
     useByokRuntime={() => ({ byokRuntime: { model: "test-model", models: [] }, handleByokModelChange: vi.fn() })}

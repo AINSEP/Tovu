@@ -201,6 +201,9 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
   /** Jini's existing shutdown tracker: Quit must also await Stops removed from openSites. */
   pendingTeardowns?: { track(required: { promise: PromiseLike<unknown> }): Promise<void> };
+  /** The session's routine withdrawals (`main/boot/routine-sites.ts`'s `createRoutineWithdrawals`).
+   *  Wired only while routines are released; absent, Stop behaves exactly as before. */
+  routineWithdrawals?: { withdraw(required: { siteDir: string }): void };
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
   /** `site-archive-import.ts`'s real runner. */

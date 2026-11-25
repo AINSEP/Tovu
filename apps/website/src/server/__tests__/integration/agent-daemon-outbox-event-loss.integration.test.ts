@@ -15,6 +15,7 @@ import { registerAssistantToolExecRoutes } from "../../runtime/composition/modul
 import { acceptToolRun } from "../../runtime/composition/modules/__tests__/assistant-tool-exec.fixture.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { startTestServer } from "../helpers/http-test-server.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** The former daemon enqueue-only outbox prevented event theft. With ADR-070 the write itself
  * runs at the site owner: both the remote write and existing pending rows use its bus/drainer. */
@@ -41,7 +42,7 @@ for (const memory of [false, true]) {
     await acceptToolRun({ deps: server, runId: "outbox-run", principalId });
     const app = express();
     registerAssistantToolExecRoutes({ router: app, runStore: server.chatRunLedger.durable, workspaceId: server.workspaceId,
-      toolSurface: { daemonCalls: { executor: createToolExecutor({ registry }), listToolsFor: async () => registry.list({}) } } });
+      toolSurface: { daemonCalls: { executor: createToolExecutor({ registry }), listToolsFor: async () => registry.list({}) } }, reporter: createRouteIncidentReporter().reporter });
     const baseUrl = await startTestServer(app, t);
     const remote = createRemoteToolExecutor({ baseUrl, token: ensureToolExecToken({}, {}) });
     const result = await remote.execute({ principal: { id: principalId }, run: { id: "outbox-run" }, toolId: "site_write", input: {} });

@@ -7,6 +7,7 @@ import {
   RUN_PRINCIPAL_HEADER,
 } from "../daemon-access.js";
 import { daemonRouteHost, mountJiniRoutes } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file `isRunScopedRoute` — which daemon routes a run-scoped credential (as opposed to the host's
@@ -92,7 +93,7 @@ async function withLookupDaemon<T>(fn: (input: { url: string; parserCalls: () =>
     resolveForRun: async ({ ref, runId }: { ref: string; runId: string }) => ({ ref, runId, path: "/tmp/x" }),
     listPendingForOwner: async () => [],
   };
-  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024 });
+  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024, errors: createRouteIncidentReporter().errors });
   access.registerDaemonAttachmentLookup({ app, store: store as never, host, mountRoutes: ({ routes }) => mountJiniRoutes({ app, routes }) }, { env });
   let parsed = 0;
   app.use((req, res, next) => { parsed += 1; next(); });

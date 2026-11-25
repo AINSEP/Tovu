@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
@@ -50,7 +51,7 @@ let recorded: RecordedRequest[] = [];
  *  to point a later test at a differently-configured daemon instance. These two flags are how tests
  *  steer that one daemon's behavior instead: each test sets what it needs right after `bootAgUi`
  *  (which resets both to their defaults), the daemon handler below reads them per-request. */
-type StartRunBehavior = "ok" | "http-failure" | "delayed-ok";
+type StartRunBehavior = "ok" | "http-failure" | "delayed-ok" | "refusal-with-canary";
 type EventsBehavior =
   | "normal"
   | "http-failure"
@@ -66,7 +67,12 @@ type EventsBehavior =
   | "stdout-edge-chunks"
   | "end-frame-failed"
   | "end-frame-canceled"
-  | "delayed-then-normal";
+  | "delayed-then-normal"
+  | "error-frame-with-canary"
+  | "closes-without-frames";
+/** A private daemon diagnostic that must reach only the host reporter, never the browser wire. */
+const CANARY_KEY = `sk-ant-api03-${"Q".repeat(48)}`;
+const PRIVATE_CANARY = `PRIVATE-DIAGNOSTIC-CANARY-7f3e /home/owner/.secret ${CANARY_KEY}`;
 let startRunBehavior: StartRunBehavior = "ok";
 let eventsBehavior: EventsBehavior = "normal";
 let expectedPrincipalId = "";
@@ -197,6 +203,15 @@ const EVENTS_SCRIPTS: Record<Exclude<EventsBehavior, "http-failure" | "delayed-t
     res.write(`event: end\ndata: ${wireFrame("end", { reason: "canceled", status: "canceled", code: null, signal: "SIGTERM", resumable: true })}\n\n`);
     res.end();
   },
+  "error-frame-with-canary": (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write(`event: error\ndata: ${wireFrame("error", { message: PRIVATE_CANARY, code: "AGENT_EXITED" })}\n\n`);
+    res.end();
+  },
+  "closes-without-frames": (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.end();
+  },
   "end-frame-no-reason": (_req, res) => {
     res.writeHead(200, { "content-type": "text/event-stream" });
     res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "done" })}\n\n`);
@@ -221,6 +236,11 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         if (startRunBehavior === "http-failure") {
           res.writeHead(429, { "content-type": "application/json" });
           res.end(JSON.stringify({ error: "daemon rejected the run" }));
+          return;
+        }
+        if (startRunBehavior === "refusal-with-canary") {
+          res.writeHead(409, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: `slot busy: ${PRIVATE_CANARY}`, code: "CHAT_RUN_BUSY", detail: PRIVATE_CANARY }));
           return;
         }
         if (startRunBehavior === "delayed-ok") {
@@ -279,7 +299,7 @@ function parseAgUiResponseBody(text: string): Array<{ type: string; [key: string
     .map((frame) => JSON.parse(frame.replace(/^data:\s*/, "")) as { type: string; [key: string]: unknown });
 }
 
-let harnessPromise: Promise<{ buildApp: (observability?: ObservabilityPort) => express.Express; daemon: Server }> | null = null;
+let harnessPromise: Promise<{ buildApp: (observability?: ObservabilityPort, onDeps?: (deps: RouteDeps) => void) => express.Express; daemon: Server }> | null = null;
 function harness() {
   harnessPromise ??= (async () => {
     const { origin, server } = await startStandInDaemon();
@@ -292,12 +312,13 @@ function harness() {
 
     return {
       daemon: server,
-      buildApp: (observability?: ObservabilityPort) => {
+      buildApp: (observability?: ObservabilityPort, onDeps?: (deps: RouteDeps) => void) => {
         const deps: RouteDeps = createRouteDeps();
         if (observability) { deps.observability = observability; deps.tracker = createTracker({ observability }); }
+        onDeps?.(deps);
         const app = express();
         app.use(express.json());
-        registerAuthRoutes({ app, deps });
+        registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
         app.use("/api/admin/v1/assistant/ag-ui-run", (_req, res, next) => {
           res.on("close", () => clientCloseGate?.arrive());
           next();
@@ -310,7 +331,7 @@ function harness() {
   return harnessPromise;
 }
 
-async function bootAgUi(t: import("node:test").TestContext, observability?: ObservabilityPort) {
+async function bootAgUi(t: import("node:test").TestContext, observability?: ObservabilityPort, onDeps?: (deps: RouteDeps) => void) {
   const { buildApp } = await harness();
   // The daemon starts on first demand: register an identity-matched fake so the stand-in answers.
   resetAssistantDaemonSingletonForTests();
@@ -323,7 +344,7 @@ async function bootAgUi(t: import("node:test").TestContext, observability?: Obse
   recorded = [];
   startRunBehavior = "ok";
   eventsBehavior = "normal";
-  const baseUrl = await startTestServer(buildApp(observability), t);
+  const baseUrl = await startTestServer(buildApp(observability, onDeps), t);
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
   expectedPrincipalId = me.user.id;
@@ -1124,4 +1145,57 @@ test("spans: an end frame the daemon classified as canceled ends the run span as
   const run = await agentRunSpan(exporter);
   assert.equal(run.attributes["agent.run.status"], "canceled");
   assert.equal(run.status.code, SpanStatusCode.UNSET, "a canceled run is not a failure");
+});
+
+/** Each row's wire must close with exactly one terminal event and never carry the private canary. */
+function assertOneTerminalOutcome({ wire, label }: { wire: string; label: string }): Array<{ type: string; [key: string]: unknown }> {
+  assert.ok(!wire.includes("PRIVATE-DIAGNOSTIC-CANARY"), `${label}: the private diagnostic reached the wire: ${wire}`);
+  const events = parseAgUiResponseBody(wire);
+  const terminals = events.filter((e) => e.type === "RUN_FINISHED" || e.type === "RUN_ERROR");
+  assert.equal(terminals.length, 1, `${label}: exactly one terminal outcome, got ${JSON.stringify(events.map((e) => e.type))}`);
+  assert.equal(events.at(-1), terminals[0], `${label}: nothing follows the terminal outcome`);
+  return events;
+}
+
+test("admin AG-UI refusals, failures, disconnects and no reply each leave one actionable terminal outcome", { timeout: 60_000 }, async (t) => {
+  const reported: Array<{ message: string; reportId: unknown }> = [];
+  const post = async ({ baseUrl, cookie }: { baseUrl: string; cookie: string }) => fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
+  });
+  const session = await bootAgUi(t, undefined, (deps) => {
+    const base = deps.tracker;
+    deps.tracker = { ...base, error: (input, options) => {
+      reported.push({ message: input.error.message, reportId: options?.context?.attributes?.["tovu.report_id"] });
+      base.error(input, options);
+    } };
+  });
+
+  // JSON refusal: the daemon's status and its known refusal code survive; its raw body does not.
+  startRunBehavior = "refusal-with-canary";
+  const refused = await post(session);
+  const refusalText = await refused.text();
+  assert.equal(refused.status, 409);
+  assert.ok(!refusalText.includes("PRIVATE-DIAGNOSTIC-CANARY"), `the refusal body leaked the daemon's private detail: ${refusalText}`);
+  const refusal = JSON.parse(refusalText) as { code: string; reason?: string; reportId?: string; error: string; detail?: unknown };
+  assert.equal(refusal.code, "DAEMON_START_FAILED");
+  assert.equal(refusal.reason, "CHAT_RUN_BUSY", "a known refusal code stays actionable");
+  assert.equal(refusal.detail, undefined, "no raw daemon detail on the public route");
+  assert.match(refusal.error, /Send it again/);
+  assert.match(refusal.reportId ?? "", /^[0-9a-f-]{36}$/, "the refusal carries a report reference");
+  const report = reported.find((r) => r.reportId === refusal.reportId);
+  assert.ok(report, "the host reporter recorded the refusal under the same report reference");
+  assert.ok(!report.message.includes(CANARY_KEY), `the reporter's copy is redacted too: ${report.message}`);
+
+  // Daemon/provider failure: the fixed failure sentence, one terminal, no daemon wording.
+  startRunBehavior = "ok";
+  eventsBehavior = "error-frame-with-canary";
+  const failed = assertOneTerminalOutcome({ wire: await (await post(session)).text(), label: "daemon failure" });
+  assert.equal(failed.at(-1)?.message, "The assistant could not finish that request. Send it again, or try a shorter request.");
+
+  // Dropped stream and no reply: the fixed interruption sentence, exactly once.
+  for (const [behavior, label] of [["socket-reset-mid-stream", "disconnect"], ["closes-without-frames", "no reply"]] as const) {
+    eventsBehavior = behavior;
+    const events = assertOneTerminalOutcome({ wire: await (await post(session)).text(), label });
+    assert.equal(events.at(-1)?.message, "The assistant’s response was interrupted. Send your request again.", label);
+  }
 });

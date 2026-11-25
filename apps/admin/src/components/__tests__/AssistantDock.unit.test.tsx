@@ -77,6 +77,7 @@ import { OverflowAwareMcpUiSurfaceCard } from "@jini-ai/admin/shell/components/A
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
+import { DOCK_DEEP_LINK_OFF } from "../AssistantDock/__tests__/deep-link-off";
 
 const mockLoadExecutionConfig = vi.fn<typeof loadExecutionConfig>();
 const mockSaveExecutionConfig = vi.fn<typeof saveExecutionConfig>();
@@ -217,9 +218,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** No live AG-UI interrupt: every card keeps its own route. */
+const NO_AG_UI_APPROVALS = { answersExchange: () => false, answer: async () => false };
 describe("AssistantDock", () => {
   it("keeps ChatPane beneath the dock's explicitly targeted flex wrapper", () => {
-    const { container } = render(<aside className="admin-chat-dock"><AssistantDock useChats={() => fakeChats()} /></aside>);
+    const { container } = render(<aside className="admin-chat-dock"><AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} /></aside>);
     // jsdom has no layout: protect the DOM relationship assistant.css targets instead.
     const dock = container.querySelector(".admin-chat-dock")!;
     expect(dock.firstElementChild).toHaveClass("admin-chat-dock-drop");
@@ -241,7 +244,7 @@ describe("AssistantDock", () => {
    */
   it("hands ChatPane a typed-answer deliverer that answers the pending assistant_ask_choice through the admin route", async () => {
     mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivered: true }), { status: 202 }));
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverTypedAnswer as ((input: { text: string }) => Promise<string>) & { toolName: string };
 
     // Without the tool id the pane would treat ANY pending card (a delete confirm) as this question.
@@ -256,7 +259,7 @@ describe("AssistantDock", () => {
 
   it("hands ChatPane a mid-run deliverer that posts to the run's messages route", async () => {
     mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivery: "delivered" }), { status: 202 }));
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverMidRunMessage as (input: { runId: string; text: string }) => Promise<string>;
 
     await expect(deliver({ runId: "run-1", text: "also fix the footer" })).resolves.toBe("delivered");
@@ -272,7 +275,7 @@ describe("AssistantDock", () => {
 
   it("retains the accepted mid-run input id for receipt reconciliation without starting or cancelling a turn", async () => {
     mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivery: "delivered", id: "accepted-publish" }), { status: 202 }));
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverMidRunMessage as (input: { runId: string; text: string }) => Promise<unknown>;
     mcpUiFetch.mockClear();
     await expect(deliver({ runId: "run-1", text: "can you publish this first?" })).resolves.toEqual({ delivery: "delivered", id: "accepted-publish" });
@@ -281,7 +284,7 @@ describe("AssistantDock", () => {
   });
 
   it("applies no type filter to the composer's file picker, so no file type is excluded", () => {
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { attachmentAccept?: string };
 
@@ -298,7 +301,7 @@ describe("AssistantDock", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({
       skills: [{ toolId: "skill_ui_ux_design", name: "ui-ux-design", description: "Design interfaces.", enabled: true }],
     })));
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     const initialProps = chatPaneSpy.mock.calls.at(-1)?.[0] as {
       composerSlots: { discoveryGroups: readonly unknown[] };
@@ -338,7 +341,7 @@ describe("AssistantDock", () => {
   });
 
   it("routes the truthful MCP navigation command to existing External MCP settings", async () => {
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     await waitFor(() => {
       const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
         composerSlots: { discoveryGroups: Array<{ items: unknown[] }> };
@@ -367,7 +370,7 @@ describe("AssistantDock", () => {
 
   it("wires executionMode/apiModeAvailable off the loaded config, not a hardcoded default", async () => {
     mockLoadExecutionConfig.mockResolvedValue(byokConfig({ apiKey: "sk-real" }));
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     await waitFor(() =>
       expect(chatPaneSpy).toHaveBeenLastCalledWith(
@@ -380,7 +383,7 @@ describe("AssistantDock", () => {
     mockLoadExecutionConfig.mockResolvedValue(byokConfig({ apiKey: "  " }));
     let resolveCredential!: (credential: ReturnType<typeof storedCredential>) => void;
     mockLoadAdminExecutionCredential.mockReturnValue(new Promise((resolve) => { resolveCredential = resolve; }));
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     await waitFor(() =>
       expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ executionMode: "api", apiModeAvailable: false })),
@@ -399,7 +402,7 @@ describe("AssistantDock", () => {
   it("reports apiModeAvailable TRUE when BYOK mode is active, no local key is typed, but a credential IS stored server-side", async () => {
     mockLoadExecutionConfig.mockResolvedValue(byokConfig({ apiKey: "" }));
     mockLoadAdminExecutionCredential.mockResolvedValue(storedCredential(true));
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     await waitFor(() =>
       expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ apiModeAvailable: true })),
@@ -408,7 +411,7 @@ describe("AssistantDock", () => {
 
   it("a mode switch from the rendered picker round-trips into the next ChatPane render", async () => {
     const user = userEvent.setup();
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
 
     await user.click(screen.getByRole("button", { name: "switch-to-api" }));
@@ -421,7 +424,7 @@ describe("AssistantDock", () => {
 
   it("a Local CLI model pick round-trips into the next run's context — the dropdown actually works", async () => {
     const user = userEvent.setup();
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
 
     await user.click(screen.getByRole("button", { name: "pick-local-model" }));
@@ -434,7 +437,7 @@ describe("AssistantDock", () => {
 
   it("a Local CLI model pick from the rendered picker also persists through saveExecutionConfig", async () => {
     const user = userEvent.setup();
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
 
     await user.click(screen.getByRole("button", { name: "pick-local-model" }));
@@ -453,7 +456,7 @@ describe("AssistantDock", () => {
     mockLoadExecutionConfig.mockResolvedValue(
       localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" } }),
     );
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     // Before the ledger settles: the dock still shows the hardcoded starting point, not a blank
     // or undefined selection — matches `useLocalCliSelection`'s own "no synthetic loading gate"
@@ -482,7 +485,7 @@ describe("AssistantDock", () => {
 describe("AssistantDock useChats injection", () => {
   it("renders ChatPane wired to the injected fake's own conversation state, not a hardcoded value", async () => {
     render(
-      <AssistantDock
+      <AssistantDock {...DOCK_DEEP_LINK_OFF}
         useChats={() =>
           fakeChats({
             activeId: "conv-42",
@@ -513,7 +516,7 @@ describe("AssistantDock useChats injection", () => {
  */
 describe("AssistantDock useExecutionConfig injection", () => {
   it("wires ChatPane off the injected fake's config, not the real (mocked) load", () => {
-    render(<AssistantDock useChats={() => fakeChats()} useExecutionConfig={() => fakeExecutionConfig()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useExecutionConfig={() => fakeExecutionConfig()} />);
 
     // Synchronous: the fake returns already-settled state directly, with no load effect to await —
     // unlike the real hook, which starts at DEFAULT_EXECUTION_CONFIG (mode "local-cli") and only
@@ -526,7 +529,7 @@ describe("AssistantDock useExecutionConfig injection", () => {
 
 describe("AssistantDock useByokRuntime injection", () => {
   it("wires ChatPane off the injected fake's byokRuntime, not real model discovery", () => {
-    render(<AssistantDock useChats={() => fakeChats()} useByokRuntime={() => fakeByokRuntime()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useByokRuntime={() => fakeByokRuntime()} />);
 
     // The real hook's `byokRuntime.providerLabel` is resolved from `resolveSelectedPreset` against
     // `DEFAULT_EXECUTION_CONFIG.byok` (mode "local-cli", not byok) and can never be the literal
@@ -539,7 +542,7 @@ describe("AssistantDock useByokRuntime injection", () => {
 
 describe("AssistantDock useLocalCliSelection injection", () => {
   it("wires ChatPane off the injected fake's selection, not the hardcoded { agentId: 'claude' } default", () => {
-    render(<AssistantDock useChats={() => fakeChats()} useLocalCliSelection={() => fakeLocalCliSelection()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useLocalCliSelection={() => fakeLocalCliSelection()} />);
 
     // The real hook always starts at `{ agentId: "claude" }` (see its own doc) — "impossible-agent"
     // is not a value it can produce, hydrated or not.
@@ -562,7 +565,7 @@ describe("AssistantDock useAssistantTransport injection", () => {
     const startRun = vi.fn().mockResolvedValue(run);
     const fakeTransport = { startRun } as never;
 
-    render(<AssistantDock useChats={() => fakeChats()} useAssistantTransport={() => fakeTransport} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useAssistantTransport={() => fakeTransport} />);
 
     // The dock decorates the transport with the agent-failure projection (`withAgentFailureSurface`),
     // so ChatPane gets a wrapper, not the fake by identity. A freshly built real transport would never
@@ -581,7 +584,7 @@ describe("AssistantDock useAttachmentUploader injection", () => {
     const attachments = [{ name: "notes.txt", path: "attachment:notes", kind: "file" as const }];
     const fakeUploader = vi.fn(async () => attachments);
 
-    render(<AssistantDock useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
 
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { uploadAttachments: (files: File[]) => Promise<unknown[]> };
     const files = [new File(["notes"], "notes.txt")];
@@ -596,7 +599,7 @@ describe("AssistantDock useAttachmentUploader injection", () => {
     ["skill.zip", () => zipFolderFiles({ files: [new File(["---\nname: example\n---\nInstructions."], "SKILL.md")], maxBytes: 1024 * 1024 })],
   ])("routes a dropped %s to installation before attachment upload", async (_name, makeFile) => {
     const fakeUploader = vi.fn();
-    render(<AssistantDock useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
     const file = await makeFile();
     const notCancelled = fireEvent.drop(screen.getByTestId("chat-pane"), { dataTransfer: { files: [file], items: [], types: ["Files"] } });
     expect(notCancelled).toBe(true);
@@ -611,7 +614,7 @@ describe("AssistantDock useAttachmentValidator injection", () => {
   it("wires ChatPane's validateAttachments prop off the injected fake, not the real liveness prober", () => {
     const fakeValidator = vi.fn();
 
-    render(<AssistantDock useChats={() => fakeChats()} useAttachmentValidator={() => fakeValidator} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useAttachmentValidator={() => fakeValidator} />);
 
     // Without this prop `@jini-ai/chat` restores a persisted draft's TEXT only and silently discards
     // its attachment references — it will not hand back a reference no host vouched for.
@@ -631,7 +634,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
     fakeRuntimeAccess.listAgents.mockResolvedValue(agents);
     fakeRuntimeAccess.rescanAgents.mockResolvedValue(agents);
 
-    render(<AssistantDock useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
 
     // The dock wraps listAgents/rescanAgents to capture the live inventory the failure card's
     // "Switch to" action needs, so ChatPane gets a wrapper; every call must still reach the fake.
@@ -653,7 +656,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
       daemonOnline: vi.fn().mockResolvedValue(true),
     };
 
-    render(<AssistantDock useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
 
     expect(chatPaneSpy.mock.calls.at(-1)?.[0]).not.toHaveProperty("agents");
     localStorage.clear();
@@ -662,7 +665,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
   it("seeds ChatPane's agents from the last live list this browser stored, before listAgents resolves", () => {
     writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
 
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ agents: [{ id: "gemini", name: "Gemini CLI" }] }));
     localStorage.clear();
@@ -671,7 +674,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
 
 describe("AssistantDock useAdminLocale injection", () => {
   it("wires ChatPane's translated chrome off the injected fake's locale, not the real (unmocked) load", () => {
-    render(<AssistantDock useChats={() => fakeChats()} useAdminLocale={() => "es"} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} useAdminLocale={() => "es"} />);
 
     // The real `useWiredAdminLocale` is NOT mocked in this file — it makes a genuine, unstubbed
     // fetch attempt that fails in jsdom and swallows to `DEFAULT_LOCALE` ("en"), which leaves
@@ -709,7 +712,7 @@ describe("AssistantDock useAdminLocale injection", () => {
 describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", () => {
   it("the forwarded agentControl makes the real ChatPane subscribe to the bridge and unsubscribe on unmount", async () => {
     const agentBridge = fakeAgentBridge();
-    render(<AssistantDock useChats={() => fakeChats()} agentBridge={agentBridge} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} agentBridge={agentBridge} />);
     const props = chatPaneSpy.mock.calls.at(-1)?.[0];
     const { unmount } = render(<RealChatPane agentControl={props.agentControl} transport={{
       startRun: vi.fn(), reattachRun: vi.fn(), fetchRunStatus: vi.fn(), stopRun: vi.fn(),
@@ -724,7 +727,7 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
   it("wires ChatPane's agentControl to the page bridge, so a claimed chat.* invocation reaches a live listener instead of parking until the daemon's 30s timeout", () => {
     const agentBridge = fakeAgentBridge();
 
-    render(<AssistantDock useChats={() => fakeChats()} agentBridge={agentBridge} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} agentBridge={agentBridge} />);
 
     // Asserts the wiring directly rather than waiting out a real 30s daemon timeout: the cause of
     // the hang IS "nothing ever calls `bridgeAccess.subscribe`", so proving `subscribe` is reachable
@@ -737,7 +740,7 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
   });
 
   it("does not crash and does not falsely claim agentControl when no page bridge has attached yet (agentBridge is null)", () => {
-    render(<AssistantDock useChats={() => fakeChats()} agentBridge={null} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} agentBridge={null} />);
 
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { bridgeAccess?: unknown } };
     expect(props.agentControl?.bridgeAccess).toBeUndefined();
@@ -750,14 +753,14 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
    * registering the chat-pane's own WebMCP tools (see this file's own comment above `agentControl`).
    */
   it("passes webmcp: true to the chat pane", () => {
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
 
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { webmcp?: boolean } };
     expect(props.agentControl?.webmcp).toBe(true);
   });
 
   it("turns off only the chat pane's browser tools when the operator opts out", () => {
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     try {
       act(() => browserAgentSettingsPort.setEnabled({ enabled: false }));
       const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { enabled?: boolean; webmcp?: boolean } };
@@ -781,7 +784,7 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
 describe("AssistantDock — ext event renderer registrations", () => {
   let registry: ExtEventRendererRegistry;
   beforeEach(() => {
-    registry = renderHook(() => useDockRendererRegistry()).result.current.registry;
+    registry = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS })).result.current.registry;
   });
   /**
    * Retrieves the callback from the dock's owned Jini registry for direct assertions.
@@ -911,7 +914,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
     }
     try {
       render(<>
-        <StrictMode><AssistantDock ChatPane={TranscriptPane} useChats={() => fakeChats()} /></StrictMode>
+        <StrictMode><AssistantDock {...DOCK_DEEP_LINK_OFF} ChatPane={TranscriptPane} useChats={() => fakeChats()} /></StrictMode>
         <section data-testid="other-chat-tree"><MessageRow message={message} /></section>
       </>);
       const dock = within(screen.getByTestId("admin-chat-driver-root"));
@@ -948,7 +951,7 @@ describe("AssistantDock — pane title reads the active conversation's own title
 
   it("shows the matching conversation's own title, not the default, when one is found", () => {
     render(
-      <AssistantDock
+      <AssistantDock {...DOCK_DEEP_LINK_OFF}
         useChats={() => fakeChats({ conversations: [conversation({ id: "conv-1", title: "Find my posts" })], activeId: "conv-1" })}
       />,
     );
@@ -959,7 +962,7 @@ describe("AssistantDock — pane title reads the active conversation's own title
 
   it("falls back to the default title when activeId matches no conversation in the list", () => {
     render(
-      <AssistantDock
+      <AssistantDock {...DOCK_DEEP_LINK_OFF}
         useChats={() => fakeChats({ conversations: [conversation({ id: "conv-1", title: "Find my posts" })], activeId: "conv-does-not-exist" })}
       />,
     );
@@ -986,7 +989,7 @@ describe("AssistantDock — permanent conversation deletion", () => {
     const nativeConfirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const chats = deleteChats();
     try {
-      render(<AssistantDock ChatPane={HeaderPane} useChats={() => chats} />);
+      render(<AssistantDock {...DOCK_DEEP_LINK_OFF} ChatPane={HeaderPane} useChats={() => chats} />);
       fireEvent.click(screen.getByTestId("conversation-trigger"));
       fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
       const dialog = screen.getByRole("dialog", { name: "Delete conversation" });
@@ -1010,7 +1013,7 @@ describe("AssistantDock — permanent conversation deletion", () => {
 
   it("does not delete when the dock unmounts with its permanent-delete dialog unanswered", async () => {
     const chats = deleteChats();
-    const dock = render(<AssistantDock ChatPane={HeaderPane} useChats={() => chats} />);
+    const dock = render(<AssistantDock {...DOCK_DEEP_LINK_OFF} ChatPane={HeaderPane} useChats={() => chats} />);
     fireEvent.click(screen.getByTestId("conversation-trigger"));
     fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
     expect(screen.getByRole("dialog", { name: "Delete conversation" })).toBeInTheDocument();
@@ -1024,7 +1027,7 @@ describe("AssistantDock — permanent conversation deletion", () => {
 
   it("names an untitled conversation and denies deletion on native dialog cancellation", async () => {
     const chats = deleteChats(null);
-    render(<AssistantDock ChatPane={HeaderPane} useChats={() => chats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} ChatPane={HeaderPane} useChats={() => chats} />);
     fireEvent.click(screen.getByTestId("conversation-trigger"));
     fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
     const dialog = screen.getByRole("dialog", { name: "Delete conversation" });
@@ -1043,12 +1046,12 @@ describe("AssistantDock — permanent conversation deletion", () => {
  */
 describe("AssistantDock optional ChatPane props", () => {
   it("scopes composer history to the signed-in admin when a principal id is given", async () => {
-    render(<AssistantDock useChats={() => fakeChats()} principalId="admin-7" />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} principalId="admin-7" />);
     await waitFor(() => expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ composerHistoryScope: "admin-7" })));
   });
 
   it("omits composerHistoryScope and conversationId entirely with no principal and no active conversation", async () => {
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
     const props = chatPaneSpy.mock.lastCall![0] as ComponentProps<typeof RealChatPane>;
     expect(Object.keys(props)).not.toContain("composerHistoryScope");
@@ -1056,7 +1059,7 @@ describe("AssistantDock optional ChatPane props", () => {
   });
 
   it("leaves the composer footer's voice slot undefined while voice input is switched off", async () => {
-    render(<AssistantDock useChats={() => fakeChats()} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={() => fakeChats()} />);
     await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
     const props = chatPaneSpy.mock.lastCall![0] as ComponentProps<typeof RealChatPane>;
     expect(props.composerSlots?.footerLeadingAccessory).toBeUndefined();

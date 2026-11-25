@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from '#src/server/__tests__/helpers/route-incident-reporter';
 import { createSettingsPrincipalLookup } from '#src/features/settings/index';
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
@@ -35,7 +36,7 @@ test('real HTTP/browser TOTP enrollment and passkey registration/login withhold 
   const app = express(); app.use(express.json({ limit: '16kb' }));
   app.get('/browser.js', (_req, res) => { res.type('js').send(bundle); });
   app.get('/', (_req, res) => { res.type('html').send('<!doctype html><title>Synthetic passkey test</title><script src="/browser.js"></script>'); });
-  registerAuthRoutes({ app, deps }, { localOwnerSignIn: { enabled: false } });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors }, { localOwnerSignIn: { enabled: false, routineDesktopEligible: false } });
   const server = createServer(app);
   await new Promise<void>(done => server.listen(0, '127.0.0.1', done));
   t.after(() => new Promise<void>((done, reject) => server.close(error => error ? reject(error) : done())));

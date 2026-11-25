@@ -23,6 +23,7 @@ import { listPublishContentContributors, resetPublishContentContributorsForTests
 import { createRouteDeps } from "../app.js";
 import { createAssistantByokModule } from "../modules/assistant-byok.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
@@ -217,7 +218,7 @@ async function buildByokRole(routeDeps: ReturnType<typeof createRouteDeps>): Pro
   contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
-  const byok = createAssistantByokModule({ routeDeps }); // calls installFirstPartyToolContributors() itself
+  const byok = createAssistantByokModule({ reporter: testToolReporter(), routeDeps }); // calls installFirstPartyToolContributors() itself
   await byok.toolSurface.ready;
   const ids = new Set(byok.toolSurface.registry.list({}).map((d) => d.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
@@ -301,7 +302,7 @@ test("BYOK's search_tools catalog finds an installed skill's tool once ready res
       contributions.contributors.clear({});
       resetPublishContentContributorsForTests();
       resetDuplicateResourceHandlersForTests();
-      const byok = createAssistantByokModule({ routeDeps }); // calls installFirstPartyToolContributors() itself
+      const byok = createAssistantByokModule({ reporter: testToolReporter(), routeDeps }); // calls installFirstPartyToolContributors() itself
       await byok.toolSurface.ready;
 
       const result = await byok.toolSurface.executeMetaTool(
@@ -330,7 +331,7 @@ test("BYOK's federation is a real, non-stubbed FederationRuntime that boots lazi
     contributions.contributors.clear({});
     resetPublishContentContributorsForTests();
     resetDuplicateResourceHandlersForTests();
-    const { toolSurface } = createAssistantByokModule({ routeDeps });
+    const { toolSurface } = createAssistantByokModule({ reporter: testToolReporter(), routeDeps });
 
     // Proves federation is attached at all (S1-S6 above wired it into `createByokToolSurface` itself
     // — see that file's own header — not merely typed as optional and left `undefined` for every real
@@ -406,7 +407,7 @@ test("daemon termination signals stay registered throughout asynchronous disposa
   assert.ok(source.includes('process.on("SIGINT", () => { void exitDaemon({ exitCode: 130 }); });'));
 });
 
-test("daemon shutdown waits for publication even when durability fails after rename", async () => {
+test("daemon shutdown waits for publication even when durability fails after rename", async (t) => {
   const { default: ts } = await import("typescript");
   const { daemonEntrySource: daemonSource } = await import("../../../inbound/assistant/__tests__/helpers/daemon-entry-source.js");
   const declaration = daemonSource.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === "exitDaemon");
@@ -418,9 +419,14 @@ test("daemon shutdown waits for publication even when durability fails after ren
   const publication = new Promise<void>((_resolve, reject) => { rejectPublication = reject; });
   const calls: string[] = [];
   const { closeWithinBound } = await import("@jini-ai/server/shutdown");
+  const { afterSettled } = await import("@jini-ai/core/errors/idioms");
+  const afterSettledSpy = t.mock.fn(({ promise }: { promise: PromiseLike<unknown> }, _optional = {}) => {
+    assert.deepEqual(calls, ["store-closing", "store-closed"]);
+    return afterSettled({ promise });
+  });
   let releaseStore!: () => void;
   const storeClosed = new Promise<void>((resolve) => { releaseStore = resolve; });
-  const exit = new Function("registryPublication", "daemonRegistry", "process", "console", "closeWithinBound", "scopes", "consoleLogger",
+  const exit = new Function("registryPublication", "daemonRegistry", "process", "console", "closeWithinBound", "scopes", "consoleLogger", "afterSettled",
     `let daemonExiting = false; const stopIdleMonitor = () => {}; const stopDaemonServing = async () => {}; ${code}; return exitDaemon;`)(
       publication,
       { removeIfCurrent: async ({ pid }: { pid: number }) => { calls.push(`remove:${pid}`); } },
@@ -429,6 +435,7 @@ test("daemon shutdown waits for publication even when durability fails after ren
       closeWithinBound,
       new Map([['site', Promise.resolve({ dispose: async () => { calls.push("store-closing"); await storeClosed; calls.push("store-closed"); } })]]),
       { error: () => undefined, warn: () => undefined, info: () => undefined, debug: () => undefined },
+      afterSettledSpy,
     );
   const first = exit({ exitCode: 143 });
   await exit({ exitCode: 130 });
@@ -440,5 +447,7 @@ test("daemon shutdown waits for publication even when durability fails after ren
   assert.deepEqual(calls, ["store-closing", "store-closed"], "pointer removal must still wait for publication after the owned connections close");
   rejectPublication(new Error("directory fsync failed after rename"));
   await first;
+  assert.equal(afterSettledSpy.mock.callCount(), 1);
+  assert.equal(afterSettledSpy.mock.calls[0]!.arguments[0].promise, publication);
   assert.deepEqual(calls, ["store-closing", "store-closed", "remove:123", "exit:143"]);
 });

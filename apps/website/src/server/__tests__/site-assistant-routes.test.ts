@@ -18,6 +18,7 @@ import type { RouteDeps } from "../routes/types.js";
 import { writeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import { VISITOR_TOOLS_HOST, SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 import type { InMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file `POST /api/site-assistant/chat` (ADR-054) — coverage for the master on/off switch
@@ -175,7 +176,7 @@ async function bootGeminiStub(
 
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, { env: testEnv }).registerRoutes?.({ app });
+  createSiteAssistantModule({ deps, reporter: createRouteIncidentReporter().reporter }, { env: testEnv }).registerRoutes?.({ app });
   return startTestServer(app, t);
 }
 
@@ -623,7 +624,7 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: `http://127.0.0.1:${address.port}` });
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` } }).registerRoutes?.({ app });
+  createSiteAssistantModule({ deps, reporter: createRouteIncidentReporter().reporter }, { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` } }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   const controller = new AbortController();
   t.after(() => controller.abort());
@@ -664,3 +665,53 @@ async function scopedVisitorHeaders({ baseUrl, workspaceId, signal, capability =
   })();
   return { ...headers, 'x-frontend-bind-token': event.bindToken };
 }
+
+/** P6-T1.T: an AG-UI `RunAgentInput` body for the same `/chat` POST, carrying the widget's turn id. */
+function agUiBody({ turnId, message = "What posts are on this site?" }: { turnId: string; message?: string }) {
+  return { threadId: "thread-1", runId: `run-${turnId}`, state: null, tools: [], context: [],
+    messages: [{ id: "m1", role: "user", content: message }], forwardedProps: { turnId } };
+}
+
+function postWire({ baseUrl, body, agUi }: { baseUrl: string; body: unknown; agUi: boolean }): Promise<Response> {
+  return fetch(`${baseUrl}/api/site-assistant/chat`, { method: "POST",
+    headers: { "content-type": "application/json", ...(agUi ? { accept: "text/event-stream; agui=1" } : {}) }, body: JSON.stringify(body) });
+}
+
+test("old and new visitor clients share gates and turn dedupe", async (t) => {
+  // Disabled precedence: both wires get the same plain 404, before any body is read.
+  const disabledUrl = await startTestServer(createApp(createRouteDeps()), t);
+  for (const agUi of [false, true]) {
+    const refused = await postWire({ baseUrl: disabledUrl, body: agUi ? agUiBody({ turnId: "turn-disabled-01" }) : { message: "hi" }, agUi });
+    assert.equal(refused.status, 404);
+    assert.match(refused.headers.get("content-type") ?? "", /application\/json/);
+  }
+
+  const deps = createRouteDeps();
+  await deps.siteTitleReady;
+  await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
+    clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+  { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
+  let providerStarts = 0;
+  const baseUrl = await bootGeminiStub(t, deps, () => { providerStarts += 1; return sseBody(textCandidate("Two posts.", "STOP")); });
+
+  // Validation refusals keep their legacy statuses on the AG-UI wire, as JSON, before any spend.
+  assert.equal((await postWire({ baseUrl, body: agUiBody({ turnId: "turn-blank-0001", message: "   " }), agUi: true })).status, 400);
+  assert.equal((await postWire({ baseUrl, body: agUiBody({ turnId: "turn-large-0001", message: "x".repeat(2001) }), agUi: true })).status, 413);
+  assert.equal((await postWire({ baseUrl, body: { ...agUiBody({ turnId: "turn-noids-0001" }), runId: "" }, agUi: true })).status, 400);
+  assert.equal(providerStarts, 0);
+
+  // One turn id, admitted once across both wires: no second paid provider start.
+  const first = await postWire({ baseUrl, body: agUiBody({ turnId: "turn-shared-0001" }), agUi: true });
+  const firstBody = await first.text();
+  assert.equal(first.status, 200);
+  assert.match(firstBody, /"type":"RUN_FINISHED"/);
+  assert.doesNotMatch(firstBody, /functionCall|tool_use|diagnostic/, "no internal tool or diagnostic bytes on the wire");
+  for (const agUi of [true, false]) {
+    const retry = await postWire({ baseUrl, body: agUi ? agUiBody({ turnId: "turn-shared-0001" }) : { message: "What posts are on this site?", turnId: "turn-shared-0001" }, agUi });
+    assert.equal(retry.status, 409);
+    const refusal = await retry.json() as { code: string; error: string };
+    assert.equal(refusal.code, "DUPLICATE_TURN");
+    assert.doesNotMatch(refusal.error, /visitor turn already/, "the diagnostic stays in the operator log");
+  }
+  assert.equal(providerStarts, 1);
+});

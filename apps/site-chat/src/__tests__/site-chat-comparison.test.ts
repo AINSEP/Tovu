@@ -6,6 +6,16 @@ import { createEmbedSendAgentControl, installEmbedSendBridge } from '@jini-ai/ch
 import { isSiteChatComparisonRoot, readSiteChatComparisonVariant, SITE_CHAT_COMPARISON_COPY, SITE_CHAT_COMPARISON_NAMES } from '../site-chat-comparison';
 import { siteStorageKey } from '../session-store';
 import { startSiteChatLoader } from '../loader-host';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { mountVanillaChat } from '@jini-ai/chat/vanilla';
+import { React, act, createRoot, installDom } from './react-dom-harness';
+import { createSiteVanillaArgs } from '../vanilla-host';
+import { loadSiteAssistantState } from '../session-store';
+
+const { SiteAssistantWidget } = await import('../SiteAssistantWidget');
+const { ChatSurfacesProvider } = await import('@jini-ai/chat/react');
+const { chatSurfaces } = await import('../jini-surfaces');
 
 function fixture(variant?: string) {
   const dom = new JSDOM('<div id="tovu-site-assistant-root"></div>', { url: 'https://site.test/__compare/site-chat/react' });
@@ -134,4 +144,63 @@ test('wcmp: a React pane relays capability errors, and unmounting rejects a send
   await control.bridgeAccess!.respondSuccess('site-chat-comparison', {});
   await control.bridgeAccess!.respondError('site-chat-comparison', 'late');
   f.dom.window.close();
+});
+
+// The recorded server stream for a plain reply, with the recording's placeholder ids swapped for the
+// ids of the request it now answers (the transport ignores a RUN_STARTED for any other ids).
+const GOLDEN_PATH = resolve(import.meta.dirname, '../../../website/src/server/__tests__/goldens/site-chat-stream.ag-ui.golden.json');
+const recordedPlainReply = (JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as Record<string, { body: string }>)['plain reply']!.body;
+const PROMPT = 'What can I find on this site?';
+
+/** `dropFrameType` is only the mutation seam: it removes one recorded frame kind before delivery. */
+function recordedServer({ dropFrameType }: { dropFrameType?: string } = {}) {
+  return (async (_url: string, init?: RequestInit) => {
+    const { threadId, runId } = JSON.parse(String(init?.body)) as { threadId: string; runId: string };
+    const body = recordedPlainReply.replaceAll('thread-1', threadId).replaceAll('run-1', runId).replaceAll('msg_<uuid>', 'm1')
+      .split('\n\n').filter(part => part && !(dropFrameType && part.includes(`"type":"${dropFrameType}"`))).map(part => `${part}\n\n`).join('');
+    return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+  }) as typeof fetch;
+}
+
+const transcript = () => loadSiteAssistantState().messages.map(({ role, content }) => ({ role, content }));
+
+async function reactTranscript({ fetch }: { fetch: typeof globalThis.fetch }) {
+  const { dom, restore } = installDom({ html: '<div id="tovu-site-assistant-root"></div>' }, { url: 'https://site.test/' });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetch;
+  const container = dom.window.document.getElementById('tovu-site-assistant-root')!;
+  const root = createRoot(container);
+  const button = (name: string) => [...container.querySelectorAll('button')].find(node => (node.getAttribute('aria-label') ?? node.textContent) === name)!;
+  try {
+    await act(async () => root.render(React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget) })));
+    act(() => button('Chat with this site').click());
+    act(() => button(PROMPT).click());
+    await act(async () => { button('Send').click(); });
+    await act(async () => { await new Promise(resolve => setImmediate(resolve)); });
+    return { messages: transcript(), shown: container.textContent ?? '' };
+  } finally { await act(async () => root.unmount()); globalThis.fetch = realFetch; restore(); }
+}
+
+async function vanillaTranscript({ fetch }: { fetch: typeof globalThis.fetch }) {
+  const { dom, restore } = installDom({ html: '<div id="tovu-site-assistant-root"></div>' }, { url: 'https://site.test/' });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fetch;
+  const element = dom.window.document.getElementById('tovu-site-assistant-root')!;
+  const widget = mountVanillaChat(createSiteVanillaArgs({ element }), { initialOpen: true });
+  try {
+    await widget.controller.send({ text: PROMPT });
+    await new Promise(resolve => setImmediate(resolve));
+    return { messages: transcript(), shown: element.textContent ?? '' };
+  } finally { widget.unmount(); globalThis.fetch = realFetch; restore(); }
+}
+
+test('both renderers render the same transcript from one recorded AG-UI stream', async () => {
+  const react = await reactTranscript({ fetch: recordedServer() });
+  const vanilla = await vanillaTranscript({ fetch: recordedServer() });
+  assert.deepEqual(react.messages, [{ role: 'user', content: PROMPT }, { role: 'assistant', content: 'Hello from the site.' }]);
+  assert.deepEqual(vanilla.messages, react.messages);
+  for (const host of [react, vanilla]) {
+    assert.match(host.shown, /Hello from the site\./);
+    assert.ok(host.shown.includes(PROMPT));
+  }
 });

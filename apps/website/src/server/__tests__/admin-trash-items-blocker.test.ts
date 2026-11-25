@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -77,7 +78,7 @@ function buildHarness(): Harness {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: base });
+  registerAuthRoutes({ app, deps: base, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(base));
   createTrashModule(trashDeps).registerRoutes?.({ app });
 

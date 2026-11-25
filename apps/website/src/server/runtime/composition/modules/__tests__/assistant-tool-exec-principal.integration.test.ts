@@ -7,6 +7,7 @@ import { createRouteDeps } from "../../app.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { registerAssistantToolExecRoutes } from "../assistant-tool-exec.js";
 import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test("a member cannot execute or discover tools as another run's owner", async (t) => {
   const deps = createRouteDeps();
@@ -31,9 +32,9 @@ test("a member cannot execute or discover tools as another run's owner", async (
       },
       listToolsFor: async ({ principalId }) => { catalogs.push(principalId); return []; },
     } };
-  registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore: deps.chatRunLedger.durable, toolSurface }, {});
+  registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore: deps.chatRunLedger.durable, toolSurface, reporter: createRouteIncidentReporter().reporter }, {});
   const unconfigured = express.Router();
-  registerAssistantToolExecRoutes({ router: unconfigured, workspaceId: deps.workspaceId, runStore: undefined, toolSurface }, {});
+  registerAssistantToolExecRoutes({ router: unconfigured, workspaceId: deps.workspaceId, runStore: undefined, toolSurface, reporter: createRouteIncidentReporter().reporter }, {});
   app.use("/unconfigured", unconfigured);
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));

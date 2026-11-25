@@ -14680,6 +14680,42 @@
     {
       "id": "d0fd7ed0c4bc",
       "reason": "Said _routeDeps/_surfaces were unused because the component catalog was static; 6b664884a (B186) made chart entries come from the host's live chart-provider snapshot per request, and the rewritten doc explains readChartSnapshot's per-request read instead."
+    },
+    {
+      "id": "e2694023bb85",
+      "reason": "P6-T1.T: transport header rewritten for the negotiated AG-UI wire (RunAgentInput body, Jini fetch agent reader); the legacy 'text/error/end frames parsed by hand' description no longer matches the file."
+    },
+    {
+      "id": "c866793b2688",
+      "reason": "P6-T1.T: the visitor transport's handwritten SSE reader was replaced by Jini's createAgUiFetchAgent (readSseFrames + EventSchemas); parseSseFrame was deleted with it."
+    },
+    {
+      "id": "829a49cddc65",
+      "reason": "P6-T1.T: the visitor transport's handwritten SSE reader was replaced by Jini's createAgUiFetchAgent (readSseFrames + EventSchemas); drainCompleteFrames was deleted with it."
+    },
+    {
+      "id": "ae5241dd5fc1",
+      "reason": "P6-T1.T: the visitor transport's handwritten SSE reader was replaced by Jini's createAgUiFetchAgent (readSseFrames + EventSchemas); the data-less frame skip now lives in Jini's chatFrame/readSseFrames."
+    },
+    {
+      "id": "cb456b424b78",
+      "reason": "P6-T1.T: the visitor transport's handwritten SSE reader was replaced by Jini's createAgUiFetchAgent (readSseFrames + EventSchemas); pumpServerSentEvents was deleted with it; the new file header explains why fetch (not EventSource) is still used."
+    },
+    {
+      "id": "0ddab51735ec",
+      "reason": "P6-T1.T: the legacy end-frame handler is gone; handleRunFinished's comment states the actual rule (only result.reason 'navigation' releases the deferred page action)."
+    },
+    {
+      "id": "01b45e3ea8d3",
+      "reason": "P6-T1.T: performRun no longer pumps an SSE body itself; its doc now says it reads the AG-UI body through the Jini fetch agent."
+    },
+    {
+      "id": "3ffb6f663da7",
+      "reason": "P6-T1.T intentionally reverses this rule: EOF without RUN_FINISHED/RUN_ERROR is now an interrupted reply (fixed recovery wording), never a success; the new complete() comment states that."
+    },
+    {
+      "id": "6085146c9055",
+      "reason": "P6-T1.T: documented the legacy SSE parser's `event: message` default (defaultEventFrame); that parser is gone (Jini's AG-UI fetch agent owns SSE parsing), and the replacement test now covers an unrecognized CUSTOM event name."
     }
   ]
 }

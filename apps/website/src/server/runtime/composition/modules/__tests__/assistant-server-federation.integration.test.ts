@@ -10,6 +10,7 @@ import { hostedMcpSignInLink } from "../../../../../features/api-connections/bro
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import { serverFederationFixture } from "./helpers/server-federation-fixture.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 test.beforeEach(() => { resetExternalMcpRosterChangeListenersForTests(); resetAssistantDaemonSingletonForTests(); });
 test.afterEach(() => { resetExternalMcpRosterChangeListenersForTests(); resetAssistantDaemonSingletonForTests(); });
@@ -25,7 +26,7 @@ test("daemon catalog demand admits server federation before returning remote too
   const { acceptToolRun } = await import("./assistant-tool-exec.fixture.js");
   const { startTestServer } = await import("#src/server/__tests__/helpers/http-test-server");
   await acceptToolRun({ deps: fixture.deps, runId: "catalog-demand", principalId: "owner" });
-  const module = createAssistantByokModule({ routeDeps: fixture.deps }, { toolSurface: fixture.surface });
+  const module = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: fixture.deps }, { toolSurface: fixture.surface });
   const app = express();
   module.registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);
@@ -79,7 +80,7 @@ test("a remote tool's Allow for this chat survives the move to the server and st
   const { acceptToolRun } = await import("./assistant-tool-exec.fixture.js");
   const { startTestServer } = await import("#src/server/__tests__/helpers/http-test-server");
   await acceptToolRun({ deps: fixture.deps, runId: "remembered-run", principalId: "owner" });
-  const module = createAssistantByokModule({ routeDeps: fixture.deps }, { federationConnect: async () => session });
+  const module = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: fixture.deps }, { federationConnect: async () => session });
   const app = express();
   module.registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);

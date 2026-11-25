@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -68,7 +69,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
   });
   savedEntry = undefined;
 
-  registerAdminWidgetUpdateRoute({ app: mockApp as any, deps });
+  registerAdminWidgetUpdateRoute({ app: mockApp as any, deps, errors: createRouteIncidentReporter().errors });
   assert.ok(routeHandler, "route handler was registered");
 
   function createMockRes() {

@@ -4,6 +4,7 @@ import { registerOwnerMfaRoutes } from "./owner-mfa-routes.js";
 import { registerOwnerRecoveryRoutes } from "./owner-recovery-routes.js";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express, NextFunction, Request, Response } from "express";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { mountJsonRoute } from "@jini-ai/http-kit";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 import {
@@ -560,6 +561,12 @@ function setCookieValues(res: Response): readonly string[] {
   return header === undefined ? [] : Array.isArray(header) ? header.map(String) : [String(header)];
 }
 
+/** Live owner authority for the routine host (P3-T1a.T): the identity `*` holder only, re-read on every
+ * call so a demoted owner loses routines at once. A session alone never counts. */
+export async function holdsSiteOwnerAuthority({ deps, workspaceId, principalId }: { deps: SessionAuthDeps; workspaceId: string; principalId: string }, _optional: Record<string, never> = {}): Promise<boolean> {
+  return principalHoldsOwnerWildcard({ deps: authServiceDepsFrom(deps), workspaceId, principalId });
+}
+
 /** Told after an owner or admin signs in. Only the serving app passes one (its automatic form pull);
  * `signedIn` must return at once: it runs after the session cookie is set and is never awaited. */
 export interface AdminSignInPort {
@@ -592,8 +599,10 @@ function sessionRequestOptions({ req }: { req: Request }) {
 }
 
 /** Registers login/logout/me and the loopback boot exchange before the admin session gate.
- * `onAdminSignIn` hears every owner/admin sign-in: password login and both boot-session exchanges. */
-export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDeps }, { localOwnerSignIn = bootLocalOwnerSignIn, onAdminSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy; onAdminSignIn?: AdminSignInPort } = {}): void {
+ * `onAdminSignIn` hears every owner/admin sign-in: password login and both boot-session exchanges.
+ * @param required.errors - The owning site's route error ports (`createApp`'s one site reporter), bound to the
+ *   seven owner-auth routes mounted directly on http-kit. */
+export function registerAuthRoutes({ app, deps, errors }: { app: Express; deps: RouteDeps; errors: RouteErrorPorts }, { localOwnerSignIn = bootLocalOwnerSignIn, onAdminSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy; onAdminSignIn?: AdminSignInPort } = {}): void {
   // REQ-14/AC-18: LOGIN_STRICT (10 req/60s per client IP) brute-force guard on
   // AUTH_LOGIN. One limiter instance per `registerAuthRoutes` call, so each
   // `createApp()`/`createRouteDeps()` pair (and therefore each test's server)
@@ -617,7 +626,7 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       res.json({ user: { id: result.principal.id, username: user?.username ?? result.principal.displayName } });
     },
   });
-  mountOwnerAuthRoutes({ app, deps }, { loginRateLimiter, localOwnerSignIn, onAdminSignIn });
+  mountOwnerAuthRoutes({ app, deps, errors }, { loginRateLimiter, localOwnerSignIn, onAdminSignIn });
 }
 
 interface OwnerAuthMountOptions { loginRateLimiter: ReturnType<typeof createRateLimiter>; localOwnerSignIn: LocalOwnerSignInPolicy; onAdminSignIn: AdminSignInPort | undefined }
@@ -679,8 +688,13 @@ function ownerAuthErrorPort({ operation }: { operation?: "login" | "logout" }) {
 }
 
 /** Mounts the seven `@jini-ai/user-management` owner-auth K1 routes, in their pre-K1 order and
- * position (ahead of the session gate). Deps are read per request, as the inline handlers did. */
-function mountOwnerAuthRoutes({ app, deps }: { app: Express; deps: RouteDeps }, options: OwnerAuthMountOptions): void {
+ * position (ahead of the session gate). Deps are read per request, as the inline handlers did.
+ * @param required.errors - The owning site's route error ports. They put every mount in reporter mode:
+ *   {@link ownerAuthErrorPort} still answers a failure first; a broken answer or write is one record. */
+function mountOwnerAuthRoutes({ app, deps, errors }: { app: Express; deps: RouteDeps; errors: RouteErrorPorts }, options: OwnerAuthMountOptions): void {
+  // No owner-auth spec asks for `requireSameOrigin`, so this policy is never consulted; it exists only
+  // because a reporter-mode host context carries one, and it refuses (fails closed) if a later spec asks.
+  const adapter = { originPolicy: { isSameOrigin: () => false }, errors };
   const authenticate = ({ res }: { res: Response }) => authRequestFor({ deps, res, options });
   const ports = (operation?: "login" | "logout") => ({ authenticate, onError: ownerAuthErrorPort({ operation }) });
   const findUserByPrincipalId = (query: { workspaceId: string; principalId: string }) => deps.userRepo.findByPrincipalId(query);
@@ -688,22 +702,22 @@ function mountOwnerAuthRoutes({ app, deps }: { app: Express; deps: RouteDeps }, 
     get identityReady() { return deps.identityReady; }, get mfaStore() { return deps.mfaStore; }, workspaceId: deps.workspaceId,
     login: (required, sessionOptions) => login({ deps: authServiceDepsFrom(deps), ...required }, sessionOptions),
     beginOwnerLogin: async (required, sessionOptions) => beginOwnerLogin({ deps: await ownerMfaDepsFrom({ deps }), ...required }, sessionOptions),
-  } });
+  }, adapter });
   mountJsonRoute({ app, spec: { ...mfaLoginRoute, ports: ports("login") }, deps: {
     workspaceId: deps.workspaceId, findUserByPrincipalId,
     completeOwnerLogin: async (required, sessionOptions) => completeOwnerLogin({ deps: await ownerMfaDepsFrom({ deps }), ...required }, sessionOptions),
-  } });
-  mountJsonRoute({ app, spec: { ...logoutRoute, ports: ports("logout") }, deps: { get identityReady() { return deps.identityReady; } } });
-  mountJsonRoute({ app, spec: { ...bootSessionRoute, ports: ports() }, deps: {} });
-  mountJsonRoute({ app, spec: { ...localBootSessionRoute, ports: ports() }, deps: {} });
+  }, adapter });
+  mountJsonRoute({ app, spec: { ...logoutRoute, ports: ports("logout") }, deps: { get identityReady() { return deps.identityReady; } }, adapter });
+  mountJsonRoute({ app, spec: { ...bootSessionRoute, ports: ports() }, deps: {}, adapter });
+  mountJsonRoute({ app, spec: { ...localBootSessionRoute, ports: ports() }, deps: {}, adapter });
   mountJsonRoute({ app, spec: { ...currentUserRoute, ports: ports() }, deps: {
     workspaceId: deps.workspaceId, findUserByPrincipalId,
     effectivePermissions: ({ workspaceId, principalId }) => getEffectivePermissions({ deps: identityReposFrom(deps), input: { workspaceId, principalId } }),
     callerMayManageUserTrash: ({ workspaceId, callerPrincipalId }) => callerMayManageUserTrash({ deps: authServiceDepsFrom(deps), workspaceId, callerPrincipalId }),
     canPublishToLive: () => canPublishToLive({ resolveRuntimeMode }),
-  } });
+  }, adapter });
   mountJsonRoute({ app, spec: { ...createPasswordStatusRoute(), ports: ports() }, deps: {
     workspaceId: deps.workspaceId, findUserByPrincipalId, defaultOwnerPassword: DEFAULT_OWNER_PASSWORD,
     verifyPassword: ({ hash, password }) => deps.passwordHasher.verify({ hash, password }),
-  } });
+  }, adapter });
 }

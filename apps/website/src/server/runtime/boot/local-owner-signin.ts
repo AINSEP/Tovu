@@ -11,6 +11,11 @@ export interface LocalOwnerSignInPolicy {
   warning?: string;
   /** Desktop policies require proof from the site's Electron session on every bootstrap POST. */
   acceptsCapability?: (required: { capability: string | undefined }) => boolean;
+  /**
+   * True only for an accepted desktop launch (capability, launcher parent, deployment, listener and
+   * origin all verified). Routines run their scheduler only then; env presence alone never counts.
+   */
+  routineDesktopEligible: boolean;
 }
 
 /** Resolve the launcher opt-in once per boot; unsafe configuration stays disabled. @complexity O(1). */
@@ -19,8 +24,8 @@ export function resolveLocalOwnerSignIn(
   { pathExists, parentPid = process.ppid }: { pathExists?: (path: string) => boolean; parentPid?: number } = {},
 ): LocalOwnerSignInPolicy {
   const { capability, desktopLaunch, desktop } = classifyLocalOwnerLaunch({ env });
-  if (!desktopLaunch && env.TOVU_DEV_OWNER_SIGNIN !== "1") return { enabled: false };
-  const deny = ({ reason }: { reason: string }): LocalOwnerSignInPolicy => ({ enabled: false,
+  if (!desktopLaunch && env.TOVU_DEV_OWNER_SIGNIN !== "1") return { enabled: false, routineDesktopEligible: false };
+  const deny = ({ reason }: { reason: string }): LocalOwnerSignInPolicy => ({ enabled: false, routineDesktopEligible: false,
     warning: `[local-owner-signin] WARNING: ${desktopLaunch ? "TOVU_DESKTOP_OWNER_SIGNIN" : "TOVU_DEV_OWNER_SIGNIN"} is disabled: ${reason}. Local owner sign-in requires a loopback dev launcher; deployed sites keep per-site accounts.` });
   const launchRefusal = localLaunchEnvironmentRefusal({ env, desktopLaunch, desktop, parentPid });
   if (launchRefusal) return deny({ reason: launchRefusal });
@@ -37,11 +42,11 @@ function localOwnerAcceptedPolicy(
   desktop: boolean, capability: string | undefined, deny: (required: { reason: string }) => LocalOwnerSignInPolicy,
 ): LocalOwnerSignInPolicy {
   if (desktop && capability === undefined) return deny({ reason: "missing desktop capability" });
-  return desktop ? { enabled: true, acceptsCapability: ({ capability: presented }) =>
+  return desktop ? { enabled: true, routineDesktopEligible: true, acceptsCapability: ({ capability: presented }) =>
     capability !== undefined && typeof presented === "string" && presented.length === 64 && timingSafeTokenMatch({
       presented, expected: capability, timingSafeEqual: ({ left, right }) => timingSafeEqual(left, right),
     }),
-  } : { enabled: true };
+  } : { enabled: true, routineDesktopEligible: false };
 }
 
 type LocalLaunchEnv = Readonly<Record<string, string | undefined>>;

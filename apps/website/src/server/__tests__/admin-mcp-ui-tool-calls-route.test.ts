@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -80,7 +81,7 @@ function harness() {
         const deps: RouteDeps = createRouteDeps();
         const app = express();
         app.use(express.json());
-        registerAuthRoutes({ app, deps });
+        registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
         // A fresh, empty store: redemption replies name daemon-held exchanges, so the local
         // delivery branch cannot consume them. The daemon owns and validates those exchanges.
         createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
@@ -243,7 +244,7 @@ async function bootWithStore(t: import("node:test").TestContext) {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), byokSurfaceExchanges: surfaceExchanges }).registerRoutes?.({ app });
 
   recorded = [];

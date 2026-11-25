@@ -10,6 +10,7 @@ import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
 import { createPublishTrustRevocationReader } from "../publish-trust-revocations.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-039) — the `core` module: health/readiness routes, login/logout/me,
@@ -34,8 +35,10 @@ import type { ServerModuleHandle } from "./types.js";
  * full `RouteDeps` on its account). `requireAdminSession` takes `SessionAuthDeps`;
  * passing the full `deps` below satisfies it
  * because `RouteDeps` is a strict superset of `SessionAuthDeps`.
+ * @param required.deps - The full route deps (see above).
+ * @param required.errors - The owning site's route error ports, bound to the routes mounted directly on http-kit.
  */
-export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: AdminSignInPort } = {}): ServerModuleHandle {
+export function createCoreModule({ deps, errors }: { deps: RouteDeps; errors: RouteErrorPorts }, optional: { onAdminSignIn?: AdminSignInPort } = {}): ServerModuleHandle {
   // This install's own publishing identity — the audience every publishing token must name.
   // Derived once per process rather than per request: it is a pure function of the site key and
   // the workspace, so it cannot change while the process runs. Awaited inside each consumer, so a
@@ -77,7 +80,7 @@ export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: Ad
       // Order is load-bearing: `registerAuthRoutes` registers the ungated
       // `POST /api/admin/v1/auth/login` (plus logout/me) route BEFORE the
       // gate below mounts, so login itself is never caught by its own gate.
-      registerAuthRoutes({ app, deps }, { onAdminSignIn: optional.onAdminSignIn });
+      registerAuthRoutes({ app, deps, errors }, { onAdminSignIn: optional.onAdminSignIn });
 
       // Order is load-bearing here too, and in the other direction: the publishing gate runs
       // BEFORE the admin session gate, because a publishing token is presented in the same

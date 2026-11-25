@@ -20,6 +20,7 @@ import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** Execute the production registration loop with a harmless, observable frontend effect. */
 async function fixture({ missingRevision = false } = {}) {
@@ -69,7 +70,7 @@ test("the daemon's actual loop asks one chat card before an opaque click; HTTP h
   registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
     ...f.toolExecutor,
     execute: (...args) => { callbackExecutions++; return f.toolExecutor.execute(...args); },
-  } } });
+  } }, errors: createRouteIncidentReporter().errors });
   const baseUrl = await startTestServer(app, t);
   const input = { handle: "delete-site-confirm" };
   let cards = 0;

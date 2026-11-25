@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import { MAX_AUTHORIZATION_STATE_LENGTH } from "@jini-ai/oauth";
@@ -128,7 +129,7 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps, http };

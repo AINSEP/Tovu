@@ -14,6 +14,7 @@ import { registerInstalledSkillTools } from "@jini-ai/agentic/skills/site/tool-r
 import { createSkillRefreshMiddleware } from "@jini-ai/agentic/skills/site/live-registration";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "#src/assistant/byok-tool-surface";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 const ctx = testSiteLayoutContext({ workspaceId: "ws-hot-test" });
 const MD = "---\nname: incident-response\ndescription: Use for outages and incident response.\n---\nAlways check ownership before rollback.\n";
 const principal = { id: "owner" }, run = { id: "run-hot" };
@@ -48,7 +49,7 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
 
 test("BYOK meta-tools discover and execute a post-boot installation, then drop a disabled skill", () => fixture(async () => {
   const deps = { ...ctx, getEffective: async () => null, clock: { nowMs: () => Date.parse("2026-10-01T00:00:00Z") }, idGen: { newId: () => "id-hot" }, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as ByokToolSurfaceDeps;
-  const surface = createByokToolSurface(deps, {
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), {
     registerInstalledExtensions: ({ registry, deps: extensionDeps }) => registerInstalledSkillTools({ registry, ctx: { ...extensionDeps, withExtensionApprovalPolicy } }),
   });
   await surface.ready;

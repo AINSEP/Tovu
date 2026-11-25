@@ -1,4 +1,7 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { useState } from "react";
+import { t as routinesT } from "./features/routines/routines-i18n";
+import type { useApplyConversationDeepLink } from "./features/routines/use-conversation-deep-link";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { Toast } from "@jini-ai/ui";
 import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
@@ -69,7 +72,11 @@ export function ChatDockAside(props: {
   principalId: string;
   dockT: DockT;
   locale: string;
+  /** Route query for the AI Assistant panel, else null (see `AssistantDock`'s `query`). */
+  query: URLSearchParams | null;
+  useConversationDeepLink: typeof useApplyConversationDeepLink;
 }): ReactNode {
+  const [deepLinkNotice, setDeepLinkNotice] = useState<string | null>(null);
   const { chatDockRef, chatOpen, sheetExpanded, setSheetExpanded, setChatOpen, handleDockDropCapture, publishDropCapture } = props.dock;
   const { themeBoundary, agentBridge, principalId, dockT, locale } = props;
   return (
@@ -121,7 +128,11 @@ export function ChatDockAside(props: {
         onDropCapture={handleDockDropCapture}
       >
         <SheetBar sheetExpanded={sheetExpanded} setSheetExpanded={setSheetExpanded} setChatOpen={setChatOpen} dockT={dockT} />
+        {deepLinkNotice === null ? null : <p role="status" className="chat-dock-notice">{deepLinkNotice}</p>}
         <AssistantDock
+          query={props.query}
+          useConversationDeepLink={props.useConversationDeepLink}
+          deepLinkPorts={{ openDock: () => setChatOpen(true), notify: ({ key }) => setDeepLinkNotice(routinesT({ locale, key })) }}
           agentBridge={agentBridge}
           principalId={principalId}
           onFolderDropCaptureReady={publishDropCapture}

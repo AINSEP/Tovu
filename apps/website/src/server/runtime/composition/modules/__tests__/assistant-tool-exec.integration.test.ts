@@ -23,6 +23,7 @@ import { ensureAgentDaemonToken, ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } 
 import { hasUnknownToolCall } from "@jini-ai/chat/server/durable-runs";
 import type { RouteDeps } from "../../../../routes/types.js";
 import { acceptToolRun, startResettingToolProxy } from "./assistant-tool-exec.fixture.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070), through the real `createApp` on a
@@ -102,7 +103,7 @@ test("the tool RPC route is mounted on the real app and answers like the in-proc
   const { deps, baseUrl, owner } = await boot(t);
   const remoteResult = await remote(baseUrl).execute(call(owner, "content_read.site", {}));
   assert.equal(remoteResult.status, "completed");
-  const local = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
+  const local = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { contributions: firstPartyContributions(), installExtensions: false });
   const localResult = await local.executor.execute(call(owner, "content_read.site", {}));
   assert.deepEqual(stripExecutionId(remoteResult), stripExecutionId(localResult));
 });

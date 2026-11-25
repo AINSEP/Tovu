@@ -4,13 +4,14 @@ import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
 import { createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { statementsFor, daemonInitializer, evaluateDaemonExpression } from "./daemon-source.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /** Build the actual daemon adapter over the real server composition. Only HTTP transport is
  * injected: the daemon must discover server-owned descriptors without registering handlers.
  * Return a detached descriptor view and dispose the principal's native search index immediately.
  */
 export async function buildDaemonToolSurface(routeDeps: Parameters<typeof createAssistantByokModule>[0]["routeDeps"]): Promise<Pick<ToolRegistry, "list" | "has">> {
-  const server = createAssistantByokModule({ routeDeps });
+  const server = createAssistantByokModule({ reporter: testToolReporter(), routeDeps });
   await server.toolSurface.ready;
   const registry = createToolRegistry({});
   const host = evaluateDaemonExpression<ReturnType<typeof createDaemonSiteTools>>(daemonInitializer("siteTools", statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry")), {

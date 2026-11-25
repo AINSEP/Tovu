@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -25,7 +26,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
   registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
@@ -77,7 +78,7 @@ test("recovery routes: disclosure is 403 for a caller without backup.read", asyn
   const deps: RouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "insufficient role" }) };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -129,7 +130,7 @@ test("recovery routes: disclosure 500s with the concealed incident envelope (no 
   };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -151,7 +152,7 @@ test("recovery routes: disclosure 500s with a generic message when a non-Error i
   };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -171,7 +172,7 @@ test("recovery routes: disclosure renders real counts once the watermark baselin
   deps.disclosureWatermarkSource.getCategoryCounts = async () => ({ posts_pages: 7 });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -471,7 +472,7 @@ test("recovery mount: disclosure forwards only the covered categories and answer
   deps.disclosureWatermarkSource.getCategoryCounts = async () => { countReads += 1; return { posts_pages: 2, plugin_table: 0, entries: 9 }; };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

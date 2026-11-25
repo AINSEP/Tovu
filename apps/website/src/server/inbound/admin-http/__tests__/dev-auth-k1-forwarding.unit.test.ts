@@ -8,6 +8,8 @@ import { createRouteDeps } from "../../../runtime/composition/app.js";
 import { captureRouteError } from "../../shared/observability-middleware.js";
 import { parseAuthenticatedJsonBody } from "../../shared/json-body-parsers.js";
 import { registerAuthRoutes } from "../dev-auth.js";
+import { createRouteIncidentReporter } from "../../../__tests__/helpers/route-incident-reporter.js";
+import { dispatchJsonRequest } from "../../../__tests__/helpers/in-process-http.js";
 
 // U-AUTH-T1 / OD-2 pins, written against the pre-K1 `dev-auth.ts` and kept unchanged across the
 // cutover: a repository that throws inside boot-session, local-boot-session, /auth/me and
@@ -25,7 +27,7 @@ async function serve(t: TestContext, { override = () => ({}), local = false }: {
   t.mock.method(console, "warn", () => {});
   const app = express();
   app.use(parseAuthenticatedJsonBody);
-  registerAuthRoutes({ app, deps: { ...deps, ...override(deps) } }, local ? { localOwnerSignIn: { enabled: true } } : {});
+  registerAuthRoutes({ app, deps: { ...deps, ...override(deps) }, errors: createRouteIncidentReporter().errors }, local ? { localOwnerSignIn: { enabled: true, routineDesktopEligible: false } } : {});
   // The wire answer of a forwarded error and of the auth envelope coincide for an anonymous caller,
   // so the pin also records what reached Express's error chain (observability reads it there).
   const forwarded: unknown[] = [];
@@ -114,4 +116,26 @@ test("router facts stay Express's: case-insensitive path, trailing slash, HEAD f
   const head = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { method: "HEAD" });
   assert.equal(head.status, 401);
   assert.equal(await head.text(), "");
+});
+
+test("owner auth logout: mounted in reporter mode, a failed answer write is one site incident whose ID the 500 carries", async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  t.mock.method(console, "error", () => {});
+  const incidents = createRouteIncidentReporter();
+  const app = express();
+  // The route's own answer is the first `res.json`; refusing it is a write the transport could not take.
+  app.use((_req, res, next) => {
+    const json = res.json.bind(res);
+    let refused = false;
+    res.json = (body: unknown) => { if (!refused) { refused = true; throw new Error("socket refused the body"); } return json(body); };
+    next();
+  });
+  registerAuthRoutes({ app, deps, errors: incidents.errors });
+  const result = await dispatchJsonRequest(app, "POST", "/api/admin/v1/auth/logout");
+  const { error } = result.body as { error: { code: string; requestId: string } };
+  assert.deepEqual({ status: result.status, code: error.code }, { status: 500, code: "INTERNAL_ERROR" });
+  assert.equal(incidents.entries.length, 1, "exactly one record: the failed write, never a second route operation");
+  assert.match(error.requestId, /^ERR-7E57-/);
+  assert.ok(JSON.stringify(incidents.entries[0]).includes(error.requestId), "the reply names the recorded incident");
 });

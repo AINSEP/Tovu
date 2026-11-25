@@ -3,7 +3,7 @@ import express from "express";
 import type { Principal } from "@jini-ai/core";
 import { stopRunsForToolAccessChange, type createAgentExecutor, type ToolExecutor, type RunLifecycle, type UserMessageDelivery, type ToolAccessRun } from "@jini-ai/daemon";
 import { frontendRequestRoutes, agentRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes, type createFrontendControl, type RunStartHandler, type RunMessageRequest, type DelegatedToolExecuteRequest } from "@jini-ai/daemon/http";
-import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteErrorPorts, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 import { createRunScopedCredentials, createRunOwnerRegistry, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, requireRunOwnership, createOwnedRunListHandler } from "#src/assistant/daemon-access";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
@@ -16,7 +16,9 @@ import { registerA2uiActionsRoute } from "#src/assistant/a2ui-actions-route";
 import { registerRunActiveContextRoute } from "#src/assistant/run-active-context";
 import type { RunActiveContextStore } from "@jini-ai/daemon/http";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
-import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler } from "../../../platform/express/jini-routes.js";
+import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler, NO_OPERATION_TRACKING } from "../../../platform/express/jini-routes.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import type { Logger } from "@jini-ai/core/primitives";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
 import { registerToolAccessLoweringRoute } from "./tool-access-lowering-route.js";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
@@ -35,8 +37,12 @@ type ScopeAppPorts = {
   assistantInventory: ReturnType<typeof createAssistantAgentInventory>; runActiveContexts: RunActiveContextStore;
   toolExecutor: ToolExecutor; surfaceExchanges: ReturnType<typeof createSurfaceExchangeStore>;
   frontendControl: ReturnType<typeof createFrontendControl>;
+  /** The authorized site scope's reporter — the same instance its tool executor records through. */
+  reporter: ErrorReporter;
+  /** The scope's site-labelled logger: the delegated route warns here when a describer throws. */
+  logger: Pick<Logger, "warn">;
 };
-type MountPorts = ScopeAppPorts & { app: express.Express; routeHost: ReturnType<typeof daemonRouteHost>; resolvePrincipal(input: { request: DelegatedToolExecuteRequest }): Principal; resolveDiscoveryCaller(req: express.Request): ReturnType<ScopeAppPorts['runCredentials']['resolveCaller']> };
+type MountPorts = ScopeAppPorts & { app: express.Express; routeHost: ReturnType<typeof daemonRouteHost>; routeErrors: RouteErrorPorts; resolvePrincipal(input: { request: DelegatedToolExecuteRequest }): Principal; resolveDiscoveryCaller(req: express.Request): ReturnType<ScopeAppPorts['runCredentials']['resolveCaller']> };
 
 
 /** Fails closed: an untracked `runId` throws rather than fabricating a principal — see
@@ -68,8 +74,13 @@ export function createScopeApp(required: ScopeAppPorts, _optional = {}) {
 const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
   // These are the environment names the previously imported http-kit origin guard read.
   // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
-  const ports = { ...required, app, routeHost, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
+  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+// This scope has no operation-tracking port (only the site tracker the reporter forwards to), so
+// the explicit no-op keeps reporter mode on rather than falling back to legacy SEC-005 logging.
+// Every route host of the scope (surface routes included) shares this one binding.
+const routeErrors = { reporter: required.reporter, observability: NO_OPERATION_TRACKING }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024,
+    errors: routeErrors }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
+  const ports = { ...required, app, routeHost, routeErrors, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
     resolvePrincipal: ({ request }: { request: DelegatedToolExecuteRequest }) => resolvePrincipal({ principalByRunId: required.principalByRunId, request }) };
   mountRunRoutes(ports);
   mountDelegatedRoutes(ports);
@@ -177,11 +188,11 @@ mountJiniRoutes({ app, routes: agentRoutes({ deps: { listAgents: assistantInvent
 registerRunActiveContextRoute({ app, store: runActiveContexts });
 }
 
-function mountDelegatedRoutes({ app, lifecycle, toolExecutor, resolvePrincipal, siteTools, routeDeps, durableMessageIdsByRunId, routeHost }: MountPorts, _optional = {}) {
+function mountDelegatedRoutes({ app, lifecycle, toolExecutor, resolvePrincipal, siteTools, routeDeps, durableMessageIdsByRunId, routeHost, reporter, logger }: MountPorts, _optional = {}) {
 // `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
 // gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
 // omitting it silently disables the gateway rather than silently widening it.
-// `delegatedToolErrorDisclosure()` supplies both error-disclosure options: `isModelSafeToolFailure`
+// `delegatedToolErrorDisclosure({ reporter })` (the scope's tool reporter) supplies both error-disclosure options: `isModelSafeToolFailure`
 // lets a failure `withRedactedToolFailures` already redacted (it carries an `ERR-…` id) reach the
 // model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure http-kit
 // would answer with a bare `500 INTERNAL_ERROR` (unknown tool id, timed-out, cancelled, a throwing
@@ -195,7 +206,7 @@ const delegatedToolRouteDeps = {
   toolExecutor,
   resolvePrincipal,
   toolRegistry: siteTools.registry, toolFamilies: siteTools.families,
-  ...delegatedToolErrorDisclosure({}, {}),
+  ...delegatedToolErrorDisclosure({ reporter }, {}), logger,
   // Static jobs live at the site server. Read once through its normal permission gate after a
   // lost delegated response; the five-second deadline cannot extend or repeat the publish.
   recoverInterruptedTool: async ({ principal, runId, toolId, result }: {
@@ -220,7 +231,7 @@ registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
 mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });
 }
 
-function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendControl, routeHost, routeDeps, siteTools, resolveDiscoveryCaller, runCredentials, principalByRunId }: MountPorts, _optional = {}) {
+function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendControl, routeHost, routeErrors, routeDeps, siteTools, resolveDiscoveryCaller, runCredentials, principalByRunId }: MountPorts, _optional = {}) {
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
@@ -232,14 +243,14 @@ function mountSurfaceRoutes({ app, toolExecutor, surfaceExchanges, frontendContr
 // `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
 // `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
 // `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
-registerMcpUiToolCallsRoute({ app, deps: { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler } });
+registerMcpUiToolCallsRoute({ app, deps: { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler }, errors: routeErrors });
 // A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
 // `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
 // the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
 // fall back to for A2UI) — see `a2ui-actions-route.ts`'s own module doc. Same non-exemption
 // reasoning: reached only through Tovu's session-authenticated proxy, which attaches the bearer
 // token like every other forwarded route.
-registerA2uiActionsRoute({ app, deps: { surfaceExchanges } });
+registerA2uiActionsRoute({ app, deps: { surfaceExchanges }, errors: routeErrors });
 // The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
 // admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
 // `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`

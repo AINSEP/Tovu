@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -50,7 +51,7 @@ async function withTempPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
 function buildTestApp(baseDeps = createRouteDeps()): express.Express {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerAgentPluginInstallRoute({ app, deps: baseDeps });
   return app;
@@ -449,7 +450,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: without a plugin host the upload still installs 
     const { pluginHost: _host, ...hostless } = deps;
     const app = express();
     app.use(express.json());
-    registerAuthRoutes({ app, deps });
+    registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
     registerAgentPluginInstallRoute({ app, deps: hostless });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -573,7 +574,7 @@ test("AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answer
     const { snapshotAgentPluginSettings: _unbound, ...withoutSnapshot } = deps;
     const app = express();
     app.use(express.json());
-    registerAuthRoutes({ app, deps });
+    registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
     registerAgentPluginInstallRoute({ app, deps: withoutSnapshot as typeof deps });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);

@@ -1,3 +1,4 @@
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { ToolAccessLoweringError } from '@jini-ai/core/tool-access-change';
 import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun } from '@jini-ai/daemon';
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
@@ -88,6 +89,7 @@ import type { AgentRunStatus } from "@jini-ai/core/contracts/observability";
 import { redactedTovuError } from "@tovu/contracts/diagnostics-redaction";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+import { createRoutineToolDiscovery, type RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
 import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
@@ -514,9 +516,13 @@ async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {
 /** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`).
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
-  { routeDeps }: { routeDeps: RouteDeps & ByokToolSurfaceDeps },
-  { toolSurface, attachmentLookup, federationConnect }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
-    federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"] } = {},
+  { routeDeps, reporter }: { routeDeps: RouteDeps & ByokToolSurfaceDeps; reporter: ErrorReporter },
+  { toolSurface, attachmentLookup, federationConnect, routines, routineApprovalReceiptsFor }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
+    federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
+    /** The serving site's bound routine commands; supplied only when the routines release flag is on. Absent, no routine tool exists. */
+    routines?: RoutineToolHost;
+    /** Human-confirm's receipt port for tracked routine runs (P3-T3.T): observes receipts, never answers a card. */
+    routineApprovalReceiptsFor?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["approvalReceiptsFor"] } = {},
 ): AssistantByokModuleHandle {
   // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
   // construction) calls `buildAssistantToolRegistrations`: that function reads whatever
@@ -538,7 +544,8 @@ export function createAssistantByokModule(
   installFirstPartyToolContributors({ contributions }, { readAdmissions: () => serverFederation.admissions(),
     readExternalMcpToolNames: required => resolvedToolSurface.readExternalMcpToolNames(required, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
-    readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });
+    readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }),
+    ...(routines ? { routines } : {}) });
   const surfaceDeps = routeDeps.conversationToolApprovals ? { ...routeDeps, nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createDaemonApprovalMemory({
     store: routeDeps.conversationToolApprovals, workspaceId: routeDeps.workspaceId, clock: routeDeps.clock }) } : routeDeps;
   // The public contract and both roots require complete BYOK dependencies;
@@ -546,7 +553,7 @@ export function createAssistantByokModule(
   let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns }));
+    createByokToolSurface({ ...surfaceDeps, reporter }, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns, routines, routineApprovalReceiptsFor }));
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice,
     surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges, assertAccessApprover: createAccessApprover(routeDeps) } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
@@ -563,10 +570,10 @@ export function createAssistantByokModule(
     sealer: routeDeps.siteAssistantSecretSealer,
   });
 
-  return byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }, serverFederation);
+  return byokModuleHandle({ routeDeps, reporter, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }, serverFederation);
 }
 
-function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }: ByokTurnContext, serverFederation: ReturnType<typeof createAssistantServerFederation>): AssistantByokModuleHandle {
+function byokModuleHandle({ routeDeps, reporter, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }: ByokTurnContext & { reporter: ErrorReporter }, serverFederation: ReturnType<typeof createAssistantServerFederation>): AssistantByokModuleHandle {
   return {
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,
@@ -579,7 +586,7 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
         return report.connections.some(connection => connection.connectionId === "tovu-desktop");
       } }, {});
     },
-    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: { daemonCalls: serverFederation.daemonCalls },
+    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, reporter, toolSurface: { daemonCalls: serverFederation.daemonCalls },
       runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps, core: routeDeps,
       plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
         pinnedPrefix: async ({ pluginRefIds }) => {
@@ -608,13 +615,17 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
   };
 }
 
-function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contributions: NonNullable<Parameters<typeof createByokToolSurface>[1]>["contributions"], { federationConnect, attachmentLookup, automaticPluginRuns }: {
+function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contributions: NonNullable<Parameters<typeof createByokToolSurface>[1]>["contributions"], { federationConnect, attachmentLookup, automaticPluginRuns, routines, routineApprovalReceiptsFor }: {
+  routines?: RoutineToolHost;
+  routineApprovalReceiptsFor?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["approvalReceiptsFor"];
   federationConnect: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
   attachmentLookup: AttachmentLookup | undefined;
   automaticPluginRuns: () => ReturnType<typeof createAutomaticPluginRuns>;
 }): NonNullable<Parameters<typeof createByokToolSurface>[1]> {
   return {
       contributions,
+      ...(routines ? { routineDiscovery: createRoutineToolDiscovery(routines) } : {}),
+      ...(routineApprovalReceiptsFor ? { approvalReceiptsFor: routineApprovalReceiptsFor } : {}),
       ...(federationConnect ? { federationConnect } : {}),
       // Preserve the daemon's remembered approval contract on the existing server confirmer.
       // Async call context supplies the current chat; no process-global last-chat binding.

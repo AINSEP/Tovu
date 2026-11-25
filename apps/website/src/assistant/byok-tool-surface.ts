@@ -30,6 +30,7 @@ import { constrainPrincipalToReadOnlyTools, filterReadOnlyToolCatalog } from "@j
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { ROUTINE_TOOL_IDS } from "#src/contracts/core/tool-metadata/routines";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
@@ -411,6 +412,11 @@ export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerE
   readonly observabilityEnabled?: AssistantToolExecutorDeps["observabilityEnabled"];
 };
 
+/** {@link createByokToolSurface}'s required bag: the site deps plus the website composition's one
+ *  reporter. Kept off {@link ByokToolSurfaceDeps} because `createApp` builds the reporter itself; a
+ *  caller-supplied deps field would let a route bag carry a second, unrelated reporter. */
+export type ByokToolSurfaceRequired = ByokToolSurfaceDeps & { readonly reporter: AssistantToolExecutorDeps["reporter"] };
+
 /** The optional half of {@link createByokToolSurface}'s arguments. */
 export interface ByokToolSurfaceOptions {
   readonly surfaceExchangeStore?: SurfaceExchangeStore;
@@ -436,6 +442,16 @@ export interface ByokToolSurfaceOptions {
    */
   readonly installExtensions?: boolean;
   readonly contributions?: AssistantToolContributions;
+  /**
+   * Who may DISCOVER the four routine tools: the live owner of a ready site. Absent means nobody, so
+   * an unbound/global or visitor view omits them. Invocation rechecks authority again in the handler.
+   */
+  readonly routineDiscovery?: RoutineDiscovery;
+  /**
+   * Human-confirm's optional receipt port (P3-T3.T): trusted routine context for a tracked routine run,
+   * else undefined. Rides on the surfaces every first-party tool gets; it observes and never answers.
+   */
+  readonly approvalReceiptsFor?: import("../contracts/core/human-confirm.js").HumanConfirmSurfaceDeps["approvalReceiptsFor"];
   /**
    * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
    * injected by the composition root (`modules/assistant-byok.ts` passes
@@ -470,6 +486,24 @@ export interface ByokToolSurfaceOptions {
    * composition root for the same module-cycle reason as `registerInstalledExtensions`.
    */
   readonly hostRegistrations?: (required: { readonly registrations: readonly ToolRegistration[] }) => readonly ToolRegistration[];
+}
+
+/** The per-principal gate for routine discovery (see {@link ByokToolSurfaceOptions.routineDiscovery}). */
+type RoutineDiscovery = { readonly isVisible: (required: { readonly principalId: string }, optional?: Record<string, never>) => Promise<boolean> };
+
+/** Which routine ids to hide from this principal: all four unless the discovery gate says they are the ready site's owner. */
+export async function routineIdsHiddenFrom({ discovery, principalId }: { discovery: RoutineDiscovery | undefined; principalId: string }, _optional = {}): Promise<ReadonlySet<string>> {
+  return discovery && (await discovery.isVisible({ principalId }, {})) ? new Set() : ROUTINE_TOOL_IDS;
+}
+
+/** The catalog with `hidden` ids removed from search and describe, so they cannot be found or promoted. */
+export function withoutHiddenTools<C extends ToolCatalogQuery>({ catalog, hidden }: { catalog: C; hidden: ReadonlySet<string> }, _optional = {}): C {
+  if (hidden.size === 0) return catalog;
+  return {
+    ...catalog,
+    search: (input, { limit = 10, ...rest } = {}) => catalog.search(input, { ...rest, limit: limit + hidden.size }).filter(hit => !hidden.has(hit.id)).slice(0, limit),
+    describe: (input, options) => (hidden.has(input.id) ? null : catalog.describe(input, options)),
+  };
 }
 
 /** Stable discovery-filter port of `createChatDeleteScope`'s scope. */
@@ -566,13 +600,15 @@ function attachSurfaceExtensions(
 // then a no-op passthrough, never a behavior change for `installExtensions: false`.
 function composeSurfaceExecutor(
   required: { readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore; readonly federation: FederationRuntime | undefined;
+    readonly reporter: AssistantToolExecutorDeps["reporter"];
     readonly observability?: AssistantToolExecutorDeps["observability"]; readonly observabilityEnabled?: AssistantToolExecutorDeps["observabilityEnabled"] },
   options: Pick<ByokToolSurfaceOptions, "prepareGuidance" | "toolAttemptAudit">,
 ): ToolExecutor {
-  const { registry, surfaceExchanges, federation, observability, observabilityEnabled } = required;
+  const { registry, surfaceExchanges, federation, reporter, observability, observabilityEnabled } = required;
   return withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
       registry,
       surfaceExchanges,
+      reporter,
       observability,
       observabilityEnabled,
       ...(options.prepareGuidance ? { prepareGuidance: options.prepareGuidance } : {}),
@@ -583,12 +619,17 @@ function composeSurfaceExecutor(
         : { settled: true, connectFailures: [] } }, {});
 }
 
+/** Why a helper: the receipt port joins the one surfaces object every first-party tool (and human-confirm) reads; absent, cards behave as before. */
+export function surfacesWithReceipts({ surfaceExchanges }: { surfaceExchanges: SurfaceExchangeStore }, { approvalReceiptsFor }: Pick<ByokToolSurfaceOptions, "approvalReceiptsFor"> = {}) {
+  return approvalReceiptsFor ? { surfaceExchanges, approvalReceiptsFor } : { surfaceExchanges };
+}
+
 /** Register the assistant's own tools, then any the host adds after seeing them. O(t) in tools. */
 function registerSurfaceTools(
   { registry, deps, surfaceExchanges }: { registry: ReturnType<typeof createToolRegistry>; deps: AssistantToolRegistryDeps; surfaceExchanges: SurfaceExchangeStore },
-  options: Pick<ByokToolSurfaceOptions, "contributions" | "hostRegistrations"> = {},
+  options: Pick<ByokToolSurfaceOptions, "contributions" | "hostRegistrations" | "approvalReceiptsFor"> = {},
 ): void {
-  const registrations = buildAssistantToolRegistrations(deps, { surfaces: { surfaceExchanges }, options: { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } });
+  const registrations = buildAssistantToolRegistrations(deps, { surfaces: surfacesWithReceipts({ surfaceExchanges }, options), options: { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } });
   for (const registration of [...registrations, ...(options.hostRegistrations?.({ registrations }) ?? [])]) {
     registry.register(registration);
   }
@@ -681,8 +722,9 @@ function createSurfaceMetaDispatcher({ registry, visibleRegistry, deleteScope, e
       runId: run.id,
     };
 
+    const hidden = await routineIdsHiddenFrom({ discovery: options.routineDiscovery, principalId: principal.id });
     return deleteScope.fresh({ principalId: principal.id, run: () => {
-      const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog: readCatalog() }) });
+      const visibleCatalog = withoutHiddenTools({ hidden, catalog: filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog: readCatalog() }) }) });
       if (call.name === "search_tools") return runSearchTools({ catalog: visibleCatalog, registry: visibleRegistry, args: args, audit: catalogAudit });
       if (call.name === "describe_tool") return runDescribeTool({ catalog: visibleCatalog, args, audit: catalogAudit }, { exposure });
       if (call.name === "execute_delegated_tool") return runExecuteDelegatedTool({ executor: executor, principal: principal, run: run, args: args, signal: signal, emitSurface: emitSurface });
@@ -715,7 +757,7 @@ function createSurfaceRunFactory(visibleRegistry: ToolRegistry, executeMetaTool:
   return { createRun };
 }
 
-function createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled }: { executor: ToolExecutor; visibleRegistry: ToolRegistry; deleteScope: ReturnType<typeof createChatDeleteScope>; syncInstalled: () => Promise<void> }): ByokToolSurface['daemonCalls'] {
+function createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled, routineDiscovery }: { executor: ToolExecutor; visibleRegistry: ToolRegistry; deleteScope: ReturnType<typeof createChatDeleteScope>; syncInstalled: () => Promise<void>; routineDiscovery?: RoutineDiscovery }): ByokToolSurface['daemonCalls'] {
   return {
       executor: {
         ...executor,
@@ -726,7 +768,8 @@ function createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, sync
       },
       listToolsFor: async ({ principalId }) => {
         await syncInstalled();
-        return deleteScope.fresh({ principalId, run: () => visibleRegistry.list({}) });
+        const hidden = await routineIdsHiddenFrom({ discovery: routineDiscovery, principalId });
+        return deleteScope.fresh({ principalId, run: () => visibleRegistry.list({}).filter(tool => !hidden.has(tool.id)) });
       },
     };
 }
@@ -773,7 +816,7 @@ function createSurfaceRegistryDeps(routeDeps: ByokToolSurfaceDeps, magicLinkPerE
  * `createToolExecutor` doc).
  * @overallScore 100
  */
-export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: ByokToolSurfaceOptions = {}): ByokToolSurface {
+export function createByokToolSurface(routeDeps: ByokToolSurfaceRequired, options: ByokToolSurfaceOptions = {}): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   // The input omits exactly the limiter and catalog reader built here. Domain slices already
   // declare the clock; the assembled object is checked against AssistantToolRegistryDeps.
@@ -802,7 +845,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     } }, { bearerToken: desktop.bearerToken }) },
   );
   const federation: FederationRuntime | undefined = extensions?.federation;
-  const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation,
+  const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation, reporter: routeDeps.reporter,
     observability: routeDeps.observability, observabilityEnabled: routeDeps.observabilityEnabled }, options);
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
@@ -839,7 +882,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     readExternalMcpToolNames: ({ serverId, admissionRevision }) => readFrozenFederationToolNames({ registry,
       connectionId: serverId, origin: { kind: "roster", admissionRevision } }),
     awaitFederation,
-    daemonCalls: createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled }),
+    daemonCalls: createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled, routineDiscovery: options.routineDiscovery }),
   };
 }
 

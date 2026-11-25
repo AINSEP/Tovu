@@ -15,6 +15,7 @@ import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/cor
 import { daemonRouteHost, mountJiniRoutes } from "../../platform/express/jini-routes.js";
 
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER, type RunOwnerRegistry } from "../daemon-access.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Cross-principal authorization coverage for the agent daemon's `/api/runs` surface
@@ -74,7 +75,7 @@ async function bootDaemonRoutes(): Promise<Harness> {
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   // 100 KiB: the default limit of the `express.json()` parser above.
-  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024 }) }) });
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024, errors: createRouteIncidentReporter().errors }) }) });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");

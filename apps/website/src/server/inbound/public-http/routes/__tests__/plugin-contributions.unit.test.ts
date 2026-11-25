@@ -1,5 +1,6 @@
 /** Pins the /api/p HTTP contract of registerPluginContributionRoutes and the member/admin auth
  * ports: status codes, Cache-Control, error bodies, generation checks and error redaction. */
+import { createRouteIncidentReporter } from '../../../../__tests__/helpers/route-incident-reporter.js';
 import '../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -325,7 +326,7 @@ test('admin port forwards an operator authorization failure to next(error)', asy
   const base = createRouteDeps();
   const deps: RouteDeps = { ...base, authorize: async () => { throw new Error('authorizer down'); } };
   const app = express();
-  app.use(parsePublicJsonBody); registerAuthRoutes({ app, deps });
+  app.use(parsePublicJsonBody); registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   const ports = createPluginRouteAuthPorts({ deps });
   app.post('/probe', ports.admin, (_req, res) => { res.json({ reached: true }); });
   app.use(((error, _req, res, _next) => { res.status(599).json({ message: (error as Error).message }); }) satisfies express.ErrorRequestHandler);
@@ -340,7 +341,7 @@ test('admin port forwards an operator authorization failure to next(error)', asy
 test('admin port forwards an operator session parse failure to next(error)', async t => {
   const deps = createRouteDeps();
   const app = express();
-  app.use(parsePublicJsonBody); registerAuthRoutes({ app, deps });
+  app.use(parsePublicJsonBody); registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.post('/api/p/probe', createPluginRouteAuthPorts({ deps }).admin, (_req, res) => { res.json({ reached: true }); });
   app.use(((error, _req, res, _next) => { res.status(599).json({ type: (error as { type?: string }).type }); }) satisfies express.ErrorRequestHandler);
   const baseUrl = await startTestServer(app, t);

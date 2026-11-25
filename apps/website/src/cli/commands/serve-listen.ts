@@ -1,4 +1,6 @@
 import { createServingApp } from "../../server/runtime/composition/serving-app.js";
+import { bootLocalOwnerSignIn } from "../../server/runtime/boot/local-owner-signin.js";
+import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 import type { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-origin.js";
 import { startSiteDaemonListener } from "../../server/runtime/boot/site-daemon-listener.js";
@@ -36,10 +38,12 @@ function startServing({ optional, deps, owned, stopRef }: { optional: RunServeCo
       const stop = stopRef.requestStop;
       setImmediate(() => stop(input));
     },
+    // Routines (P3-T1a.T): the verified desktop eligibility and the rollout flag, each bound once here.
+    routines: { desktopEligible: bootLocalOwnerSignIn.routineDesktopEligible, releaseEnabled: ROUTINES_RELEASE_ENABLED },
   };
   const serving = (optional.createServingApp ?? createServingApp)(deps, servingOptions);
-  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork } = serving;
-  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance);
+  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork, routines } = serving;
+  owned.workers.push(routines, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance);
   owned.bootWork.push(...bootWork);
   return serving;
 }
@@ -120,8 +124,9 @@ function installShutdown({ context, server, daemonCallback }: { context: ServeLi
   }, {
     registerStop: ({ stop }, _optional = {}) => { stopRef.requestStop = stop; },
     bootWork: () => owned.bootWork,
+    // First: a parked AG-UI approval is denied and its held call ended, never left to its expiry.
     stopServing: () => stopServingWithinGrace({ server, workers: [
-      { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
+      { stop: async () => serving.releaseOnShutdown() }, { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
     ] }),
     // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
     stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,

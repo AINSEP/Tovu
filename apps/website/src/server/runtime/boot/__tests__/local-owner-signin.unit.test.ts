@@ -7,9 +7,9 @@ const dev = { NODE_ENV: "development", TOVU_DEV_OWNER_SIGNIN: "1", TOVU_HOST: "1
 const noContainer = { pathExists: () => false };
 
 test("devsignin: an explicit local launcher enables sign-in and an absent/disabled flag never does", () => {
-  assert.deepEqual(resolveLocalOwnerSignIn({ env: dev }, noContainer), { enabled: true });
-  assert.deepEqual(resolveLocalOwnerSignIn({ env: {} }, noContainer), { enabled: false });
-  assert.deepEqual(resolveLocalOwnerSignIn({ env: { ...dev, TOVU_DEV_OWNER_SIGNIN: "0" } }, noContainer), { enabled: false });
+  assert.deepEqual(resolveLocalOwnerSignIn({ env: dev }, noContainer), { enabled: true, routineDesktopEligible: false });
+  assert.deepEqual(resolveLocalOwnerSignIn({ env: {} }, noContainer), { enabled: false, routineDesktopEligible: false });
+  assert.deepEqual(resolveLocalOwnerSignIn({ env: { ...dev, TOVU_DEV_OWNER_SIGNIN: "0" } }, noContainer), { enabled: false, routineDesktopEligible: false });
   assert.equal(resolveLocalOwnerSignIn({ env: { ...dev, TOVU_DEV_SUPERVISOR_PID: undefined, TOVU_LOCAL_SITE_OWNER_PID: "99" } }, noContainer).enabled, true);
 });
 
@@ -89,6 +89,21 @@ test("deskfx S1: a desktop capability admits a loopback launch without a develop
   assert.equal(resolveLocalOwnerSignIn({ env: { NODE_ENV: "development", TOVU_HOST: "127.0.0.1", TOVU_DEV_SUPERVISOR_PID: "42" } }, noContainer).enabled, false);
 });
 
+test("P3-T1a.T: routines are desktop-eligible only on the accepted desktop branch", () => {
+  const env = { TOVU_DESKTOP_OWNER_SIGNIN: "a".repeat(64), TOVU_DESKTOP_OWNER_PID: String(process.ppid), TOVU_HOST: "127.0.0.1" };
+  assert.equal(resolveLocalOwnerSignIn({ env }, noContainer).routineDesktopEligible, true);
+  // Every deny keeps it false, even with the capability present in the environment.
+  for (const override of [{ TOVU_DESKTOP_OWNER_PID: "bad" }, { TOVU_HOST: "0.0.0.0" }, { TOVU_PUBLIC_URL: "https://remote.example" }, { FLY_APP_NAME: "live" }]) {
+    assert.equal(resolveLocalOwnerSignIn({ env: { ...env, ...override } }, noContainer).routineDesktopEligible, false, JSON.stringify(override));
+  }
+  assert.equal(resolveLocalOwnerSignIn({ env }, { pathExists: () => true }).routineDesktopEligible, false);
+  // The dev-only (non-desktop) acceptance and the no-opt-in return are not desktop launches.
+  const dev = { NODE_ENV: "development", TOVU_DEV_OWNER_SIGNIN: "1", TOVU_HOST: "127.0.0.1", TOVU_DEV_SUPERVISOR_PID: "42" };
+  assert.equal(resolveLocalOwnerSignIn({ env: dev }, noContainer).enabled, true);
+  assert.equal(resolveLocalOwnerSignIn({ env: dev }, noContainer).routineDesktopEligible, false);
+  assert.equal(resolveLocalOwnerSignIn({ env: {} }, noContainer).routineDesktopEligible, false);
+});
+
 
 test("deskfx2 MUST-1: desktop capability is captured, scrubbed and requires the actual parent", () => {
   const secret = "a".repeat(64);
@@ -145,7 +160,7 @@ test("TW2: launch refusal reasons and precedence describe the existing policy", 
   const probeFailure = resolveLocalOwnerSignIn({ env: dev }, { pathExists: () => { throw new Error("probe"); } });
   assert.ok(probeFailure.warning?.includes("deployment status could not be verified"));
   for (const TOVU_PUBLIC_URL of ["", "http://localhost/path", "https://[::1]:4000"]) {
-    assert.deepEqual(resolveLocalOwnerSignIn({ env: { ...dev, TOVU_PUBLIC_URL } }, noContainer), { enabled: true });
+    assert.deepEqual(resolveLocalOwnerSignIn({ env: { ...dev, TOVU_PUBLIC_URL } }, noContainer), { enabled: true, routineDesktopEligible: false });
   }
 });
 

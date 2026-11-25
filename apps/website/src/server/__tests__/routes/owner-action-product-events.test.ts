@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
@@ -92,7 +93,7 @@ test("plugin_toggled identifies the plugin family and direction without settings
   const baseDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerPluginSetEnabledRoute({ app, deps: {
     notifyRosterChanged: baseDeps.notifyRosterChanged,

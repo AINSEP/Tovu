@@ -57,6 +57,7 @@ function render(ui: ReactElement) {
   return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
 }
 import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
+import { DOCK_DEEP_LINK_OFF } from "../AssistantDock/__tests__/deep-link-off";
 
 interface RuntimeAccess {
   listAgents: () => Promise<unknown[]>;
@@ -120,7 +121,7 @@ describe("AssistantDock runtimeAccess.daemonOnline", () => {
     });
     vi.stubGlobal("fetch", fetchSpy);
 
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
     const { daemonOnline } = latestRuntimeAccess();
 
     // Two overlapping calls, exactly what a 5s poll tick firing again before the previous request
@@ -149,7 +150,7 @@ describe("AssistantDock runtimeAccess.daemonOnline", () => {
     });
     vi.stubGlobal("fetch", fetchSpy);
 
-    render(<AssistantDock useChats={fakeChats} />);
+    render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
     const { daemonOnline } = latestRuntimeAccess();
 
     await expect(daemonOnline()).resolves.toBe(true);
@@ -176,7 +177,7 @@ describe("AssistantDock runtimeAccess.daemonOnline", () => {
       });
       vi.stubGlobal("fetch", fetchSpy);
 
-      render(<AssistantDock useChats={fakeChats} />);
+      render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
       const { daemonOnline } = latestRuntimeAccess();
       const first = daemonOnline();
       const overlapping = daemonOnline();
@@ -211,9 +212,9 @@ it("keeps daemon health reads independent between provider scopes", async () => 
     ? new Promise<Response>(resolve => { settle.push(resolve); })
     : Promise.resolve(benignResponse()));
   vi.stubGlobal("fetch", fetchFake);
-  render(<AssistantDock useChats={fakeChats} />);
+  render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
   const first = latestRuntimeAccess();
-  render(<AssistantDock useChats={fakeChats} />);
+  render(<AssistantDock {...DOCK_DEEP_LINK_OFF} useChats={fakeChats} />);
   const second = latestRuntimeAccess();
   let firstRead!: Promise<boolean>, secondRead!: Promise<boolean>;
   await act(async () => { firstRead = first.daemonOnline(); secondRead = second.daemonOnline(); });

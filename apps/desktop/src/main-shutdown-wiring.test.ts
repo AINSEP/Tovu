@@ -78,6 +78,8 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   const quit = source.slice(source.indexOf('app.on("before-quit"'));
   assert.match(quit, /pendingTeardowns\.size === 0/, "before-quit must see that a teardown is still running");
   assert.match(quit, /pendingTeardowns\.drain\(\)/, "before-quit must actually wait for those teardowns");
+  // P3-T1b.T: quit removes the routine resume listener and its debounce timer before the drain.
+  assert.match(quit, /disposeDesktopRoutines\(\)/, "before-quit must dispose the routine wake relay");
   assert.doesNotMatch(
     quit.slice(0, quit.indexOf("\n}")),
     /if \(openSites\.size === 0 \|\| shuttingDown\) return;/,
@@ -110,6 +112,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
     stopRunningImports: async () => { shutdownOrder.push("imports"); },
     desktopAgentService: { shutdown: async () => { shutdownOrder.push("agent-service"); } },
     siteDiscovery: { abortAll: () => {} },
+    disposeDesktopRoutines: () => {},
     quitPhase: "idle", openSites: new Map(), pendingTeardowns,
     decideBeforeQuit, finalQuitHeldForUpdate: () => false,
     setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
@@ -176,6 +179,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
     productState: { disposers: [() => { shutdownOrder.push("product-listeners"); }],
       product: { dispose: async () => { shutdownOrder.push("product"); } } },
     siteDiscovery: { abortAll: () => {} },
+    disposeDesktopRoutines: () => {},
     quitPhase: "idle", openSites, pendingTeardowns, decideBeforeQuit,
     finalQuitHeldForUpdate: () => false, setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
   });
@@ -262,6 +266,7 @@ test("a failed agent-service shutdown still waits for every tracked teardown bef
     stopRunningImports: async () => {},
     desktopAgentService: { shutdown: async () => { throw new Error("agent service stuck"); } },
     siteDiscovery: { abortAll: () => {} },
+    disposeDesktopRoutines: () => {},
     quitPhase: "idle", openSites: new Map(), pendingTeardowns,
     decideBeforeQuit, finalQuitHeldForUpdate: () => false,
     setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { assistantVaultRepo } from "#src/assistant/assistant-vault";
 import assert from "node:assert/strict";
@@ -46,7 +47,7 @@ function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Expres
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   createAssistantSettingsModule(deps).registerRoutes?.({ app });
   return { app, deps };

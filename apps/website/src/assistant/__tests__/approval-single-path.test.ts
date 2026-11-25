@@ -9,8 +9,10 @@ const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 // The database package owns its lifecycle and receives only this host transport, and so does the
 // search package (`@jini-ai/search/tools`' approval handler; Tovu passes the card as `askHuman`). Reauth is an
 // acknowledgement notice, with no approval or effect; secret forms and choices keep their owners.
+// Routine create/pause/resume/delete (P3-T4.T) are `confirmation:'direct'`: the handler opens the shared
+// card itself so a remembered policy grant can never skip it, the same shape as database transfer.
 const allowedCalls = new Map([
-  ['requireHumanConfirm', new Set(['contracts/core/human-confirm.ts', 'assistant/tool-approval-policy.ts', 'features/database-transfer/tool-registrations.ts', 'server/runtime/composition/site-search-tools.ts', 'features/custom-credentials/tool-registrations.ts'])],
+  ['requireHumanConfirm', new Set(['contracts/core/human-confirm.ts', 'assistant/tool-approval-policy.ts', 'features/database-transfer/tool-registrations.ts', 'server/runtime/composition/site-search-tools.ts', 'features/custom-credentials/tool-registrations.ts', 'features/routines/routine-tool-registrations.ts'])],
   ['buildConfirmationSurface', new Set(['contracts/core/human-confirm.ts', 'assistant/external-mcp-reauth-tool.ts'])],
   ['classifyConfirmationAnswer', new Set(['contracts/core/human-confirm.ts'])],
 ]);

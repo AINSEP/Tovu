@@ -9,6 +9,7 @@ import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-t
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { statementsFor, evaluateDaemonStatements } from "./daemon-source.js";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 type CatalogBody = { hits: { id: string }[]; id: string; description: string };
 
@@ -35,7 +36,7 @@ export async function mountDaemonCatalog(registry: ToolRegistry, auditSink: Tool
   const runCredentials = { resolveCaller: ({ token }: { token: string }) => { const principal = principals.get(token); return principal ? { runId: `run:${token}`, principalId: principal.id } : undefined; } };
   const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST" } }) };
   await evaluateDaemonStatements([mount], {
-    siteTools: host, toolCatalogRoutes, createToolCatalogFor, discoveryPrincipalResolver, runCredentials, principalByRunId, app: {}, routeHost: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024 }),
+    siteTools: host, toolCatalogRoutes, createToolCatalogFor, discoveryPrincipalResolver, runCredentials, principalByRunId, app: {}, routeHost: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024, errors: createRouteIncidentReporter().errors }),
     mountJiniRoutes: ({ routes }: { routes: readonly ServerRoute[] }) => { for (const route of routes) { assert.equal(handlers.has(route.path), false); handlers.set(route.path, route.handler); } },
   });
   return {

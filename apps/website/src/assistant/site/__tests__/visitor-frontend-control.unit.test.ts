@@ -3,6 +3,7 @@ import test from 'node:test';
 import express from 'express';
 import { openFetchFrontendStream } from '@jini-ai/chat/browser/frontend-session-bridge';
 import { createVisitorFrontendControl } from '../visitor-frontend-control.js';
+import { projectVisitorBrowserInvocation } from '../visitor-browser-invocation.js';
 import { allowsVisitorRequestOrigin } from '../visitor-request-origin.js';
 import { publishVisitorPage } from '#src/features/theme/visitor-publication';
 import { requestHookInput } from '#src/platform/express/request-facts';
@@ -316,3 +317,110 @@ for (const [name, method, path] of [['credentials minting', 'POST', 'credentials
     assert.match(String((reported[0] as Error).message), /policy store down/);
   });
 }
+
+/** P6-T3.T: what the AG-UI `/chat` segment receives for one registry-delivered page action. */
+function recordingToolCallWriter() {
+  const calls: Array<{ toolCallId: string; toolCallName: string; args: string }> = [];
+  return { calls, writer: { toolCall: (call: { toolCallId: string; toolCallName: string; args: string }) => { calls.push(call); } } };
+}
+
+test('a refused model call never becomes a browser tool call', () => {
+  const { calls, writer } = recordingToolCallWriter();
+  // A provider tool_use, a non-page capability and a nameless invocation are never actionable.
+  const refused = [
+    { type: 'tool_use', id: 'toolu_model_1', name: 'page.navigate', input: { page: 'p1' } },
+    { invocationId: 'inv-content', capabilityId: 'content.search', input: {} },
+    { invocationId: '', capabilityId: 'page.click', input: { handle: 'h1' } },
+    { invocationId: 'inv-bad-input', capabilityId: 'page.click', input: 'h1' },
+  ];
+  for (const invocation of refused) {
+    assert.equal(projectVisitorBrowserInvocation({ runId: 'run-1', invocation: invocation as never, writer }), false);
+  }
+  assert.deepEqual(calls, []);
+  const delivered = projectVisitorBrowserInvocation({ runId: 'run-1', writer,
+    invocation: { invocationId: 'inv-1', capabilityId: 'page.click', input: { handle: 'h1' }, raw: 'provider secret' } as never });
+  assert.equal(delivered, true);
+  assert.deepEqual(calls, [{ toolCallId: 'inv-1', toolCallName: 'tovu.page_action',
+    args: JSON.stringify({ runId: 'run-1', invocationId: 'inv-1', capabilityId: 'page.click', input: { handle: 'h1' } }) }]);
+});
+
+/** A real visitor tab (credentials + stream) and a test route that binds a chat request the way `/chat` does. */
+async function boundTabFixture(t: test.TestContext) {
+  const app = express();
+  const frontend = createVisitorFrontendControl({ workspaceId: 'begin-test', enabled: async () => true,
+    ports: TEST_PORTS, clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
+    canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
+  });
+  frontend.mount({ app });
+  const runId = 'logical-run-1';
+  const delivered = recordingToolCallWriter();
+  const chat = new AbortController(); t.after(() => chat.abort());
+  let release: () => void = () => { throw new Error('not bound'); };
+  app.post('/test-bind', async (req, res) => {
+    const binding = await frontend.bindRequest({ req, signal: chat.signal, runId }, {
+      deliverInvocation: ({ runId: deliveredRunId, invocation }) => { projectVisitorBrowserInvocation({ runId: deliveredRunId, invocation, writer: delivered.writer }); } });
+    release = binding.release;
+    res.sendStatus(binding.publication ? 200 : 403);
+  });
+  const base = await startTestServer(app, t);
+  const html = publishVisitorPage({ workspaceId: 'begin-test', html: '<html><body><div id="tovu-site-assistant-root"></div></body></html>' });
+  const revision = JSON.parse(html.match(/id="tovu-visitor-publication">(.*?)<\/script>/s)![1]!).revision as string;
+  const origin = { origin: base, 'sec-fetch-site': 'same-origin' };
+  const issued = await fetch(`${base}/api/site-assistant/frontend-sessions/credentials`, { method: 'POST', headers: origin });
+  const { tabCredential } = await issued.json() as { tabCredential: string };
+  const tab = { ...origin, cookie: issued.headers.get('set-cookie')!.split(';')[0]!, 'x-frontend-tab': tabCredential, 'x-visitor-publication': revision };
+  const streamAbort = new AbortController(); t.after(() => streamAbort.abort());
+  const stream = await fetch(`${base}/api/site-assistant/frontend-sessions/stream?capability=page.click&capability=page.fill&capability=page.approval`, { headers: tab, signal: streamAbort.signal });
+  const first = await stream.body!.getReader().read();
+  const attached = JSON.parse(new TextDecoder().decode(first.value).match(/data: (.+)/)![1]!) as { sessionId: string; bindToken: string };
+  const headers = { ...tab, 'x-frontend-bind-token': attached.bindToken, 'content-type': 'application/json' };
+  assert.equal((await fetch(`${base}/test-bind`, { method: 'POST', headers })).status, 200);
+  const handler = (capabilityId: string) => frontend.control.toolRegistrations.find(r => r.descriptor.id === capabilityId)!.handler;
+  const invoke = (capabilityId: string, input: Record<string, unknown>) =>
+    handler(capabilityId)({ run: { id: runId }, input, signal: chat.signal } as never, {} as never);
+  const post = async (path: 'begin' | 'responses', body: Record<string, unknown>) => {
+    const response = await fetch(`${base}/api/site-assistant/frontend-sessions/${attached.sessionId}/${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+    return { status: response.status, body: await response.text() };
+  };
+  return { runId, delivered, invoke, post, release: () => release() };
+}
+
+/** Polls until the registry has handed the bound run its next invocation. */
+async function nextDelivery(delivered: ReturnType<typeof recordingToolCallWriter>, count: number) {
+  for (let i = 0; i < 200 && delivered.calls.length < count; i++) await new Promise(resolve => setTimeout(resolve, 5));
+  const call = delivered.calls[count - 1];
+  assert.ok(call, `invocation ${count} was delivered to the bound run`);
+  return { call, args: JSON.parse(call.args) as { runId: string; invocationId: string; capabilityId: string; input: Record<string, unknown> } };
+}
+
+test('a disconnected page cannot begin or settle its old invocation', async t => {
+  const f = await boundTabFixture(t);
+  // A form filled without submission: delivered, begun once, settled, not a terminal submission.
+  const fill = f.invoke('page.fill', { handle: 'email', value: 'a@b.test' });
+  const filled = await nextDelivery(f.delivered, 1);
+  assert.equal(filled.call.toolCallId, filled.args.invocationId);
+  assert.equal(filled.args.capabilityId, 'page.fill');
+  assert.doesNotMatch((await f.post('responses', { invocationId: filled.args.invocationId, ok: true, output: { filled: true } })).body, /"settled":true/, 'no settlement before begin');
+  // The page begins with the run id the delta carries; the AG-UI segment's own RUN_STARTED run id is not the bound run.
+  assert.equal(filled.args.runId, f.runId);
+  assert.match((await f.post('begin', { runId: 'run-ag-ui-segment', invocationId: filled.args.invocationId })).body, /"begun":false/);
+  assert.match((await f.post('begin', { runId: filled.args.runId, invocationId: filled.args.invocationId })).body, /"begun":true/);
+  assert.match((await f.post('begin', { runId: filled.args.runId, invocationId: filled.args.invocationId })).body, /"begun":false/, 'begin claims once');
+  assert.match((await f.post('responses', { invocationId: filled.args.invocationId, ok: true, output: { filled: true } })).body, /"settled":true/);
+  assert.deepEqual(await fill, { filled: true }, 'the filled form is reported, not submitted');
+  // An accepted form submission follows the same begin-then-settle order.
+  const submit = f.invoke('page.click', { handle: 'submit' });
+  const submitted = await nextDelivery(f.delivered, 2);
+  assert.match((await f.post('begin', { runId: submitted.args.runId, invocationId: submitted.args.invocationId })).body, /"begun":true/);
+  assert.match((await f.post('responses', { invocationId: submitted.args.invocationId, ok: true, output: { terminalSubmission: true } })).body, /"settled":true/);
+  assert.deepEqual(await submit, { terminalSubmission: true });
+  // The page disconnects from this chat request: its already-delivered invocation is dead.
+  const stale = f.invoke('page.click', { handle: 'submit' });
+  const old = await nextDelivery(f.delivered, 3);
+  f.release();
+  assert.doesNotMatch((await f.post('begin', { runId: old.args.runId, invocationId: old.args.invocationId })).body, /"begun":true/);
+  const late = await f.post('responses', { invocationId: old.args.invocationId, ok: true, output: { terminalSubmission: true } });
+  assert.doesNotMatch(late.body, /"settled":true/);
+  // The stale call is left to the registry's own timeout; this test only proves the page lost it.
+  void stale.catch(() => undefined);
+});

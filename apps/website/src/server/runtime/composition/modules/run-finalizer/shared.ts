@@ -13,7 +13,7 @@ import { createAssistantRunFinalizer, type AssistantRunFinalizer, type Assistant
 // avoids a browser-triggered recovery creating an independent boot/finalization engine.
 type SharedFinalizer = {
   readonly finalizer: AssistantRunFinalizer;
-  readonly options: Omit<AssistantRunFinalizerOptions, "recoveryDaemon" | "onAttemptEnded"> & {
+  readonly options: Omit<AssistantRunFinalizerOptions, "recoveryDaemon" | "onAttemptEnded" | "admit"> & { admit?: AssistantRunFinalizerOptions["admit"];
     recoveryDaemon?: RunDaemonClient; onAttemptEnded?: AssistantRunFinalizerOptions["onAttemptEnded"];
   };
 };
@@ -26,6 +26,7 @@ export function assistantRunFinalizerFor(required: AssistantRunFinalizerOptions,
     // earlier export defaults or creating a second recovery engine.
     if (required.recoveryDaemon) existing.options.recoveryDaemon = required.recoveryDaemon;
     if (required.onAttemptEnded) existing.options.onAttemptEnded = required.onAttemptEnded;
+    if (required.admit) existing.options.admit = required.admit;
     return existing.finalizer;
   }
   const options = { ...required };

@@ -48,7 +48,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
 import { validateRepositoryTarget } from "../write-files-validation.js";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 const WORKSPACE_ID = "ws-cred-model-facing";
@@ -130,12 +130,12 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 let toolUseCounter = 0;
 
-async function call(harness: Harness, toolId: string, input: unknown) {
+async function call(harness: Harness, toolId: string, input: unknown, incidents = createRouteIncidentReporter()) {
   if (toolId === "custom_credential_create" || toolId === "custom_credential_set_token") {
     input = credentialSaveFixtureInput({ input, kind: "api", rotation: toolId === "custom_credential_set_token" });
     toolId = "credential_save";
   }
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } as never });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { ...harness, reportInternalError: incidents.reportInternalError } as never });
 }
 
 /** The exact fixed text `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` publishes for a secret-store
@@ -398,14 +398,20 @@ test("a MISSING SITE KEY reaches the model as the actionable secret-store reason
 test("a transport failure stays redacted — its message can carry an internal address", async () => {
   const { deps } = await makeRouteDeps({ httpError: new Error("connect ECONNREFUSED 10.0.4.7:443") });
   const harness = await buildHarness(deps);
+  const incidents = createRouteIncidentReporter();
 
-  const result = await call(harness, "custom_credential_make_request", { label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps" });
+  const result = await call(harness, "custom_credential_make_request", { label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps" }, incidents);
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
   assert.equal(result.error.code, "INTERNAL_ERROR");
+  // The route's one incident: one host record, whose ERR- id is the request id and closes the fixed server-fault guidance.
+  assert.equal(incidents.entries.length, 1, "exactly one host record");
+  const incidentId = incidents.entries[0]!.meta?.["errorId"];
+  assert.match(String(incidentId), /^ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
+  assert.equal(result.error.requestId, incidentId);
   // Jini daemon delegated-tools.ts (44ae8070): an unlisted fault now answers with this fixed server-fault guidance.
-  assert.equal(result.error.message, "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem.");
+  assert.equal(result.error.message, `The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem. (error ${String(incidentId)})`);
   assert.ok(!JSON.stringify(result).includes("10.0.4.7"), "an internal address must never reach the wire");
 });
 

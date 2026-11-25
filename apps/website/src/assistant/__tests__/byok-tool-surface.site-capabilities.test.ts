@@ -7,6 +7,7 @@ import test from "node:test";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -76,7 +77,7 @@ async function describeCapabilitiesTools(surface: ReturnType<typeof createByokTo
 }
 
 test("BYOK: site_describe_capabilities lists every tool this surface's describe_tool resolves, and only those", async () => {
-  const surface = createByokToolSurface(fakeRouteDeps(), { contributions });
+  const surface = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), { contributions });
   const tools = await describeCapabilitiesTools(surface);
 
   assert.equal(tools.status, "ok", `tools section was ${tools.status}/${tools.reason ?? ""} — the surface did not wire its registry reader`);
@@ -95,7 +96,7 @@ test("BYOK: site_describe_capabilities lists every tool this surface's describe_
 
 test("BYOK: a caller-supplied listCatalogTools cannot replace the surface's own registry reader", async () => {
   const deps = { ...fakeRouteDeps(), listCatalogTools: () => [] } as unknown as ByokToolSurfaceDeps;
-  const surface = createByokToolSurface(deps, { contributions });
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { contributions });
   const tools = await describeCapabilitiesTools(surface);
 
   assert.equal(tools.status, "ok");

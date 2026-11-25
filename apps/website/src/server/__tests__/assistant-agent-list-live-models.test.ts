@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -125,7 +126,7 @@ function harness() {
         } });
         const app = express();
         app.use(express.json());
-        registerAuthRoutes({ app, deps });
+        registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
         createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
         return { app, deps };
       },

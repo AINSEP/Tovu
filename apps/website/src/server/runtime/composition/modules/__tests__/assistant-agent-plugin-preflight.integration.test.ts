@@ -15,6 +15,8 @@ import path from "node:path";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { createAssistantByokModule } from "../assistant-byok.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test("preflight keeps pinned guidance when its credential-bearing controller fails", async (t) => {
   const source = ts.createSourceFile("assistant-tool-exec.ts", readFileSync(new URL("../assistant-tool-exec.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
@@ -53,8 +55,7 @@ test("plugin preflight uses the site's live run identity and releases terminal c
       pinnedPrefix: async ({ pluginRefIds }) => { assert.deepEqual(pluginRefIds, ["picked"]); return "pinned guidance"; },
       emit: async ({ principalId, runId, payload }) => { assert.equal(principalId, "member"); assert.equal(runId, "plugin-run"); assert.equal(payload.type, "agent_plugins"); },
       refusalPrefix: () => "withheld tools",
-    },
-  }, {});
+    }, reporter: createRouteIncidentReporter().reporter }, {});
   const baseUrl = await startTestServer(app, t);
   // Boot installs the RPC token before serving, including before an unauthenticated first request.
   const token = ensureToolExecToken({}, {});
@@ -92,8 +93,7 @@ test("a stopped run cannot publish late plugin consent or receive a prepared pre
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore: deps.chatRunLedger.durable,
     toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
     plugins: { controller: { start: async ({ context }) => { assert.equal(context.query, "hello", "a missing userPrompt falls back to the saved prompt"); entered(); await waiting; await context.publish({ conversationId, state: context.state, plugins: [] }); return "late"; }, forget: ({ runId }) => { forgotten.push(runId); } },
-      pinnedPrefix: async () => "", emit: async () => { emissions++; }, refusalPrefix: () => "" },
-  }, {});
+      pinnedPrefix: async () => "", emit: async () => { emissions++; }, refusalPrefix: () => "" }, reporter: createRouteIncidentReporter().reporter }, {});
   const baseUrl = await startTestServer(app, t);
   const pending = fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify({ runId: "stopped-run" }) });
   assert.equal(await Promise.race([started.then(() => "started"), pending.then(() => "responded")]), "started", "a valid preflight must reach the server controller");
@@ -130,7 +130,7 @@ test("pinned preflight always inlines text and carries its identity, even with p
   await deps.chatRunLedger.durable!.accept({ conversationId, messageId: "pinned-pointer-answer", runId, principalId, workspaceId: deps.workspaceId,
     now: Date.now(), request: { contextRef: JSON.stringify({ prompt: "Read notes", pluginRefIds: [pluginId] }) } }, {});
   const app = express();
-  createAssistantByokModule({ routeDeps: deps }).registerToolExecRoutes({ router: app });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }).registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify({ runId }) });
   assert.equal(response.status, 200);

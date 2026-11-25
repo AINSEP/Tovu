@@ -1,4 +1,5 @@
 import { createRunActiveContextStore } from "@jini-ai/daemon/http";
+import type { RoutineRunMarker } from "@tovu/contracts/routines";
 import { resolveSessionBinding as bindRunSession, subscribeRunSession, type RunSessionBinding } from "./agent-daemon-run-session.js";
 import { createRunToolChoice } from "./agent-daemon-run-tool-access.js";
 import { createRunLaunch } from "./agent-daemon-run-launch.js";
@@ -210,6 +211,7 @@ function decodeRunStart(ports: RunStartPorts, { request, run, runLifecycle }: { 
   let durableMessageId: string | undefined;
   let recoveryMode: "native" | "reconstruction" | undefined;
   let recoverySessionId: string | undefined;
+  let routine: RoutineRunMarker | undefined;
   try {
     // `frontendBindToken` also rides in this envelope but is deliberately not read here —
     // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
@@ -228,6 +230,7 @@ function decodeRunStart(ports: RunStartPorts, { request, run, runLifecycle }: { 
     durableMessageId = decoded.assistantMessageId;
     recoveryMode = decoded.recoveryMode;
     recoverySessionId = decoded.recoverySessionId;
+    routine = decoded.routine;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: the request was malformed." }, {});
@@ -235,7 +238,7 @@ function decodeRunStart(ports: RunStartPorts, { request, run, runLifecycle }: { 
     return null;
   }
 
-  return { prompt, coldStartContext, principal, attachmentIds, pluginRefIds, model, reasoning, conversationId, pageContext, durableMessageId, recoveryMode, recoverySessionId };
+  return { prompt, coldStartContext, principal, attachmentIds, pluginRefIds, model, reasoning, conversationId, pageContext, durableMessageId, recoveryMode, recoverySessionId, routine };
 }
 
 function registerLiveRun(ports: RunPorts, _optional = {}) {

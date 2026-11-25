@@ -14,6 +14,7 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExch
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -91,7 +92,7 @@ test("real round trip: an mcp-ui submission of assistant_ask_choice's form is re
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges }, errors: createRouteIncidentReporter().errors });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

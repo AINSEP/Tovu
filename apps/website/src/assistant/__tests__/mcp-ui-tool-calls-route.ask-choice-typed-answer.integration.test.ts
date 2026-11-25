@@ -19,6 +19,7 @@ import {
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -101,7 +102,7 @@ async function startRoute(
 ): Promise<string> {
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges }, errors: createRouteIncidentReporter().errors });
   return startTestServer(app, t);
 }
 

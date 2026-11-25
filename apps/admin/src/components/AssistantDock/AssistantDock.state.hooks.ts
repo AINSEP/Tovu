@@ -8,8 +8,10 @@ import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-pr
 import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "@jini-ai/admin/shell/components/AssistantDock/hooks/conversation-refresh.hooks";
+import { lookupOwnedConversation, replaceBrowserQuery } from "../../features/routines/use-conversation-deep-link";
 import { defaultAssistantChatsPort } from "../../hooks/assistant-chats-dependencies.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
+import { agUiApprovalPoster } from "../../lib/assistant-transport-ag-ui";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "@jini-ai/admin/screens/plugins/composer-skills.hooks";
 import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
@@ -63,7 +65,8 @@ function selectedDockAgent({ mode, agents, agentId }: {
 /** Renderer registry, WebMCP setting and the pane's translated chrome. */
 function useDockChrome({ props }: { props: DockProps }, { useChrome = useAssistantDockChrome }: { useChrome?: typeof useAssistantDockChrome } = {}) {
   const { useAdminLocale } = props;
-  const renderers = useDockRendererRegistry();
+  // The same AG-UI client the transport drives, so the card answers the interrupt that run parked.
+  const renderers = useDockRendererRegistry({ agUiApprovals: agUiApprovalPoster }, {});
   const { mcpUiToolCaller } = renderers;
   const { enabled: webMcpEnabled } = useAdminBrowserAgentSettings({});
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
@@ -296,6 +299,10 @@ export function useAssistantDockState(props: AssistantDockProps) {
   const agent = useDockAgent({ props, execution, locale: chrome.locale, runtimePreferences: preferences.runtimePreferences });
   const composer = useDockComposer({ props, renderers: chrome.renderers, execution, agent, transportState: transport });
   const run = useDockRun({ props, t: chrome.t, execution, agent, transportState: transport, composer });
+  const ports = props.deepLinkPorts ?? {};
+  // Reuses the transport's `chats` (no second controller): the link selects through the same seam the picker uses.
+  props.useConversationDeepLink({ query: props.query, chats: transport.chats, principalId: principalId ?? "", lookupConversation: ports.lookupConversation ?? lookupOwnedConversation,
+    replaceQuery: ports.replaceQuery ?? replaceBrowserQuery, notify: ports.notify ?? (() => undefined), openDock: ports.openDock ?? (() => undefined) });
   return { ChatPaneView, agentBridge, principalId, ...chrome, ...preferences, ...execution, ...transport, ...agent, ...composer, ...run };
 }
 

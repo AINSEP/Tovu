@@ -10,6 +10,7 @@ import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-rou
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -24,7 +25,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 function buildApp(surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): express.Express {
   const app = express();
   app.use(express.json());
-  registerA2uiActionsRoute({ app, deps: { surfaceExchanges } });
+  registerA2uiActionsRoute({ app, deps: { surfaceExchanges }, errors: createRouteIncidentReporter().errors });
   return app;
 }
 

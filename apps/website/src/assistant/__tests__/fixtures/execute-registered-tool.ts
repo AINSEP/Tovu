@@ -2,6 +2,7 @@ import { createToolRegistry, ToolInputError, type ToolExecutionContext, type Sur
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createLocalSameOriginPolicy } from '@jini-ai/core/contracts/server';
 import { daemonRouteHost, mountJiniRoutes } from '../../../platform/express/jini-routes.js';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** Exercise the real normalization/authorization gate over a domain's actual registration. */
 export function executeRegisteredTool(
@@ -46,7 +47,7 @@ export async function executeDelegatedRegisteredTool(
   app.use(express.json());
   const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } }) };
   // 100 KB: the byte size of the default `express.json()` parser above; the list derives its body limit from it.
-  mountJiniRoutes({ app, routes: http.delegatedToolRoutes({ deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => ({ id: principalId }) }, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024 }) }) });
+  mountJiniRoutes({ app, routes: http.delegatedToolRoutes({ deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => ({ id: principalId }) }, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024, errors: createRouteIncidentReporter().errors }) }) });
   const fetchImpl: typeof fetch = async (url, init) => {
     if (String(url) !== 'http://localhost:7456/api/delegated-tool-calls' || init?.method !== 'POST') throw new Error('unexpected delegated transport request');
     const socket = new PassThrough();

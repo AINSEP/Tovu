@@ -29,6 +29,7 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -469,7 +470,7 @@ test("daemon remote discovery and the real BYOK root expose the identical tool-i
   const byokDeps = createRouteDeps();
   await byokDeps.identityReady;
   const daemonRegistry = await buildDaemonToolSurface(daemonDeps);
-  const byok = createAssistantByokModule({ routeDeps: byokDeps });
+  const byok = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: byokDeps });
   await byok.toolSurface.ready;
   const daemonIds = daemonRegistry.list({}).map(({ id }) => id).sort();
   const byokIds = byok.toolSurface.registry.list({}).map(({ id }) => id).sort();
@@ -517,7 +518,7 @@ test("W7–9 guidance resolves named readers through CLI and BYOK catalogs", asy
   const byokDeps = createRouteDeps();
   await byokDeps.identityReady;
   const daemon = await buildDaemonToolSurface(daemonDeps);
-  const byok = createAssistantByokModule({ routeDeps: byokDeps });
+  const byok = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: byokDeps });
   await byok.toolSurface.ready;
   for (const registry of [daemon, byok.toolSurface.registry]) {
     const ids = registry.list({}).map(tool => tool.id);

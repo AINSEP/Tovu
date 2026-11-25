@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "../../../__tests__/helpers/route-incident-reporter.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -22,7 +23,7 @@ for (const fault of ["identity", "session", "logout"] as const) {
     }
     const logs = t.mock.method(console, "error", () => {});
     const app = express();
-    registerAuthRoutes({ app, deps: failing });
+    registerAuthRoutes({ app, deps: failing, errors: createRouteIncidentReporter().errors });
     const { res, capture } = createCapturingResponse();
     const tracked: Array<{ error: Error; options: unknown }> = [];
     res.locals.adminFailureTracker = { error: ({ error }: { error: Error }, options: unknown) => tracked.push({ error, options }) };

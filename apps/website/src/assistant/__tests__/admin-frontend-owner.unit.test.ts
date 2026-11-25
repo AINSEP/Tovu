@@ -8,6 +8,7 @@ import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/platfor
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { adminFrontendOwner, adminFrontendRunOwner } from '../admin-frontend-owner.js';
 import { RUN_PRINCIPAL_HEADER } from '../daemon-access.js';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** The hook input a Jini route list gives: the request's headers and the facts the host put in `locals` (the host app's parsed query among them). */
 function hookInput({ headers, query }: { headers: Record<string, string>; query: Record<string, unknown> }) {
@@ -69,7 +70,7 @@ async function adminRoutesWithoutFacts({ url, method = 'GET', headers = {} }: { 
   const reports: unknown[] = [];
   const control = createFrontendControl({ capabilities: [{ id: 'page.click', description: 'Activate one control.' }], resolveBindToken: () => undefined, setTimer: nodeSessionTimer,
     session: { resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: 'site' }) } });
-  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 1024 });
+  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 1024, errors: createRouteIncidentReporter().errors });
   const dispatcher = createNodeDispatcher({}, { expressCompatible: true });
   for (const route of control.routes({ host: { ...host, reportInternalError: (required, optional) => { reports.push(required.report); return host.reportInternalError(required, optional); } } })) dispatcher.server.route(route);
   const app = express();

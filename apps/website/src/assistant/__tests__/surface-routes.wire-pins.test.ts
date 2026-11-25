@@ -14,6 +14,7 @@ import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Wire pins for the two surface-answer endpoints: the exact status, body and content type of
@@ -37,8 +38,8 @@ const executor: { instance: ToolExecutor; calls: number } = (() => {
 function buildApp(store: ReturnType<typeof newStore>): express.Express {
   const app = express();
   app.use(express.json());
-  registerA2uiActionsRoute({ app, deps: { surfaceExchanges: store } });
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor.instance, surfaceExchanges: store } });
+  registerA2uiActionsRoute({ app, deps: { surfaceExchanges: store }, errors: createRouteIncidentReporter().errors });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor.instance, surfaceExchanges: store }, errors: createRouteIncidentReporter().errors });
   return app;
 }
 
@@ -185,8 +186,8 @@ test("registration: each endpoint is ONE method-scoped POST route row, at the po
   const app = express();
   app.use(express.json());
   app.use(function markerBefore(_req, _res, next) { next(); });
-  registerA2uiActionsRoute({ app, deps: { surfaceExchanges: newStore() } });
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor.instance, surfaceExchanges: newStore() } });
+  registerA2uiActionsRoute({ app, deps: { surfaceExchanges: newStore() }, errors: createRouteIncidentReporter().errors });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor.instance, surfaceExchanges: newStore() }, errors: createRouteIncidentReporter().errors });
   app.use(function markerAfter(_req, _res, next) { next(); });
 
   const stack = stackOf(app);

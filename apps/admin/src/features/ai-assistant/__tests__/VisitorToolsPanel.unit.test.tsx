@@ -82,7 +82,7 @@ describe("VisitorToolsPanel (host copy and policy)", () => {
     const visitor = document.createElement("div");
     visitor.innerHTML = '<div class="jini-chat-vanilla__tool-confirmation" hidden><span></span><button>Continue</button></div>';
     document.body.append(visitor);
-    const project = createVanillaToolConfirmation({ element: visitor, document }, { confirm: async () => true });
+    const project = createVanillaToolConfirmation({ element: visitor, document, confirm: async () => true });
     project({ directive: { kind: "tool_confirmation", challengeId: "a".repeat(22), title: "Confirm search", summary: "Search posts." } });
     try {
       const allow = within(visitor).getByRole("button", { name: "Allow" });

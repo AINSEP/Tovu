@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -71,7 +72,7 @@ function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerPluginSetEnabledRoute({ app, deps: pluginDeps });
   return { app, pluginDeps };

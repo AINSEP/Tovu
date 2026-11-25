@@ -6,6 +6,9 @@
 import type { Express } from "express";
 import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import type { createAssistantByokModule } from "./modules/assistant-byok.js";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import type { RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
+import type { HumanConfirmSurfaceDeps } from "#src/contracts/core/human-confirm";
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
@@ -17,6 +20,8 @@ export interface CreateAppOptions {
   assistantToolSurface?: ReturnType<typeof createAssistantByokModule>["toolSurface"];
   /** Serving boot only; exporter/eager apps do not own recovery of assistant turns. */
   recoverAssistantChatRuns?: boolean;
+  /** Serving boot only: the routines boot barrier, so chat repair leaves turns the routine lease owner still owns (P3-T2.T). */
+  assistantRoutineBoot?: { isLeaseOwner: () => boolean; whenInterrupted: () => Promise<void> };
   /**
    * Receives each background pass `createApp` starts and returns before it finishes — today the BYOK
    * tool surface's installed-extension pass, which reads the plugin catalog and plugin activations
@@ -24,6 +29,13 @@ export interface CreateAppOptions {
    * close does not land under those reads. Never rejects (the pass is fail-open).
    */
   onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
+  /**
+   * Serving boot only: receives each process-local release `createApp` composes — today the parked
+   * AG-UI approvals of the visitor and admin assistants. The host calls every one when it stops, so
+   * a parked approval is denied and cleaned up at shutdown instead of waiting out its expiry under a
+   * closing store. Each release is idempotent.
+   */
+  onShutdown?: ({ shutdown }: { shutdown: () => void }, optional?: Record<string, never>) => void;
   /** Serving boot only: hears every owner/admin sign-in (the automatic form pull). Exporter and eager
    *  apps never pass it, so signing in to them pulls nothing. */
   onAdminSignIn?: AdminSignInPort;
@@ -40,4 +52,16 @@ export interface CreateAppOptions {
   /** The dev-only CORS policy `createApp` installs on its express app; defaults to the admin-dev-server allow-list in
    *  `inbound/shared/dev-cors.ts`. A host or test hands in its own so the middleware never hard-codes one. */
   applyDevCors?: (app: Express) => void;
+  /** The site's error reporter when the host already built one (a daemon scope, a test). Otherwise
+   *  `createApp` builds one per site composition over `routeDeps.tracker` and `routeDeps.clock`. */
+  errorReporter?: ErrorReporter;
+  /** Serving boot only: mounts the routine routes' slot (P3-T1a.T) at its place among the admin assistant
+   *  routes. Exporter and eager apps never pass it, so they expose no routine endpoint at all. */
+  mountAssistantRoutines?: (required: { app: Express }, optional?: Record<string, never>) => void;
+  /** Serving boot only (P3-T4.T): the bound routine commands behind the four routine tools. Absent, no routine tool exists. */
+  routines?: RoutineToolHost;
+  /** The host-root `ROUTINES_RELEASE_ENABLED`; the routine tools need it on as well as `routines`. */
+  routinesReleaseEnabled?: boolean;
+  /** Serving boot only (P3-T3.T): human-confirm's receipt port for tracked routine runs. */
+  routineApprovalReceiptsFor?: HumanConfirmSurfaceDeps["approvalReceiptsFor"];
 }

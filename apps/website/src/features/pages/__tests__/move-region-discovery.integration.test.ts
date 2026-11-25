@@ -7,6 +7,7 @@ import { registerInstalledExtensionTools } from "#src/server/runtime/composition
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 import { MIN_EXPECTED_TOOL_COUNT, fakeEvalRouteDeps } from "../../../../../../development/evals/tool-search-eval-registry.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file Proves `pages_move_region` is REACHABLE through `search_tools` over the real installed
@@ -26,7 +27,7 @@ function surface() {
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
-  return createByokToolSurface(fakeEvalRouteDeps() as never, { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
+  return createByokToolSurface(Object.assign(fakeEvalRouteDeps() as never, { reporter: testToolReporter() }), { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
 }
 
 async function rankedIds(query: string): Promise<string[]> {

@@ -134,7 +134,7 @@ export function bodyFitsKeepalive({ body }: { body: string }, _optional: Record<
 }
 
 /** The local API owners this admin may send its cookies to; never a provider URL. */
-type AdminApiBasePath = "/api/admin/v1" | "/api/assistant/chats" | "/api/agents";
+type AdminApiBasePath = "/api/admin/v1" | "/api/assistant/chats" | "/api/agents" | "/api/admin/assistant/routines";
 
 /** Per-call options for {@link request}, {@link requestOnce} and {@link authenticatedAdminRequest}. */
 export type AuthenticatedAdminRequestOptions = AdminHttpOptions<ApiError, AdminApiBasePath, "page">;

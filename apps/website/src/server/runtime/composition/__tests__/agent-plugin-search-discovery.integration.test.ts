@@ -11,6 +11,7 @@ import { registerInstalledExtensionTools } from "#src/server/runtime/composition
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 import { MIN_EXPECTED_TOOL_COUNT, fakeEvalRouteDeps } from "../../../../../../../development/evals/tool-search-eval-registry.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 /**
  * @file Proves `search_agent_plugin_local` is REACHABLE, not merely registered — the same standard
@@ -20,7 +21,7 @@ import { MIN_EXPECTED_TOOL_COUNT, fakeEvalRouteDeps } from "../../../../../../..
  *
  * `byok-tool-surface.ts` publishes three meta-tools to the model — `search_tools`, `describe_tool`,
  * `execute_delegated_tool` — and nothing else. A tool the model cannot FIND through `search_tools` is
- * functionally a tool that does not exist. This composes the real `createByokToolSurface(...)` over
+ * functionally a tool that does not exist. This composes the real `createByokToolSurface(Object.assign(..., { reporter: testToolReporter() }))` over
  * the full installed catalog (`installFirstPartyToolContributors()`, the same composition root call
  * `server/modules/assistant-byok.ts` makes at boot) and calls `executeMetaTool` exactly as a BYOK turn
  * does — never a hand-seeded fixture catalog, which would prove nothing about beating real neighbours
@@ -58,7 +59,7 @@ const contributions = {
 function surface() {
   contributions.contributors.clear({});
   installFirstPartyToolContributors({ contributions });
-  return createByokToolSurface(fakeEvalRouteDeps() as never, { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
+  return createByokToolSurface(Object.assign(fakeEvalRouteDeps() as never, { reporter: testToolReporter() }), { contributions, registerInstalledExtensions: registerInstalledExtensionTools });
 }
 
 async function rankedIds(query: string, limit = 5): Promise<SearchHit[]> {

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -135,7 +136,7 @@ function buildTestApp(overrides: Partial<Pick<AgentPluginsRouteDeps, "setAgentPl
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps: baseDeps });
+  registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerAgentPluginSetEnabledRoute({ app, deps: routeDeps });
   return { app, baseDeps };
@@ -214,7 +215,7 @@ test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per ac
     } });
     const app = express();
     app.use(express.json());
-    registerAuthRoutes({ app, deps });
+    registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
     // No toggle override: this goes through deps.ts -> site mailer -> the shared boot lifecycle.
     registerAgentPluginSetEnabledRoute({ app, deps });

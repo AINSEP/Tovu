@@ -6,6 +6,7 @@ import { createLocalSameOriginPolicy, type ServerRoute } from "@jini-ai/core/con
 import { daemonRouteHost } from "../../platform/express/jini-routes.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
 import { createToolCatalogFor, discoveryPrincipalResolver } from "../tool-catalog-principal-scope.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Per-principal discovery: a read-only principal's `/api/tools/search` and `/api/tools/:id`
@@ -29,7 +30,7 @@ function mount() {
   const runCredentials = { resolveCaller: ({ token }: { token: string }) => { const runId = TOKENS.get(token); return runId ? { runId, principalId: principalByRunId.get(runId)!.id } : undefined; } };
   const catalogFor = createToolCatalogFor({ catalog, registry, resolvePrincipal: discoveryPrincipalResolver({ runCredentials, principalByRunId }) });
   const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST" } }) };
-  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024 }) });
+  const routes: readonly ServerRoute[] = toolCatalogRoutes({ deps: { catalog, catalogFor }, host: daemonRouteHost({ context, parserLimitBytes: 1024 * 1024, errors: createRouteIncidentReporter().errors }) });
   return async (token: string | undefined, path: string, params: Record<string, string> = {}) => {
     const route = routes.find(candidate => candidate.path === path);
     assert.ok(route, `route ${path} mounted`);

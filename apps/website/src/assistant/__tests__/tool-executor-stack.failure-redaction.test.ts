@@ -18,12 +18,15 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-t
 import { constrainPrincipalToReadOnlyTools, readOnlyRemedyRefusalMessage, refuseNonReadOnlyDispatch } from "../read-only-tool-constraint.js";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
-import { isRedactedToolFailure, readToolErrorId, TOOL_ERROR_ID_PATTERN, type ToolFailureRecord } from "../tool-recovery-preset.js";
+import { isRedactedToolFailure, readToolErrorId, TOOL_ERROR_ID_PATTERN } from "../tool-recovery-preset.js";
+import { createRecordingReporter } from "@jini-ai/core/errors/testing";
+import type { LogDiagnosticRecord } from "@jini-ai/core/primitives";
 import { issueToolFailureDiagnostic } from "@jini-ai/daemon/tool-recovery";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createReporterRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -41,6 +44,16 @@ const FIXED_ID = "ERR-1111-2222-3333-4444";
 const STRIPE_KEY = ["sk", "live", ""].join("_") + "Ab3".repeat(8);
 const GHP_TOKEN = "ghp_" + "a1".repeat(18);
 const SECRET_TEXT = `upstream call failed: key=${STRIPE_KEY} (Authorization: Bearer ${GHP_TOKEN})`;
+
+/** A real reporter over recording ports — the one host record sink the production stack writes to. */
+function recordingReporter() {
+  return createRecordingReporter({ ids: Array.from({ length: 8 }, () => FIXED_ID), iso: "2026-01-01T00:00:00.000Z" });
+}
+
+/** The ERR- ids the reporter's host log entries were written under, in order. */
+function hostRecordIds(entries: readonly LogDiagnosticRecord[]): unknown[] {
+  return entries.map((entry) => entry.meta?.["errorId"]);
+}
 
 function containsNoSecret(text: string): void {
   assert.equal(text.includes(STRIPE_KEY), false, `leaked the Stripe key: ${text}`);
@@ -65,12 +78,12 @@ function registerThrowingTool(registry: ToolRegistry, id = "throws_secret"): voi
 test("EXECUTOR: a real handler throw is redacted and ID-tagged by the production composition", async () => {
   const registry = createToolRegistry({});
   registerThrowingTool(registry);
-  const records: ToolFailureRecord[] = [];
+  const { reporter, entries } = recordingReporter();
   const executor = createAssistantToolExecutor({
-    registry,
+    registry, reporter,
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },
-    toolFailures: { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) },
+    toolFailures: { mintErrorId: () => FIXED_ID },
   }, {});
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "throws_secret", input: {} });
@@ -78,8 +91,9 @@ test("EXECUTOR: a real handler throw is redacted and ID-tagged by the production
   assert.equal(result.status, "failed");
   assert.match(result.error!, new RegExp(`^Error ${FIXED_ID}: `));
   containsNoSecret(result.error!);
-  assert.equal(records.length, 1);
-  assert.equal(records[0].errorId, FIXED_ID);
+  // One host record, under the very id the model was shown, and no secret in it.
+  assert.deepEqual(hostRecordIds(entries), [FIXED_ID]);
+  containsNoSecret(JSON.stringify(entries));
 });
 
 // ---------------------------------------------------------------------------
@@ -87,11 +101,14 @@ test("EXECUTOR: a real handler throw is redacted and ID-tagged by the production
 //    own server log (P5).
 // ---------------------------------------------------------------------------
 
-test("BRIDGE: the persisted tool_result event and http-kit's internal-error log both carry the ID with no secret", async (t) => {
+// The delegated route reuses the tool's stamped ID without writing (J4): the one record is the reporter's
+// host record, so the operator correlation moved from the http-kit console line to that record.
+test("BRIDGE: the persisted tool_result event, the route reply and the one host record carry the ID with no secret", async (t) => {
   const registry = createToolRegistry({});
+  const recording = recordingReporter();
   registerThrowingTool(registry);
   const toolExecutor = createAssistantToolExecutor({
-    registry,
+    registry, reporter: recording.reporter,
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     toolFailures: { mintErrorId: () => FIXED_ID },
   }, {});
@@ -102,7 +119,7 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
   const loggedArgs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => void loggedArgs.push(args));
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: createReporterRouteInternalError({ reporter: recording.reporter }), lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
   );
 
   assert.equal(result.ok, false);
@@ -116,24 +133,27 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
   assert.match(content, new RegExp(`^Error ${FIXED_ID}: `));
   containsNoSecret(content);
 
-  const loggedText = loggedArgs.map((args) => args.map(String).join(" ")).join("\n");
-  containsNoSecret(loggedText);
-  assert.match(loggedText, new RegExp(FIXED_ID));
+  if (!result.ok) assert.equal(result.error.requestId, FIXED_ID, "the reply reuses the stamped ID");
+  assert.equal(loggedArgs.length, 0, "no console line: the reporter owns the record");
+  assert.equal(recording.entries.length, 1, "exactly one host record");
+  assert.equal(recording.entries[0]!.meta?.errorId, FIXED_ID);
+  containsNoSecret(JSON.stringify(recording.entries));
 });
 
 test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Error <ID>: …' with no secret, not INTERNAL_ERROR", async (t) => {
   const registry = createToolRegistry({});
   registerThrowingTool(registry);
+  const recording = recordingReporter();
   const toolExecutor = createAssistantToolExecutor({
-    registry,
+    registry, reporter: recording.reporter,
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-    toolFailures: { mintErrorId: () => FIXED_ID, onFailure: () => undefined },
+    toolFailures: { mintErrorId: () => FIXED_ID },
   }, {});
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-model-safe-failure" });
   t.mock.method(console, "error", () => undefined);
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: createReporterRouteInternalError({ reporter: recording.reporter }), lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
   );
 
   assert.equal(result.ok, false);
@@ -141,6 +161,8 @@ test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Er
   assert.equal(result.error.code, "TOOL_EXECUTION_FAILED");
   assert.match(result.error.message, new RegExp(`^Error ${FIXED_ID}: upstream call failed`));
   containsNoSecret(result.error.message);
+  // The tool's stamped id is reused: the route wrote no second record for the one failure.
+  assert.deepEqual(hostRecordIds(recording.entries), [FIXED_ID]);
 });
 
 test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even with the wiring", async () => {
@@ -151,12 +173,13 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-unredacted-failure" });
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError,
+  const incidents = createRouteIncidentReporter();
+
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: incidents.reportInternalError,
       lifecycle,
       toolExecutor,
       resolvePrincipal: () => PRINCIPAL,
       isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}),
-      onInternalError: () => undefined,
     } }
   );
 
@@ -164,6 +187,13 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
   if (result.ok) return;
   assert.equal(result.error.code, "INTERNAL_ERROR");
   containsNoSecret(JSON.stringify(result));
+  // The route's one incident: exactly one host record, under the id the model was shown, with no secret in it.
+  assert.match(result.error.requestId ?? "", /^ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
+  assert.equal(incidents.entries.length, 1, "exactly one host record");
+  assert.deepEqual(hostRecordIds(incidents.entries), [result.error.requestId]);
+  containsNoSecret(JSON.stringify(incidents.entries));
+  // The tracker report is handed the raw error by contract (its adapter redacts on export), so it is matched by id, not scanned for secrets.
+  assert.deepEqual(incidents.reports.map((report) => report.context.incidentId), [result.error.requestId]);
 });
 
 // ---------------------------------------------------------------------------
@@ -175,7 +205,7 @@ test("AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never
   registerThrowingTool(registry);
   const sink = createInMemoryToolAttemptAuditSink();
   const executor = createAssistantToolExecutor({
-    registry,
+    registry, reporter: recordingReporter().reporter,
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     toolAttemptAudit: { sink, workspaceId: WORKSPACE_ID },
     toolFailures: { mintErrorId: () => FIXED_ID },
@@ -202,11 +232,11 @@ test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagg
   // parked exchange, never run through this legacy shape. `content_post_search` is a Shape 2 id.
   registerThrowingTool(registry, "content_post_search");
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const toolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges, toolFailures: { mintErrorId: () => FIXED_ID } }, {});
+  const toolExecutor = createAssistantToolExecutor({ registry, reporter: recordingReporter().reporter, surfaceExchanges, toolFailures: { mintErrorId: () => FIXED_ID } }, {});
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
+  registerMcpUiToolCallsRoute({ app, errors: createRouteIncidentReporter().errors, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -237,11 +267,11 @@ test("ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact c
     policy: { authorize: () => "allow" },
     handler: wrapped.forbidden_tool,
   });
-  const records: ToolFailureRecord[] = [];
+  const { reporter, entries } = recordingReporter();
   const executor = createAssistantToolExecutor({
-    registry,
+    registry, reporter,
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-    toolFailures: { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) },
+    toolFailures: { mintErrorId: () => FIXED_ID },
   }, {});
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "forbidden_tool", input: {} });
@@ -251,7 +281,7 @@ test("ALLOWLIST: a reclassified ForbiddenError is redacted but keeps its exact c
   assert.match(result.error!, /^X_FORBIDDEN: no grant: /);
   containsNoSecret(result.error!);
   assert.equal(readToolErrorId({ result: result }, {}), undefined);
-  assert.equal(records.length, 0);
+  assert.equal(entries.length, 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -280,7 +310,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executor = createAssistantToolExecutor({
-    registry,
+    registry, reporter: recordingReporter().reporter,
     surfaceExchanges,
     toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },
   }, {});
@@ -334,11 +364,9 @@ function fakeByokRouteDeps(): ByokToolSurfaceDeps {
   return deps as unknown as ByokToolSurfaceDeps;
 }
 
-test("BYOK: execute_delegated_tool's error carries the SAME ID as the default [tool-failure] log line, with no secret in either", async (t) => {
-  const loggedArgs: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => void loggedArgs.push(args));
-
-  const s = createByokToolSurface(fakeByokRouteDeps());
+test("BYOK: execute_delegated_tool's error carries the SAME ID as the reporter's host record, with no secret in either", async () => {
+  const { reporter, entries } = recordingReporter();
+  const s = createByokToolSurface({ ...fakeByokRouteDeps(), reporter });
   registerThrowingTool(s.registry as unknown as ToolRegistry, "throws_secret_byok");
 
   const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "execute_delegated_tool", input: { toolId: "throws_secret_byok", input: {} } } });
@@ -349,8 +377,7 @@ test("BYOK: execute_delegated_tool's error carries the SAME ID as the default [t
   assert.ok(idMatch, `expected an ERR-… id in: ${result.content}`);
   containsNoSecret(result.content);
 
-  const loggedText = loggedArgs.map((args) => args.map(String).join(" ")).join("\n");
-  assert.match(loggedText, /\[tool-failure\]/);
-  assert.ok(loggedText.includes(idMatch![0]), "the server log's id must match the one returned to the model");
-  containsNoSecret(loggedText);
+  // The composition's reporter, not a global console sink, holds the host record under that id.
+  assert.ok(hostRecordIds(entries).includes(idMatch![0]), "the host record's id must match the one returned to the model");
+  containsNoSecret(JSON.stringify(entries));
 });

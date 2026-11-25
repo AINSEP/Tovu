@@ -79,11 +79,14 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { daemonFetch, getAgentDaemonUrl, fetchAgentDaemon, forwardToAgentDaemon, parkColdFrontendStream, awaitDaemonForResponse, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
-import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
+import { ownerChatAcceptanceFor, sanitizeBrowserRunContext } from "./assistant-run-acceptance.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
-import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
 import { RunSlotBusyError } from "@jini-ai/chat/store/runtime";
+import type { AdminAgUiApprovals } from "#src/assistant/admin-ag-ui-approvals";
+
+/** The one approval operation a Stop needs: settle what the stopped run parked. */
+type StopSettlesApprovals = Pick<AdminAgUiApprovals, "settleAdminApprovalsOnStop">;
 
 /** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */
 type AssistantRouteDeps = RouteDeps & {
@@ -146,20 +149,20 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
   const principal = getAuthedPrincipal(res);
   const body = (req.body ?? {}) as { contextRef?: unknown; agentId?: unknown; idempotencyKey?: unknown };
 
-  let decoded: Record<string, unknown>;
+  let parsed: Record<string, unknown>;
   try {
-    decoded = JSON.parse(redactAdminRunContextRef({ contextRef: typeof body.contextRef === "string" ? body.contextRef : "{}" }, {})) as Record<string, unknown>;
+    parsed = JSON.parse(redactAdminRunContextRef({ contextRef: typeof body.contextRef === "string" ? body.contextRef : "{}" }, {})) as Record<string, unknown>;
   } catch {
     res.status(400).json({ error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR" });
     return;
   }
 
-  if (!isPlainObject(decoded)) {
+  if (!isPlainObject(parsed)) {
     res.status(400).json({ error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR" }); return;
   }
-  // Recovery session choices are server decisions, never client-controlled launch fields.
-  delete decoded.recoveryMode;
-  delete decoded.recoverySessionId;
+  // Recovery session choices and the routine marker are server decisions, never client-controlled
+  // fields; stripped here so the non-durable proxy fallback below cannot forward them either.
+  const decoded = sanitizeBrowserRunContext({ decoded: parsed }, {});
   if (await proxyAcceptedRun({ decoded, body, deps, res }, {})) return;
   const upstream = await forwardToAgentDaemon({ req, res, body: {
     ...body,
@@ -169,31 +172,20 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
   await relayResponse(upstream, req, res);
 }
 
+/** HTTP side of acceptance only (parse, 201/404); the binding lives in `assistant-run-acceptance.ts`.
+ * Never passes `routine`: a browser send can never be a routine run. */
 async function proxyAcceptedRun(
   { decoded, body, deps, res }: { decoded: Record<string, unknown>; body: { agentId?: unknown }; deps: AssistantRouteDeps; res: Response }, _optional = {},
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  const durable = deps.chatRunLedger.durable;
-  if (durable && typeof decoded.conversationId === "string" && typeof decoded.assistantMessageId === "string") {
-    const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
-    const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
-    const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
-      onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
-      launch: (required, optional) => {
-        if (!client.launch) throw new Error("assistant daemon has no launch operation");
-        return client.launch(required, optional);
-      },
-      attach: (run) => finalizer.watch({ principalId: principal.id, conversationId: run.conversationId, message: run.message }),
-    }, {});
-    const run = await acceptance.accept({ principalId: principal.id, workspaceId: deps.workspaceId,
-      conversationId: decoded.conversationId, messageId: decoded.assistantMessageId,
-      request: { ...(typeof body.agentId === "string" ? { agentId: body.agentId } : {}), contextRef: JSON.stringify({ ...decoded, principalId: principal.id }) },
-    }, {});
-    if (!run) { res.status(404).json({ error: "not found" }); return true; }
-    res.status(201).json({ run: { id: run.runId }, messageId: run.messageId, conversationId: run.conversationId });
-    return true;
-  }
-  return false;
+  const acceptance = ownerChatAcceptanceFor({ deps }, {});
+  if (!acceptance || typeof decoded.conversationId !== "string" || typeof decoded.assistantMessageId !== "string") return false;
+  const run = await acceptance.acceptOwnerChatRun({ principalId: principal.id, workspaceId: deps.workspaceId,
+    conversationId: decoded.conversationId, messageId: decoded.assistantMessageId, context: decoded },
+    typeof body.agentId === "string" ? { agentId: body.agentId } : {});
+  if (!run) { res.status(404).json({ error: "not found" }); return true; }
+  res.status(201).json({ run: { id: run.runId }, messageId: run.messageId, conversationId: run.conversationId });
+  return true;
 }
 
 async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
@@ -278,10 +270,17 @@ async function recoverDurableRun({ req, res, deps }: { req: Request; res: Respon
   res.json({ message: current.message, conversationId: current.conversationId });
 }
 
-async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res: Response; deps: AssistantRouteDeps; daemon: DaemonCallOptions }, _optional = {}): Promise<void> {
+async function cancelDurableRun(
+  { req, res, deps, daemon }: { req: Request; res: Response; deps: AssistantRouteDeps; daemon: DaemonCallOptions },
+  { approvals }: { approvals?: StopSettlesApprovals } = {},
+): Promise<void> {
   let run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) run = await cancelBeforeAcceptance({ req, res, deps }, {});
   if (!run) { await proxyPassthrough(req, res, daemon); return; }
+  // A Stop owns every AG-UI approval this run parked, synchronously, before anything is awaited: a
+  // racing resume either claimed first (its answer reaches the daemon, which this cancel then ends)
+  // or finds nothing to claim. Never both.
+  approvals?.settleAdminApprovalsOnStop({ owner: getAuthedPrincipal(res).id, daemonRunId: run.runId });
   const store = deps.chatRunLedger.durable;
   if (!store) throw new Error("assistant cancellation has no durable run store");
   await store.cancel({ runId: run.runId, reason: "user-stop" }, {});
@@ -597,11 +596,13 @@ interface AssistantMountContext {
   readonly daemon: DaemonCallOptions;
   readonly liveModels: ReturnType<typeof createLiveModelDiscovery>;
   readonly byokSurfaceExchanges: SurfaceExchangeStore;
+  /** The AG-UI approval table, when the AG-UI resume path is composed; absent, Stop is unchanged. */
+  readonly approvals?: StopSettlesApprovals;
 }
 
 /** The chat-run proxy routes, each behind the admin session. */
 function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
-  const { app, routeDeps, daemon } = required;
+  const { app, routeDeps, daemon, approvals } = required;
   app.use("/api/runs", requireAdminSession(routeDeps));
   app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
     proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {
@@ -620,7 +621,7 @@ function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
   app.get("/api/runs/:runId/checkpoint", (req, res, next) => readDurableCheckpoint({ req, res, deps: routeDeps }, {}).catch(next));
   app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
   app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-  app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
+  app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, { approvals }).catch(next));
   // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
   // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
   // pane whether to deliver live or queue the text after the current run. A durable run's id is the
@@ -757,7 +758,10 @@ function mountAttachmentAndActionRoutes(required: AssistantMountContext, _option
  * diverge from the BYOK module's own store the first time someone forgot to thread it through, and
  * every confirmation would 404/409 against an exchange this store never opened.
  */
-export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { routeDeps: AssistantRouteDeps; byokSurfaceExchanges: SurfaceExchangeStore }, _optional: Record<string, never> = {}): ServerModuleHandle {
+export function createAssistantModule(
+  { routeDeps, byokSurfaceExchanges }: { routeDeps: AssistantRouteDeps; byokSurfaceExchanges: SurfaceExchangeStore },
+  { approvals }: { approvals?: StopSettlesApprovals } = {},
+): ServerModuleHandle {
   // Every proxied daemon call is an outbound span under the admin request that caused it.
   const daemon: DaemonCallOptions = { observability: routeDeps.observability, ensureReady: routeDeps.assistantDaemonDemand?.ensureReady };
   // Each host owns its cache for its lifetime; unrelated applications cannot share a model slot.
@@ -772,7 +776,7 @@ export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { rou
   return {
     name: "assistant",
     registerRoutes: ({ app }, _options = {}) => {
-      const mount: AssistantMountContext = { app, routeDeps, daemon, liveModels, byokSurfaceExchanges };
+      const mount: AssistantMountContext = { app, routeDeps, daemon, liveModels, byokSurfaceExchanges, ...(approvals ? { approvals } : {}) };
       mountRunRoutes(mount);
       mountAgentAndToolRoutes(mount);
       mountFrontendSessionRoutes(mount);

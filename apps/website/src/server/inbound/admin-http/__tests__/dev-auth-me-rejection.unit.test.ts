@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "../../../__tests__/helpers/route-incident-reporter.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -16,7 +17,7 @@ test("GET /auth/me answers the plain-words failure when the identity store canno
   Object.defineProperty(failing, "identityReady", { get: () => Promise.reject(new Error("identity store unreachable")) });
   t.mock.method(console, "error", () => {});
   const app = express();
-  registerAuthRoutes({ app, deps: failing });
+  registerAuthRoutes({ app, deps: failing, errors: createRouteIncidentReporter().errors });
   app.use(captureRouteError);
   const baseUrl = await startTestServer(app, t);
 

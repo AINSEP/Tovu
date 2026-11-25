@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
+import { createRecordingLogger } from "@jini-ai/core/errors/testing";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
 import { createPrefixToolFamilyPort, delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /** The host's own `delegatedToolRouteDeps` expression, evaluated from the scope source, mounted on the real
  * daemon route: an agent that calls the bare `content_read` is told the cards to call, on both gateways, and
@@ -20,17 +21,19 @@ function fixture({ withFamilies = true }: { withFamilies?: boolean } = {}) {
   const toolExecutor: ToolExecutor = { ...inner, execute: request => { executorCalls.push(request); return inner.execute(request); } };
   const principalCalls: unknown[] = [];
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
+  // The scope's one reporter: the expression's disclosure describes through it, and the route reports through the same instance.
+  const incidents = createRouteIncidentReporter();
   const deps = evaluateDaemonExpression<DelegatedToolsHttpDeps>(daemonInitializer("delegatedToolRouteDeps"), {
-    lifecycle, toolExecutor, delegatedToolErrorDisclosure, publishJobRecoveryMessage: () => "",
+    lifecycle, toolExecutor, delegatedToolErrorDisclosure, publishJobRecoveryMessage: () => "", reporter: incidents.reporter, logger: createRecordingLogger().logger,
     resolvePrincipal: (call: unknown) => { principalCalls.push(call); return { id: "editor" }; },
     siteTools: { registry, ...(withFamilies ? { families: createPrefixToolFamilyPort({ registry, familyId: "content_read", selectorKeys: ["resource", "type", "entity", "kind"] }) } : {}) },
   });
-  return { deps, lifecycle, executorCalls, principalCalls };
+  return { deps, lifecycle, executorCalls, principalCalls, incidents };
 }
 
 async function bareCall(host: ReturnType<typeof fixture>, { toolId, requireReadOnly }: { toolId: string; requireReadOnly: boolean }) {
   const { run } = await host.lifecycle.start({ contextRef: "ctx-1" });
-  return delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId, input: { resource: "menu" }, ...(requireReadOnly ? { requireReadOnly: true } : {}) }, deps: { ...host.deps, reportInternalError: reportRouteInternalError } });
+  return delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId, input: { resource: "menu" }, ...(requireReadOnly ? { requireReadOnly: true } : {}) }, deps: { ...host.deps, reportInternalError: host.incidents.reportInternalError } });
 }
 
 for (const requireReadOnly of [true, false]) {

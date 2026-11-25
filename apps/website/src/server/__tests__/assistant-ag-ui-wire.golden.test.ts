@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { EventEmitter, once } from "node:events";
@@ -140,7 +141,7 @@ function harness() {
         const deps: RouteDeps = createRouteDeps();
         const app = express();
         app.use(express.json());
-        registerAuthRoutes({ app, deps });
+        registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
         createAssistantAgUiModule(deps).registerRoutes?.({ app });
         return app;
       },

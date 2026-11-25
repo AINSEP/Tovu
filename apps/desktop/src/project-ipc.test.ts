@@ -2700,3 +2700,40 @@ test("handleImportArchive gives a second import with the same name its own displ
   const two = await handleImportArchive({ pick: true }, second as never) as { displayName: string };
   assert.notEqual(one.displayName, two.displayName);
 });
+
+test("routines: Stop records the session withdrawal before the asynchronous stop is queued", async () => {
+  const order: string[] = [];
+  const deps = baseDeps({
+    routineWithdrawals: { withdraw: ({ siteDir }: { siteDir: string }) => { order.push(`withdraw ${siteDir}`); } },
+  });
+  const queue = deps.serializer;
+  deps.serializer = { ...queue, run: (input: Parameters<typeof queue.run>[0]) => { order.push("queued"); return queue.run(input); } } as typeof queue;
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
+  deps.openSites.set("/sites/a", { server: { port: 4321, stop: async () => { order.push("drain"); } } });
+  await handleStop({ id: "/sites/a", deps });
+  assert.deepEqual(order, ["withdraw /sites/a", "queued", "drain"]);
+});
+
+test("withdrawn site stays stopped this session: a routine background start queued behind the Stop re-checks inside the site's key", async () => {
+  const { startRoutineSiteInBackground } = await import("./project-ipc.server.ts");
+  const { createRoutineWithdrawals } = await import("./main/boot/routine-sites.ts");
+  const serializer = createKeyedSerializer({});
+  const routineWithdrawals = createRoutineWithdrawals();
+  const opened: string[] = [];
+  let release!: () => void;
+  // Another operation already holds the site's key (the Stop's own queued work, or an open in flight).
+  const held = serializer.run({ key: "/sites/a", fn: () => new Promise<void>((resolve) => { release = resolve; }) });
+  const deps = { serializer, ctx: {}, openSites: new Map(), routineWithdrawals,
+    openSiteServer: async ({ siteDir }: { siteDir: string }) => { opened.push(siteDir); } };
+  // routine-sites.ts's own pre-checks already passed; the background start is now queued on the key.
+  const start = startRoutineSiteInBackground({ siteDir: "/sites/a", deps: deps as never });
+  routineWithdrawals.withdraw({ siteDir: "/sites/a" });
+  await new Promise((resolve) => setImmediate(resolve));
+  release();
+  await held;
+  assert.equal(await start, false);
+  assert.deepEqual(opened, []);
+  // A site that was never withdrawn starts through the same key.
+  assert.equal(await startRoutineSiteInBackground({ siteDir: "/sites/b", deps: deps as never }), true);
+  assert.deepEqual(opened, ["/sites/b"]);
+});

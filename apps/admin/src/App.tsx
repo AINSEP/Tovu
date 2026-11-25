@@ -1,4 +1,5 @@
 import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
+import { useApplyConversationDeepLink } from "./features/routines/use-conversation-deep-link";
 import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "@jini-ai/admin/shell/components/SitesSidebarNav";
 import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
@@ -395,6 +396,9 @@ function AssistantChrome({
   locale: string;
   /** Settings → User Interface, via `useInterfacePreferences` (`resolveChatFabClearance` reads it). */
   hideFabWhileOpen: boolean;
+  /** The parsed route query for the AI Assistant panel, null elsewhere: a `conversation` param on another route is ignored. */
+  query: URLSearchParams | null;
+  useConversationDeepLink: typeof useApplyConversationDeepLink;
   useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
 }): ReactNode {
   const themeBoundary = useAdminThemeBoundaryHook({}, {});
@@ -412,7 +416,8 @@ function AssistantChrome({
 
   return (
     <>
-      <ChatDockAside dock={dock} themeBoundary={themeBoundary} agentBridge={agentBridge} principalId={principalId} dockT={dockT} locale={locale} />
+      <ChatDockAside dock={dock} themeBoundary={themeBoundary} agentBridge={agentBridge} principalId={principalId} dockT={dockT} locale={locale}
+        query={props.query} useConversationDeepLink={props.useConversationDeepLink} />
       <ChatFab
         ref={chatFabRef}
         open={chatOpen}
@@ -766,7 +771,8 @@ function AdminShell({
         {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
             decides, not a ternary here. */}
         <AssistantChrome enabled={adminAssistantEnabled} dock={dock} agentBridge={shellContent.agentBridge} principalId={user.id}
-          dockT={dockT} locale={navLocale} hideFabWhileOpen={interfacePreferences.hideChatFabWhileOpen} />
+          dockT={dockT} locale={navLocale} hideFabWhileOpen={interfacePreferences.hideChatFabWhileOpen}
+          query={route.panelId === "ai-assistant" ? route.query : null} useConversationDeepLink={useApplyConversationDeepLink} />
         <ShellOverlays screenshot={shellContent.screenshot} openPublishRequest={shellContent.openPublishRequest} dockT={dockT} dashboardT={dashboardT} />
       </div>
     </AdminShellProviders>

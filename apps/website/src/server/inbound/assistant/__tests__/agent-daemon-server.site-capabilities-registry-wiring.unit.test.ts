@@ -5,6 +5,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
 import { ALL_CHAT_DELETE_TOOLS } from "#src/assistant/permanent-delete-tool-gate";
 import { statementsFor, daemonSource, daemonManifest, daemonInitializer } from "./helpers/daemon-source.js";
+import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 type Capabilities = { sections: { tools: { status: string; data: { total: number; domains: { tools: { id: string }[] }[] } } } };
 
@@ -19,7 +20,7 @@ test("the server's actual catalog reader exposes a late tool and applies the dae
   const deps = createRouteDeps();
   await deps.identityReady;
   const owner = { id: await deps.ownerPrincipalId };
-  const { toolSurface } = createAssistantByokModule({ routeDeps: deps });
+  const { toolSurface } = createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps });
   await toolSurface.ready;
   toolSurface.registry.register({ descriptor: { id: "audit_distinctive_late_tool", description: "Distinctive late registration" },
     policy: { authorize: () => "allow" }, handler: async () => ({}) });

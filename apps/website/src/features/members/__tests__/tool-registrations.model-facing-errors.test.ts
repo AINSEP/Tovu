@@ -27,7 +27,7 @@ import {
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { MemberConflictError, MemberAuthError } from "@jini-ai/user-management/members/types";
-import { reportRouteInternalError } from "@jini-ai/http-kit";
+import { createRouteIncidentReporter } from "../../../server/__tests__/helpers/route-incident-reporter.js";
 
 const WORKSPACE_ID = "ws-members-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -72,8 +72,8 @@ async function buildHarness(routeDeps: MembersToolDeps) {
 
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
-async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
+async function call(harness: Harness, toolId: string, input: unknown, incidents = createRouteIncidentReporter()) {
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: incidents.reportInternalError } });
 }
 
 test("members_get_by_id for an unknown member is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {
@@ -237,14 +237,25 @@ test("magic-link limiter shares normalized email budget and authorization denial
 test("a repository conflict is model-facing while an unexpected auth error remains redacted", async () => {
   for (const [error, expected] of [
     [new MemberConflictError("member update conflicted"), { code: "BAD_REQUEST", message: "MEMBERS_CONFLICT: member update conflicted" }],
-    [new MemberAuthError("sign-in link was already used"), { code: "INTERNAL_ERROR", message: "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem." }], // Jini daemon delegated-tools.ts (44ae8070): fixed server-fault guidance
+    [new MemberAuthError("sign-in link was already used"), { code: "INTERNAL_ERROR", message: "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem." }], // Jini daemon delegated-tools.ts (44ae8070): fixed server-fault guidance; the reporter appends ` (error ERR-…)`
   ] as const) {
     const deps = makeRouteDeps();
     deps.memberRepo.findById = async () => { throw error; };
-    const result = await call(await buildHarness(deps), "members_get_by_id", { memberId: "m-1" });
+    const incidents = createRouteIncidentReporter();
+    const result = await call(await buildHarness(deps), "members_get_by_id", { memberId: "m-1" }, incidents);
     assert.equal(result.ok, false);
     if (result.ok) throw new Error("expected failure");
-    assert.deepEqual({ code: result.error.code, message: result.error.message }, expected);
+    // A model-facing error records no incident; the redacted fault is one record whose ERR- id closes the fixed guidance.
+    const incidentIds = incidents.entries.map((entry) => entry.meta?.["errorId"]);
+    if (expected.code === "INTERNAL_ERROR") {
+      assert.equal(incidentIds.length, 1, "exactly one host record");
+      assert.match(String(incidentIds[0]), /^ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
+      assert.deepEqual({ code: result.error.code, message: result.error.message }, { code: expected.code, message: `${expected.message} (error ${String(incidentIds[0])})` });
+      assert.equal(result.error.requestId, incidentIds[0]);
+    } else {
+      assert.deepEqual(incidentIds, []);
+      assert.deepEqual({ code: result.error.code, message: result.error.message }, expected);
+    }
   }
 });
 

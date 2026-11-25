@@ -30,6 +30,10 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { readProcessStart } from "./attempt-process-identity.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
+import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
+import { createTovuErrorReporter } from "../../runtime/composition/error-reporter.js";
+import { processBuildConstants, type BuildVersions } from "../../runtime/composition/build-constants.js";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { ExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 
@@ -90,7 +94,22 @@ export interface SiteScopeOptions {
   /** The daemon-wide browser integration lease, shared by every site scope it hosts. */
   readonly browserLease?: ExclusiveRunLease;
   readonly probeBridge?: () => Promise<void>;
+  /** Builds this scope's one reporter from its authorized site's tracker; defaults to {@link createScopeReporter}. */
+  readonly createErrorReporter?: ScopeReporterFactory;
 }
+/** One reporter per authorized site: its tracker is that site's, so it is never shared across scopes. */
+export type ScopeReporterFactory = (required: { readonly siteId: string; readonly tracker: AgentDaemonCoreDeps["tracker"]; readonly logger: Logger }) => ErrorReporter;
+/** Resolved once per daemon process (two manifest reads), never per site, run or request. */
+let processVersions: BuildVersions | undefined;
+/**
+ * The production factory. A daemon process hosts several sites, so the site scope — not the OS
+ * process — owns the reporter: a process-wide one would export one site's incident to another's tracker.
+ * @complexity O(1) after the first call per process.
+ */
+export const createScopeReporter: ScopeReporterFactory = ({ tracker, logger }) => {
+  processVersions ??= processBuildConstants();
+  return createTovuErrorReporter({ logger, tracker, clock: createSystemClock(), versions: processVersions });
+};
 export interface SiteScope {
   readonly app: express.Express;
   readonly lifecycle: RunLifecycle;
@@ -168,6 +187,10 @@ const routeDeps = await createAgentDaemonCoreDeps({ env, token: siteToolToken },
  * `__tests__/helpers/daemon-tool-surface.ts`).
  */
 const ATTACHMENT_UPLOAD_DIRECTORY = routeDeps.siteStoragePaths.chatAttachmentsDir;
+// Built once, only after the authenticated bootstrap bound this scope to its site's deps: the same
+// instance reaches the tool executor and the HTTP disclosure, so both name one incident by one id.
+const logger = createConsoleLogger({ prefix: `[agent-daemon site=${siteId}]` });
+const reporter = (optional.createErrorReporter ?? createScopeReporter)({ siteId, tracker: routeDeps.tracker, logger });
 
 const tracing = createScopeTracing({ routeDeps });
 disposeAiTracing = tracing.dispose;
@@ -194,7 +217,7 @@ const { responses, ownerRetentionTimers, idlePark } = lifetime;
 const chatSettingsByRunId = new Map<string, ChatSettingsSnapshot>(); const toolAccessRuns = new Map<string, ToolAccessRun>();
 const revokedToolRuns = new Set<string>(); const cleanupFailures = new Set<string>(); const noToolsNotices = new Set<string>();
 const { registry, siteTools, visibleRegistry, frontendControl } = createScopeToolRegistry({ env, siteToolToken, routeDeps, surfaceExchanges, readSnapshot: ({ runId, principalId }) => !revokedToolRuns.has(runId) && principalByRunId.get(runId)?.id === principalId ? chatSettingsByRunId.get(runId) : undefined, contextFor: ({ runId }) => ({ conversationId: liveRunTracker.conversationIdForRun({ runId }, {}), attachmentRefs: messageAttachmentRefsByRunId.get(runId) ?? [] }), execute: (...args) => toolExecutor.execute(...args) });
-const toolExecutor = createScopeToolExecutor({ routeDeps, registry, surfaceExchanges, siteTools, idlePark });
+const toolExecutor = createScopeToolExecutor({ routeDeps, registry, surfaceExchanges, siteTools, idlePark, reporter });
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -239,7 +262,7 @@ const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agen
 const onStarted = createRunStartHandler({ state, siteId, env, routeDeps, siteTools, agentExecutor, startupMessage: agentRuntime.failures.startupMessage, customInstructionsCache, idlePark, getAgentDef, resolveAgentLaunch, resolveAssistantAgentId, assistantInventory, visibleRegistry, surfaceExchanges, frontendControl, captureEarlySession, bridgeInjection, resolvePermissionMode, probeAssistantChrome, tracing, runActiveContexts, assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, getAttachmentStore: () => attachmentStore, isDisposed: lifetime.isDisposed }, { browserLease: optional.browserLease, resolveAttachmentRunFields, ownerRetentionMs: RUN_OWNER_RETENTION_MS });
 
 const deliverRunUserMessage = createRunUserMessageDelivery({ principalByRunId, ATTACHMENT_UPLOAD_DIRECTORY, agentExecutor });
-const { app, routeHost } = createScopeApp({ env, authEnv, port, isDisposed: lifetime.isDisposed, responses, idlePark, lifecycle, principalByRunId, runCredentials, runOwners, agentExecutor, toolAccessRuns, revokedToolRuns, cleanupFailures, siteTools, routeDeps, onStarted, deliverRunUserMessage, assistantInventory, runActiveContexts, toolExecutor, surfaceExchanges, frontendControl, durableMessageIdsByRunId });
+const { app, routeHost } = createScopeApp({ env, authEnv, port, isDisposed: lifetime.isDisposed, responses, idlePark, lifecycle, principalByRunId, runCredentials, runOwners, agentExecutor, toolAccessRuns, revokedToolRuns, cleanupFailures, siteTools, routeDeps, onStarted, deliverRunUserMessage, assistantInventory, runActiveContexts, toolExecutor, surfaceExchanges, frontendControl, durableMessageIdsByRunId, reporter, logger });
 
   attachmentStore = await openScopeAttachments({ ATTACHMENT_UPLOAD_DIRECTORY });
   mountScopeAttachments({ app, attachmentStore, routeHost, authEnv, idlePark });

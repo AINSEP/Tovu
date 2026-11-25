@@ -11,10 +11,10 @@ import { mintToolErrorId as mintCoreErrorId } from "@jini-ai/core/errors/error-i
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,
   createAssistantToolExecutor as createDaemonToolExecutor,
   describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure } from "@jini-ai/daemon/tool-recovery";
-import type { ToolFailureRecord, RedactedToolFailuresDeps as DaemonFailureDeps,
+import type { RedactedToolFailuresDeps as DaemonFailureDeps, ToolFailureReporter, DelegatedToolErrorDisclosureResult,
   DelegatedInternalErrorContext } from "@jini-ai/daemon/tool-recovery";
 export { TOOL_ERROR_ID_PATTERN, readToolErrorId, isRedactedToolFailure } from "@jini-ai/daemon/tool-recovery";
-export type { ToolFailureRecord, RedactedToolExecutionResult, DelegatedInternalErrorContext, FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
+export type { RedactedToolExecutionResult, DelegatedInternalErrorContext, FederationBootStatus, ToolFailureReporter } from "@jini-ai/daemon/tool-recovery";
 import { assertCredentialFreeField } from "../contracts/core/credential-token.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { readOnlyRemedyRefusalMessage, tovuReadOnlyToolMessages } from "./read-only-tool-constraint.js";
@@ -67,15 +67,18 @@ function buildRecoveryFormResource(input: { exchangeId: string; hint: string; re
 }
 
 
-export interface RedactedToolFailuresDeps { readonly mintErrorId?: () => string; readonly onFailure?: (record: ToolFailureRecord) => void }
+/** Only the id source is a Tovu choice; redaction is fixed to Tovu's one secret-shape policy. The
+ * host record is NOT written here: the daemon's observation layer records every failure through the
+ * injected reporter (P4-J4), so a second sink here would log each incident twice under two owners. */
+export interface RedactedToolFailuresDeps { readonly mintErrorId?: () => string }
 export function mintToolErrorId(required: Record<string, never>, optional = {}): string {
   return mintCoreErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }, optional);
 }
-/** Default reporter receives only already-redacted messages from the shared owner. */
+/** The two redaction collaborators daemon needs, bound to Tovu's secret-shape redactor. */
+/** Default reporter receives only already-redacted messages from the shared owner. Here that owner is
+ * the site reporter handed to the tool stack; this adapter itself only redacts and stamps. */
 function failurePorts(options: RedactedToolFailuresDeps): DaemonFailureDeps {
-  return { redactSecretShapes,
-    mintErrorId: options.mintErrorId ?? (() => mintToolErrorId({}, {})),
-    onFailure: options.onFailure ?? ((record) => console.error(`[tool-failure] ${record.errorId} tool=${record.toolId} run=${record.runId} execution=${record.executionId} principal=${record.principalId} redactions=${record.redactions}: ${record.message}`)) };
+  return { redactSecretShapes, mintErrorId: options.mintErrorId ?? (() => mintToolErrorId({}, {})) };
 }
 const recoveryPorts = {
   recoveryToolId: TOOL_FAILURE_RECOVERY_TOOL_ID,
@@ -87,27 +90,33 @@ const recoveryPorts = {
 export function withToolFailureRecovery(required: { inner: ToolExecutor; surfaceExchanges: SurfaceExchangeStore; registry: Pick<ToolRegistry, "list"> }, optional = {}): ToolExecutor {
   return withDaemonRecovery({ ...required, ...recoveryPorts }, optional);
 }
+/** Standalone redact-and-stamp adapter: no reporter, so it never records on its own. */
 export function withRedactedToolFailures(required: { inner: ToolExecutor }, options: RedactedToolFailuresDeps = {}): ToolExecutor {
   return withDaemonRedaction({ ...required, ...failurePorts(options) }, {});
 }
-export function describeDelegatedInternalError(required: { context: DelegatedInternalErrorContext }, options: RedactedToolFailuresDeps = {}): string {
-  return describeDaemonError({ ...required, ...failurePorts(options) }, {});
+/** Same reporter as the site's tool stack, so a failure the stack already recorded is not recorded
+ * again: daemon reuses a stamped id or dedupes the thrown object inside that one reporter. */
+export function describeDelegatedInternalError({ context, reporter }: { context: DelegatedInternalErrorContext; reporter: ToolFailureReporter }, _optional: Record<string, never> = {}): DelegatedToolErrorDisclosureResult {
+  return describeDaemonError({ context, reporter, redactSecretShapes }, {});
 }
-export function delegatedToolErrorDisclosure(required: Record<string, never>, options: RedactedToolFailuresDeps = {}) {
-  return daemonErrorDisclosure(failurePorts(options), required);
+export function delegatedToolErrorDisclosure({ reporter }: { reporter: ToolFailureReporter }, _optional: Record<string, never> = {}) {
+  return daemonErrorDisclosure({ reporter, redactSecretShapes }, {});
 }
 export interface AssistantToolExecutorDeps {
   readonly prepareGuidance?: import("@jini-ai/core/contracts/site/daemon").PrepareToolGuidance;
   readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore;
+  /** The owning site's one reporter — required, so no executor can exist whose incidents go nowhere. */
+  readonly reporter: ToolFailureReporter;
   readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
   readonly toolFailures?: RedactedToolFailuresDeps;
   readonly observability?: Parameters<typeof createDaemonToolExecutor>[0]["observability"];
   readonly observabilityEnabled?: Parameters<typeof createDaemonToolExecutor>[0]["observabilityEnabled"];
 }
 export function createAssistantToolExecutor(required: AssistantToolExecutorDeps, optional = {}): ToolExecutor {
-  const { toolAttemptAudit, toolFailures, ...deps } = required;
+  const { toolAttemptAudit, toolFailures, observability, observabilityEnabled, ...deps } = required;
   return createDaemonToolExecutor({ ...deps, ...recoveryPorts, newExecutionId: randomUUID,
     toolFailures: failurePorts(toolFailures ?? {}),
+    ...(observability ? { observability } : {}), ...(observabilityEnabled ? { observabilityEnabled } : {}),
     ...(toolAttemptAudit ? { toolAttemptAudit: { ...toolAttemptAudit,
       now: () => new Date().toISOString(), newAttemptId: randomUUID,
       onSinkError: () => console.error("[tool-audit] sink threw; execution is unaffected") } } : {}) }, optional);
