@@ -67,6 +67,9 @@ function registerTermTypes(): void {
 const SOURCE_PRINCIPAL_ID = "peer-principal-source";
 /** The principal running plan/confirm/execute against this instance — never the baseline key. */
 const OPERATOR_PRINCIPAL_ID = "operator-principal-executing";
+/** The run actor the execute step passes, exactly as the import hooks build it for an admin command
+ *  (`actorForMutation({ origin: "admin" })`): the apply port refuses a write that names none (FIX 19 / H2). */
+const OPERATOR_ACTOR = { id: OPERATOR_PRINCIPAL_ID, kind: "user" } as const;
 
 function makeCounterIdGen(prefix: string) {
   let n = 0;
@@ -91,7 +94,7 @@ for (const offer of ["confirmed", "writes-only", "not-forced", "no-source"] as c
       writes: true, canOverwrite: offer !== "writes-only", reason: null, retires: null,
       ...(offer !== "no-source" ? { sourceReplacement } : {}),
     }] };
-    await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" });
+    await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp" });
     assert.equal(observed.length, 1);
     assert.deepEqual(observed[0]!.sourceReplacement, offer === "confirmed" ? sourceReplacement : undefined);
   });
@@ -119,7 +122,7 @@ test("reviewed file reverts use the destination version in both command and dura
       entityType: "media", entityId: "photo", entityLabel: "Photo", outcome: "forced", writes: true,
       canOverwrite: true, reason: null, retires: null, sourceReplacement: { version, sourceSha256: "a".repeat(64) },
     }] };
-    const result = await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" });
+    const result = await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp" });
     const expected = publishContentItemIdempotencyKey({ workspaceId: WORKSPACE_ID, sourcePrincipalId: SOURCE_PRINCIPAL_ID, entity }) + `:${reviewedVersion}`;
     assert.ok(keys.has(expected));
     const status = await getPublishContentRunStatus({ repo: h.runRepo, input: { workspaceId: WORKSPACE_ID, runId: result.runId } });
@@ -340,7 +343,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
   // The race: a local edit lands on the SAME row after the plan above was computed, before apply.
   await postRepo.save({ ...original, title: "Local edit happened concurrently", version: 2, updatedAt: "2026-09-19T00:00:01.000Z" });
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.deepEqual(result.changeSetIds, [], "the conflicted row must not produce a change set");
 
@@ -376,7 +379,7 @@ test("a destination row created by someone else between plan and apply downgrade
   const raceCreated = makePost({ id: "post-new", title: "Race-created by someone else", slug: "race-slug", version: 1, createdByPrincipalId: "race-author" });
   await postRepo.save(raceCreated);
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.deepEqual(result.changeSetIds, []);
 
@@ -441,7 +444,7 @@ test("address-clash overwrite: the live holder is retired to Trash and the incom
   assert.equal(report.rows[0].retires?.entityId, "post-about", "precondition: the forced row must name the live holder");
 
   const bundleId = await stage(bundleRepo, clock, entities);
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 1, "the create is the only id this port's own changeSetIds surfaces — the retire's stays separate (this file's own doc)");
 
@@ -477,7 +480,7 @@ test("the live holder changing between plan and apply downgrades the retire-forc
   // a fresh planRetire() would report) no longer matches what `row.retires.hash` pinned at plan time.
   await postRepo.save({ ...holder, title: "About (edited on live during the race)", version: holder.version + 1 });
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.deepEqual(result.changeSetIds, [], "no create must land while the retire target is stale");
 
@@ -599,7 +602,7 @@ test("the create failing after a successful retire puts the holder back live —
   const bundleId = await stage(bundleRepo, clock, [incomingEntity]);
 
   await assert.rejects(() =>
-    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" })
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" })
   );
 
   assert.equal(store.get("holder-widget")?.retired, false, "undo() must have restored the holder live after the create threw");
@@ -654,7 +657,7 @@ test("a baseline failure AFTER the create landed must not undo the retire — th
   });
 
   await assert.rejects(
-    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" }),
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" }),
     /simulated baseline write failure/
   );
 
@@ -674,9 +677,9 @@ test("a retry after an undone retire uses a fresh retire idempotency key, so the
   const retireKeys: string[] = [];
   const { handlerOptions, applyPort, report, bundleId } = await setUpWidgetRetire({ applyShouldThrow: true, retireKeys });
 
-  await assert.rejects(applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" }));
+  await assert.rejects(applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" }));
   handlerOptions.applyShouldThrow = false;
-  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-2" });
+  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-2" });
 
   assert.equal(retireKeys.length, 2);
   assert.notEqual(retireKeys[0], retireKeys[1], "the first run's retire change set still holds its key after undo()");
@@ -685,7 +688,7 @@ test("a retry after an undone retire uses a fresh retire idempotency key, so the
 test("applyReport returns the retire change sets beside changeSetIds, never mixed into them", async () => {
   const { applyPort, report, bundleId } = await setUpWidgetRetire({ applyShouldThrow: false });
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.deepEqual(result.changeSetIds, ["cs-create-1"]);
   assert.deepEqual(result.retiredChangeSetIds, ["cs-retire-1"]);
@@ -701,7 +704,7 @@ test("a row without `retires` behaves exactly as before S5 — the generic creat
   assert.equal(report.rows[0].retires, null, "precondition: an ordinary create carries no retire target");
 
   const bundleId = await stage(bundleRepo, clock, entities);
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 1);
   const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
@@ -735,7 +738,7 @@ for (const outcome of ["applied", "forced"] as const) {
     const bundleId = await stage(bundleRepo, clock, entities);
     await postRepo.hardDelete({ workspaceId: WORKSPACE_ID, id: original.id });
 
-    const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+    const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
     assert.deepEqual(result.changeSetIds, []);
     assert.equal(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: original.id }), null);
@@ -797,7 +800,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
   };
 
   const bundleId = await stage(bundleRepo, clock, entities);
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 3, "created + applied + forced each produce one change set");
 
@@ -844,7 +847,7 @@ test("a baseline is keyed on the bundle's sourcePrincipalId, never on the execut
   // Stage under SOURCE_PRINCIPAL_ID, but EXECUTE as a different, unrelated OPERATOR_PRINCIPAL_ID —
   // exactly the real shape (an admin confirms/executes an import someone else's key pushed).
   const bundleId = await stage(bundleRepo, clock, entities, SOURCE_PRINCIPAL_ID);
-  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   const underSource = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "post", entityId: "post-keyed" });
   const underOperator = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: OPERATOR_PRINCIPAL_ID, entityType: "post", entityId: "post-keyed" });
@@ -867,7 +870,7 @@ test("the run row's changeSetIdsJson records every changeSetId the run produced"
   assert.equal(report.rows.filter((r) => r.writes).length, 2, "precondition: both rows are writing 'created' rows");
 
   const bundleId = await stage(bundleRepo, clock, entities);
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 2);
 
@@ -897,7 +900,7 @@ test("a baseline failure after the content command durably records the landed it
   await assert.rejects(
     applyPort.applyReport({
       report,
-      principalId: OPERATOR_PRINCIPAL_ID,
+      principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR,
       bundleId,
       restorePointId: "rp-partial",
     }),
@@ -942,7 +945,7 @@ test("apply-loop: a 'created' row with a non-null source author imports with tha
   const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
   const bundleId = await stage(bundleRepo, clock, entities);
 
-  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   const saved = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-authored" });
   assert.equal(saved?.createdByPrincipalId, "source-author-42");
@@ -957,7 +960,7 @@ test("apply-loop: a 'created' row with a NULL source author imports as null, nev
   const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
   const bundleId = await stage(bundleRepo, clock, entities);
 
-  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   const saved = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-unauthored" });
   assert.equal(saved?.createdByPrincipalId, null, "a null source author must import as null, never be filled with the operator's id");
@@ -977,7 +980,7 @@ test("a refused report is persisted as an 'abandoned' run and produces no writes
     rows: [],
   };
 
-  const result = await applyPort.applyReport({ report: refused, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report: refused, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.deepEqual(result.changeSetIds, []);
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
@@ -1088,7 +1091,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
 
   const result = await applyPort.applyReport({
     report,
-    principalId: OPERATOR_PRINCIPAL_ID,
+    principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR,
     bundleId,
     restorePointId: "rp-1",
   });
@@ -1205,7 +1208,7 @@ test("after applying, the run reports a published media item whose poster is not
   const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
   const bundleId = await stage(bundleRepo, clock, entities);
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal((await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" }))?.phase, "applied");
   assert.deepEqual(result.verificationProblems, [
@@ -1292,7 +1295,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
   const bundleId = await stage(bundleRepo, clock, entities);
 
   const result = await applyPort.applyReport({
-    report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1",
+    report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1",
     authorize: (async (params: { publishType?: string }) =>
       params.publishType === "media"
         ? { allowed: false, reason: "this publishing grant does not cover 'media'" }
@@ -1340,7 +1343,7 @@ test("D1: a row still matching the seed with NO baseline plans 'applied' AND is 
   assert.equal(report.rows[0].outcome, "applied");
   const bundleId = await stage(bundleRepo, clock, entities);
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 1, "the seed-matched row must produce a change set, not a silent apply-time conflict");
   const landed = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "page-seeded" });
@@ -1361,7 +1364,7 @@ test("D1: a seed-matched row edited on the destination AFTER plan still downgrad
   const bundleId = await stage(bundleRepo, clock, entities);
   await postRepo.save({ ...seeded, title: "Edited on live meanwhile", version: 4 });
 
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.deepEqual(result.changeSetIds, []);
   const kept = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "page-seeded" });
@@ -1461,7 +1464,7 @@ test("R5: after apply, a live menu's entryRef is repointed to the address-clash 
   assert.equal(report.rows[0].outcome, "forced", "precondition: the slug clash must be offered and forced");
 
   const bundleId = await stage(bundleRepo, clock, entities);
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 1, "the repoint's own change set stays separate from the row change sets, mirroring retiredChangeSetIds");
   assert.equal(result.menuLinksUpdated, 1);
@@ -1512,7 +1515,7 @@ test("R5: a menu written by the same bundle keeps its own incoming tree — it i
   assert.equal(report.rows.find((row) => row.entityType === "menu")?.outcome, "forced", "precondition: the menu itself is also forced in this same bundle");
 
   const bundleId = await stage(bundleRepo, clock, entities);
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.menuLinksUpdated, 0, "the menu already targets the new id via its own write this run — nothing left to repoint");
   assert.deepEqual(result.repointChangeSetIds, []);
@@ -1550,7 +1553,7 @@ test("R5: a repoint pass never runs when the create half of a retire+create pair
   const bundleId = await stage(bundleRepo, clock, [incomingEntity]);
 
   await assert.rejects(() =>
-    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" })
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" })
   );
 
   const menu = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
@@ -1587,7 +1590,7 @@ test("R6: a run that aborts after one landed overwrite still repoints references
   });
 
   await assert.rejects(
-    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" }),
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" }),
     /simulated baseline write failure/
   );
 
@@ -1617,7 +1620,7 @@ test("R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and
   assert.equal(report.rows[0].outcome, "forced", "precondition");
 
   const bundleId = await stage(bundleRepo, clock, entities);
-  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 1, "the create itself must still land — a repoint failure never fails the run");
   assert.equal(result.menuLinksUpdated, 0);
@@ -1635,7 +1638,7 @@ test("TW2 pins a missing packed entity as blocked without a write", async () => 
   const packed = packedFrom(makePost({ id: "missing-packed" }));
   const report = await plan(f.publishContentDeps, f.baselineRepo, SOURCE_PRINCIPAL_ID, [packed]);
   const bundleId = await stage(f.bundleRepo, f.clock, []);
-  const result = await f.applyPort.applyReport({ report, bundleId, principalId: OPERATOR_PRINCIPAL_ID, restorePointId: "restore" });
+  const result = await f.applyPort.applyReport({ report, bundleId, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, restorePointId: "restore" });
   assert.equal(result.report?.rows[0]?.outcome, "blocked");
   assert.match(result.report?.rows[0]?.reason ?? "", /internal inconsistency/);
   assert.deepEqual(result.changeSetIds, []);
@@ -1666,7 +1669,7 @@ for (const scope of ["run", "item"] as const) {
         entityType: "media", entityId: "photo", entityLabel: "Photo", outcome: "forced", writes: true,
         canOverwrite: true, reason: null, retires: null,
       }] };
-      runIds.push((await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" })).runId);
+      runIds.push((await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, actor: OPERATOR_ACTOR, bundleId, restorePointId: "rp" })).runId);
     }
 
     assert.notEqual(runIds[0], runIds[1]);

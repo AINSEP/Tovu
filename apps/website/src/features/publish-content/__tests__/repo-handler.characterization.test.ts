@@ -36,6 +36,9 @@ function makeDeps(ports: Ports | undefined, overrides: Partial<PublishContentDep
     clock: { nowMs: () => Date.parse("2026-09-25T00:00:00.000Z") },
     idGen: { newId: () => "unused" },
     authorize: async () => ({ allowed: true, reason: "ok" }),
+    // The apply port merges the run's trusted actor into every handler's deps (`openRun`); a handler driven
+    // without one is refused before it writes (FIX 19 / H2).
+    mutationActor: { id: "op-1", kind: "user" },
     outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
     ...overrides,
   } as never;

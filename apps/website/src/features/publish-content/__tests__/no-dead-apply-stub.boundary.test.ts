@@ -18,6 +18,7 @@ for (const root of ["memory", "sqlite"] as const) {
     const { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } = await import("@jini-ai/cms/publish/transfer");
     const { getPublishContentRunStatus } = await import("@jini-ai/cms/publish/content/run-repo");
     const { initSite } = await import("#src/server/runtime/composition/site-dir");
+    const { actorForMutation } = await import("#src/server/runtime/composition/mutation-actor");
     const { bootSiteDir } = await import("#src/server/runtime/composition/site-dir");
     const { closeSiteDirBoot } = await import("#src/platform/site-dir/boot-site-dir");
 
@@ -66,8 +67,11 @@ for (const root of ["memory", "sqlite"] as const) {
       },
     });
     assert.equal(report.rows[0]?.outcome, "created", report.rows[0]?.reason ?? report.refusalReason ?? "");
-    const result = await deps.publishContentApplyPort.applyReport({ report, bundleId,
-      principalId: await deps.ownerPrincipalId, restorePointId: "test-restore-point" });
+    const ownerPrincipalId = await deps.ownerPrincipalId;
+    // The execute step passes the admin command's run actor (`buildHooks` in publish-content-import.ts); the
+    // apply port refuses a write that names none rather than guessing one (FIX 19 / H2).
+    const result = await deps.publishContentApplyPort.applyReport({ report, bundleId, principalId: ownerPrincipalId,
+      actor: actorForMutation({ principalId: ownerPrincipalId, origin: "admin" }), restorePointId: "test-restore-point" });
     assert.equal(result.changeSetIds.length, 1);
     assert.equal((await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: entity.id }))?.title, state.title);
     const status = await getPublishContentRunStatus({

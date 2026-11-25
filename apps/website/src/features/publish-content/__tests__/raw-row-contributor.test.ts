@@ -22,6 +22,8 @@ function fixture(t: test.TestContext) {
   const deps: PublishContentDeps = {
     workspaceId: "ws", ports: {}, clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") }, idGen: { newId: () => `id-${++serial}` },
     outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox), authorize: async () => ({ allowed: true, reason: "test" }),
+    // The run's trusted actor, merged in by the apply port (`openRun`) — FIX 19 / H2 refuses a write without one.
+    mutationActor: { id: "admin", kind: "user" },
     backstop: { rows, coveredTables: ["posts"], coveredRoots: ["themes"], selection: { rows: [{ table: "p_widgets", pk: { id: "a" } }] } },
   };
   const handler = contributeRawRowPublish().build(deps);

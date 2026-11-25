@@ -95,6 +95,9 @@ function makeDeps(itemPorts: ItemPorts | undefined, overrides: Partial<TestDeps>
     idGen: { newId: () => "unused-in-these-tests" },
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
     outbox: fakeOutbox(),
+    // The apply port merges the run's trusted actor into every handler's deps (`openRun`); a handler driven
+    // without one is refused before it writes (FIX 19 / H2).
+    mutationActor: { id: "op-1", kind: "user" },
     itemPorts,
     ...overrides,
   };
