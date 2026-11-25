@@ -4,7 +4,8 @@ import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks
 
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
-import { AgentPluginSurfaceFrame } from "./AgentPluginSurfaceFrame";
+import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
+import { useHostAdminSurfaceFrame } from "./hooks/use-host-admin-surface-frame.hooks";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import type { AgentPluginSurfacesPort } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
@@ -50,7 +51,7 @@ export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWi
   const surfaceViews = surfaces.map((surface) => ({
     id: `plugin-surface-${surface.id}`,
     label: surface.title,
-    custom: <AgentPluginSurfaceFrame key={surface.id} pluginId={plugin.id} surface={surface} port={surfacesPort} t={t} />,
+    custom: <AgentPluginSurfaceFrame key={surface.id} pluginId={plugin.id} surface={surface} port={surfacesPort} t={t} useAdminSurfaceFrame={useHostAdminSurfaceFrame} />,
   }));
 
   return (
