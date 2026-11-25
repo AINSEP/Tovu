@@ -3,14 +3,16 @@ import type { ReactElement } from 'react';
 import { AdminKitProvider } from '@jini-ai/admin/react/kit';
 import { adminKit } from '@/integrations/jini-kits';
 import { expect, it, vi } from 'vitest';
-import { AgentPluginRow } from '../AgentPluginRow';
+import { AgentPluginRow } from '@jini-ai/admin/screens/plugins/AgentPluginRow';
 import type { AgentPluginListRow } from '@jini-ai/admin/agent-plugins/models';
 import { tPlugins as t } from '../../../lib/i18n-common';
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { pluginRules } from "../rules";
 
 /** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
  *  mounts once at its root; each render here mounts the app's own kit the same way. */
 function render(ui: ReactElement) {
-  return renderPlain(ui, { wrapper: ({ children }) => <AdminKitProvider kit={adminKit}>{children}</AdminKitProvider> });
+  return renderPlain(ui, { wrapper: ({ children }) => <AdminKitProvider kit={adminKit}><PluginRulesProvider rules={pluginRules}>{children}</PluginRulesProvider></AdminKitProvider> });
 }
 
 it.each([

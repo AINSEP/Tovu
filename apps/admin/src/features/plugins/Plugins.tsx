@@ -6,15 +6,18 @@ import { Toast } from "@jini-ai/ui";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { PluginRow } from "./PluginRow";
-import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
+import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
+import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
 import { PluginProviderSettingsDialog } from "./PluginProviderSettingsDialog";
-import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
+import { PluginRemoveConfirmDialog } from "@jini-ai/admin/screens/plugins/PluginRemoveConfirmDialog";
 import { AddPluginPanel } from "./AddPluginPanel";
 import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "@jini-ai/admin/screens/plugins/plugins-visuals";
-import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useWiredPluginPackageFiles } from "./hooks/use-plugin-package-files.hooks";
+import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginRules, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
@@ -114,6 +117,7 @@ function InstalledPluginRows({
         return (
           <PluginRow
             key={plugin.id}
+            useAdminLocaleHook={useAdminLocale}
             plugin={plugin}
             t={t}
             expanded={expandedIds.has(plugin.id)}
@@ -194,6 +198,7 @@ function DownloadedPluginRows({
         return (
           <PluginRow
             key={plugin.id}
+            useAdminLocaleHook={useAdminLocale}
             plugin={plugin}
             t={t}
             expanded={expandedIds.has(plugin.id)}
@@ -327,7 +332,7 @@ function navigateToPluginsTab(nextTabId: string) {
   navigate({ routePath: `/addons/plugins?tab=${nextTabId}` }, { replace: true });
 }
 
-export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
+function PluginsScreen({ tabId, focusPluginId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
   const controller = usePluginsHook();
   const { plugins, error, t } = controller;
 
@@ -377,7 +382,7 @@ function PluginsOverlays({ controller, settingsHandle, removeHandle }: { control
   const { t, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
   return (
     <>
-      {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
+      {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} useFiles={useWiredPluginPackageFiles} /> : null}
 
       {settingsPlugin && settingsHandle !== undefined ? (
         <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={settingsHandle} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
@@ -387,6 +392,7 @@ function PluginsOverlays({ controller, settingsHandle, removeHandle }: { control
 
       {pendingRemovePlugin && removeHandle !== undefined ? (
         <PluginRemoveConfirmDialog
+          rules={pluginRules}
           name={pendingRemovePlugin.name}
           agentHandleBase={removeHandle}
           onConfirm={() => controller.onConfirmRemove(pendingRemovePlugin)}
@@ -440,5 +446,14 @@ function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { pl
 
       <PluginsOverlays controller={controller} settingsHandle={settingsHandle} removeHandle={removeHandle} />
     </div>
+  );
+}
+
+/** The plugins screen under the host-bound rule functions the Jini rows and dialogs read. */
+export function Plugins(props: PluginsProps = {}) {
+  return (
+    <PluginRulesProvider rules={pluginRules}>
+      <PluginsScreen {...props} />
+    </PluginRulesProvider>
   );
 }

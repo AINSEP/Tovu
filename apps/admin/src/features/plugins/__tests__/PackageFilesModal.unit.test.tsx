@@ -2,8 +2,8 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { PackageFilesModal, type PackageFilesModalProps } from "../PackageFilesModal";
-import { PluginPackageFilesModal } from "../PluginPackageFilesModal";
+import { PackageFilesModal, type PackageFilesModalProps } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
+import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
 import type { PluginPackageFilesController } from "../hooks/use-plugin-package-files.hooks";
 
 /**

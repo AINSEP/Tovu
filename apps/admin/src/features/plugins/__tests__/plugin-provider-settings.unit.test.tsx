@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { PluginProviderSettingsDialog } from "../PluginProviderSettingsDialog";
-import { PluginRow } from "../PluginRow";
+import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePluginProviderSettings } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-provider-settings.hooks";
 import { describeApiError } from "../rules";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { pluginRules } from "../rules";
 
 /**
  * @file The provider plugin settings card (2026-10-26) over the fake port: declared fields render,
@@ -325,9 +327,9 @@ describe("PluginRow settings button", () => {
   it("is shown only when the row passes onSettings", () => {
     const plugin = { id: "x", name: "X", version: "1", source: "site" as const, tier: "tier-3" as const, status: "valid" as const, enabled: true, quarantine: null, errors: [], conflicts: [] };
     let opened = 0;
-    const { rerender } = render(<ul><PluginRow plugin={plugin} t={t} expanded={false} onToggleExpanded={() => {}} agentHandleBase="row-x" action={null} onInspect={() => {}} /></ul>);
+    const { rerender } = render(<PluginRulesProvider rules={pluginRules}><ul><PluginRow useAdminLocaleHook={() => "en"} plugin={plugin} t={t} expanded={false} onToggleExpanded={() => {}} agentHandleBase="row-x" action={null} onInspect={() => {}} /></ul></PluginRulesProvider>);
     expect(screen.queryByRole("button", { name: "Settings — X" })).toBeNull();
-    rerender(<ul><PluginRow plugin={plugin} t={t} expanded={false} onToggleExpanded={() => {}} agentHandleBase="row-x" action={null} onInspect={() => {}} onSettings={() => { opened += 1; }} /></ul>);
+    rerender(<PluginRulesProvider rules={pluginRules}><ul><PluginRow useAdminLocaleHook={() => "en"} plugin={plugin} t={t} expanded={false} onToggleExpanded={() => {}} agentHandleBase="row-x" action={null} onInspect={() => {}} onSettings={() => { opened += 1; }} /></ul></PluginRulesProvider>);
     fireEvent.click(screen.getByRole("button", { name: "Settings — X" }));
     expect(opened).toBe(1);
   });

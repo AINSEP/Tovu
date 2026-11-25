@@ -5,8 +5,10 @@ import { expect, it } from "vitest";
 
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
-import { AgentPluginRow } from "../AgentPluginRow";
-import { PluginRow } from "../PluginRow";
+import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
+import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { pluginRules } from "../rules";
 
 const unexpectedAction = () => { throw new Error("Unexpected action outside expansion"); };
 
@@ -30,7 +32,7 @@ function Rows({ kind }: { kind: "agent" | "plugin" }) {
         skills: [{ name: "image-resize", summary: "Image resizing" }], keywords: ["photography"], mcpServerIds: ["image-api"],
       },
     ];
-    return <><p id="uninstall-note">Bundled packages can be turned off.</p><ul>{plugins.map((plugin) => <AgentPluginRow key={plugin.pluginId} plugin={plugin}
+    return <><p id="uninstall-note">Bundled packages can be turned off.</p><ul>{plugins.map((plugin) => <AgentPluginRow usePluginRulesHook={() => pluginRules} key={plugin.pluginId} plugin={plugin}
       t={(key) => key} locale="en" expanded={expanded.has(plugin.pluginId)} busy={false}
       onToggleExpanded={() => toggle(plugin.pluginId)} stateControl={{ kind: "toggle", onToggleEnabled: unexpectedAction }}
       onInspect={unexpectedAction} uninstallNoteId="uninstall-note" agentHandleBase={`agent-${plugin.pluginId}`} />)}</ul></>;
@@ -51,9 +53,9 @@ function Rows({ kind }: { kind: "agent" | "plugin" }) {
       conflicts: [], quarantine: null, errors: [{ code: "IMAGE_FORMAT", message: "Image format is unsupported.", file: "server/image.mjs" }],
     },
   ];
-  return <ul>{plugins.map((plugin) => <PluginRow key={plugin.id} plugin={plugin} t={(key) => key}
+  return <PluginRulesProvider rules={pluginRules}><ul>{plugins.map((plugin) => <PluginRow key={plugin.id} useAdminLocaleHook={() => "en"} plugin={plugin} t={(key) => key}
     expanded={expanded.has(plugin.id)} onToggleExpanded={() => toggle(plugin.id)} agentHandleBase={`plugin-${plugin.id}`}
-    action={<button onClick={unexpectedAction}>Action for {plugin.name}</button>} onInspect={unexpectedAction} />)}</ul>;
+    action={<button onClick={unexpectedAction}>Action for {plugin.name}</button>} onInspect={unexpectedAction} />)}</ul></PluginRulesProvider>;
 }
 
 it.each(["agent", "plugin"] as const)("%s row expanders name and control their own persistent panels", async (kind) => {
