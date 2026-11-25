@@ -8,12 +8,26 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, retireDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites, readProjectsFile } from "./tracked-sites.ts";
+import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, retireDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites, readProjectsFile, updateProjectsFile } from "./tracked-sites.ts";
 import { classifySiteDir } from "./site-dir-store.ts";
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-tracked-sites-"));
 }
+
+test("T-2a.14 the tracked-list writer invalidates added rows before publishing, and a refusal publishes nothing", () => {
+  const projectsPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-tracked-")), "projects.json");
+  trackSite({ projectsPath, siteDir: "/sites/kept", beforeAddedRows: () => {} });
+  const seen: { rows: string[]; onDisk: string[] }[] = [];
+  const beforeAddedRows = ({ rows }: { rows: readonly { siteDir: string }[] }) => {
+    seen.push({ rows: rows.map((row) => row.siteDir), onDisk: readTrackedSites({ projectsPath }).map((row) => row.siteDir) });
+  };
+  updateProjectsFile({ projectsPath, beforeAddedRows, change: (current) => ({ rows: [...current.rows, { siteDir: "/sites/new", createdAt: "2026-11-25T00:00:00.000Z", origin: SITE_ORIGIN.adopted }], dismissed: current.dismissed }) });
+  assert.deepEqual(seen, [{ rows: ["/sites/new"], onDisk: ["/sites/kept"] }], "only the added row, and before the durable write");
+
+  assert.throws(() => trackSite({ projectsPath, siteDir: "/sites/refused", beforeAddedRows: () => { throw new Error("ledger busy"); } }), /ledger busy/);
+  assert.deepEqual(readTrackedSites({ projectsPath }).map((row) => row.siteDir), ["/sites/kept", "/sites/new"]);
+});
 
 test("sitesFilePath joins the fixed file name onto the given userData dir", () => {
   assert.equal(sitesFilePath({ userDataDir: "/a/b" }), path.join("/a/b", "desktop-projects.json"));

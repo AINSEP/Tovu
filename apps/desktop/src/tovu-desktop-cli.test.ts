@@ -18,6 +18,10 @@ import { fileURLToPath } from "node:url";
 
 import { EXIT_OK, EXIT_REFUSED, EXIT_USAGE, parseArgv, runTovuDesktopCli } from "../bin/tovu-desktop.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites, untrackSite } from "./tracked-sites.ts";
+import { randomUUID } from "node:crypto";
+import { sitePartition } from "./desktop-auth.ts";
+import { desktopJsonFile } from "./durable-json-file.ts";
+import { bindDesktopRetirement } from "./site-retirement.ts";
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-cli-"));
@@ -59,6 +63,29 @@ test("add-site adds a real site and reports the path it recorded", () => {
   assert.equal(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) })[0]!.origin, SITE_ORIGIN.adopted); // just written by the add-site call above, so a row for this dir always exists
   assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }).map(({ siteDir, origin }) => ({ siteDir, origin })),
     [{ siteDir: path.resolve(siteDir), origin: SITE_ORIGIN.adopted }]);
+});
+
+// Owner rule (a): a website the owner deleted and then adds back by path must keep the sign-in it
+// makes from now on. A pending retirement record left by the erase would otherwise let the next-start
+// pass remove the re-added website's partition, so the CLI invalidates it before publishing the row.
+test("T-2a.14 add-site CLI invalidates the retirement for that path", () => {
+  const userDataDir = fs.realpathSync(tempDir());
+  fs.mkdirSync(path.join(userDataDir, "Partitions"), { recursive: true });
+  const profile = bindDesktopRetirement({ userDataDir, sessionDataDir: userDataDir, eraseVersion: "9.9.9", partitionFor: sitePartition,
+    fs, clock: Date, id: randomUUID, durableJsonFor: desktopJsonFile });
+  const readded = fs.realpathSync(siteFixture("readded")), other = fs.realpathSync(siteFixture("other"));
+  for (const [siteDir, siteId] of [[readded, "id-readded"], [other, "id-other"]] as const) {
+    const candidate = profile.port.capture({ siteDir, siteId });
+    assert.ok(candidate, "fixture: a real site folder yields an erase candidate");
+    profile.port.append({ candidate });
+  }
+
+  assert.equal(runTovuDesktopCli({ argv: ["add-site", readded, "--user-data-dir", userDataDir], io: capture().io }), EXIT_OK);
+
+  const read = profile.ledger.readStrict({});
+  assert.equal(read.state, "ok");
+  const states = read.state === "ok" ? Object.fromEntries(read.records.map((r) => [r.subjectDir, [r.state, r.lastReason ?? null]])) : {};
+  assert.deepEqual(states, { [readded]: ["invalidated", "tracked-again"], [other]: ["pending", null] });
 });
 
 test("add-site ALWAYS announces which app-data directory it used", () => {

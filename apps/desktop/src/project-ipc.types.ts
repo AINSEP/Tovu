@@ -8,6 +8,7 @@ import type { ExternalSiteStopper } from "./external-site-stop.ts";
 import type { SiteRetirementPort } from "./site-retirement.ts";
 import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 import type { SitePresence, PresenceSender } from "@jini-ai/desktop-host/shell/site-presence";
+import type { BeforeAddedRows } from "./tracked-sites.ts";
 
 
 /**
@@ -163,7 +164,7 @@ interface AdoptSiteDirInput {
 /** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.ts`'s real
  *  `addSitePointer`, duplicated rather than imported for the same reason as {@link AdoptSiteDirInput}. */
 interface AddSitePointerLike {
-  (input: { siteDir: string; projectsPath: string }, options?: SiteIdentityOptions): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
+  (input: { siteDir: string; projectsPath: string; beforeAddedRows: BeforeAddedRows }, options?: SiteIdentityOptions): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
 }
 
 /**
@@ -188,6 +189,8 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   openSites: OpenSites;
   serializer: Serializer;
   projectsPath: string;
+  /** The tracked-list writer's required effect (`tracked-sites.ts`): invalidates a stale sign-in retirement for every added path. */
+  beforeAddedRows: BeforeAddedRows;
   registryPath: string;
   repoRoot: string;
   statePath: string;
