@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "@jini-ai/admin/screens/trash/rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
-import { describeTrashLoadError } from "../rules";
-import { t } from "../trash-i18n";
+import { describeTrashLoadError, trashTranslator } from "../rules";
 import { buildTrashRegistry } from "../../../../../website/src/features/trash/registry";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../../../../../website/src/features/trash/permissions";
 
@@ -28,9 +27,6 @@ it("localizes a settled Trash timeout with a refresh action", () => {
   expect(describeTrashLoadError({ error, locale: "en" })).toBe("The Tovu API did not respond. Try refreshing the Trash.");
   expect(describeTrashLoadError({ error, locale: "es" })).toBe("La API de Tovu no respondió. Prueba a actualizar la papelera.");
 });
-
-/** The Trash dictionary bound to one locale, the shape the Jini rules take as `translate`. */
-const trashTranslator = ({ locale }: { locale: string }) => (key: string): string => t({ locale, key });
 
 describe("describePurgeReport", () => {
   it("explains retained media when all or some selected items are still used", () => {

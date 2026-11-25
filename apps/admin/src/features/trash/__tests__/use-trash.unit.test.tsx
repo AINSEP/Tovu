@@ -7,8 +7,7 @@ import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
-import { useTrash } from "@jini-ai/admin/screens/trash/hooks/use-trash.hooks";
-import { trashHostDeps, useWiredTrash } from "../hooks/use-trash.hooks";
+import { useTrash, useWiredTrash } from "../hooks/use-trash.hooks";
 import type { TrashPort } from "@jini-ai/admin/screens/trash/hooks/trash-port.hooks";
 import { KEYS, TRASH_RESOURCE } from "@jini-ai/admin/screens/trash/rules";
 
@@ -68,7 +67,7 @@ describe("useTrash", () => {
     const port = createFakeTrashPort();
     let resolvePage!: (page: AdminTrashPageDto) => void;
     port.listTrash = () => new Promise(resolve => { resolvePage = resolve; });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     expect(result.current.items).toBeNull();
     act(() => result.current.toggleAll());
     await act(async () => { await result.current.onRestoreSelected(); await result.current.onPurgeConfirmed(); });
@@ -84,7 +83,7 @@ describe("useTrash", () => {
     const port = createFakeTrashPort({ items: [item()] });
     let complete!: (report: AdminTrashRestoreReportDto) => void;
     port.restoreTrashItems = () => new Promise(resolve => { complete = resolve; });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([item()]));
     act(() => result.current.toggle("trash-1"));
     let pending!: Promise<void>;
@@ -122,7 +121,7 @@ describe("useTrash", () => {
     vi.stubGlobal("fetch", fetchMock);
     const port = createFakeTrashPort({ items: [item()], nextCursor: "cursor-2" });
 
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([item()]);
@@ -132,7 +131,7 @@ describe("useTrash", () => {
 
   it("purge sends TRASH ROW IDS and restore sends {entityType, entityId}", async () => {
     const port = createFakeTrashPort({ items: [item({ id: "row-9", entityId: "post-9" })] });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => result.current.toggle("row-9"));
@@ -156,7 +155,7 @@ describe("useTrash", () => {
     const failed = vi.fn().mockRejectedValue("offline");
     if (action === "restore") port.restoreTrashItems = failed;
     else port.purgeTrashItems = failed;
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([item()]));
     act(() => result.current.toggle("trash-1"));
     await act(() => action === "restore" ? result.current.onRestoreSelected() : result.current.onPurgeConfirmed());
@@ -171,7 +170,7 @@ describe("useTrash", () => {
     const port = createFakeTrashPort({ items: [item()] });
     let release!: (report: AdminTrashRestoreReportDto) => void;
     port.restoreTrashItems = vi.fn(() => new Promise<AdminTrashRestoreReportDto>((resolve) => { release = resolve; }));
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([item()]));
     act(() => result.current.toggle("trash-1"));
     let first!: Promise<void>;
@@ -189,7 +188,7 @@ describe("useTrash", () => {
     const port = createFakeTrashPort({ items: [item(), item({ id: "row-2", entityId: "post-2" })], restoreReport: {
       restored, results: [{ entityType: "post", entityId: "post-1", outcome: restored ? "restored" : "forbidden" }, { entityType: "post", entityId: "post-2", outcome: "forbidden" }],
     } });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toHaveLength(2));
     act(() => result.current.toggleAll());
     await act(() => result.current.onRestoreSelected());
@@ -199,7 +198,7 @@ describe("useTrash", () => {
 
   it("select-all covers only the rows on screen, and toggles back off", async () => {
     const port = createFakeTrashPort({ items: [item({ id: "a" }), item({ id: "b" })], nextCursor: "more" });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => result.current.toggleAll());
@@ -221,7 +220,7 @@ describe("useTrash", () => {
         ],
       },
     });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => { result.current.toggleAll(); result.current.setPurgeConfirmOpen(true); });
@@ -239,7 +238,7 @@ describe("useTrash", () => {
       items: [item({ id: "a" })],
       purgeReport: { purged: 0, results: [{ id: "a", outcome: "forbidden" }] },
     });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => result.current.toggle("a"));
@@ -266,7 +265,7 @@ describe("useTrash", () => {
       },
     };
 
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([]));
 
     // An agent deletes a post: `content_post_delete` writes an index row and publishes on the bus.
@@ -290,7 +289,7 @@ describe("useTrash", () => {
       },
     };
 
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
     act(() => result.current.toggleAll());
     expect(result.current.selected.size).toBe(2);
@@ -304,7 +303,7 @@ describe("useTrash", () => {
 
   it("a failed load is reported rather than shown as an empty Trash", async () => {
     const port = createFakeTrashPort({ listError: new Error("boom") });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.items).toBeNull();
@@ -323,7 +322,7 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
       items: [item()],
       users: [user({ principalId: "principal-owner", username: "admin" }), user({ principalId: "principal-2", username: "jdoe" })],
     });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
 
     await waitFor(() => expect(result.current.actorUsernames.get("principal-owner")).toBe("admin"));
     expect(result.current.actorUsernames.get("principal-2")).toBe("jdoe");
@@ -334,7 +333,7 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
     const port = createFakeTrashPort({ items: [item()] });
     let reject!: (reason: Error) => void;
     port.listUsers = vi.fn(() => new Promise<{ users: AdminIdentityUser[] }>((_, fail) => { reject = fail; }));
-    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en", ...trashHostDeps }), users: useFetchQuery({ key: KEYS.actorUsernames(), fetch: () => port.listUsers!() }) }), { wrapper });
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), users: useFetchQuery({ key: KEYS.actorUsernames(), fetch: () => port.listUsers!() }) }), { wrapper });
     await waitFor(() => expect(result.current.trash.items).not.toBeNull());
     await waitFor(() => expect(port.listUsers).toHaveBeenCalledTimes(1));
     await act(async () => { reject(new Error("403 forbidden")); });
@@ -358,7 +357,7 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
       },
     };
 
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     expect(result.current.actorUsernames.size).toBe(0);
@@ -388,7 +387,7 @@ describe("useTrash — Refresh (2026-09-21)", () => {
     };
 
     function TrashChild() {
-      const trash = useTrash({ port, locale: "en", ...trashHostDeps });
+      const trash = useTrash({ port, locale: "en" });
       return <span data-testid="ids">{trash.items?.map((i) => i.id).join(",") ?? "loading"}</span>;
     }
     function Harness({ mounted }: { mounted: boolean }) {
@@ -437,7 +436,7 @@ describe("useTrash — Refresh (2026-09-21)", () => {
         return { purged: 0, results: [] };
       },
     };
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.refreshing).toBe(false);
 
@@ -472,7 +471,7 @@ describe("useTrash — Refresh (2026-09-21)", () => {
         throw new Error("not used by this test");
       },
     };
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
 
     act(() => {
@@ -501,7 +500,7 @@ describe("useTrash — Refresh (2026-09-21)", () => {
 
   it("refresh() does not clear the current selection", async () => {
     const port = createFakeTrashPort({ items: [item({ id: "a" })] });
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => result.current.toggle("a"));
@@ -566,7 +565,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
   it("reports a current page failure, releases the load lock, and permits retrying that cursor", async () => {
     const { port, cursorCalls } = createControlledPort();
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
     act(() => { void result.current.loadMore(); });
     expect(result.current.loadingMore).toBe(true);
@@ -586,7 +585,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
   it("two loadMore calls in the same tick send one request and append the page once", async () => {
     const { port, cursorCalls } = createControlledPort();
-    const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
 
     act(() => {
@@ -609,7 +608,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
   it("a reload drops a stale Load more page instead of appending it onto the fresh page 1", async () => {
     const { port, cursorCalls, setFirstPage } = createControlledPort();
-    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en", ...trashHostDeps }), invalidate: useInvalidate() }), {
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), invalidate: useInvalidate() }), {
       wrapper,
     });
     await waitFor(() => expect(result.current.trash.nextCursor).toBe("c2"));
@@ -637,7 +636,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
   it("a stale loadMore's failure after a reload is not surfaced as an error", async () => {
     const { port, cursorCalls, setFirstPage } = createControlledPort();
-    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en", ...trashHostDeps }), invalidate: useInvalidate() }), {
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), invalidate: useInvalidate() }), {
       wrapper,
     });
     await waitFor(() => expect(result.current.trash.nextCursor).toBe("c2"));
@@ -661,7 +660,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
   it("a stale loadMore settling after a reload does not release a newer call's in-flight lock", async () => {
     const { port, cursorCalls, setFirstPage } = createControlledPort();
-    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en", ...trashHostDeps }), invalidate: useInvalidate() }), {
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), invalidate: useInvalidate() }), {
       wrapper,
     });
     await waitFor(() => expect(result.current.trash.nextCursor).toBe("c2"));

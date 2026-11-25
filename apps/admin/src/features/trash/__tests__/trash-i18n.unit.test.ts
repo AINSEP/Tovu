@@ -125,11 +125,8 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     // The Trash rules live in `@jini-ai/admin` now; they take copy through an injected `translate(key)`.
     const jiniRules = ["node_modules", "../../node_modules"].map((root) => `${root}/@jini-ai/admin/dist/screens/trash/rules.js`).find((path) => existsSync(path));
     expect(jiniRules, "built @jini-ai/admin Trash rules").toBeTruthy();
-    // The screen and its controller hook live in `@jini-ai/admin` too (they take `t` as an injected lookup).
-    const jiniDir = (jiniRules as string).replace(/rules\.js$/, "");
-    const jiniFiles = [jiniRules as string, `${jiniDir}Trash.js`, `${jiniDir}hooks/use-trash.hooks.js`];
-    for (const file of ["rules.ts", ...jiniFiles]) {
-      const source = readFileSync(jiniFiles.includes(file) ? file : `src/features/trash/${file}`, "utf8");
+    for (const file of ["Trash.tsx", "rules.ts", "hooks/use-trash.hooks.ts", jiniRules as string]) {
+      const source = readFileSync(file === jiniRules ? file : `src/features/trash/${file}`, "utf8");
       const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith("tsx") ? ts.ScriptKind.TSX : file.endsWith(".js") ? ts.ScriptKind.JS : ts.ScriptKind.TS);
       const visit = (node: ts.Node): void => {
         // entityTypeLabel translates values from its local 'known' map.
@@ -143,8 +140,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
         if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "translate" && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) {
           used.add(node.arguments[0].text);
         }
-        const calleeName = ts.isCallExpression(node) ? (ts.isIdentifier(node.expression) ? node.expression.text : ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : undefined) : undefined;
-        if (ts.isCallExpression(node) && calleeName === "t") {
+        if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {
           const input = node.arguments[0];
           const property = input && ts.isObjectLiteralExpression(input)
             ? input.properties.find((property) => ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "key")
@@ -152,7 +148,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
           // `trashTranslator`'s pass-through `t({ locale, key })` is a ShorthandPropertyAssignment; its keys are the callers' (scanned above).
           const key = property && ts.isPropertyAssignment(property) ? property.initializer : undefined;
           if (key && ts.isStringLiteralLike(key)) used.add(key.text);
-          else if (!(node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0]) && node.arguments[0].properties.some((p) => ts.isShorthandPropertyAssignment(p) && p.name.text === "key"))) expect(key && ts.isIdentifier(key) && key.text === "label", `${file}: unresolved translation key`).toBe(true);
+          else if (!(file === "rules.ts" && node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0]) && node.arguments[0].properties.some((p) => ts.isShorthandPropertyAssignment(p) && p.name.text === "key"))) expect(key && ts.isIdentifier(key) && key.text === "label", `${file}: unresolved translation key`).toBe(true);
         }
         ts.forEachChild(node, visit);
       };
