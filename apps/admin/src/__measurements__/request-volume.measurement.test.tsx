@@ -505,8 +505,15 @@ describe("media", () => {
     updatedAt: "2026-08-01T00:00:00.000Z", version: 1, width: null, height: null, cssClass: null,
   };
 
+  // Since P10-M4.T the screen reads one grid page (not the whole list), and since P10-C2.T it reads
+  // the host's provider catalog once per mount for the External Providers count. Both answer in
+  // their real wire shapes so the screen settles the way it does against the server.
+  const GRID_PAGE = { media: [ITEM], nextCursor: null, counts: { all: 1, images: 0, videos: 0, trash: 0 }, hasUntypedActive: true };
+  const GRID = `GET ${WORKSPACE}/media/grid?tab=all&orderBy=created&limit=50`;
+  const CATALOG = { match: "/media/providers/catalog", respond: () => jsonResponse({ providers: [] }) };
+
   it("initial load", async () => {
-    const { fn, calls } = createRecorder([{ match: "/media", respond: () => jsonResponse({ media: [ITEM] }) }]);
+    const { fn, calls } = createRecorder([CATALOG, { match: "/media/grid", respond: () => jsonResponse(GRID_PAGE) }]);
     vi.stubGlobal("fetch", fn);
     render(
       <FetchQueryProvider>
@@ -514,7 +521,7 @@ describe("media", () => {
       </FetchQueryProvider>
     );
     await screen.findByText("Old title");
-    await expectRequests(calls, [`GET ${WORKSPACE}/media`]);
+    await expectRequests(calls, [GRID, `GET ${WORKSPACE}/media/providers/catalog`]);
     logRow("media", "initial load (full screen)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -522,7 +529,8 @@ describe("media", () => {
   it("edit metadata save, list mounted alongside (production shape)", async () => {
     const { fn, calls } = createRecorder([
       { match: `/media/${ITEM.id}`, method: "PATCH", respond: () => jsonResponse({ media: { ...ITEM, title: "New title" } }) },
-      { match: "/media", respond: () => jsonResponse({ media: [ITEM] }) },
+      CATALOG,
+      { match: "/media/grid", respond: () => jsonResponse(GRID_PAGE) },
     ]);
     vi.stubGlobal("fetch", fn);
     const user = (await import("@testing-library/user-event")).default.setup();
@@ -543,7 +551,7 @@ describe("media", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
     await waitFor(() => expect(screen.queryByLabelText("Title")).not.toBeInTheDocument());
 
-    await expectRequests(calls, [`PATCH ${WORKSPACE}/media/m1`, `GET ${WORKSPACE}/media`]);
+    await expectRequests(calls, [`PATCH ${WORKSPACE}/media/m1`, GRID]);
     logRow("media", "edit metadata save (list mounted alongside, production shape)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
