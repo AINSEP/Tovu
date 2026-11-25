@@ -14284,6 +14284,10 @@
     {
       "id": "47431b678627",
       "reason": "P11 ST-6c.T: siteRetentionPolicies doc rewritten in place: it now also registers the temp-roots policy, so 'today only the share expiry pass' is no longer true."
+    },
+    {
+      "id": "c4acc9c1a75a",
+      "reason": "P11 ST-11b.T: mediaBytesDeps doc rewritten in place: the rendition, forms, transfer and recovery probes are now bound, so 'left unbound on purpose, everything reports unknown' is no longer true; each probe carries its own why-comment."
     }
   ]
 }
