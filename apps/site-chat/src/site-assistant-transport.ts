@@ -242,7 +242,7 @@ function handleRunError({ event, ctx }: { event: Extract<AGUIEvent, { type: Even
 
 /** Machine events are intercepted before reduction and never enter the transcript. */
 function handleAgUiEvent({ event, ctx }: { event: AGUIEvent; ctx: EventContext }, _options = {}) {
-  // A terminal is final even for events coalesced into the same response chunk.
+  // End is terminal even for frames coalesced into the same response chunk.
   if (ctx.life.flags.settled) return;
   if (event.type === EventType.RUN_STARTED) {
     if (matchesActiveRun({ event, wire: ctx.wire })) ctx.wire.started = true;
@@ -251,13 +251,14 @@ function handleAgUiEvent({ event, ctx }: { event: AGUIEvent; ctx: EventContext }
   } else if (event.type === EventType.RUN_ERROR) {
     handleRunError({ event, ctx });
   } else if (event.type === EventType.CUSTOM) {
-    // Confirmation directives go to their receiver; retired/unknown machine directives and any
-    // other CUSTOM name never enter the visitor transcript or drive the browser.
+    // Confirmation directives go to their receiver; retired/unknown machine directives
+    // never enter the visitor transcript either way.
+    // Any other CUSTOM name is ignored: arbitrary CUSTOM data cannot drive the browser.
     if (event.name === "client_directive") consumeToolConfirmation({ data: event.value, settled: false, receive: ctx.args.options.onToolConfirmation });
   } else if (event.type === EventType.TEXT_MESSAGE_START || event.type === EventType.TEXT_MESSAGE_CONTENT || event.type === EventType.TEXT_MESSAGE_END) {
     handleTextEvent({ event, ctx });
   } else {
-    // Reasoning, tool and state events are not part of the visitor protocol.
+    // Ignore event kinds outside this transport's protocol.
   }
 }
 
