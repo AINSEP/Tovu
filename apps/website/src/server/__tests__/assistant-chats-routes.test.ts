@@ -31,7 +31,9 @@ function buildApp(deps: RouteDeps = createRouteDeps()) {
 async function api(baseUrl: string, cookie: string, path: string, init: RequestInit = {}) {
   return fetch(`${baseUrl}/api/assistant/chats${path}`, {
     ...init,
-    headers: { cookie, "content-type": "application/json", ...(init.headers ?? {}) },
+    // P11 ST-9.T (7dc6e8453) mounts PATCH/DELETE behind `adminSameOriginWrites`; the browser admin
+    // sends its own Origin, so this client does too. Cross-origin refusal is pinned in assistant-chats.cleanup.unit.test.ts.
+    headers: { cookie, origin: baseUrl, "content-type": "application/json", ...(init.headers ?? {}) },
   });
 }
 
