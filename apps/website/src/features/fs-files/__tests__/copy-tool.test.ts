@@ -8,6 +8,7 @@ import { EgressRefusedError } from "#src/platform/http/index";
 import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerivedRisk, FILES_COPY_LIMITS } from "../../asset-transfer/copy-tool.js";
 import { assetToolHarness, until } from "./asset-tool-fixture.js";
 import { bindAssetHost } from "#src/server/runtime/composition/asset-tool-host";
+import { THEME_IMPORT_ACCEPT, THEME_IMPORT_MAX_BYTES, THEME_IMPORT_POLICY } from "#src/features/theme/asset-operations";
 
 /** Owner 2026-10-27: copy tool through actual source guards, existing destination writers and cards. */
 const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: buildFilesCopyRegistrations, toolId: "files_copy" });
@@ -151,4 +152,13 @@ test("destination authorization fails before any source read or fetch", async t 
   const h = await harness(t, { allowed: (permission: string) => permission !== "theme.edit" });
   await assert.rejects(() => h.call({ sources: [{ root: "url", url: "https://cdn.example.test/logo.png" }], destination: theme }));
   assert.equal(h.requests.length, 0); assert.equal(h.emitted.length, 0);
+});
+
+test("files_copy's per-file cap and URL theme-fetch policy are the theme owner's, bound by the host", () => {
+  // The copy catalog states the cap itself (it is built before any host port exists); this pins it
+  // to the theme import cap so the two cannot drift, and pins the host binding to the theme policy.
+  assert.equal(FILES_COPY_LIMITS.maxFileBytes, THEME_IMPORT_MAX_BYTES);
+  const host = bindAssetHost({} as never);
+  assert.equal(host.themeImportFetch.policy, THEME_IMPORT_POLICY);
+  assert.equal(host.themeImportFetch.accept, THEME_IMPORT_ACCEPT);
 });

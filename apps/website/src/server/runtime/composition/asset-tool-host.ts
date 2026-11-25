@@ -3,7 +3,7 @@
  * (files_copy, image_transform), so those features never import theme or media implementations.
  */
 import type { AssetHostPort, AssetToolDeps } from "#src/features/asset-transfer/asset-destinations";
-import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, resolveThemeFilePath, sniffThemeImportType, THEME_WRITE_PERMISSION, writeThemeBinaryFile, type ThemeToolDeps } from "#src/features/theme/asset-operations";
+import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, resolveThemeFilePath, sniffThemeImportType, THEME_IMPORT_ACCEPT, THEME_IMPORT_POLICY, THEME_WRITE_PERMISSION, writeThemeBinaryFile, type ThemeToolDeps } from "#src/features/theme/asset-operations";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { saveLibraryDocument } from "#src/features/media/index";
 
@@ -22,6 +22,7 @@ export function bindAssetHost(deps: AssetHostDeps, _optional = {}): AssetHostPor
     writeThemeFile: ({ theme, relativePath, bytes }) => writeThemeBinaryFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath, bytes }),
     reloadTheme: ({ theme, themeId }) => reloadThemeInPlace({ routeDeps: deps, theme, themeId }),
     sniffThemeImportType: ({ bytes }) => sniffThemeImportType({ bytes }),
+    themeImportFetch: { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
     isThemeShapeRejection: ({ error }) => isShapeRejection({ error }),
     saveLibraryDocument: (required, optional) => saveLibraryDocument({ deps, ...required }, optional),
   };

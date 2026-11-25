@@ -10,7 +10,6 @@ import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/h
 import { toolMetadata } from "@jini-ai/core/tool-metadata/files-copy";
 import { fetchImage, MEDIA_IMPORT_POLICY } from "../media-import/fetch-image.js";
 import { isImportShapeRejection, withCallerSafeEgressRefusal } from "../media-import/tool-registrations.js";
-import { THEME_IMPORT_MAX_BYTES, THEME_IMPORT_POLICY, THEME_IMPORT_ACCEPT } from "../theme/asset-operations.js";
 import { ASSET_SOURCE_SCHEMA, readAssetSource, readLocalFile, resolveAssetSource } from "./asset-sources.js";
 import { prepareAssetWrites, requireAssetDestination, writeAssetFiles, type AssetFile, type AssetHostPort, type AssetToolDeps, type OverwritePolicy, type PreparedAssets } from "./asset-destinations.js";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
@@ -24,7 +23,10 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/ag
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
 const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
-export const FILES_COPY_LIMITS = { maxFiles: 50, maxFileBytes: THEME_IMPORT_MAX_BYTES, maxTotalBytes: 25 * 1024 * 1024 } as const;
+// maxFileBytes equals the theme owner's 10 MB import cap (THEME_IMPORT_MAX_BYTES); the catalog is
+// built at module load, before any host port exists, so the value is stated here and the copy-tool
+// test pins it equal to the theme cap instead of importing the theme feature.
+export const FILES_COPY_LIMITS = { maxFiles: 50, maxFileBytes: 10_000_000, maxTotalBytes: 25 * 1024 * 1024 } as const;
 const catalog: AgentToolDefinition = {
   name: "files_copy",
   description: "Copy/import assets without Bash cp or Python. sources:[{root:'picked'|'site'|'theme'|'media',path,themeId?,glob?}|{root:'url',url,path?}]. " +
@@ -59,7 +61,7 @@ async function readUrl({ deps, source, media }: { deps: AssetToolDeps; source: R
   const url = requireString({ input: source, key: "url" });
   const fetched = await withCallerSafeEgressRefusal({ log: deps.mediaImportEgressRefusalLog ?? console.warn, work: () => fetchImage(
     { deps: { httpClient: deps.mediaImportHttpClient, plainHttpTestOrigins: deps.outboundTestOrigins }, url },
-    media ? { policy: { ...MEDIA_IMPORT_POLICY, maxBytes: FILES_COPY_LIMITS.maxFileBytes } } : { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
+    media ? { policy: { ...MEDIA_IMPORT_POLICY, maxBytes: FILES_COPY_LIMITS.maxFileBytes } } : deps.assetHost.themeImportFetch,
   ) }, { toolId: "files_copy" });
   return { bytes: Buffer.from(fetched.bytes), path: source.path === undefined ? basename(fetched.url.pathname) : requireString({ input: source, key: "path" }), sourceUrl: fetched.url.href };
 }

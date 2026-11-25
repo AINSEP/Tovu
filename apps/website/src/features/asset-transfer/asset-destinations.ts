@@ -8,7 +8,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { DocumentArchiveReaderPort } from "@jini-ai/cms/media";
 import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { persistImportedMedia, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
-import { validateImageBytes } from "../media-import/fetch-image.js";
+import { validateImageBytes, type fetchImage } from "../media-import/fetch-image.js";
 import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "@jini-ai/cms/fs-files/write-files";
@@ -28,6 +28,8 @@ export interface AssetHostPort<T extends AssetTheme = AssetTheme> {
   writeThemeFile(required: { theme: T; relativePath: string; bytes: Buffer }): void;
   reloadTheme(required: { theme: T; themeId: string }): T;
   sniffThemeImportType(required: { bytes: Uint8Array }): string;
+  /** The theme owner's safe-fetch byte/type policy and Accept header for URL copies into a theme. */
+  readonly themeImportFetch: NonNullable<Parameters<typeof fetchImage>[1]>;
   isThemeShapeRejection(required: { error: unknown }): boolean;
   saveLibraryDocument(required: { bytes: Uint8Array; name: string; principalId: string }, optional: { archiveReader?: DocumentArchiveReaderPort }): Promise<{ document: unknown }>;
 }
