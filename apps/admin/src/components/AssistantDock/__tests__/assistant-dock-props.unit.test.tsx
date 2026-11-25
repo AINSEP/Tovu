@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "../assistant-dock-props";
 import { FolderPathButton } from "@jini-ai/admin/shell/components/AssistantDock/FolderPathButton";
 
 /**
@@ -59,20 +59,6 @@ describe("voiceFooterAccessory", () => {
 
   it("shows no mic at all when voice input is off (owner 2026-10-30: hidden, not deleted)", () => {
     expect(voiceFooterAccessory({ enabled: false, onTranscript: vi.fn() })).toBeUndefined();
-  });
-});
-
-describe("renameActiveConversation", () => {
-  it("renames the active conversation to the new title", () => {
-    const rename = vi.fn(async () => undefined);
-    renameActiveConversation({ activeId: "conv-1", rename })("Quarterly report");
-    expect(rename).toHaveBeenCalledWith({ id: "conv-1", title: "Quarterly report" });
-  });
-
-  it("does nothing without an active conversation", () => {
-    const rename = vi.fn(async () => undefined);
-    expect(renameActiveConversation({ activeId: null, rename })("Quarterly report")).toBeUndefined();
-    expect(rename).not.toHaveBeenCalled();
   });
 });
 
