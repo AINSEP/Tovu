@@ -18,7 +18,7 @@
 import fsModule from "node:fs";
 import path from "node:path";
 import {
-  createPartitionInterlock, partitionDirName, PartitionNotHeldError,
+  createPartitionInterlock, partitionDirName, PartitionBusyError, PartitionNotHeldError, PartitionOpenRefusedError,
   type InstanceClaimSource, type PartitionClaimSource, type PartitionFsPort, type PartitionInterlockLogEvent,
   type PartitionProcessPort, type PartitionSchedulerPort, type PartitionWriterContext, type PartitionWriterLockPort,
   type SiteSessionAcquired, type WriterLockOwner,
@@ -75,6 +75,27 @@ const MESSAGES = {
   unregistered: ({ directory }: { directory: string }) => `Tovu can't write to its settings folder (${directory}). Free some disk space and restart Tovu.`,
   refused: "Tovu could not confirm this website's sign-in data is safe to open. Try opening it again in a moment.",
 };
+const UNKNOWN_OPEN_FAILURE = "Tovu could not open this website's sign-in data. Try opening it again; if it keeps happening, restart Tovu.";
+
+/** Why a window could not hold its site's partition: a cleanup is running, safety unconfirmed, or unexpected. */
+export type PartitionOpenFailureKind = "busy" | "refused" | "unknown";
+export class SitePartitionOpenError extends Error {
+  override name = "SitePartitionOpenError";
+  readonly kind: PartitionOpenFailureKind;
+  constructor(kind: PartitionOpenFailureKind, message: string, options: { cause: unknown }) { super(message, options); this.kind = kind; }
+}
+
+/**
+ * Plain-words form of a failed acquire. The interlock's own errors already carry owner-facing text;
+ * anything else is internal, so the owner sees a fixed sentence and the original rides on `cause`.
+ * @complexity O(1).
+ */
+export function partitionOpenFailure({ error }: { error: unknown }, _optional: Record<string, never> = {}): SitePartitionOpenError {
+  if (error instanceof PartitionBusyError) return new SitePartitionOpenError("busy", error.message, { cause: error });
+  if (error instanceof PartitionOpenRefusedError) return new SitePartitionOpenError("refused", error.message, { cause: error });
+  return new SitePartitionOpenError("unknown", UNKNOWN_OPEN_FAILURE, { cause: error });
+}
+
 const errorCode = (error: unknown) => (error as NodeJS.ErrnoException)?.code;
 const describe = (error: unknown) => String(errorCode(error) ?? (error as Error)?.message ?? error);
 
@@ -186,6 +207,9 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
     unregisterHolder: () => interlock.unregisterHolder(),
     acquireSite: ({ siteDir }: { siteDir: string }, _opt: Record<string, never> = {}): Promise<SiteSessionAcquired> =>
       interlock.acquireSiteSession({ partition: sitePartition({ siteDir }), subjectDir: siteDir }),
+    /** A window open's acquire: same hold, refusal in plain words; the caller opens nothing on failure. */
+    acquireSiteWindow: ({ siteDir }: { siteDir: string }, _opt: Record<string, never> = {}): Promise<SiteSessionAcquired> =>
+      interlock.acquireSiteSession({ partition: sitePartition({ siteDir }), subjectDir: siteDir }).catch((error: unknown) => { throw partitionOpenFailure({ error }); }),
     siteSession: ({ partition }: { partition: string }, _opt: Record<string, never> = {}): S => interlock.siteSession({ partition }),
     /** Before `new BrowserWindow` with a partition: Electron would create an unheld session implicitly. */
     assertPartitionHeld: ({ partition }: { partition: string | undefined }, _opt: Record<string, never> = {}): void => {

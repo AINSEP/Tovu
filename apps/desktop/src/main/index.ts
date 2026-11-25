@@ -570,10 +570,9 @@ function appWindowCount(): number { return SELFTEST ? BrowserWindow.getAllWindow
 
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow({ url }: { url: string }, { title, partition }: { title?: string; partition?: string } = {}): BrowserWindow {
-  // Electron creates the partition's session implicitly inside `new BrowserWindow`; it must be held.
-  desktopPartitions.assertPartitionHeld({ partition });
   return createAppWindow(
-    { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: ({ url: target }) => void shell.openExternal(target) },
+    { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: ({ url: target }) => void shell.openExternal(target),
+      assertPartitionHeld: ({ partition: held }) => desktopPartitions.assertPartitionHeld({ partition: held }) },
     { title, partition, selftest: SELFTEST, trackWindow: (window) => trackAppWindow({ window }) },
   );
 }
@@ -668,7 +667,7 @@ async function openSiteWindow({ siteDir, ctx }: { siteDir: string; ctx: SiteOpen
   return openSiteWindowWith({ siteDir, ctx, ports: {
     openSites,
     startSiteBackend: ({ siteDir: dir, ctx: openCtx }, openOptions = {}) => siteBackend.startSiteBackend({ siteDir: dir, ctx: openCtx }, openOptions),
-    sitePartition, readSiteName,
+    sitePartition, readSiteName, acquirePartition: ({ siteDir: dir }) => desktopPartitions.acquireSiteWindow({ siteDir: dir }),
     createWindow: ({ url, title, partition }) => createWindow({ url }, { title, partition }),
     recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => siteChildRegistry.recordClosed({ registryDir: registryPath, key: dir }, { pid }),
     siteThemePreviews, sitePreviewScheduler: { cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}) },
