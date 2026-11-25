@@ -31,7 +31,7 @@ export function legacyBaselineChecksum(): string {
 
 async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   if (kernel.dialect === "sqlite") {
-    await adoptLegacySqlite(kernel, context.note);
+    await adoptLegacySqlite({ kernel, note: context.note });
     return;
   }
   const existing = (await listTables({ kernel })).filter((name) => name !== LEDGER_TABLE);

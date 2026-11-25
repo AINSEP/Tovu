@@ -42,7 +42,7 @@ export interface LegacyEntry {
 }
 
 /** The frozen entries, in order. Throws when `drizzle/` no longer matches the freeze. */
-export function readFrozenChain(dir: string = LEGACY_DRIZZLE_DIR): LegacyEntry[] {
+export function readFrozenChain(_required = {}, { dir = LEGACY_DRIZZLE_DIR }: { dir?: string } = {}): LegacyEntry[] {
   const journal = JSON.parse(fs.readFileSync(path.join(dir, "meta/_journal.json"), "utf8")) as {
     entries: Array<{ idx: number; tag: string; when: number }>;
   };
@@ -185,7 +185,7 @@ export function compareShapes({ expected, actual }: { expected: SchemaShape; act
  * The SQLite `up` of `0000_legacy_baseline`: reconcile, apply the missing tail, verify against the
  * chain's head built fresh. Runs inside the runner's transaction (a failure rolls the tail back).
  */
-export async function adoptLegacySqlite(kernel: KyselyKernel<unknown>, note: (message: string) => void): Promise<void> {
+export async function adoptLegacySqlite({ kernel, note }: { kernel: KyselyKernel<unknown>; note: (message: string) => void }, _optional = {}): Promise<void> {
   const chain = readFrozenChain();
   const state = await reconcileLegacyHistory({ kernel, chain });
   await applyLegacyEntries({ kernel, entries: state.pending });

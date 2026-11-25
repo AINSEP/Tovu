@@ -32,9 +32,9 @@ import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability
  */
 
 // This suite tests HTTP/retry spans after readiness. Lifecycle behavior has its own DI suite.
-const fetchAgentDaemon: typeof demandFetch = (req, res, options = {}) => demandFetch(req, res, { ...options, ensureReady: async () => {} });
-const fetchAgentDaemonEventStream: typeof demandStream = (req, res, path, options = {}) => demandStream(req, res, path, { ...options, ensureReady: async () => {} });
-const forwardToAgentDaemon: typeof demandForward = (req, res, body, options = {}) => demandForward(req, res, body, { ...options, ensureReady: async () => {} });
+const fetchAgentDaemon: typeof demandFetch = (required, options = {}) => demandFetch(required, { ...options, ensureReady: async () => {} });
+const fetchAgentDaemonEventStream: typeof demandStream = (required, options = {}) => demandStream(required, { ...options, ensureReady: async () => {} });
+const forwardToAgentDaemon: typeof demandForward = (required, options = {}) => demandForward(required, { ...options, ensureReady: async () => {} });
 
 const TOKEN_ENV = "TOVU_AGENT_DAEMON_TOKEN";
 
@@ -137,7 +137,7 @@ test("a refused parked mutation waits for replacement and is dispatched once", a
     dispatches++; return Response.json({ ok: true });
   });
   const { res } = fakeRes();
-  const response = await demandFetch(fakeReq({ method: "POST", originalUrl: "/api/runs" }), res, {
+  const response = await demandFetch({ req: fakeReq({ method: "POST", originalUrl: "/api/runs" }), res: res }, {
     ensureReady: async () => { ready++; }, onParked: () => { parking++; }, body: {},
   });
   assert.equal(response?.status, 200);
@@ -149,7 +149,7 @@ test("a passive frontend stream cannot wake a daemon racing park", async t => {
   withEnv(t, { JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9", [TOKEN_ENV]: "tok-123" });
   let wakes = 0;
   t.mock.method(globalThis, "fetch", async () => Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } }));
-  const response = await demandFetch(fakeReq({ method: "GET", originalUrl: "/api/frontend-sessions/stream" }), fakeRes().res, {
+  const response = await demandFetch({ req: fakeReq({ method: "GET", originalUrl: "/api/frontend-sessions/stream" }), res: fakeRes().res }, {
     passive: true, ensureReady: async () => { wakes++; }, onParked: () => {},
   });
   assert.equal(response?.status, 503); assert.equal(wakes, 0);
@@ -160,7 +160,7 @@ test("fetchAgentDaemon: a daemon that starts listening AFTER the request arrived
   withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${port}`, [TOKEN_ENV]: "tok-123" });
   const { res, sent } = fakeRes();
 
-  const pending = fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), res);
+  const pending = fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "GET" }), res: res });
   await new Promise((r) => setTimeout(r, 600));
   const daemon = await startDaemon(t, (_s, r) => r.end(JSON.stringify({ runs: ["late"] })), port);
 
@@ -186,7 +186,7 @@ test("fetchAgentDaemon: a daemon that answers with a malformed response is an im
   const { res, sent } = fakeRes();
 
   const started = Date.now();
-  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), res);
+  const upstream = await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "GET" }), res: res });
 
   assert.equal(upstream, null);
   assert.equal(sent.status, 502);
@@ -199,7 +199,7 @@ test("fetchAgentDaemon: options.path/method/body override the inbound request's 
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-123" });
   const { res } = fakeRes();
 
-  await fetchAgentDaemon(fakeReq({ originalUrl: "/api/ag-ui/run", method: "GET" }), res, {
+  await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/ag-ui/run", method: "GET" }), res: res }, {
     path: "/api/runs/r-1/events",
     method: "POST",
     body: { a: 1 },
@@ -218,7 +218,7 @@ test("fetchAgentDaemon: a GET with no body sends no body at all", async (t) => {
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
   const { res } = fakeRes();
 
-  await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs?contextRef=x", method: "GET" }), res);
+  await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs?contextRef=x", method: "GET" }), res: res });
 
   assert.equal(daemon.seen[0].method, "GET");
   assert.equal(daemon.seen[0].url, "/api/runs?contextRef=x");
@@ -235,7 +235,7 @@ test("cancelDaemonRunBestEffort: POSTs /api/runs/<encoded id>/cancel with the da
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-123" });
   const { res } = fakeRes();
 
-  cancelDaemonRunBestEffort(fakeReq({ originalUrl: "/x", method: "GET" }), res, "run/../a b");
+  cancelDaemonRunBestEffort({ req: fakeReq({ originalUrl: "/x", method: "GET" }), res: res, daemonRunId: "run/../a b" });
   await arrived;
 
   assert.equal(daemon.seen[0].method, "POST");
@@ -252,7 +252,7 @@ test("cancelDaemonRunBestEffort: an unreachable daemon is swallowed — no throw
   t.after(() => process.off("unhandledRejection", onUnhandled));
   const { res } = fakeRes();
 
-  assert.doesNotThrow(() => cancelDaemonRunBestEffort(fakeReq({ originalUrl: "/x", method: "GET" }), res, "r-1"));
+  assert.doesNotThrow(() => cancelDaemonRunBestEffort({ req: fakeReq({ originalUrl: "/x", method: "GET" }), res: res, daemonRunId: "r-1" }));
   await new Promise((r) => setTimeout(r, 300));
   assert.deepEqual(unhandled, []);
 });
@@ -271,7 +271,7 @@ test("fetchAgentDaemon traces the loopback call as one CLIENT span: host, port a
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });
   const { exporter, port } = createInMemoryOtel();
 
-  await fetchAgentDaemon(fakeReq({ originalUrl: "/x", method: "GET" }), fakeRes().res, { path: "/api/runs/secret-run-9/cancel?k=v", method: "POST", body: { prompt: "private words" }, observability: port });
+  await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/x", method: "GET" }), res: fakeRes().res }, { path: "/api/runs/secret-run-9/cancel?k=v", method: "POST", body: { prompt: "private words" }, observability: port });
 
   const [span] = await finishedSpans(exporter, 1);
   assert.equal(span.name, "POST 127.0.0.1");
@@ -287,7 +287,7 @@ test("fetchAgentDaemon: each boot-window retry is its own span, so a refused att
   withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${portNumber}` });
   const { exporter, port } = createInMemoryOtel();
 
-  const pending = fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), fakeRes().res, { observability: port });
+  const pending = fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "GET" }), res: fakeRes().res }, { observability: port });
   await new Promise((r) => setTimeout(r, 400));
   await startDaemon(t, (_s, r) => r.end("{}"), portNumber);
   assert.ok(await pending);
@@ -303,7 +303,7 @@ test("forwardToAgentDaemon passes its observability port through to the call it 
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
   const { exporter, port } = createInMemoryOtel();
 
-  await forwardToAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), fakeRes().res, undefined, { observability: port });
+  await forwardToAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "GET" }), res: fakeRes().res }, { observability: port });
 
   assert.equal((await finishedSpans(exporter, 1))[0].name, "GET 127.0.0.1");
 });
@@ -315,11 +315,11 @@ test("cancelDaemonRunBestEffort ignores an unknown run but reports an unexpected
   const errors = t.mock.method(console, "error", () => {});
   const request = fakeReq({ originalUrl: "/x", method: "GET" });
   const { res } = fakeRes();
-  cancelDaemonRunBestEffort(request, res, "run-1");
+  cancelDaemonRunBestEffort({ req: request, res: res, daemonRunId: "run-1" });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(errors.mock.callCount(), 0);
   status = 500;
-  cancelDaemonRunBestEffort(request, res, "run-1");
+  cancelDaemonRunBestEffort({ req: request, res: res, daemonRunId: "run-1" });
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(errors.mock.calls.map(call => call.arguments), [["[assistant] Could not cancel the daemon run: HTTP 500"]]);
 });
@@ -329,7 +329,7 @@ test("cancelDaemonRunBestEffort traces its fire-and-forget POST without the run 
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });
   const { exporter, port } = createInMemoryOtel();
 
-  cancelDaemonRunBestEffort(fakeReq({ originalUrl: "/x", method: "GET" }), fakeRes().res, "run-secret-42", { observability: port });
+  cancelDaemonRunBestEffort({ req: fakeReq({ originalUrl: "/x", method: "GET" }), res: fakeRes().res, daemonRunId: "run-secret-42" }, { observability: port });
 
   const [span] = await finishedSpans(exporter, 1);
   assert.equal(span.name, "POST 127.0.0.1");
@@ -346,7 +346,7 @@ test("fetchAgentDaemonEventStream: the span ends at the response headers with th
   const { exporter, port } = createInMemoryOtel();
   const req = fakeReq({ originalUrl: "/x", method: "GET" });
 
-  const open = await fetchAgentDaemonEventStream(req, fakeRes().res, "/api/runs/run-secret-42/events", { observability: port });
+  const open = await fetchAgentDaemonEventStream({ req: req, res: fakeRes().res, path: "/api/runs/run-secret-42/events" }, { observability: port });
   assert.equal(open?.statusCode, 200);
   const [okSpan] = await finishedSpans(exporter, 1);
   assert.equal(okSpan.name, "GET 127.0.0.1");
@@ -354,7 +354,7 @@ test("fetchAgentDaemonEventStream: the span ends at the response headers with th
   assertSpanOmits(okSpan, ["run-secret-42", "/events", "tok-otel-123"]);
   await open?.body.cancel();
 
-  assert.equal((await fetchAgentDaemonEventStream(req, fakeRes().res, "/api/runs/missing/events", { observability: port }))?.statusCode, 404);
+  assert.equal((await fetchAgentDaemonEventStream({ req: req, res: fakeRes().res, path: "/api/runs/missing/events" }, { observability: port }))?.statusCode, 404);
   const notFound = (await finishedSpans(exporter, 2))[1];
   assert.equal(notFound.status.code, SpanStatusCode.ERROR);
   assert.equal(notFound.attributes["http.response.status_code"], 404);
@@ -372,7 +372,7 @@ test("fetchAgentDaemonEventStream: a transport failure ends its span as ERROR wi
   const { exporter, port } = createInMemoryOtel();
   const { res, sent } = fakeRes();
 
-  assert.equal(await fetchAgentDaemonEventStream(fakeReq({ originalUrl: "/x", method: "GET" }), res, "/api/runs/r/events", { observability: port }), null);
+  assert.equal(await fetchAgentDaemonEventStream({ req: fakeReq({ originalUrl: "/x", method: "GET" }), res: res, path: "/api/runs/r/events" }, { observability: port }), null);
   assert.equal(sent.status, 502);
   const [span] = await finishedSpans(exporter, 1);
   assert.equal(span.status.code, SpanStatusCode.ERROR);
@@ -384,7 +384,7 @@ test("fetchAgentDaemonEventStream: a daemon that starts listening AFTER the stre
   withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${port}`, [TOKEN_ENV]: "tok-stream" });
   const { res, sent } = fakeRes();
 
-  const pending = fetchAgentDaemonEventStream(fakeReq({ originalUrl: "/x", method: "GET" }), res, "/api/runs/late/events");
+  const pending = fetchAgentDaemonEventStream({ req: fakeReq({ originalUrl: "/x", method: "GET" }), res: res, path: "/api/runs/late/events" });
   await new Promise((r) => setTimeout(r, 600));
   const daemon = await startDaemon(t, (_s, r) => { r.writeHead(200, { "content-type": "text/event-stream" }); r.end("data: {}\n\n"); }, port);
 
@@ -432,7 +432,7 @@ test("fetchAgentDaemon: a POST whose connection is reset is sent ONCE and answer
   const { res, sent } = fakeRes();
 
   const started = Date.now();
-  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "POST" }), res, { body: { prompt: "delete page" } });
+  const upstream = await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "POST" }), res: res }, { body: { prompt: "delete page" } });
 
   assert.equal(upstream, null);
   assert.equal(daemon.hits(), 1, "a reset write must not be resent — the daemon may already have acted on it");
@@ -446,7 +446,7 @@ test("fetchAgentDaemon: a POST whose connection the daemon closes normally (UND_
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
   const { res, sent } = fakeRes();
 
-  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "POST" }), res, { body: { prompt: "delete page" } });
+  const upstream = await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "POST" }), res: res }, { body: { prompt: "delete page" } });
 
   assert.equal(upstream, null);
   assert.equal(daemon.hits(), 1, "a closed write must not be resent — the daemon may already have acted on it");
@@ -459,7 +459,7 @@ test("fetchAgentDaemon: a GET whose connection the daemon closes normally still 
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
   const { res, sent } = fakeRes();
 
-  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), res);
+  const upstream = await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "GET" }), res: res });
 
   assert.equal(upstream, null);
   assert.equal(daemon.hits(), 1);
@@ -472,7 +472,7 @@ test("fetchAgentDaemon: a GET whose connection is reset is retried and answers f
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
   const { res, sent } = fakeRes();
 
-  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), res);
+  const upstream = await fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "GET" }), res: res });
 
   assert.ok(upstream);
   assert.deepEqual(await upstream.json(), {});
@@ -485,7 +485,7 @@ test("fetchAgentDaemon: a POST to a daemon not yet listening is retried (refused
   withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${port}` });
   const { res, sent } = fakeRes();
 
-  const pending = fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "POST" }), res, { body: { a: 1 } });
+  const pending = fetchAgentDaemon({ req: fakeReq({ originalUrl: "/api/runs", method: "POST" }), res: res }, { body: { a: 1 } });
   await new Promise((r) => setTimeout(r, 600));
   const daemon = await startDaemon(t, (_s, r) => r.end("{}"), port);
 
@@ -499,7 +499,7 @@ test("fetchAgentDaemonEventStream: a reset stream GET is still retried (GET only
   withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
   const { res, sent } = fakeRes();
 
-  const open = await fetchAgentDaemonEventStream(fakeReq({ originalUrl: "/x", method: "GET" }), res, "/api/runs/r/events");
+  const open = await fetchAgentDaemonEventStream({ req: fakeReq({ originalUrl: "/x", method: "GET" }), res: res, path: "/api/runs/r/events" });
 
   assert.equal(open?.statusCode, 200);
   await open?.body.cancel();

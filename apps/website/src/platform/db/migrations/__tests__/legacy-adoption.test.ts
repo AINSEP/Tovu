@@ -169,3 +169,11 @@ describe("0000_legacy_baseline on SQLite", () => {
     }
   });
 });
+
+describe("readFrozenChain's args-object form", () => {
+  test("called with no arguments it reads the frozen drizzle folder; an explicit folder goes in the optional pad", () => {
+    assert.ok(readFrozenChain().length > 0);
+    assert.deepEqual(readFrozenChain({}), chain);
+    assert.throws(() => readFrozenChain({}, { dir: path.join(tmp, "no-such-drizzle-folder") }));
+  });
+});

@@ -60,7 +60,7 @@ export function heldBackRoot(required: { siteDir: string }): string {
 
 /** True for "nothing is there" (`ENOENT`, or a path component that is not a folder). Anything
  *  else (permissions, I/O) is a real fault and is rethrown by the callers. @complexity O(1). */
-export function isAbsent(err: unknown): boolean {
+export function isAbsent({ err }: { err: unknown }, _optional = {}): boolean {
   const code = (err as NodeJS.ErrnoException | null)?.code;
   return code === "ENOENT" || code === "ENOTDIR";
 }
@@ -79,7 +79,7 @@ export const MAX_HELD_BACK_MANIFEST_BYTES = 64 * 1024;
 function readHeldBackManifest(required: { file: string }): string | null {
   let fd: number;
   try { fd = fs.openSync(required.file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW); } catch (err) {
-    if (isAbsent(err) || (err as NodeJS.ErrnoException | null)?.code === "ELOOP") return null;
+    if (isAbsent({ err }) || (err as NodeJS.ErrnoException | null)?.code === "ELOOP") return null;
     throw err;
   }
   try {
@@ -100,7 +100,7 @@ export function heldBackThemeName(required: { dir: string; fallback: string }): 
     const name = JSON.parse(text)?.name;
     return typeof name === "string" && name.trim() ? name : required.fallback;
   } catch (err) {
-    if (err instanceof SyntaxError || isAbsent(err)) return required.fallback;
+    if (err instanceof SyntaxError || isAbsent({ err })) return required.fallback;
     throw err;
   }
 }
@@ -108,7 +108,7 @@ export function heldBackThemeName(required: { dir: string; fallback: string }): 
 /** Whether `<root>/themes/<id>` is a real folder (a link to one does not count). @complexity O(1). */
 export function isHeldBackFolder(required: { siteDir: string; id: string }): boolean {
   try { return fs.lstatSync(path.join(heldBackRoot(required), "themes", required.id)).isDirectory(); } catch (err) {
-    if (isAbsent(err)) return false;
+    if (isAbsent({ err })) return false;
     throw err;
   }
 }
@@ -125,7 +125,7 @@ export function readHeldBackChoice(required: { siteDir: string }): HeldBackChoic
     parseHeldBackId({ themeId: raw.chosenThemeId });
     return { chosenThemeId: raw.chosenThemeId, fallbackThemeId: raw.fallbackThemeId };
   } catch (err) {
-    if (err instanceof SyntaxError || err instanceof HeldBackThemeError || isAbsent(err)) return null;
+    if (err instanceof SyntaxError || err instanceof HeldBackThemeError || isAbsent({ err })) return null;
     throw err;
   }
 }

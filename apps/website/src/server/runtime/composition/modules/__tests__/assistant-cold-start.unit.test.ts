@@ -70,7 +70,7 @@ test("a parked page stream refuses without a session; an explicit wake reaches t
   const urlBefore = process.env.JINI_AGENT_DAEMON_URL;
   process.env.JINI_AGENT_DAEMON_URL = "http://127.0.0.1:12345";
   t.after(() => { if (urlBefore === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = urlBefore; });
-  const upstream = await fetchAgentDaemon(req("GET", "/api/frontend-sessions/stream"), reconnect.res, { ensureReady: async () => {} });
+  const upstream = await fetchAgentDaemon({ req: req("GET", "/api/frontend-sessions/stream"), res: reconnect.res }, { ensureReady: async () => {} });
   assert.match(await upstream!.text(), /real-token/);
 });
 
@@ -82,7 +82,7 @@ test("first proxy request waits before forwarding and succeeds once ready", asyn
   const urlBefore = process.env.JINI_AGENT_DAEMON_URL;
   process.env.JINI_AGENT_DAEMON_URL = "http://127.0.0.1:12345";
   t.after(() => { if (urlBefore === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = urlBefore; });
-  const pending = fetchAgentDaemon(req("POST", "/api/runs"), response().res, { ensureReady: () => ready, body: {} });
+  const pending = fetchAgentDaemon({ req: req("POST", "/api/runs"), res: response().res }, { ensureReady: () => ready, body: {} });
   assert.equal(sends, 0); release();
   assert.equal(await (await pending)!.text(), "accepted"); assert.equal(sends, 1);
 });

@@ -161,10 +161,10 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
   delete decoded.recoveryMode;
   delete decoded.recoverySessionId;
   if (await proxyAcceptedRun({ decoded, body, deps, res }, {})) return;
-  const upstream = await forwardToAgentDaemon(req, res, {
+  const upstream = await forwardToAgentDaemon({ req, res, body: {
     ...body,
     contextRef: JSON.stringify({ ...decoded, principalId: principal.id }),
-  }, daemon);
+  } }, daemon);
   if (!upstream) return;
   await relayResponse(upstream, req, res);
 }
@@ -197,7 +197,7 @@ async function proxyAcceptedRun(
 }
 
 async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
-  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body, daemon);
+  const upstream = await forwardToAgentDaemon({ req, res, body: req.method === "GET" || req.method === "HEAD" ? undefined : req.body }, daemon);
   if (!upstream) return;
   await relayResponse(upstream, req, res);
 }
@@ -206,7 +206,7 @@ async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallO
  * idle teardown; the existing cheap context read resets idle credit and retries a park refusal.
  * @complexity At most two bounded demand sends; no session or mutating request is created. */
 export async function activateFrontendDaemon({ req, res }: { req: Request; res: Response }, daemon: DaemonCallOptions = {}): Promise<void> {
-  const response = await fetchAgentDaemon(req, res, { ...daemon, path: "/api/active", method: "GET" });
+  const response = await fetchAgentDaemon({ req, res }, { ...daemon, path: "/api/active", method: "GET" });
   if (!response) return;
   if (!response.ok) {
     // A non-JSON refusal still reports the upstream status to the browser.

@@ -165,7 +165,7 @@ async function startDaemonRun(
   daemon: DaemonCallOptions,
 ): Promise<{ ok: true; daemonRunId: string } | { ok: false }> {
   const prompt = flattenMessagesToPrompt({ messages: run.messages });
-  const startUpstream = await fetchAgentDaemon(req, res, {
+  const startUpstream = await fetchAgentDaemon({ req, res }, {
     path: "/api/runs",
     method: "POST",
     body: { contextRef: JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId,
@@ -194,7 +194,7 @@ async function startDaemonRun(
  * tool call can leave the daemon silent well past `fetch`'s default idle-body timeout, which is not a
  * stall on this endpoint, it's the normal shape of a human-in-the-loop wait. */
 async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId: string, daemon: DaemonCallOptions): Promise<ReadableStreamDefaultReader<Uint8Array> | null> {
-  const eventsUpstream = await fetchAgentDaemonEventStream(req, res, `/api/runs/${encodeURIComponent(daemonRunId)}/events`, daemon);
+  const eventsUpstream = await fetchAgentDaemonEventStream({ req, res, path: `/api/runs/${encodeURIComponent(daemonRunId)}/events` }, daemon);
   if (!eventsUpstream) return null; // fetchAgentDaemonEventStream already wrote a 503/502.
   if (eventsUpstream.statusCode < 200 || eventsUpstream.statusCode >= 300) {
     res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
@@ -252,7 +252,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
     if (runFinished) return;
     if (daemonRunId) {
       runTracker.setOutcome({ status: "canceled" });
-      cancelDaemonRunBestEffort(req, res, daemonRunId, daemon);
+      cancelDaemonRunBestEffort({ req, res, daemonRunId }, daemon);
     } else closedEarly = true;
   });
 
@@ -267,7 +267,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
     runTracker = span;
     if (closedEarly) {
       runTracker.setOutcome({ status: "canceled" });
-      cancelDaemonRunBestEffort(req, res, started.daemonRunId, daemon);
+      cancelDaemonRunBestEffort({ req, res, daemonRunId: started.daemonRunId }, daemon);
       return;
     }
 

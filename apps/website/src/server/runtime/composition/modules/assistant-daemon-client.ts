@@ -221,8 +221,7 @@ function respondOutcomeUnknown(failure: { res: Response; error: unknown }): null
  *   immediately on `null` without touching `res` again.
  */
 export async function fetchAgentDaemon(
-  req: Request,
-  res: Response,
+  { req, res }: { req: Request; res: Response },
   options: { path?: string; method?: string; body?: unknown } & DaemonCallOptions = {},
 ): Promise<globalThis.Response | null> {
   if (!options.passive && !(await awaitDaemonForResponse({ res }, options))) return null;
@@ -234,7 +233,7 @@ export async function fetchAgentDaemon(
 }
 
 async function fetchDaemonWithRetries(
-  { req, res, options }: { req: Request; res: Response; options: NonNullable<Parameters<typeof fetchAgentDaemon>[2]> },
+  { req, res, options }: { req: Request; res: Response; options: NonNullable<Parameters<typeof fetchAgentDaemon>[1]> },
   { method, deadline, send }: { method: string; deadline: number; send: typeof fetch },
 ): Promise<globalThis.Response | null> {
   for (;;) {
@@ -263,8 +262,8 @@ function respondToDaemonConnectionFailure(
 
 /** Thin wrapper matching `assistant.ts`'s original call shape exactly: forward the SAME path/method
  *  this request arrived on, with an optional rewritten body. */
-export async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown, optional: DaemonCallOptions = {}): Promise<globalThis.Response | null> {
-  return fetchAgentDaemon(req, res, { ...optional, body });
+export async function forwardToAgentDaemon({ req, res, body }: { req: Request; res: Response; body?: unknown }, optional: DaemonCallOptions = {}): Promise<globalThis.Response | null> {
+  return fetchAgentDaemon({ req, res }, { ...optional, body });
 }
 
 /**
@@ -282,7 +281,7 @@ export async function forwardToAgentDaemon(req: Request, res: Response, body?: u
  *
  * @complexity O(1) — one fire-and-forget HTTP request, not awaited by the caller.
  */
-export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRunId: string, optional: DaemonCallOptions = {}): void {
+export function cancelDaemonRunBestEffort({ req, res, daemonRunId }: { req: Request; res: Response; daemonRunId: string }, optional: DaemonCallOptions = {}): void {
   daemonFetch(optional)(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
     method: "POST",
     headers: outboundHeaders(req, res),
@@ -334,9 +333,7 @@ function requestDaemonEventStream(
  * (`error.code` vs `error.cause.code`) — differs.
  */
 export async function fetchAgentDaemonEventStream(
-  req: Request,
-  res: Response,
-  path: string,
+  { req, res, path }: { req: Request; res: Response; path: string },
   optional: DaemonCallOptions = {},
 ): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | null> {
   if (!(await awaitDaemonForResponse({ res }, optional))) return null;
