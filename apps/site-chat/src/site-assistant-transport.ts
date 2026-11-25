@@ -32,7 +32,7 @@ import { assistantContentFromEvents, latestUserPromptFromHistory } from "@jini-a
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui/reduction";
 import type { AgUiToAgentTranslationState } from "@jini-ai/chat/core/ag-ui/reduction";
-import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
+import type { ChatPaneAgentToolAction, ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import { createAgUiFetchAgent } from "@jini-ai/chat/transports/ag-ui";
 
 import { NO_REPLY_REASON, UNCLASSIFIED_FAILURE_REASON, visitorFacingError } from "./site-assistant-errors";
@@ -124,11 +124,42 @@ function createVisitorThreadIds({ newId }: { newId: () => string }, _optional = 
  *  transport itself is stateless per call, but a cancellation has to reach a specific earlier call. */
 const activeRuns = new Map<string, AbortController>();
 
+/** The optional page channel of this document (`createVisitorPageControl`), injected by the host. */
+export interface VisitorFrontend {
+  /** All-or-nothing page binding headers for one turn's run; rejects when attach or rebind failed. */
+  headers(required?: { runId?: string; signal?: AbortSignal }): Promise<Record<string, string>>;
+  finish(args: { navigation: boolean; messages?: ChatMessage[] }): void;
+  /** Live-only: a delivered page action goes here and nowhere else (never events or storage). */
+  acceptBrowserInvocation(required: { runId: string; action: ChatPaneAgentToolAction }, optional?: Record<string, never>): void;
+}
+
+/** The only tool call this transport hands to the page; every other tool call name is ignored. */
+const PAGE_ACTION_TOOL_NAME = "tovu.page_action";
+/** Matches the page bridge's own response cap: a reviewed page action is small. */
+const MAX_PAGE_ACTION_ARGS_CHARS = 96_000;
+
+/**
+ * Losing the optional page channel does not make a visitor's question unanswerable: a failed attach
+ * or rebind (the page control already closed and forgot that binding) sends this turn without any
+ * page header, and a Stop during the attach resolves at once so the caller can recheck its signal.
+ */
+export async function resolvePageHeadersForTurn(
+  { frontend, signal, runId }: { frontend: VisitorFrontend | undefined; signal: AbortSignal; runId: string },
+  _optional = {},
+): Promise<Record<string, string>> {
+  if (!frontend || signal.aborted) return {};
+  let onAbort = () => {};
+  const stopped = new Promise<Record<string, string>>((resolve) => { onAbort = () => resolve({}); });
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    return await Promise.race([frontend.headers({ runId, signal }).catch(() => ({})), stopped]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 export interface SiteAssistantTransportOptions {
-  readonly frontend?: {
-    headers(): Promise<Record<string, string>>;
-    finish(args: { navigation: boolean; messages?: ChatMessage[] }): void;
-  };
+  readonly frontend?: VisitorFrontend;
   /** Live UI only: challenges never enter events, persisted messages or provider history. */
   readonly onToolConfirmation?: (required: { directive: ToolConfirmationDirective | null }, optional?: Record<string, never>) => void;
   /** Mints the one turn id a visitor message keeps across every automatic retry of its POST, so the
@@ -213,6 +244,8 @@ interface VisitorWire {
   streaming: boolean;
   /** This segment ended with an approval interrupt: its body closing is not a lost terminal. */
   interrupted: boolean;
+  /** `tovu.page_action` calls opened on this segment, by tool call id, with their arguments so far. */
+  readonly toolCalls: Map<string, string>;
 }
 /** `accepted` reports whether a resume segment's POST was taken; the first report wins. */
 type EventContext = { life: RunLifecycle; args: RunArgs; wire: VisitorWire; accepted?: (ok: boolean) => void };
@@ -266,6 +299,46 @@ function parkApproval({ directive, ctx }: { directive: ToolConfirmationDirective
   args.options.onToolConfirmation?.({ directive });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** The delivered action, only when it names its own tool call: a model call id is not a capability. */
+function readPageAction({ toolCallId, json }: { toolCallId: string; json: string }, _options = {}): ChatPaneAgentToolAction | undefined {
+  let value: unknown;
+  try { value = JSON.parse(json); } catch { return undefined; }
+  if (!isRecord(value) || value.invocationId !== toolCallId) return undefined;
+  if (typeof value.capabilityId !== "string" || !isRecord(value.input)) return undefined;
+  return { invocationId: toolCallId, capabilityId: value.capabilityId, input: value.input };
+}
+
+type ToolCallEvent = Extract<AGUIEvent, { type: EventType.TOOL_CALL_START | EventType.TOOL_CALL_ARGS | EventType.TOOL_CALL_END }>;
+
+/**
+ * The model can request an effect but cannot deliver one: only a complete `tovu.page_action` the
+ * server projected onto this validated segment reaches the page control, under the logical run id
+ * the page bound, and as live-only data — it never enters events, the transcript or storage.
+ */
+function handleToolCallEvent({ event, ctx }: { event: ToolCallEvent; ctx: EventContext }, _options = {}) {
+  const { wire } = ctx;
+  if (!wire.started || wire.interrupted) return;
+  if (event.type === EventType.TOOL_CALL_START) {
+    if (event.toolCallName === PAGE_ACTION_TOOL_NAME) wire.toolCalls.set(event.toolCallId, "");
+    return;
+  }
+  const soFar = wire.toolCalls.get(event.toolCallId);
+  if (soFar === undefined) return;
+  if (event.type === EventType.TOOL_CALL_ARGS) {
+    const next = soFar + event.delta;
+    if (next.length > MAX_PAGE_ACTION_ARGS_CHARS) wire.toolCalls.delete(event.toolCallId);
+    else wire.toolCalls.set(event.toolCallId, next);
+    return;
+  }
+  wire.toolCalls.delete(event.toolCallId);
+  const action = readPageAction({ toolCallId: event.toolCallId, json: soFar });
+  if (action) ctx.args.options.frontend?.acceptBrowserInvocation({ runId: ctx.args.runId, action });
+}
+
 function handleRunFinished({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.RUN_FINISHED }>; ctx: EventContext }, _options = {}) {
   if (!ctx.wire.started || !matchesActiveRun({ event, wire: ctx.wire })) return;
   const { input, options, runId } = ctx.args;
@@ -288,26 +361,36 @@ function handleRunError({ event, ctx }: { event: Extract<AGUIEvent, { type: Even
   ctx.life.finish();
 }
 
+function handleCustomEvent({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.CUSTOM }>; ctx: EventContext }, _options = {}) {
+  // Confirmation directives go to their receiver; retired/unknown machine directives
+  // never enter the visitor transcript either way.
+  // Any other CUSTOM name is ignored: arbitrary CUSTOM data cannot drive the browser.
+  if (event.name === "client_directive") consumeToolConfirmation({ data: event.value, settled: false, receive: ctx.args.options.onToolConfirmation });
+}
+
+type EventHandler = (args: { event: never; ctx: EventContext }) => void;
+/** One handler per event kind this transport speaks; any other kind is ignored. */
+const EVENT_HANDLERS: Partial<Record<EventType, EventHandler>> = {
+  [EventType.RUN_STARTED]: ({ event, ctx }: { event: Extract<AGUIEvent, { type: EventType.RUN_STARTED }>; ctx: EventContext }) => {
+    if (matchesActiveRun({ event, wire: ctx.wire })) ctx.wire.started = true;
+  },
+  [EventType.RUN_FINISHED]: handleRunFinished,
+  [EventType.RUN_ERROR]: handleRunError,
+  [EventType.CUSTOM]: handleCustomEvent,
+  [EventType.TEXT_MESSAGE_START]: handleTextEvent,
+  [EventType.TEXT_MESSAGE_CONTENT]: handleTextEvent,
+  [EventType.TEXT_MESSAGE_END]: handleTextEvent,
+  [EventType.TOOL_CALL_START]: handleToolCallEvent,
+  [EventType.TOOL_CALL_ARGS]: handleToolCallEvent,
+  [EventType.TOOL_CALL_END]: handleToolCallEvent,
+};
+
 /** Machine events are intercepted before reduction and never enter the transcript. */
 function handleAgUiEvent({ event, ctx }: { event: AGUIEvent; ctx: EventContext }, _options = {}) {
   // End is terminal even for frames coalesced into the same response chunk.
   if (ctx.life.flags.settled) return;
-  if (event.type === EventType.RUN_STARTED) {
-    if (matchesActiveRun({ event, wire: ctx.wire })) ctx.wire.started = true;
-  } else if (event.type === EventType.RUN_FINISHED) {
-    handleRunFinished({ event, ctx });
-  } else if (event.type === EventType.RUN_ERROR) {
-    handleRunError({ event, ctx });
-  } else if (event.type === EventType.CUSTOM) {
-    // Confirmation directives go to their receiver; retired/unknown machine directives
-    // never enter the visitor transcript either way.
-    // Any other CUSTOM name is ignored: arbitrary CUSTOM data cannot drive the browser.
-    if (event.name === "client_directive") consumeToolConfirmation({ data: event.value, settled: false, receive: ctx.args.options.onToolConfirmation });
-  } else if (event.type === EventType.TEXT_MESSAGE_START || event.type === EventType.TEXT_MESSAGE_CONTENT || event.type === EventType.TEXT_MESSAGE_END) {
-    handleTextEvent({ event, ctx });
-  } else {
-    // Ignore event kinds outside this transport's protocol.
-  }
+  // Ignore event kinds outside this transport's protocol.
+  (EVENT_HANDLERS[event.type] as ((args: { event: AGUIEvent; ctx: EventContext }) => void) | undefined)?.({ event, ctx });
 }
 
 async function failOnRefusal({ response, life }: { response: Response; life: RunLifecycle }, _options = {}) {
@@ -326,7 +409,9 @@ async function failOnRefusal({ response, life }: { response: Response; life: Run
 function createVisitorRequest({ ctx }: { ctx: EventContext }, _options = {}) {
   const { args, life, wire } = ctx;
   return async ({ input, signal }: { input: RunAgentInput; signal: AbortSignal }): Promise<Response> => {
-    const frontendHeaders = await args.options.frontend?.headers() ?? {};
+    const frontendHeaders = await resolvePageHeadersForTurn({ frontend: args.options.frontend, signal, runId: args.runId });
+    // A Stop that raced the page attachment ends the turn; it must never become a page-less chat.
+    signal.throwIfAborted();
     const response = await args.fetchChat(CHAT_URL, {
       method: "POST",
       // The exact range is what selects AG-UI; no frontend header may replace it.
@@ -371,7 +456,7 @@ function handleStreamFailure({ error, ctx }: { error: unknown; ctx: EventContext
 async function performRun({ args, life, runInput }: { args: RunArgs; life: RunLifecycle; runInput: RunAgentInput }, { accepted }: { accepted?: (ok: boolean) => void } = {}) {
   // Armed before headers: a server that never answers is as stuck as one that stops mid-reply.
   life.armIdleTimer();
-  const wire: VisitorWire = { threadId: runInput.threadId, runId: runInput.runId, started: false, streaming: false, interrupted: false,
+  const wire: VisitorWire = { threadId: runInput.threadId, runId: runInput.runId, started: false, streaming: false, interrupted: false, toolCalls: new Map(),
     reduction: createAgUiToAgentTranslationState({ customEventNames: UNCONSULTED_CUSTOM_EVENT_NAMES }) };
   const ctx: EventContext = accepted ? { life, args, wire, accepted } : { life, args, wire };
   // Any received bytes (a heartbeat or half a frame) restart the idle timer, not only whole events.
