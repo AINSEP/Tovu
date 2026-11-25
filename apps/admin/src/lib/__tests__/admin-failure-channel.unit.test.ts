@@ -5,7 +5,7 @@ import { postsApi } from "../../features/posts/posts-host-ports";
 import { authApi } from "../../features/auth/api/auth-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";
-import { adminFailureChannel } from "../admin-failure-channel";
+import { adminFailureChannel, publishAdminFailure } from "../admin-failure-channel";
 import { setAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import { serverReconnect } from "../server-reconnect";
 
@@ -167,4 +167,104 @@ it("a page saved through the shared posts route is called a page in the notice, 
   adminFailureChannel.reset();
   await postsApi.updatePost({ id: "p1" }, { options: { title: "x" } }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.message).toMatch(/post save/);
+});
+
+// E4-T-READERS: the reader side of the failure reference, run through Tovu's real binding
+// (`publishAdminFailure` from `../admin-failure-channel`) with no stubbed decoder or reporter.
+const LEGACY_UUID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+const ERR_ID = "ERR-1A2B-3C4D-5E6F-7A8B";
+
+/** Publishes one failed reply for a signed-in request and returns what the notice retained. */
+function noticeFor({ body, path = "/pages", method = "PUT", status = 500 }: { body: unknown; path?: string; method?: string; status?: number }) {
+  adminFailureChannel.reset();
+  publishAdminFailure({ body, path, method, status, generation: adminFailureChannel.getGeneration() });
+  return adminFailureChannel.getSnapshot();
+}
+
+const approvedFailure = (errorId: string) => formatUserFacingError(
+  { message: "The export could not finish.", action: "Check export history.", step: "Creating archive", cause: "An approved export explanation." },
+  { errorId },
+);
+
+it("a flat reply with approved details shows the approved wording and the approved incident id", () => {
+  const failure = approvedFailure("incident-flat-approved");
+  const notice = noticeFor({ body: { error: "Private backend HOST_SECRET_CANARY", code: "INTERNAL_ERROR", details: { errorId: "incident-flat-approved", failure } } });
+  expect(notice).toMatchObject({ message: failure.message, action: failure.action, step: failure.step, cause: failure.cause, errorId: "incident-flat-approved" });
+  expect(notice?.copyText).not.toContain("HOST_SECRET_CANARY");
+});
+
+it("a flat reply without details shows the shared wording and the flat incident id", () => {
+  const notice = noticeFor({ body: { error: "Private backend HOST_SECRET_CANARY", errorId: "incident-flat-bare" } });
+  expect(notice?.errorId).toBe("incident-flat-bare");
+  expect(notice?.cause).toBe("The error ID identifies the server report.");
+  expect(notice?.copyText).not.toContain("HOST_SECRET_CANARY");
+});
+
+it("a nested reply that carries only a request id shows that request id as the incident reference", () => {
+  const notice = noticeFor({ body: { error: { code: "INTERNAL_ERROR", message: "boom", requestId: "request-nested" } } });
+  expect(notice?.errorId).toBe("request-nested");
+  expect(notice?.cause).toBe("The error ID identifies the server report.");
+});
+
+it("a legacy UUID request id is kept whole as the incident reference", () => {
+  const notice = noticeFor({ body: { error: { code: "INTERNAL_ERROR", message: "boom", requestId: LEGACY_UUID } } });
+  expect(notice?.errorId).toBe(LEGACY_UUID);
+  expect(notice?.copyText).toContain(`Error ID: ${LEGACY_UUID}`);
+});
+
+it("an ERR- id in a flat reply is kept whole as the incident reference", () => {
+  const notice = noticeFor({ body: { error: "boom", code: "INTERNAL_ERROR", errorId: ERR_ID } });
+  expect(notice?.errorId).toBe(ERR_ID);
+  expect(notice?.copyText).toContain(`Error ID: ${ERR_ID}`);
+});
+
+it("an ERR- id in nested details is kept whole as the incident reference", () => {
+  const notice = noticeFor({ body: { error: { code: "INTERNAL_ERROR", message: "boom", requestId: "request-ignored", details: { errorId: ERR_ID } } } });
+  expect(notice?.errorId).toBe(ERR_ID);
+});
+
+it("a reply with no id at all claims no incident reference exists", () => {
+  for (const body of [{ error: "boom", code: "INTERNAL_ERROR" }, { error: { code: "INTERNAL_ERROR", message: "boom" } }, { error: { requestId: 42, details: { errorId: 7 } }, errorId: false }, "not json", null]) {
+    const notice = noticeFor({ body });
+    expect(notice?.errorId).toBeUndefined();
+    expect(notice?.cause).toBe("The server did not provide an incident ID for this response.");
+    expect(notice?.copyText).not.toContain("Error ID:");
+  }
+});
+
+it("the incident reference is the details id first, then the flat id, then the request id", () => {
+  const nested = (details?: unknown) => ({ errorId: "id-flat", error: { code: "INTERNAL_ERROR", message: "boom", requestId: "id-request", ...(details ? { details } : {}) } });
+  expect(noticeFor({ body: nested({ errorId: "id-details" }) })?.errorId).toBe("id-details");
+  expect(noticeFor({ body: nested() })?.errorId).toBe("id-flat");
+  expect(noticeFor({ body: { error: nested().error } })?.errorId).toBe("id-request");
+  // A details object that has no errorId key does not shadow the later sources.
+  expect(noticeFor({ body: nested({ other: true }) })?.errorId).toBe("id-flat");
+});
+
+// KNOWN DISCREPANCY (reported, production untouched): `failureReference` uses `??`, so a NON-STRING
+// `details.errorId` (here 123) is not nullish, wins the chain, then `optionalString` drops it and the
+// flat id / request id are lost. The sheet's precedence implies a lower source should still be used.
+// `it.fails` keeps the contract assertion live: it passes today and turns red once the reader is fixed.
+it.fails("a non-string details id falls through to the flat id instead of hiding it", () => {
+  const body = { errorId: "id-flat", error: { code: "INTERNAL_ERROR", message: "boom", requestId: "id-request", details: { errorId: 123 } } };
+  expect(noticeFor({ body })?.errorId).toBe("id-flat");
+});
+
+it("signed-out requests and auth routes keep the incident id but do not adopt approved details wording", () => {
+  const failure = approvedFailure("incident-approved");
+  const body = { error: "boom", code: "INTERNAL_ERROR", details: { errorId: "incident-approved", failure } };
+  // Control: a signed-in, non-auth request adopts the approved wording.
+  expect(noticeFor({ body })?.message).toBe(failure.message);
+
+  setAdminDraftIdentity({ id: null });
+  const signedOut = noticeFor({ body });
+  expect(signedOut?.message).not.toBe(failure.message);
+  expect(signedOut?.cause).not.toContain("An approved export explanation.");
+  expect(signedOut?.errorId).toBe("incident-approved");
+
+  setAdminDraftIdentity({ id: "owner" });
+  const auth = noticeFor({ body, path: "/auth/login", method: "POST" });
+  expect(auth?.message).not.toBe(failure.message);
+  expect(auth?.cause).not.toContain("An approved export explanation.");
+  expect(auth?.errorId).toBe("incident-approved");
 });
