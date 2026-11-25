@@ -11,7 +11,7 @@ import { useConversationRefreshSignal } from "@jini-ai/admin/shell/components/As
 import { defaultAssistantChatsPort } from "../../hooks/assistant-chats-dependencies.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
-import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-skills.hooks";
+import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "@jini-ai/admin/screens/plugins/composer-skills.hooks";
 import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks";
 import { selectedAgentWarning } from "../../features/settings/ai-agent-presentation";

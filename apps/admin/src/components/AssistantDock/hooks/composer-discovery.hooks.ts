@@ -1,4 +1,4 @@
-import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "@jini-ai/admin/shell/components/AssistantDock/hooks/resolve-composer-discovery-outcome";
+import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "@jini-ai/admin/screens/plugins/resolve-composer-discovery-outcome";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
 import { SKILLS_CHANGED_EVENT, loadSkillDraft } from "@/features/skills/api";
 import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";

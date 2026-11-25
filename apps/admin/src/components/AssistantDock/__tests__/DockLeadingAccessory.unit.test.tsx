@@ -18,6 +18,7 @@ const SKILL_CHIP = { pluginRefId: "tool-1", label: "Summarise · Skill" };
 function accessoryProps(overrides: Partial<DockLeadingAccessoryProps> = {}): DockLeadingAccessoryProps {
   return {
     note: null,
+    folderWindowNoteKey: "Folder window opened on the computer running Tovu",
     warning: null,
     folderDrop: { notice: null, dismiss: vi.fn(), retry: vi.fn() },
     pluginChips: [],

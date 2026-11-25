@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Composer, useComposer } from "@jini-ai/chat/react";
 import { useComposerCapabilities } from "../hooks/composer-discovery.hooks";
-import { useComposerDiscoveryDraft } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-skills.hooks";
+import { useComposerDiscoveryDraft } from "@jini-ai/admin/screens/plugins/composer-skills.hooks";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 
 /** The current GET DTO, including management metadata. Keep fetch, projection, ranking and

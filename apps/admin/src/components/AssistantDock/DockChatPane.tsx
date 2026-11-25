@@ -194,6 +194,7 @@ function chatPaneComposerProps(dock: DockState) {
         // why it is a fragment (no DOM node of its own).
         leadingAccessory: <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop} canPickFolder={folderPicker.available}
             folderWindowOpenElsewhere={folderWindowOpenElsewhere({ picking: folderPicker.picking })}
+            folderWindowNoteKey="Folder window opened on the computer running Tovu"
             pluginChips={selectedPluginChips} onRemovePlugin={removePluginRef} skills={selectedSkills} skillOnlySend={skillOnlySend} />
         ,
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
