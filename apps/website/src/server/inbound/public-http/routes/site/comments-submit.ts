@@ -6,6 +6,7 @@ import { urlencoded, type Express, type RequestHandler } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/comments-providers';
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
 import { createCommentSubmitHandler } from "@jini-ai/cms/comments/express";
+import { commentFormReturnTo, commentProviderIngress, isSameOriginCommentPost as isSameOriginPost } from "@jini-ai/cms/public-http/routes/site/comments-submit";
 import { resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveProtocol, resolvePublicOrigin } from "../../../../../platform/express/public-origin.js";
 
@@ -34,42 +35,18 @@ export interface CommentsSubmitDeps extends VisitorAnalyticsDeps<Request> {
   providers?: CommentsProviderRegistry;
 }
 
-/** Only local paths can be used for the no-JS PRG response; never trust a Referer redirect. */
-export function commentFormReturnTo({ value }: { value: unknown }, _options = {}): string {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || /[\\\r\n]/.test(value)) return '/';
-  const url = new URL(value, 'https://comments.invalid');
-  return url.origin === 'https://comments.invalid' ? url.pathname + url.search : '/';
-}
-
-/** Dispatches a public submission to the site's ACTIVE stored provider. No provider, or an embedded
- * one (the vendor owns its own form), is the same generic refusal as any other ingress rejection.
- * @complexity O(1) plus the provider's ingress work. */
-function providerIngress({ providers, siteId }: { providers: CommentsProviderRegistry; siteId: string }, _options = {}): CommentIngressPolicyLike {
-  return { submit: async submission => {
-    const { adapter } = await providers.active({ siteId });
-    if (!adapter || adapter.kind !== 'stored') return { ok: false, reason: 'comments-disabled' };
-    const result = await adapter.submission.submit({ siteId, entryId: submission.entryId, parentId: submission.parentId,
-      authorName: submission.authorName, authorEmail: submission.authorEmail, authorUrl: submission.authorUrl, bodyRaw: submission.bodyRaw,
-      authorIpHash: String(submission.ingressContext.authorIpHash), honeypotValue: String(submission.ingressContext.honeypotValue) });
-    return result.ok ? { ok: true, comment: { id: result.id, status: result.status } } : result;
-  } };
-}
-type CommentIngressPolicyLike = Parameters<typeof createCommentSubmitHandler>[0]['ingressPolicy'];
-
-/** CSRF gate. A browser always sends `Origin` on a POST, so a cross-site page (including a no-JS form
- * on another origin, or an opaque `null` origin) is refused. A missing `Origin` is allowed ONLY for a
- * JSON body: a cross-site page cannot send `application/json` without a CORS preflight this route never
- * answers, so that request is a non-browser client, which no Origin check could stop anyway (the
- * honeypot, spam check and both rate limits are what bound those). The scheme honors
- * `X-Forwarded-Proto` like the OAuth callback origin does: an attacker cannot set that header on a
- * victim's browser request, and without it every HTTPS visitor behind a TLS-terminating proxy that
- * lacks a `trust proxy` hop count would be refused. A misconfigured TOVU_PUBLIC_URL throws (a 500), loudly.
+/** CSRF gate bound to this host's origin and proxy policy: a configured TOVU_PUBLIC_URL also counts, for
+ * proxies that rewrite Host, and the scheme honors `X-Forwarded-Proto` like the OAuth callback origin does.
+ * Each read is a lazy callback so only the branch the decision consults runs (a misconfigured
+ * TOVU_PUBLIC_URL still throws a 500, loudly). The admission rules live in `@jini-ai/cms`.
  * @complexity O(1). */
-export function isSameOriginCommentPost({ request }: { request: Parameters<RequestHandler>[0] }, _options = {}): boolean {
-  const origin = request.get('origin');
-  if (origin === undefined) return request.is('application/json') === 'application/json';
-  // The configured public origin (TOVU_PUBLIC_URL) also counts, for proxies that rewrite Host.
-  return origin === `${resolveProtocol(request)}://${request.get('host')}` || origin === resolvePublicOrigin(request);
+export function isSameOriginCommentPost({ request }: { request: Parameters<RequestHandler>[0] }, _optional = {}): boolean {
+  return isSameOriginPost({
+    origin: request.get('origin'),
+    isJson: () => request.is('application/json') === 'application/json',
+    servingOrigin: () => `${resolveProtocol(request)}://${request.get('host')}`,
+    configuredOrigin: () => resolvePublicOrigin(request),
+  });
 }
 
 /** Mounts Jini's handler with the site's ingress, request budget, salt and proxy policy.
@@ -86,7 +63,7 @@ export function registerCommentsSubmitRoute({ app, deps }: { app: Express; deps:
   }
   const handler = deps.ipHashSalt.then((ipHashSalt) => createCommentSubmitHandler({
     ingressPolicy: { submit: async submission => {
-      const owner = deps.providers ? providerIngress({ providers: deps.providers, siteId: deps.workspaceId }) : deps.ingressPolicy;
+      const owner = deps.providers ? commentProviderIngress({ providers: deps.providers, siteId: deps.workspaceId }) : deps.ingressPolicy;
       return owner.submit(submission);
     } },
     workspaceId: deps.workspaceId,
