@@ -76,7 +76,7 @@ describe("useTrash", () => {
     expect(result.current.busy).toBe(false);
     expect(port.restoreCalls).toEqual([]);
     expect(port.purgeCalls).toEqual([]);
-    await act(async () => resolvePage({ items: [item()], nextCursor: null }));
+    await act(async () => resolvePage({ items: [item()], nextCursor: null, retentionDays: 30 }));
     expect(result.current.items).toEqual([item()]);
   });
 
@@ -104,7 +104,7 @@ describe("useTrash", () => {
     vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
       expect(init?.method ?? "GET").toBe("GET");
       calls.push(url);
-      if (url === `${base}/trash`) return Response.json({ items: [item()], nextCursor: null });
+      if (url === `${base}/trash`) return Response.json({ items: [item()], nextCursor: null, retentionDays: 30 });
       if (url === `${base}/users`) return Response.json({ users: [user()] });
       if (url === `${base}/settings/effective?namespace=core.language`) return Response.json({ data: [{ key: "locale", value: "es", sourceLayer: "user", defVersion: 1 }] });
       throw new Error(`Unexpected wired trash request: ${url}`);
@@ -120,7 +120,7 @@ describe("useTrash", () => {
   it("loads the first page through the injected port, without touching fetch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const port = createFakeTrashPort({ items: [item()], nextCursor: "cursor-2" });
+    const port = createFakeTrashPort({ items: [item()], nextCursor: "cursor-2", retentionDays: 30 });
 
     const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
 
@@ -198,7 +198,7 @@ describe("useTrash", () => {
   });
 
   it("select-all covers only the rows on screen, and toggles back off", async () => {
-    const port = createFakeTrashPort({ items: [item({ id: "a" }), item({ id: "b" })], nextCursor: "more" });
+    const port = createFakeTrashPort({ items: [item({ id: "a" }), item({ id: "b" })], nextCursor: "more", retentionDays: 30 });
     const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
@@ -256,7 +256,7 @@ describe("useTrash", () => {
       listCalls: [] as Array<{ cursor?: string }>,
       async listTrash(options: { cursor?: string }) {
         this.listCalls.push(options);
-        return { items: page, nextCursor: null };
+        return { items: page, nextCursor: null, retentionDays: 30 };
       },
       async restoreTrashItems() {
         return { restored: 0, results: [] };
@@ -280,7 +280,7 @@ describe("useTrash", () => {
     let page: AdminTrashItemDto[] = [item({ id: "a" }), item({ id: "b" })];
     const port = {
       async listTrash() {
-        return { items: page, nextCursor: null };
+        return { items: page, nextCursor: null, retentionDays: 30 };
       },
       async restoreTrashItems() {
         return { restored: 0, results: [] };
@@ -348,7 +348,7 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
       listCalls: [] as Array<{ cursor?: string }>,
       async listTrash(options: { cursor?: string }) {
         this.listCalls.push(options);
-        return { items: [item()], nextCursor: null };
+        return { items: [item()], nextCursor: null, retentionDays: 30 };
       },
       async restoreTrashItems() {
         return { restored: 0, results: [] };
@@ -376,7 +376,7 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
 describe("useTrash — Refresh (2026-09-21)", () => {
   it("a remount within 10s shows freshly changed rows, not the stale cache (staleTime: 0)", async () => {
     let rows: AdminTrashItemDto[] = [item({ id: "a" })];
-    const listTrash = vi.fn(async () => ({ items: rows, nextCursor: null }));
+    const listTrash = vi.fn(async () => ({ items: rows, nextCursor: null, retentionDays: 30 }));
     const port: TrashPort = {
       listTrash,
       async restoreTrashItems() {
@@ -425,7 +425,7 @@ describe("useTrash — Refresh (2026-09-21)", () => {
     const port: TrashPort = {
       listTrash: vi.fn(() => {
         call++;
-        if (call === 1) return Promise.resolve({ items: [item()], nextCursor: null });
+        if (call === 1) return Promise.resolve({ items: [item()], nextCursor: null, retentionDays: 30 });
         return new Promise<AdminTrashPageDto>((resolve) => {
           resolveSecond = resolve;
         });
@@ -447,14 +447,14 @@ describe("useTrash — Refresh (2026-09-21)", () => {
     await waitFor(() => expect(result.current.refreshing).toBe(true));
 
     await act(async () => {
-      resolveSecond({ items: [item()], nextCursor: null });
+      resolveSecond({ items: [item()], nextCursor: null, retentionDays: 30 });
       await Promise.resolve();
     });
     await waitFor(() => expect(result.current.refreshing).toBe(false));
   });
 
   it("refresh() drops accumulated 'more' pages, and a Load more still in flight when it lands does not append", async () => {
-    let firstPageResult: AdminTrashPageDto = { items: [item({ id: "p1" })], nextCursor: "c2" };
+    let firstPageResult: AdminTrashPageDto = { items: [item({ id: "p1" })], nextCursor: "c2", retentionDays: 30 };
     const cursorCalls: Array<{ resolve: (v: AdminTrashPageDto) => void }> = [];
     const port: TrashPort = {
       listTrash: vi.fn((options: { cursor?: string }) => {
@@ -479,12 +479,12 @@ describe("useTrash — Refresh (2026-09-21)", () => {
       void result.current.loadMore();
     });
     await waitFor(() => expect(cursorCalls).toHaveLength(1));
-    await act(async () => { cursorCalls[0].resolve({ items: [item({ id: "p2" })], nextCursor: "c3" }); });
+    await act(async () => { cursorCalls[0].resolve({ items: [item({ id: "p2" })], nextCursor: "c3", retentionDays: 30 }); });
     await waitFor(() => expect(result.current.items?.map((i) => i.id)).toEqual(["p1", "p2"]));
     act(() => { void result.current.loadMore(); });
     await waitFor(() => expect(cursorCalls).toHaveLength(2));
 
-    firstPageResult = { items: [item({ id: "fresh" })], nextCursor: null };
+    firstPageResult = { items: [item({ id: "fresh" })], nextCursor: null, retentionDays: 30 };
     act(() => {
       result.current.refresh();
     });
@@ -493,7 +493,7 @@ describe("useTrash — Refresh (2026-09-21)", () => {
     // The Load more from before the refresh finally resolves — it must not append onto the
     // refreshed page.
     await act(async () => {
-      cursorCalls[1].resolve({ items: [item({ id: "stale-more" })], nextCursor: null });
+      cursorCalls[1].resolve({ items: [item({ id: "stale-more" })], nextCursor: null, retentionDays: 30 });
       await Promise.resolve();
     });
     expect(result.current.items?.map((i) => i.id)).toEqual(["fresh"]);
@@ -537,7 +537,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
   }
 
   function createControlledPort(): ControlledPort {
-    let firstPageResult: AdminTrashPageDto = { items: [item()], nextCursor: "c2" };
+    let firstPageResult: AdminTrashPageDto = { items: [item()], nextCursor: "c2", retentionDays: 30 };
     const cursorCalls: ControlledPort["cursorCalls"] = [];
     const port: TrashPort = {
       listTrash: vi.fn((options: { cursor?: string }) => {
@@ -577,7 +577,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
     expect(result.current.loadingMore).toBe(false);
     act(() => { void result.current.loadMore(); });
     expect(cursorCalls).toHaveLength(2);
-    await act(async () => { cursorCalls[1]!.resolve({ items: [item({ id: "next" })], nextCursor: null }); });
+    await act(async () => { cursorCalls[1]!.resolve({ items: [item({ id: "next" })], nextCursor: null, retentionDays: 30 }); });
     expect(result.current.items).toEqual([item(), item({ id: "next" })]);
     expect(result.current.loadingMore).toBe(false);
     act(() => { void result.current.loadMore(); });
@@ -600,7 +600,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
     expect(cursorCalls).toHaveLength(1);
 
     await act(async () => {
-      cursorCalls[0].resolve({ items: [item({ id: "page2" })], nextCursor: null });
+      cursorCalls[0].resolve({ items: [item({ id: "page2" })], nextCursor: null, retentionDays: 30 });
       await Promise.resolve();
     });
 
@@ -627,7 +627,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
     // The stale loadMore finally resolves.
     await act(async () => {
-      cursorCalls[0].resolve({ items: [item({ id: "stale" })], nextCursor: null });
+      cursorCalls[0].resolve({ items: [item({ id: "stale" })], nextCursor: null, retentionDays: 30 });
       await Promise.resolve();
     });
 
@@ -686,7 +686,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
     // Call 1's stale response finally arrives. It must not release call 2's lock.
     await act(async () => {
-      cursorCalls[0].resolve({ items: [item({ id: "stale" })], nextCursor: null });
+      cursorCalls[0].resolve({ items: [item({ id: "stale" })], nextCursor: null, retentionDays: 30 });
       await Promise.resolve();
     });
     expect(result.current.trash.loadingMore).toBe(true);
@@ -698,7 +698,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
     expect(cursorCalls).toHaveLength(2);
 
     await act(async () => {
-      cursorCalls[1].resolve({ items: [item({ id: "page2" })], nextCursor: null });
+      cursorCalls[1].resolve({ items: [item({ id: "page2" })], nextCursor: null, retentionDays: 30 });
       await Promise.resolve();
     });
 

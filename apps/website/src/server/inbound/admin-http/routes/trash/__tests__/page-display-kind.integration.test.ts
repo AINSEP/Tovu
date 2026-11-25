@@ -63,7 +63,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
         { params: { workspaceId: WS }, query: {} }, res,
       );
       assert.equal(capture.statusCode, 200, JSON.stringify(capture.jsonBody));
-      return capture.jsonBody as { items: { entityType: string; entityId: string; title: string; subtitle: string | null; displayKind?: string }[] };
+      return capture.jsonBody as { items: { entityType: string; entityId: string; title: string; subtitle: string | null; displayKind?: string }[]; retentionDays?: number };
     },
   };
 }
@@ -121,4 +121,11 @@ test("unauthorized post snapshots are filtered before querying post subtypes", a
   h.deps.authorize = async ({ permission }) => ({ allowed: permission === "content.read", reason: "test" });
   h.deps.db = { ...h.kernel, run: async () => { throw new Error("hidden posts must never trigger subtype reads"); } };
   assert.deepEqual((await h.list()).items, []);
+});
+
+test("the list response states the host's retention window, so the admin header never hard-codes it", async (t) => {
+  const h = harness(t);
+  // Asserted against the composed constant AND its current value: a drift either way is a visible copy change.
+  assert.equal((await h.list()).retentionDays, TRASH_RETENTION_DAYS);
+  assert.equal(TRASH_RETENTION_DAYS, 30);
 });

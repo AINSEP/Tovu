@@ -13,6 +13,7 @@ import {
 } from "#src/features/trash/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ServerModuleHandle } from "./types.js";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 /**
  * @file The `trash` server module — the local admin Trash screen's routes (list, restore,
@@ -120,6 +121,8 @@ function postDisplayKinds({ deps }: { deps: TrashRouteDeps }, _optional: Record<
 export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: trashListRoute, deps: trashMountDeps({ deps, own: {
     authorizeEntry: trashEntryGate({ deps }), loadPostDisplayKinds: postDisplayKinds({ deps }),
+    // The same host value `createTrashService` stamps with, echoed so the admin header states it.
+    retentionDays: TRASH_RETENTION_DAYS,
     filterVisible: ({ principalId, items }: Parameters<typeof filterVisibleTrashItems>[1]) => filterVisibleTrashItems(deps, { principalId, items }),
     userRepo: { list: (required: { workspaceId: string }) => deps.userRepo.list(required) },
   } }) }, mountOptions("routes/trash/list"));

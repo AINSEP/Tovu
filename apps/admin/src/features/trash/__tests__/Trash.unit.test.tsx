@@ -59,6 +59,7 @@ function controller(overrides: Partial<TrashController> = {}): TrashController {
     refresh: vi.fn(),
     refreshing: false,
     actorUsernames: new Map<string, string>(),
+    retentionDays: null,
     t,
     locale: "en",
     ...overrides,
@@ -110,11 +111,11 @@ describe("Trash screen", () => {
 
   it("select-all toggles every visible row and Load more appends the next page", async () => {
     const user = userEvent.setup();
-    const port = createFakeTrashPort({ items: [item()], nextCursor: "next-page" });
+    const port = createFakeTrashPort({ items: [item()], nextCursor: "next-page", retentionDays: 30 });
     const list = port.listTrash;
     port.listTrash = async (options) => {
       const page = await list(options);
-      return options.cursor ? { items: [item({ id: "trash-2", entityId: "post-2", title: "Second post" })], nextCursor: null } : page;
+      return options.cursor ? { items: [item({ id: "trash-2", entityId: "post-2", title: "Second post" })], nextCursor: null, retentionDays: 30 } : page;
     };
     renderRealTrash(port);
     await screen.findByRole("checkbox", { name: 'Select "A deleted post"' });
@@ -134,18 +135,18 @@ describe("Trash screen", () => {
   });
 
   it("shows one short subtitle and a closed info tip beside the title on empty Trash", () => {
-    const { container } = render(<Trash useTrashHook={() => controller({ items: [] })} />);
+    // 14, not the host's 30: the window must come from the server's list response, never be hard-coded.
+    const { container } = render(<Trash useTrashHook={() => controller({ items: [], retentionDays: 14 })} />);
 
     const descriptions = container.querySelectorAll(".jini-page-header .jini-page-description");
     expect(descriptions).toHaveLength(1);
-    // Rows deleted under an older retention keep their own stamp, so the header must not promise one fixed length.
-    expect(descriptions[0]).toHaveTextContent("Each item shows how many days it has left.");
-    expect(descriptions[0].textContent).not.toMatch(/\d/);
+    // Rows deleted under an older retention keep their own stamp, so the window sentence is paired with the per-row days.
+    expect(descriptions[0].textContent).toBe("Items are permanently deleted 14 days after they are moved to Trash. Each item shows how many days it has left.");
     const info = within(screen.getByRole("heading", { level: 1 })).getByLabelText(
-      "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
+      "Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
     );
     expect(info).toHaveAttribute("data-agent-element", "trash-coverage-info");
-    expect(screen.queryByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).not.toBeInTheDocument();
     expect(screen.getByText("The Trash is empty.")).toBeInTheDocument();
   });
 
@@ -153,20 +154,20 @@ describe("Trash screen", () => {
     const user = userEvent.setup();
     render(<Trash useTrashHook={() => controller({ items: [] })} />);
 
-    await user.click(screen.getByLabelText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them."));
-    expect(screen.getByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them."));
+    expect(screen.getByText("Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).toBeInTheDocument();
   });
 
   it("opens the exceptions with Tab and closes with Escape while keeping icon focus", async () => {
     const user = userEvent.setup();
     render(<Trash useTrashHook={() => controller({ items: [] })} />);
-    const info = screen.getByLabelText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.");
+    const info = screen.getByLabelText("Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.");
 
     await user.tab();
     expect(document.activeElement).toBe(info);
-    expect(screen.getByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).toBeInTheDocument();
+    expect(screen.getByText("Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).toBeInTheDocument();
     await user.keyboard("{Escape}");
-    expect(screen.queryByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).not.toBeInTheDocument();
     expect(document.activeElement).toBe(info);
   });
 
@@ -175,8 +176,8 @@ describe("Trash screen", () => {
     render(<Trash useTrashHook={() => controller({ locale: "es", items: [] })} />);
 
     expect(screen.getByText("Cada elemento muestra cuántos días le quedan.")).toBeInTheDocument();
-    await user.click(screen.getByLabelText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure."));
-    expect(screen.getByText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure.")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Los elementos eliminados esperan aquí para que puedas restaurarlos hasta que se agoten sus días. Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure."));
+    expect(screen.getByText("Los elementos eliminados esperan aquí para que puedas restaurarlos hasta que se agoten sus días. Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure.")).toBeInTheDocument();
   });
 
   it("renders a row with its kind, actor and days remaining", () => {
@@ -317,7 +318,7 @@ describe("Trash — row subtitle and default wiring", () => {
 
   it("wires the real Trash controller by default and lists what the server returns", async () => {
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      if (String(url).includes("/trash")) return Response.json({ items: [item({ title: "Served from the API" })], nextCursor: null });
+      if (String(url).includes("/trash")) return Response.json({ items: [item({ title: "Served from the API" })], nextCursor: null, retentionDays: 30 });
       return Response.json({ users: [] });
     }));
     try {
