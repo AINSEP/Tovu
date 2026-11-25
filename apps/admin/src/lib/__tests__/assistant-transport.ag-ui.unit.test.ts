@@ -1022,3 +1022,20 @@ describe("the AG-UI cost footer survives reconnect exactly once", () => {
     }
   });
 });
+
+describe("an AG-UI attachment reaches the selected agent (client wire)", () => {
+  test("the durable start forwards the prepared attachment refs and never browser-owned authority", async () => {
+    fetchMock = vi.fn(async () => new Response(streamFromChunks([frame({ type: EventType.RUN_STARTED, threadId: "conv-1", runId: "run-durable-1" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "conv-1", runId: "run-durable-1" })]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createAdminAgUiRunClient({ durable: { followRun: () => undefined, cancelRun: async () => undefined } }, {});
+    const { recorder } = terminalRecorder();
+
+    await client.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal, cancelSignal: new AbortController().signal }, handlers: recorder,
+      durable: { launch: { contextRef: { attachmentIds: ["att-1"], pluginRefIds: ["ui-ux-design"], model: "opus", prompt: "x", recoveryMode: "native", principalId: "other" },
+        agentId: "claude", messageId: "msg-a1", conversationId: "conv-1" }, bindRun: () => undefined } }, {});
+
+    const sent = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string) as { forwardedProps: { durableRun: { launch: Record<string, unknown> } } };
+    expect(sent.forwardedProps.durableRun.launch).toEqual({ attachmentIds: ["att-1"], pluginRefIds: ["ui-ux-design"], model: "opus" });
+  });
+});

@@ -82,6 +82,15 @@ function durableRunProps(forwardedProps: unknown): DurableRunProps | undefined {
     ? { conversationId: value.conversationId, assistantMessageId: value.assistantMessageId } : undefined;
 }
 
+/** The prepared launch's per-run fields (attachments, plugins, model, reasoning), the ones the
+ *  Local CLI acceptance would carry in its contextRef. The server bounds them again and stamps its
+ *  own principal and recovery choice, so nothing authoritative rides here. */
+function wireLaunchFields(contextRef: Record<string, unknown>): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const key of ["attachmentIds", "pluginRefIds", "model", "reasoning"]) if (contextRef[key] !== undefined) picked[key] = contextRef[key];
+  return picked;
+}
+
 /**
  * Binds AG-UI starts to the durable Local CLI lifecycle. The wire request names the prepared
  * message/conversation so the server accepts the one owned run for it; `RUN_STARTED` then names
@@ -96,7 +105,7 @@ export function adminAgUiDurableBinding({ ports }: { ports: AdminAgUiDurablePort
       const forwarded = typeof wire.forwardedProps === "object" && wire.forwardedProps !== null ? wire.forwardedProps as Record<string, unknown> : {};
       // The prepared launch's agent selection is the one the Local CLI acceptance would send.
       return { ...wire, forwardedProps: { ...forwarded, ...(launch.agentId ? { agentId: launch.agentId } : {}),
-        durableRun: { conversationId: launch.conversationId, assistantMessageId: launch.messageId } } };
+        durableRun: { conversationId: launch.conversationId, assistantMessageId: launch.messageId, launch: wireLaunchFields(launch.contextRef) } } };
     },
     readAcceptedRun: ({ event, input }) => {
       const durable = durableRunProps(input.forwardedProps);
