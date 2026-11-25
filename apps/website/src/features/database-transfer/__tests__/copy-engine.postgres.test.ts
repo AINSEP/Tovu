@@ -20,7 +20,6 @@ import { countSourceRows, createPsqlPostgresTarget, inspectTarget, runCopy, type
 import { collectTransferTables, planSnapshotTables } from "../table-catalog.js";
 import { countPartialExclusions, DEFAULT_TRANSFER_SCHEMA, TRANSFER_APPLICATION_NAME, TRANSFER_NAMING } from "../copy-engine.js";
 import { SITE_TRANSFER_MESSAGES } from "@jini-ai/db/tools";
-import { TOVU_TRANSFER_MESSAGES } from "../transfer-messages.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 import { testCopyPorts } from "../../../platform/db/sqlite/__tests__/helpers/copy-ports.js";

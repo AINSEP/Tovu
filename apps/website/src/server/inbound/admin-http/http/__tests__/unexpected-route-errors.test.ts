@@ -11,7 +11,6 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteImportRoutes } from "../../routes/system/site-imports.js";
 import { registerAdminRecoveryRestoreRoutes } from "#src/server/runtime/composition/modules/recovery-restore";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { newsletterErrorToResponse } from "../newsletter.js";
 import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
 import { mappedErrorResponse } from "../../routes/publish-content/route-helpers.js";
