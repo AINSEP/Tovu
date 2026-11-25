@@ -19,10 +19,16 @@ export interface StorageReport {
   unknownLocations?: number;
 }
 
+/** A pass as the cleanup route answers it; a dry run carries the grant its confirm must send. */
+export type StoragePass = RetentionPassResult & { previewToken?: string };
+
 export interface StorageClient {
   report(required: Record<string, never>, optional?: Record<string, never>): Promise<StorageReport>;
-  /** The server defaults to a dry run; only `dryRun: false` cleans, and only the given automatic kinds. */
-  cleanup(required: { dryRun: boolean; classes?: readonly RetentionPolicyKind[] }, optional?: Record<string, never>): Promise<RetentionPassResult>;
+  /**
+   * The server defaults to a dry run; only `dryRun: false` cleans, and only the given automatic kinds. A dry
+   * run answers a single-use `previewToken` pinned to what it measured; a live run must send that token.
+   */
+  cleanup(required: { dryRun: boolean; classes?: readonly RetentionPolicyKind[]; previewToken?: string }, optional?: Record<string, never>): Promise<StoragePass>;
 }
 
 type AdminRequest = <T>(required: { path: string }, optional?: { init?: RequestInit } & Pick<AuthenticatedAdminRequestOptions, "basePath">) => Promise<T>;
@@ -35,9 +41,9 @@ export function createStorageClient({ request: send }: { request: AdminRequest }
   const basePath = "/api/admin/storage" as const;
   return {
     report: () => send<StorageReport>({ path: "/report" }, { basePath }),
-    cleanup: ({ dryRun, classes }) => send<RetentionPassResult>({ path: "/cleanup" }, {
+    cleanup: ({ dryRun, classes, previewToken }) => send<StoragePass>({ path: "/cleanup" }, {
       basePath,
-      init: { method: "POST", body: JSON.stringify({ dryRun, ...(classes === undefined ? {} : { classes }) }) },
+      init: { method: "POST", body: JSON.stringify({ dryRun, ...(classes === undefined ? {} : { classes }), ...(previewToken === undefined ? {} : { previewToken }) }) },
     }),
   };
 }

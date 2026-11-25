@@ -6,7 +6,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
-import type { RetentionPassResult } from "@jini-ai/platform/retention";
+import { createCleanupPreviewStore, type RetentionPassResult } from "@jini-ai/platform/retention";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { SiteStoragePort } from "../modules/storage-routes.js";
@@ -46,6 +46,7 @@ test("registered site_storage_cleanup has derived risk mutates-durable-state and
     measure: async () => { throw new Error("not measured here"); },
     runOnce: async ({ dryRun }) => { log.push(`runOnce:${dryRun}`); return pass(dryRun); },
     lastPass: () => undefined,
+    cleanupPreviews: createCleanupPreviewStore({ randomToken: () => "grant", mono: () => 0 }),
   };
   const wired = install({ siteStorage });
   assert.equal(wired.contribution.risk.get("site_storage_cleanup"), "mutates-durable-state");
@@ -53,7 +54,7 @@ test("registered site_storage_cleanup has derived risk mutates-durable-state and
   assert.deepEqual(wired.registrations.map(r => r.descriptor.id).sort(), ["site_storage_cleanup", "site_storage_report"]);
   const result = await wired.call("site_storage_cleanup", { dryRun: false }) as Record<string, unknown>;
   log.splice(1, 0, ...wired.log);
-  assert.deepEqual(log, ["runOnce:true", "card", "runOnce:false"], "the card precedes the live pass");
+  assert.deepEqual(log, ["runOnce:true", "card", "runOnce:true", "runOnce:false"], "the card precedes the live pass, which re-checks the card's plan first");
   assert.equal(result.cleaned, true);
   await assert.rejects(wired.call("site_storage_cleanup", { dryRun: false }, "teammate"), /Only the site owner/);
 });

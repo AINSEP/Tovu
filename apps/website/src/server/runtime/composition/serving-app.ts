@@ -1,4 +1,4 @@
-import { createRetentionRunner } from "@jini-ai/platform/retention";
+import { createCleanupPreviewStore, createRetentionRunner } from "@jini-ai/platform/retention";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
@@ -8,7 +8,7 @@ import { mediaBytesDeps, servingRecoveryArtifacts } from "./retention-policies/m
 import { servingStoragePaths, type SiteStoragePort } from "./modules/storage-routes.js";
 import { measureSiteStorage } from "#src/features/storage/measure";
 import { stat, unlink } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
 import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
@@ -128,6 +128,8 @@ export function createServingApp(
   const siteStorage: SiteStoragePort | undefined = siteRetention && {
     measure: () => measureSiteStorage({ siteDir: routeDeps.siteBinding.dir, paths: servingStoragePaths({ siteDir: routeDeps.siteBinding.dir, ...routeDeps.siteStoragePaths, themesDir: routeDeps.themesDir }) }),
     runOnce: siteRetention.runOnce, lastPass: siteRetention.lastReport,
+    // One grant store for the HTTP cleanup route and the assistant tool (Codex FIX 5).
+    cleanupPreviews: createCleanupPreviewStore({ randomToken: ({ bytes }) => randomBytes(bytes).toString("base64url"), mono: () => performance.now() }),
   };
   const bootWork: Promise<void>[] = [];
   const shutdownReleases: Array<() => void> = [];

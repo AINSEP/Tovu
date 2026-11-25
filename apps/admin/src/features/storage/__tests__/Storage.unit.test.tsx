@@ -33,7 +33,7 @@ function harness() {
     report: vi.fn(async () => report()),
     cleanup: vi.fn(async ({ dryRun }) => {
       seen.push({ dryRun, listShown: screen.queryByText(/Old copies/) !== null });
-      return pass(dryRun);
+      return dryRun ? { ...pass(dryRun), previewToken: "grant-1" } : pass(dryRun);
     }),
   };
   const screenshotClient: ScreenshotCleanupClient = { preview: vi.fn(), apply: vi.fn() };
@@ -67,7 +67,8 @@ describe("StorageScreen", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Review and confirm" })); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Clean up" })); });
     // The live pass only ever runs the automatic kinds the owner was shown, and only after the list.
-    expect(client.cleanup).toHaveBeenLastCalledWith({ dryRun: false, classes: ["old-copy"] }, {});
+    // The confirm spends the single-use grant of the preview on screen (Codex FIX 5); without it the website refuses.
+    expect(client.cleanup).toHaveBeenLastCalledWith({ dryRun: false, classes: ["old-copy"], previewToken: "grant-1" }, {});
     expect(seen).toEqual([{ dryRun: true, listShown: false }, { dryRun: false, listShown: true }]);
     expect(await screen.findByText(/Freed: 1 kB/)).toBeTruthy();
   });

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { RetentionPassResult, RetentionPolicyKind, RetentionPolicyOutcome } from "@jini-ai/platform/retention";
 import type { StoragePanel } from "@jini-ai/admin/screens/storage/StoragePanel";
 
-import type { StorageClient, StorageReport } from "../api/storage-api";
+import type { StorageClient, StoragePass, StorageReport } from "../api/storage-api";
 import { t } from "../storage-i18n";
 
 /** What Jini's `StoragePanel` asks its required `useStorage` hook for. */
@@ -66,7 +66,7 @@ function lastPassLabel({ report, locale }: { report: StorageReport | undefined; 
   return last.dryRun ? `${when} (${t({ locale, key: "measured only" })})` : when;
 }
 
-interface StorageState { phase: Phase; report?: StorageReport; shown?: RetentionPassResult; live?: RetentionPassResult; notice?: string }
+interface StorageState { phase: Phase; report?: StorageReport; shown?: StoragePass; live?: RetentionPassResult; notice?: string }
 
 /**
  * The Storage screen's state over the owner-only storage routes: load → ready → dry run → outcomes →
@@ -108,7 +108,9 @@ export function useWiredStorage(
     const classes = [...new Set(policiesOf(state.shown).flatMap(policy => (policy.status === "measured" ? [policy.kind] : [])))];
     setState(previous => ({ ...previous, phase: "live" }));
     try {
-      const live = await client.cleanup({ dryRun: false, classes }, {});
+      // The grant the shown preview carried: the website runs live only for exactly that plan, once.
+      const grant = state.shown.previewToken === undefined ? {} : { previewToken: state.shown.previewToken };
+      const live = await client.cleanup({ dryRun: false, classes, ...grant }, {});
       setState(previous => ({ ...previous, live, phase: "done" }));
       void load();
     } catch (error) { fail("outcomes", error); }

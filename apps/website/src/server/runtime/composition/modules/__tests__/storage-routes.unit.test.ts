@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import type { RetentionPassResult } from "@jini-ai/platform/retention";
+import { createCleanupPreviewStore, type RetentionPassResult } from "@jini-ai/platform/retention";
 import { adminSameOriginWrites, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { SiteStorageReport } from "#src/features/storage/measure";
 import { STORAGE_ROUTE_PATHS, mountStorageRoutes, storageOwnerFrom, type SiteStoragePort } from "../storage-routes.js";
@@ -20,13 +20,16 @@ function fakeReport(): SiteStorageReport {
   };
 }
 
-/** A recording storage port: every pass answers with the dryRun it was asked for. */
-function fakeStorage(): SiteStoragePort & { calls: boolean[] } {
+/** A recording storage port: every pass answers with the dryRun it was asked for; `plan.bytes` is what a dry run sees. */
+function fakeStorage(): SiteStoragePort & { calls: boolean[]; plan: { bytes: number } } {
   const calls: boolean[] = [];
+  const plan = { bytes: 5 };
+  let tokens = 0;
   const pass = (dryRun: boolean): RetentionPassResult => ({ status: "completed", dryRun, startedAt: 1, finishedAt: 2,
-    policies: [{ id: "share-files", kind: "old-copy", status: dryRun ? "measured" : "swept", ...(dryRun ? { measurement: { bytes: 5, items: 1 } } : { result: { freedBytes: 5, removed: 1 } }) } as never] });
+    policies: [{ id: "share-files", kind: "old-copy", status: dryRun ? "measured" : "swept", ...(dryRun ? { measurement: { bytes: plan.bytes, items: 1 } } : { result: { freedBytes: 5, removed: 1 } }) } as never] });
   return {
-    calls,
+    calls, plan,
+    cleanupPreviews: createCleanupPreviewStore({ randomToken: () => `grant-${++tokens}`, mono: () => 0 }),
     measure: async () => fakeReport(),
     runOnce: async ({ dryRun }) => { calls.push(dryRun); return pass(dryRun); },
     lastPass: () => (calls.length === 0 ? undefined : pass(calls.at(-1)!)),
@@ -103,15 +106,50 @@ test("storage routes answer only the site owner's own session (builtin admin and
   } finally { await h.close(); }
 });
 
-test("mixed live and dry arrivals each run with their own dryRun and the report shows the last pass", async () => {
+test("a live cleanup runs only with the grant its own preview minted, and the report shows the last pass", async () => {
   const h = await harness();
   try {
-    const answers = await Promise.all([h.call("POST", { dryRun: true }), h.call("POST", { dryRun: false }), h.call("POST", {})]);
-    assert.deepEqual(answers.map(a => [a.status, a.body?.dryRun]), [[200, true], [200, false], [200, true]]);
-    assert.deepEqual([...(h.storage?.calls ?? [])].sort(), [false, true, true]);
-    const live = answers[1]!.body?.policies[0];
-    assert.deepEqual(live, { id: "share-files", kind: "old-copy", status: "swept", freedBytes: 5, removed: 1 });
+    const preview = await h.call("POST", {});
+    assert.deepEqual([preview.status, preview.body?.dryRun, typeof preview.body?.previewToken], [200, true, "string"]);
+    const live = await h.call("POST", { dryRun: false, previewToken: preview.body?.previewToken });
+    assert.deepEqual([live.status, live.body?.dryRun], [200, false]);
+    assert.deepEqual(h.storage?.calls, [true, true, false], "preview, the plan re-check, then one live pass");
+    assert.deepEqual(live.body?.policies[0], { id: "share-files", kind: "old-copy", status: "swept", freedBytes: 5, removed: 1 });
     assert.equal((await h.call("GET")).body?.lastPass?.status, "completed");
+  } finally { await h.close(); }
+});
+
+test("a live cleanup without a grant is refused and deletes nothing", async () => {
+  const h = await harness();
+  try {
+    for (const body of [{ dryRun: false }, { dryRun: false, previewToken: "made-up" }]) {
+      const answer = await h.call("POST", body);
+      assert.deepEqual([answer.status, answer.body?.code], [409, "CLEANUP_NOT_APPROVED"]);
+    }
+    assert.equal((await h.call("POST", { dryRun: false, previewToken: 7 })).status, 400);
+    assert.ok(!h.storage?.calls.includes(false));
+  } finally { await h.close(); }
+});
+
+test("a grant for a different preview is refused", async () => {
+  const h = await harness();
+  try {
+    const preview = await h.call("POST", {});
+    h.storage!.plan.bytes = 9;
+    const answer = await h.call("POST", { dryRun: false, previewToken: preview.body?.previewToken });
+    assert.deepEqual([answer.status, answer.body?.code], [409, "CLEANUP_NOT_APPROVED"]);
+    assert.ok(!h.storage?.calls.includes(false));
+  } finally { await h.close(); }
+});
+
+test("a replayed grant is refused; the live pass runs once", async () => {
+  const h = await harness();
+  try {
+    const { body } = await h.call("POST", {});
+    assert.equal((await h.call("POST", { dryRun: false, previewToken: body?.previewToken })).status, 200);
+    const replay = await h.call("POST", { dryRun: false, previewToken: body?.previewToken });
+    assert.deepEqual([replay.status, replay.body?.code], [409, "CLEANUP_NOT_APPROVED"]);
+    assert.equal(h.storage?.calls.filter(dryRun => !dryRun).length, 1);
   } finally { await h.close(); }
 });
 

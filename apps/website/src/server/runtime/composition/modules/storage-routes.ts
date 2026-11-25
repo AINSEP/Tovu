@@ -5,9 +5,11 @@ import type { JsonRouteSpec, RouteHostContext } from "@jini-ai/core/contracts/se
 import { ok } from "@jini-ai/core/contracts/server";
 import { ToolInputError } from "@jini-ai/core";
 import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
+import type { CleanupPreviewStore } from "@jini-ai/core/contracts/storage";
 import type { RetentionPassResult, RetentionPolicyOutcome } from "@jini-ai/platform/retention";
 import { createStorageRoutes } from "@jini-ai/platform/retention/routes";
 
+import { createStorageCleanupGate, type StorageCleanupGate } from "#src/features/storage/cleanup-gate";
 import type { SiteStoragePath, SiteStorageReport } from "#src/features/storage/measure";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import type { AdminJsonRouteMountOptions, AdminJsonRoutePortDeps, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -15,7 +17,8 @@ import type { AdminJsonRouteMountOptions, AdminJsonRoutePortDeps, mountAdminJson
 /**
  * @file The owner-only storage endpoints over the serving process's retention runner (ST-15b):
  * `GET /api/admin/storage/report` (categories, classes and the last pass) and
- * `POST /api/admin/storage/cleanup` (a dry run unless the body says `dryRun: false`). Both bind the
+ * `POST /api/admin/storage/cleanup` (a dry run unless the body says `dryRun: false`; a dry run answers
+ * a `previewToken`, and a live run needs that exact, unspent grant — see `features/storage/cleanup-gate.ts`). Both bind the
  * released `@jini-ai/platform/retention/routes` specs; this file supplies the owner check, the
  * content-class refusal and the wire shape, which never carries a raw path.
  */
@@ -27,6 +30,8 @@ export interface SiteStoragePort {
   measure(required: Record<string, never>, optional: Record<string, never>): Promise<SiteStorageReport>;
   runOnce(required: { dryRun: boolean }): Promise<RetentionPassResult>;
   lastPass(): RetentionPassResult | undefined;
+  /** The one grant store this serving process's HTTP route and assistant tool share. */
+  cleanupPreviews: CleanupPreviewStore;
 }
 
 type Context = OperatorPrincipalRecord | undefined;
@@ -54,15 +59,19 @@ const invalid = (error: string): never => rejectRoute({ status: 400, code: "INVA
  * runs live, so a typo can never delete anything. Content classes are refused here, before the runner.
  * @complexity O(classes).
  */
-export function parseCleanupBody({ body }: { body: unknown }, _optional: Record<string, never> = {}): { dryRun: boolean; classes?: string[] } {
+export function parseCleanupBody({ body }: { body: unknown }, _optional: Record<string, never> = {}): CleanupInput {
   if (body !== undefined && (typeof body !== "object" || body === null || Array.isArray(body))) invalid("Send the cleanup options as a JSON object.");
-  const { dryRun: rawDryRun, classes } = (body ?? {}) as NonNullable<Body>;
+  const { dryRun: rawDryRun, classes, previewToken } = (body ?? {}) as NonNullable<Body>;
   const dryRun = rawDryRun === undefined ? true : typeof rawDryRun === "boolean" ? rawDryRun : invalid("Say dryRun: true to preview or dryRun: false to clean up.");
-  if (classes === undefined) return { dryRun };
+  if (previewToken !== undefined && typeof previewToken !== "string") invalid("Send the preview's token as it was given.");
+  const grant = previewToken === undefined ? {} : { previewToken: previewToken as string };
+  if (classes === undefined) return { dryRun, ...grant };
   if (!Array.isArray(classes) || classes.some(kind => typeof kind !== "string")) invalid("List the kinds of storage to clean up as words.");
   if ((classes as string[]).some(kind => PROTECTED_CLASSES.has(kind))) rejectRoute({ status: 400, code: "PROTECTED_CONTENT", error: PROTECTED_CONTENT_MESSAGE });
-  return { dryRun, classes: classes as string[] };
+  return { dryRun, classes: classes as string[], ...grant };
 }
+
+type CleanupInput = { dryRun: boolean; classes?: string[]; previewToken?: string };
 
 /** One policy outcome without anything a policy might have attached beyond its numbers. */
 function outcomeView(outcome: RetentionPolicyOutcome) {
@@ -90,33 +99,64 @@ function reportView({ report, last }: { report: SiteStorageReport; last: Retenti
 const NOT_SERVING_MESSAGE = "Storage cleanup runs only in the app that is serving this site. Start the site and try again.";
 const OWNER_ONLY_MESSAGE = "Only the site owner can see or clean up this site's storage.";
 const notServing = (): never => rejectRoute({ status: 503, code: "NOT_SERVING", error: NOT_SERVING_MESSAGE });
+const NOT_APPROVED_MESSAGE = "Nothing was removed: this clean-up was not approved for what is on disk now. Review it again and confirm.";
 
 /**
  * Wraps a Jini storage spec so its `authorize` is the strict owner check and the storage port is
  * required. The spec's `storage.manage` permission is not consulted: no role grants this.
  */
 function ownerOnly<Input, Deps>(
-  { spec, authorizeOwner }: { spec: Omit<JsonRouteSpec<Input, object, Deps, undefined>, "ports">; authorizeOwner: StorageOwnerCheck },
+  { spec, authorizeOwner, bind }: {
+    spec: Omit<JsonRouteSpec<Input, object, Deps, undefined>, "ports">; authorizeOwner: StorageOwnerCheck;
+    /** Binds the request's verified owner (and input) into the deps the spec runs with. */
+    bind: (required: { principalId: string; input: Input; deps: Deps }) => Deps;
+  },
 ): Omit<JsonRouteSpec<Input, object, Deps, OperatorPrincipalRecord>, "ports"> {
-  return { ...spec, handle: async ({ context, ...args }) => {
+  return { ...spec, handle: async ({ context, input, deps, ...args }) => {
     await authorizeOwner({ context });
-    return spec.handle({ ...args, context: undefined, authorize: async () => {} });
+    return spec.handle({ ...args, input, deps: bind({ principalId: context?.id ?? "", input, deps }), context: undefined, authorize: async () => {} });
   } };
 }
 
-/** The port's two reads as the wire shows them; `missing` refuses when this process serves no site. */
+/**
+ * The Jini cleanup spec's `runOnce` for one owner request, routed through the gate: a dry run mints
+ * the preview's grant and answers it; a live run spends exactly that grant or is refused (409).
+ */
+function gatedRunOnce({ gate, principalId, previewToken }: { gate: StorageCleanupGate; principalId: string; previewToken: string | undefined }) {
+  return async ({ dryRun }: { dryRun: boolean }): Promise<object> => {
+    if (dryRun) {
+      const { pass, previewToken: minted } = await gate.preview({ principalId }, {});
+      return { ...pass, previewToken: minted };
+    }
+    const outcome = await gate.apply({ principalId, previewToken }, {});
+    return outcome.status === "applied" ? outcome.pass : rejectRoute({ status: 409, code: "CLEANUP_NOT_APPROVED", error: NOT_APPROVED_MESSAGE });
+  };
+}
+
+/** The cleanup gate over the port as the wire shows its passes; built per call so an absent port refuses. */
+function gateOver({ storage, missing }: { storage: SiteStoragePort | undefined; missing: () => never }): StorageCleanupGate {
+  const gate = () => {
+    const port = storage ?? missing();
+    return createStorageCleanupGate({ runOnce: async ({ dryRun }) => passView({ pass: await port.runOnce({ dryRun }) }), previewStore: port.cleanupPreviews }, {});
+  };
+  return { dryRun: (r, o) => gate().dryRun(r, o), preview: (r, o) => gate().preview(r, o), apply: (r, o) => gate().apply(r, o) };
+}
+
+/** The port's report and its cleanup gate as the wire shows them; `missing` refuses when this process serves no site. */
 function storageViews({ storage, missing }: { storage: SiteStoragePort | undefined; missing: () => never }) {
   return {
     measure: async () => {
       const port = storage ?? missing();
       return reportView({ report: await port.measure({}, {}), last: port.lastPass() });
     },
-    runOnce: async ({ dryRun }: { dryRun: boolean; classes?: string[] }) => passView({ pass: await (storage ?? missing()).runOnce({ dryRun }) }),
+    cleanup: gateOver({ storage, missing }),
   };
 }
 
+const unboundRunOnce = async (_required: { dryRun: boolean }): Promise<object> => { throw new Error("storage cleanup ran without its owner binding"); };
+
 function storageDeps({ storage }: { storage: SiteStoragePort | undefined }) {
-  return { ...storageViews({ storage, missing: notServing }), copy: { invalidClass: INVALID_CLASS_MESSAGE } };
+  return { ...storageViews({ storage, missing: notServing }), runOnce: unboundRunOnce, copy: { invalidClass: INVALID_CLASS_MESSAGE } };
 }
 
 /**
@@ -147,9 +187,12 @@ export function mountStorageRoutes({ app, storage, authorizeOwner, adminPorts }:
   const specs = createStorageRoutes({ paths: STORAGE_ROUTE_PATHS }, {});
   const deps = { ...adminPorts.deps, ...storageDeps({ storage }) };
   const options: AdminJsonRouteMountOptions = { sessionCredentialOnly: { message: "Use the site owner's own sign-in to manage storage.", permission: "storage.manage" } };
-  adminPorts.mount({ app, spec: ownerOnly({ spec: specs.report, authorizeOwner }), deps, origin: adminPorts.origin }, options);
+  adminPorts.mount({ app, spec: ownerOnly({ spec: specs.report, authorizeOwner, bind: ({ deps: bound }) => bound }), deps, origin: adminPorts.origin }, options);
   const cleanup = { ...specs.cleanup, parse: (raw: Parameters<typeof specs.cleanup.parse>[0]) => specs.cleanup.parse({ ...raw, body: parseCleanupBody({ body: raw.body }) }) };
-  adminPorts.mount({ app, spec: ownerOnly({ spec: cleanup, authorizeOwner }), deps, origin: adminPorts.origin }, options);
+  // Every live pass goes through the gate with this request's owner and grant; the spec's own runOnce is never the unbound one.
+  const bind = ({ principalId, input, deps: bound }: { principalId: string; input: CleanupInput | { dryRun?: boolean }; deps: typeof deps }) =>
+    ({ ...bound, runOnce: gatedRunOnce({ gate: bound.cleanup, principalId, previewToken: (input as CleanupInput).previewToken }) });
+  adminPorts.mount({ app, spec: ownerOnly({ spec: cleanup, authorizeOwner, bind }), deps, origin: adminPorts.origin }, options);
 }
 
 /**
