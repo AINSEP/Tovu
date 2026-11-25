@@ -114,7 +114,7 @@
         "<uuid>"
       ]
     ],
-    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"agent crashed: exit 1\"}}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_ERROR\",\"message\":\"The assistant could not finish that request. Send it again, or try a shorter request.\"}\n\n"
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"The assistant could not finish that request. Send it again, or try a shorter request.\"}}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_ERROR\",\"message\":\"The assistant could not finish that request. Send it again, or try a shorter request.\"}\n\n"
   },
   "end with a failed status": {
     "httpVersion": "1.1",
