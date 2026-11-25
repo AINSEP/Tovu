@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -103,7 +104,7 @@ for (const status of [null, 401, 403, 503]) {
 test("registering chat routes for a static export never reconciles a live turn", () => {
   const h = harness({ status: 200 });
   const deps = { chatRunLedger: h.ledger } as unknown as RouteDeps;
-  createAssistantChatsModule(deps, { finalizer: h.finalizer }).registerRoutes!({ app: express() });
+  createAssistantChatsModule(deps, { finalizer: h.finalizer }).registerRoutes!({ errors: createRouteIncidentReporter().errors, app: express() });
   assert.equal(h.repairs(), 0);
   assert.equal(h.message.runStatus, "running");
   assert.equal(h.finalizer.activeCount(), 0);
@@ -114,7 +115,7 @@ test("serving chat route registration starts recovery exactly once and tracks it
   const work: Promise<void>[] = [];
   createAssistantChatsModule({ chatRunLedger: h.ledger } as unknown as RouteDeps, {
     finalizer: h.finalizer, recoverInterrupted: true, onBootWork: ({ work: promise }) => work.push(promise),
-  }).registerRoutes!({ app: express() });
+  }).registerRoutes!({ errors: createRouteIncidentReporter().errors, app: express() });
   await Promise.all(work);
   assert.equal(work.length, 1);
   assert.equal(h.repairs(), 1);

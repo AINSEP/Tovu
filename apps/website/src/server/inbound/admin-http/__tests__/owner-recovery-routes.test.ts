@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import { test, beforeEach, afterEach } from 'node:test';
 import http from 'node:http';
@@ -23,7 +24,7 @@ function fixture(options: { caller?: string; desktop?: boolean; allowed?: boolea
   const deps = { workspaceId: 'workspace', identityReady: Promise.resolve(), ownerPrincipalId: Promise.resolve('owner'),
     recoveryCodes: options.failedStore ? undefined : { clear: async () => { writes++; } },
   } as unknown as RouteDeps;
-  registerOwnerRecoveryRoutes({ app, deps, desktopOwnerReset: options.desktop ?? false,
+  registerOwnerRecoveryRoutes({ errors: createRouteIncidentReporter().errors, app, deps, desktopOwnerReset: options.desktop ?? false,
     acceptsDesktopCapability: ({ capability }) => capability === "launch-proof",
     authenticate: async () => options.caller ? { id: options.caller } : null,
     limiter: { check: async () => ({ allowed: options.allowed ?? true, retryAfterSeconds: 60 }) },

@@ -39,7 +39,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 
   registerAdminMediaUploadRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   registerAdminMediaTrashRoute({ errors: createRouteIncidentReporter().errors, app, deps });
-  registerAdminMediaOriginalRoute({ app, deps });
+  registerAdminMediaOriginalRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

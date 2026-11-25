@@ -1,3 +1,5 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -22,7 +24,7 @@ import { registerFeedRoute, registerLlmsTxtRoute, registerSeoRobotsRoute, regist
  * four properties a crawler or CDN relies on.
  */
 
-type Registrar = (input: { app: express.Express; deps: SeoRouteDeps }) => void;
+type Registrar = (input: { errors: RouteErrorPorts; app: express.Express; deps: SeoRouteDeps }) => void;
 
 const DOCUMENTS: ReadonlyArray<{ path: string; register: Registrar; contentType: RegExp }> = [
   { path: "/sitemap.xml", register: registerSeoSitemapRoute, contentType: /xml/ },
@@ -49,7 +51,7 @@ async function buildApp(register: Registrar): Promise<express.Express> {
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  register({ app, deps });
+  register({ errors: createRouteIncidentReporter().errors, app, deps });
   return app;
 }
 
@@ -102,7 +104,7 @@ test("GET /sitemap.xml: a build failure is one composed incident", async (t) => 
   deps.sitemapService = { ...createSitemapService({ deps: deps.seoDeps }, {}), buildSitemap: async () => { throw thrown; } };
   const app = express();
   app.use((_req, res, next) => { res.locals.failureReporter = probe.reporter; next(); });
-  registerSeoSitemapRoute({ app, deps });
+  registerSeoSitemapRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const url = await startTestServer(app, t);
   const response = await fetch(`${url}/sitemap.xml`);
   assert.equal(response.status, 500);

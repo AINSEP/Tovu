@@ -248,7 +248,7 @@ test("site shares: a failure is one composed incident", async (t) => {
   const fail = async (): Promise<never> => { throw thrown; };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteShareRoutes({ app, reporter: probe.reporter, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+  registerAdminSiteShareRoutes({ errors: { ...createRouteIncidentReporter().errors, reporter: probe.reporter }, app, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
     siteShareBackend: { list: fail, registry: { list: fail } as never } }) });
   const response = await dispatchHttpRequest({ app, method: "get", url: "/api/admin/v1/workspaces/ws/site-shares" });
   assert.equal(response.status, 500);

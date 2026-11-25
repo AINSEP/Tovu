@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -32,7 +33,7 @@ async function sitemapBody(t: test.TestContext, { trustProxy, headers }: { trust
   });
   const app = express();
   app.set("trust proxy", trustProxy);
-  registerSeoSitemapRoute({ app, deps });
+  registerSeoSitemapRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/sitemap.xml`, { headers });
   assert.equal(res.status, 200);

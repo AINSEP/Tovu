@@ -60,7 +60,7 @@ test("overlapping memory-composed HTTP writers return one success and one 409 re
   const before = await f.repo.maxRevisionSeq();
   const app = express();
   const module = createAssistantSettingsModule({ ...createRouteDeps(), workspaceId: ws, visitorToolsManagement: { ...service, prepare: async () => prepared } });
-  module.registerRoutes!({ app });
+  module.registerRoutes!({ errors: createRouteIncidentReporter().errors, app });
   const request = async () => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "owner" };

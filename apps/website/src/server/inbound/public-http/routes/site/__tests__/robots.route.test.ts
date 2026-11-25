@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
 import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/runtime/composition/modules/seo";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -107,7 +108,7 @@ function buildRobotsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Expre
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerSeoRobotsRoute({ app, deps });
+  registerSeoRobotsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return app;
 }
 
@@ -189,7 +190,7 @@ test("unexpected crawler rules failure keeps plain text and one redacted matchin
   const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
   const app = express();
   app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
-  registerSeoRobotsRoute({ app, deps });
+  registerSeoRobotsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const base = await startTestServer(app, t);
   const res = await fetch(`${base}/robots.txt`);
   const text = await res.text();

@@ -111,7 +111,7 @@ test('forms submissions pull: a thrown pull is a private 500 that names a refere
 test('forms submissions pull: mounted in reporter mode, a failed answer write is one site incident whose ID the 500 carries', async () => {
   const incidents = createRouteIncidentReporter();
   const spy = pullSpy();
-  const { app } = fixture(({ app, deps }) => {
+  const { app } = fixture(({ errors, app, deps }) => {
     // The route's own answer is the first `res.json`; refusing it is a write the transport could not take.
     app.use((_req, res, next) => {
       const json = res.json.bind(res);
@@ -119,7 +119,7 @@ test('forms submissions pull: mounted in reporter mode, a failed answer write is
       res.json = (body: unknown) => { if (!refused) { refused = true; throw new Error('socket refused the body'); } return json(body); };
       next();
     });
-    pullRoute(incidents)({ app, deps });
+    pullRoute(incidents)({ errors, app, deps });
   }, { formSubmissionsPull: spy.port });
   const result = await dispatchJsonRequest(app, 'POST', PATH);
   const { error } = result.body as { error: { code: string; requestId: string } };

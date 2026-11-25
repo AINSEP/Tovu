@@ -88,7 +88,7 @@ test("wire pin: admin media original — full GET, HEAD, Range 206, bad range 41
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminMediaOriginalRoute({ app, deps });
+  registerAdminMediaOriginalRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const { media } = await uploadOne(deps, PNG_BYTES, "pin.png", "image/png");
   const base = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media`;

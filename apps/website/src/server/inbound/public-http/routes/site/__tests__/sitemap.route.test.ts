@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
 import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/runtime/composition/modules/seo";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -37,7 +38,7 @@ function buildSitemapOnlyApp(depsOverrides: Partial<SeoRouteDeps>): { app: expre
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerSeoSitemapRoute({ app, deps });
+  registerSeoSitemapRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 
@@ -116,7 +117,7 @@ test("unexpected sitemap failure keeps plain text and one redacted matching inci
   const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
   const app = express();
   app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
-  registerSeoSitemapRoute({ app, deps });
+  registerSeoSitemapRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const base = await startTestServer(app, t);
   const res = await fetch(`${base}/sitemap.xml`);
   const text = await res.text();

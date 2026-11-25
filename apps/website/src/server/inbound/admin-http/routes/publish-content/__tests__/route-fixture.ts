@@ -1,13 +1,15 @@
 // Composition deps read the site catalog home; this keeps them off the real user home.
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import express from "express";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 
-import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "../deps.js";
+import type { PublishContentRouteDeps } from "../deps.js";
 
 /**
  * @file Typed route fixture for this folder's pin tests: the composition's real in-memory
@@ -42,7 +44,7 @@ export function routeDeps(overrides: Partial<PublishContentRouteDeps> = {}): Pub
  * records a publishing credential's grant the way the publish-trust gate does.
  */
 export function routeApp(
-  register: PublishContentRouteRegistrar,
+  register: (required: { errors: RouteErrorPorts; app: express.Express; deps: PublishContentRouteDeps }, optional?: Record<string, never>) => void,
   deps: PublishContentRouteDeps,
   options: { json?: boolean; publishTrust?: PublishTrustContext } = {}
 ): express.Express {
@@ -55,7 +57,7 @@ export function routeApp(
     if (options.publishTrust) res.locals.publishTrust = options.publishTrust;
     next();
   });
-  register({ app, deps });
+  register({ errors: createRouteIncidentReporter().errors, app, deps });
   return app;
 }
 
