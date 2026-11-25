@@ -1,4 +1,4 @@
-import { renderCommentsMarkers } from "#src/features/comments/public-markers";
+import { renderCommentsMarkers } from "@jini-ai/cms/comments/site/public-markers";
 import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.js";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import type { MemberContext } from "@jini-ai/user-management/members/types";

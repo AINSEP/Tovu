@@ -19,7 +19,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
+import { newsletterAgentToolCatalog } from "@jini-ai/user-management/newsletter/agent-tools";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,

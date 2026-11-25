@@ -29,7 +29,7 @@ import {
   withModelFacingErrors,
   type ModelFacingErrorRule,
 } from "@jini-ai/core/model-facing-tool-errors";
-import { newsletterAgentToolCatalog } from "./agent-tools.js";
+import { newsletterAgentToolCatalog } from "@jini-ai/user-management/newsletter/agent-tools";
 import {
   cancelCampaign,
   saveCampaign,

@@ -17,7 +17,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { newsletterAgentToolCatalog } from "../agent-tools.js";
+import { newsletterAgentToolCatalog } from "@jini-ai/user-management/newsletter/agent-tools";
 import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,

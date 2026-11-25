@@ -18,8 +18,6 @@ import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import { getCommentsSettings } from "@jini-ai/cms/comments/site/settings";
 
-export { renderCommentsMarkers } from "./public-markers.js";
-
 export const DEFAULT_COMMENTS_SETTINGS: CommentsSettings = {
   enabled: true,
   requireModeration: true,

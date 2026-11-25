@@ -8,7 +8,7 @@ import {
 } from "@jini-ai/integrations/webhooks/site/delivery";
 import { TOVU_WEBHOOK_HEADERS } from "../wire-headers.js";
 import { computeBackoffMs, MAX_DELIVERY_ATTEMPTS } from "@jini-ai/integrations/webhooks";
-import { RecordingHttpClient } from "../http.memory.js";
+import { RecordingHttpClient } from "@jini-ai/integrations/webhooks/site/http.memory";
 import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
