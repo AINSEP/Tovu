@@ -6,7 +6,7 @@ import { SecretInput, useAgentHandle, useMediaProvidersTab, sortProvidersByConfi
   useTabbedDialog, useCopyToClipboard, findActiveTab, resolveInitialActiveTabId, readableTextColor,
   nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning, resolveSelectedPreset, createExecutionHttpAdapter, requireExecutionResponseData,
   useExecutionCredential, useWiredCopyToClipboard, createBrowserViewerClipboard, folderPathsFromDataTransfer, useI18n, resolveAccentColor, normalizeAccentColor,
-  sourceDisplayLabel, SearchableModelSelect } from '@jini-ai/ui';
+  sourceDisplayLabel, SearchableModelSelect, FileDropzone } from '@jini-ai/ui';
 import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
 import { ErrorNotice, useAsyncAction, useDirtyGuard, useFocusTrap, useSettlementGeneration, UNREACHABLE_RETRY_DELAYS_MS,
   LOCAL_BACKUP_PRINCIPAL_ID, useSerialWrites, hasPermission, standingDraftRecoveryMessage, createStandingDraftLocalBackup,
@@ -44,7 +44,7 @@ export const adminKit = {
   components: { Button, IconButton, TextField, TextArea, Select, Switch, Dialog, ConfirmDialog, Tabs, Menu, Notice, Spinner, Badge,
     InfoTip, Lightbox, WidgetSelect, TabBar, HtmlEditor: InteractiveHtmlEditor, ErrorNotice, Icon, SecretInput,
     RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, PreviewModalShell,
-    SeeMore, SearchableModelSelect },
+    SeeMore, SearchableModelSelect, FileDropzone },
   // `useT` is ui's translator (Settings-dialog and panel copy). Chat's `useT` from `@jini-ai/chat/react`
   // reads a different dictionary and stays a separate binding; swapping them would mistranslate silently.
   // The host's one locale hook; App's required `useAdminLocaleHook` prop references the same function.
