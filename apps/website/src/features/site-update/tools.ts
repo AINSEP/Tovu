@@ -10,6 +10,7 @@ import { checkForUpdateFromFeed, runSiteUpdate, type SiteUpdateCallOptions, type
 import { approvalToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import type { IdGenerator } from "@jini-ai/core/primitives";
 import { toolMetadata } from "../../contracts/core/tool-metadata/site-update.js";
+import { handOffApproved, type ApprovedHandoffPorts } from "./approved-handoff.js";
 
 export const SITE_UPDATE_CHECK_TOOL_ID = "site_update_check";
 export const SITE_UPDATE_APPLY_TOOL_ID = "site_update_apply";
@@ -29,6 +30,8 @@ export interface SiteUpdateRuntime extends SiteUpdateCheckRuntime {
   site: SiteUpdatePort;
   backup: SiteBackupPort;
   readiness: MigrationReadinessPort;
+  /** The managed supervisor hand-off. Present: apply prepares and submits instead of replacing the site in-process. */
+  handoff?: ApprovedHandoffPorts | undefined;
   /** Serialises whole updates (backup through verify); the host binds its own lock. Absent: no serialisation. */
   lock?: SiteUpdateLockPort;
 }
@@ -130,6 +133,7 @@ async function runApproved({ deps, runtime, ctx, prepared, approvedBy }: { deps:
 }
 
 async function applyApproved({ runtime, ctx, plan, approvedBy }: { runtime: SiteUpdateRuntime; ctx: ToolExecutionContext; plan: SiteUpdatePlan; approvedBy: string }, _optional = {}) {
+  if (runtime.handoff) return handOffApproved({ ports: { backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, handoff: runtime.handoff, plan, approvedBy }, { signal: ctx.signal });
   const result = await runSiteUpdate(
     { ports: { site: runtime.site, backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, plan, approval: { kind: "owner-approval", approvedBy, toVersion: plan.toVersion } },
     { signal: ctx.signal },
