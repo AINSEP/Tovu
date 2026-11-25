@@ -32,7 +32,8 @@ import { createExecutionPort, selectedLocalCliReasoning } from "../../lib/execut
 import { useAssistantDockChrome, resolveAssistantConversationTitle, useChatsSeam } from "./hooks/dock-chrome.hooks";
 import { useMessagesChangeHandler } from "./hooks/messages-change.hooks";
 import { useRunContext } from "@jini-ai/admin/shell/components/AssistantDock/hooks/run-context.hooks";
-import { useAttachmentUploaderSeam, useSkillAwareAttachmentUploader, resolveSkillsAvailable, useAttachmentValidatorSeam, useFolderDropBridge } from "./hooks/composer-files.hooks";
+import { useSkillAwareAttachmentUploader, resolveSkillsAvailable } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-files.hooks";
+import { useAttachmentUploaderSeam, useAttachmentValidatorSeam, useFolderDropBridge, TOVU_LEGACY_MANIFEST_NAMES } from "./hooks/composer-files.hooks";
 import { useComposerCapabilitiesSeam, useComposerDiscoverySelect } from "./hooks/composer-discovery.hooks";
 import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
 import { useAssistantTransportSeam, useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
@@ -153,7 +154,7 @@ function useDockTransport({ props, execution }: { props: DockProps; execution: D
   }, { useTransport: useAssistantTransportOverride ?? useTovuAssistantTransport });
   const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride });
   const skillInstall = useSkillInstall();
-  const uploadAttachments = useSkillUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
+  const uploadAttachments = useSkillUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles, legacyManifestNames: TOVU_LEGACY_MANIFEST_NAMES });
   const validateAttachments = useAttachmentValidatorSeam({ override: useAttachmentValidatorOverride });
   return { chats, transport, daemonStarting, skillInstall, uploadAttachments, validateAttachments };
 }
