@@ -41,7 +41,7 @@ import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/s
 import { siteUpdateStatusRoute, type SiteUpdateStatusRouteDeps } from "@jini-ai/devops/deploy/admin-http/site-update-status";
 import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
 import { readSiteUpdateStatus, type SiteUpdateStatusPorts } from "#src/features/site-update/read-status";
-import type { SiteUpdateRuntime } from "#src/features/site-update/tools";
+import type { SiteUpdateCheckRuntime } from "#src/features/site-update/tools";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { siteKeyRecovery } from "../site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-http/routes/fs-files/custom-root.js";
@@ -202,7 +202,7 @@ function mountSiteAdmin({ app, routeDeps }: MountInput, _optional = {}): void {
 }
 
 /** The read half of the platform runtime, copied port by port so the write ports never travel with it. */
-function siteUpdateReadPorts(runtime: SiteUpdateRuntime | null | undefined, _optional = {}): SiteUpdateStatusPorts | null {
+function siteUpdateReadPorts(runtime: SiteUpdateCheckRuntime | null | undefined, _optional = {}): SiteUpdateStatusPorts | null {
   if (!runtime) return null;
   return { runningVersion: () => runtime.runningVersion(), feed: runtime.feed, ids: runtime.ids };
 }

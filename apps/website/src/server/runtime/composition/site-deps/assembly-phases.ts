@@ -35,10 +35,8 @@ import { routeDepsPublishCredentials } from "./route-deps-publish-credentials.js
 import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
 import { bindCredentialsHostPorts } from "../credentials-host-ports.js";
 import { bindStaticSiteContext } from "../static-site-context.js";
-import path from "node:path";
-import { writeFile } from "node:fs/promises";
 import { wireFormsAndSearch } from "./after-assembly-forms-search.js";
-import { bindSiteUpdateRuntime, createHttpJsonGetter, createTargetTagRecorder } from "./site-update-binding.js";
+import { bindSiteUpdateRuntime, createHttpJsonGetter } from "./site-update-binding.js";
 import { createOperationUpdateLock } from "#src/features/site-update/operation-update-lock";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { compositionCommerce } from "./shared-oauth-commerce.js";
@@ -250,7 +248,6 @@ export function assembleRouteDepsPhase(required: AssembleRouteDepsPhaseRequired,
     // Fence writes before capture so rollback cannot discard later acknowledged writes: in-process that is the shared
     // operation lock; across processes it is the update supervisor's durable lease, which this tree does not have yet.
     env: process.env, dbOps, ids: idGen, lock: createOperationUpdateLock({ lock: { acquireOperationLock, releaseOperationLock }, siteId: workspaceId, clock }), getJson: createHttpJsonGetter({ client: guardedOutboundHttpClient }),
-    recordTargetTag: createTargetTagRecorder({ directory: path.dirname(dbPath), writeFile: (file, text) => writeFile(file, text, "utf8") }),
   });
 
   const commerceBinding = compositionCommerce({ dbPath, overrides, resolvedSiteBinding, agentPluginLayout, kernel, workspaceId, clock, idGen, settingsRepo, siteSettingsReady, projectSiteId, providerConfigSource, providerPlugins, observability });

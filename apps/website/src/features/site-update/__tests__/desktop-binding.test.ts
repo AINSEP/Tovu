@@ -25,7 +25,7 @@ function rig() {
     restoreFromArtifact: async ({ artifactRef }: { artifactRef: string }) => { calls.push(`restore:${artifactRef}`); return { restartRequired: true }; },
   } as never;
   const urls: string[] = [];
-  const required = (env: Record<string, string>) => ({ env, dbOps, ids, lock: { withLock: async <T>({ run }: { run: () => Promise<T> }) => run() }, recordTargetTag: async () => undefined, getJson: async ({ url }: { url: string }) => { urls.push(url); return { tag_name: "v1.3.0", body: "n" }; } });
+  const required = (env: Record<string, string>) => ({ env, dbOps, ids, lock: { withLock: async <T>({ run }: { run: () => Promise<T> }) => run() }, getJson: async ({ url }: { url: string }) => { urls.push(url); return { tag_name: "v1.3.0", body: "n" }; } });
   return { calls, urls, required, desktop: { app, health } };
 }
 

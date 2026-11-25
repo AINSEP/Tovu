@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
+import * as realFs from "node:fs/promises";
 import { createFakeSiteUpdate } from "@jini-ai/devops/deploy";
-import { bindSiteUpdateRuntime, createHttpJsonGetter } from "#src/server/runtime/composition/site-deps/site-update-binding";
 import { createRestorePointBackup, createUpdateBackupRegistry } from "../restore-point-backup.js";
 import { createCandidateReadiness, rehearsalUnavailable } from "../candidate-readiness.js";
-import { createSelfHostedUpdateHost } from "../self-hosted-host.js";
 import { buildSiteUpdateRegistrations } from "../tools.js";
 
-/** @file The self-hosted binding: opt-in by environment, no default feed, apply only records + restarts, backups over restore points. */
+/** @file The self-hosted binding: opt-in by environment, no default feed, check-only (no driver this wave), backups over restore points. */
+
+// Every file write made by the binding module is observed, so a marker write without a supervisor cannot hide.
+const fileWrites: string[] = [];
+mock.module("node:fs/promises", { namedExports: { ...realFs, writeFile: async (file: unknown) => { fileWrites.push(String(file)); } } });
+const { bindSiteUpdateRuntime, createHttpJsonGetter } = await import("#src/server/runtime/composition/site-deps/site-update-binding");
 
 const FEED = "https://api.github.com/repos/example-org/example-repo/releases/latest";
 const ENV = { TOVU_UPDATE_HOST: "self-hosted", TOVU_UPDATE_FEED_URL: FEED, TOVU_IMAGE_TAG: "v1.2.0" };
@@ -20,7 +24,7 @@ function dbOpsFake(calls: string[] = [], artifactRef = "rp-1") {
     restoreFromArtifact: async ({ artifactRef }: { artifactRef: string }) => { calls.push(`restore:${artifactRef}`); return { restartRequired: true }; },
   } as never;
 }
-const base = (env: Record<string, string>, urls: string[] = []) => ({ env, dbOps: dbOpsFake(), ids, lock: { withLock: async <T>({ run }: { run: () => Promise<T> }) => run() }, recordTargetTag: async () => undefined, getJson: async ({ url }: { url: string }) => { urls.push(url); return { tag_name: "v1.3.0", body: "n" }; } });
+const base = (env: Record<string, string>, urls: string[] = []) => ({ env, dbOps: dbOpsFake(), ids, lock: { withLock: async <T>({ run }: { run: () => Promise<T> }) => run() }, getJson: async ({ url }: { url: string }) => { urls.push(url); return { tag_name: "v1.3.0", body: "n" }; } });
 
 test("without a feed URL there is no runtime and no URL is tried (M2: a built-in default would make this red)", () => {
   const urls: string[] = [];
@@ -44,35 +48,22 @@ test("opted in: version comes from the image tag and the feed reads only the con
   assert.equal(bindSiteUpdateRuntime(base({ ...ENV, TOVU_VERSION: "9.9.9" }))?.runningVersion !== undefined, true);
 });
 
-test("the tools see a bound runtime and are absent without one", () => {
-  const runtime = bindSiteUpdateRuntime(base(ENV));
-  const deps = (siteUpdateRuntime: typeof runtime) => ({ authorize: async () => undefined, readOwnerId: async () => "owner-1", runtime: siteUpdateRuntime });
-  assert.deepEqual(buildSiteUpdateRegistrations(deps(runtime), { surfaceExchanges: {} } as never).map((r) => r.descriptor.id).sort(), ["site_update_apply", "site_update_check"]);
-  assert.deepEqual(buildSiteUpdateRegistrations(deps(bindSiteUpdateRuntime(base({}))), {} as never), []);
-});
-
-test("self-hosted apply records the target tag and, with no restart port, fails closed with instructions", async () => {
-  const recorded: string[] = [];
-  const host = createSelfHostedUpdateHost({ runningTag: "v1.2.0", recordTargetTag: async ({ tag }) => { recorded.push(tag); }, readHealth: async () => ({ ok: true, version: "1.3.0" }) });
-  assert.equal(host.kind, "self-hosted");
-  if (host.kind !== "self-hosted") return;
-  await host.images.setTag({ tag: "v1.3.0" });
-  assert.deepEqual(recorded, ["v1.3.0"]);
-  await assert.rejects(() => host.images.redeploy({ tag: "v1.3.0" }), /restart the site on it/);
+test("a check-only self-hosted installation never writes a target tag or restarts", async () => {
   const restarts: string[] = [];
-  const restarting = createSelfHostedUpdateHost({ runningTag: "v1.2.0", recordTargetTag: async () => undefined, readHealth: async () => ({ ok: true }) }, { restart: async ({ tag }) => { restarts.push(tag); } });
-  if (restarting.kind === "self-hosted") await restarting.images.redeploy({ tag: "v1.3.0" });
-  assert.deepEqual(restarts, ["v1.3.0"]);
-});
-
-test("health is healthy only when passing and on the expected version", async () => {
-  const check = async (health: { ok: boolean; version?: string }) => {
-    const host = createSelfHostedUpdateHost({ runningTag: "t", recordTargetTag: async () => undefined, readHealth: async () => health });
-    return host.kind === "self-hosted" ? host.health.check({ expectedVersion: "1.3.0" }) : null;
-  };
-  assert.deepEqual(await check({ ok: true, version: "1.3.0" }), { status: "healthy" });
-  assert.equal((await check({ ok: true, version: "1.2.0" }))?.status, "unhealthy");
-  assert.equal((await check({ ok: false, version: "1.3.0" }))?.status, "unhealthy");
+  // An old caller still handing a restart port over: the check-only branch must neither keep nor call it.
+  const runtime = bindSiteUpdateRuntime(base(ENV), { restart: async ({ tag }: { tag: string }) => { restarts.push(tag); } } as never);
+  assert.ok(runtime);
+  assert.equal("site" in runtime, false, "no apply ports are bound without a driver");
+  const deps = (siteUpdateRuntime: typeof runtime) => ({ authorize: async () => undefined, readOwnerId: async () => "owner-1", runtime: siteUpdateRuntime });
+  const registrations = buildSiteUpdateRegistrations(deps(runtime), { surfaceExchanges: {} } as never);
+  assert.deepEqual(registrations.map((r) => r.descriptor.id), ["site_update_check"]);
+  const checked = await registrations[0]!.handler({ executionId: "e", principal: { id: "owner-1" }, run: { id: "r" }, input: {}, signal: new AbortController().signal } as never, {} as never) as { available: boolean; latest?: string };
+  assert.equal(checked.available, true);
+  assert.equal(checked.latest, "1.3.0");
+  assert.deepEqual(fileWrites.filter((file) => file.includes("update-target-tag")), [], "boot and a check never write a target tag");
+  assert.deepEqual(fileWrites, []);
+  assert.deepEqual(restarts, []);
+  assert.deepEqual(buildSiteUpdateRegistrations(deps(bindSiteUpdateRuntime(base({}))), {} as never), []);
 });
 
 test("backup is a restore point kept under an opaque id, rollback restores it, and snapshot capability alone is not readiness", async () => {
@@ -92,15 +83,11 @@ test("backup is a restore point kept under an opaque id, rollback restores it, a
 test("an update backup id shown to the operator is not its artifact path", async () => {
   const ARTIFACT = "/srv/site/ops/restore-points/site-update-2026.db";
   const calls: string[] = [];
-  const runtime = bindSiteUpdateRuntime({ ...base(ENV), dbOps: dbOpsFake(calls, ARTIFACT) });
-  assert.ok(runtime);
-  const { backupId } = await runtime.backup.createBackup({ fromVersion: "1.2.0" });
-  assert.notEqual(backupId, ARTIFACT);
-  assert.ok(!backupId.includes("/") && !backupId.includes("site-update-2026"), `backup id ${backupId} must not reveal where the snapshot lives`);
   const registry = createUpdateBackupRegistry({ ids });
   const ports = createRestorePointBackup({ dbOps: dbOpsFake(calls, ARTIFACT), ...registry, ...createCandidateReadiness({ rehearseMigration: rehearsalUnavailable }) });
   const kept = await ports.backup.createBackup({ fromVersion: "1.2.0" });
   assert.notEqual(kept.backupId, ARTIFACT);
+  assert.ok(!kept.backupId.includes("/") && !kept.backupId.includes("site-update-2026"), `backup id ${kept.backupId} must not reveal where the snapshot lives`);
   await ports.data.restore(kept);
   assert.equal(calls.at(-1), `restore:${ARTIFACT}`, "the opaque id still restores the exact snapshot");
 });

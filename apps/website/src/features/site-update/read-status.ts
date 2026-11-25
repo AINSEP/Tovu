@@ -5,10 +5,10 @@
  */
 import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
 import { checkForUpdateFromFeed } from "@jini-ai/devops/deploy";
-import type { SiteUpdateRuntime } from "./tools.js";
+import type { SiteUpdateCheckRuntime } from "./tools.js";
 
 /** The read ports only: a read route gets only read ports so a future UI change cannot accidentally install an update. */
-export type SiteUpdateStatusPorts = Pick<SiteUpdateRuntime, "runningVersion" | "feed" | "ids">;
+export type SiteUpdateStatusPorts = Pick<SiteUpdateCheckRuntime, "runningVersion" | "feed" | "ids">;
 
 export interface ReadSiteUpdateStatusRequired {
   runtime: SiteUpdateStatusPorts | null;
