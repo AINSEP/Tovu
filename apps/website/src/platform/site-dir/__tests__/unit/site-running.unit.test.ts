@@ -85,3 +85,22 @@ test("with the default workspace a claim is exclusive and released", (t) => {
   } finally { lease.release(); }
   assert.equal(readSiteRunning({ dir }), null);
 });
+
+test("isHeld is true only for the claiming lease while its token is on the record", (t) => {
+  const { root, dir, workspace } = fixture(t);
+  const lease = claimSiteRunning({ dir, app: "Web", purpose: "maintenance" }, { workspace });
+  const attached = claimSiteRunning({ dir, app: "Desktop" }, { workspace, log: () => {} });
+  assert.equal(lease.isHeld(), true);
+  assert.equal(attached.isHeld(), false, "an attachment never holds the lease");
+  // The record now names another token (a replaced lease): this claim no longer holds it.
+  const recordFile = fs.readdirSync(root, { recursive: true }).map((name) => path.join(root, String(name)))
+    .find((file) => fs.statSync(file).isFile() && /"purpose":\s*"maintenance"/.test(fs.readFileSync(file, "utf8")));
+  assert.ok(recordFile, "the running record is on disk");
+  const original = fs.readFileSync(recordFile, "utf8");
+  fs.writeFileSync(recordFile, original.replace(/"token":\s*"[^"]+"/, '"token":"someone-else"'));
+  assert.equal(lease.isHeld(), false, "token mismatch");
+  fs.writeFileSync(recordFile, original);
+  assert.equal(lease.isHeld(), true);
+  lease.release();
+  assert.equal(lease.isHeld(), false, "released");
+});
