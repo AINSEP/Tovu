@@ -3325,6 +3325,51 @@ exports[`request-shape table: what every fetching member sends > getMailStatus 1
 }
 `;
 
+exports[`request-shape table: what every fetching member sends > getMediaProviderCatalog 1`] = `
+{
+  "full": {
+    "calls": [
+      {
+        "body": undefined,
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "GET",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers/catalog",
+      },
+    ],
+    "outcome": "resolved",
+  },
+  "min": {
+    "calls": [
+      {
+        "body": undefined,
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "GET",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers/catalog",
+      },
+    ],
+    "outcome": "resolved",
+  },
+}
+`;
+
 exports[`request-shape table: what every fetching member sends > getMediaProviders 1`] = `
 {
   "full": {
@@ -5147,6 +5192,51 @@ exports[`request-shape table: what every fetching member sends > listMedia 1`] =
         "keepalive": undefined,
         "method": "GET",
         "url": "/api/admin/v1/workspaces/workspace-local/media",
+      },
+    ],
+    "outcome": "resolved",
+  },
+}
+`;
+
+exports[`request-shape table: what every fetching member sends > listMediaGrid 1`] = `
+{
+  "full": {
+    "calls": [
+      {
+        "body": undefined,
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "GET",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/grid?tab=images&orderBy=alphabetical&limit=7&cursor=%3Ccursor%3E&itemId=%3CitemId%3E",
+      },
+    ],
+    "outcome": "resolved",
+  },
+  "min": {
+    "calls": [
+      {
+        "body": undefined,
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "GET",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/grid?tab=all&orderBy=created",
       },
     ],
     "outcome": "resolved",

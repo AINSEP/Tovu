@@ -748,7 +748,30 @@
   "min": [],
   "full": []
  },
+ "listMediaGrid": {
+  "min": [
+   {
+    "tab": "all",
+    "orderBy": "created"
+   }
+  ],
+  "full": [
+   {
+    "tab": "images",
+    "orderBy": "alphabetical"
+   },
+   {
+    "limit": 7,
+    "cursor": "<cursor>",
+    "itemId": "<itemId>"
+   }
+  ]
+ },
  "getMediaProviders": {
+  "min": [],
+  "full": []
+ },
+ "getMediaProviderCatalog": {
   "min": [],
   "full": []
  },
