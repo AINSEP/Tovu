@@ -17,7 +17,8 @@ import { resolveOperatorLocale } from '@jini-ai/core/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "@jini-ai/cms/settings/site/admin-interface";
 import { AgentPluginLinkedError, providerFaceLifecycle } from '#src/features/agent-plugins/provider-plugin-link';
 import { bindProviderFacePorts, linkedProviderOf } from '@jini-ai/agent-plugins/site/provider-plugin-link';
-import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/agent-plugins/soon-lock';
+import { AgentPluginNotReadyError, findSoonAgentPlugin } from '@jini-ai/agent-plugins/site/soon-lock';
+import { HOST_SOON_AGENT_PLUGINS } from '#src/features/agent-plugins/bundled-catalog';
 import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';
 import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { agentPluginMcpProjections, classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
@@ -75,7 +76,7 @@ export function composePluginProviderFaces({ workspaceRoot }: { workspaceRoot: (
     describeLinkedFace: (input, _options = {}) => new AgentPluginLinkedError(input),
     describeLinkedError: ({ error }, _options = {}) => error instanceof AgentPluginLinkedError ? error : undefined,
     describeNotReady: async ({ pluginId }, _options = {}) => {
-      const soon = await findSoonAgentPlugin({ catalog: explicitRootSoonCatalog, workspaceRoot: workspaceRoot(), pluginId });
+      const soon = await findSoonAgentPlugin({ catalog: explicitRootSoonCatalog, workspaceRoot: workspaceRoot(), pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
       return soon ? new AgentPluginNotReadyError({ pluginId, name: soon.name }) : undefined;
     },
   };
