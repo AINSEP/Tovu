@@ -106,7 +106,7 @@ test("[unrun] publish-content import [sqlite → sqlite]: execute captures a res
   assert.equal(replay.code, "TOKEN_ALREADY_REDEEMED");
 });
 
-test("[unrun] publish-content import [sqlite → pglite]: execute refuses 409 RESTORE_POINT_UNAVAILABLE and the post never lands", async (t) => {
+test("[unrun] publish-content import [sqlite → pglite]: the composed route refuses an unavailable restore point before any destination write", async (t) => {
   const source = await bootSite(t, "sqlite");
   const destination = await bootSite(t, "pglite");
   const { bundle, postId } = await exportBundleWithPost(source, "Published from A");
@@ -120,7 +120,7 @@ test("[unrun] publish-content import [sqlite → pglite]: execute refuses 409 RE
   assert.deepEqual(refused, {
     error:
       `workspace '${destination.deps.workspaceId}' has restore-point costClass 'unavailable' — publish-content import ` +
-      "is refused with no attestation override (mirrors ADR-041 §2's forward-migrate rule)",
+      "is refused with no attestation override",
     code: "RESTORE_POINT_UNAVAILABLE",
   });
   assert.equal((await destinationPostIds(destination)).includes(postId), false);

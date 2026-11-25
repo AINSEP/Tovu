@@ -4,16 +4,18 @@ import test from "node:test";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import type {
   ChangeSetItemRecord,
-  ChangeSetRecord,
+  NewChangeSetRecord,
+  AttributedDomainEvent,
   DomainEvent,
   OutboxPort,
 } from "@jini-ai/core/contracts/events";
 
-function makeRecord(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
+function makeRecord(overrides: Partial<NewChangeSetRecord> = {}): NewChangeSetRecord {
   return {
     id: overrides.id ?? "cs-1",
     workspaceId: "workspace-1",
     actorId: "user-1",
+    actor: { id: "user-1", kind: "user" },
     status: "applied",
     summary: "Summary",
     createdAt: "2026-07-16T00:00:00.000Z",
@@ -58,11 +60,13 @@ test("InMemoryChangeSetRepo: insert forwards event to outbox when outbox is prov
   };
 
   const repo = new InMemoryChangeSetRepo([], [], outbox);
-  const event: DomainEvent = {
+  const event: AttributedDomainEvent = {
     id: "evt-1",
     name: "changeset.applied",
     occurredAt: "2026-07-16T00:00:00.000Z",
     workspaceId: "workspace-1",
+    actorId: "user-1",
+    actor: { id: "user-1", kind: "user" },
     payload: {},
   };
 
@@ -73,11 +77,13 @@ test("InMemoryChangeSetRepo: insert forwards event to outbox when outbox is prov
 
 test("InMemoryChangeSetRepo: insert handles event when outbox is omitted without error", async () => {
   const repo = new InMemoryChangeSetRepo();
-  const event: DomainEvent = {
+  const event: AttributedDomainEvent = {
     id: "evt-2",
     name: "changeset.applied",
     occurredAt: "2026-07-16T00:00:00.000Z",
     workspaceId: "workspace-1",
+    actorId: "user-1",
+    actor: { id: "user-1", kind: "user" },
     payload: {},
   };
 

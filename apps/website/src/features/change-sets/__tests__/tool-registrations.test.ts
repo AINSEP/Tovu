@@ -51,6 +51,7 @@ contributions.contributors.register({ contribution: contributeChangeSetsTools() 
 
 const WORKSPACE_ID = "ws-change-sets-tools";
 const PRINCIPAL_ID = "principal-under-test";
+const PRINCIPAL_ACTOR = { id: PRINCIPAL_ID, kind: "user" as const };
 const NOW = "2026-09-24T00:00:00.000Z";
 const LATER = "2026-09-24T01:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
@@ -211,9 +212,9 @@ test("change_sets_revert maps missing, reverted and non-revertible records to To
   const { deps, changeSets } = fakeRouteDeps();
   const revert = (changeSetId: string) => confirmedRevert({ deps, changeSetId });
   await assert.rejects(() => revert("missing"), (err) => err instanceof ToolInputError && /was not found/.test(err.message));
-  await changeSets.insert({ record: { id: "reverted", workspaceId: WORKSPACE_ID, status: "reverted", summary: "already undone", createdAt: NOW }, items: [] });
+  await changeSets.insert({ record: { id: "reverted", workspaceId: WORKSPACE_ID, actorId: PRINCIPAL_ID, actor: PRINCIPAL_ACTOR, status: "reverted", summary: "already undone", createdAt: NOW }, items: [] });
   await assert.rejects(() => revert("reverted"), (err) => err instanceof ToolInputError && /only 'applied'/.test(err.message));
-  await changeSets.insert({ record: { id: "unsupported", workspaceId: WORKSPACE_ID, status: "applied", summary: "unsupported inverse", createdAt: NOW }, items: [
+  await changeSets.insert({ record: { id: "unsupported", workspaceId: WORKSPACE_ID, actorId: PRINCIPAL_ID, actor: PRINCIPAL_ACTOR, status: "applied", summary: "unsupported inverse", createdAt: NOW }, items: [
     { id: "item-1", changeSetId: "unsupported", entityType: "unsupported", entityId: "entity-1", operation: "update", position: 0, inversePayload: {} },
   ] });
   await assert.rejects(() => revert("unsupported"), (err) => err instanceof ToolInputError && /no inverse applier/.test(err.message));
@@ -225,7 +226,7 @@ test("change_sets_revert maps missing, reverted and non-revertible records to To
 test("change-set tools enforce scoped permissions before reading or reverting", async () => {
   for (const options of [{ allow: false }, { allowedPermissions: ["changeset.read"] }]) {
     const { deps, postRepo, changeSets, authorizationCalls } = fakeRouteDeps(options);
-    const header = { id: "cs-denied", workspaceId: WORKSPACE_ID, status: "applied" as const, summary: "edit", createdAt: NOW };
+    const header = { id: "cs-denied", workspaceId: WORKSPACE_ID, actorId: PRINCIPAL_ID, actor: PRINCIPAL_ACTOR, status: "applied" as const, summary: "edit", createdAt: NOW };
     await changeSets.insert({ record: header, items: [{ id: "item-denied", changeSetId: header.id, entityType: "post", entityId: "post-1", operation: "update", position: 0, entityVersionAtApply: 1, inversePayload: { ...seededPost(), title: "Reverted Title" } }] });
     const before = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
     await assert.rejects(() => confirmedRevert({ deps, changeSetId: header.id }), ForbiddenError);
@@ -264,7 +265,7 @@ test("change_sets_list: newest first, 20 by default, and never more than 100 how
   // Inserted oldest first, so a list that trusted insertion order would come back reversed.
   for (let i = 0; i < 105; i++) {
     const createdAt = new Date(Date.UTC(2026, 8, 24, 0, 0, i)).toISOString();
-    await changeSets.insert({ record: { id: `cs-${i}`, workspaceId: WORKSPACE_ID, status: "applied", summary: `change ${i}`, createdAt } as never, items: [] }
+    await changeSets.insert({ record: { id: `cs-${i}`, workspaceId: WORKSPACE_ID, actorId: PRINCIPAL_ID, actor: PRINCIPAL_ACTOR, status: "applied", summary: `change ${i}`, createdAt }, items: [] }
     );
   }
 

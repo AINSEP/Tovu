@@ -3,7 +3,7 @@ import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 
-import { createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
+import { applyRunActor, createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
 import type { PublishContentContributor, PublishContentDeps as EnginePublishContentDeps } from "@jini-ai/cms/publish/content/type-registry";
 import type { CmsPublishPorts } from "@jini-ai/cms/publish/content/publish-ports";
 import type { EntityReplacement, ReferenceHolder, RepointResult } from "@jini-ai/cms/publish/content/type-registry";
@@ -303,7 +303,7 @@ function notUpdatedOutcome({ err, menu }: { err: unknown; menu: NavMenuEntry }):
       deps: { clock: deps.clock, idGen: deps.idGen, changeSets: input.changeSets, outbox: input.outbox, authorize: input.authorize },
       command: {
         workspaceId: deps.workspaceId,
-        actor: { id: input.principalId, kind: "user" },
+        actor: applyRunActor({ deps, principalId: input.principalId }),
         summary: `Repoint menu '${menu.title}' links after publish run ${input.runId}`,
         permission: "admin.menus.update",
         idempotencyKey: `publish-content:v1:repoint:${input.runId}:${menu.id}`,

@@ -17,6 +17,7 @@ import {
 import { readReviewedFile, reviewedFileIdentity } from "@jini-ai/platform/fs";
 import { siteTempRoot, SITE_TEMP_PREFIXES, type OwnedTempRootScope } from "#src/platform/temp/site-temp-roots";
 import { listSitePluginPackage, PluginPackagePathError } from "@jini-ai/plugins/host/node";
+import { TOVU_SITE_PLUGIN_MANIFEST_READ } from "#src/features/plugin-runtime/site-plugin-vocabulary";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits } from "./share-policy.js";
@@ -45,7 +46,8 @@ export interface SiteBackupSources extends JiniSiteBackupSources {
 
 const SOURCE_DEPS: SiteBackupSourceDeps = {
   sharePolicy: { excludedSharePath, validateSharePath, checkShareLimits },
-  listSitePluginPackage,
+  // Bound to the host manifest policy so a backup lists the legacy-named manifest the install accepted.
+  listSitePluginPackage: (required) => listSitePluginPackage(required, TOVU_SITE_PLUGIN_MANIFEST_READ),
   isPluginPackagePathError: (error) => error instanceof PluginPackagePathError,
   readReviewedFile,
   reviewedFileIdentity,

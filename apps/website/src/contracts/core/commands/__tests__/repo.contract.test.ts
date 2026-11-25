@@ -8,7 +8,7 @@ import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sql
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import type {
   ChangeSetItemRecord,
-  ChangeSetRecord,
+  NewChangeSetRecord,
   ChangeSetRepoPort,
 } from "@jini-ai/core/contracts/events";
 
@@ -19,11 +19,12 @@ import type {
  * suite in this codebase.
  */
 
-function makeRecord(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
+function makeRecord(overrides: Partial<NewChangeSetRecord> = {}): NewChangeSetRecord {
   return {
     id: overrides.id ?? "cs-1",
     workspaceId: "workspace-1",
     actorId: "user-1",
+    actor: { id: "user-1", kind: "user" },
     status: "applied",
     summary: "Updated post title",
     createdAt: "2026-07-16T00:00:00.000Z",

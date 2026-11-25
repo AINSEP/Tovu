@@ -1,5 +1,6 @@
 /** Install-level telemetry for Tovu's desktop processes, independent of every site's providers. */
 import { readFileSync, statSync } from 'node:fs';
+import { TOVU_SITE_PLUGIN_MANIFEST_READ } from '#src/features/plugin-runtime/site-plugin-vocabulary';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -144,7 +145,7 @@ export async function loadProductProviders(required: ProductProviderInput, { res
       const unavailable = (): never => { throw new Error('ProductProviderHasNoSiteContext'); };
       const resource = await loadProviderPluginArtifact({ load: { ...pluginHostBinding, record, manifest,
         entryPath: siteEntryPath({ installDir, id: record.id, version: record.version }),
-        importModule: createPluginModuleImporter({ manifest, source: 'built-in' }),
+        importModule: createPluginModuleImporter({ manifest, source: 'built-in' }, TOVU_SITE_PLUGIN_MANIFEST_READ),
         coreDeps: { getCurrentEntry: unavailable, writeExtField: unavailable, attachFilter: unavailable } },
         contracts: PROVIDER_CONTRACTS, contract, id: provider.id,
         input: { ...entry.input, release: required.release, environment: required.attribution.attributes.environment, attribution: required.attribution } }, { factoryOptions: { info() {}, ...(contract === 'observability' ? { exportEnabled: required.observabilityExportEnabled, scope: createAsyncLocalSpanScope({}) } : { describeTelemetryFailure }) } });

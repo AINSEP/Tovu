@@ -62,6 +62,7 @@ function makeRepointDeps(menuRepo: MenuRepoPort): PublishContentDeps & { changeS
     ports: { menu: { repo: menuRepo, bindingRepo: undefined as unknown as NavLocationBindingRepoPort } },
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    mutationActor: { id: "operator-1", kind: "user" },
   };
 }
 

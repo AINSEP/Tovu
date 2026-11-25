@@ -7,7 +7,8 @@ import { definePlugin, HOOK_POINTS, HOOK_CONTENT_ENTRY_BEFORE_SAVE, type Content
 import type { ClaimMode, DeclarativeContentTypesPort, PluginSdkBinding, PluginTierPolicy, HookRegistry } from "@jini-ai/plugins/host";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import type { RunTier2CallRequired } from "@jini-ai/plugins/host/worker";
-import { PLUGIN_CONTRIBUTION_CAPABILITIES, PLUGIN_MANIFEST_FILENAME, PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
+import { PLUGIN_CONTRIBUTION_CAPABILITIES, PLUGIN_MANIFEST_FILENAME } from "@jini-ai/plugins/host";
+import { TOVU_SITE_PLUGIN_MANIFEST_FILENAMES, TOVU_SITE_PLUGIN_MANIFEST_READ } from "./site-plugin-vocabulary.js";
 import { SHARED_EXTENSION_CAPABILITIES } from "@jini-ai/core/extension-capability-vocabulary";
 import { applyDeclaredContentTypes, parseDeclaredContentTypes, planDeclaredContentTypes, validateDeclarativeManifest, type DeclaredContentTypePlan, type DeclaredContentTypePorts, type DeclaredContentType } from "./declarative-content-types.js";
 import { readSitePluginArchive } from "./install-archive.js";
@@ -55,7 +56,7 @@ const tierPolicy: PluginTierPolicy = {
   },
   checkInstall: ({ manifest, files }) => {
     if (manifest.tier === "tier-1") {
-      const code = [...files.keys()].filter((key) => !PLUGIN_MANIFEST_FILENAMES.includes(key) && !DECLARATIVE_DATA_FILE.test(key)); // legacy alias
+      const code = [...files.keys()].filter((key) => !TOVU_SITE_PLUGIN_MANIFEST_FILENAMES.includes(key) && !DECLARATIVE_DATA_FILE.test(key)); // legacy alias
       if (code.length) throw new PluginInstallError("PLUGIN_MANIFEST_INVALID", `A declarative (tier-1) plugin must not ship code: ${code.join(", ")}`);
       return;
     }
@@ -75,6 +76,7 @@ export const pluginHostBinding = {
   declarativeContentTypes,
   coreOwnerName: "Tovu core",
   identityNamespace: "tovu",
+  ...TOVU_SITE_PLUGIN_MANIFEST_READ,
   localInstallDisabledMessage: "Hosted plugin installs require TOVU_PLUGIN_LOCAL_INSTALL=1.",
   tierPolicy,
   archiveReader: readSitePluginArchive,

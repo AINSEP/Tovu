@@ -15,7 +15,7 @@ import { isMainThread, parentPort, workerData } from "node:worker_threads";
 
 import { pluginHostBinding } from "../../../features/plugin-runtime/host-binding.js";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "../../../features/plugin-runtime/built-ins/content-analyzer/index.js";
-import { PLUGIN_SDK_SPECIFIERS } from "@jini-ai/plugins/host";
+import { TOVU_SITE_PLUGIN_SDK_SPECIFIERS } from "../../../features/plugin-runtime/site-plugin-vocabulary.js";
 import { startTier2Worker, type Tier2ImportPolicy } from "@jini-ai/plugins/host/worker";
 import { registerPluginSdkResolver } from "../../../features/plugin-runtime/sdk-resolver.js";
 
@@ -38,7 +38,7 @@ export interface Tier2WorkerMainOptional {
  * plugin, that imports either one is refused.
  */
 export const TIER2_IMPORT_POLICY: Tier2ImportPolicy = {
-  sdkSpecifiers: PLUGIN_SDK_SPECIFIERS,
+  sdkSpecifiers: TOVU_SITE_PLUGIN_SDK_SPECIFIERS,
   trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analysis", "@jini-ai/cms/html/site/slug"] }],
 };
 

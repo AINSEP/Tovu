@@ -2,7 +2,7 @@ import type { OutboxEventPreparation } from "@jini-ai/db/events";
 import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
 import { SqlChangeSetRepo } from "@jini-ai/db/events";
 import type { ContentDb } from "./content-db.js";
-import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent } from "@jini-ai/core/contracts/events";
+import type { AttributedDomainEvent, ChangeSetItemRecord, NewChangeSetRecord } from "@jini-ai/core/contracts/events";
 import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
 
 /** Tovu owns the persisted names; the change-set repo's header, items and co-persisted outbox row use the same wiring. */
@@ -63,7 +63,7 @@ export class SqliteChangeSetRepo extends SqlChangeSetRepo {
    * Items for other entities name other ledgers and take no post fence.
    * @complexity O(k log k) over the distinct posts named, plus the base insert.
    */
-  override async insert(required: { record: ChangeSetRecord; items: ChangeSetItemRecord[] }, optional: { event?: DomainEvent } = {}): Promise<void> {
+  override async insert(required: { record: NewChangeSetRecord; items: ChangeSetItemRecord[] }, optional: { event?: AttributedDomainEvent | undefined } = {}): Promise<void> {
     const keys = [...new Set(required.items.filter(namesPostRevision)
       .map((item) => postRevisionLockKey({ workspaceId: required.record.workspaceId, postId: item.entityId }, {})))].sort();
     if (keys.length === 0) return super.insert(required, optional);

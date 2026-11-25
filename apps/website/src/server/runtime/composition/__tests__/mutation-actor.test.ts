@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { sql } from 'kysely';
 import { executeCommand } from '@jini-ai/cms/core';
-import type { DomainEvent } from '@jini-ai/core/contracts/events';
+import type { AttributedDomainEvent, DomainEvent } from '@jini-ai/core/contracts/events';
 import { eachDialect } from '../../../../platform/db/kernel/__tests__/dialect-matrix.js';
 import { SqliteChangeSetRepo } from '../../../../platform/db/sqlite/change-set-repo.sqlite.js';
 import { SqliteOutboxAdapter } from '../../../../platform/db/sqlite/outbox-repo.sqlite.js';
@@ -60,7 +60,7 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => makeStores(k
     const stores = adapter.make();
     if (adapter.dialect === 'sqlite') t.after(() => (stores.kernel as unknown as { close(): Promise<void> }).close());
     const actor = actorForMutation({ principalId: 'owner-1', origin: 'assistant' });
-    const event: DomainEvent = { id: 'event-1', name: 'change-set.applied', occurredAt: '2026-11-25T00:00:00.000Z', workspaceId: 'workspace-1',
+    const event: AttributedDomainEvent = { id: 'event-1', name: 'change-set.applied', occurredAt: '2026-11-25T00:00:00.000Z', workspaceId: 'workspace-1',
       actorId: actor.id, actor, changeSetId: 'set-1' };
     // Occupy the event id so the outbox row is the write that fails, after the header and items.
     await stores.outbox.enqueue(event);
@@ -68,6 +68,27 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => makeStores(k
     await assert.rejects(stores.changeSets.insert({ record, items: [] }, { event }));
     assert.deepEqual(await stores.kernel.query(sql`SELECT id FROM change_sets`), []);
     assert.equal((await stores.kernel.query(sql`SELECT id FROM outbox_events`)).length, 1, 'only the pre-existing event remains');
+  });
+
+  test(`[${adapter.name}] the real SQL binding preserves the same actor after outbox preparation`, async t => {
+    const stores = adapter.make();
+    if (adapter.dialect === 'sqlite') t.after(() => (stores.kernel as unknown as { close(): Promise<void> }).close());
+    // The host preparation hook may enrich the envelope, but it must not re-attribute the write:
+    // the stored event keeps the writer's actor, matching the change-set header it lands with.
+    const changeSets = new SqliteChangeSetRepo({ store: stores.kernel }, {
+      prepareOutboxEvent: ({ event }) => ({ ...event, actorId: 'hook-principal', actor: { id: 'hook-principal', kind: 'user' }, payload: { prepared: true } }),
+    });
+    const actor = actorForMutation({ principalId: 'owner-1', origin: 'assistant' });
+    const event: AttributedDomainEvent = { id: 'event-prep', name: 'change-set.applied', occurredAt: '2026-11-25T00:00:00.000Z', workspaceId: 'workspace-1',
+      actorId: actor.id, actor, changeSetId: 'set-prep', payload: {} };
+    const record = { id: 'set-prep', workspaceId: 'workspace-1', actorId: actor.id, actor, status: 'applied' as const, summary: 'assistant edit', createdAt: '2026-11-25T00:00:00.000Z' };
+    await changeSets.insert({ record, items: [] }, { event });
+    const [stored] = (await stores.kernel.query<{ event_json: string }>(sql`SELECT event_json FROM outbox_events WHERE id = 'event-prep'`))
+      .map(row => JSON.parse(row.event_json) as DomainEvent);
+    assert.deepEqual(stored?.payload, { prepared: true }, 'the hook still prepares the envelope');
+    assert.deepEqual([stored?.actorId, stored?.actor], ['owner-1', { id: 'owner-1', kind: 'agent' }]);
+    const header = (await stores.changeSets.findById({ workspaceId: 'workspace-1', id: 'set-prep' }))?.changeSet;
+    assert.deepEqual([header?.actorId, header?.actor], [stored?.actorId, stored?.actor], 'header and stored event agree');
   });
 }
 

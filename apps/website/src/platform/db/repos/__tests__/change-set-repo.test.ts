@@ -3,8 +3,8 @@ import { test } from "node:test";
 
 import type {
   ChangeSetItemRecord,
-  ChangeSetRecord,
-  DomainEvent,
+  NewChangeSetRecord,
+  AttributedDomainEvent,
 } from "@jini-ai/core/contracts/events";
 import type { ContentKernel } from "../../content-kernel.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
@@ -23,11 +23,12 @@ const WORKSPACE = "workspace-1";
 const AT = "2026-10-20T00:00:00.000Z";
 const TABLES = ["change_set_items", "change_sets", "outbox_events"];
 
-function header(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
+function header(overrides: Partial<NewChangeSetRecord> = {}): NewChangeSetRecord {
   return {
     id: "cs-1",
     workspaceId: WORKSPACE,
     actorId: "user-1",
+    actor: { id: "user-1", kind: "user" },
     status: "reverted",
     summary: "Renamed a post",
     idempotencyKey: "idem-1",
@@ -55,11 +56,13 @@ function item(overrides: Partial<ChangeSetItemRecord> = {}): ChangeSetItemRecord
   };
 }
 
-const EVENT: DomainEvent = {
+const EVENT: AttributedDomainEvent = {
   id: "evt-1",
   name: "change-set.applied",
   occurredAt: AT,
   workspaceId: WORKSPACE,
+  actorId: "user-1",
+  actor: { id: "user-1", kind: "user" },
   payload: { changeSetId: "cs-1" },
 };
 
@@ -107,14 +110,15 @@ describeEachDialect("SqlChangeSetRepo.insert", { tables: TABLES, make }, (makeRe
 
   test("every absent optional header field is written as SQL NULL", async () => {
     const { kernel, repo } = makeRepo();
-    const bare = header({ actorId: undefined, idempotencyKey: undefined, intentRef: undefined, appliedAt: undefined, revertedAt: undefined, status: "proposed" });
+    // A new write always names its actor (NewChangeSetRecord); the actor-less shape is a historical row, covered at the read boundary.
+    const bare = header({ idempotencyKey: undefined, intentRef: undefined, appliedAt: undefined, revertedAt: undefined, status: "proposed" });
 
     await repo.insert({ record: bare, items: [] });
 
     assert.deepEqual(await headerRows(kernel), [{
       id: "cs-1",
       workspace_id: WORKSPACE,
-      actor_id: null,
+      actor_id: "user-1",
       actor_kind: null,
       status: "proposed",
       summary: "Renamed a post",
