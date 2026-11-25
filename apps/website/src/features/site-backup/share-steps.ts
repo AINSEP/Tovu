@@ -1,6 +1,7 @@
 import { createShareSteps } from "@jini-ai/devops/backup/site/share-preparation-steps";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { captureDatabaseSnapshot, collectSiteBackupFiles, readPlannedFile, type CollectedSiteBackupFiles, type PlannedDiskFile, type SiteBackupInclude, type SiteBackupSources } from "./sources.js";
+import { captureDatabaseSnapshot, collectSiteBackupFiles, readPlannedFile, type SiteBackupSources } from "./sources.js";
+import { type CollectedSiteBackupFiles, type PlannedDiskFile, type SiteBackupInclude } from "@jini-ai/devops/backup/site/sources";
 import { checkShareLimits, SHARE_LIMITS } from "./share-policy.js";
 
 /** Tovu's share caps and their wording, the site file walker and the snapshot reader, bound into Jini's share steps. */

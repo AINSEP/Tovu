@@ -12,7 +12,9 @@ import { readBundledPackageFiles } from "./package-file-inventory.js";
 /** Tovu's archive inventory, path mapping, share limits and secret shapes for the engine import verifier. */
 export const IMPORT_VERIFIER_HOST: SiteImportVerifierHost = {
   redactSecretShapes, checkShareLimits, refuseArchive, scanArchiveMetadata, parseShareManifest, buildManifestInventory, checkArchiveMatchesInventory,
-  readListedFiles, sha256Hex, applyShareProjection, archiveToRuntimePath, editedArchiveWarnings,
+  sha256Hex,
+  // The inventory/manifest values are this host's own, handed back unchanged by the engine.
+  readListedFiles: (required, optional) => readListedFiles(required as Parameters<typeof readListedFiles>[0], optional), applyShareProjection, archiveToRuntimePath, editedArchiveWarnings,
   maxArchiveBytes: SHARE_LIMITS.maxArchiveBytes,
   archiveTooLargeMessage: "Import exceeds the 300 MiB archive cap.",
   readBundledPackageFiles: () => readBundledPackageFiles(),

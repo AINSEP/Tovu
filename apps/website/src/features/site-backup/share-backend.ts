@@ -4,7 +4,7 @@ import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import {
   createSiteShareBackend as createEngineSiteShareBackend,
-  type SiteShareBackend, type SiteShareBackendOptional, type SiteShareHost,
+  type SiteShareBackend, type SiteShareBackendOptional, type SiteShareBackendRequired, type SiteShareHost,
 } from "@jini-ai/devops/backup/site/share-backend";
 import type { StaticSitePorts } from "@jini-ai/devops/backup/site/static-copy";
 import type { SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
@@ -27,9 +27,15 @@ export const SITE_SHARE_HOST: SiteShareHost = {
   zipOnlyMessage: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link.",
   downloadUrl: ({ site, shareId }) => `/api/admin/v1/workspaces/${encodeURIComponent(site)}/site-shares/${shareId}/download`,
   appVersionOf: ({ content }: { content: SiteSharePlanContent }) => content.tovuVersion,
-  checkShareLimits, newShareIdentity, allocateStaticExportThemes, parseStaticExportInput, captureStaticSite,
-  buildShareZip, buildStaticSiteZip, createSiteShare, acknowledgeSiteShare, revokeSiteShare, isOwnShareFolder,
+  checkShareLimits, newShareIdentity, allocateStaticExportThemes, parseStaticExportInput, captureStaticSite, buildShareZip, isOwnShareFolder,
+  // The engine treats registry/delivery/zip/themes as opaque values it only hands back; they are always this host's own.
+  buildStaticSiteZip: (required, optional) => buildStaticSiteZip(required as Parameters<typeof buildStaticSiteZip>[0], optional),
+  createSiteShare: (required, optional) => createSiteShare(required as Parameters<typeof createSiteShare>[0], optional as Parameters<typeof createSiteShare>[1]),
+  acknowledgeSiteShare: (required, optional) => acknowledgeSiteShare(required as Parameters<typeof acknowledgeSiteShare>[0], optional as Parameters<typeof acknowledgeSiteShare>[1]),
+  revokeSiteShare: (required, optional) => revokeSiteShare(required as Parameters<typeof revokeSiteShare>[0], optional as Parameters<typeof revokeSiteShare>[1]),
 };
+/** The engine backend, whose registry is this host's concrete registry (routes also disable/delete through it). */
+export type HostSiteShareBackend = SiteShareBackend & { readonly registry: SiteShareRegistry };
 
 type ShareBackendRequired = {
   registry: SiteShareRegistry;
@@ -43,6 +49,6 @@ type ShareBackendRequired = {
 };
 
 /** Binds the engine share backend to this host's collaborators; see `SITE_SHARE_HOST`. */
-export function createSiteShareBackend(required: ShareBackendRequired, optional: SiteShareBackendOptional = {}): SiteShareBackend {
-  return createEngineSiteShareBackend({ ...required, host: SITE_SHARE_HOST }, optional);
+export function createSiteShareBackend(required: ShareBackendRequired, optional: SiteShareBackendOptional = {}): HostSiteShareBackend {
+  return createEngineSiteShareBackend({ ...(required as unknown as Omit<SiteShareBackendRequired, "host">), host: SITE_SHARE_HOST }, optional) as HostSiteShareBackend;
 }

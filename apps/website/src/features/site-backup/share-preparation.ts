@@ -4,7 +4,8 @@ import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-por
 import { runtimeSchemaVersion } from "#src/platform/site-dir/index";
 import type { SiteSavedKeysPort } from "@jini-ai/devops/backup/site/saved-keys-port";
 import type { ArchiveMediaRewriter } from "@jini-ai/devops/backup/site/archive-media";
-import type { SiteBackupSources, SiteBackupInclude } from "./sources.js";
+import type { SiteBackupSources } from "./sources.js";
+import type { SiteBackupInclude } from "@jini-ai/devops/backup/site/sources";
 import { checkShareLimits, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { bufferArchiveMedia } from "./archive-media.js";
 import { prepareArchiveExtensions } from "./archive-extensions.js";

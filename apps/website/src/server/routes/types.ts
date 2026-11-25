@@ -1274,7 +1274,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   siteBackupSources?: SiteBackupSources;
   /** Site-bound export operation shared by tools and authenticated routes. */
-  siteShareBackend?: import("@jini-ai/devops/backup/site/share-backend").SiteShareBackend;
+  siteShareBackend?: import("#src/features/site-backup/share-backend").HostSiteShareBackend;
   siteImportBackend?: import("#src/features/site-backup/import-backend").SiteImportBackend;
   /**
    * Plugin-facing host seams over one shared connection port, built by

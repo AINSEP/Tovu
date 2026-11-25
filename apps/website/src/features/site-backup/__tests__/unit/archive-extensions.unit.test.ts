@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { prepareArchiveExtensions } from "../../archive-extensions.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
-import type { PlannedDiskFile, SiteBackupSources } from "../../sources.js";
+import type { SiteBackupSources } from "../../sources.js";
+import type { PlannedDiskFile } from "@jini-ai/devops/backup/site/sources";
 function fixture(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "archive-originals-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

@@ -3,7 +3,8 @@ import { ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, ARCHIVE_MANIFEST_PA
 import { runtimeToArchivePath, archiveSecretScanPath } from "./archive-paths.js";
 import { createHash } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
-import { readPlannedFile, type PlannedDiskFile } from "./sources.js";
+import { readPlannedFile } from "./sources.js";
+import { type PlannedDiskFile } from "@jini-ai/devops/backup/site/sources";
 import type { SiteSharePlanContent } from "./plan-content.js";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { checkShareLimits, SHARE_LIMITS } from "./share-policy.js";

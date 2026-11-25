@@ -18,7 +18,7 @@ import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_TOKEN } from "@jini-ai/devops/backup/site/share-registry";
 import { receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
-import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend";
+import type { HostSiteShareBackend as SiteShareBackend } from "#src/features/site-backup/share-backend";
 
 /**
  * @file K1 (RT-K1-adm-system-13): the admin site-share routes. Eight are the Jini raw specs
