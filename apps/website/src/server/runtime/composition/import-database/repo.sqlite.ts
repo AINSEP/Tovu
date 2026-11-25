@@ -1,4 +1,5 @@
 import { FIRST_PARTY_DATA_MODULES } from "../data-modules.js";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 /** Trusted helper entrypoint. Never import archived code or execute source DDL/migrations.
  * SQLite native work is isolated from the serving process and killed by its parent deadline.
  */
@@ -155,7 +156,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
     if (verifySqliteIntegrity({ db: source, quick: true }).issues.some(issue => issue.kind === "integrity")) throw new Error("Invalid SQLite integrity");
   } finally { source.close(); closeSqliteConnection({ source: trusted }); }
   const omittedMediaIds = JSON.parse(await readFile(path.join(required.root, "omitted-media.json"), "utf8")) as string[];
-  const projection = await sanitizeShareDatabase({ omittedMediaIds, modules: FIRST_PARTY_DATA_MODULES, snapshot: await readFile(path.join(required.root, "input.db")) });
+  const projection = await sanitizeShareDatabase({ omittedMediaIds, modules: FIRST_PARTY_DATA_MODULES, searchHost: POST_SEARCH_HOST, snapshot: await readFile(path.join(required.root, "input.db")) });
   const output = path.join(required.root, "output.db");
   await writeFile(output, projection.bytes, { flag: "wx", mode: 0o600 });
   const fresh = openSqliteFileKernel<Record<string, Record<string, unknown>>>({ filePath: output });

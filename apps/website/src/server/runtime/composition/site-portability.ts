@@ -4,6 +4,7 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import { sanitizeShareDatabase as sanitizeWithModules } from "#src/features/site-backup/share-database/repo.sqlite";
 import { rebuildImportDatabase as rebuildWithWorker, type RebuildImportDatabaseOptions as WorkerOptions } from "#src/features/site-backup/import-database";
 import { FIRST_PARTY_DATA_MODULES } from "./data-modules.js";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { restoreStagedImport as restoreWithLayout } from "#src/features/site-backup/import-restore";
 import { THEME_PLACEMENT_CHECKS } from "./theme-placement-checks.js";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
@@ -48,9 +49,9 @@ export type RebuildImportDatabaseOptions = WorkerOptions & {
   moduleUrl?: string;
 };
 
-/** Bind this build's trusted declarations, never an archive's catalogue. @complexity O(1) binding. */
+/** Bind this build's trusted declarations, never an archive's catalogue, and the post-search host binding. @complexity O(1) binding. */
 export function sanitizeShareDatabase(required: { snapshot: Buffer }, optional: Parameters<typeof sanitizeWithModules>[1] = {}) {
-  return sanitizeWithModules({ ...required, modules: FIRST_PARTY_DATA_MODULES }, optional);
+  return sanitizeWithModules({ ...required, modules: FIRST_PARTY_DATA_MODULES, searchHost: POST_SEARCH_HOST }, optional);
 }
 
 /** Select the trusted isolated worker shipped beside this composition root. @complexity O(1) binding. */
