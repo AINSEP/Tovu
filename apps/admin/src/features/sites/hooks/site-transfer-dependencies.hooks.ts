@@ -77,9 +77,10 @@ export interface SiteTransferPort {
   savedKeysAccess(required: Record<string, never>, optional?: Record<string, never>): Promise<{ isOwner: boolean }>;
   revealSharePassword(required: { shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   staticExportOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
-  /** `expiryChoices` lists the day choices the current destination honours (only this server's own
-   *  share folder can expire a link); absent means Never is the only choice. */
-  listShares(): Promise<{ shares: SiteShare[]; expiryChoices?: readonly number[] }>;
+  /** `expiryChoices` is the server's list: `null` (Never) first and the default, then the day choices the
+   *  current destination honours (only this server's own share folder can expire a link); absent (an
+   *  older server) means Never is the only choice. */
+  listShares(): Promise<{ shares: SiteShare[]; expiryChoices?: readonly (number | null)[] }>;
   /** `expiresInDays` belongs to the initial POST only; a job poll sends `jobId` alone. */
   createShare(input: { jobId?: string; expiresInDays?: ShareExpiryDays | null }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;

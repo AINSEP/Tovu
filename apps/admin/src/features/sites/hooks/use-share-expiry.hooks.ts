@@ -31,12 +31,12 @@ export interface ShareExpiryController {
 const DAY_CHOICES: readonly ShareExpiryDays[] = [7, 30, 90];
 
 /** Keeps only the server's choices this admin knows; anything unexpected is dropped, never guessed. O(1). */
-export function shareExpiryChoices({ offered }: { offered: readonly number[] | undefined }, _optional = {}): readonly ShareExpiryDays[] {
+export function shareExpiryChoices({ offered }: { offered: readonly (number | null)[] | undefined }, _optional = {}): readonly ShareExpiryDays[] {
   return DAY_CHOICES.filter(days => offered?.includes(days) === true);
 }
 
 export function useShareExpiryState(
-  { offered, newestBackup }: { offered: readonly number[] | undefined; newestBackup: SiteShare | undefined },
+  { offered, newestBackup }: { offered: readonly (number | null)[] | undefined; newestBackup: SiteShare | undefined },
   _optional = {},
 ): ShareExpiryController {
   const [chosen, setChosen] = useState<ShareExpiryDays | null>(null);

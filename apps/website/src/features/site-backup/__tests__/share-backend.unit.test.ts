@@ -254,3 +254,15 @@ test("static options show installed display titles while keeping theme IDs", asy
     { themeId: "studio-poster", name: "Poster Display" }, { themeId: "poster", name: "Another Poster" },
   ] });
 });
+
+test("list offers expiry day choices only while new exports land in this server's own share folder", async () => {
+  const registry = {} as SiteShareRegistry;
+  const choicesFor = (delivery: () => Promise<{ provider: string; binding?: string } | undefined>) =>
+    createSiteShareBackend({ registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: delivery as never }).expiryChoices({});
+  assert.deepEqual(await choicesFor(async () => ({ provider: "tovu-server", binding: path.resolve("shares") })), [7, 30, 90]);
+  // Never stays the only choice wherever a date could not be honoured (owner rule (c)).
+  assert.deepEqual(await choicesFor(async () => ({ provider: "s3", binding: "bucket" })), []);
+  assert.deepEqual(await choicesFor(async () => ({ provider: "tovu-server", binding: "https://peer.example/" })), []);
+  assert.deepEqual(await choicesFor(async () => undefined), []);
+  assert.deepEqual(await choicesFor(async () => { throw new Error("delivery settings unreadable"); }), []);
+});
