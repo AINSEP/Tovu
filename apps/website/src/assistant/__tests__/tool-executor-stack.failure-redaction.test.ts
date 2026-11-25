@@ -100,11 +100,14 @@ test("EXECUTOR: a real handler throw is redacted and ID-tagged by the production
 //    own server log (P5).
 // ---------------------------------------------------------------------------
 
-test("BRIDGE: the persisted tool_result event and http-kit's internal-error log both carry the ID with no secret", async (t) => {
+// The delegated route reuses the tool's stamped ID without writing (J4): the one record is the reporter's
+// host record, so the operator correlation moved from the http-kit console line to that record.
+test("BRIDGE: the persisted tool_result event, the route reply and the one host record carry the ID with no secret", async (t) => {
   const registry = createToolRegistry({});
+  const recording = recordingReporter();
   registerThrowingTool(registry);
   const toolExecutor = createAssistantToolExecutor({
-    registry, reporter: recordingReporter().reporter,
+    registry, reporter: recording.reporter,
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     toolFailures: { mintErrorId: () => FIXED_ID },
   }, {});
@@ -129,9 +132,11 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
   assert.match(content, new RegExp(`^Error ${FIXED_ID}: `));
   containsNoSecret(content);
 
-  const loggedText = loggedArgs.map((args) => args.map(String).join(" ")).join("\n");
-  containsNoSecret(loggedText);
-  assert.match(loggedText, new RegExp(FIXED_ID));
+  if (!result.ok) assert.equal(result.error.requestId, FIXED_ID, "the reply reuses the stamped ID");
+  assert.equal(loggedArgs.length, 0, "no console line: the reporter owns the record");
+  assert.equal(recording.entries.length, 1, "exactly one host record");
+  assert.equal(recording.entries[0]!.meta?.errorId, FIXED_ID);
+  containsNoSecret(JSON.stringify(recording.entries));
 });
 
 test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Error <ID>: …' with no secret, not INTERNAL_ERROR", async (t) => {

@@ -133,6 +133,7 @@ export function adminFailureResponse(
   // Classify, then record, then build the reply from the recorded ID. An approved disclosure cause may
   // already carry the ERR ID of an incident another path wrote (a tool failure); the formatter's own
   // rule finds it, and the record is offered that ID instead of minting a second one.
+  // The shared formatter preserves a cause's existing ERR ID. Use it for both sinks and reply.
   const causeErrorId = formatApprovedFailure({ options }, {}).failure.errorId;
   const { errorId } = reportServerFailure({ error, operation }, { tracker, reporter, errorId: causeErrorId, trackerAlreadyReported });
   return { status: options.status ?? 500, body: unexpectedAdminBody({ errorId, options }) };

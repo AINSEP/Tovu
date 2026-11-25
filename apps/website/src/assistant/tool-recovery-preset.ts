@@ -75,6 +75,8 @@ export function mintToolErrorId(required: Record<string, never>, optional = {}):
   return mintCoreErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }, optional);
 }
 /** The two redaction collaborators daemon needs, bound to Tovu's secret-shape redactor. */
+/** Default reporter receives only already-redacted messages from the shared owner. Here that owner is
+ * the site reporter handed to the tool stack; this adapter itself only redacts and stamps. */
 function failurePorts(options: RedactedToolFailuresDeps): DaemonFailureDeps {
   return { redactSecretShapes, mintErrorId: options.mintErrorId ?? (() => mintToolErrorId({}, {})) };
 }
