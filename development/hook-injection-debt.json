@@ -193,12 +193,6 @@
         "apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx"
       ]
     },
-    "RemoteImageImport::useRemoteImageImport": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/media/RemoteImageImport.tsx"
-      ]
-    },
     "VisitorCredentialForm::useStoredCredentialHint": {
       "count": 1,
       "files": [
