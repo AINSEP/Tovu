@@ -22,7 +22,7 @@ import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
 import { createChatRunLedger } from "#src/assistant/index";
-import { createChatStoreFactory } from "#src/assistant/index";
+import { createChatBulkDeletionFor, createChatStoreFactory } from "#src/assistant/index";
 import { createPeerSiteReads } from "../peer-site-reads.js";
 import { createSqliteAgentSessionStore } from "#src/assistant/index";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
@@ -124,7 +124,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
   };
 }
 
-export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "slugChangeCapture" | "docBodyAsPageHtml" | "pagesHtmlStore" | "chatHistory" | "chatRunLedger" | "agentSessions" | "conversationToolApprovals"> {
+export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "slugChangeCapture" | "docBodyAsPageHtml" | "pagesHtmlStore" | "chatHistory" | "chatBulkDeletionFor" | "chatRunLedger" | "agentSessions" | "conversationToolApprovals"> {
   const { kernel, chat, clock, outbox, entryRefsRepo, entryRepo, tracker, postRepo, pluginExports } = required;
   return {
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
@@ -143,6 +143,7 @@ export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _opti
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.
     chatHistory: createChatStoreFactory({ store: chat }),
+    chatBulkDeletionFor: createChatBulkDeletionFor({ store: chat, now: () => clock.nowMs() }),
     chatRunLedger: createChatRunLedger({ store: chat }, { tracker }),
     // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
