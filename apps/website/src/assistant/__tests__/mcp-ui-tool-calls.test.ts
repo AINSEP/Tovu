@@ -153,6 +153,8 @@ const EXPECTED_ALLOWLIST = [
   "mail_remove_suppression",
   // Clear all captured test emails (bt2-todos G7-7/848): owner-only, a fresh count card every time.
   "mail_clear_captured",
+  // Storage cleanup (P11 ST-15c): owner-only, a fresh measured card for every live pass.
+  "site_storage_cleanup",
   // Provider switching uses the same principal-bound plan confirmation as mail provider changes.
   "comments_set_provider",
   // Owner-approved policy cards and the host-secret form, each principal-bound and parked.

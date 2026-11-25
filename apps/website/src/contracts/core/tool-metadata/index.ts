@@ -53,6 +53,7 @@ import { createSiteGuideToolMetadata } from '@jini-ai/core/tool-metadata/site-gu
 import { toolMetadata as agent_pause } from './agent-pause.js';
 import { toolMetadata as site_inspection } from '@jini-ai/core/tool-metadata/site-inspection';
 import { toolMetadata as site_update } from './site-update.js';
+import { toolMetadata as storage } from './storage.js';
 import { toolMetadata as sites } from '@jini-ai/core/tool-metadata/sites';
 import { toolMetadata as skills } from '@jini-ai/core/tool-metadata/skills';
 import { toolMetadata as source_control } from '@jini-ai/core/tool-metadata/source-control';
@@ -153,6 +154,7 @@ export const nativeToolMetadata = projectToolMetadata<HostToolApprovalPolicy>({ 
   { domain: 'sites', tools: sites },
   { domain: 'skills', tools: skills },
   { domain: 'source-control', tools: source_control },
+  { domain: 'system-storage', tools: storage },
   { domain: 'taxonomy', tools: taxonomy },
   { domain: 'theme', tools: theme },
   { domain: 'trash', tools: trash },

@@ -1,6 +1,7 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type DerivedRiskByToolId, type ToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { toolMetadata } from "#src/contracts/core/tool-metadata/storage";
 import { STORAGE_CLEANUP_TOOL_ID, storageAgentToolCatalog } from "./agent-tools.js";
 
 /**
@@ -65,7 +66,7 @@ function cleanupHandler({ required, surfaces }: { required: StorageToolContribut
  */
 export function createStorageToolContributor(required: StorageToolContributorRequired, _optional: Record<string, never> = {}): ToolContributor<unknown, AssistantSurfaceDeps> {
   const build = (_deps: unknown, surfaces: AssistantSurfaceDeps): ToolRegistration[] => buildDomainRegistrations({
-    domain: "system-storage", catalogModule: "features/storage/agent-tools.ts", catalog: indexCatalogById({ catalog: storageAgentToolCatalog }), derivedRisk: storageDerivedRisk,
+    metadata: toolMetadata, domain: "system-storage", catalogModule: "features/storage/agent-tools.ts", catalog: indexCatalogById({ catalog: storageAgentToolCatalog }), derivedRisk: storageDerivedRisk,
     handlers: {
       site_storage_report: async (ctx: ToolExecutionContext) => {
         requireInputRecord({ input: ctx.input });
