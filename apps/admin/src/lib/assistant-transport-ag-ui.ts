@@ -108,9 +108,60 @@ export function adminAgUiDurableBinding({ ports }: { ports: AdminAgUiDurablePort
   };
 }
 
+/** What the dock shows when a run ends with nothing to read and nothing to blame. */
+const NO_REPLY_MESSAGE = "The assistant did not reply. Send your message again.";
+
+/**
+ * One actionable terminal outcome per run for the dock. The shared client reports a repeated
+ * `RUN_ERROR` frame once per frame and treats a stream that ends with no events at all as a
+ * success, so a flaky or empty run would show two banners or a silent blank reply. This wrapper is
+ * host-side on purpose (the shared client is neutral): it forwards the first error only, and turns
+ * an empty, error-free completion into a plain error, except after an intentional Stop or a
+ * detach, which must never read as a failure.
+ * @complexity O(1) per callback.
+ */
+export function guardTerminalOutcome(
+  { handlers, intentionalStop }: { handlers: RunHandlers; intentionalStop: () => boolean },
+  _optional: Record<string, never> = {},
+): RunHandlers {
+  let errored = false;
+  let sawEvent = false;
+  return {
+    ...handlers,
+    onEvent: (event) => { sawEvent = true; handlers.onEvent(event); },
+    onError: (error) => { if (errored) return; errored = true; handlers.onError(error); },
+    onDone: (finalEvents) => {
+      if (!errored && !sawEvent && finalEvents.length === 0 && !intentionalStop()) { errored = true; handlers.onError(new Error(NO_REPLY_MESSAGE)); }
+      handlers.onDone(finalEvents);
+    },
+  };
+}
+
 /** The admin's AG-UI run client over the real `HttpAgent`, with its durable ports injected.
  * @complexity O(1). */
 export function createAdminAgUiRunClient({ durable }: { durable: AdminAgUiDurablePorts }, _optional: Record<string, never> = {}): AgUiRunClient {
+  const shared = createSharedAdminAgUiRunClient({ durable }, {});
+  // A Stop through `stopAgUiRun` aborts the stream without touching the start's signals, so the
+  // guard also listens to it; a pending start (no run id yet) counts as the one being stopped.
+  const stopped = new Set<string>();
+  let stopPending = false;
+  return { ...shared,
+    startAgUiRun: async (required, optional) => {
+      let runId: string | undefined;
+      const { input } = required;
+      const intentionalStop = () => Boolean(input.signal?.aborted || input.cancelSignal?.aborted || stopPending || (runId && stopped.has(runId)));
+      const started = await shared.startAgUiRun({ ...required, handlers: guardTerminalOutcome({ handlers: required.handlers, intentionalStop }, {}) }, optional);
+      runId = started.runId;
+      return started;
+    },
+    stopAgUiRun: async (required, optional) => {
+      stopped.add(required.runId);
+      stopPending = true;
+      try { await shared.stopAgUiRun(required, optional); } finally { stopPending = false; }
+    } };
+}
+
+function createSharedAdminAgUiRunClient({ durable }: { durable: AdminAgUiDurablePorts }, _optional: Record<string, never> = {}): AgUiRunClient {
   return createAgUiRunClient({ ports: { endpoint: AG_UI_RUN_PATH, runIdPrefix: AG_UI_RUN_ID_PREFIX, customEventNames: CUSTOM_EVENT_NAMES,
     mintId: () => mintAgUiId(),
     createAgent: ({ url, threadId }) => new HttpAgent({ url, threadId, fetch: (url, init) => fetch(url, { ...init, credentials: "same-origin" }) }),

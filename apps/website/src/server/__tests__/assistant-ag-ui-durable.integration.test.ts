@@ -13,6 +13,7 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/index.js";
 import { resetAssistantDaemonSingletonForTests, startAssistantDaemon } from "../runtime/lifecycle/daemon-supervisor.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
+import { parseRunStartContextRef } from "../../assistant/run-start-context.js";
 
 /**
  * @file The AG-UI durable start against the REAL acceptance and the in-memory root's real SQLite
@@ -109,7 +110,7 @@ async function boot(t: import("node:test").TestContext) {
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
   // The owner's conversation exists first, as the admin chat creates it before any run starts.
   const history = deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: me.user.id });
-  for (const id of ["conv-durable-1", "conv-durable-2", "conv-stop-1", "conv-stop-2", "conv-stop-3", "conv-stop-4"]) await history.create({ id });
+  for (const id of ["conv-attach-1", "conv-attach-2", "conv-attach-3", "conv-durable-1", "conv-durable-2", "conv-stop-1", "conv-stop-2", "conv-stop-3", "conv-stop-4"]) await history.create({ id });
   return { baseUrl, cookie, deps };
 }
 
@@ -251,4 +252,65 @@ test("Stop after reopen cancels the owned run once", { timeout: 60_000 }, async 
   assert.deepEqual(cancels, [runId], "Stop after reopen cancels the owned run exactly once");
   assert.equal(launches.length, 1, "neither reopen nor Stop launches another executor");
   assert.equal((await ctx.deps.chatRunLedger.durable!.load({ messageId: "msg-stop-4" }, {}))?.cancelReason, "user-stop");
+});
+
+/** The launch fields the admin client's prepared start sends beside the durable identity; the
+ *  `recoveryMode`/`principalId` pair is browser-owned authority the server must never copy. */
+function attachmentBody({ conversationId, messageId, attachmentIds }: { conversationId: string; messageId: string; attachmentIds: string[] }) {
+  return JSON.stringify({ threadId: "client-thread", runId: "client-segment-1", messages: [{ role: "user", content: "look at this" }],
+    forwardedProps: { agentId: "claude", durableRun: { conversationId, assistantMessageId: messageId,
+      launch: { attachmentIds, pluginRefIds: ["ui-ux-design"], model: "opus", recoveryMode: "native", principalId: "someone-else" } } } });
+}
+
+function postAttachment({ baseUrl, cookie }: { baseUrl: string; cookie: string }, body: string, signal?: AbortSignal) {
+  return fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, { method: "POST", headers: { "content-type": "application/json", cookie }, body, ...(signal ? { signal } : {}) });
+}
+
+test("an AG-UI attachment reaches the selected agent and survives reopen and retry", { timeout: 60_000 }, async (t) => {
+  const ctx = await boot(t);
+  const ledger = ctx.deps.chatRunLedger.durable!;
+  const send = { conversationId: "conv-attach-1", messageId: "msg-attach-1", attachmentIds: ["att-1", "att-2"] };
+
+  const first = await postAttachment(ctx, attachmentBody(send));
+  assert.equal(first.status, 200, await first.clone().text());
+  const firstRunId = String(parse(await first.text()).find((e) => e.type === "RUN_STARTED")?.runId);
+  assert.equal(launches.length, 1);
+  // The daemon start decodes the launch with the real run-start parser: the same fields the
+  // direct `/api/runs` start stages attachments from.
+  const decoded = parseRunStartContextRef({ contextRef: launches[0]!.contextRef! });
+  assert.deepEqual(decoded.attachmentIds, ["att-1", "att-2"], "canonical attachment refs reach the daemon start");
+  assert.deepEqual(decoded.pluginRefIds, ["ui-ux-design"]);
+  assert.equal(decoded.model, "opus");
+  assert.equal(decoded.recoveryMode, undefined, "browser-owned recovery authority is stripped");
+  assert.notEqual(decoded.principalId, "someone-else", "the verified principal replaces any claimed one");
+
+  const stored = JSON.parse((await ledger.load({ messageId: send.messageId }, {}))!.request.contextRef) as { attachmentIds?: string[] };
+  assert.deepEqual(stored.attachmentIds, ["att-1", "att-2"], "the accepted (persisted) input retains the attachment");
+
+  // Reopen and a retry that carries no attachment: same run, same retained input, one executor.
+  const reopened = await postAttachment(ctx, attachmentBody({ ...send, attachmentIds: [] }));
+  assert.equal(String(parse(await reopened.text()).find((e) => e.type === "RUN_STARTED")?.runId), firstRunId);
+  assert.equal(launches.length, 1, "reopen and retry never launch a second executor");
+  const reread = JSON.parse((await ledger.load({ messageId: send.messageId }, {}))!.request.contextRef) as { attachmentIds?: string[] };
+  assert.deepEqual(reread.attachmentIds, ["att-1", "att-2"], "the reopened transcript keeps the same attachment");
+});
+
+test("an AG-UI Stop of one run leaves another run's attachments and staging untouched", { timeout: 60_000 }, async (t) => {
+  const ctx = await boot(t);
+  eventsMode = "stays-open";
+  const ledger = ctx.deps.chatRunLedger.durable!;
+  const readers: Array<ReadableStreamDefaultReader<Uint8Array>> = [];
+  const runIds: string[] = [];
+  for (const [conversationId, messageId, att] of [["conv-attach-2", "msg-attach-2", "att-a"], ["conv-attach-3", "msg-attach-3", "att-b"]] as const) {
+    const res = await postAttachment(ctx, attachmentBody({ conversationId, messageId, attachmentIds: [att] }));
+    readers.push(res.body!.getReader());
+    runIds.push(await readUntilStarted(readers.at(-1)!));
+  }
+  assert.equal((await stopRun(ctx, { runId: runIds[0]! })).status, 200);
+  assert.deepEqual(cancels, [runIds[0]], "only the stopped run is cancelled");
+  const other = await ledger.load({ messageId: "msg-attach-3" }, {});
+  assert.equal(other?.cancelReason ?? null, null);
+  assert.deepEqual((JSON.parse(other!.request.contextRef) as { attachmentIds?: string[] }).attachmentIds, ["att-b"]);
+  assert.deepEqual(parseRunStartContextRef({ contextRef: launches[1]!.contextRef! }).attachmentIds, ["att-b"], "each run stages only its own attachments");
+  for (const reader of readers) await reader.cancel().catch(() => undefined);
 });
