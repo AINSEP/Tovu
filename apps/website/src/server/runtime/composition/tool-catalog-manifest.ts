@@ -88,6 +88,7 @@ import { createPageCaptureForHost } from "@jini-ai/integrations/web-screenshot/d
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "@jini-ai/integrations/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "@jini-ai/integrations/web-screenshot/capture-files";
+import { captureWriterFence } from "./modules/screenshot-storage.js";
 import { DOMAIN_DNS_EGRESS_POLICY, DOMAIN_DNS_PUBLIC_NAMES, bindDomainDnsChecks, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createPlaywrightPageCapture } from "@jini-ai/diagnostics/web-evidence/playwright-page-capture";
 import { CAPTURE_LIMITS, PageCaptureError } from "@jini-ai/integrations/web-screenshot/web-screenshot";
@@ -675,7 +676,7 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
       openOwnSiteFor: (routeDeps) => createOwnSiteOpener({ themes: routeDeps.themes, openLoopback: (_required, optional) => openLoopbackSiteServer({ deps: routeDeps }, optional) }),
       // Resolved per call, not at build time: `siteBinding` is read only when a capture is saved,
       // so building the registry never depends on it (same rule as `features/sites/tool-registrations.ts`).
-      saveCaptureFilesFor: (routeDeps) => (request) => createCaptureFileWriter({ rootDir: captureRootFor({ siteDir: routeDeps.siteBinding.dir }) })(request),
+      saveCaptureFilesFor: (routeDeps) => (request) => createCaptureFileWriter({ rootDir: captureRootFor({ siteDir: routeDeps.siteBinding.dir }), lock: captureWriterFence })(request),
     },
   ) });
 }
