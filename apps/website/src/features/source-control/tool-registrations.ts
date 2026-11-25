@@ -235,8 +235,8 @@ export interface SourceControlToolDeps extends StaticSiteHostPorts {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
-  /** The existing custom-key owner's label lookups, bound by composition over its repo and sealer;
-   *  optional for source-control-only hosts. */
+  /** Existing custom-key repo port, supplied by composition; optional for source-control-only hosts. */
+  // A04: the port is now the custom-key owner's label lookups (describe/resolve), bound over its repo and sealer.
   readonly sourceControlSavedKeys?: SourceControlSavedKeyReader;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
