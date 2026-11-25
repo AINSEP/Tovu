@@ -4,7 +4,8 @@ import test from "node:test";
 
 import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { InMemorySiteAssistantCredentialRepo } from "../site-credential-store.memory.js";
 import {
   SiteAssistantCredentialValidationError,

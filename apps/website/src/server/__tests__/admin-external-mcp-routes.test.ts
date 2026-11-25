@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../../assistant/external-mcp-roster-change.js";
 import { createRouteDeps } from "../runtime/composition/app.js";

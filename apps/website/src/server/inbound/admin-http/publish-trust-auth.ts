@@ -14,7 +14,7 @@ import { publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
 import { isNoSiteKeyError } from "#src/features/webhooks/keyring.env";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 
 /**
  * @file Zero-setup publishing auth — the destination-side gate.

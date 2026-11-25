@@ -6,7 +6,7 @@ import { VaultError } from "@jini-ai/core/contracts/vault";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
   createCustomCredential,

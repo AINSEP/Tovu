@@ -3,7 +3,8 @@ import test from "node:test";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { VaultRepoPort, SealedSecret } from "@jini-ai/core/contracts/vault";
 import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { CustomCredentialCategoryId } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import type {
   CustomCredentialProjectScope, CustomCredentialScope, CustomCredentialSetRecord, CustomCredentialSetRepoPort,

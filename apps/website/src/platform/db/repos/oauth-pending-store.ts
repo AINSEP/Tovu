@@ -5,7 +5,8 @@ import type { Insertable, Selectable } from "kysely";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "@jini-ai/platform/secrets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { DeviceAuthorization } from "@jini-ai/oauth";
 import type { DeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ContentKernel } from "../content-kernel.js";
@@ -102,7 +103,7 @@ function createDeviceAuthorizationWriter(deps: SqlDeviceAuthorizationStoreDeps, 
   return async function put(serverId, authorization) {
       const sealed = await deps.sealer.seal({
         plaintext: authorization.deviceCode,
-        key: await deps.keyring.activeKey(),
+        key: await deps.keyring.activeKey({}),
         aad: deviceAad({ workspaceId: deps.workspaceId, serverId }),
       });
       const row: Insertable<OauthDeviceAuthorizationsTable> = {

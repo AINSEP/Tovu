@@ -1,6 +1,6 @@
 import { isContainedDeployConfigPath } from "@jini-ai/devops/deploy";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 
 import {
   DEFAULT_PUBLISHING_CAPABILITIES,

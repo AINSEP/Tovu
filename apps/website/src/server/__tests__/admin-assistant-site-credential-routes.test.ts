@@ -11,7 +11,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { RouteDeps } from "../routes/types.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

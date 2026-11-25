@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
 
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "../session.js";
 
 /**

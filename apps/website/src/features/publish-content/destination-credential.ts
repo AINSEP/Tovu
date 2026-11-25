@@ -1,6 +1,7 @@
 import { openPublishSession, PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 import { PublishContentPeerNotFoundError } from "@jini-ai/cms/publish/content/peers";
 import { resolvePeerCredential, type PublishContentPeerRepoPort, type ResolvedPeerCredential } from "./peers.js";

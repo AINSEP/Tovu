@@ -7,7 +7,8 @@ import {
   type VaultRecord,
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";

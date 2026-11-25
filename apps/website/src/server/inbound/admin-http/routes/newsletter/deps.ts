@@ -32,7 +32,7 @@ import type { ListsDeps } from "@jini-ai/user-management/newsletter/lists";
 import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/features/newsletter/subscriptions";
 import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { RouteDeps } from "#src/server/routes/types";
 
 export interface NewsletterRouteDeps extends RouteDeps {

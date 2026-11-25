@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import type { PublishingCapability } from "@jini-ai/cms/publish/trust/grant";
-import type { KeyringPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 
 /**
  * @file Zero-setup publishing auth — the short-lived publishing session.

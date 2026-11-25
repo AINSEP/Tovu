@@ -1,5 +1,6 @@
 import { ToolInputError } from '@jini-ai/core';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/secrets';
+import type { KeyringPort } from '@jini-ai/core/contracts/vault';
+import type { SecretSealerPort } from '@jini-ai/integrations/secrets';
 
 /** Credential services need an active handle for human saves, never owner key derivation.
  * @returns A handle-only keyring; every derivation fails without reaching the owner keyring.
@@ -7,7 +8,7 @@ import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/secret
  */
 export function ownerKeyHandleOnly({ keyring }: { keyring: KeyringPort }, _options = {}): KeyringPort {
   const refuse = async (): Promise<never> => { throw new ToolInputError({ message: 'Owner key derivation is private to Shared Keys. Use the saved credential through its site grant.' }); };
-  return { activeKey: () => keyring.activeKey(), derive: refuse, deriveSigningSecret: refuse };
+  return { activeKey: (options: Record<string, never>) => keyring.activeKey(options), derive: refuse, deriveSigningSecret: refuse };
 }
 
 /** Extract only the selected identity from Jini's frozen vault AAD; the full AAD is compared below. */

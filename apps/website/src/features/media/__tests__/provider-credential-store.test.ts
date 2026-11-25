@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import {

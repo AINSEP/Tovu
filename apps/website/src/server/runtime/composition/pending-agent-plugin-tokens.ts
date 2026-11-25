@@ -59,7 +59,7 @@ export async function sealPendingAgentPluginTokensForNewSite(
     throw new Error(`could not prepare the new site's key to store its access tokens (${ensured.action})`);
   }
   const { sealer, keyring } = sealerFor(siteKeyId);
-  const key = await keyring.activeKey();
+  const key = await keyring.activeKey({});
   const file: PendingTokensFile = { version: 1, tokens: {} };
   for (const [pluginId, token] of Object.entries(tokens)) {
     file.tokens[pluginId] = await sealer.seal({ plaintext: token, key, aad: pendingTokenAad({ pluginId }) });
