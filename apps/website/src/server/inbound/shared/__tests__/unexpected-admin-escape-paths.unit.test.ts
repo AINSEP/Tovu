@@ -4,6 +4,7 @@ import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerAdminAnalyticsRecentHitsRoute } from "../../admin-http/routes/analytics/recent-hits.js";
 import { registerAdminFormsPullSubmissionsRoute } from "#src/server/runtime/composition/modules/forms-admin";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 function appWithPrincipal() {
   const app = express();
@@ -35,7 +36,7 @@ test("forms pull gives its formatter the concrete explanation and correlated ref
   const logged = t.mock.method(console, "error", () => {});
   const app = appWithPrincipal();
   registerAdminFormsPullSubmissionsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
-    formSubmissionsPull: { pull: async () => { throw new Error("PRIVATE_PULL password=SECRET_CANARY"); } } } as never });
+    formSubmissionsPull: { pull: async () => { throw new Error("PRIVATE_PULL password=SECRET_CANARY"); } } } as never, errors: createRouteIncidentReporter().errors });
   const response = await dispatchJsonRequest(app, "POST", "/api/admin/v1/workspaces/ws/forms/submissions/pull");
   assert.equal(response.status, 500);
   const body = response.body as any;

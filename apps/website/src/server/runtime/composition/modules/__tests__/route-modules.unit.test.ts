@@ -22,6 +22,7 @@ import { createTaxonomyModule } from "../taxonomy.js";
 import { createUsersModule } from "../users.js";
 import { createWorkspaceModule } from "../workspace.js";
 import type { ServerModuleHandle } from "../types.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Route inventory for the route-only server modules.
@@ -116,7 +117,7 @@ const CASES: readonly ModuleCase[] = [
   },
   {
     name: "forms-admin",
-    create: () => createFormsAdminModule(noDeps),
+    create: () => createFormsAdminModule({ deps: noDeps, errors: createRouteIncidentReporter().errors }),
     routes: [
       `GET ${W}/forms`,
       `POST ${W}/forms`,

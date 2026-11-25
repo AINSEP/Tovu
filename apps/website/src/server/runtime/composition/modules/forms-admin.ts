@@ -16,6 +16,8 @@ import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "#src/server/inbound/admin-http/routes/forms/deps";
 import type { ServerModuleHandle } from "./types.js";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
+import type { Express } from "express";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-041) — the `forms-admin` server module (SPEC-010 Forms, Tier-1
@@ -151,12 +153,24 @@ function formsPullPorts(_required: Record<string, never> = {}, _optional: Record
  * Body: optional `{ targetId }` to pull from one hosting target only.
  *
  * Mounted at forms/submissions/pull behind {@link formsPullPorts}; never consulted the publishing-credential override.
+ * @param required.errors - The owning site's route error ports (`createApp`'s one site reporter). They put this
+ *   mount in reporter mode: {@link formsPullPorts} still answers a failure first; a broken answer or write is one record.
  */
-export const registerAdminFormsPullSubmissionsRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountJsonRoute<FormsPullSubmissionsInput, FormSubmissionsPullResult, FormsPullSubmissionsRouteDeps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...formsPullSubmissionsRoute, ports: formsPullPorts() }, deps: { ...formsPortDeps({ deps }), formSubmissionsPull: deps.formSubmissionsPull } });
-};
+export function registerAdminFormsPullSubmissionsRoute(
+  { app, deps, errors }: { app: Express; deps: FormsRouteDeps; errors: RouteErrorPorts },
+  _options: Record<string, never> = {},
+): void {
+  mountJsonRoute<FormsPullSubmissionsInput, FormSubmissionsPullResult, FormsPullSubmissionsRouteDeps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...formsPullSubmissionsRoute, ports: formsPullPorts() }, deps: { ...formsPortDeps({ deps }), formSubmissionsPull: deps.formSubmissionsPull },
+    // The pull spec never asks for `requireSameOrigin`, so this policy is never consulted; it exists only
+    // because a reporter-mode host context carries one, and it refuses (fails closed) if a later spec asks.
+    adapter: { originPolicy: { isSameOrigin: () => false }, errors } });
+}
 
-export function createFormsAdminModule(deps: FormsRouteDeps): ServerModuleHandle {
+/**
+ * @param required.deps - The forms routes' deps.
+ * @param required.errors - The owning site's route error ports, bound to the routes mounted directly on http-kit.
+ */
+export function createFormsAdminModule({ deps, errors }: { deps: FormsRouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): ServerModuleHandle {
   return {
     name: "forms-admin",
     registerRoutes: ({ app }, _options = {}) => {
@@ -169,7 +183,7 @@ export function createFormsAdminModule(deps: FormsRouteDeps): ServerModuleHandle
       registerAdminFormsListSubmissionsRoute({ app, deps });
       registerAdminFormsGetSubmissionRoute({ app, deps });
       registerAdminFormsDeleteSubmissionRoute({ app, deps });
-      registerAdminFormsPullSubmissionsRoute({ app, deps });
+      registerAdminFormsPullSubmissionsRoute({ app, deps, errors });
     },
   };
 }
