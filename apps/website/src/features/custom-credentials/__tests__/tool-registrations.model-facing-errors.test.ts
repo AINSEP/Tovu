@@ -46,6 +46,7 @@ import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
+import { validateRepositoryTarget } from "../write-files-validation.js";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
@@ -96,7 +97,7 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
     idGen,
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
-    sourceControlWrite: bindSourceControlWritePort({ load: githubFromSource, httpClient }),
+    sourceControlWrite: bindSourceControlWritePort({ validateRepositoryTarget, load: githubFromSource, httpClient }),
     publishCompatibility: bindPublishCompatibility({ source: {} }),
     // The example-host fixture plugin's scheme rules from source, shaped as a bundled plugin ships them.
     loadAuthSchemes: loadFixtureAuthSchemes,

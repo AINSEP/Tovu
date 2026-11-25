@@ -1,3 +1,4 @@
+import type { SourceControlSavedKeyReader } from "#src/features/source-control/tool-registrations";
 import type { RememberedApprovalPort } from "@jini-ai/core";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { PublishCompatibilityPort } from "../../../features/custom-credentials/index.js";
@@ -215,6 +216,8 @@ export interface CredentialsDeps {
    * TEST GOTCHA (the `exportSiteBound` rule above): a spread copy of a composed bag that overrides one of the three
    * leaves this port reading the original; override `sourceControlWrite` too.
    */
+  /** Source control's by-label reads of a provider's saved API key, bound over `customCredentialSetRepo` and the site sealer. */
+  sourceControlSavedKeys: SourceControlSavedKeyReader;
   sourceControlWrite: SourceControlWritePort;
   /**
    * Tells publish targets that a saved credential's compatibility changed: `deployments`' `bindPublishCompatibility`, bound

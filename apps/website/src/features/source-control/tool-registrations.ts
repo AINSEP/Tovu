@@ -1,5 +1,4 @@
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
-import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "@jini-ai/devops/source-control/site/commit-schema";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/source-control';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
@@ -131,8 +130,8 @@ async function requireKnownHost({ deps, providerId, authorizeSavedLookup }: {
  * An undeclared provider never consults custom keys. @complexity One bounded credential inventory. */
 async function findSavedApiKey({ deps, providerId }: { deps: SourceControlToolDeps; providerId: string }, _options = {}) {
   const label = sourceControlSavedApiKeyLabels.get(providerId);
-  if (!label || !deps.customCredentialSetRepo) return null;
-  return describeCredentialByLabel({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId, label });
+  if (!label || !deps.sourceControlSavedKeys) return null;
+  return deps.sourceControlSavedKeys.describeByLabel({ workspaceId: deps.workspaceId, label });
 }
 
 /** Presence only: explicit identity first, then the provider's saved API key. Never opens a secret.
@@ -158,10 +157,10 @@ async function resolveSavedApiKey({ deps, workspaceId, providerId }: {
   deps: SourceControlToolDeps; workspaceId: string; providerId: string;
 }, _options = {}): Promise<{ token: string } | null> {
   const label = sourceControlSavedApiKeyLabels.get(providerId);
-  if (!label || !deps.customCredentialSetRepo) return null;
+  if (!label || !deps.sourceControlSavedKeys) return null;
   const configured = await findConfiguredCredential({ deps: { ...deps, workspaceId }, providerId });
   if (configured?.credentialSource !== "saved-api-key") return null;
-  const saved = await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId, label });
+  const saved = await deps.sourceControlSavedKeys.resolveByLabel({ workspaceId, label });
   return saved ? { token: saved.connection.token } : null;
 }
 
@@ -212,6 +211,15 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   ["source_control_execute_commit", "mutates-durable-state"],
 ]);
 
+/** The custom-credentials owner's by-label reads, bound at the composition root over its repo and sealer.
+ * Workspace scoping, grant checks and redaction stay with that owner; this feature never sees its repo. */
+export interface SourceControlSavedKeyReader {
+  /** Metadata only (label, hint, hosts): never opens a secret. Null when this workspace has no such label. */
+  describeByLabel(input: { workspaceId: string; label: string }): Promise<object | null>;
+  /** Opens the one selected key through the owner's context-checked reader. Null when absent. */
+  resolveByLabel(input: { workspaceId: string; label: string }): Promise<{ connection: { token: string } } | null>;
+}
+
 /**
  * The exact slice of the route-deps bag this domain's tool handlers read. Declared structurally
  * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
@@ -227,8 +235,9 @@ export interface SourceControlToolDeps extends StaticSiteHostPorts {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
-  /** Existing custom-key repo port, supplied by composition; optional for source-control-only hosts. */
-  readonly customCredentialSetRepo?: CustomCredentialSetRepoPort;
+  /** The existing custom-key owner's label lookups, bound by composition over its repo and sealer;
+   *  optional for source-control-only hosts. */
+  readonly sourceControlSavedKeys?: SourceControlSavedKeyReader;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
   readonly clock: Clock;

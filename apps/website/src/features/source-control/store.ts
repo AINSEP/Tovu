@@ -7,10 +7,10 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
-import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
 import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
+  CredentialVaultBinding,
   SourceControlConnectionInput,
   SourceControlCredentialSetRecord,
   SourceControlCredentialSetRepoPort,
@@ -43,13 +43,18 @@ async function toSummary(record: SourceControlCredentialSetRecord): Promise<Sour
     tokenHint: record.tokenHint ?? null, isDefault: record.isDefault, accountLabel: record.accountLabel,
     createdAt: record.createdAt, updatedAt: record.updatedAt };
 }
-function vaultSummary({ summary }: { summary: VaultSummary }, _options = {}): SourceControlCredentialSummary {
+function vaultSummary({ summary, hint }: { summary: VaultSummary; hint: CredentialVaultBinding["hint"] }, _options = {}): SourceControlCredentialSummary {
   return { id: summary.id, providerId: summary.provider as SourceControlProviderId, label: summary.label,
-    configured: true, tokenHint: credentialHint({ record: summary }), isDefault: summary.isDefault,
+    configured: true, tokenHint: hint({ record: summary }), isDefault: summary.isDefault,
     accountLabel: summary.meta.accountLabel as string | null, createdAt: summary.createdAt, updatedAt: summary.updatedAt };
 }
+/** The repo's host-bound vault collaborator; a repo without one refuses exactly as a repo without a vault did. */
+function bound(deps: { repo: Pick<SourceControlCredentialSetRepoPort, "credentialVault"> }, _options = {}): CredentialVaultBinding {
+  if (!deps.repo.credentialVault) throw new VaultError({ code: "invalid-record" });
+  return deps.repo.credentialVault;
+}
 function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCredentialWriteDeps>, _options = {}) {
-  return credentialVault({ ...deps, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  return bound(deps).open({ ...deps, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 
 /** Error names (and the transport's own wording) that mean the probe ran out of time, not that the host refused it. */
@@ -405,7 +410,7 @@ export async function createSourceControlCredential(
   const target = credentialCreateTarget({ deps, input, invalid: message => new SourceControlCredentialValidationError(message) });
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, providerId: connection.providerId, label });
   const id = deps.idGen.newId();
-  const summary = await saveConnection({ deps: target.deps, input: { ...credentialScope({ workspaceId: target.workspaceId, kind: "source-control", id }),
+  const summary = await saveConnection({ deps: target.deps, input: { ...bound(target.deps).scope({ workspaceId: target.workspaceId, kind: "source-control", id }),
     id, provider: connection.providerId, label, expectedRevision: null, payload: { ...connection }, hintToken: connection.token,
     meta: { accountLabel: null }, ...(isDefault === undefined ? {} : { isDefault }) } });
   return { ...await probeSavedConnection({ deps: target.deps, summary, connection, workspaceId: input.workspaceId }), ...reportedScope(deps, target) };
@@ -436,7 +441,7 @@ async function probeSavedConnection({ deps, summary, connection, workspaceId }: 
       expectedRevision: summary.revision, patch: { accountLabel: assertPlainAccountLabel({ value: probe.accountLabel }) }, updatedAt: summary.updatedAt }); }
     catch { /* A metadata failure does not undo the saved token. */ }
   }
-  return { ...vaultSummary({ summary }), accountLabel: probe.accountLabel, connection: probe.connection };
+  return { ...vaultSummary({ summary, hint: bound(deps).hint }), accountLabel: probe.accountLabel, connection: probe.connection };
 }
 function assertPlainAccountLabel({ value }: { value: string }, _options = {}): string {
   assertPlainField({ value, field: "accountLabel" });
@@ -465,7 +470,7 @@ async function loadSourceControlCredentialUpdate({ deps, input }: { deps: Source
   if (!scoped.deps.repo.vault) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   const row = await scoped.deps.repo.vault.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
-  const where = credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" });
+  const where = bound(scoped.deps).scope({ workspaceId: scoped.workspaceId, kind: "source-control" });
   return { scoped, existing, label, requestedDefault, row, where };
 }
 
@@ -495,7 +500,7 @@ export async function updateSourceControlCredential(
     expectedRevision: row.revision, provider, label,
     meta: { ...row.meta, accountLabel: provider === existing.providerId ? row.meta.accountLabel : null },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
-  return { ...vaultSummary({ summary }), connection: "saved", ...reportedScope(deps, scoped) };
+  return { ...vaultSummary({ summary, hint: bound(scoped.deps).hint }), connection: "saved", ...reportedScope(deps, scoped) };
 }
 
 /**
@@ -555,7 +560,7 @@ async function findDefaultOpened(deps: { repo: SourceControlCredentialSetRepoPor
     // The attached-only inventory can select a sole nondefault without changing the project's default.
     // Open by identity so the default-only reader does not reject that valid selection.
     // The expected group makes Jini refuse a stale selection from another group before opening it.
-    const resolved = await vault(scoped.deps).get({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" }), id: selected.id }, { provider: input.providerId });
+    const resolved = await vault(scoped.deps).get({ ...bound(scoped.deps).scope({ workspaceId: scoped.workspaceId, kind: "source-control" }), id: selected.id }, { provider: input.providerId });
     if (resolved) return resolved;
   }
   return null;

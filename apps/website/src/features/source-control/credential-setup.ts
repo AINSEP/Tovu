@@ -190,6 +190,8 @@ export function abortGuardedSourceControlRepo({ store, signal }: { store: Source
       return canonical.create(input, { signal });
     } } } : {}),
     ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
+    // The host-bound vault policy opens whichever repo it is handed, so it sees this guarded vault.
+    ...(store.credentialVault ? { credentialVault: store.credentialVault } : {}),
     insert: record => { signal.throwIfAborted(); return store.insert(record); },
     update: record => { signal.throwIfAborted(); return store.update(record); },
     findById: input => store.findById(input),
