@@ -706,9 +706,8 @@ function recordCacheTrims({ projectsPath }: { projectsPath: string }) {
 }
 
 test("project removal clears only the retired site's web caches after untracking", async () => {
-  // Both completed removal branches: a created site whose folder is erased, and an adopted site
-  // whose folder is kept. Either way the card is gone, so its partition's cache can never be reused.
-  for (const branch of ["erased", "kept"] as const) {
+  // The erase arm: a created site whose folder is erased, so its partition's cache can never be reused.
+  for (const branch of ["erased"] as const) {
     const root = tempDir();
     const removed = branch === "erased" ? writeSite(path.join(root, "removed"), "site-removed") : path.join(root, "removed");
     if (branch === "kept") fs.mkdirSync(removed);
@@ -726,6 +725,26 @@ test("project removal clears only the retired site's web caches after untracking
     assert.notEqual(recorder.calls[0]?.partition, sitePartition({ siteDir: kept }));
     assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [kept]);
   }
+});
+
+test("untracking a retained folder never trims its partition, so its sign-in state survives a re-add", async () => {
+  // The adopted arm keeps every byte of the folder; the operator may add it straight back. Its
+  // partition (cookies, storage, cache) must be exactly what it was, and no trim may still be in
+  // flight against it when the re-added card reopens.
+  const root = tempDir();
+  const retained = path.join(root, "retained");
+  fs.mkdirSync(retained);
+  const deps = baseDeps();
+  const recorder = recordCacheTrims({ projectsPath: deps.projectsPath });
+  deps.trimRetiredSiteCache = recorder.trimRetiredSiteCache;
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: retained }, { origin: SITE_ORIGIN.adopted });
+
+  await handleDelete({ id: retained, deps });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: retained }, { origin: SITE_ORIGIN.adopted });
+
+  assert.deepEqual(recorder.calls, [], "no cache clear at all for a folder that was kept");
+  assert.equal(fs.existsSync(retained), true);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [retained]);
 });
 
 test("a refused erase never touches the site's partition cache", async () => {
@@ -758,6 +777,23 @@ test("cache cleanup failure does not turn completed project removal into failed 
   assert.equal(warnings[0]?.includes(siteDir), false, "no local path in the message");
   assert.equal(warnings[0]?.includes("private-owner-path"), false, "no local path in the message");
   assert.match(warnings[0] ?? "", /Details: EPERM$/, "the redacted cause (its code, never its message) reaches the sink");
+});
+
+test("a cache failure's diagnostic never echoes an arbitrary error name or unknown code", async () => {
+  for (const [label, error] of [
+    ["secret-like name", Object.assign(new Error("boom"), { name: "sk_live_TOKEN_abc123" })],
+    ["unlisted code", Object.assign(new Error("boom"), { code: "SECRET_TOKEN_42" })],
+  ] as const) {
+    const siteDir = writeSite(path.join(tempDir(), "owner"), "site-cache-name");
+    const warnings: string[] = [];
+    const deps = baseDeps({ trimRetiredSiteCache: async () => { throw error; }, warn: ({ message }) => warnings.push(message) });
+    trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-cache-name" });
+
+    await handleDelete({ id: siteDir, deps });
+
+    assert.match(warnings[0] ?? "", /Details: unknown-error$/, `${label}: a fixed fallback label`);
+    assert.equal(/sk_live|SECRET_TOKEN/.test(warnings[0] ?? ""), false, `${label}: nothing from the error object reaches the log`);
+  }
 });
 
 test("handleOpenExternal throws when the project is not currently open", async () => {

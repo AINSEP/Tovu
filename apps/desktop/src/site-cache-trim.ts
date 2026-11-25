@@ -11,6 +11,7 @@
  * `--disk-cache-size` is a process-wide Chromium switch, so this module retires caches rather than
  * capping them.
  */
+import type { PackagedEvidence } from "@jini-ai/desktop-host/electron/partitions";
 import { sitePartition } from "./desktop-auth.ts";
 
 /** The two cache-only members of Electron's `Session` this module may call. */
@@ -27,13 +28,18 @@ export interface CacheOnlySession {
  * @param required.heldSession the partition interlock's session for a partition this process already
  *   holds, or `undefined` when it holds none (`desktop-partition-lock.ts` is the only opener, T-2a.3);
  *   an unheld partition is skipped and left to the boot partition pass.
+ * @param required.evidence the bundled Electron's packaged-probe verdict; each clear runs only on its own GO.
  * @complexity O(1) here; the clears are Chromium's own cost over the cache contents.
  */
 export async function trimRetiredSiteCacheIn(
-  { siteDir, heldSession }: { siteDir: string; heldSession: (partition: string) => CacheOnlySession | undefined }, _optional = {},
+  { siteDir, heldSession, evidence }: { siteDir: string; heldSession: (partition: string) => CacheOnlySession | undefined; evidence: PackagedEvidence }, _optional = {},
 ): Promise<void> {
+  // P11's packaged-evidence gate, the same one the open and boot clears obey: only a recorded `'go'`
+  // for this exact Electron enables a clear; `'unknown'` (no probe has run) and `'no-go'` clear nothing.
+  const { clearCache, clearCodeCaches } = evidence.clearOps;
+  if (clearCache !== "go" && clearCodeCaches !== "go") return;
   const target = heldSession(sitePartition({ siteDir }));
   if (!target) return;
-  await target.clearCache();
-  await target.clearCodeCaches({});
+  if (clearCache === "go") await target.clearCache();
+  if (clearCodeCaches === "go") await target.clearCodeCaches({});
 }

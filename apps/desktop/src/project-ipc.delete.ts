@@ -151,9 +151,11 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
   // (`site-preview-store.ts`'s own doc on why an orphan is otherwise unreachable, not merely
   // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
   deps.deletePreview({ id });
-  // Last, and only once the row is untracked on either completed branch: a refused or failed erase
-  // keeps the card, and a kept card must reopen with its cache (and sign-in) exactly as it was.
-  await trimRetiredCache({ id, deps });
+  // Last, erase arm only, and only once the row is untracked: a refused or failed erase keeps the
+  // card, and a kept card must reopen with its cache (and sign-in) exactly as it was. The untrack arm
+  // keeps the folder, which the operator may add straight back (`handleLocate`/`handleAddSite` do not
+  // take this serializer key), so a trim there could race the re-added card's own partition.
+  if (erasesFiles) await trimRetiredCache({ id, deps });
 }
 
 /** {@link deleteProject}'s cache retirement. The removal already completed, so a cache failure is a
@@ -175,9 +177,16 @@ async function trimRetiredCache(
  */
 function cacheErrorCode({ error }: { error: unknown }, _options = {}): string {
   const code = (error as { code?: unknown } | null)?.code;
-  if (typeof code === "string" && /^[A-Z0-9_]{1,32}$/.test(code)) return code;
-  return error instanceof Error ? error.name : "unknown";
+  // A fixed allowlist, never the error's own `name` or an arbitrary code: both are caller-controlled
+  // strings, and a diagnostic sink must not become a channel for whatever a thrower put in them.
+  return typeof code === "string" && KNOWN_CACHE_ERROR_CODES.has(code) ? code : UNKNOWN_CACHE_ERROR;
 }
+
+/** The errno codes a partition cache clear is known to surface; anything else is {@link UNKNOWN_CACHE_ERROR}. */
+const KNOWN_CACHE_ERROR_CODES: ReadonlySet<string> = new Set([
+  "EACCES", "EPERM", "EBUSY", "ENOENT", "ENOTEMPTY", "ENOTDIR", "EISDIR", "EEXIST", "EIO", "ENOSPC", "EROFS", "EMFILE", "ENFILE", "ETIMEDOUT",
+]);
+const UNKNOWN_CACHE_ERROR = "unknown-error";
 
 /** {@link deleteProject}'s erase gate (D-08): refuse while another app or instance serves the site.
  * @complexity O(r) registry rows.

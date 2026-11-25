@@ -1038,7 +1038,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     // A removed site's own partition, never `session.defaultSession`: the partition also carries
     // sign-in and site state, so only regenerable cache data is in scope (`site-cache-trim.ts`).
     trimRetiredSiteCache: ({ siteDir }: { siteDir: string }, _optional = {}) =>
-      trimRetiredSiteCacheIn({ siteDir, heldSession: (partition) => desktopPartitions.heldSiteSession({ partition }) }),
+      trimRetiredSiteCacheIn({ siteDir, heldSession: (partition) => desktopPartitions.heldSiteSession({ partition }), evidence: cacheEvidence }),
     warn: ({ message }: { message: string }) => console.warn(message),
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
       sitePreviewScheduler.cancel({ key: siteDir }, {});
