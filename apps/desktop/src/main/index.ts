@@ -154,6 +154,7 @@ import { withFileLock } from "@jini-ai/platform/fs";
 import { readBootIdentity } from "@jini-ai/platform/fs/file-lock";
 import { presenceClaimSource } from "@jini-ai/desktop-host/electron/partitions";
 import { bindDesktopPartitions, nodePartitionFs } from "../desktop-partition-lock.ts";
+import { bindDesktopCachePolicy, bindDesktopCodeCache, desktopCacheMaintenance, desktopMaintenanceMarker, evidenceForElectron, measureTreeBytes, nodeCacheFs, PACKAGED_CACHE_EVIDENCE } from "./boot/desktop-cache-policy.ts";
 import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
 import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
@@ -196,7 +197,7 @@ import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
 import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice } from "./updates/native-notices.ts";
 import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
-import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
+import { armFirstProductConsent, createDesktopProductState, desktopLaunchMode, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
@@ -327,10 +328,22 @@ const desktopPartitions = bindDesktopPartitions<Electron.Session>({
     invalidate: async ({ partition, reason }) => { desktopRetirement.port.invalidate({ partition: retiredFolder(partition), reason }, {}); },
     invalidateSync: ({ partition, reason }) => { desktopRetirement.port.invalidate({ partition: retiredFolder(partition), reason }, {}); },
   },
-  openMaintenance: async () => {},
+  openMaintenance: (input) => desktopCacheHooks.open(input),
   log: ({ event, partition, detail }) => console.warn(`[partitions] ${event}${partition ? ` ${partition}` : ""}${detail ? `: ${detail}` : ""}`),
 });
 { const registered = desktopPartitions.registerHolder(); if (registered.state === "failed") console.error(`[partitions] holder registration failed: ${registered.reason}`); }
+// Cache-only partition maintenance (ST-1/ST-3), per profile, bound before `ready` so the cache switch
+// can apply. Gated on packaged evidence for this exact Electron build; none ships, so it enables nothing.
+const cacheEvidence = evidenceForElectron({ records: PACKAGED_CACHE_EVIDENCE, electronVersion: process.versions.electron, platform: process.platform });
+const cacheMarker = desktopMaintenanceMarker({ userDataDir: app.getPath("userData"), fs });
+const cacheInterlock = { readHoldersStrict: desktopPartitions.readHoldersStrict, newToken: desktopPartitions.newToken, isManaged: desktopPartitions.isManaged,
+  clock: { sleep: ({ ms }: { ms: number }) => new Promise<void>((resolve) => { setTimeout(resolve, ms).unref(); }) } };
+const cacheMeasure = ({ path: dir }: { path: string }) => measureTreeBytes({ fs, path: dir });
+const desktopCacheHooks = desktopCacheMaintenance({
+  cache: bindDesktopCachePolicy({ app, evidenceForBundledElectron: () => cacheEvidence, interlock: cacheInterlock, marker: cacheMarker, fs: nodeCacheFs({ fs }), measure: cacheMeasure }),
+  codeCache: bindDesktopCodeCache({ appVersion: app.getVersion(), argv: process.argv, launchMode: desktopLaunchMode, evidence: cacheEvidence, interlock: cacheInterlock,
+    marker: cacheMarker, fs: nodeCacheFs({ fs }), measure: cacheMeasure, sessionDataDir: app.getPath("sessionData") }),
+});
 
 
 // The bundled node/npm/npx shims' env, or `undefined` if writing them failed. Written once, after

@@ -66,7 +66,8 @@ export interface DesktopPartitionsRequired<S> {
   /** Other live instances of this profile (the strict updater presence reader). */
   instances: readonly InstanceClaimSource[];
   retirement: DesktopRetirementPort;
-  openMaintenance: (required: { partition: string; subjectDir: string }) => Promise<void>;
+  /** Pre-held hook (step 2.5): `session` is this partition's, before any window or guest uses it. */
+  openMaintenance: (required: { partition: string; subjectDir: string; session: S }) => Promise<void>;
   log: (event: PartitionInterlockLogEvent) => void;
 }
 
@@ -174,7 +175,8 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
     fromPartition: ({ partition }) => session.fromPartition(partition), isManaged,
     claimSources: { partitions: [trackedClaimSource({ projectsPath }), catalogClaimSource({ catalog })], instances },
     invalidateRetirement: ({ partition, subjectDir, reason }) => retirement.invalidate({ partition, subjectDir, reason }),
-    openMaintenance: (input) => automaticMaintenance ? openMaintenance(input) : Promise.resolve(),
+    openMaintenance: (input) => automaticMaintenance
+      ? openMaintenance({ ...input, session: session.fromPartition(`persist:${input.partition}`) }) : Promise.resolve(),
     messages: MESSAGES, log,
   });
   const isHeldManaged = (partition: string) => {
@@ -201,6 +203,10 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
     beforeAddedRows: ({ rows }: { rows: readonly { siteDir: string }[] }, _opt: Record<string, never> = {}): void => {
       for (const { siteDir } of rows) retirement.invalidateSync({ partition: partitionDirName(sitePartition({ siteDir })), subjectDir: siteDir, reason: "tracked-again" });
     },
+    /** Cache maintenance (ST-1/ST-3) reads holders, managed names and tokens from this same interlock. */
+    readHoldersStrict: () => interlock.readHoldersStrict(),
+    isManaged,
+    newToken: () => proc.newToken(),
     withPartitionWriter: <T>({ run }: { run: (context: PartitionWriterContext) => Promise<T> }) => interlock.withPartitionWriter({ run }),
   };
 }
