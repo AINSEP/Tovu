@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentPlugins, AgentPluginUpdateSlot } from "../AgentPlugins";
-import { AgentPluginDisableConfirmDialog } from "../AgentPluginDisableConfirmDialog";
-import { AgentPluginRow } from "../AgentPluginRow";
+import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
+import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
 import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
@@ -13,6 +13,8 @@ import { tPlugins as translatePlugins } from "../../../lib/i18n-common";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { pluginRules } from "../rules";
 
 /**
  * @file The Agent Plugins lifecycle fields on screen (2026-10-21): a row this Tovu cannot run or
@@ -41,8 +43,8 @@ function controllerFor(agentPlugins: AgentPluginListRow[], onInstalled = vi.fn()
 }
 
 function renderRow(plugin: AgentPluginListRow, update?: ReactNode) {
-  render(<ul><AgentPluginRow plugin={plugin} t={(key) => key} locale="en" expanded busy={false} onToggleExpanded={vi.fn()}
-    stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }} onInspect={vi.fn()} uninstallNoteId="note" agentHandleBase="row" update={update} /></ul>);
+  render(<PluginRulesProvider rules={pluginRules}><ul><AgentPluginRow plugin={plugin} t={(key) => key} locale="en" expanded busy={false} onToggleExpanded={vi.fn()}
+    stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }} onInspect={vi.fn()} uninstallNoteId="note" agentHandleBase="row" update={update} /></ul></PluginRulesProvider>);
   return screen.getByRole("listitem", { name: plugin.displayName! });
 }
 
@@ -174,7 +176,7 @@ describe("Agent Plugin update transport", () => {
 
 describe("AgentPluginDisableConfirmDialog — provenance and dependents", () => {
   function renderDialog(props: { origin?: "bundled" | "operator-installed"; requiredBy?: string[] }) {
-    render(<AgentPluginDisableConfirmDialog name="Mailer" variant="disable" agentHandleBase="row-mailer" onConfirm={vi.fn()} onCancel={vi.fn()} t={(key) => key} {...props} />);
+    render(<AgentPluginDisableConfirmDialog rules={pluginRules} name="Mailer" variant="disable" agentHandleBase="row-mailer" onConfirm={vi.fn()} onCancel={vi.fn()} t={(key) => key} {...props} />);
     return screen.getByRole("dialog");
   }
 

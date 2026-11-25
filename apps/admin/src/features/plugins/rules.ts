@@ -16,6 +16,9 @@ const rules = createPluginRules({
   isProviderSettingRequired,
 });
 
+/** The bound rule functions as one object: the Jini plugins components read them through `PluginRulesProvider`. */
+export const pluginRules = rules;
+
 export const {
   PLUGINS_RESOURCE, AGENT_PLUGINS_RESOURCE, PACKAGE_FILE_TREE_LOCALE, describeApiError, pluginConflictLines, pluginQuarantineHeadline, pluginRowDetailView, pluginRowFacts, pluginInstallPreviewDisplay, pluginToggleControl, pluginToggleAriaLabel, pluginSubline, pluginRemoveBlocker, pluginRemoveAriaLabel, buildPluginRemoveConfirmCopy, humanizeAgentPluginId, agentPluginDisplayName, agentPluginGlyphKind, agentPluginToggleAriaLabel, buildAgentPluginDisableConfirmCopy, agentPluginWarningText, agentPluginCompatibilityLines, updatableAgentPluginDigest, providerSettingRequiredHere, agentPluginRemoveOrEnableAriaLabel, toPackageFileView, packageFilesStatus, packageFilesListNotice, packageFilesRead, selectPackageFile, packageFilesViewState,
 } = rules;

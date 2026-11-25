@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { PluginRemoveConfirmDialog } from "../PluginRemoveConfirmDialog";
-import { AgentPluginDisableConfirmDialog } from "../AgentPluginDisableConfirmDialog";
+import { PluginRemoveConfirmDialog } from "@jini-ai/admin/screens/plugins/PluginRemoveConfirmDialog";
+import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
 import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
+import { pluginRules } from "../rules";
 
 /**
  * @file 2026-09-20 platform review, Finding 4: `PluginRemoveConfirmDialog` and
@@ -22,7 +23,7 @@ describe("PluginRemoveConfirmDialog — focus trap", () => {
     render(
       <>
         <button>Behind</button>
-        <PluginRemoveConfirmDialog
+        <PluginRemoveConfirmDialog rules={pluginRules}
           name="Site Compliance"
           agentHandleBase="row-x"
           onConfirm={vi.fn()}
@@ -41,7 +42,7 @@ describe("PluginRemoveConfirmDialog — focus trap", () => {
     render(
       <>
         <button>Behind</button>
-        <PluginRemoveConfirmDialog
+        <PluginRemoveConfirmDialog rules={pluginRules}
           name="Site Compliance"
           agentHandleBase="row-x"
           onConfirm={vi.fn()}
@@ -70,7 +71,7 @@ describe("AgentPluginDisableConfirmDialog — focus trap", () => {
     render(
       <>
         <button>Behind</button>
-        <AgentPluginDisableConfirmDialog
+        <AgentPluginDisableConfirmDialog rules={pluginRules}
           name="Site Compliance"
           variant="disable"
           agentHandleBase="row-x"
@@ -90,7 +91,7 @@ describe("AgentPluginDisableConfirmDialog — focus trap", () => {
     render(
       <>
         <button>Behind</button>
-        <AgentPluginDisableConfirmDialog
+        <AgentPluginDisableConfirmDialog rules={pluginRules}
           name="Site Compliance"
           variant="disable"
           agentHandleBase="row-x"
@@ -117,14 +118,14 @@ describe("AgentPluginDisableConfirmDialog — focus trap", () => {
 
 describe("plugin uninstall/turn-off dialogs — Confirm and Cancel are both agent-drivable", () => {
   it("PluginRemoveConfirmDialog publishes both Confirm and Cancel", () => {
-    render(<PluginRemoveConfirmDialog name="Site Compliance" agentHandleBase="row-x" onConfirm={vi.fn()} onCancel={vi.fn()} t={(k) => k} />);
+    render(<PluginRemoveConfirmDialog rules={pluginRules} name="Site Compliance" agentHandleBase="row-x" onConfirm={vi.fn()} onCancel={vi.fn()} t={(k) => k} />);
     expect(screen.getByRole("button", { name: "Move to trash" })).toHaveAttribute("data-agent-element", "row-x-remove-confirm");
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute("data-agent-element", "row-x-remove-cancel");
   });
 
   it.each(["remove", "disable"] as const)("AgentPluginDisableConfirmDialog (%s) publishes both Confirm and Cancel", (variant) => {
     render(
-      <AgentPluginDisableConfirmDialog variant={variant} name="Site Compliance" agentHandleBase="row-x" onConfirm={vi.fn()} onCancel={vi.fn()} t={(k) => k} />,
+      <AgentPluginDisableConfirmDialog rules={pluginRules} variant={variant} name="Site Compliance" agentHandleBase="row-x" onConfirm={vi.fn()} onCancel={vi.fn()} t={(k) => k} />,
     );
     expect(screen.getByRole("button", { name: variant === "remove" ? "Turn off" : "Disable" })).toHaveAttribute("data-agent-element", `row-x-${variant}-confirm`);
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute("data-agent-element", `row-x-${variant}-cancel`);

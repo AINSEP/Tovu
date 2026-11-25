@@ -3,7 +3,7 @@ import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginM
 import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
 
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
-import { PackageFilesModal } from "./PackageFilesModal";
+import { PackageFilesModal } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
 import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
 import { useHostAdminSurfaceFrame } from "./hooks/use-host-admin-surface-frame.hooks";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";

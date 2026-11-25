@@ -10,11 +10,13 @@ import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
-import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
-import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
-import { AgentPluginManageButton } from "./AgentPluginManageButton";
+import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
+import { AgentPluginRow, type AgentPluginRowStateControl } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
+import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
 import { InstalledIcon, MarketplaceIcon, UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
-import { agentPluginDisplayName, updatableAgentPluginDigest } from "./rules";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { agentPluginDisplayName, pluginRules, updatableAgentPluginDigest } from "./rules";
+import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
@@ -158,6 +160,7 @@ function AgentPluginList({
           }
           manage={plugin.enabled ? (
             <AgentPluginManageButton
+              port={defaultAgentPluginSurfacesPort}
               pluginId={plugin.pluginId}
               displayName={agentPluginDisplayName(plugin)}
               t={controller.t}
@@ -389,7 +392,7 @@ export interface AgentPluginsProps {
  *     switch's off state is reachable again and a switched-off bundled plugin can be turned on
  *     from the default tab. Item 4's "Installed (only `enabled: true`)" scope no longer holds.
  */
-export function AgentPlugins({
+function AgentPluginsScreen({
   tabId,
   useAgentPluginsHook = useWiredAgentPlugins,
   agentPluginInstallPort = defaultAgentPluginInstallPort,
@@ -489,6 +492,7 @@ export function AgentPlugins({
         {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
         {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
+            rules={pluginRules}
             origin={pendingDisablePlugin.origin}
             requiredBy={pendingDisablePlugin.requiredBy}
             name={agentPluginDisplayName(pendingDisablePlugin)}
@@ -508,5 +512,14 @@ export function AgentPlugins({
         ) : null}
       </div>
     </I18nProvider>
+  );
+}
+
+/** The agent-plugins screen under the host-bound rule functions the Jini rows and dialogs read. */
+export function AgentPlugins(props: AgentPluginsProps = {}) {
+  return (
+    <PluginRulesProvider rules={pluginRules}>
+      <AgentPluginsScreen {...props} />
+    </PluginRulesProvider>
   );
 }
