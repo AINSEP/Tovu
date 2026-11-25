@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDesktopMcpHttpRuntime } from './desktop-mcp-http.ts';
 
-const context = { projectsPath: '/unused/projects.json', revealPath: async () => {} };
+const context = { beforeAddedRows: () => {}, projectsPath: '/unused/projects.json', revealPath: async () => {} };
 const env = { TOVU_DESKTOP_MCP_URL: 'http://127.0.0.1:4100/mcp', TOVU_DESKTOP_MCP_TOKEN: 'a'.repeat(64) };
 
 test('one two and five sites share one main endpoint', async () => {

@@ -192,7 +192,7 @@ test("desktop chat detection and executor receive the same app runtime across li
   const chat = await startDesktopChat({
     agentRuntime: owned,
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
-    userDataDir: dir, projectsPath: path.join(dir, "projects.json"),
+    userDataDir: dir, beforeAddedRows: () => {}, projectsPath: path.join(dir, "projects.json"),
     revealPath: async () => {}, pickDirectory: async () => null,
     broadcast: () => {}, readSiteName: () => "Fixture site",
   }, {

@@ -52,7 +52,7 @@ function setup(t: TestContext, extra: { readFullCliAccess?: () => Promise<boolea
     };
   });
   const runtime = startDesktopChat({
-    agentRuntime, userDataDir: dir, projectsPath,
+    agentRuntime, userDataDir: dir, beforeAddedRows: () => {}, projectsPath,
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
     revealPath: async () => {}, pickDirectory: async () => null,
     broadcast: ({ channel, payload }) => broadcasts.push([channel, payload]),
@@ -96,7 +96,7 @@ test("the built tools navigate the shell by broadcast and reach the unbuilt site
 test("a start's reported site becomes the turn's addressee only when this app tracks it", async (t) => {
   const s = setup(t);
   const tracked = path.join(s.dir, "tracked-site");
-  trackSite({ projectsPath: s.projectsPath, siteDir: tracked }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: s.projectsPath, siteDir: tracked }, { origin: SITE_ORIGIN.adopted });
   const start = s.handlers.get(WORKSPACE_CHAT_IPC.start)!;
   const event = { sender: { send: () => {}, isDestroyed: () => false } };
   await start(event, { prompt: "hi", agentId: "codex", subscriptionId: "s1", activeSiteDir: tracked });

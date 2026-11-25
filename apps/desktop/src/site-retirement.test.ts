@@ -54,7 +54,7 @@ function fixture(overrides: Partial<ProjectIpcDeps> = {}) {
   } as unknown as ProjectIpcDeps;
   const site = (name: string, origin: "created" | "adopted") => {
     const siteDir = writeSite(path.join(root, "sites", name), `${name}-id`);
-    trackSite({ projectsPath, siteDir }, { origin: SITE_ORIGIN[origin], siteId: `${name}-id` });
+    trackSite({ beforeAddedRows: () => {}, projectsPath, siteDir }, { origin: SITE_ORIGIN[origin], siteId: `${name}-id` });
     return siteDir;
   };
   const partitionDir = (siteDir: string) => path.join(userDataDir, "Partitions", sitePartition({ siteDir }).replace(/^persist:/, ""));
@@ -100,7 +100,7 @@ test("T-2b.2 untrack + re-add keeps the login", async () => {
     assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), [], `${origin}: the card is removed`);
     assert.deepEqual(f.calls, [], `${origin}: the untrack arm never captures or records`);
     assert.deepEqual(f.ledger.readStrict({}), { state: "ok", records: [] });
-    trackSite({ projectsPath: f.projectsPath, siteDir }, { origin: SITE_ORIGIN[origin], siteId: `kept-${origin}-id` });
+    trackSite({ beforeAddedRows: () => {}, projectsPath: f.projectsPath, siteDir }, { origin: SITE_ORIGIN[origin], siteId: `kept-${origin}-id` });
     assert.equal(fs.existsSync(siteDir), true);
     assert.deepEqual(fs.readFileSync(cookies), Buffer.from([1, 2, 3, 250]), `${origin}: cookie file byte-identical`);
     assert.deepEqual(f.ledger.readStrict({}), { state: "ok", records: [] });

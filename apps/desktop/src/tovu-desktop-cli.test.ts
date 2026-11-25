@@ -84,7 +84,7 @@ test("T-2a.14 add-site CLI invalidates the retirement for that path", () => {
 
   const read = profile.ledger.readStrict({});
   assert.equal(read.state, "ok");
-  const states = read.state === "ok" ? Object.fromEntries(read.records.map((r) => [r.subjectDir, [r.state, r.lastReason ?? null]])) : {};
+  const states = read.state === "ok" ? Object.fromEntries(read.records.map((r) => ["subjectDir" in r ? r.subjectDir : r.partition, [r.state, r.lastReason ?? null]])) : {};
   assert.deepEqual(states, { [readded]: ["invalidated", "tracked-again"], [other]: ["pending", null] });
 });
 
