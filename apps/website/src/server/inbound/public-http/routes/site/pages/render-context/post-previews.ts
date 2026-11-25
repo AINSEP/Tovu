@@ -10,7 +10,7 @@ import { extractListingCardTemplate, listingBatchPath, listingKeyOfAttributes, r
 import { postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { postPublicPath } from "#src/platform/routing/index";
-import { featuredImageView } from "../../../../http/site/render/template-render-data.js";
+import { featuredImageView } from "@jini-ai/cms/public-http/http/site/render/template-render-data";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "./deps.js";
 import { siteTimeZoneDep } from "./site-title.js";
