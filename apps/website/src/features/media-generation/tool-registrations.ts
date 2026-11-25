@@ -370,6 +370,8 @@ async function storeGeneratedImage(
       alt: optionalString({ input: input, key: "alt" }),
       caption: optionalString({ input: input, key: "caption" }),
       credit: optionalString({ input: input, key: "credit" }),
+      // A prompt is what was asked for, not what the bytes show, so only an explicit description is stored.
+      description: optionalString({ input: input, key: "description" }),
       createdByPrincipal: ctx.principal.id,
       provenance,
     },
