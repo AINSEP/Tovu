@@ -175,12 +175,6 @@
         "apps/admin/src/features/pages/PageEditor.tsx"
       ]
     },
-    "PagePreviewFrame::useThemePreviewFrame": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/pages/PageEditor.tsx"
-      ]
-    },
     "PluginProviderSettingsDialog::useProviderSettingsFocus": {
       "count": 1,
       "files": [

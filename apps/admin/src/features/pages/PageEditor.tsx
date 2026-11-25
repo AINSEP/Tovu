@@ -12,6 +12,7 @@ import {
 } from "@jini-ai/ui/html-editor";
 
 import { PagePreview } from "./PageEditorPreview";
+import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import type { UsePreviewEmbedIds } from "./hooks/use-preview-embed-ids.hooks";
 
 import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placeholder";
@@ -1120,6 +1121,7 @@ function PageEditorPane({
         pageId={pageId}
         templateChoice={templateChoice}
         usePreviewEmbedIds={usePreviewEmbedIds}
+        useThemePreviewFrameHook={useThemePreviewFrame}
         t={t}
       />
     );

@@ -1,4 +1,4 @@
-import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import type { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { pagePreviewYoutubeIds } from "@jini-ai/admin/pages/lib/page-preview-youtube";
@@ -97,6 +97,7 @@ export function PagePreview({
   pageId,
   templateChoice,
   usePreviewEmbedIds,
+  useThemePreviewFrameHook,
   t,
 }: {
   html: string;
@@ -137,12 +138,15 @@ export function PagePreview({
   /** REQUIRED hook prop (bound to the authenticated port in `panels.tsx`, a fake in tests): the
    *  template-rendered video ids the sandboxed preview document cannot hand the admin frame. */
   usePreviewEmbedIds: UsePreviewEmbedIds;
+  /** REQUIRED hook prop: the theme preview refresh hook, bound at the editor's composition point so
+   *  tests can drive `revision` without the live theme-refresh channel. */
+  useThemePreviewFrameHook: typeof useThemePreviewFrame;
   t: Translate;
 }) {
   const canShowLiveSite = status === "published" && !dirty;
   // Lifted from `PagePreviewFrame` so the frame and the embed lookup share ONE result: the same
   // `revision` that refreshes the iframe re-asks for its video ids.
-  const fresh = useThemePreviewFrame({
+  const fresh = useThemePreviewFrameHook({
     // Opaque-origin previews cannot save consent; the authenticated route already excludes its gate.
     liveUrl: templatePreviewUrl,
     templateUrl: templatePreviewUrl,
