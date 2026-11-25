@@ -2,7 +2,6 @@ import { deriveContentConversationTitle } from "@tovu/contracts/content-chat-tit
 import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
 import { useCallback, useMemo, useState } from "react";
 import { createLastConversationStore, defaultConversationListHooks, type LastConversationStore } from "@jini-ai/chat/react";
-import { Button } from "@jini-ai/ui-kit/react";
 import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 
 import {
@@ -25,6 +24,7 @@ import {
   type ChatCleanupClient, type ChatCleanupKit, type WiredChatCleanup,
 } from "@/components/AssistantDock/hooks/chat-cleanup.hooks";
 import { chatCleanupCopy, type ChatCleanupCopy, type DockTranslate } from "@/components/AssistantDock/chat-cleanup-copy";
+import { DOCK_CHAT_CLEANUP_KIT } from "@/components/AssistantDock/chat-cleanup-kit";
 
 
 /**
@@ -271,10 +271,8 @@ export function useWiredChatCleanup({ client, kit, copy, clock }: { client: Chat
   return { listHooks: defaultConversationListHooks, kit, copy, open, setOpen, olderThanDays, setOlderThanDays, selectedIds, select, togglePin, visibleConversations, useDialog, deleteSelected, error };
 }
 
-const CHAT_CLEANUP_KIT: ChatCleanupKit = { Button };
-
 /** `DockHeader`'s `useChatCleanup`: the real client, the admin kit, the dock's copy and the wall clock. */
 export function useDockChatCleanup({ t, locale, untitled }: { t: DockTranslate; locale: string; untitled: string }, _optional = {}): WiredChatCleanup {
   const copy = useMemo(() => chatCleanupCopy({ t, locale, untitled }), [t, locale, untitled]);
-  return useWiredChatCleanup({ client: defaultChatCleanupClient, kit: CHAT_CLEANUP_KIT, copy, clock: Date.now });
+  return useWiredChatCleanup({ client: defaultChatCleanupClient, kit: DOCK_CHAT_CLEANUP_KIT, copy, clock: Date.now });
 }

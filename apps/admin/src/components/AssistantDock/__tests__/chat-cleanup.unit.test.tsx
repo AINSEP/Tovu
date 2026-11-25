@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConversationTitle, defaultConversationListHooks } from "@jini-ai/chat/react";
 
-import { useWiredChatCleanup } from "@/hooks/assistant-chats-dependencies.hooks";
+import { useDockChatCleanup, useWiredChatCleanup } from "@/hooks/assistant-chats-dependencies.hooks";
+import { DOCK_CHAT_CLEANUP_KIT } from "../chat-cleanup-kit";
 import type { ChatCleanupClient, WiredChatCleanup } from "../hooks/chat-cleanup.hooks";
 import { HttpError } from "@/lib/assistant-chats";
 import { createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
@@ -125,5 +126,34 @@ describe("chat cleanup", () => {
     await user.click(screen.getByRole("button", { name: "Pin Plan" }));
     expect(togglePin).toHaveBeenCalledWith({ id: "c1", pinned: true });
     expect(screen.getByRole("button", { name: "Clean up chats" })).toBeTruthy();
+  });
+
+  // Real-app bug (merge-23 UI check): the header's "Clean up chats" rendered but opened nothing. Every
+  // test above hands the panel a native `"button"`; the app hands it `@jini-ai/ui-kit`'s `Button`, whose
+  // contract is `onPress`, so the panel's `onClick` was dropped. These two mount the kit the app mounts.
+  it("the dock's own cleanup hook opens the panel from the header, as DockChatPane mounts it", async () => {
+    render(<DockCleanupHeader chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
+      activeTitle="Tovu assistant" mode="local-cli" agentId="claude" locale="en" t={({ key }) => key}
+      chatI18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: "en" })} conversationDelete={{ confirm: vi.fn(async () => true) }}
+      chatDisplay={{ preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn(), saveFailed: false }} agentPlugins={{ mode: "auto", update: vi.fn(), saveFailed: false }}
+      onMoreSettings={undefined} empty={false} useChatCleanup={useDockChatCleanup}
+      toolCallOptions={CHAT_TOOL_CALL_OPTIONS} replyLengthOptions={REPLY_LENGTH_OPTIONS} translateAiAssistant={({ key }) => key}
+      useSubagentsSettingsHook={() => ({ tooltipKey: null })} ConversationTitle={ConversationTitle} />);
+    const toggle = screen.getByRole("button", { name: "Clean up chats" });
+    await userEvent.setup().click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByLabelText("Delete chats older than this many days")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show what would be deleted" })).toBeTruthy();
+  });
+
+  it("the dock's kit buttons drive the server preview", async () => {
+    const client = fakeClient();
+    function KitHarness() {
+      const chatCleanup = useWiredChatCleanup({ client, kit: DOCK_CHAT_CLEANUP_KIT, copy: COPY, clock: () => NOW });
+      return <ChatCleanupPanel cleanup={chatCleanup} confirm={vi.fn(async () => true)} />;
+    }
+    render(<KitHarness />);
+    await previewOlderThan({ days: "30" });
+    expect(client.preview).toHaveBeenCalledWith({ before: NOW - 30 * DAY });
   });
 });
