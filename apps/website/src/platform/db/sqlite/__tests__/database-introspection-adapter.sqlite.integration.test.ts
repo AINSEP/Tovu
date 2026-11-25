@@ -16,6 +16,7 @@ import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";
 import { CONTENT_MIGRATIONS } from "../../migrations/index.js";
 import { readFrozenChain } from "../../migrations/legacy-sqlite.js";
+import { testCopyPorts } from "./helpers/copy-ports.js";
 
 /**
  * @file ADR-041 §3 — integration tests for `SqliteDatabaseIntrospectionAdapter`, the real backing
@@ -121,7 +122,7 @@ test("real runner: an adopted SQLite baseline ignores rewritten legacy timestamp
   const dbPath = path.join(dir, "content.db");
   const db = openSqliteContentConnection({ filePath: dbPath });
   try {
-    const report = await migrateSqliteContentFile({ db, filePath: dbPath });
+    const report = await migrateSqliteContentFile({ db, filePath: dbPath, ...testCopyPorts({ filePath: dbPath }) });
     assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map((step) => step.id));
     const chain = readFrozenChain();
     const entry = chain[67];
@@ -145,7 +146,7 @@ test("real runner: SQLite reports a missing content step by ledger id and conten
   const dbPath = path.join(dir, "content.db");
   const db = openSqliteContentConnection({ filePath: dbPath });
   try {
-    await migrateSqliteContentFile({ db, filePath: dbPath });
+    await migrateSqliteContentFile({ db, filePath: dbPath, ...testCopyPorts({ filePath: dbPath }) });
     const index = CONTENT_MIGRATIONS.length - 1;
     const lastStep = CONTENT_MIGRATIONS[index];
     assert.ok(lastStep);

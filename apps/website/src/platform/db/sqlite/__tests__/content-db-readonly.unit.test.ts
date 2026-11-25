@@ -11,6 +11,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { migrateSqliteContentFile, MIGRATION_BACKUP_PREFIX, openContentDb, openContentDbReadOnly, openSqliteContentConnection } from "../content-db.js";
 import { LegacyHistoryError } from "../../migrations/legacy-sqlite.js";
 import * as schema from "../../schema.sqlite.js";
+import { testCopyPorts } from "./helpers/copy-ports.js";
 
 /**
  * @file The mandatory proof for `openContentDbReadOnly` — the fix for the AAD/username backfill
@@ -162,7 +163,7 @@ test("a refused file migration preserves the database and keeps both the pre-cha
     const historyBefore = db.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY rowid").all();
     const schemaBefore = db.$client.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all();
     assert.equal(hasColumn(dbPath, NEWEST_MIGRATION_ADDS.table, NEWEST_MIGRATION_ADDS.column), false);
-    await assert.rejects(migrateSqliteContentFile({ db, filePath: dbPath }), LegacyHistoryError);
+    await assert.rejects(migrateSqliteContentFile({ db, filePath: dbPath, ...testCopyPorts({ filePath: dbPath }) }), LegacyHistoryError);
     assert.deepEqual(db.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY rowid").all(), historyBefore);
     assert.deepEqual(db.$client.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all(), schemaBefore);
     const copies = fs.readdirSync(ops).filter(name => name.endsWith(".db") && name !== oldName);

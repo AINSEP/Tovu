@@ -6,10 +6,12 @@ import {
   type ContentDb,
   type ContentDbOpenOptions,
   migrateSqliteContentFile,
+  siteMigrationCopyPorts,
   openSqliteContentConnection,
 } from "#src/platform/db/sqlite/content-db";
 import { seededPosts, seededPresentation, seededWorkspace } from "../configuration/seed.js";
 import { runBootDataRepairs } from "./boot-data-repairs.js";
+import { defaultDatabaseJournalDbPath } from "./site-paths.js";
 
 /**
  * @file The site's content.db, opened the way every boot path of the composition root needs it:
@@ -47,7 +49,7 @@ export async function openSiteContentDb({ dbPath }: { dbPath: string }, options:
         console.error(`[migration-recovery] restored ${dbPath} from ${entry.snapshotPath} (interrupted dataModule migration of plugin '${entry.pluginId}')`);
       }
     }
-    await migrateSqliteContentFile({ db, filePath: dbPath });
+    await migrateSqliteContentFile({ db, filePath: dbPath, ...siteMigrationCopyPorts({ filePath: dbPath }, { journalPath: defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath }) }) });
     await prepareContentStore({ kernel: contentKernel({ store: db }) }, {
       seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
     });

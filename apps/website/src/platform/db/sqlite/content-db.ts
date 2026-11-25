@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 
 import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
 import type { SqliteSyncOpener } from "@jini-ai/core/contracts/storage";
-import { DatabaseDiskSpaceError, pruneDatabaseCopies } from "@jini-ai/db/sqlite";
+import { DatabaseDiskSpaceError, selectDatabaseCopiesToPrune } from "@jini-ai/db/sqlite";
+import { lstat, readdir, unlink } from "node:fs/promises";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
@@ -14,6 +15,7 @@ import { closeSqliteConnection, sqliteKernel, openNativeSqlite } from "../kernel
 import { migrateContentDatabase, type MigrationReport } from "../migrations/index.js";
 import * as schema from "../schema.sqlite.js";
 import { bootstrapFreshContentDb } from "./fresh-content-db.js";
+import { processCopyCoordinator, pruneMigrationCopies, sqliteCopyPorts, type CopyCoordinator, type PruneMigrationCopiesRequired, type ReadonlySqliteOpener } from "./copy-coordinator.js";
 
 /**
  * @file Per-site content.db bootstrap (Drizzle over better-sqlite3).
@@ -92,24 +94,31 @@ export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
  * Brings an open content.db to head through the migration runner (ADR-066). When the file already
  * holds a database and a step is pending (no ledger yet, or it is behind), the runner first copies
  * it to `<dir>/ops/pre-migrations-<timestamp>.db`; after a successful copy, older copies are removed
- * (the newest five per site are kept). Nothing pending: nothing is written. Low disk space warns
+ * (the newest five per site are kept, anchored on a newest copy that passes a read-only quick_check). Nothing pending: nothing is written. Low disk space warns
  * and skips only the backup: a production boot must still be able to apply its pending migrations.
  *
  * @param required.filePath - the file `db` was opened on (`:memory:`: no copy).
  * @throws LegacyHistoryError when the file's drizzle history cannot be matched to the frozen chain;
  *   the database is left as it was (the copy is kept).
  */
-export async function migrateSqliteContentFile({ db, filePath }: { db: ContentDb; filePath: string }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+export async function migrateSqliteContentFile(
+  { db, filePath, copies, verify, listProtected }: { db: ContentDb; filePath: string } & MigrationCopyPorts,
+  _optional: Record<string, never> = {},
+): Promise<MigrationReport> {
   const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath({ filePath });
-  const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: db }) }, { backupPath, onBackupError: ({ error, backupPath: failed }) => {
+  const opsDir = backupPath ? path.dirname(backupPath) : ":memory:";
+  // The whole runner is the publication: the copy is written and pruned inside one lane, so a retention
+  // pass or a Recovery hold never sees a half-written copy as the newest one.
+  const report = await copies.withCopyPublication({ opsDir, work: () => migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: db }) }, { backupPath, onBackupError: ({ error, backupPath: failed }) => {
     if (!isDiskFull({ error })) throw error;
     // A half-written copy only holds the space that ran out; the boot continues without it.
     fs.rmSync(failed, { force: true });
     console.warn(`[migrations] Skipping pre-migration backup: ${error instanceof Error ? error.message : String(error)}`);
   }, onBackupComplete: async ({ backupPath: written }) => {
     // Recovery-window cleanup cannot turn a successful copy into a production boot refusal.
-    await removeOlderMigrationBackups({ kept: written }).catch(error => console.warn(`[migrations] Could not prune older pre-migration backups. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`));
-  } });
+    await pruneMigrationCopies({ opsDir, justWritten: written, verify, held: copies.held, listProtected, fs: { readdir, lstat, unlink }, selectCopies: selectDatabaseCopiesToPrune })
+      .catch(error => console.warn(`[migrations] Could not prune older pre-migration backups. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`));
+  } }) }, {});
   if (report.applied.length > 0) {
     console.log(`[migrations] ${filePath}: applied ${report.applied.join(", ")}`);
     for (const note of report.notes) console.log(`[migrations]   ${note}`);
@@ -127,17 +136,21 @@ function migrationBackupPath({ filePath }: { filePath: string }, _optional: Reco
   return path.join(opsDir, `${MIGRATION_BACKUP_PREFIX}${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
 }
 
-/** Only the exact filenames this writer owns enter the shared retention policy (ISO stamps give the
- * order); a removed copy takes any `-wal`/`-shm` a reader left beside it. Foreign files are left alone.
- * @complexity O(n log n) in files beside the new copy. */
-async function removeOlderMigrationBackups({ kept }: { kept: string }, _optional: Record<string, never> = {}): Promise<void> {
-  const dir = path.dirname(kept);
-  const copies = fs.readdirSync(dir, { withFileTypes: true })
-    .filter(entry => entry.isFile() && /^pre-migrations-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.db$/.test(entry.name))
-    .map(entry => ({ filePath: path.join(dir, entry.name), createdAt: Date.parse(entry.name.slice(MIGRATION_BACKUP_PREFIX.length, -3).replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, "T$1:$2:$3.$4Z")) }));
-  await pruneDatabaseCopies({ copies, justWritten: kept }, {
-    remove: async ({ filePath }) => { for (const file of [filePath, `${filePath}-wal`, `${filePath}-shm`]) fs.rmSync(file, { force: true }); },
-  });
+/** The shared copy coordinator plus the checks the migration pruner needs before it removes anything. */
+export interface MigrationCopyPorts {
+  copies: Pick<CopyCoordinator, "withCopyPublication" | "held">;
+  verify: PruneMigrationCopiesRequired["verify"];
+  listProtected: PruneMigrationCopiesRequired["listProtected"];
+}
+
+/**
+ * The serving process's real migration-copy ports: the process coordinator, read-only quick_check and the
+ * site's recovery journal (`<site>/ops/database-journal.db` unless the caller names another journal).
+ * @complexity O(1); the returned checks do the I/O.
+ */
+export function siteMigrationCopyPorts({ filePath }: { filePath: string }, { journalPath }: { journalPath?: string } = {}): MigrationCopyPorts {
+  const journal = journalPath ?? path.join(path.dirname(path.resolve(filePath)), "ops", "database-journal.db");
+  return sqliteCopyPorts({ journalPath: journal, copies: processCopyCoordinator, open: openNativeSqlite as unknown as ReadonlySqliteOpener, exists: fs.existsSync });
 }
 
 /**

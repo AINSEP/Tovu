@@ -1,6 +1,7 @@
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
+import { processCopyCoordinator } from "#src/platform/db/sqlite/copy-coordinator";
 import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
 import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import type { StoreBoundServices } from "./store-bound-contracts.js";
@@ -18,7 +19,7 @@ import type { StoreBoundServices } from "./store-bound-contracts.js";
  */
 export function sqliteOnlyServices({ db, dbPath }: { db: ContentDb; dbPath: string }, _optional = {}): StoreBoundServices {
   return {
-    dbOps: new SqliteDbOpsAdapter({ db, filePath: dbPath }),
+    dbOps: new SqliteDbOpsAdapter({ db, filePath: dbPath, copies: processCopyCoordinator }),
     stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: db }), tables: WRITE_WATERMARK_TABLES }),
   };
 }
