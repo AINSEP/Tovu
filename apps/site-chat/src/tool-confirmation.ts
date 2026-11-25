@@ -19,6 +19,9 @@ export function parseToolConfirmation({ value }: { value: unknown }, _options = 
   return directive as unknown as ToolConfirmationDirective;
 }
 
+/** The live card's answer port: the host injects its transport's approval answer. */
+export type AnswerToolConfirmation = (required: { challengeId: string; allow: boolean }, optional?: Record<string, never>) => Promise<boolean>;
+
 /** Only UI click handlers call this relative, same-origin route. No automatic retry of approvals.
  * Failure leaves the held execution to refuse/expire. @complexity One bounded HTTP request.
  */
