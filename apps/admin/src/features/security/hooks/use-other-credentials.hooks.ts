@@ -212,11 +212,10 @@ export function useOtherCredentials(
   }, [reloadStores]);
   useContentRefreshSubscription({ resource: ACCESS_TOKENS_RESOURCE, onRefresh: reloadStores });
 
-  // One lane for every Tier-2 write from this controller: a media-provider write is GET map →
-  // rebuild → PUT the WHOLE map, so two writes in flight at once would both rebuild from the same
-  // snapshot and the second PUT would re-create whatever the first one removed. The shared lane makes
-  // each write read the map only after the previous write (and its refetch) settled. Tab-local by
-  // nature — two browser sessions still race; closing that needs a server-side concurrency check.
+  // One lane for every Tier-2 write from this controller. Media writes now name exactly one provider
+  // (PATCH/DELETE on its own row), so they no longer rebuild a shared map; the lane still keeps one
+  // write and its refetch settled before the next starts, so the rows shown never interleave two
+  // in-flight writes' results. Cross-session conflicts are the server's per-row writes' concern.
 
   function setDraftToken({ key, value }: { key: string; value: string }, _optional: Record<string, never> = {}): void {
     setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: credentialDraftError({ value }, { locale }) } }));
