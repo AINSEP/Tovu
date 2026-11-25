@@ -1,16 +1,24 @@
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
-import type { Express } from "express";
+import type { Express, Request, RequestHandler } from "express";
+import { memberOidcVerifyEmailRoute, type MemberOidcEmailProof, type MemberOidcVerifyEmailOutcome, type MemberOidcVerifyEmailRouteDeps } from "@jini-ai/cms/public-http/routes/members/oidc-verify-email";
 import { openLoginEmailContinuation } from "@jini-ai/user-management/member-login/oidc-login";
 import { resolveFederatedIdentity } from "@jini-ai/user-management/member-login/link-service";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
+import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { toPublicMemberResponse } from "../../http/members.js";
-import { checkMemberPost, checkMemberRequestLimits, toPublicMembersWriteServiceDeps } from "./deps.js";
-import { setMemberSessionCookie } from "./complete-sign-in.js";
+import { checkMemberPost, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
+import { MEMBER_AUTH_FAILURE, memberSessionCookie } from "./complete-sign-in.js";
 import { callbackAddress } from "./oidc-callback.js";
-import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
-import { MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOidcCookie,
-  memberOidcHeaders, sendMemberOidcError, uniqueMemberCookie, type MemberOidcRouteDeps } from "./oidc-deps.js";
+import { MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOidcCookieHeader,
+  memberOidcHeaders, memberOidcRefusal, uniqueMemberCookie, type MemberOidcRouteDeps } from "./oidc-deps.js";
+
+/**
+ * @file Tovu's binding of the PUBLIC member OIDC email-proof route. The route itself is the Jini spec
+ * `@jini-ai/cms/public-http/routes/members/oidc-verify-email`; this file binds the strict body parser, the
+ * verification (proof cookie, sealed continuation, emailed challenge, federated link), the flow and session
+ * cookies, the shared counter, the visitor analytics and the fail-closed `memberOidcRefusal`.
+ */
 
 /** Strict JSON DTO; callers cannot inject claims, intent or proof booleans. O(k) body keys. */
 export function proofBody({ body }: { body: unknown }, _options = {}): { continuation: string; challengeId: string; code: string } {
@@ -29,29 +37,69 @@ export function proofString({ value, maxLength }: { value: unknown; maxLength: n
   return value;
 }
 
+/** Open the sealed continuation against this browser's proof cookie and link the identity with the emailed code.
+ * @complexity O(1) sealed open and challenge/link calls.
+ */
+async function verifyEmailProof({ req, deps, proof }: { req: Request; deps: MemberOidcRouteDeps; proof: MemberOidcEmailProof }, _options = {}): Promise<MemberOidcVerifyEmailOutcome> {
+  const input = await memberOidcContext({ req, deps: deps.members });
+  const browserBinding = uniqueMemberCookie({ req, name: MEMBER_OIDC_PROOF_COOKIE }) ?? "";
+  const login = await openLoginEmailContinuation({ deps: deps.protocol, input: { ...input, browserBinding, continuation: proof.continuation } });
+  const linked = await resolveFederatedIdentity({ deps: { ...deps.links, onMemberCreated: toPublicMembersWriteServiceDeps(deps.members, { request: req }).onMemberCreated }, input: { workspaceId: input.workspaceId,
+    identity: login.identity, startedAt: login.startedAt, connectMemberId: login.connectMemberId,
+    emailProof: { challengeId: proof.challengeId, code: proof.code }, userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
+  if (linked.kind !== "signed_in") return { kind: linked.kind };
+  return {
+    kind: "signed_in",
+    sessionCookie: () => memberSessionCookie({ rawToken: linked.result.rawSessionToken, expiresAtIso: linked.result.session.expiresAt }),
+    announce: () => captureMemberSignedIn({ deps: deps.members, request: req, result: linked.result, method: "oidc", workspaceId: deps.members.workspaceId }),
+    member: () => toPublicMemberResponse(linked.result.member),
+  };
+}
+
+/** The app view the proof spec is mounted on: the no-store/no-referrer headers, the failed-sign-in observer, then
+ * `checkMemberPost` (workspace 404, same-origin 403, 4 KiB post-parse 413) on the Express request, in the
+ * hand-written order.
+ * @returns An `app` whose `post` still makes ONE `app.post(path, handler)` registration (route table unchanged).
+ * @complexity O(1) setup; per request as `checkMemberPost`.
+ */
+function memberOidcProofPostApp({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): Express {
+  const view: Express = Object.create(app);
+  const post = (path: string, handler: RequestHandler) => app.post(path, (req, res, next) => {
+    memberOidcHeaders({ res });
+    observeMemberSignInFailure({ deps, request: req, response: res, method: "oidc" });
+    if (!checkMemberPost({ req, res, deps })) return;
+    return handler(req, res, next);
+  });
+  view.post = post as unknown as Express["post"];
+  return view;
+}
+
+const boundPerRequest = (): never => { throw new Error("bound per request by requestDeps"); };
+
 /** Browser-bound emailed-code continuation. A wrong code retains its challenge attempt budget
  * in S2, and keeps this cookie for a bounded retry; success clears it. No identity comes from JSON.
- * @complexity O(1) sealed open and challenge/link calls; body capped by the existing member guard.
+ * Mounts the Jini spec; the counter is read per request, as the hand-written route did. O(1) setup.
  */
 export function registerMemberOidcVerifyEmailRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
-  app.post(`${MEMBER_OIDC_PATH}/verify-email`, async (req, res) => {
-    memberOidcHeaders({ res });
-    observeMemberSignInFailure({ deps: deps.members, request: req, response: res, method: "oidc" });
-    try {
-      if (!checkMemberPost({ req, res, deps: deps.members })) return;
-      if (!await checkMemberRequestLimits({ req, res, deps: deps.members, ipLimiter: deps.members.magicLinkCompleteAttemptLimiter })) return;
-      const body = proofBody({ body: req.body });
-      const input = await memberOidcContext({ req, deps: deps.members });
-      const browserBinding = uniqueMemberCookie({ req, name: MEMBER_OIDC_PROOF_COOKIE }) ?? "";
-      const login = await openLoginEmailContinuation({ deps: deps.protocol, input: { ...input, browserBinding, continuation: body.continuation } });
-      const linked = await resolveFederatedIdentity({ deps: { ...deps.links, onMemberCreated: toPublicMembersWriteServiceDeps(deps.members, { request: req }).onMemberCreated }, input: { workspaceId: input.workspaceId,
-        identity: login.identity, startedAt: login.startedAt, connectMemberId: login.connectMemberId,
-        emailProof: { challengeId: body.challengeId, code: body.code }, userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
-      if (linked.kind !== "signed_in") throw new MemberLoginError({ code: "LOGIN_INVALID" });
-      memberOidcCookie({ res, callbackUrl: await callbackAddress({ req, deps }), kind: "proof" });
-      setMemberSessionCookie({ res, rawToken: linked.result.rawSessionToken, expiresAtIso: linked.result.session.expiresAt });
-      captureMemberSignedIn({ deps: deps.members, request: req, result: linked.result, method: "oidc", workspaceId: deps.members.workspaceId });
-      res.json({ member: toPublicMemberResponse(linked.result.member), returnPath: "/account" });
-    } catch (error) { sendMemberOidcError({ res, error }); }
+  const mounted: MemberOidcVerifyEmailRouteDeps = {
+    ipLimiter: { check: (input) => deps.members.magicLinkCompleteAttemptLimiter.check(input) },
+    parseProof: ({ body }) => proofBody({ body }),
+    flowCookie: (input) => memberOidcCookieHeader(input),
+    signedInLocation: "/account",
+    refusalFor: ({ error }) => memberOidcRefusal({ error }),
+    verify: boundPerRequest, callbackUrl: boundPerRequest,
+  };
+  mountPublicRawRoute({
+    app: memberOidcProofPostApp({ app, deps: deps.members }),
+    spec: memberOidcVerifyEmailRoute,
+    deps: mounted,
+    failure: MEMBER_AUTH_FAILURE,
+    workspaceId: deps.members.workspaceId,
+  }, {
+    requestDeps: ({ req, deps: base }) => ({
+      ...base,
+      verify: ({ proof }) => verifyEmailProof({ req, deps, proof }),
+      callbackUrl: () => callbackAddress({ req, deps }),
+    }),
   });
 }

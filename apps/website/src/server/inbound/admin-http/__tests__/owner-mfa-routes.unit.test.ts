@@ -58,3 +58,35 @@ test('owner status discloses enrollment without sealed factor or a challenge', a
   assert.equal(f.factorReads(), 1);
   assert.ok(!JSON.stringify(response.body).includes('never-return-this'));
 });
+
+test('every MFA reply is no-store: origin 403, 429 with Retry-After, status 200 and the redacted 500', async () => {
+  const app = express();
+  app.use(express.json());
+  let check = async () => ({ allowed: false, retryAfterSeconds: 42 });
+  const deps = { workspaceId: 'site', ownerPrincipalId: Promise.resolve('owner'), identityReady: Promise.resolve(), mfaStore: { factor: async () => null } } as unknown as RouteDeps;
+  registerOwnerMfaRoutes({ app, deps, authenticate: async () => ({ principal: { id: 'owner' }, kind: 'session' }),
+    limiter: { check: () => check() } });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const post = (origin: string) => fetch(`${base}/api/admin/v1/auth/mfa/remove`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: '{}' });
+  try {
+    const foreign = await post('https://other.test');
+    assert.equal(foreign.status, 403);
+    assert.equal(foreign.headers.get('cache-control'), 'no-store');
+    const limited = await post(base);
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get('cache-control'), 'no-store');
+    assert.equal(limited.headers.get('retry-after'), '42');
+    assert.equal(limited.headers.get('content-type'), 'application/json; charset=utf-8');
+    const status = await fetch(`${base}/api/admin/v1/auth/mfa`);
+    assert.equal(status.headers.get('cache-control'), 'no-store');
+    check = async () => { throw new Error('limiter store password=hunter2'); };
+    const failed = await post(base);
+    const text = await failed.text();
+    assert.equal(failed.status, 500);
+    assert.equal(failed.headers.get('cache-control'), 'no-store');
+    assert.equal((JSON.parse(text) as { code?: string }).code, 'MFA_UNAVAILABLE');
+    assert.ok(!text.includes('hunter2'));
+  } finally { server.close(); }
+});
