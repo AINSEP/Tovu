@@ -155,6 +155,7 @@ test("an unlisted repository error stays redacted through the delegated transpor
   assert.deepEqual(incidents.entries.map((entry) => entry.meta?.["errorId"]), [result.error.requestId]);
   assert.deepEqual(result.error, {
     // Why: Jini's delegated transport words an unlisted fault for the model (retry guidance + the reporter's ERR- id); still no SQL/path text.
+    // Why: Jini's delegated transport now words an unlisted fault for the model (retry guidance + request ID), Jini 77b3d899 / 44ae8070; still no SQL/path text.
     code: "INTERNAL_ERROR", message: `The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem. (error ${String(result.error.requestId)})`, requestId: result.error.requestId,
   });
 });

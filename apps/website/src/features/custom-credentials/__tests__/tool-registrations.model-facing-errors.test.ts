@@ -409,6 +409,7 @@ test("a transport failure stays redacted — its message can carry an internal a
   const incidentId = incidents.entries[0]!.meta?.["errorId"];
   assert.match(String(incidentId), /^ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
   assert.equal(result.error.requestId, incidentId);
+  // Jini daemon delegated-tools.ts (44ae8070): an unlisted fault now answers with this fixed server-fault guidance.
   assert.equal(result.error.message, `The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem. (error ${String(incidentId)})`);
   assert.ok(!JSON.stringify(result).includes("10.0.4.7"), "an internal address must never reach the wire");
 });

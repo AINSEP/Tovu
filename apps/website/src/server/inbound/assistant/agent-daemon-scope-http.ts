@@ -76,7 +76,8 @@ const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ 
   // Preserve that deployed contract when supplying the now-explicit origin configuration.
   config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
 // This scope has no operation-tracking port (only the site tracker the reporter forwards to), so
-// the explicit no-op keeps every route host of the scope (surface routes included) in reporter mode.
+// the explicit no-op keeps reporter mode on rather than falling back to legacy SEC-005 logging.
+// Every route host of the scope (surface routes included) shares this one binding.
 const routeErrors = { reporter: required.reporter, observability: NO_OPERATION_TRACKING }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024,
     errors: routeErrors }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
   const ports = { ...required, app, routeHost, routeErrors, resolveDiscoveryCaller: (req: express.Request) => resolveDiscoveryCaller(required, req),
