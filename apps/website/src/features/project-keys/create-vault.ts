@@ -1,5 +1,5 @@
 import { ProjectKeyCreateConflictError } from '../../contracts/core/credential-store.js';
-import type { ProjectKeyTransaction } from './attachments.js';
+import type { ProjectKeyTransaction } from '@jini-ai/core/contracts/site/project-key-attachments';
 import { ToolInputError } from '@jini-ai/core';
 import { VaultError, type VaultRepoPort } from '@jini-ai/core/contracts/vault';
 

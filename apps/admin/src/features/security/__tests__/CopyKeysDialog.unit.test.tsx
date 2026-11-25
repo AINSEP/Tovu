@@ -1,11 +1,13 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { render } from '@/__tests__/render-with-jini-kits';
 import { expect, it } from 'vitest';
-import { CopyKeysDialog } from '../CopyKeysDialog';
-import { useCopyKeys, type CopyKeysPort } from '../hooks/use-copy-keys.hooks';
+import { CopyKeysDialog } from '@jini-ai/admin/security/host/CopyKeysDialog';
+import { useCopyKeys, type CopyKeysPort } from '@jini-ai/admin/security/host/hooks/use-copy-keys.hooks';
+import { copyKeysHostPolicy } from '../hooks/copy-keys-dependencies.hooks';
 import { fakeCopyKeysPort, t } from './copy-keys.fixture';
 
 function Harness({ port }: { port: CopyKeysPort }) {
-  const dialog = useCopyKeys({ t }, { port });
+  const dialog = useCopyKeys({ t, port, onGranted: () => {}, sharedKeys: copyKeysHostPolicy });
   return <><button onClick={dialog.show}>Open</button><CopyKeysDialog dialog={dialog} t={t} /></>;
 }
 

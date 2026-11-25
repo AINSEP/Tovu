@@ -1,12 +1,13 @@
 import { act, renderHook, waitFor } from '@/__tests__/fetch-query-render';
 import type { ChangeEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { useCopyKeys } from '../use-copy-keys.hooks';
+import { useCopyKeys } from '@jini-ai/admin/security/host/hooks/use-copy-keys.hooks';
+import { copyKeysHostPolicy } from '../copy-keys-dependencies.hooks';
 import { fakeCopyKeysPort, t } from '../../__tests__/copy-keys.fixture';
 
 const check = (id: string) => ({ currentTarget: { value: id, checked: true } }) as ChangeEvent<HTMLInputElement>;
 async function open(port = fakeCopyKeysPort()) {
-  const view = renderHook(() => useCopyKeys({ t }, { port }));
+  const view = renderHook(() => useCopyKeys({ t, port, onGranted: vi.fn(), sharedKeys: copyKeysHostPolicy }));
   await act(async () => { view.result.current.show({ currentTarget: document.createElement('button') }); });
   return { ...view, port };
 }
@@ -67,7 +68,7 @@ describe('saved-key grant controller', () => {
       { kind: "vendor", id: "saved-on-site:a:1", label: "Vercel, thetayway", provider: null, siteName: "thetayway" },
       { kind: "vendor", id: "saved-on-site:b:2", label: "Vercel, old-site", provider: null, siteName: "old-site", locked: "Open old-site in Tovu and recover its key, then try again." },
     ] }] }), copyCredentials: vi.fn() };
-    const { result } = renderHook(() => useCopyKeys({ t }, { port }));
+    const { result } = renderHook(() => useCopyKeys({ t, port, onGranted: vi.fn(), sharedKeys: copyKeysHostPolicy }));
     act(() => result.current.show({ currentTarget: { focus: vi.fn() } } as never));
     await waitFor(() => expect(result.current.keys).toHaveLength(2));
     expect(result.current.keys[0]).toMatchObject({ text: "Vercel, thetayway", locked: "" });

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 import { ApiError } from "@/lib/admin-http/request";
 import { useSiteKey, useWiredSiteKey } from "../hooks/use-site-key.hooks";
-import type { SiteKeyPort } from "@jini-ai/admin/security/host/hooks/site-key-port.hooks";
+import type { SiteKeyPort } from "@jini-ai/core/contracts/site/site-key";
 
 const t = (key: string) => key;
 const HEX = "ab".repeat(32);

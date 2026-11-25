@@ -4,6 +4,7 @@ import {
   parseApiConnectionsFile as parseApiConnectionDeclarations,
   type ApiConnectionDeclaration, type ApiConnectionDescriptor, type ApiConnectionHooksModule,
 } from "@jini-ai/integrations/api-connections";
+import type { ClientNamespaceFor } from "@jini-ai/core/contracts/site/integrations-api-connections";
 
 import { defineExecutablePluginContribution, type LoadPluginContributions } from "../agent-plugins/lifecycle.js";
 
@@ -26,9 +27,6 @@ import { defineExecutablePluginContribution, type LoadPluginContributions } from
 export const API_CONNECTIONS_FILENAME = "jini-connections.json";
 /** This host's client-setting namespace: every plugin's client settings are named `TOVU_<PLUGIN>_OAUTH_<RUNTIME>_CLIENT_*`. */
 const CLIENT_NAMESPACE = "TOVU_";
-
-/** Resolves the client-setting prefix a plugin's manifest declares (`extensions.jini.clientNamespace`); `undefined` when it declares none. */
-export type ClientNamespaceFor = (input: { readonly pluginId: string }) => Promise<string | undefined>;
 
 /** A declared, trusted connection ready for the host to build a service around. */
 export interface DeclaredApiConnection {

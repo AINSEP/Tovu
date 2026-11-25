@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { Express, Request, Response } from "express";
 
-import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
+import { InMemoryPublishChallengeStore } from "@jini-ai/cms/publish/trust/challenge";
 import type { PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { registerPublishTrustHandshakeRoutes, type PublishTrustHandshakeDeps } from "#src/server/runtime/composition/modules/publish-trust";
 

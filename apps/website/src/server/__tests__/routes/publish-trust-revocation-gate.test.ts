@@ -8,7 +8,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { buildChallengeMessage } from "#src/features/publish-trust/challenge";
+import { buildChallengeMessage } from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
 import { PUBLISH_TRUST_GRANT_VERSION } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
@@ -115,6 +116,7 @@ async function tokenFor(socketPath: string): Promise<string> {
   assert.equal(challengeRes.status, 200, challengeRes.body);
   const challenge = JSON.parse(challengeRes.body) as { nonce: string; targetInstallationId: string };
   const message = buildChallengeMessage({
+    messageVersion: PUBLISH_TRUST_WIRE.messageVersion,
     nonce: challenge.nonce,
     targetInstallationId: challenge.targetInstallationId,
     sourceInstallationId: SOURCE_INSTALL,

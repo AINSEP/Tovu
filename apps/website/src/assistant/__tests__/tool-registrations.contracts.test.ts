@@ -108,7 +108,7 @@ import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/deliver
 import { analyticsAgentToolCatalog } from "@jini-ai/analytics/site/agent-tools";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
-import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
+import { newsletterAgentToolCatalog } from "@jini-ai/user-management/newsletter/agent-tools";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { buildTrashAgentToolCatalog } from "@jini-ai/cms/trash";

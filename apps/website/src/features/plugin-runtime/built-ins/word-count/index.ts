@@ -14,13 +14,15 @@
  * single spaces, trim, split on `/\s+/`, count non-empty tokens.
  *
  * Architectural role:
- * Implemented (tasks.md T019) against the certified suite in
- * `__tests__/unit/word-count.unit.test.ts`, which pins the tokenization algorithm exactly.
+ * Implemented (tasks.md T019) against the certified suite. The tokenization algorithm itself
+ * (`countWords`) moved to `@jini-ai/plugins`, whose `count-words.test.ts` pins it exactly; the
+ * host suite `__tests__/unit/word-count.unit.test.ts` keeps the manifest contract and the hook binding.
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { PluginManifest } from "@jini-ai/plugins/host";
+import { countWords } from "@jini-ai/plugins/runtime/built-ins/word-count/count-words";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). */
@@ -46,46 +48,6 @@ export const WORD_COUNT_MANIFEST: PluginManifest = {
   ],
   integrity: {}, // built-in — no packaged files to hash (ADR Decision item 4).
 };
-
-/**
- * REQ-09's pinned algorithm: walk `bodyJson` depth-first collecting every `text`-node string
- * value (TipTap-shaped document tree: `{ type, text?, content?: [...] }`), join with single
- * spaces, trim, split on `/\s+/`, count non-empty tokens. Pure — no I/O.
- *
- * @param required.bodyJson - The entry's TipTap-shaped document (`ContentEntryDraft.bodyJson`).
- * @returns The non-empty whitespace-delimited token count of every text node's concatenated value.
- * @complexity O(n) over the document's total node count.
- */
-export function countWords({ bodyJson }: { bodyJson: unknown }, _optional = {}): number {
-  const texts: string[] = [];
-
-  // Depth-first walk. Every node's own `text` is collected before its `content` children are
-  // visited, so the collected order is document order. Non-object nodes, nodes without `text`,
-  // and nodes without `content` are all simply skipped — never an error (RT-005: an image node
-  // contributes nothing rather than throwing).
-  const visit = ({ node }: { node: unknown }, _optional = {}): void => {
-    if (typeof node !== "object" || node === null) return;
-
-    if (Array.isArray(node)) {
-      for (const child of node) visit({ node: child });
-      return;
-    }
-
-    const { text, content } = node as { text?: unknown; content?: unknown };
-    if (typeof text === "string") texts.push(text);
-    if (Array.isArray(content)) {
-      for (const child of content) visit({ node: child });
-    }
-  };
-
-  visit({ node: bodyJson });
-
-  // RT-005's literal wording: join EVERY collected text-node value with single spaces (not only
-  // the ones separated by a block boundary), trim, split on `/\s+/`, count non-empty tokens.
-  const joined = texts.join(" ").trim();
-  if (joined === "") return 0;
-  return joined.split(/\s+/).filter((token) => token !== "").length;
-}
 
 /** The executable half of the bundled artifact. Registration occurs only inside `setup()` so the
  * end-to-end enable test proves `loadPlugin()` reached BR-01 step (4), not merely that the module

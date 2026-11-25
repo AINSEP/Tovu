@@ -1,6 +1,6 @@
 import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
 import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
-import { nowIso } from "@jini-ai/core/primitives";
+import { createConsoleLogger, nowIso } from "@jini-ai/core/primitives";
 import { observed } from "@jini-ai/core/errors/idioms";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
@@ -12,7 +12,7 @@ import { applyOwnerPasswordReset } from "@jini-ai/user-management/identity/owner
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
 import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
 import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
-import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
+import { createSiteTimeZoneFallbackReporter } from "@jini-ai/cms/settings/site/site-timezone-fallback";
 import { formatErrorForLog } from "@jini-ai/core";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
@@ -217,7 +217,7 @@ function compositionSiteDisplaySources(
   const siteTimeZone = createSiteTimeZonePort({
     settingsRepo,
     getEffective,
-    reportFallback: createSiteTimeZoneFallbackReporter(),
+    reportFallback: createSiteTimeZoneFallbackReporter({ logger: createConsoleLogger({ prefix: "" }) }),
     ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
   });
   return { siteDisplayName, siteTimeZone };

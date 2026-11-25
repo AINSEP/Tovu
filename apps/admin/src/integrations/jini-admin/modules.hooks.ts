@@ -6,7 +6,7 @@ import { defineAdminModule } from '@jini-ai/core/contracts/admin-module';
 import { media } from '@jini-ai/admin/media/react';
 import { mediaPickerToken } from '@jini-ai/admin/contracts/media-picker';
 import { createOverlayController, OverlayHost } from '@jini-ai/admin/react/overlays';
-import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
+import { PublishSectionButton } from '../../features/publish-content/publish-section-button-binding';
 import { embedPolicy } from './embed-policy-ports';
 import { mediaApi, mediaEvents, createMediaProvidersPort, mediaSessionGrants } from './media-ports';
 import { commentsHostPorts, commentsSessionGrants, type CommentsHostPorts } from './comments-ports';

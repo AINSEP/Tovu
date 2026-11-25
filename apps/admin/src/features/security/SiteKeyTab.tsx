@@ -1,4 +1,4 @@
-import { siteKeyStatusBadgeLabel } from "./hooks/site-key-status.rules";
+import { siteKeyStatusBadgeLabel } from "@jini-ai/admin/security/host/hooks/site-key-status.rules";
 import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -132,7 +132,7 @@ function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyControll
     <section className="card site-key-status-card" {...agentHandle({ handle: "security-site-key-status" }, { role: "region", label: "The active site key's source, fingerprint, and reveal control" })}>
       <h3 className="site-key-status-heading">{translate("Site key")}</h3>
       <p className="site-key-status-badge-row">
-        <span className={`status ${siteKeyStatusBadgeClass({ active: status.active }, { invalid: status.invalid })}`}>{siteKeyStatusBadgeLabel({ status, t: translate })}</span>
+        <span className={`status ${siteKeyStatusBadgeClass({ active: status.active }, { invalid: status.invalid })}`}>{siteKeyStatusBadgeLabel({ status, t: translate, fallbackEnvVarName: "TOVU_SITE_KEY" })}</span>
         {status.fingerprint ? (
           <span className="site-key-fingerprint-group" title={translate("A short ID for this key. It changes if the key changes.")}>
             <span className="site-key-fingerprint-label">{translate("Fingerprint")}</span>

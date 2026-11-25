@@ -14,7 +14,7 @@ import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgent
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { AgentPluginLinkedError } from "#src/features/agent-plugins/provider-plugin-link";
-import { AgentPluginNotReadyError } from "#src/features/agent-plugins/soon-lock";
+import { AgentPluginNotReadyError } from "@jini-ai/agent-plugins/site/soon-lock";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "#src/server/inbound/admin-http/routes/agent-plugins/deps";

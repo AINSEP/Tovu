@@ -7,7 +7,7 @@ import type { LazyTabView } from '@jini-ai/admin/core/react';
 import { createOverlayController } from '@jini-ai/admin/react/overlays';
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { AdminModulesContext, createHostAdminScope, mediaPublishContribution, useAdminModules, useHostMediaPicker, useModulePanel, useModuleProviderContent } from '../modules.hooks';
-import { PublishSectionButton } from '../../../features/publish-content/PublishSectionButton';
+import { PublishSectionButton } from '../../../features/publish-content/publish-section-button-binding';
 
 /**
  * The host bridge between Tovu's panel routes and Jini admin modules. `media-swap.unit.test.tsx`

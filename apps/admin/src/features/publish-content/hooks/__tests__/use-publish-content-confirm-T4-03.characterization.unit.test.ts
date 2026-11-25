@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
-import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
+import type { PublishDestinationView, PublishDestinationView as AdminPublishDestinationView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import { createFakePublishContentPort } from "../publish-content-dependencies.hooks";
 import { usePublishContentConfirm } from "../use-publish-content-confirm.hooks";
 
@@ -14,13 +14,16 @@ const peer = {
   masked: null,
   hasCredential: false,
 };
-const destination: AdminPublishDestinationView = {
+const destination = {
   connected: false,
   site: null,
   candidateUrl: "https://live.test",
   message: "Connect the configured live site.",
   nextStep: null,
-};
+} satisfies PublishDestinationView;
+
+// @ts-expect-error nextStep is required by the destination response contract.
+const destinationWithoutNextStep: PublishDestinationView = { connected: false, site: null, candidateUrl: null, message: "Connect." };
 
 describe("T4-03 destination offer characterization", () => {
   it("waits for both the empty peer list and destination before offering connection", async () => {

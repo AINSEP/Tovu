@@ -1,4 +1,3 @@
-import type { ToolRegistration } from "@jini-ai/core";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 /**
@@ -12,7 +11,6 @@ import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media"
  * the moment it reaches for the inline upload, that the bigger route exists and how to use it.
  */
 
-const UPLOAD_TOOL_ID = "media_upload_asset";
 const LOCAL_IMPORT_TOOL_ID = "media_import_local_file";
 
 /** The plain-words routing sentence, with the cap derived from the enforced constant so it cannot drift. */
@@ -20,10 +18,3 @@ export const LARGE_UPLOAD_ROUTING =
   `A video or other file too big to send inline here (anything over about 10 MB) goes through the local file import instead: ` +
   `save it in this site's folder or the folder the owner picked, find it with fs_list_files, then call ${LOCAL_IMPORT_TOOL_ID} ` +
   `with that root and path. That import accepts up to ${Math.round(TOVU_MAX_UPLOAD_BYTES / (1024 * 1024))} MiB and runs the same type and size checks.`;
-
-/** Appends {@link LARGE_UPLOAD_ROUTING} to `media_upload_asset`'s description; every other registration is returned unchanged. @complexity O(1). */
-export function withLargeUploadRouting(registration: ToolRegistration, _optional: Record<string, never> = {}): ToolRegistration {
-  if (registration.descriptor.id !== UPLOAD_TOOL_ID) return registration;
-  const description = [registration.descriptor.description, LARGE_UPLOAD_ROUTING].filter(Boolean).join(" ");
-  return { ...registration, descriptor: { ...registration.descriptor, description } };
-}

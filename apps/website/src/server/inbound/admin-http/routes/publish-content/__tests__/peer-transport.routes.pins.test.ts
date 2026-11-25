@@ -6,7 +6,7 @@ import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash"
 import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
-import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { HttpClientPort } from "#src/platform/http/index";

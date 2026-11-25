@@ -23,10 +23,10 @@ import { carryPluginRenameActivation } from "@jini-ai/agent-plugins/site/deploy-
 import { restoreUnseededUpgrades, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
 import { upgradeTovuRenamedBundledPlugins } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
-import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
+import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "@jini-ai/agent-plugins/site/soon-lock";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
 import { agentPluginOverlaysDir } from "./host-overlays-dir.js";
-import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
+import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, HOST_SOON_AGENT_PLUGINS, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
   type SupersessionManifestsPort,
@@ -155,7 +155,7 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
   const notices = await Promise.all(installed.filter(plugin => selected.has(plugin.pluginId)).map(async plugin => {
     const manifest = JSON.parse(await owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }));
     // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
-    return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
+    return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
   }));
   const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
   return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix }) };
@@ -165,12 +165,12 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
 function buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, optional }: { owner: LifecycleOwner; soonCatalog: SoonCatalogPort<JiniInstalledAgentPlugin>; manifests: SupersessionManifestsPort; required: { layout: AgentPluginLayout }; optional: TovuLifecycleOptional }) {
   return {
     setAgentPluginEnabled: async (input: Parameters<typeof owner.setAgentPluginEnabled>[0], options: Parameters<typeof owner.setAgentPluginEnabled>[1] = {}) => {
-      if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId });
+      if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
       return owner.setAgentPluginEnabled(input, options);
     },
     // A Soon face never follows its provider plugin on; one that is on is switched off.
     reconcileAgentPluginActivation: async (input: Parameters<typeof owner.reconcileAgentPluginActivation>[0], options: Parameters<typeof owner.reconcileAgentPluginActivation>[1] = {}) => {
-      const soon = await findSoonAgentPlugin({ catalog: soonCatalog, workspaceRoot: input.workspaceRoot, pluginId: input.pluginId });
+      const soon = await findSoonAgentPlugin({ catalog: soonCatalog, workspaceRoot: input.workspaceRoot, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
       return owner.reconcileAgentPluginActivation(soon ? { ...input, resolveEnabled: async () => false } : input, options);
     },
     // Select the trusted replacement at the contribution owner BEFORE duplicate-id validation.

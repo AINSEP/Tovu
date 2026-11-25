@@ -6,7 +6,7 @@ import type { NextFunction, Request, RequestHandler, Response } from "express";
 
 import { requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { requirePublishTrust } from "#src/server/inbound/admin-http/publish-trust-auth";
-import { mintPublishSession } from "#src/features/publish-trust/session";
+import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
 import { applySiteServingGate } from "../../site-serving-gate.js";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 

@@ -1,5 +1,6 @@
-import { openPublishSession, PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
+import { openPublishSession, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import type { HttpClientPort } from "#src/platform/http/index";
+import { PUBLISH_TRUST_WIRE } from "#src/features/publish-trust/host-settings";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { resolvePublishDestinationCredential as resolveDestinationCredential } from "@jini-ai/cms/publish/content/destination-credential";
 
@@ -37,7 +38,7 @@ export async function resolvePublishDestinationCredential(
     deps,
     input,
     resolveSealedCredential: ({ deps: d, input: i }) => resolvePeerCredential({ deps: { repo: d.repo, sealer: d.sealer }, input: i }),
-    openSession: ({ deps: d, input: i }) => openSession({ deps: { httpClient: d.httpClient, keyring: d.keyring }, input: i }),
+    openSession: ({ deps: d, input: i }) => openSession({ deps: { httpClient: d.httpClient, protocol: PUBLISH_TRUST_WIRE, keyring: d.keyring }, input: i }),
     workspaceMismatchError: ({ label }) =>
       new PublishTrustHandshakeError({ message: `${label} is not the site this computer was connected to. Connect it again to confirm.`, failure: "refused" }),
   });

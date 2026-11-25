@@ -57,7 +57,7 @@ export const EmailTemplateEditor = lazy(() => import("./features/email").then(mo
 export const Database = lazy(() => import("./features/database").then(module => ({ default: module.Database })));
 export const Recovery = lazy(() => import("./features/recovery").then(module => ({ default: module.Recovery })));
 export const Deployment = lazy(() => import("./features/deployment").then(module => ({ default: module.Deployment })));
-export const SourceControl = lazy(() => import("./features/source-control").then(module => ({ default: module.SourceControl })));
+export const SourceControl = lazy(() => import("./features/source-control/source-control-panel").then(module => ({ default: module.SourceControl })));
 export const Security = lazy(() => import("./features/security").then(module => ({ default: module.Security })));
 export const Observability = lazy(() => import("./features/observability").then(module => ({ default: module.Observability })));
 export { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "@jini-ai/admin/screens/widgets";

@@ -160,7 +160,7 @@ test("L163 pull boundary translates each known refusal and preserves unknown rej
   const { RestorePointUnavailableError } = await import("@jini-ai/cms/publish/content/execute-import");
   const { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } = await import("@jini-ai/cms/publish/content/peers");
   const { PublishContentPeerTransportError } = await import("@jini-ai/cms/publish/content/peer-transport");
-  const { PublishTrustHandshakeError } = await import("../../publish-trust/handshake-client.js");
+  const { PublishTrustHandshakeError } = await import("@jini-ai/cms/publish/trust/handshake-client");
   const { PluginHookFailedError } = await import("@jini-ai/plugins/host");
   const cases: Array<{ error: unknown; message: string }> = [
     { error: new PlanStaleError({ message: "internal stale" }), message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." },

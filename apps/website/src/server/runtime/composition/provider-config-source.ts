@@ -6,7 +6,7 @@ import { type PluginProviderDeclaration } from "@jini-ai/core/contracts/plugin-s
 import { providerKeyId } from "#src/features/project-keys/service";
 import type { ProviderConfigSource, ProviderPluginConfig, ProviderSettingsView } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
-import type { KeyAttachments, ProjectKeyTransaction } from "#src/features/project-keys/attachments";
+import type { KeyAttachments, ProjectKeyTransaction } from "@jini-ai/core/contracts/site/project-key-attachments";
 import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
 import { SECRET_OPEN_FAILED } from "@jini-ai/platform/secrets";
 

@@ -1,5 +1,6 @@
 import type { StandingDraftAutosaveSnapshot, StandingDraftStaleBasis } from "../../../../hooks/use-standing-draft-autosave.hooks";
-import { PageExternalChangeBanner } from "../../../pages/PageEditor";
+import { PageExternalChangeBanner } from "@jini-ai/cms/react/pages/PageExternalChangeBanner";
+import { pageExternalChangeBindings } from "../../../pages/page-external-change-bindings";
 import { PostAutosaveRecoveryBanner } from "@jini-ai/admin/posts/editor/notices/PostAutosaveRecoveryBanner";
 import { PostAutosaveStaleBanner } from "@jini-ai/admin/posts/editor/notices/PostAutosaveStaleBanner";
 import { PostVersionConflictBanner } from "@jini-ai/admin/posts/editor/notices/PostVersionConflictBanner";
@@ -80,7 +81,7 @@ export function PostEditorNotices({
         />
       ) : null}
       {pendingExternalVersion != null && !saveConflict ? (
-        <PageExternalChangeBanner onLoadLatest={() => void loadExternalChange()} onKeepEdits={dismissExternalChange} t={t} />
+        <PageExternalChangeBanner onLoadLatest={() => void loadExternalChange()} onKeepEdits={dismissExternalChange} t={t} {...pageExternalChangeBindings} />
       ) : null}
     </>
   );

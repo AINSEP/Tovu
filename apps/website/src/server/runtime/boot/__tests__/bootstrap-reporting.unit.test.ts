@@ -9,7 +9,7 @@ const renames = await import("#src/features/agent-plugins/apply-tool-renames");
 const faces = await import("@jini-ai/agent-plugins/site/provider-plugin-link");
 const catalog = await import("#src/features/agent-plugins/bundled-catalog");
 const grants = await import("#src/features/agent-plugins/grant-signed-in-defaults");
-const soonLock = await import("#src/features/agent-plugins/soon-lock");
+const soonLock = await import("@jini-ai/agent-plugins/site/soon-lock");
 const calls: string[] = [];
 let report: TovuSeedBundledAgentPluginsResult = { sourceRoot: "bundled", outcomes: [], retirements: [] };
 // Boot-warning inputs (plugins plan v2 §3.4): mutated per case, read by bootstrap at call time.
@@ -33,7 +33,7 @@ mock.module("#src/features/agent-plugins/apply-tool-renames", { namedExports: { 
 mock.module("@jini-ai/agent-plugins/site/provider-plugin-link", { namedExports: { ...faces,
   syncProviderFaces: async () => { calls.push("faces"); },
 } });
-mock.module("#src/features/agent-plugins/soon-lock", { namedExports: { ...soonLock,
+mock.module("@jini-ai/agent-plugins/site/soon-lock", { namedExports: { ...soonLock,
   lockSoonAgentPlugins: async () => { calls.push("soon-lock"); return []; },
 } });
 mock.module("#src/features/agent-plugins/grant-signed-in-defaults", { namedExports: { ...grants,

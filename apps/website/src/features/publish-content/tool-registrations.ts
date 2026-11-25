@@ -32,8 +32,8 @@ import {
   connectDestination,
   disconnectDestination,
   PublishTrustConnectError,
-} from "../publish-trust/connect.js";
-import { PublishTrustHandshakeError } from "../publish-trust/handshake-client.js";
+} from "@jini-ai/cms/publish/trust/connect";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
@@ -41,7 +41,7 @@ import {
   type PublishTrustProvisioningPort,
 } from "@jini-ai/cms/publish/trust/provisioning";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
-import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
+import { PUBLISH_TRUST_WIRE, resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";
@@ -225,9 +225,11 @@ async function connectWithTrust(
   try {
     const trustDeps = {
       httpClient: routeDeps.publishContentPeerHttpClient,
+      protocol: PUBLISH_TRUST_WIRE,
       keyring: routeDeps.siteAssistantSecretKeyring,
       provisioning,
       clock: routeDeps.clock,
+      nowIso,
       workspaceId: routeDeps.workspaceId,
     };
     const { site, grant } = await connectAndRecordDestination(

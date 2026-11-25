@@ -28,7 +28,6 @@ export {
 
 export { InMemoryCustomCredentialSetRepo } from "./repo.memory.js";
 export { customVaultScope } from "./vault-repo.js";
-export type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 export { type CredentialCopyToolDeps } from "./credential-copy-tool.js";
 
 export {

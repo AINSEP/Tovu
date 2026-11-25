@@ -2,7 +2,8 @@ import { restoreImportedPluginState as restore, type ImportPluginStateDeps } fro
 import type { ImportedExtensionState } from "@jini-ai/devops/backup/site/import-plugin-state";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { findSoonAgentPlugin } from "#src/features/agent-plugins/soon-lock";
+import { findSoonAgentPlugin } from "@jini-ai/agent-plugins/site/soon-lock";
+import { HOST_SOON_AGENT_PLUGINS } from "#src/features/agent-plugins/bundled-catalog";
 import { bundledAgentPluginsDir, readTemplate } from "#src/platform/site-dir/index";
 import { validateSharePath } from "./share-file-policy.js";
 
@@ -16,7 +17,7 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
     createLifecycle: ({ layout, sourceRoot }) => createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot }),
     // A "Soon" plugin is locked off (`agent-plugins/soon-lock.ts`, owner 2026-11-10): written off
     // rather than refused, so one locked plugin never aborts the rest of the import.
-    findSoonAgentPlugin: ({ catalog, workspaceRoot, pluginId }) => findSoonAgentPlugin({ catalog: catalog as Parameters<typeof findSoonAgentPlugin>[0]["catalog"], workspaceRoot, pluginId }),
+    findSoonAgentPlugin: ({ catalog, workspaceRoot, pluginId }) => findSoonAgentPlugin({ catalog: catalog as Parameters<typeof findSoonAgentPlugin>[0]["catalog"], workspaceRoot, pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }),
     starterWorkspaceId: () => readTemplate({ templateId: "starter" }).seed.workspace.id,
     validatePath: validateSharePath,
   };

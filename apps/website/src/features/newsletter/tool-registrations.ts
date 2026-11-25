@@ -12,7 +12,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
  * locates it.
  */
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, resolveHostReadRefs, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import {
   type AuthorizeFn,
@@ -29,7 +29,8 @@ import {
   withModelFacingErrors,
   type ModelFacingErrorRule,
 } from "@jini-ai/core/model-facing-tool-errors";
-import { newsletterAgentToolCatalog } from "./agent-tools.js";
+import { newsletterAgentToolCatalog } from "@jini-ai/user-management/newsletter/agent-tools";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import {
   cancelCampaign,
   saveCampaign,
@@ -72,7 +73,10 @@ import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 
 
-const CATALOG_BY_ID = indexCatalogById({ catalog: newsletterAgentToolCatalog });
+// The Jini catalog names its id reads as `{{read:newsletter_campaign}}`/`{{read:newsletter_list}}` (the
+// engine may not name a host tool id); Tovu binds `contentReadVocabulary` so the model keeps seeing
+// `content_read.<resource>` byte-for-byte, as members does.
+const CATALOG_BY_ID = indexCatalogById({ catalog: resolveHostReadRefs({ value: newsletterAgentToolCatalog }, { hostReads: contentReadVocabulary }) });
 
 /**
  * The exact slice of the route-deps bag Newsletter's tool handlers read. Declared structurally

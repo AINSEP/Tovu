@@ -16,7 +16,7 @@ import {
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { PublishSectionButton } from "../publish-content/PublishSectionButton";
+import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
 
 import { formatTimestamp } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";

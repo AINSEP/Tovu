@@ -1,5 +1,6 @@
 import type { ExportReport } from "@tovu/contracts/export-report";
-import { createExportPreflight } from "./export-preflight.js";
+import { EXPORT_PREFLIGHT_COPY } from "./export-preflight-copy.js";
+import { createExportPreflight } from "@jini-ai/devops/static-export/site/export-preflight";
 import type { SiteCookieConsentDeps } from "@jini-ai/core/contracts/headless/site-cookie-consent";
 import type { RequestListener } from "node:http";
 import { resolveConfiguredOrigin } from "@jini-ai/core/contracts/server/verified-origin";
@@ -569,7 +570,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
   const siteApp = themeId === undefined ? routeDeps.createSiteApp() : routeDeps.createSiteApp({ themeId });
   const consentWarning = await routeDeps.cookieConsent?.exportWarning?.();
   // Pre-flight warnings (A421 placeholder, A400 third-party scripts) ride the same report field as the consent warning.
-  const preflight = createExportPreflight({ ownOrigins: [publicBaseUrl, sourceOrigin] });
+  const preflight = createExportPreflight({ ownOrigins: [publicBaseUrl, sourceOrigin], copy: EXPORT_PREFLIGHT_COPY });
   const report = await runExport({
     outputDir: path.resolve(outputDir),
     manifest: { build: async () => ({ ...manifest, routes: manifest.routes.filter(route => !omitted.includes(route.path)) }) },

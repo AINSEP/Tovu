@@ -83,9 +83,11 @@ hosted sign-in path).
 take `AgentPluginConnectResult`, `ResolvedAgentPluginForConnect`, `InstalledAgentPluginServers`,
 `TokenImportLog`, `WRITE_PLUGIN_NOTE`, `pluginNoteRisk` and the other moved names from
 `@jini-ai/agent-plugins/connect` / `@jini-ai/agent-plugins/lifecycle/host-tools` directly. `set-enabled.ts`
-keeps its three error re-exports (`AgentPluginNotReadyError`, `AgentPluginLinkedError`,
-`AgentPluginNotInstalledError`) only because the route registration
+keeps its two error re-exports (`AgentPluginLinkedError`, `AgentPluginNotInstalledError`) only because
+the route registration
 `server/inbound/admin-http/routes/agent-plugins/set-enabled.ts` still imports them from here.
+`AgentPluginNotReadyError` is no longer re-exported: its owner is `@jini-ai/agent-plugins/site/soon-lock`
+(the Soon gate, fed Tovu's `HOST_SOON_AGENT_PLUGINS` as `hostSoonPluginIds`), and readers import it there.
 
 ## Wiring (uninstall branch)
 
