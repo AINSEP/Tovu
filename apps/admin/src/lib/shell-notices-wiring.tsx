@@ -6,7 +6,8 @@ import { ServerRestartingBanner, type ServerRestartingBannerProps } from "@jini-
 import { useServerConnectionBanner } from "@jini-ai/admin/shell/components/ServerRestartingBanner/hooks/use-server-connection-status.hooks";
 import { t } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { adminFailureChannel } from "./admin-failure-channel";
-import { serverReconnect, type ServerReconnect } from "./server-reconnect";
+import { serverReconnect } from "./server-reconnect";
+import type { ServerReconnect } from "@jini-ai/admin/browser/server-reconnect";
 
 /**
  * @file Tovu's bindings for the `@jini-ai/admin` shell notices mounted outside `App` (so they also show on

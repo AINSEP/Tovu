@@ -4,7 +4,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { AgentElementRole } from "@jini-ai/core/agent-handles";
 import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
+import { MediaPickerDialog } from "../MediaPickerDialog/media-picker-host";
 import { WidgetPickerDialog, WidgetSelectionDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.hooks";
 

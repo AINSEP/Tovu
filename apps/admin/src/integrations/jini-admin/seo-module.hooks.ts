@@ -4,7 +4,7 @@ import { createElement, useMemo, type ReactElement } from 'react';
 import { seo, type SeoReactOptions, type SeoMediaPickerSlotProps } from '@jini-ai/admin/seo/react';
 import { formDateDisplay } from '@jini-ai/admin/forms';
 import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
-import { MediaPickerDialog } from '../../components/MediaPickerDialog/MediaPickerDialog';
+import { MediaPickerDialog } from '../../components/MediaPickerDialog/media-picker-host';
 import { PublishSectionButton } from '../../features/publish-content/publish-section-button-binding';
 import { siteUrl } from '../../lib/site-url';
 import { createSeoTranslator, describeSeoHostError } from './seo-ports';

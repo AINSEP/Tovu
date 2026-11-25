@@ -7,7 +7,7 @@ import { useJiniMediaPicker } from "@jini-ai/admin/shell/components/MediaPickerD
 import { useHostMediaPicker } from "../../integrations/jini-admin/module-context";
 import { AdminModulesContext } from "../../integrations/jini-admin/modules.hooks";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
-import { MediaPickerDialog, type MediaPickerDialogProps, jiniMediaPickerHostArgs } from "../MediaPickerDialog/MediaPickerDialog";
+import { MediaPickerDialog, type MediaPickerDialogProps, jiniMediaPickerHostArgs } from "../MediaPickerDialog/media-picker-host";
 
 /**
  * The bridge from the Jini picker service to the legacy dialog contract: the service picks an id,

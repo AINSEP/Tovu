@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type RefObject, type UIEvent } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
-import { acceptedMediaItems, useMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
+import { acceptedMediaItems } from "@jini-ai/cms/react/media/MediaPickerDialog/MediaPickerDialog.hooks";
+import { acceptsMedia } from "@jini-ai/admin/media";
+import { useWiredMediaPickerItems } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import { defaultMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPickerDialog/media-picker-port.hooks";
 import {
@@ -131,7 +133,7 @@ function rowProblem(required: { item: MediaItem; index: number; items: readonly 
 }
 
 type MediaEditorEmit = (next: MediaContentState) => void;
-type MediaEditorLibrary = ReturnType<typeof useMediaPickerItems>["items"];
+type MediaEditorLibrary = ReturnType<typeof useWiredMediaPickerItems>["items"];
 
 /** The raw-HTML tab: textarea/gutter refs, caret restoration after an insert, and the snippet inserter. */
 function useMediaHtmlEditor({ state, emit }: { state: MediaContentState; emit: MediaEditorEmit }) {
@@ -269,7 +271,7 @@ export function useMediaContentEditor(
 ): MediaContentEditorController {
   const { config, onChange, widgetType } = required;
   const port = optional.port ?? defaultMediaPickerPort;
-  const { items: library, error: libraryError } = useMediaPickerItems({ port }, { locale: optional.locale });
+  const { items: library, error: libraryError } = useWiredMediaPickerItems({ port }, { ...(optional.locale === undefined ? {} : { locale: optional.locale }) });
   const stored = useMemo(() => readMediaContent({ config, widgetType }, { library }), [config, widgetType, library]);
   const [stash, setStash] = useState<MediaContentStash>({});
   const [viewMode, setViewMode] = useState<MediaContentMode | null>(null);
@@ -295,7 +297,7 @@ export function useMediaContentEditor(
     inactiveHasContent: inactiveTabWillBeDropped({ stored, viewMode, stash }),
     library,
     libraryError,
-    pickable: acceptedMediaItems({ items: library }, { accept: PICKABLE_TYPES }),
+    pickable: acceptedMediaItems({ items: library, acceptsMedia }, { accept: PICKABLE_TYPES }),
     mediaUrl: ({ asset }, _options: Record<string, never> = {}) => port.mediaOriginalUrl({ id: asset.id }),
 
     ...mediaLayoutFields({ widgetType, state, emitMedia }),

@@ -1,5 +1,7 @@
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "@/styles/native-domain-dialogs.css";
 import type { MediaHtmlAttributeError } from "@jini-ai/admin/media";
-import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
+import { MediaEditDialog } from "@jini-ai/cms/react/media/MediaEditDialog/MediaEditDialog";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -117,7 +119,7 @@ describe("useMediaEditDialog — save", () => {
 describe("useMediaEditDialog — Escape", () => {
   it("native cancel calls onCancel through the rendered dialog", () => {
     const onCancel = vi.fn();
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
       useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { ...hostDeps, locale: "en" } })} />);
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -125,7 +127,7 @@ describe("useMediaEditDialog — Escape", () => {
 
   it("ignores non-Escape keys", () => {
     const onCancel = vi.fn();
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
       useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { ...hostDeps, locale: "en" } })} />);
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })));
     expect(onCancel).not.toHaveBeenCalled();
@@ -133,7 +135,7 @@ describe("useMediaEditDialog — Escape", () => {
 
   it("removes native cancellation on unmount", () => {
     const onCancel = vi.fn();
-    const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
+    const { unmount } = render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
       useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { ...hostDeps, locale: "en" } })} />);
     const dialog = screen.getByRole("dialog");
     unmount();

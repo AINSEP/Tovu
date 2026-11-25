@@ -6,13 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useBrowserTelemetryFeed } from "@jini-ai/admin/react";
 import { ADMIN_BASE } from "@jini-ai/admin/shell/lib/router";
-import {
-  createBrowserTelemetry,
-  installBrowserErrorListeners,
-  reactRootErrorOptions,
-  toAdminRouteTemplate,
-  type BrowserTelemetryPayload,
-} from "../browser-telemetry";
+import { createBrowserTelemetry } from "../browser-telemetry";
+import { installBrowserErrorListeners, createReactRootErrorHandlers, toRouteTemplate, type BrowserTelemetryPayload } from "@jini-ai/admin/browser";
 
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -29,10 +24,10 @@ it("binds the collector's initial route to the admin root", () => {
 
 describe("route templates", () => {
   it("replaces captured params with their names and drops the query", () => {
-    expect(toAdminRouteTemplate({ routePath: "/posts/abc123?tab=seo", params: { postId: "abc123" } })).toBe("/admin/posts/:postId");
-    expect(toAdminRouteTemplate({ routePath: "/widgets/regions/sidebar%20left", params: { regionKey: "sidebar left" } })).toBe("/admin/widgets/regions/:regionKey");
-    expect(toAdminRouteTemplate({ routePath: "/", params: {} })).toBe("/admin");
-    expect(toAdminRouteTemplate({ routePath: "/bad%E0", params: {} })).toBe("/admin/bad%E0");
+    expect(toRouteTemplate({ base: ADMIN_BASE, routePath: "/posts/abc123?tab=seo", params: { postId: "abc123" } })).toBe("/admin/posts/:postId");
+    expect(toRouteTemplate({ base: ADMIN_BASE, routePath: "/widgets/regions/sidebar%20left", params: { regionKey: "sidebar left" } })).toBe("/admin/widgets/regions/:regionKey");
+    expect(toRouteTemplate({ base: ADMIN_BASE, routePath: "/", params: {} })).toBe("/admin");
+    expect(toRouteTemplate({ base: ADMIN_BASE, routePath: "/bad%E0", params: {} })).toBe("/admin/bad%E0");
   });
 
   it("the hook reports sign-in and the template, and re-sends on sign-in", () => {
@@ -69,7 +64,7 @@ describe("error sources", () => {
     }
     function Exploding(): ReactNode { throw new Error("render failed"); }
     const host = document.createElement("div");
-    const root = createRoot(host, reactRootErrorOptions({ telemetry: { reportError } }));
+    const root = createRoot(host, createReactRootErrorHandlers({ telemetry: { reportError }, report: ({ error }) => { console.error(error); } }));
     await act(async () => { root.render(<Boundary><Exploding /></Boundary>); });
     expect(host.textContent).toBe("fallback");
     expect(reportError).toHaveBeenCalledTimes(1);

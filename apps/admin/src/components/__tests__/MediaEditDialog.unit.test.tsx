@@ -1,9 +1,11 @@
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "@/styles/native-domain-dialogs.css";
 import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
-import type { useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
+import { MediaEditDialog } from "@jini-ai/cms/react/media/MediaEditDialog/MediaEditDialog";
+import { useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
 
 /**
  * @file `MediaEditDialog` JSX — the `media` node's `Edit` action (renamed from `Style…`/
@@ -33,7 +35,7 @@ function fakeController(overrides: Partial<ReturnType<typeof useWiredMediaEditDi
 describe("MediaEditDialog — copy", () => {
   it("renders every label through the controller's own t, so the dialog needs no second useAdminLocale call", () => {
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ t: ({ key }) => `[es] ${key}` });
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     expect(screen.getByRole("heading", { name: "[es] Edit this instance" })).toBeInTheDocument();
     expect(screen.getByLabelText("[es] Alt text (optional)")).toBeInTheDocument();
@@ -48,7 +50,7 @@ describe("MediaEditDialog — rendering the current draft", () => {
   it("pre-fills all three fields from the injected controller's draft", () => {
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ alt: "A cat", cssClass: "hero", htmlAttributes: 'data-kui="x"' });
     render(
-      <MediaEditDialog initial={{ alt: "A cat", cssClass: "hero", htmlAttributes: 'data-kui="x"' }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />
+      <MediaEditDialog Dialog={Dialog} initial={{ alt: "A cat", cssClass: "hero", htmlAttributes: 'data-kui="x"' }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />
     );
 
     expect(screen.getByLabelText("Alt text (optional)")).toHaveValue("A cat");
@@ -59,7 +61,7 @@ describe("MediaEditDialog — rendering the current draft", () => {
   it("shows the live validation hint when the injected controller reports one, without disabling Save", () => {
     const save = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ htmlAttributesError: "'onerror' is not an allowed HTML attribute.", save });
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     expect(screen.getByText("'onerror' is not an allowed HTML attribute.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
@@ -71,7 +73,7 @@ describe("MediaEditDialog — editing calls through to the injected controller",
     const user = userEvent.setup();
     const setAlt = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ setAlt });
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     await user.type(screen.getByLabelText("Alt text (optional)"), "x");
     expect(setAlt).toHaveBeenCalledWith("x");
@@ -81,7 +83,7 @@ describe("MediaEditDialog — editing calls through to the injected controller",
     const user = userEvent.setup();
     const setCssClass = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ setCssClass });
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     await user.type(screen.getByLabelText("CSS class (optional)"), "x");
     expect(setCssClass).toHaveBeenCalledWith("x");
@@ -91,7 +93,7 @@ describe("MediaEditDialog — editing calls through to the injected controller",
     const user = userEvent.setup();
     const setHtmlAttributes = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ setHtmlAttributes });
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     await user.type(screen.getByLabelText("HTML attributes (optional)"), "m");
     expect(setHtmlAttributes).toHaveBeenCalledWith("m");
@@ -101,7 +103,7 @@ describe("MediaEditDialog — editing calls through to the injected controller",
     const user = userEvent.setup();
     const save = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ save });
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(save).toHaveBeenCalledTimes(1);
@@ -113,7 +115,7 @@ describe("MediaEditDialog — dismissal", () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController();
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel} useDialog={useDialog} />);
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -124,7 +126,7 @@ describe("MediaEditDialog — dismissal", () => {
     const onCancel = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController();
     render(
-      <MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel} useDialog={useDialog} />
+      <MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel} useDialog={useDialog} />
     );
 
     await user.click(screen.getByRole("dialog").querySelector("h2")!);
@@ -139,7 +141,7 @@ describe("MediaEditDialog — showAlt (2026-09-23, W2: the widgetEmbed node's St
   it("showAlt={false} hides the Alt field and titles the dialog 'Style' instead of 'Edit this instance'", () => {
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ cssClass: "hero" });
     render(
-      <MediaEditDialog
+      <MediaEditDialog Dialog={Dialog}
         initial={{ alt: null, cssClass: "hero", htmlAttributes: null }}
         onSave={vi.fn()}
         onCancel={vi.fn()}
@@ -155,7 +157,7 @@ describe("MediaEditDialog — showAlt (2026-09-23, W2: the widgetEmbed node's St
 
   it("showAlt omitted defaults to true: the Alt field and original title still render", () => {
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController();
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     expect(screen.getByRole("heading", { name: "Edit this instance" })).toBeInTheDocument();
     expect(screen.getByLabelText("Alt text (optional)")).toBeInTheDocument();
@@ -164,7 +166,7 @@ describe("MediaEditDialog — showAlt (2026-09-23, W2: the widgetEmbed node's St
   it("with showAlt={false}, the dialog otherwise mirrors media's exactly: no extra client-side hint or filtering on attribute names", () => {
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ htmlAttributes: 'style="color:red"' });
     render(
-      <MediaEditDialog
+      <MediaEditDialog Dialog={Dialog}
         initial={{ alt: null, cssClass: null, htmlAttributes: 'style="color:red"' }}
         onSave={vi.fn()}
         onCancel={vi.fn()}
@@ -185,7 +187,7 @@ describe("MediaEditDialog — showAlt (2026-09-23, W2: the widgetEmbed node's St
     const user = userEvent.setup();
     const onSave = vi.fn();
     render(
-      <MediaEditDialog initial={{ alt: "Untouched alt", cssClass: null, htmlAttributes: null }} onSave={onSave} onCancel={vi.fn()} showAlt={false} />
+      <MediaEditDialog Dialog={Dialog} useDialog={useWiredMediaEditDialog} initial={{ alt: "Untouched alt", cssClass: null, htmlAttributes: null }} onSave={onSave} onCancel={vi.fn()} showAlt={false} />
     );
 
     await user.type(screen.getByLabelText("CSS class (optional)"), "hero");
@@ -200,7 +202,7 @@ describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", ()
     const user = userEvent.setup();
     const onSave = vi.fn();
     const onCancel = vi.fn();
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={onSave} onCancel={onCancel} />);
+    render(<MediaEditDialog Dialog={Dialog} useDialog={useWiredMediaEditDialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={onSave} onCancel={onCancel} />);
 
     await user.type(screen.getByLabelText("Alt text (optional)"), "A cat");
     await user.type(screen.getByLabelText("HTML attributes (optional)"), 'onerror="x"');
@@ -216,7 +218,7 @@ describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", ()
 
 describe("MediaEditDialog — focus trap", () => {
   it("renders an open native dialog; browser Tab containment is provided by showModal", async () => {
-    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={() => fakeController()} />);
+    render(<MediaEditDialog Dialog={Dialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={() => fakeController()} />);
     expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
     expect(screen.getByRole("dialog")).toHaveAttribute("open");
   });
@@ -233,7 +235,7 @@ describe("MediaEditDialog — focus moves in on open and returns to the opener o
     opener.focus();
     expect(document.activeElement).toBe(opener);
 
-    const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} showAlt={showAlt} />);
+    const { unmount } = render(<MediaEditDialog Dialog={Dialog} useDialog={useWiredMediaEditDialog} initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} showAlt={showAlt} />);
     expect(document.activeElement).toBe(screen.getByLabelText(label));
 
     unmount();

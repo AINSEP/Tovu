@@ -1,10 +1,13 @@
+import { useWiredMediaEditDialog } from "@/components/MediaEditDialog/MediaEditDialog.hooks";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "@/styles/native-domain-dialogs.css";
 import { createWidgetEmbedTranslator } from "./widget-embed-extension.hooks";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { insertBlockAtom } from "./block-atom-insert";
 import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
-import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
+import { MediaEditDialog } from "@jini-ai/cms/react/media/MediaEditDialog/MediaEditDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
 import { PlacementContentFields } from "@jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields";
@@ -114,7 +117,7 @@ export function WidgetEmbedNodeView({
         </button>
       </span>
       {view.styling ? (
-        <MediaEditDialog initial={view.styleInitial} onSave={view.saveStyle} onCancel={view.closeStyle} showAlt={false}
+        <MediaEditDialog Dialog={Dialog} useDialog={useWiredMediaEditDialog} initial={view.styleInitial} onSave={view.saveStyle} onCancel={view.closeStyle} showAlt={false}
           renderHtmlAttributes={(field) => <HtmlAttributeRows {...field} t={(key) => sharedComponentsT({ locale, key })} />}>
           {placementContent ? (
             <PlacementContentFields {...placementContent} ContentEditor={MediaContentEditor}

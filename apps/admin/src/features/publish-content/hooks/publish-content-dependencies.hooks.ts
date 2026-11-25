@@ -1,9 +1,13 @@
 import type { PublishContentPeerView, PublishDestinationView as AdminPublishDestinationView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPlanResult, PublishContentReport, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
-import { publishContentApi } from "@/features/publish-content/api/publish-content-api";
+import { createPublishContentApi } from "@jini-ai/cms/react/publish-content/api/publish-content-api";
+import { request } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 
-import type { PublishContentPort } from "./publish-content-port.hooks";
+import type { PublishContentPort } from "@jini-ai/cms/react/publish-content/hooks/publish-content-port.hooks";
+
+export const publishContentApi = createPublishContentApi({ request, workspaceId: WORKSPACE_ID }, {});
 
 /**
  * @file The only place under `features/publish-content` that reaches `lib/api` for publishing — see

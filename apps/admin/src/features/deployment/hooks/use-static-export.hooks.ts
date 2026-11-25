@@ -10,7 +10,7 @@ import { exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessa
 import { DEPLOYMENT_EXPORT_RESOURCE } from "../rules";
 
 import { defaultStaticExportPort } from "./static-export-dependencies.hooks";
-import type { StaticExportPort } from "./static-export-port.hooks";
+import type { StaticExportPort } from "@jini-ai/core/contracts/site/deployment-admin";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

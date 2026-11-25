@@ -24,7 +24,7 @@ import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 
 import { buildCriteriaPublishResult } from "@jini-ai/cms/react/publish-content/criteria-publish-result";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
-import type { PublishContentPort } from "./publish-content-port.hooks";
+import type { PublishContentPort } from "@jini-ai/cms/react/publish-content/hooks/publish-content-port.hooks";
 import { publishScopeDescriptionKey, publishScopeTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
 
 import { type Translate } from '@jini-ai/core/text';

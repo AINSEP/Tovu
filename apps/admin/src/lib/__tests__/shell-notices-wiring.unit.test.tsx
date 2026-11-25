@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import { TovuAdminFailureNotice, TovuServerRestartingBanner } from "../shell-notices-wiring";
 import { adminFailureChannel } from "../admin-failure-channel";
-import { createServerReconnect } from "../server-reconnect";
+import { createServerReconnect } from "@jini-ai/admin/browser/server-reconnect";
 
 /** @file Tovu's bindings into the Jini shell notices: the real failure channel, dictionary and reconnect store. */
 
