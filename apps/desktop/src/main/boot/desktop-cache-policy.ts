@@ -178,7 +178,8 @@ export function bindDesktopCodeCache(
     // With the version fallback off, the last launch version stands in so only the flag marks an update.
     const version = read?.state === "ok" ? read.lastLaunchVersion ?? appVersion : appVersion;
     return clearCodeCacheOnUpdate({ fs, marker, evidence, version, isUpdate, interlock: {
-      withPartitionWriter: async ({ run }) => ({ state: "ran", value: await run(writer) }) as never,
+      // The pass already holds the writer lock with its fence; taking it again would only answer busy.
+      withPartitionWriter: async <T>({ run }: { run: (context: PartitionWriterContext) => Promise<T> }) => ({ state: "ran" as const, value: await run(writer) }),
       readHoldersStrict: interlock.readHoldersStrict, isManaged: interlock.isManaged, newToken: interlock.newToken,
     } });
   };
