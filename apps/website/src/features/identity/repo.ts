@@ -6,6 +6,7 @@ import type { IdentityUsersTable, PrincipalsTable } from "../../platform/db/cont
 import type { IdentityTransactionPort } from "@jini-ai/user-management";
 import type { PrincipalRepoPort, UserRepoPort, PrincipalRecord, UserRecord } from "@jini-ai/core/contracts/site/user-management";
 import type { PrincipalKind, PrincipalStatus } from "@jini-ai/user-management";
+import type { AssertVersionedWritePort } from "@jini-ai/core/optimistic-concurrency";
 
 /**
  * @file THE adapters for the `identity` repo ports (ADR-021 / SPEC-006): one Kysely query body for
@@ -104,13 +105,19 @@ function toUserRecord(row: Selectable<IdentityUsersTable>): UserRecord {
     email: row.email ?? undefined,
     passwordHash: row.password_hash,
     lastLoginAt: row.last_login_at ?? undefined,
+    version: row.version,
   };
 }
 
+/** The constructor object of a versioned identity repo: the host binds Jini core's conflict helper. */
+export interface SqlVersionedIdentityRequired { kernel: ContentKernel; assertVersionedWrite: AssertVersionedWritePort }
+
 export class SqlUserRepo implements UserRepoPort {
   protected readonly kernel: ContentKernel;
-  constructor(kernel: ContentKernel) {
+  private readonly assertVersionedWrite: AssertVersionedWritePort;
+  constructor({ kernel, assertVersionedWrite }: SqlVersionedIdentityRequired, _optional: Record<string, never> = {}) {
     this.kernel = kernel;
+    this.assertVersionedWrite = assertVersionedWrite;
   }
 
   async findByPrincipalId(required: {

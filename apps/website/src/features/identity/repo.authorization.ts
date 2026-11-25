@@ -6,16 +6,19 @@ import type { PoliciesTable, PolicyPermissionsTable, RolesTable } from "../../pl
 import type { PolicyPermissionRepoPort, PolicyRepoPort, RoleRepoPort } from "@jini-ai/user-management";
 import type { PolicyPermissionRecord } from "@jini-ai/user-management";
 import type { PolicyRecord, RoleRecord } from "@jini-ai/core/contracts/site/user-management";
-import { createIdentityTransactions } from "./repo.js";
+import type { AssertVersionedWritePort } from "@jini-ai/core/optimistic-concurrency";
+import { createIdentityTransactions, type SqlVersionedIdentityRequired } from "./repo.js";
 
 function toRoleRecord(row: Selectable<RolesTable>): RoleRecord {
-  return { id: row.id, workspaceId: row.workspace_id, name: row.name, isBuiltin: row.is_builtin === 1 };
+  return { id: row.id, workspaceId: row.workspace_id, name: row.name, isBuiltin: row.is_builtin === 1, version: row.version };
 }
 
 export class SqlRoleRepo implements RoleRepoPort {
   protected readonly kernel: ContentKernel;
-  constructor(kernel: ContentKernel) {
+  private readonly assertVersionedWrite: AssertVersionedWritePort;
+  constructor({ kernel, assertVersionedWrite }: SqlVersionedIdentityRequired, _optional: Record<string, never> = {}) {
     this.kernel = kernel;
+    this.assertVersionedWrite = assertVersionedWrite;
   }
 
   async findById(required: { workspaceId: string; id: string }): Promise<RoleRecord | null> {
@@ -80,13 +83,16 @@ function toPolicyRecord(row: Selectable<PoliciesTable>): PolicyRecord {
     description: row.description ?? undefined,
     isBuiltin: row.is_builtin === 1,
     isFrozen: row.is_frozen === 1,
+    version: row.version,
   };
 }
 
 export class SqlPolicyRepo implements PolicyRepoPort {
   protected readonly kernel: ContentKernel;
-  constructor(kernel: ContentKernel) {
+  private readonly assertVersionedWrite: AssertVersionedWritePort;
+  constructor({ kernel, assertVersionedWrite }: SqlVersionedIdentityRequired, _optional: Record<string, never> = {}) {
     this.kernel = kernel;
+    this.assertVersionedWrite = assertVersionedWrite;
   }
 
   async findById(required: { workspaceId: string; id: string }): Promise<PolicyRecord | null> {

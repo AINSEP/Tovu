@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -283,10 +284,10 @@ async function realIdentityHarness(
 ): Promise<{ baseUrl: string; storeCalls: string[]; principalId: string }> {
   const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
-    users: new InMemoryUserRepo({}),
+    users: new InMemoryUserRepo({ assertVersionedWrite }),
     sessions: new InMemorySessionRepo({}),
-    roles: new InMemoryRoleRepo({}),
-    policies: new InMemoryPolicyRepo({}),
+    roles: new InMemoryRoleRepo({ assertVersionedWrite }),
+    policies: new InMemoryPolicyRepo({ assertVersionedWrite }),
     policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}),
     principalRoles: new InMemoryPrincipalRoleRepo({}),

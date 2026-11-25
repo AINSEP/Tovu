@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,8 +19,8 @@ const NOW = "2026-09-15T01:02:03.000Z";
 async function depsForHandler(): Promise<ApiKeysRouteDeps> {
   let id = 0;
   const repos = createTransactionalInMemoryIdentityRepos({ repos: {
-    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}), sessions: new InMemorySessionRepo({}),
-    roles: new InMemoryRoleRepo({}), policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({ assertVersionedWrite }), sessions: new InMemorySessionRepo({}),
+    roles: new InMemoryRoleRepo({ assertVersionedWrite }), policies: new InMemoryPolicyRepo({ assertVersionedWrite }), policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}), principalPolicies: new InMemoryPrincipalPolicyRepo({}),
   } });
   const deps: ApiKeysRouteDeps = {

@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
 import { createContributionRegistry, batchDescriptorFor } from "@jini-ai/core";
@@ -72,10 +73,10 @@ interface Harness {
 async function buildHarness(): Promise<Harness> {
   const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
-    users: new InMemoryUserRepo({}),
+    users: new InMemoryUserRepo({ assertVersionedWrite }),
     sessions: new InMemorySessionRepo({}),
-    roles: new InMemoryRoleRepo({}),
-    policies: new InMemoryPolicyRepo({}),
+    roles: new InMemoryRoleRepo({ assertVersionedWrite }),
+    policies: new InMemoryPolicyRepo({ assertVersionedWrite }),
     policyPermissions: new InMemoryPolicyPermissionRepo({}),
     rolePolicies: new InMemoryRolePolicyRepo({}),
     principalRoles: new InMemoryPrincipalRoleRepo({}),

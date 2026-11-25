@@ -1,3 +1,4 @@
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
@@ -348,8 +349,8 @@ for (const each of eachDialect({ tables: ["principals"], make: (kernel) => new S
   runPrincipalRepoSuite(`SqlPrincipalRepo [${each.name}]`, each.make);
 }
 
-runUserRepoSuite("InMemoryUserRepo", () => new InMemoryUserRepo({}));
-for (const each of eachDialect({ tables: ["identity_users"], make: (kernel) => new SqlUserRepo(kernel) })) {
+runUserRepoSuite("InMemoryUserRepo", () => new InMemoryUserRepo({ assertVersionedWrite }));
+for (const each of eachDialect({ tables: ["identity_users"], make: (kernel) => new SqlUserRepo({ kernel, assertVersionedWrite }) })) {
   runUserRepoSuite(`SqlUserRepo [${each.name}]`, each.make);
 }
 
@@ -358,13 +359,13 @@ for (const each of eachDialect({ tables: ["sessions"], make: (kernel) => new Sql
   runSessionRepoSuite(`SqlSessionRepo [${each.name}]`, each.make);
 }
 
-runRoleRepoSuite("InMemoryRoleRepo", () => new InMemoryRoleRepo({}));
-for (const each of eachDialect({ tables: ["roles"], make: (kernel) => new SqlRoleRepo(kernel) })) {
+runRoleRepoSuite("InMemoryRoleRepo", () => new InMemoryRoleRepo({ assertVersionedWrite }));
+for (const each of eachDialect({ tables: ["roles"], make: (kernel) => new SqlRoleRepo({ kernel, assertVersionedWrite }) })) {
   runRoleRepoSuite(`SqlRoleRepo [${each.name}]`, each.make);
 }
 
-runPolicyRepoSuite("InMemoryPolicyRepo", () => new InMemoryPolicyRepo({}));
-for (const each of eachDialect({ tables: ["policies"], make: (kernel) => new SqlPolicyRepo(kernel) })) {
+runPolicyRepoSuite("InMemoryPolicyRepo", () => new InMemoryPolicyRepo({ assertVersionedWrite }));
+for (const each of eachDialect({ tables: ["policies"], make: (kernel) => new SqlPolicyRepo({ kernel, assertVersionedWrite }) })) {
   runPolicyRepoSuite(`SqlPolicyRepo [${each.name}]`, each.make);
 }
 
@@ -455,8 +456,8 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
 
   test(`[${adapterName}] expiry survives decoding and authentication refuses an expired otherwise-valid key`, async () => {
     const repo = makeRepo();
-    const repos = createTransactionalInMemoryIdentityRepos({ repos: { principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}), sessions: new InMemorySessionRepo({}),
-      roles: new InMemoryRoleRepo({}), policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}),
+    const repos = createTransactionalInMemoryIdentityRepos({ repos: { principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({ assertVersionedWrite }), sessions: new InMemorySessionRepo({}),
+      roles: new InMemoryRoleRepo({ assertVersionedWrite }), policies: new InMemoryPolicyRepo({ assertVersionedWrite }), policyPermissions: new InMemoryPolicyPermissionRepo({}),
       rolePolicies: new InMemoryRolePolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}), principalPolicies: new InMemoryPrincipalPolicyRepo({}) } });
     await repos.principals.save({ id: row.principalId, workspaceId: WS, kind: "api_key", displayName: "Runner", status: "active", createdAt: row.createdAt });
     await repo.save(row);
