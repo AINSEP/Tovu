@@ -6,7 +6,8 @@ import test from "node:test";
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError } from "#src/features/agent-plugins/install-upload";
-import { bodyParseRefusal, installErrorResponse, installedAgentPluginRow } from "../../install-response.js";
+import { bodyParseRefusal, installedAgentPluginRow } from "@jini-ai/cms/admin-http/routes/agent-plugins/install-response";
+import { installErrorResponse } from "../../install-response.js";
 import { agentPluginLifecycleFields } from "@jini-ai/cms/admin-http/http/agent-plugins";
 
 /**
