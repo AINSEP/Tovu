@@ -18,7 +18,7 @@ import type {
   ThemeExploreSlugCollision,
   ThemeFileGroup,
 } from "./theme-explore-port.hooks";
-import { isOpenFileLoaded, keepsOpenFileSelected } from "./theme-explore-open-file.hooks";
+import { isOpenFileLoaded, keepsOpenFileSelected } from "@jini-ai/cms/react/themes/hooks/theme-explore-open-file.hooks";
 import {
   resolveRequestedThemeExploreSelection,
   writeThemeExploreSelectionToUrl,
