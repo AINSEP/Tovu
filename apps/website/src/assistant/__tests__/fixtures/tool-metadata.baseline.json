@@ -305,7 +305,7 @@
     "members_create": "member visitor account create add pending roster email",
     "members_update_profile": "member visitor profile update edit rename name",
     "webhooks_update_subscription": "webhook subscription edit update label target url topics endpoint",
-    "site_guide": "how tovu works site guide learn building blocks forms widgets markers themes members SEO deploy plugins Jini",
+    "site_guide": "how tovu works site guide learn building blocks forms widgets markers themes members SEO deploy plugins Tovu",
     "resume_agent_work": "resume agent work paused assistant switch webhooks scheduled posts publishes hold release approve",
     "identity_user_change_username": "username login name rename change update user account own profile",
     "plugin_source_create": "plugin source code create scaffold site local server content filter fields types",
@@ -369,7 +369,11 @@
     "site_update_check": "update upgrade new version available latest release check outdated",
     "site_update_apply": "update upgrade install new version latest release apply software",
     "site_storage_report": "storage disk space usage size bytes how much room databases uploads screenshots shares old copies logs cleanup report",
-    "site_storage_cleanup": "storage cleanup clean up free disk space delete old copies expired shares temporary files reclaim bytes prune"
+    "site_storage_cleanup": "storage cleanup clean up free disk space delete old copies expired shares temporary files reclaim bytes prune",
+    "routine_list": "routines list scheduled recurring ai jobs hourly daily weekly desktop schedule",
+    "routine_create": "routine create new schedule recurring ai job hourly daily weekdays weekly timezone prompt agent model",
+    "routine_set_enabled": "routine pause resume enable disable turn on off scheduled recurring job",
+    "routine_delete": "routine delete remove cancel scheduled recurring job"
   },
   "queries": {
     "library_save_attachment": [
@@ -2104,6 +2108,22 @@
     "site_storage_cleanup": [
       "Free up some disk space on my site.",
       "Clean up old copies and temporary files."
+    ],
+    "routine_list": [
+      "List my routines.",
+      "What recurring AI jobs do I have scheduled?"
+    ],
+    "routine_create": [
+      "Create a routine that runs every weekday morning.",
+      "Schedule a recurring AI job."
+    ],
+    "routine_set_enabled": [
+      "Pause my daily routine.",
+      "Resume the routine I paused."
+    ],
+    "routine_delete": [
+      "Delete a routine.",
+      "Remove the weekly routine."
     ]
   },
   "approvals": {
@@ -3776,6 +3796,22 @@
     "site_storage_cleanup": {
       "class": "delete",
       "confirmation": "plan"
+    },
+    "routine_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "routine_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "routine_set_enabled": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "routine_delete": {
+      "class": "edit",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [
@@ -3946,7 +3982,10 @@
     "theme_duplicate",
     "commerce_resolve_unknown",
     "site_update_apply",
-    "site_storage_cleanup"
+    "site_storage_cleanup",
+    "routine_create",
+    "routine_set_enabled",
+    "routine_delete"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -4017,7 +4056,10 @@
     "theme_duplicate",
     "commerce_resolve_unknown",
     "site_update_apply",
-    "site_storage_cleanup"
+    "site_storage_cleanup",
+    "routine_create",
+    "routine_set_enabled",
+    "routine_delete"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,
