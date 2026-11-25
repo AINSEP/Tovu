@@ -21,10 +21,6 @@ export type RoutineWakeReceiverLogEntry = Readonly<{ event: "routine-wake-reconc
 
 const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-const defaultLog = (entry: RoutineWakeReceiverLogEntry): void => {
-  console.warn("[routines] wake reconcile failed:", entry.error);
-};
-
 /**
  * Listens on `channel` for the exact reconcile message and routes it to `reconcile`. A rejection
  * or synchronous throw is logged, never rethrown: an uncaught error in a `message` listener would
@@ -34,12 +30,14 @@ const defaultLog = (entry: RoutineWakeReceiverLogEntry): void => {
  * @complexity O(1) per message.
  */
 export function installRoutineWakeReceiver(
-  { channel, reconcile, eligible }: {
+  { channel, reconcile, eligible, log }: {
     channel: RoutineWakeChannel | undefined;
     reconcile: (input: { reason: "wake" }, optional: Record<string, never>) => Promise<unknown>;
     eligible: boolean;
+    /** The serving site's diagnostic logger, injected (required) so a failure lands where the host logs. */
+    log: (entry: RoutineWakeReceiverLogEntry) => void;
   },
-  { log = defaultLog }: { log?: (entry: RoutineWakeReceiverLogEntry) => void } = {},
+  _optional: Record<string, never> = {},
 ): () => void {
   if (!eligible || channel === undefined) return () => {};
   const onMessage = (message: unknown): void => {

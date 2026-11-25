@@ -23,7 +23,7 @@ const flush = () => new Promise((resolve) => setImmediate(resolve));
 test("accepts exactly { type: 'routines.reconcile', reason: 'wake' } and nothing else", async () => {
   const c = fakeChannel();
   const calls: unknown[][] = [];
-  installRoutineWakeReceiver({ channel: c.channel, reconcile: async (...args) => { calls.push(args); }, eligible: true });
+  installRoutineWakeReceiver({ channel: c.channel, reconcile: async (...args) => { calls.push(args); }, eligible: true, log: () => {} });
   for (const other of [
     null, "routines.reconcile", ["routines.reconcile", "wake"], { type: "routines.reconcile" },
     { type: "routines.reconcile", reason: "timer" }, { type: "routines.reconcile", reason: "wake", extra: 1 },
@@ -39,7 +39,7 @@ test("accepts exactly { type: 'routines.reconcile', reason: 'wake' } and nothing
 test("ineligible boot installs nothing, and its dispose is a harmless no-op", () => {
   const c = fakeChannel();
   let called = false;
-  const dispose = installRoutineWakeReceiver({ channel: c.channel, reconcile: async () => { called = true; }, eligible: false });
+  const dispose = installRoutineWakeReceiver({ channel: c.channel, reconcile: async () => { called = true; }, eligible: false, log: () => {} });
   assert.equal(c.listeners.size, 0);
   c.emit({ type: "routines.reconcile", reason: "wake" });
   dispose();
@@ -48,7 +48,7 @@ test("ineligible boot installs nothing, and its dispose is a harmless no-op", ()
 
 test("a missing parent channel (not spawned with ipc) installs nothing", () => {
   let called = false;
-  const dispose = installRoutineWakeReceiver({ channel: undefined, reconcile: async () => { called = true; }, eligible: true });
+  const dispose = installRoutineWakeReceiver({ channel: undefined, reconcile: async () => { called = true; }, eligible: true, log: () => {} });
   assert.doesNotThrow(() => dispose());
   assert.equal(called, false);
 });
@@ -64,7 +64,8 @@ test("a rejected or throwing reconcile is logged, never thrown", async () => {
       return Promise.reject(mode === "odd" ? "odd" : new Error("db closed"));
     },
     eligible: true,
-  }, { log: (entry) => { logs.push(entry); } });
+    log: (entry) => { logs.push(entry); },
+  });
   const wake = { type: "routines.reconcile", reason: "wake" };
   c.emit(wake); await flush();
   mode = "throw"; c.emit(wake); await flush();
@@ -79,21 +80,11 @@ test("a rejected or throwing reconcile is logged, never thrown", async () => {
 test("teardown: dispose removes the listener, so a later wake is ignored", async () => {
   const c = fakeChannel();
   let calls = 0;
-  const dispose = installRoutineWakeReceiver({ channel: c.channel, reconcile: async () => { calls++; }, eligible: true });
+  const dispose = installRoutineWakeReceiver({ channel: c.channel, reconcile: async () => { calls++; }, eligible: true, log: () => {} });
   assert.equal(c.listeners.size, 1);
   dispose();
   assert.equal(c.listeners.size, 0);
   c.emit({ type: "routines.reconcile", reason: "wake" });
   await flush();
   assert.equal(calls, 0);
-});
-
-test("the default logger writes the failure to the console's warning stream", async (t) => {
-  const warned: unknown[][] = [];
-  t.mock.method(console, "warn", (...args: unknown[]) => { warned.push(args); });
-  const c = fakeChannel();
-  installRoutineWakeReceiver({ channel: c.channel, reconcile: () => Promise.reject(new Error("db closed")), eligible: true });
-  c.emit({ type: "routines.reconcile", reason: "wake" });
-  await flush();
-  assert.deepEqual(warned, [["[routines] wake reconcile failed:", "db closed"]]);
 });
