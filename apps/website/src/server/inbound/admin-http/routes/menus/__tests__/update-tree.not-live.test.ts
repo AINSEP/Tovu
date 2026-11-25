@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -14,6 +15,7 @@ import { registerAdminMenuUpdateTreeRoute } from "#src/server/runtime/compositio
  * repo that does return one: 409 with the guard's code, not the opaque 500.
  */
 test("update-tree: a trashed menu is refused with 409 ENTITY_IN_TRASH", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const menuRepo = {
     findById: async () => ({ id: "m1", workspaceId: "ws-1", status: "trash", version: 2, title: "Nav", slug: "nav" }),
   };
@@ -32,7 +34,7 @@ test("update-tree: a trashed menu is refused with 409 ENTITY_IN_TRASH", async (t
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps });
 
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/menus/m1`, {
@@ -48,6 +50,7 @@ test("update-tree: a trashed menu is refused with 409 ENTITY_IN_TRASH", async (t
 
 
 test("update-tree persists changed live metadata and ordered items; missing-version, stale and denied writes preserve it", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const menuRepo = new InMemoryMenuRepo({});
   const initial = { id: "m-live", workspaceId: "ws-1", title: "Original", slug: "original", status: "published" as const,
     version: 1, doc: { type: "menu" as const, version: 1, items: [] }, locations: [], updatedAt: "2026-09-24T00:00:00.000Z" };
@@ -57,7 +60,7 @@ test("update-tree persists changed live metadata and ordered items; missing-vers
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminMenuUpdateTreeRoute({ app, deps: deps as any });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps: deps as any });
   const baseUrl = await startTestServer(app, t);
   const items = [
     { id: "second", label: "About", target: { kind: "url" as const, href: "/about" } },

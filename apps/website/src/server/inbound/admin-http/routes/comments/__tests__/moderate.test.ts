@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -41,6 +42,7 @@ function buildApp(
   purgeCalls: Array<Record<string, unknown>>;
   jsonBodies: unknown[];
 } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const applyModerationCalls: Array<Record<string, unknown>> = [];
   const purgeCalls: Array<Record<string, unknown>> = [];
   const commentWriteService: CommentWriteService = {
@@ -74,7 +76,7 @@ function buildApp(
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsModerateRoutes({ app, deps });
+  registerAdminCommentsModerateRoutes({ errors: routeErrors, app, deps });
   return { app, applyModerationCalls, purgeCalls, jsonBodies };
 }
 

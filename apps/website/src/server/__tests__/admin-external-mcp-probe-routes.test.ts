@@ -66,6 +66,7 @@ interface BuildOptions {
 }
 
 function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const probeDeps: ExternalMcpProbeRouteDeps = { ...base, ...(options.externalMcpOAuth ? { externalMcpOAuth: options.externalMcpOAuth } : {}), ...(options.connect ? { connect: options.connect } : {}) };
   // `createExternalMcpModule` only reads the fields it knows about off whatever shape it is handed
@@ -77,7 +78,7 @@ function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps:
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
   if (options.limiter) registerAdminExternalMcpProbeRoute({ app, deps: probeDeps, limiter: options.limiter });
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: routeErrors, app });
   return { app, deps };
 }
 
@@ -363,9 +364,10 @@ test("an exhausted probe budget returns 429 and Retry-After without another conn
 /** Records every route a module registers without starting a server, so the module's OAuth gate
  * can be checked against the three shapes `deps.ts` may hand it. */
 function recordRegisteredRoutes(deps: RouteDeps): string[] {
+  const routeErrors = createRouteIncidentReporter().errors;
   const routes: string[] = [];
   const app = new Proxy({}, { get: (_target, method) => (path: unknown) => { routes.push(`${String(method)} ${String(path)}`); } });
-  createExternalMcpModule(deps).registerRoutes?.({ app: app as never });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: routeErrors, app: app as never });
   return routes;
 }
 

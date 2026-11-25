@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,7 +19,7 @@ function fixture() {
   const deps: LocalSitesRouteDeps = { workspaceId: "ws", siteBinding: { name: "owner", dir: "/repo/sites/owner", dirOverridden: false, switcherCompatible: true },
     authorize: async () => ({ allowed, reason: "test" }), isSiteSwitcherEnabled: () => enabled, localSiteSupervisor: supervisor,
     siteTrash: { trash({ name }) { writes++; return { name, id: "trash-id", displayName: name }; }, restore() { writes++; }, remove() { writes++; } } };
-  const app = express(); registerLocalSitesRoutes({ app, deps });
+  const app = express(); registerLocalSitesRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   async function request(suffix: string, name: string, body: object = {}, workspaceId = "ws") {
     const handler = extractRouteHandler(app, "post", ROOT + suffix);
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
@@ -58,7 +59,7 @@ test("Trash permanent removal requires explicit checkbox and confirm even for an
   const app = express(); let removed = false;
   const processPort: LocalSiteProcessPort = { isPortFree: async () => true, launch: async () => { throw new Error("no launch"); }, schedule: () => () => {} };
   const localSiteSupervisor = createLocalSiteSupervisor({ processPort, servingName: "owner", scheme: "http" });
-  registerLocalSitesRoutes({ app, deps: { workspaceId: "ws", siteBinding: { name: "owner", dir: "/repo/sites/owner", dirOverridden: false, switcherCompatible: true },
+  registerLocalSitesRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", siteBinding: { name: "owner", dir: "/repo/sites/owner", dirOverridden: false, switcherCompatible: true },
     authorize: async () => ({ allowed: true, reason: "owner" }), isSiteSwitcherEnabled: () => true, localSiteSupervisor,
     siteTrash: { trash() { throw new Error("unused"); }, restore() {}, remove() {
       // Confirmation belongs to the route and directory owner; this fake records only the effect.
@@ -85,11 +86,12 @@ test("a request without its :name/:id param reaches the effect as an empty name 
 });
 
 test("without an injected siteTrash the routes use the real site-trash module against the bound base", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "local-sites-default-trash-"));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const processPort: LocalSiteProcessPort = { isPortFree: async () => true, launch: async () => { throw new Error("no launch"); }, schedule: () => () => {} };
   const app = express();
-  registerLocalSitesRoutes({ app, deps: { workspaceId: "ws",
+  registerLocalSitesRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws",
     siteBinding: { name: "owner", dir: path.join(tmp, "sites", "owner"), dirOverridden: false, switcherCompatible: true },
     authorize: async () => ({ allowed: true, reason: "owner" }), isSiteSwitcherEnabled: () => true,
     localSiteSupervisor: createLocalSiteSupervisor({ processPort, servingName: "owner", scheme: "http" }) } });

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -17,11 +18,12 @@ const TARGET: LoadedDeployTarget = { pluginId: 'fixture',
 const registry: DeployTargetRegistry = { get: id => id === 'fixture' ? TARGET : undefined, list: () => [TARGET], refusals: ['private plugin path refused'] };
 
 test('publish preview logs registry refusals and redacts credential metadata read failures', async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const warnings = t.mock.method(console, 'warn', () => {});
   t.mock.method(console, 'error', () => {});
   const app = express();
   let reads = 0;
-  registerAdminPublishSiteRoutes({ app, deps: portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
+  registerAdminPublishSiteRoutes({ errors: routeErrors, app, deps: portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
     authorize: async () => ({ allowed: true, reason: 'owner' }), loadDeployTargets: async () => registry,
     vendorCredentialSetRepo: { vault: portFake<VaultRepoPort>({ list: async () => { reads++; throw new Error('private credential database'); } }) },
   }) });
@@ -36,7 +38,7 @@ for (const suffix of ['/publish', '/publish/preview', '/publish/destinations', '
   test(`publish read ${suffix} refuses before registry or credential reads`, async () => {
     const app = express();
     const permissions: string[] = [];
-    registerAdminPublishSiteRoutes({ app, deps: portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
+    registerAdminPublishSiteRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
       authorize: async ({ permission }) => { permissions.push(permission); return { allowed: false, reason: 'no_grant' }; },
       loadDeployTargets: async () => assert.fail('denied request must not load providers'),
     }) });

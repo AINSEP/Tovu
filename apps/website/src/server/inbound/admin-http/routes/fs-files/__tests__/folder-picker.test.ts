@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -14,6 +15,7 @@ type RequestInput = {
 };
 
 function fixture(overrides: Partial<Pick<Deps, "localHost">> & { available?: boolean; pick?: () => Promise<string | null> } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: unknown[] = [];
   let allowed = true;
   const deps: Deps = {
@@ -25,7 +27,7 @@ function fixture(overrides: Partial<Pick<Deps, "localHost">> & { available?: boo
       pick: async () => { calls.push("pick"); return overrides.pick ? overrides.pick() : "/Users/la/Picked"; },
     },
   };
-  const app = express(); registerAdminFsFilesFolderPickerRoutes({ app, deps });
+  const app = express(); registerAdminFsFilesFolderPickerRoutes({ errors: routeErrors, app, deps });
   return { calls, deny: () => { allowed = false; },
     async request(input: RequestInput = {}) {
       const { method, local, remote, host, origin, headers, credential, workspaceId, protocol } = {

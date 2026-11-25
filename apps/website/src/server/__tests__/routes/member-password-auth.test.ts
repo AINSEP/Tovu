@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /** Shard D: real HTTP security contracts, with transactional member storage and a deterministic hasher. */
@@ -66,7 +67,7 @@ function harness() {
   app.use(express.json());
   for (const register of [registerPublicMemberSignInRequestRoute, registerPublicMemberCompleteSignInRoute,
     registerPublicMemberPasswordSignInRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberResetPasswordRoute,
-    registerPublicMemberMeRoute, registerPublicMemberSignOutRoute, registerPublicMemberSetPasswordRoute]) register({ app, deps });
+    registerPublicMemberMeRoute, registerPublicMemberSignOutRoute, registerPublicMemberSetPasswordRoute]) register({ errors: createRouteIncidentReporter().errors, app, deps });
   async function seed(email = "ada@example.test", status: MemberRecord["status"] = "active", password: string | null = "x") {
     const member: MemberRecord = { id: email, workspaceId: deps.workspaceId, email, status,
       createdAt: clock.nowIso(), updatedAt: clock.nowIso(), version: 1 };

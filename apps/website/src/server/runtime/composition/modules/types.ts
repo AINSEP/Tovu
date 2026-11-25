@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import type { BootModule } from "../../lifecycle/boot-lifecycle.js";
@@ -16,10 +17,12 @@ import type { BootModule } from "../../lifecycle/boot-lifecycle.js";
  * IoC container: modules are composed by ordinary typed function calls in `bootstrap.ts`/`app.ts`,
  * nothing here does reflection or runtime service lookup.
  */
-export interface ServerModuleHandle {
+export type RouteRegistration = { app: Express; errors: RouteErrorPorts };
+
+export interface ServerModuleHandle<Registration extends { app: Express } = { app: Express }> {
   name: string;
   /** Registers this module's HTTP routes, if any, at the point `app.ts` calls it (route order is still owned by the caller). */
-  registerRoutes?: (required: { app: Express }, optional?: Record<string, never>) => void;
+  registerRoutes?: (required: Registration, optional?: Record<string, never>) => void;
   /** Starts this module's subscriptions/workers, if any. Called once, at boot. */
   start?: () => void;
   /** Optional readiness participant, folded into the SAME `runBootLifecycle()` call as every other boot module (ADR-046 Phase 2). */

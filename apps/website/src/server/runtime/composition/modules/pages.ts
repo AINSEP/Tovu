@@ -53,18 +53,18 @@ function pagePortDeps({ deps }: { deps: ContentRouteDeps }, _optional: Record<st
   return { workspaceId: deps.workspaceId, authorize: ({ entityType: _entityType, ...params }) => deps.authorize(params) };
 }
 
-export const registerAdminPageListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPageListRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const listPageResponses = async ({ workspaceId }: { workspaceId: string }) => {
     const result = await listAdminPages({ deps: { repo: deps.postRepo }, input: { workspaceId } });
     return result.posts.map(toAdminPostResponse);
   };
   mountAdminJsonRoute(
-    { app, spec: pageListRoute, deps: { ...pagePortDeps({ deps }), listPageResponses } },
+    { errors, app, spec: pageListRoute, deps: { ...pagePortDeps({ deps }), listPageResponses } },
     { authorization: "guarded", failure: { operation: "routes/pages/list", code: "INTERNAL_ERROR", message: "Pages could not be loaded." } },
   );
 };
 
-export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const getDeps = {
     ...pagePortDeps({ deps }),
     readPage: (input: { workspaceId: string; idOrSlug: string }) => getAdminPostByIdOrSlug({ deps: { repo: deps.postRepo }, input }),
@@ -74,7 +74,7 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, 
     pluginExports: () => deps.pluginExports,
   };
   mountAdminJsonRoute(
-    { app, spec: pageGetRoute, deps: getDeps },
+    { errors, app, spec: pageGetRoute, deps: getDeps },
     { authorization: "guarded", failure: { operation: "routes/pages/get-by-id", code: "INTERNAL_ERROR" } },
   );
 };
@@ -84,7 +84,7 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, 
  * (separate writer of html rows, first write births the row, `pages.edit_html` authorization history);
  * the host binds the permission, the starter skeleton, the per-Page store factory and its error classes.
  */
-export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
   const updateHtmlDeps = {
     ...pagePortDeps({ deps }),
@@ -100,15 +100,15 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, d
     isPageConcurrentEdit: ({ err }: { err: unknown }) => err instanceof PageConcurrentEditError,
   };
   mountAdminJsonRoute(
-    { app: capped, spec: pageUpdateHtmlRoute, deps: updateHtmlDeps },
+    { errors, app: capped, spec: pageUpdateHtmlRoute, deps: updateHtmlDeps },
     { authorization: "guarded", failure: { operation: "routes/pages/update-html", code: "INTERNAL_ERROR" } },
   );
 };
 
 /** POST a new Page through the command gateway (spec doc: `pageCreateRoute`), behind the 1 MiB cap. */
-export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
-  mountAdminJsonRoute({ app: capped, spec: { ...pageCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+  mountAdminJsonRoute({ errors, app: capped, spec: { ...pageCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
     createEntry: ({ workspaceId, id, actorId, body }) => createPost({
       deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox },
@@ -118,9 +118,9 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps 
 };
 
 /** PUT a Page through the command gateway (spec doc: `pageUpdateRoute`), behind the 1 MiB cap. */
-export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
-  mountAdminJsonRoute({ app: capped, spec: { ...pageUpdateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+  mountAdminJsonRoute({ errors, app: capped, spec: { ...pageUpdateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
     updateInverse: pageUpdateInverse,
     updateEntry: ({ id, actorId, body }) => applyContentUpdate({ deps, id, actorId, body: parsePageUpdateBody({ rawBody: body }) }),
@@ -128,8 +128,8 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps 
 };
 
 /** DELETE (trash) a Page through the command gateway (spec doc: `pageDeleteRoute`); no body cap. */
-export const registerAdminPageDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: { ...pageDeleteRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+export const registerAdminPageDeleteRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: { ...pageDeleteRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
     trashEntry: trashContentEntry({ deps }),
   } }, { failure: { operation: "routes/pages/delete", code: "INTERNAL_ERROR" } });

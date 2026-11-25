@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -77,6 +78,7 @@ function makeThemesRoot(): string {
 }
 
 function buildTestApp(themesDir: string): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -91,9 +93,9 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFilePutRoute({ app, deps });
-  registerAdminThemeFileCopyRoute({ app, deps });
-  registerAdminThemeFileResetRoute({ app, deps });
+  registerAdminThemeFilePutRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileCopyRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileResetRoute({ errors: routeErrors, app, deps });
   // Same-origin static mount every real deployment runs (server/runtime/composition/app.ts), wired here so the write and
   // the serve happen through the identical two code paths a real request would take.
   registerThemeStaticAssets({ app, themeRoots: [path.join(themesDir, "static")] });

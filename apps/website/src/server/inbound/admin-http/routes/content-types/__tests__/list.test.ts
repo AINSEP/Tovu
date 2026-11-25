@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,6 +11,7 @@ import { registerAdminContentTypeListRoute } from "#src/server/runtime/compositi
 import type { ContentTypesRouteDeps } from "#src/server/runtime/composition/modules/content-types";
 
 function buildApp(depsOverrides: Partial<ContentTypesRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const fakeRepo = {
     listByWorkspace: async ({ workspaceId }: { workspaceId: string }) => workspaceId === "ws-1" ? [
       {
@@ -43,7 +45,7 @@ function buildApp(depsOverrides: Partial<ContentTypesRouteDeps> = {}): express.E
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminContentTypeListRoute({ app, deps });
+  registerAdminContentTypeListRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

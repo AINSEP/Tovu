@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { readPickedFolders } from "#src/assistant/run-page-context";
 /**
  * @file Durable chat history for the admin assistant — `GET/POST/PATCH/DELETE /api/assistant/chats`.
@@ -32,14 +33,14 @@ import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { runEventsForSave } from "#src/contracts/core/assistant-run-events";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 import { type AssistantRunFinalizer } from "./run-finalizer/entry.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import { cancelOwnedRun } from "./assistant-run-acceptance.js";
 import { createRoutineRecoveryAdmission } from "./routine-recovery-admission.js";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
-import type { JsonRouteSpec, Result, RouteHostContext } from "@jini-ai/core/contracts/server";
+import type { JsonRouteSpec, Result, OriginContext } from "@jini-ai/core/contracts/server";
 import type { CleanupPreviewStore } from "@jini-ai/core/contracts/storage";
 import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import { createChatCleanupRoutes } from "@jini-ai/chat/server/chat-cleanup-routes";
@@ -298,7 +299,7 @@ export interface MountChatCleanupRequired {
   openConversations: OpenConversations;
   previewStore: CleanupPreviewStore;
   /** The admin mount, its port deps, and the same-origin policy every route here requires. */
-  adminPorts: { mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: RouteHostContext };
+  adminPorts: { errors: RouteErrorPorts; mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: OriginContext };
 }
 
 /**
@@ -318,10 +319,10 @@ export function mountChatCleanup(required: MountChatCleanupRequired, _optional =
     bulkDeletionFor: (owner) => forOwner(owner).bulkDeletion,
   }, {});
   const deps = { ...adminPorts.deps, copy: CHAT_CLEANUP_COPY, readPatchInput: readChatPatch };
-  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.patch, ownerCheck }), deps, origin: adminPorts.origin });
-  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.preview, ownerCheck }), deps, origin: adminPorts.origin });
-  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.apply, ownerCheck }), deps, origin: adminPorts.origin });
-  adminPorts.mount({ app, spec: ownedSpec({ spec: routes.deleteSelected, ownerCheck }), deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: ownedSpec({ spec: routes.patch, ownerCheck }), deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: ownedSpec({ spec: routes.preview, ownerCheck }), deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: ownedSpec({ spec: routes.apply, ownerCheck }), deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: ownedSpec({ spec: routes.deleteSelected, ownerCheck }), deps, origin: adminPorts.origin });
 }
 
 /** The composition's owner stores: the request's own tenant-scoped chat history for rename/pin,
@@ -446,11 +447,11 @@ function saveChatMessageRoute(context: ChatsRouteContext): ChatRoute {
   };
 }
 
-export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
+export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle<RouteRegistration> {
   const context: ChatsRouteContext = { deps, finalizer: buildChatsFinalizer({ deps, options }) };
   return {
     name: "assistant-chats",
-    registerRoutes: ({ app }, _options = {}) => {
+    registerRoutes: ({ app, errors }, _options = {}) => {
       const reconciled = startBootReconcile({ finalizer: context.finalizer, options });
       const cleanupPreviews = options.cleanupPreviews ?? createCleanupPreviewStore({ randomToken: ({ bytes }) => randomBytes(bytes).toString("base64url"), mono: () => performance.now() });
 
@@ -471,7 +472,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         // recoverable run are kept by the bulk deletion's own run checks, so none are "open" here.
         openConversations: async () => new Set<string>(),
         previewStore: cleanupPreviews,
-        adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize }, origin: adminSameOriginWrites },
+        adminPorts: { errors, mount: mountAdminJsonRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize }, origin: adminSameOriginWrites },
       });
       app.delete("/api/assistant/chats/:id", deleteChatRoute(context));
       app.get("/api/assistant/chats/:id/messages", listChatMessagesRoute(context));

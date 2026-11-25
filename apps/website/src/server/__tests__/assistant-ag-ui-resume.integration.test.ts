@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -153,6 +154,7 @@ function createVisibleScheduler() {
 
 let daemonServer: Server | null = null;
 async function boot(t: import("node:test").TestContext) {
+  const routeErrors = createRouteIncidentReporter().errors;
   if (!daemonServer) {
     const { origin, server } = await startStandInDaemon();
     daemonServer = server;
@@ -181,7 +183,7 @@ async function boot(t: import("node:test").TestContext) {
   });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ errors: routeErrors, app, deps });
   createAssistantAgUiModule(deps, { approvals, reporter: { record: () => ({ errorId: "ERR-TEST" }) } }).registerRoutes?.({ app });
   createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }),
     byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler, clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },

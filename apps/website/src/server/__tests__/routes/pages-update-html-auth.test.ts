@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
@@ -87,6 +88,7 @@ async function harness(
   t: { after: (fn: () => Promise<void>) => void },
   options: { allow: boolean; concurrentEdit?: boolean; writeError?: unknown; pageGoneAfterWrite?: boolean }
 ): Promise<Harness> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const authorizeCalls: Harness["authorizeCalls"] = [];
   const storeCalls: string[] = [];
   const storeScopes: Harness["storeScopes"] = [];
@@ -131,7 +133,7 @@ async function harness(
     res.locals.principal = { id: PRINCIPAL_ID };
     next();
   });
-  registerAdminPageUpdateHtmlRoute({ app, deps });
+  registerAdminPageUpdateHtmlRoute({ errors: routeErrors, app, deps });
 
   const server = createServer(app);
   server.listen(0);
@@ -282,6 +284,7 @@ async function realIdentityHarness(
   roleName: "admin" | "editor",
   vintage: Vintage = "fresh"
 ): Promise<{ baseUrl: string; storeCalls: string[]; principalId: string }> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const repos: IdentityRepos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
     users: new InMemoryUserRepo({ assertVersionedWrite }),
@@ -376,7 +379,7 @@ async function realIdentityHarness(
     res.locals.principal = { id: principalId };
     next();
   });
-  registerAdminPageUpdateHtmlRoute({ app, deps });
+  registerAdminPageUpdateHtmlRoute({ errors: routeErrors, app, deps });
 
   const server = createServer(app);
   server.listen(0);

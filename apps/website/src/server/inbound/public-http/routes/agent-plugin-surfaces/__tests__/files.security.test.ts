@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import express from "express";
@@ -6,11 +7,12 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminSurfaceFilesRoute } from "#src/server/runtime/composition/modules/agent-plugin-surface-files-route";
 
 test("T6: per-IP limiting precedes contribution loads, covers unknown paths, and resets with the existing window", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   let now = 0;
   let loads = 0;
   const clock = { nowMs: () => now };
   const app = express();
-  registerAdminSurfaceFilesRoute({ app, deps: {
+  registerAdminSurfaceFilesRoute({ errors: routeErrors, app, deps: {
     workspaceId: "ws-1", clock,
     agentPluginLifecycle: {
       loadPluginContributions: async () => { loads += 1; return { items: [], refusals: [] }; },
@@ -33,9 +35,10 @@ test("T6: per-IP limiting precedes contribution loads, covers unknown paths, and
 });
 
 test("T6: a failed limiter cannot fall through to a contribution load", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   let loads = 0;
-  registerAdminSurfaceFilesRoute({ app, deps: {
+  registerAdminSurfaceFilesRoute({ errors: routeErrors, app, deps: {
     workspaceId: "ws-1", clock: { nowMs: () => 0 },
     agentPluginLifecycle: {
       loadPluginContributions: async () => { loads += 1; return { items: [], refusals: [] }; },

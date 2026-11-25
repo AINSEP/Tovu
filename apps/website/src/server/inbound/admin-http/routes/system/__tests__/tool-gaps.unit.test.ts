@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -7,9 +8,10 @@ import type { ToolGapsToolDeps } from '@jini-ai/core/contracts/site/assistant-ho
 
 /** Execute only the route callback; no HTTP listener, app, daemon or CLI is started. */
 async function invoke(principalId: string, workspaceId = 'w', toolGaps?: ToolGapsToolDeps['toolGaps'] | null) {
+  const routeErrors = createRouteIncidentReporter().errors;
   let handler!: (req: Request, res: Response) => Promise<void>;
   let reads = 0;
-  registerAdminToolGapsRoute({ app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps: {
+  registerAdminToolGapsRoute({ errors: routeErrors, app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps: {
     workspaceId: 'w', ownerPrincipalId: Promise.resolve('owner'),
     toolGaps: toolGaps === undefined
       ? { list: async input => { reads++; assert.deepEqual(input, { workspaceId: 'w', principalId: 'owner' }); return []; } }

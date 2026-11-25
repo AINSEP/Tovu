@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -39,6 +40,7 @@ const TEXT_REQUEST = [
 ].join("\n\n");
 
 test("the run span sums provider usage deltas and does not invent cost", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const outcomes: AgentRunTrackingOutcome[] = [];
   const base = createRouteDeps();
   // Records every outcome the turn's span ends with, then hands it to the real span unchanged.
@@ -52,7 +54,7 @@ test("the run span sums provider usage deltas and does not invent cost", async (
   const deps = { ...base, tracker };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes({ app, deps });
+  registerAuthRoutes({ errors: routeErrors, app, deps });
   createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const providerUrl = await startStubProviderServer(t, (callCount) => ({ status: 200, body: callCount === 1 ? TOOL_REQUEST : TEXT_REQUEST }));

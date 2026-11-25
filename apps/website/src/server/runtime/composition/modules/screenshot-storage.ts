@@ -1,8 +1,9 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import type { Express } from "express";
 
-import type { JsonRouteSpec, RouteHostContext } from "@jini-ai/core/contracts/server";
+import type { JsonRouteSpec, OriginContext } from "@jini-ai/core/contracts/server";
 import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import { ok } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
@@ -14,7 +15,7 @@ import { bindCaptureRetention, createCaptureRootFileLock, type CaptureRetentionB
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import { adminSameOriginWrites, mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file Screenshot storage composition: the one root-keyed lock the capture writer
@@ -39,7 +40,7 @@ export interface MountScreenshotCleanupRequired {
   /** The site's binding; its `authorizeOwner` refuses anyone but the installation owner. */
   retention: CaptureRetentionBinding<Context>;
   /** The admin mount, its port deps, and the same-origin policy both routes require. */
-  adminPorts: { mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: RouteHostContext };
+  adminPorts: { errors: RouteErrorPorts; mount: typeof mountAdminJsonRoute; deps: AdminJsonRoutePortDeps; origin: OriginContext };
 }
 
 /**
@@ -89,8 +90,8 @@ function applySpec({ retention }: { retention: MountScreenshotCleanupRequired["r
  * @complexity O(1) setup; per request as the binding.
  */
 export function mountScreenshotCleanup({ app, retention, adminPorts }: MountScreenshotCleanupRequired, _optional: Record<string, never> = {}): void {
-  adminPorts.mount({ app, spec: previewSpec({ retention }), deps: adminPorts.deps, origin: adminPorts.origin });
-  adminPorts.mount({ app, spec: applySpec({ retention }), deps: adminPorts.deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: previewSpec({ retention }), deps: adminPorts.deps, origin: adminPorts.origin });
+  adminPorts.mount({ errors: adminPorts.errors, app, spec: applySpec({ retention }), deps: adminPorts.deps, origin: adminPorts.origin });
 }
 
 /** Owner-only: the session principal must be the installation owner. */
@@ -102,10 +103,10 @@ export function screenshotOwnerFrom({ ownerPrincipalId }: { ownerPrincipalId: ()
 }
 
 /** The `screenshot-storage` server module over the booted site's captures folder. */
-export function createScreenshotStorageModule(deps: RouteDeps, _optional: Record<string, never> = {}): ServerModuleHandle {
+export function createScreenshotStorageModule(deps: RouteDeps, _optional: Record<string, never> = {}): ServerModuleHandle<RouteRegistration> {
   return {
     name: "screenshot-storage",
-    registerRoutes: ({ app }, _options = {}) => {
+    registerRoutes: ({ app, errors }, _options = {}) => {
       const previewStore = createCleanupPreviewStore({ randomToken: ({ bytes }) => randomBytes(bytes).toString("base64url"), mono: () => performance.now() });
       // Bound on first use, not at registration: `siteBinding` is read only when a request needs the
       // captures root, as the capture writer does (`tool-catalog-manifest.ts`).
@@ -115,7 +116,7 @@ export function createScreenshotStorageModule(deps: RouteDeps, _optional: Record
         authorizeOwner: screenshotOwnerFrom({ ownerPrincipalId: async () => deps.ownerPrincipalId }),
       }, {});
       const retention: CaptureRetentionBinding<Context> = { preview: (required) => binding().preview(required, {}), apply: (required) => binding().apply(required, {}) };
-      mountScreenshotCleanup({ app, retention, adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize }, origin: adminSameOriginWrites } });
+      mountScreenshotCleanup({ app, retention, adminPorts: { errors, mount: mountAdminJsonRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize }, origin: adminSameOriginWrites } });
     },
   };
 }

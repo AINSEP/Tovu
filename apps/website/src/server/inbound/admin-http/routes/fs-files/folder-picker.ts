@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -45,7 +46,7 @@ const boundPerRequest = (): never => { throw new Error("bound per request by req
  * Register `GET`/`POST` `/api/admin/v1/workspaces/:workspaceId/fs-files/folder-picker`.
  * @complexity Per request: the local-request check, one authorization, then (POST) the dialog.
  */
-export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Express; deps: AdminFsFilesFolderPickerDeps }, _optional = {}): void {
+export function registerAdminFsFilesFolderPickerRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminFsFilesFolderPickerDeps }, _optional = {}): void {
   // The chooser's own failures, so only they get the fixed `picker-failed` 500.
   const pickerFailures = new Set<unknown>();
   const picker = deps.folderPicker;
@@ -69,7 +70,7 @@ export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Exp
    *  @complexity O(h), h = request header names.
    *  (Now the spec's `refusal`, which returns the refusal instead; the mount writes it.) */
   for (const spec of [get, post]) {
-    mountAdminJsonRoute({ app, spec, deps: mounted }, {
+    mountAdminJsonRoute({ errors, app, spec, deps: mounted }, {
       // Uncaught errors (an authorize crash, ...) reach `next(error)` as the hand-written route's did; only the
       // chooser's own failure, claimed by `failureFor` below, is answered here.
       forwardUncaughtErrors: true,

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import express from "express";
@@ -303,11 +304,12 @@ for (const entrypoint of ["api", "tool"] as const) test(`signin-lab: member ${en
     authorize: async ({ permission }: { permission: string }) => ({ allowed: h.granted.has(permission), reason: "test" }),
   };
   const invoke = async (memberId: string, workspaceId = WS) => {
+  const routeErrors = createRouteIncidentReporter().errors;
     if (entrypoint === "tool") {
       const registration = buildMembersRegistrations(deps as never).find(r => r.descriptor.id === "members_delete")!;
       return registration.handler({ principal: { id: "operator" }, input: { memberId }, signal: new AbortController().signal } as ToolExecutionContext);
     }
-    const app = express(); registerAdminMemberDeleteRoute({ app, deps: deps as never });
+    const app = express(); registerAdminMemberDeleteRoute({ errors: routeErrors, app, deps: deps as never });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
     await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId, memberId } }, res);
     return { status: capture.statusCode, body: capture.jsonBody };
@@ -351,6 +353,7 @@ test("member deletion refuses stale/not-found removals and leaves unexpected ada
 });
 
 test("member DELETE maps stale writes and unavailable runtime, and keeps store failures private", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const h = harness(); t.after(() => h.client.close()); h.seed();
   const cases = [
     { remove: async () => ({ ok: false, reason: "version-changed" }), status: 409 },
@@ -359,7 +362,7 @@ test("member DELETE maps stale writes and unavailable runtime, and keeps store f
   ];
   for (const entry of cases) {
     const app = express();
-    registerAdminMemberDeleteRoute({ app, deps: { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
+    registerAdminMemberDeleteRoute({ errors: routeErrors, app, deps: { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
       removeMember: entry.remove, authorize: async () => ({ allowed: true }) } as never });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
     await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId: WS, memberId: "member-1" } }, res);

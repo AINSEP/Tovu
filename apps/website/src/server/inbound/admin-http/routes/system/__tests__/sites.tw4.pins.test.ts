@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -13,6 +14,7 @@ import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-sup
 
 const route = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 function fixture(overrides: Partial<AdminSitesDeps> = {}, _options = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: unknown[] = [];
   const supervisor = createLocalSiteSupervisor({ servingName: "owner", scheme: "http", processPort: {
     isPortFree: async () => true, schedule: () => () => {},
@@ -27,7 +29,7 @@ function fixture(overrides: Partial<AdminSitesDeps> = {}, _options = {}) {
     createSite: async (input, options) => { calls.push({ input, options }); return { name: input.name, dir: "/new", siteId: "new" }; },
     ...overrides,
   };
-  const app = express(); registerAdminSitesRoutes({ app, deps });
+  const app = express(); registerAdminSitesRoutes({ errors: routeErrors, app, deps });
   return { app, calls, async request({ method = "get", body, workspaceId = "ws" }: { method?: "get" | "post"; body?: unknown; workspaceId?: string | null } = {}, _options = {}) {
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };
     await extractRouteHandler(app, method, route)({ params: { workspaceId }, body, socket: { localPort: 3000 } }, res);

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -86,6 +87,7 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): {
   app: express.Express;
   deps: NewsletterRouteDeps;
 } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps = {
     ...base,
@@ -99,7 +101,7 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterSendTestCampaignRoute({ app, deps });
+  registerAdminNewsletterSendTestCampaignRoute({ errors: routeErrors, app, deps });
   return { app, deps };
 }
 
@@ -334,9 +336,10 @@ test("send-test-campaign: a failed send whose result carries no errorCode report
 });
 
 test("send-test-campaign: registered on an app with no JSON body parser, the absent body is a 400 for testAddresses, not a 500", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as NewsletterRouteDeps;
   const app = express();
-  registerAdminNewsletterSendTestCampaignRoute({ app, deps });
+  registerAdminNewsletterSendTestCampaignRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/camp-1/send-test`, { method: "POST" });

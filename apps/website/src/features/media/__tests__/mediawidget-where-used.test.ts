@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** Slug-aware where-used including fresh post content absent from the entry reference index. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -32,7 +33,7 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
   class MediaRepo extends InMemoryVersionedMediaRepo { override async findById(input: Parameters<InstanceType<typeof InMemoryVersionedMediaRepo>['findById']>[0]) { reads++; return super.findById(input); } }
   const mediaRepo = new MediaRepo({});
   const app = { get: (_path: string, fn: typeof handler) => { handler = fn; } } as unknown as Parameters<typeof registerAdminMediaWhereUsedRoute>[0]['app'];
-  registerAdminMediaWhereUsedRoute({ app, deps: { workspaceId: 'ws', mediaRepo, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}), authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'insufficient_permission' }) } });
+  registerAdminMediaWhereUsedRoute({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: 'ws', mediaRepo, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}), authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'insufficient_permission' }) } });
   const res = { req: { method: 'GET', route: { path: '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used' } },
     locals: { principal: { id: 'owner', kind: 'user' } }, status: (code: number) => { status = code; return res; }, json: (value: unknown) => { body = value; return res; } };
   await handler({ params: { workspaceId: 'other', mediaId: 'm' } }, res);

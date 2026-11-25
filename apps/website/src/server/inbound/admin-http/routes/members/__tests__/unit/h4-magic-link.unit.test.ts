@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import { test, mock } from 'node:test';
@@ -21,11 +22,12 @@ for (const [error, status, body] of [
   [new Error('private mailer detail'), 500, { error: 'internal error' }],
 ] as const) {
   test(`admin magic link maps ${error.constructor.name} without leaking delivery details`, async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
     t.after(() => { send = async () => assert.fail('unexpected sign-in mail'); });
     const order: unknown[] = [];
     send = async ({ input }) => { order.push(input); throw error; };
     const app = express();
-    registerAdminMemberRequestMagicLinkRoute({ app, deps: portFake<MembersRouteDeps>({ workspaceId: 'ws',
+    registerAdminMemberRequestMagicLinkRoute({ errors: routeErrors, app, deps: portFake<MembersRouteDeps>({ workspaceId: 'ws',
       authorize: async input => { order.push(input); return { allowed: true, reason: 'owner' }; },
       magicLinkPerEmailLimiter: { check: async (input: Parameters<MembersRouteDeps['magicLinkPerEmailLimiter']['check']>[0]) => { order.push(input); return { allowed: true }; } },
     }) });
@@ -43,7 +45,7 @@ for (const [error, status, body] of [
 
 test('admin magic link refuses rate-limited mail without requesting delivery', async () => {
   const app = express();
-  registerAdminMemberRequestMagicLinkRoute({ app, deps: portFake<MembersRouteDeps>({ workspaceId: 'ws',
+  registerAdminMemberRequestMagicLinkRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<MembersRouteDeps>({ workspaceId: 'ws',
     authorize: async () => ({ allowed: true, reason: 'owner' }),
     magicLinkPerEmailLimiter: { check: async () => ({ allowed: false, retryAfterSeconds: 23 }) },
   }) });

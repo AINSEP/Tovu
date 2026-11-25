@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** Approved Library step 6. Authored without execution per dispatch.
  * RED kinds are source-based expectations, never observed runs. Missing/corrupt bytes
  * already failed checksum checks; their document-specific errors are message-only.
@@ -86,6 +87,7 @@ async function sourceStore(t: TestContext, h: Awaited<ReturnType<typeof importFi
 }
 
 for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/import preserves private documents and deduplicates blobs`, async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const h = await importFixture(t);
   const bytes = Buffer.from("# Library original bytes\n");
   const doc = addDocument(h, "document", bytes);
@@ -153,7 +155,7 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
     postRepo: new InMemoryPostRepo({}), memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
   } satisfies MediaRenditionRouteDeps;
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; next(); });
-  registerAdminMediaListRoute({ app, deps });
+  registerAdminMediaListRoute({ errors: routeErrors, app, deps });
   registerMediaRenditionRoute({ app, deps }); registerMediaOriginalVideoRoute({ app, deps });
   const base = await startTestServer(app, t);
   const listed = await (await fetch(`${base}/api/admin/v1/workspaces/${workspaceId}/media`)).json();

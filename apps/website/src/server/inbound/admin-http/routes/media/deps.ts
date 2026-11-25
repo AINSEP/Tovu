@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import type { ClockDeps, MediaDeps, RouteDeps } from "#src/server/routes/types";
@@ -14,7 +15,7 @@ export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "remo
   ClockDeps &
   MediaDeps;
 
-export type MediaRouteRegistrar = (required: { app: Express; deps: MediaRouteDeps }, optional?: Record<string, never>) => void;
+export type MediaRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: MediaRouteDeps }, optional?: Record<string, never>) => void;
 
 /**
  * Widened (not narrowed) slice for the TWO public routes typed against it via
@@ -62,4 +63,4 @@ export type MediaProviderRouteDeps = Pick<
   | "siteAssistantSecretKeyring"
 >;
 
-export type MediaProviderRouteRegistrar = (required: { app: Express; deps: MediaProviderRouteDeps }, optional?: Record<string, never>) => void;
+export type MediaProviderRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: MediaProviderRouteDeps }, optional?: Record<string, never>) => void;

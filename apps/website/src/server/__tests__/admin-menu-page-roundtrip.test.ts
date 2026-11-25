@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -16,8 +17,8 @@ test("admin menu PUT then GET list keeps nested page hints and last-known URLs",
   await deps.menuRepo.save({ id: "footer", workspaceId: deps.workspaceId, slug: "footer-nav", title: "Footer", status: "published",
     version: 1, updatedAt: "2026-10-04", locations: [], doc: { type: "menu", version: 1, items: [] } });
   const app = express();
-  registerAdminMenuUpdateTreeRoute({ app, deps });
-  registerAdminMenuListRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const target = { kind: "entryRef", entryId: "page-about", entryType: "page", lastKnownHref: "/about" };
   const items = [{ id: "parent", target: { kind: "url", href: "/" }, children: [{ id: "about", label: "About", target }] }];
   const written = createCapturingResponse();

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,6 +12,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminWorkspaceCreateRoute, type WorkspaceRouteDeps } from "#src/server/runtime/composition/modules/workspace";
 
 function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: WorkspaceRouteDeps = {
     workspaceId: "ws-1",
     workspaceRepo: new InMemoryWorkspaceRepo({}),
@@ -28,7 +30,7 @@ function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Expr
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminWorkspaceCreateRoute({ app, deps });
+  registerAdminWorkspaceCreateRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

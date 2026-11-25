@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
@@ -27,6 +28,7 @@ const WORKSPACE_ID = "workspace-local";
 const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/settings`;
 
 function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps: SeoRouteDeps = {
     workspaceId: base.workspaceId,
@@ -57,7 +59,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminSeoGetSettingsRoute({ app, deps });
+  registerAdminSeoGetSettingsRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

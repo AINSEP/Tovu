@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** Quick wins A contract: guarded admin URL import uses the real upload repositories. */
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -11,6 +12,7 @@ import { registerAdminMediaImportUrlRoute, type VideoImportOptions } from "#src/
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
 async function harness(t: TestContext, options: { allowed?: boolean; response?: Partial<HttpResponse>; refusal?: boolean; videoImport?: VideoImportOptions } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const calls: unknown[] = [];
   const logs: string[] = [];
@@ -23,7 +25,7 @@ async function harness(t: TestContext, options: { allowed?: boolean; response?: 
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "import-owner" }; next(); });
-  registerAdminMediaImportUrlRoute({ app, deps }, { logEgressRefusal: (line) => logs.push(line), ...(options.videoImport ? { videoImport: options.videoImport } : {}) });
+  registerAdminMediaImportUrlRoute({ errors: routeErrors, app, deps }, { logEgressRefusal: (line) => logs.push(line), ...(options.videoImport ? { videoImport: options.videoImport } : {}) });
   const origin = await startTestServer(app, t);
   const post = async (body: unknown, workspace = base.workspaceId) => {
     const response = await fetch(`${origin}/api/admin/v1/workspaces/${workspace}/media/import-url`, {

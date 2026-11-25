@@ -19,12 +19,12 @@ import { trackByokBootWork } from "../site-app-boot-work.js";
 import type { Router } from "express";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { siteAppBootWorkByDeps } from "../site-app-boot-work.js";
-import type { MountInput } from "./module-handles.js";
+import type { ErrorBoundMountInput } from "./module-handles.js";
 import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 
 /** Builds the BYOK assistant module once, tracks its boot pass, and mounts the admin/BYOK assistant surfaces and the daemon-facing router, in registration order. */
 /** @param required.reporter The site composition's one reporter (`createApp`'s), so BYOK tool incidents share its records. */
-export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps, reporter }: MountInput & { internalRouter: Router; bootWorkByDeps: typeof siteAppBootWorkByDeps; reporter: ErrorReporter },
+export function mountAssistant({ app, routeDeps, errors, internalRouter, bootWorkByDeps, reporter }: ErrorBoundMountInput & { internalRouter: Router; bootWorkByDeps: typeof siteAppBootWorkByDeps; reporter: ErrorReporter },
   options: Pick<CreateAppOptions, "assistantToolSurface" | "activateAssistantFederation" | "recoverAssistantChatRuns" | "assistantRoutineBoot" | "onBootWork" | "onShutdown" | "mountAssistantRoutines"
     | "routines" | "routinesReleaseEnabled" | "routineApprovalReceiptsFor" | "siteStorage"> = {}): void {
   // Serving composition supplies the bound routine commands (`modules/serving-routine-tools.ts`); absent or flag off, no routine tool exists.
@@ -72,13 +72,13 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
   // a late resume gets the plain refusal; the daemon closes the held exchanges as it stops.
   options.onShutdown?.({ shutdown: () => adminAgUiApprovals.shutdownAdminApprovals() });
   if (adminAssistantEnabled) {
-    mountRoutes({ app, mod: createAssistantModule({ routeDeps, byokSurfaceExchanges: byokAssistantModule.toolSurface.surfaceExchanges }, { approvals: adminAgUiApprovals }) });
+    mountRoutes({ app, errors, mod: createAssistantModule({ routeDeps, byokSurfaceExchanges: byokAssistantModule.toolSurface.surfaceExchanges }, { approvals: adminAgUiApprovals }) });
 
     // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
     // module because nothing here is proxied: run execution belongs to the daemon (that is where run
     // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
     // workspace scoping already work. The daemon can restart or be replaced without touching it.
-    mountRoutes({ app, mod: createAssistantChatsModule(routeDeps, {
+    mountRoutes({ app, errors, mod: createAssistantChatsModule(routeDeps, {
       recoverInterrupted: options.recoverAssistantChatRuns,
       onBootWork: options.onBootWork,
       ...(options.assistantRoutineBoot ? { routineBoot: options.assistantRoutineBoot } : {}),
@@ -89,13 +89,13 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
   // switch). Registered next to `createAssistantModule` for readability only — the two modules share
   // no dependencies and no path prefix (see `modules/assistant-settings.ts`'s header), and both sit
   // inside the `/api/admin` session gate, so this position is not load-bearing.
-  mountRoutes({ app, mod: createAssistantSettingsModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createAssistantSettingsModule(routeDeps) });
   // Routines (P3-T1a.T): mounted even with the admin assistant off, so the API answers its refusal copy.
   options.mountAssistantRoutines?.({ app });
   // The same admin section's "Execution mode" tab — Local CLI detection + BYOK connection
   // test/model discovery. Separate module from the settings pair above for the reason
   // `modules/assistant-execution.ts`'s header gives (stateless egress probes, not settings CRUD).
-  mountRoutes({ app, mod: createAssistantExecutionModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createAssistantExecutionModule(routeDeps) });
   // 2026-08-04: the admin dock's "API · BYOK" execution mode — a second, provider-direct run path
   // alongside `createAssistantModule`'s daemon proxy above. Composes its own registry/executor over
   // the SAME `buildAssistantToolRegistrations` catalog the daemon uses (see `modules/assistant-byok.ts`'s
@@ -104,13 +104,13 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps,
   // the module itself (and its `toolSurface`) was already built above, so
   // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
   if (adminAssistantEnabled) {
-    mountRoutes({ app, mod: byokAssistantModule });
+    mountRoutes({ app, errors, mod: byokAssistantModule });
 
     // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
     // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
     // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
     // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
     // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-    mountRoutes({ app, mod: createAssistantAgUiModule(routeDeps, { reporter, approvals: adminAgUiApprovals }) });
+    mountRoutes({ app, errors, mod: createAssistantAgUiModule(routeDeps, { reporter, approvals: adminAgUiApprovals }) });
   }
 }

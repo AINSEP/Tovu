@@ -2,17 +2,20 @@
  * @file The two hoisted `ServerModuleHandle` guards `createApp` and its mounts share. Moved verbatim out of `app.ts`.
  */
 
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { registerThemePreviewRefresh } from "../../../inbound/public-http/middleware/theme-preview-refresh.js";
-import type { ServerModuleHandle } from "../modules/types.js";
+import type { RouteRegistration, ServerModuleHandle } from "../modules/types.js";
 
 /** The preview-revision predicate `mountCoreContent` produces and `mountPublicSite` consumes. */
 export type PreviewRevisionCheck = ReturnType<typeof registerThemePreviewRefresh>;
 
 /** What every mount takes: the Express app it registers on and the composed deps. */
 export type MountInput = { app: Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps };
+
+export type ErrorBoundMountInput = MountInput & { errors: RouteErrorPorts };
 
 /**
  * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the
@@ -23,12 +26,12 @@ export type MountInput = { app: Express; routeDeps: NewsletterRouteDeps & ByokTo
  * guard never varies. Hoisting it here means the branch is counted once, in this 2-line function,
  * instead of once per call site.
  */
-export function mountRoutes({ app, mod }: { app: Express; mod: ServerModuleHandle }, _optional: Record<string, never> = {}): void {
-  mod.registerRoutes?.({ app });
+export function mountRoutes({ app, mod, errors }: { app: Express; mod: ServerModuleHandle<RouteRegistration>; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
+  mod.registerRoutes?.({ app, errors });
 }
 
 /** Same hoisted-guard rationale as {@link mountRoutes}, for the `start?.()` half of
  * `ServerModuleHandle` (a module's optional subscriptions/workers, started once at boot). */
-export function startModule(mod: ServerModuleHandle): void {
+export function startModule(mod: Pick<ServerModuleHandle, "start">): void {
   mod.start?.();
 }

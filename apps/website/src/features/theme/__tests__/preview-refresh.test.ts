@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { isReservedThemePreviewPath } from "../preview-policy.js";
 import { buildConfirmedThemesRegistrations } from '../../../assistant/__tests__/fixtures/confirmed-registrations.js';
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
@@ -130,6 +131,7 @@ test("theme settings publish also signals previews", async (t) => {
 });
 
 test("both active-theme settings writers signal a new preview revision", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { InMemoryPresentationSettingsRepo } = await import("../../presentation/index.js");
   const { createFakeClock } = await import("../../../__tests__/support/fake-clock.js");
   const { buildSetActiveThemeRegistrations } = await import("../set-active-theme-tool.js");
@@ -161,7 +163,7 @@ test("both active-theme settings writers signal a new preview revision", async (
     throw new Error("missing handler");
   };
   registerAdminPresentationPatchRoute(
-    { app: {
+    { errors: routeErrors, app: {
       patch: (route: string, handler: typeof patch) => {
         assert.equal(route, "/api/admin/v1/workspaces/:workspaceId/presentation");
         patch = handler;

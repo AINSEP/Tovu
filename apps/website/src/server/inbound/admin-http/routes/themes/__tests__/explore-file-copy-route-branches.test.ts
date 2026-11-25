@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -39,6 +40,7 @@ function makeThemesRoot(): string {
 }
 
 function buildTestApp(themesDir: string): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -52,7 +54,7 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFileCopyRoute({ app, deps });
+  registerAdminThemeFileCopyRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

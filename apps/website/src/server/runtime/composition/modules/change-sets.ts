@@ -33,19 +33,19 @@ function mountOptions(operation: string) {
 
 const toChangeSetHeader = ({ changeSet }: { changeSet: Parameters<typeof toChangeSetView>[0]["changeSet"] }) => toChangeSetView({ changeSet });
 
-export const registerAdminChangeSetListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminChangeSetListRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: changeSetListRoute, deps: { ...changeSetPortDeps({ deps }), changeSets: deps.changeSets, toChangeSetHeader } },
+    { errors, app, spec: changeSetListRoute, deps: { ...changeSetPortDeps({ deps }), changeSets: deps.changeSets, toChangeSetHeader } },
     mountOptions("routes/change-sets/list"),
   );
 };
 
-export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const getDeps = {
     ...changeSetPortDeps({ deps }), changeSets: deps.changeSets, toChangeSetHeader,
     toChangeSetItem: ({ item }: { item: Parameters<typeof toChangeSetItemResponse>[0]["item"] }) => toChangeSetItemResponse({ item }),
   };
-  mountAdminJsonRoute({ app, spec: changeSetGetRoute, deps: getDeps }, mountOptions("routes/change-sets/get"));
+  mountAdminJsonRoute({ errors, app, spec: changeSetGetRoute, deps: getDeps }, mountOptions("routes/change-sets/get"));
 };
 
 /** The revert registry as the route sees it: resolved from `deps` per call, as the hand-written route read
@@ -57,10 +57,10 @@ function currentRevertRegistry({ deps }: { deps: ContentRouteDeps }, _optional: 
   };
 }
 
-export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const revertDeps = {
     ...changeSetPortDeps({ deps }), changeSets: deps.changeSets, revertRegistry: currentRevertRegistry({ deps }),
     clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, toChangeSetHeader,
   };
-  mountAdminJsonRoute({ app, spec: changeSetRevertRoute, deps: revertDeps }, mountOptions("routes/change-sets/revert"));
+  mountAdminJsonRoute({ errors, app, spec: changeSetRevertRoute, deps: revertDeps }, mountOptions("routes/change-sets/revert"));
 };

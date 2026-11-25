@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { ForbiddenError, ValueValidationFailedError as CoreValueValidationFailedError } from "@jini-ai/core/settings";
 
@@ -29,7 +30,7 @@ import {
 } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 / ADR-058 / admin-BYOK-keystore design — the `assistant-settings` server
@@ -104,7 +105,7 @@ export type AssistantSettingsRouteDeps = Pick<
   | "adminAssistantEnabled"
 >;
 
-export type AssistantSettingsRouteRegistrar = (required: { app: Express; deps: AssistantSettingsRouteDeps }, optional?: Record<string, never>) => void;
+export type AssistantSettingsRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: AssistantSettingsRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The visitor-tools pair's own slice: the service is optional on the host bag (absent ⇒ redacted 500). */
 export interface VisitorToolsRouteDeps { workspaceId: string; visitorToolsManagement?: VisitorToolsManagementPort }
@@ -169,7 +170,7 @@ function settingsGate({ deps }: { deps: AssistantSettingsRouteDeps }, _optional:
   };
 }
 
-export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const readAssistantSettings = (input: { workspaceId: string }) => getPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, input);
   // Getters, not copies: the flag is read per request, as before — tests (and `commit-site`'s override
   // technique) mutate the bag after registration, and a spread would freeze the boot-time value.
@@ -179,7 +180,7 @@ export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegis
     get adminAssistantEnabled() { return deps.adminAssistantEnabled; },
   };
   mountAdminJsonRoute(
-    { app, spec: assistantGetSettingsRoute, deps: getDeps },
+    { errors, app, spec: assistantGetSettingsRoute, deps: getDeps },
     mountOptions({ operation: "routes/assistant/get-settings", authorization: "direct" }, { message: "Assistant settings could not be loaded." }),
   );
 };
@@ -188,7 +189,7 @@ export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegis
  * PUT body is {toolId, expectedRevisionSeq, mode?, limits?}; both return {data: VisitorToolsView}.
  * @example registerAdminVisitorToolsRoutes({app, deps});
  */
-export function registerAdminVisitorToolsRoutes({ app, deps }: { app: Express; deps: VisitorToolsRouteDeps }, _options = {}): void {
+export function registerAdminVisitorToolsRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: VisitorToolsRouteDeps }, _options = {}): void {
   // No RBAC port is consulted (the service authorizes); `authorize` is present only to satisfy the port shape.
   const portDeps = {
     workspaceId: deps.workspaceId, authorize: async () => ({ allowed: false, reason: "visitor-tools routes authorize in the service" }),
@@ -202,11 +203,11 @@ export function registerAdminVisitorToolsRoutes({ app, deps }: { app: Express; d
   const configureDeps = {
     ...portDeps, visitorToolsManagement: (): VisitorToolsConfigureRoutePort | undefined => deps.visitorToolsManagement,
   } satisfies VisitorToolsConfigureRouteDeps & AdminJsonRoutePortDeps;
-  mountAdminJsonRoute({ app, spec: assistantVisitorToolsListRoute, deps: listDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
-  mountAdminJsonRoute({ app, spec: assistantVisitorToolsConfigureRoute, deps: configureDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: assistantVisitorToolsListRoute, deps: listDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: assistantVisitorToolsConfigureRoute, deps: configureDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
 }
 
-export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const writeAssistantSettings = (input: { workspaceId: string; patch: unknown; callerPrincipalId: string }) => setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set, clock: deps.clock, ids: deps.idGen,
@@ -215,80 +216,80 @@ export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegis
     { workspaceId: input.workspaceId, patch: input.patch as Parameters<typeof setPublicAssistantSettings>[1]["patch"], callerPrincipalId: input.callerPrincipalId },
   );
   mountAdminJsonRoute(
-    { app, spec: assistantPutSettingsRoute, deps: Object.assign(settingsGate({ deps }), { writeAssistantSettings, errorMappings: SETTINGS_ERRORS }) },
+    { errors, app, spec: assistantPutSettingsRoute, deps: Object.assign(settingsGate({ deps }), { writeAssistantSettings, errorMappings: SETTINGS_ERRORS }) },
     mountOptions({ operation: "routes/assistant/put-settings", authorization: "direct" }),
   );
 };
 
-export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const readSiteCredential = (input: { workspaceId: string }) => getSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, input);
   mountAdminJsonRoute(
-    { app, spec: assistantGetSiteCredentialRoute, deps: { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, readSiteCredential } },
+    { errors, app, spec: assistantGetSiteCredentialRoute, deps: { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, readSiteCredential } },
     mountOptions({ operation: "routes/assistant/get-site-credential", authorization: "direct" }),
   );
 };
 
-export const registerAdminAssistantPutSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantPutSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const writeSiteCredential = (input: Parameters<typeof setSiteAssistantCredential>[1]) => setSiteAssistantCredential(
     { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
     input,
   );
   const putDeps = { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, writeSiteCredential, errorMappings: SITE_CREDENTIAL_ERRORS };
-  mountAdminJsonRoute({ app, spec: assistantPutSiteCredentialRoute, deps: putDeps }, mountOptions({ operation: "routes/assistant/put-site-credential", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: assistantPutSiteCredentialRoute, deps: putDeps }, mountOptions({ operation: "routes/assistant/put-site-credential", authorization: "direct" }));
 };
 
-export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const clearSiteCredential = ({ workspaceId }: { workspaceId: string }) => deleteSiteAssistantCredential({
     deps: { repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, workspaceId,
   });
   mountAdminJsonRoute(
-    { app, spec: assistantDeleteSiteCredentialRoute, deps: { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, clearSiteCredential } },
+    { errors, app, spec: assistantDeleteSiteCredentialRoute, deps: { ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, clearSiteCredential } },
     mountOptions({ operation: "routes/assistant/delete-site-credential", authorization: "direct" }),
   );
 };
 
-export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const readExecutionCredential = (input: { workspaceId: string; principalId: string }) => getExecutionCredential(
     { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer }, input,
   );
   mountAdminJsonRoute(
-    { app, spec: assistantGetExecutionCredentialRoute, deps: { ...assistantPortDeps({ deps }), readExecutionCredential } },
+    { errors, app, spec: assistantGetExecutionCredentialRoute, deps: { ...assistantPortDeps({ deps }), readExecutionCredential } },
     mountOptions({ operation: "routes/assistant/get-execution-credential", authorization: "direct" }),
   );
 };
 
-export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const writeExecutionCredential = (input: Parameters<typeof setExecutionCredential>[1]) => setExecutionCredential(
     { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
     input,
   );
   const putDeps = { ...assistantPortDeps({ deps }), writeExecutionCredential, errorMappings: EXECUTION_CREDENTIAL_ERRORS };
-  mountAdminJsonRoute({ app, spec: assistantPutExecutionCredentialRoute, deps: putDeps }, mountOptions({ operation: "routes/assistant/put-execution-credential", authorization: "direct" }));
+  mountAdminJsonRoute({ errors, app, spec: assistantPutExecutionCredentialRoute, deps: putDeps }, mountOptions({ operation: "routes/assistant/put-execution-credential", authorization: "direct" }));
 };
 
-export const registerAdminAssistantDeleteExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminAssistantDeleteExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const clearExecutionCredential = (input: { workspaceId: string; principalId: string }) => deleteExecutionCredential({
     deps: { repo: deps.adminExecutionCredentialRepo, clock: deps.clock }, ...input,
   });
   mountAdminJsonRoute(
-    { app, spec: assistantDeleteExecutionCredentialRoute, deps: { ...assistantPortDeps({ deps }), clearExecutionCredential } },
+    { errors, app, spec: assistantDeleteExecutionCredentialRoute, deps: { ...assistantPortDeps({ deps }), clearExecutionCredential } },
     mountOptions({ operation: "routes/assistant/delete-execution-credential", authorization: "direct" }),
   );
 };
 
-export function createAssistantSettingsModule(deps: AssistantSettingsRouteDeps): ServerModuleHandle {
+export function createAssistantSettingsModule(deps: AssistantSettingsRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "assistant-settings",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminAssistantGetSettingsRoute({ app, deps });
-      registerAdminVisitorToolsRoutes({ app, deps });
-      registerAdminAssistantPutSettingsRoute({ app, deps });
-      registerAdminAssistantGetSiteCredentialRoute({ app, deps });
-      registerAdminAssistantPutSiteCredentialRoute({ app, deps });
-      registerAdminAssistantDeleteSiteCredentialRoute({ app, deps });
-      registerAdminAssistantGetExecutionCredentialRoute({ app, deps });
-      registerAdminAssistantPutExecutionCredentialRoute({ app, deps });
-      registerAdminAssistantDeleteExecutionCredentialRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminAssistantGetSettingsRoute({ errors, app, deps });
+      registerAdminVisitorToolsRoutes({ errors, app, deps });
+      registerAdminAssistantPutSettingsRoute({ errors, app, deps });
+      registerAdminAssistantGetSiteCredentialRoute({ errors, app, deps });
+      registerAdminAssistantPutSiteCredentialRoute({ errors, app, deps });
+      registerAdminAssistantDeleteSiteCredentialRoute({ errors, app, deps });
+      registerAdminAssistantGetExecutionCredentialRoute({ errors, app, deps });
+      registerAdminAssistantPutExecutionCredentialRoute({ errors, app, deps });
+      registerAdminAssistantDeleteExecutionCredentialRoute({ errors, app, deps });
     },
   };
 }

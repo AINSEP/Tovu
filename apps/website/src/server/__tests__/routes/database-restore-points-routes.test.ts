@@ -24,8 +24,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminDatabaseRestorePointsListRoute({ app, deps });
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+  registerAdminDatabaseRestorePointsListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 
@@ -66,13 +66,14 @@ test("database restore-points routes: an empty site lists zero restore points, n
 });
 
 test("database restore-points routes: GET is 403 for a caller without database.read", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "insufficient role" }) };
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsListRoute({ app, deps });
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+  registerAdminDatabaseRestorePointsListRoute({ errors: routeErrors, app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
@@ -84,6 +85,7 @@ test("database restore-points routes: GET is 403 for a caller without database.r
 });
 
 test("database restore-points routes: POST is 403 for a caller without backup.create", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "insufficient role" }) };
   let captureCalls = 0;
   const capture = deps.dbOps.captureRestorePoint.bind(deps.dbOps);
@@ -95,8 +97,8 @@ test("database restore-points routes: POST is 403 for a caller without backup.cr
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsListRoute({ app, deps });
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+  registerAdminDatabaseRestorePointsListRoute({ errors: routeErrors, app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
@@ -113,6 +115,7 @@ test("database restore-points routes: POST is 403 for a caller without backup.cr
 });
 
 test("database restore-points routes: GET 500s with the concealed incident envelope (no thrown message) when the repo explodes", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.restorePointsRepo.list = async () => {
     throw new Error("disk read failure");
@@ -121,7 +124,7 @@ test("database restore-points routes: GET 500s with the concealed incident envel
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsListRoute({ app, deps });
+  registerAdminDatabaseRestorePointsListRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
@@ -131,6 +134,7 @@ test("database restore-points routes: GET 500s with the concealed incident envel
 });
 
 test("database restore-points routes: GET 500s with a generic message when a non-Error is thrown", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.restorePointsRepo.list = async () => {
     // eslint-disable-next-line @typescript-eslint/no-throw-literal
@@ -140,7 +144,7 @@ test("database restore-points routes: GET 500s with a generic message when a non
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsListRoute({ app, deps });
+  registerAdminDatabaseRestorePointsListRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
@@ -194,13 +198,14 @@ test("database restore-points routes: POST accepts a caller-supplied idempotency
 });
 
 test("database restore-points routes: POST 400s (ValidationError) for an 'expensive' site without costAck, and 201s once acknowledged", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.dbOps.getCapabilities = async () => ({ restorePoint: { costClass: "expensive", kind: "logical-dump" } });
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const refused = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
@@ -230,13 +235,14 @@ test("database restore-points routes: POST 400s (ValidationError) for an 'expens
 });
 
 test("database restore-points routes: POST 409s (RestorePointUnavailableError) when the site's dbOps reports 'unavailable'", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.dbOps.getCapabilities = async () => ({ restorePoint: { costClass: "unavailable", kind: "file-snapshot" } });
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
@@ -250,6 +256,7 @@ test("database restore-points routes: POST 409s (RestorePointUnavailableError) w
 });
 
 test("database restore-points routes: POST 500s with the concealed incident envelope (no thrown message) when persistence fails after a successful capture", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.restorePointsRepo.save = async () => {
     throw new Error("save failed");
@@ -258,7 +265,7 @@ test("database restore-points routes: POST 500s with the concealed incident enve
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
@@ -310,6 +317,7 @@ test("database restore-points routes: POST is idempotent — a repeat idempotenc
 });
 
 test("database restore-points routes: POST 500s with a generic message when a non-Error is thrown", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.dbOps.getCapabilities = async () => {
     // eslint-disable-next-line @typescript-eslint/no-throw-literal
@@ -319,7 +327,7 @@ test("database restore-points routes: POST 500s with a generic message when a no
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {

@@ -53,13 +53,14 @@ function buildTestApp(introspection: DatabaseIntrospectionPort = new InMemoryDat
   app: express.Express;
   deps: RouteDeps;
 } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), databaseIntrospection: introspection };
 
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseSchemaStateRoute({ app, deps });
+  registerAdminDatabaseSchemaStateRoute({ errors: routeErrors, app, deps });
 
   return { app, deps };
 }

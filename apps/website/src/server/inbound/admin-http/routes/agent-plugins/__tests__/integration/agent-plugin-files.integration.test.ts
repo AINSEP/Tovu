@@ -81,13 +81,14 @@ async function withSwitchedOffPlugin<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 function buildTestApp(baseDeps = createRouteDeps()): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   // One `createRouteDeps()` for both the auth stack and the route — see
   // `agent-plugins-http.integration.test.ts`'s `buildTestApp` for why a second call 403s.
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginFilesRoute({ app, deps: baseDeps });
+  registerAgentPluginFilesRoute({ errors: routeErrors, app, deps: baseDeps });
   return app;
 }
 

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
@@ -34,6 +35,7 @@ import { buildUnsubscribeLink } from "@jini-ai/user-management/newsletter/unsubs
  */
 
 function buildPublicApp(consentCapability?: MembersConsentCapability): { app: express.Express; deps: NewsletterRouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
@@ -51,7 +53,7 @@ function buildPublicApp(consentCapability?: MembersConsentCapability): { app: ex
   };
   // Only the PUBLIC half of the module is exercised here — no admin registrar, no session
   // middleware at all exists in this app instance (unlike `newsletter-auth.test.ts`'s admin app).
-  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ app });
+  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ errors: routeErrors, app });
   return { app, deps };
 }
 

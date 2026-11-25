@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import test from "node:test";
@@ -18,6 +19,7 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 test("share routes validate sources and authorize before effects, preserve downloads, and sanitize every backend failure", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const directory = fs.mkdtempSync(path.join(tmpdir(), "share-route-gaps-")); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const registry = new SiteShareRegistry({ directory, now: () => Date.now() }), calls: unknown[] = [];
   let available = true, allowed = true, trusted = false, failure: unknown;
@@ -31,7 +33,7 @@ test("share routes validate sources and authorize before effects, preserve downl
   const app = express(); app.use(express.json({ strict: false }));
   registerPublicShareRoutes({ app, registry });
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; if (trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 }; next(); });
-  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), get siteShareBackend() { return available ? backend : undefined; } } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), get siteShareBackend() { return available ? backend : undefined; } } as unknown as RouteDeps });
   const base = await startTestServer(app, t), root = base + "/api/admin/v1/workspaces/ws/site-shares";
   const post = (body: unknown) => fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   assert.equal((await fetch(root.replace("workspaces/ws/", "workspaces/other/"))).status, 404);
@@ -97,6 +99,7 @@ test("public share namespace terminates safely when no registry is configured", 
 });
 
 test("share creation accepts a non-UUID job id (reported, not fixed)", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const created: Array<{ principalId: string; jobId?: string; signal: AbortSignal }> = [];
   const create: NonNullable<RouteDeps["siteShareBackend"]>["create"] = async input => {
     created.push(input);
@@ -105,7 +108,7 @@ test("share creation accepts a non-UUID job id (reported, not fixed)", async t =
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   const ports = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "fixture" }) } satisfies Pick<RouteDeps, "workspaceId" | "authorize">;
-  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: portFake<RouteDeps>({ ...ports, siteShareBackend: { create } }) });
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: portFake<RouteDeps>({ ...ports, siteShareBackend: { create } }) });
   const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/ws/site-shares`;
   for (const body of [null, {}, { jobId: "-".repeat(36) }]) {
     const response = await fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -118,6 +121,7 @@ test("share creation accepts a non-UUID job id (reported, not fixed)", async t =
 });
 
 test("share artifact routes admit a connected-computer grant, and every route refuses or sanitizes before effects", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   let allowed = true, trusted = false, authorizeFault: unknown, registryFault: unknown;
   const effects: string[] = [];
   const registry = portFake<SiteShareRegistry>({
@@ -127,7 +131,7 @@ test("share artifact routes admit a connected-computer grant, and every route re
   });
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; if (trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 }; next(); });
-  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: portFake<RouteDeps>({ workspaceId: "ws", siteShareBackend: { registry },
+  registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: portFake<RouteDeps>({ workspaceId: "ws", siteShareBackend: { registry },
     authorize: async () => { if (authorizeFault) throw authorizeFault; return { allowed, reason: "test" }; } }) });
   const root = (await startTestServer(app, t)) + "/api/admin/v1/workspaces/ws/site-shares";
   const artifact = root + "/artifacts/" + "a".repeat(16) + "/received.tovu.zip";
@@ -162,7 +166,7 @@ test("static HTTP options and start share exact selection validation and export 
   const calls: unknown[] = [], permissions: string[] = [];
   const app = express(); // dispatchJsonRequest enters with the already-parsed body.
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", authorize: async (input: { permission: string }) => { permissions.push(input.permission); return { allowed: true }; }, siteShareBackend: {
+  registerAdminSiteShareRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async (input: { permission: string }) => { permissions.push(input.permission); return { allowed: true }; }, siteShareBackend: {
     staticOptions: async () => { calls.push("options"); return { activeThemeId: "poster", themes: [{ themeId: "poster", name: "poster" }] }; },
     create: async (input: unknown) => { calls.push(input); return { jobId: "started" }; },
   } } as unknown as RouteDeps });

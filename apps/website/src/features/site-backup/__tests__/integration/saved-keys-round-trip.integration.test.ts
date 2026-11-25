@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
 import { createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from '../../../api-connections/vault-stores.js';
@@ -91,6 +92,7 @@ async function shareRequest(app: express.Express, endpoint: string, body: unknow
 
 for (const placement of ["inSite", "appData"] as const) {
   test(`exports and imports contain no saved keys or inherited grants (${placement})`, { timeout: 120000 }, async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
     const h = await importFixture(t, placement), workspaceId = "ws";
     // Production sites use WAL. A memory-only source hides deserialization failures on export.
     const sourcePath = path.join(h.root, "source.db");
@@ -153,7 +155,7 @@ for (const placement of ["inSite", "appData"] as const) {
     });
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-    registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId, ownerPrincipalId: "owner", siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
+    registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: { workspaceId, ownerPrincipalId: "owner", siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
     const endpoint = `/api/admin/v1/workspaces/${workspaceId}/site-shares`;
     let exported = await shareRequest(app, endpoint, {});
     while (exported.jobId) exported = await shareRequest(app, endpoint, { jobId: exported.jobId });

@@ -22,12 +22,13 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
  * unregistered key, and the generic 500 fallback.
  */
 function buildTestApp(deps: RouteDeps = createRouteDeps()): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminContentTypeRegisterRoute({ app, deps });
-  registerAdminContentTypeLifecycleRoute({ app, deps });
+  registerAdminContentTypeRegisterRoute({ errors: routeErrors, app, deps });
+  registerAdminContentTypeLifecycleRoute({ errors: routeErrors, app, deps });
   return { app, deps };
 }
 

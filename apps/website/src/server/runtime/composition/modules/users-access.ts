@@ -60,63 +60,63 @@ function readMountOptions(operation: string) {
   return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
-export const registerAdminRoleListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminRoleListRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const listDeps = { ...accessDeps({ deps }), roleRepo: { list: (required: { workspaceId: string }) => deps.roleRepo.list(required) } };
-  mountAdminJsonRoute({ app, spec: roleListRoute, deps: listDeps }, readMountOptions("routes/users/list-roles"));
+  mountAdminJsonRoute({ errors, app, spec: roleListRoute, deps: listDeps }, readMountOptions("routes/users/list-roles"));
 };
 
-export const registerAdminPolicyListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPolicyListRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const listDeps = { ...accessDeps({ deps }), policyRepo: { list: (required: { workspaceId: string }) => deps.policyRepo.list(required) } };
-  mountAdminJsonRoute({ app, spec: policyListRoute, deps: listDeps }, readMountOptions("routes/users/list-policies"));
+  mountAdminJsonRoute({ errors, app, spec: policyListRoute, deps: listDeps }, readMountOptions("routes/users/list-policies"));
 };
 
-export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const listDeps = {
     ...accessDeps({ deps }),
     policyRepo: { findById: (required: { workspaceId: string; id: string }) => deps.policyRepo.findById(required) },
     policyPermissionRepo: { listByPolicyId: (required: { workspaceId: string; policyId: string }) => deps.policyPermissionRepo.listByPolicyId(required) },
   };
-  mountAdminJsonRoute({ app, spec: policyPermissionListRoute, deps: listDeps }, readMountOptions("routes/users/list-policy-permissions"));
+  mountAdminJsonRoute({ errors, app, spec: policyPermissionListRoute, deps: listDeps }, readMountOptions("routes/users/list-policy-permissions"));
 };
 
 /** The transaction and the row read are bound per request, as the hand-written route read `deps`. */
-export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const removeDeps = {
     ...accessDeps({ deps }), removePolicyPermission, principalHoldsOwnerWildcard, assertActiveOwnerFloor,
     transactions: { run: <T>(required: { workspaceId: string; execute: () => Promise<T> }) => deps.transactions.run(required) },
     policyPermissionRepo: { listByPolicyId: (required: { workspaceId: string; policyId: string }) => deps.policyPermissionRepo.listByPolicyId(required) },
   };
-  mountAdminJsonRoute({ app, spec: policyPermissionRemoveRoute, deps: removeDeps }, mountOptions("routes/users/remove-policy-permission"));
+  mountAdminJsonRoute({ errors, app, spec: policyPermissionRemoveRoute, deps: removeDeps }, mountOptions("routes/users/remove-policy-permission"));
 };
 
-export const registerAdminRoleCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: roleCreateRoute, deps: { ...accessDeps({ deps }), createRole } }, mountOptions("routes/users/create-role"));
+export const registerAdminRoleCreateRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: roleCreateRoute, deps: { ...accessDeps({ deps }), createRole } }, mountOptions("routes/users/create-role"));
 };
 
-export const registerAdminRoleUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: roleUpdateRoute, deps: { ...accessDeps({ deps }), updateRole } }, mountOptions("routes/users/update-role"));
+export const registerAdminRoleUpdateRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: roleUpdateRoute, deps: { ...accessDeps({ deps }), updateRole } }, mountOptions("routes/users/update-role"));
 };
 
-export const registerAdminRoleDeleteRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: roleDeleteRoute, deps: { ...accessDeps({ deps }), deleteRole } }, mountOptions("routes/users/delete-role"));
+export const registerAdminRoleDeleteRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: roleDeleteRoute, deps: { ...accessDeps({ deps }), deleteRole } }, mountOptions("routes/users/delete-role"));
 };
 
-export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: policyCreateRoute, deps: { ...accessDeps({ deps }), createPolicy } }, mountOptions("routes/users/create-policy"));
+export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: policyCreateRoute, deps: { ...accessDeps({ deps }), createPolicy } }, mountOptions("routes/users/create-policy"));
 };
 
-export const registerAdminPolicyUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: policyUpdateRoute, deps: { ...accessDeps({ deps }), updatePolicy } }, mountOptions("routes/users/update-policy"));
+export const registerAdminPolicyUpdateRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: policyUpdateRoute, deps: { ...accessDeps({ deps }), updatePolicy } }, mountOptions("routes/users/update-policy"));
 };
 
-export const registerAdminPolicyDeleteRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: policyDeleteRoute, deps: { ...accessDeps({ deps }), deletePolicy } }, mountOptions("routes/users/delete-policy"));
+export const registerAdminPolicyDeleteRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: policyDeleteRoute, deps: { ...accessDeps({ deps }), deletePolicy } }, mountOptions("routes/users/delete-policy"));
 };
 
-export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const writeDeps = {
     ...accessDeps({ deps }), writePolicyPermission,
     ungrantablePermissions: UNGRANTABLE_ROLE_PERMISSIONS, ungrantablePermissionRefusal: UNGRANTABLE_ROLE_PERMISSION_REFUSAL,
   };
-  mountAdminJsonRoute({ app, spec: policyPermissionWriteRoute, deps: writeDeps }, mountOptions("routes/users/write-policy-permission"));
+  mountAdminJsonRoute({ errors, app, spec: policyPermissionWriteRoute, deps: writeDeps }, mountOptions("routes/users/write-policy-permission"));
 };

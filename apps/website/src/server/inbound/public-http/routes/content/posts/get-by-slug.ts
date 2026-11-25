@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express } from "express";
 
@@ -36,7 +37,7 @@ type MemberContext = Parameters<MemberAccessResolver["decide"]>[0]["context"];
 /** Placeholder for a request-bound dep at mount time; `requestDeps` replaces it on every request. */
 const boundPerRequest = (): never => { throw new Error("bound per request by requestDeps"); };
 
-export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerContentPostGetRoute: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = ({ errors, app, deps }, _options = {}) => {
   const mounted: ContentPostGetRouteDeps = {
     workspaceId: deps.workspaceId,
     postRepo: deps.postRepo,
@@ -51,7 +52,7 @@ export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _opti
       };
     },
   };
-  mountPublicJsonRoute({
+  mountPublicJsonRoute({ errors,
     app: app as Express,
     spec: contentPostGetRoute,
     deps: mounted,

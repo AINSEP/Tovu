@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Express } from "express";
@@ -82,7 +83,7 @@ function handshakeBaseDeps({ deps }: { deps: PublishTrustHandshakeDeps }, _optio
  *
  * @complexity O(1) per request — see each spec.
  */
-export function registerPublishTrustHandshakeRoutes({ app, deps }: { app: Express; deps: PublishTrustHandshakeDeps }, _optional: Record<string, never> = {}): void {
+export function registerPublishTrustHandshakeRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: PublishTrustHandshakeDeps }, _optional: Record<string, never> = {}): void {
   const base = handshakeBaseDeps({ deps });
   const limiter = createRateLimiter({
     profile: PUBLISH_TRUST_HANDSHAKE_PER_IP,
@@ -91,12 +92,12 @@ export function registerPublishTrustHandshakeRoutes({ app, deps }: { app: Expres
   // Unreachable in practice: every handler answers its own fixed 500; this copy only covers a
   // failure in the request-facts port before the spec runs.
   const failure = { operation: "publish-trust:handshake", visitorError: HANDSHAKE_COPY.failed.error };
-  mountPublicJsonRoute({ app, spec: publishTrustIdentityRoute, deps: { ...base, workspaceId: deps.workspaceId }, failure });
-  mountPublicJsonRoute({ app, spec: publishTrustChallengeRoute, failure, deps: {
+  mountPublicJsonRoute({ errors, app, spec: publishTrustIdentityRoute, deps: { ...base, workspaceId: deps.workspaceId }, failure });
+  mountPublicJsonRoute({ errors, app, spec: publishTrustChallengeRoute, failure, deps: {
     ...base, limiter,
     issueChallenge: ({ targetInstallationId }) => issuePublishChallenge({ store: deps.challengeStore, clock: deps.clock, idGen: deps.idGen, targetInstallationId }),
   } });
-  mountPublicJsonRoute({ app, spec: publishTrustSessionRoute, failure, deps: {
+  mountPublicJsonRoute({ errors, app, spec: publishTrustSessionRoute, failure, deps: {
     ...base, limiter,
     findGrant: async ({ sourceInstallationId }) => findGrantForSource({ res: await deps.grants(), sourceInstallationId }),
     // The parameters name this host's own grant and capability types: the spec hands back exactly the

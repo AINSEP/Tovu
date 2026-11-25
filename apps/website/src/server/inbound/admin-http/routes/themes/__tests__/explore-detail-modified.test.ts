@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -77,6 +78,7 @@ function makeThemesRoot(): string {
 }
 
 async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(), packageThemesDir?: string): Promise<string> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -91,10 +93,10 @@ async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute({ app, deps });
-  registerAdminThemeFileCopyRoute({ app, deps });
-  registerAdminThemeFileRenameRoute({ app, deps });
-  registerAdminThemeFileResetRoute({ app, deps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileCopyRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileRenameRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileResetRoute({ errors: routeErrors, app, deps });
   return startTestServer(app, t);
 }
 
@@ -166,6 +168,7 @@ test("detail listing: a theme with no catalog directory reports every file reset
 });
 
 test("detail listing: modified reflects the disk at request time, not a boot-time snapshot", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const themesDir = makeThemesRoot();
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -179,7 +182,7 @@ test("detail listing: modified reflects the disk at request time, not a boot-tim
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
 
   fs.writeFileSync(path.join(themesDir, "static", "moddy", "pages", "index.html"), "<html><body>y</body></html>", "utf8");

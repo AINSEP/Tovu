@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -65,6 +66,7 @@ function recordingMailer(): MailerPort & { sent: Array<{ to: string; subject: st
 }
 
 async function buildApp(contact: SubscriberContact | null) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const mailer = recordingMailer();
   const deps = {
@@ -84,7 +86,7 @@ async function buildApp(contact: SubscriberContact | null) {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterResendConfirmationRoute({ app, deps });
+  registerAdminNewsletterResendConfirmationRoute({ errors: routeErrors, app, deps });
   return { app, deps, mailer };
 }
 

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -28,10 +29,10 @@ async function fixture() {
   const deps = { workspaceId: ws, settingsReady: Promise.resolve(), settingsRepo: f.repo, clock: { nowMs: () => 0, nowIso: () => "1970-01-01T00:00:00.000Z" },
     idGen: f.deps.ids, authorize: f.deps.authorize, principalRepo } as unknown as SettingsRouteDeps;
   const app = express();
-  registerAdminSettingsClearRoute({ app, deps });
-  registerAdminSettingsResetRoute({ app, deps });
-  registerAdminSettingsSetRoute({ app, deps });
-  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+  registerAdminSettingsClearRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsResetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsSetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { ...f, deps, principalRepo,
     async request(method: "put" | "delete" | "post", path: string, body: unknown) {
       const { res, capture } = createCapturingResponse();

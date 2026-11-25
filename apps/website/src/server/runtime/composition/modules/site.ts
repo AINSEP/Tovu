@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { buildSiteProfile, MAX_PAGE_ITEMS, SITE_PROFILE_SECTION_NAMES, type SiteProfileSectionName } from "@jini-ai/cms/site-inspection/site-profile";
@@ -36,9 +37,9 @@ export type AdminSiteProfileDeps = Pick<
 >;
 
 /** Registers `GET /api/admin/v1/workspaces/:workspaceId/site/profile`. @complexity O(1) per registration. */
-export function registerAdminSiteProfileRoute({ app, deps }: { app: Express; deps: AdminSiteProfileDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminSiteProfileRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminSiteProfileDeps }, _optional: Record<string, never> = {}): void {
   mountAdminJsonRoute(
-    {
+    { errors,
       app,
       spec: siteProfileRoute,
       deps: {

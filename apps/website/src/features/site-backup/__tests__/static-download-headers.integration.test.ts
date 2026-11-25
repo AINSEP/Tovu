@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -13,6 +14,7 @@ import { recordingComposedReporter } from "#src/server/__tests__/helpers/compose
 
 for (const filename of ["site-static-2026-10-30-1015.zip", "site.tovu.zip"]) {
   test(`authenticated download exposes ${filename} in Content-Disposition`, async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
     const directory = await mkdtemp(path.join(tmpdir(), "share-download-name-"));
     t.after(() => rm(directory, { recursive: true, force: true }));
     const registry = new SiteShareRegistry({ directory, now: () => Date.now() });
@@ -26,7 +28,7 @@ for (const filename of ["site-static-2026-10-30-1015.zip", "site.tovu.zip"]) {
       res.on("finish", () => { headers = res.getHeaders(); });
       next();
     });
-    registerAdminSiteShareRoutes({ app, reporter: recordingComposedReporter().reporter, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteShareBackend: { registry } } as unknown as RouteDeps });
+    registerAdminSiteShareRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteShareBackend: { registry } } as unknown as RouteDeps });
     const response = await dispatchJsonRequest(app, "GET", `/api/admin/v1/workspaces/ws/site-shares/${row.shareId}/download`);
     assert.equal(response.status, 200);
     assert.equal(headers["content-disposition"], `attachment; filename="${filename}"`);

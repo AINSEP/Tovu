@@ -46,12 +46,12 @@ function buildTestApp(): { app: express.Express; deps: MenuRouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMenuListRoute({ app, deps });
-  registerAdminMenuGetRoute({ app, deps });
-  registerAdminMenuCreateRoute({ app, deps });
-  registerAdminMenuUpdateTreeRoute({ app, deps });
-  registerAdminMenuAssignLocationRoute({ app, deps });
-  registerAdminMenuDeleteRoute({ app, deps });
+  registerAdminMenuListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuGetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuAssignLocationRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMenuDeleteRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 
@@ -798,7 +798,7 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -867,7 +867,7 @@ test("update-tree logs the original error with or without a stack and returns an
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -959,7 +959,7 @@ test("update-tree: a thrown non-Error value is logged via String() and still ans
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
   assert.ok(ownerUser, "expected the seeded admin user");
@@ -1052,6 +1052,7 @@ test("assign-location refuses missing, null and blank location keys without chan
 });
 
 test("assign-location returns 400 for an absent body when mounted without a body parser", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { deps } = buildTestApp();
   await deps.identityReady;
   const app = express();
@@ -1059,7 +1060,7 @@ test("assign-location returns 400 for an absent body when mounted without a body
   // the absent body (not the absent session) is what this test exercises.
   const principal = await seededOwnerPrincipal(deps);
   app.use((_req, res, next) => { res.locals.principal = principal; next(); });
-  registerAdminMenuAssignLocationRoute({ app, deps });
+  registerAdminMenuAssignLocationRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
 
   // A parser failure occurs before the route's catch; bound the request if it never responds.
@@ -1113,7 +1114,7 @@ test("assign-location: a menu save that loses its compare-and-set is a 409 VERSI
   };
   const deps: MenuRouteDeps = { ...createRouteDeps(), menuRepo: losingMenuRepo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) };
   const app = express();
-  registerAdminMenuAssignLocationRoute({ app, deps });
+  registerAdminMenuAssignLocationRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -1139,6 +1140,7 @@ test("assign-location: a menu save that loses its compare-and-set is a 409 VERSI
  * mutation `update-use-grant` (mount update-tree guarded) turns case 2 into a 200.
  */
 async function serveUpdateTreeWithGrant(grantCapabilities: readonly string[], rbacAllows: readonly string[]) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { InMemoryMenuRepo } = await import("@jini-ai/cms/navigation");
   const deps: MenuRouteDeps = createRouteDeps();
   const menu = { id: "m1", workspaceId: deps.workspaceId, slug: "nav", title: "Nav", status: "published" as const,
@@ -1157,7 +1159,7 @@ async function serveUpdateTreeWithGrant(grantCapabilities: readonly string[], rb
     res.locals.publishTrust = { sourceInstallationId: "src", capabilities: grantCapabilities, entityTypes: ["menu"], generation: 1 };
     next();
   });
-  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   const port = (server.address() as import("node:net").AddressInfo).port;
@@ -1198,6 +1200,7 @@ test("update-tree: a publishing grant holding admin.menus.update does not stand 
  * reading anything. Mutation `defer-every-mount` / `defer-no-mount` breaks one side of this.
  */
 test("menus: deferral is per mount — update-tree keeps its 400 without a session, valid input stops before the save", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { InMemoryMenuRepo } = await import("@jini-ai/cms/navigation");
   const deps: MenuRouteDeps = createRouteDeps();
   const menu = { id: "m1", workspaceId: deps.workspaceId, slug: "nav", title: "Nav", status: "published" as const,
@@ -1207,8 +1210,8 @@ test("menus: deferral is per mount — update-tree keeps its 400 without a sessi
   deps.authorize = async () => { authorizeCalls += 1; return { allowed: true, reason: "granted" } as Awaited<ReturnType<MenuRouteDeps["authorize"]>>; };
   const app = express();
   app.use(express.json());
-  registerAdminMenuUpdateTreeRoute({ app, deps });
-  registerAdminMenuGetRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ errors: routeErrors, app, deps });
+  registerAdminMenuGetRoute({ errors: routeErrors, app, deps });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));

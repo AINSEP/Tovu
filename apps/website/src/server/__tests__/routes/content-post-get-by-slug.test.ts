@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -34,10 +35,11 @@ const WORKSPACE_ID = "workspace-local";
 const RAW_MEMBER_TOKEN = "test-raw-member-session-token-for-content-api-gating";
 
 function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Express; deps: RouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
-  registerContentPostGetRoute({ app, deps });
+  registerContentPostGetRoute({ errors: routeErrors, app, deps });
   return { app, deps };
 }
 

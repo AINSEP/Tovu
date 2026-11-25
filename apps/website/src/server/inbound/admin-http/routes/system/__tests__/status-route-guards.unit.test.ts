@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -43,22 +44,22 @@ type Register = (app: express.Express, deps: { workspaceId: string; authorize: t
 
 const ROUTES: ReadonlyArray<{ name: string; method: "get" | "post" | "put"; path: string; register: Register; logPrefix: string }> = [
   { name: "mail-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/mail-status",
-    register: (app, deps) => registerAdminMailStatusRoute({ app, deps: { ...deps, mailer: untouchedMailer } }), logPrefix: "[routes/system/mail-status]" },
+    register: (app, deps) => registerAdminMailStatusRoute({ errors: createRouteIncidentReporter().errors, app, deps: { ...deps, mailer: untouchedMailer } }), logPrefix: "[routes/system/mail-status]" },
   { name: "module-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/module-status",
-    register: (app, deps) => registerAdminModuleStatusRoute({ app, deps }), logPrefix: "[routes/system/module-status]" },
+    register: (app, deps) => registerAdminModuleStatusRoute({ errors: createRouteIncidentReporter().errors, app, deps }), logPrefix: "[routes/system/module-status]" },
   { name: "observability-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/observability-status",
-    register: (app, deps) => registerAdminObservabilityStatusRoute({ app, deps: { ...createRouteDeps(), ...deps } }), logPrefix: "[routes/system/observability-status]" },
+    register: (app, deps) => registerAdminObservabilityStatusRoute({ errors: createRouteIncidentReporter().errors, app, deps: { ...createRouteDeps(), ...deps } }), logPrefix: "[routes/system/observability-status]" },
   { name: "server-logs", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/server-logs",
-    register: (app, deps) => registerAdminServerLogsRoute({ app, deps }), logPrefix: "[routes/system/server-logs]" },
+    register: (app, deps) => registerAdminServerLogsRoute({ errors: createRouteIncidentReporter().errors, app, deps }), logPrefix: "[routes/system/server-logs]" },
   { name: "assistant-daemon restart", method: "post", path: "/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart",
-    register: (app, deps) => registerAdminAssistantDaemonRoutes({ app, deps: { ...deps, restartAssistantDaemon: () => { throw new Error("must not restart"); } } }),
+    register: (app, deps) => registerAdminAssistantDaemonRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { ...deps, restartAssistantDaemon: () => { throw new Error("must not restart"); } } }),
     logPrefix: "[routes/system/assistant-daemon]" },
   { name: "dockerfile GET", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/dockerfile",
-    register: (app, deps) => registerAdminDockerfileSourceRoute({ app, deps }), logPrefix: "[routes/system/dockerfile-source]" },
+    register: (app, deps) => registerAdminDockerfileSourceRoute({ errors: createRouteIncidentReporter().errors, app, deps }), logPrefix: "[routes/system/dockerfile-source]" },
   { name: "dockerfile PUT", method: "put", path: "/api/admin/v1/workspaces/:workspaceId/system/dockerfile",
-    register: (app, deps) => registerAdminDockerfileSourceRoute({ app, deps }), logPrefix: "[routes/system/dockerfile-source]" },
+    register: (app, deps) => registerAdminDockerfileSourceRoute({ errors: createRouteIncidentReporter().errors, app, deps }), logPrefix: "[routes/system/dockerfile-source]" },
   { name: "deployment-overview", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/deployment-overview",
-    register: (app, deps) => registerAdminDeploymentOverviewRoute({ app, deps: { ...createRouteDeps(), ...deps } }), logPrefix: "[routes/system/deployment-overview]" },
+    register: (app, deps) => registerAdminDeploymentOverviewRoute({ errors: createRouteIncidentReporter().errors, app, deps: { ...createRouteDeps(), ...deps } }), logPrefix: "[routes/system/deployment-overview]" },
 ];
 
 function handlerFor(route: (typeof ROUTES)[number], authorize: typeof allow | typeof reject) {
@@ -91,7 +92,7 @@ test("server-logs: a repeated query param (?level=error&level=debug) is filtered
   const entry = (seq: number, level: ServerLogEntry["level"]): ServerLogEntry => ({ seq, at: "2026-10-21T00:00:00.000Z", level, source: "server", message: `line ${seq}` });
   const entries = [entry(1, "debug"), entry(2, "info"), entry(3, "error")];
   const app = express();
-  registerAdminServerLogsRoute({ app, deps: { workspaceId: WS, authorize: allow } }, { logs: { read: () => ({ entries, capturing: true }) } });
+  registerAdminServerLogsRoute({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: WS, authorize: allow } }, { logs: { read: () => ({ entries, capturing: true }) } });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/server-logs")(
@@ -102,7 +103,7 @@ test("server-logs: a repeated query param (?level=error&level=debug) is filtered
 
 test("dockerfile PUT: a JSON body that is not an object is a 400 before any write", async () => {
   const app = express();
-  registerAdminDockerfileSourceRoute({ app, deps: { workspaceId: WS, authorize: allow } });
+  registerAdminDockerfileSourceRoute({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: WS, authorize: allow } });
   for (const body of [["contents"], null]) {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "owner" };

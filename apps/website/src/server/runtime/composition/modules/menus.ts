@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { menuAssignLocationRoute } from "@jini-ai/cms/admin-http/routes/menus/assign-location";
@@ -11,7 +12,7 @@ import { trashMenu, type TrashMenuInput } from "@jini-ai/cms/navigation/site/tra
 import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `menus` server module (ADR-029 navigation menus admin
@@ -32,7 +33,7 @@ import type { ServerModuleHandle } from "./types.js";
 export interface MenuRouteDeps extends RouteDeps {}
 
 /** Registrar signature for the menus routes (mirrors `RouteRegistrar`). */
-export type MenuRouteRegistrar = (required: { app: Express; deps: MenuRouteDeps }, optional?: Record<string, never>) => void;
+export type MenuRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: MenuRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The two port fields every menus mount passes. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
@@ -68,57 +69,57 @@ function menuWriteDeps({ deps }: { deps: MenuRouteDeps }, _optional: Record<stri
   };
 }
 
-export const registerAdminMenuListRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuListRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions({ operation: "routes/menus/list", authorization: "direct" }));
+export const registerAdminMenuListRoute: MenuRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: menuListRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions({ operation: "routes/menus/list", authorization: "direct" }));
 };
 
-export const registerAdminMenuGetRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: menuGetRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions({ operation: "routes/menus/get-by-id", authorization: "direct" }));
+export const registerAdminMenuGetRoute: MenuRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: menuGetRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } }, mountOptions({ operation: "routes/menus/get-by-id", authorization: "direct" }));
 };
 
-export const registerAdminMenuCreateRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMenuCreateRoute: MenuRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const options = mountOptions({ operation: "routes/menus/create", authorization: "guarded" }, { deferMissingPrincipal: true });
-  mountAdminJsonRoute({ app, spec: menuCreateRoute, deps: menuWriteDeps({ deps }) }, options);
+  mountAdminJsonRoute({ errors, app, spec: menuCreateRoute, deps: menuWriteDeps({ deps }) }, options);
 };
 
-export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const options = mountOptions(
     { operation: "routes/menus/update-tree", authorization: "direct" },
     { authorizationByPermission: { [MENU_RAW_HTML_PERMISSION]: "guarded" }, deferMissingPrincipal: true },
   );
-  mountAdminJsonRoute({ app, spec: menuUpdateTreeRoute, deps: menuWriteDeps({ deps }) }, options);
+  mountAdminJsonRoute({ errors, app, spec: menuUpdateTreeRoute, deps: menuWriteDeps({ deps }) }, options);
 };
 
-export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const assignDeps = {
     ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, navLocationBindingRepo: deps.navLocationBindingRepo,
     clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, outwardErrorMessage,
   };
-  mountAdminJsonRoute({ app, spec: menuAssignLocationRoute, deps: assignDeps }, mountOptions(
+  mountAdminJsonRoute({ errors, app, spec: menuAssignLocationRoute, deps: assignDeps }, mountOptions(
     { operation: "routes/menus/assign-location", authorization: "direct" }, { deferMissingPrincipal: true },
   ));
 };
 
 /** The host binds the trash step over this request's repo, `removeMenu` (the generic trash
  *  pipeline) and clock; the spec calls it. */
-export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const deleteDeps = {
     ...menuPortDeps({ deps }), outwardErrorMessage,
     trashMenu: (input: TrashMenuInput) => trashMenu(input, { menuRepo: deps.menuRepo, remove: deps.removeMenu, clock: deps.clock }),
   };
-  mountAdminJsonRoute({ app, spec: menuDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/menus/delete", authorization: "guarded" }));
+  mountAdminJsonRoute({ errors, app, spec: menuDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/menus/delete", authorization: "guarded" }));
 };
 
-export function createMenusModule(deps: MenuRouteDeps): ServerModuleHandle {
+export function createMenusModule(deps: MenuRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "menus",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminMenuListRoute({ app, deps });
-      registerAdminMenuGetRoute({ app, deps });
-      registerAdminMenuCreateRoute({ app, deps });
-      registerAdminMenuUpdateTreeRoute({ app, deps });
-      registerAdminMenuAssignLocationRoute({ app, deps });
-      registerAdminMenuDeleteRoute({ app, deps });
+    registerRoutes: ({ errors, app }, _options = {}) => {
+      registerAdminMenuListRoute({ errors, app, deps });
+      registerAdminMenuGetRoute({ errors, app, deps });
+      registerAdminMenuCreateRoute({ errors, app, deps });
+      registerAdminMenuUpdateTreeRoute({ errors, app, deps });
+      registerAdminMenuAssignLocationRoute({ errors, app, deps });
+      registerAdminMenuDeleteRoute({ errors, app, deps });
     },
   };
 }

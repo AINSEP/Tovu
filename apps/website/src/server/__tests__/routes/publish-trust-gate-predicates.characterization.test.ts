@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -149,11 +150,12 @@ function countingChallengeStore(): { store: PublishChallengeStorePort; taken: st
 }
 
 async function handshakeServer({ grants }: { grants: readonly PublishTrustGrant[] }, _optional = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { store, taken } = countingChallengeStore();
   const { keyring } = createFixedKeyring({ siteKeyHex: "9".repeat(64) });
   const app = express();
   app.use(express.json());
-  registerPublishTrustHandshakeRoutes({ app, deps: {
+  registerPublishTrustHandshakeRoutes({ errors: routeErrors, app, deps: {
     keyring,
     workspaceId: WORKSPACE,
     clock: { nowIso: () => NOW },

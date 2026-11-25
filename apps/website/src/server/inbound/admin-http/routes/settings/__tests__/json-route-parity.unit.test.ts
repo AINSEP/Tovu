@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -41,7 +42,7 @@ function harness(route: typeof routes[number], options: { ready?: Promise<void>;
     authorize: async (input: unknown) => { calls.push(input); return { allowed: options.allowed ?? false, reason: "no_grant" }; },
   } as unknown as SettingsRouteDeps;
   const app = express();
-  route.registrar({ app, deps });
+  route.registrar({ app, deps, errors: createRouteIncidentReporter().errors });
   const handler = extractRouteHandler(app, route.method, base + route.path);
   return {
     calls, deps,

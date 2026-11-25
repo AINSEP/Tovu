@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -54,7 +55,7 @@ for (const { name, error, status, body } of cases) {
   test(`API-key ${name} sends its exact status and safe error envelope`, async () => {
     const deps = { workspaceId: "ws-7", get principalRepo(): never { throw error; } } as unknown as ApiKeysRouteDeps;
     const app = express();
-    registerAdminApiKeyRevokeRoute({ app, deps });
+    registerAdminApiKeyRevokeRoute({ errors: createRouteIncidentReporter().errors, app, deps });
     const handler = extractRouteHandler(app, "post", "/api/admin/v1/api-keys/:id/revoke");
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "operator-9" };

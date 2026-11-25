@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { SqlTaxonomyRepo, SqlTermRepo } from "@jini-ai/cms/taxonomy/sql";
 import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
@@ -26,6 +27,7 @@ function createTaxonomyRepos(): Pick<TaxonomyRouteDeps, "taxonomyRepo" | "termRe
 }
 
 function buildApp(depsOverrides: Partial<TaxonomyRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { taxonomyRepo, termRepo } = createTaxonomyRepos();
 
   // Composed defaults for every seam this route never reads (outbox, revisions, removers, ...);
@@ -48,7 +50,7 @@ function buildApp(depsOverrides: Partial<TaxonomyRouteDeps> = {}): express.Expre
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminTaxonomyListRoute({ app, deps });
+  registerAdminTaxonomyListRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

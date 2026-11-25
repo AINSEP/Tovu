@@ -47,6 +47,7 @@ interface Harness {
 }
 
 function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminSurfaceRequestContext>; readonly signIns?: IssuedSignInCollector } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const harness: Harness = { reads: [], bootstraps: [], calls: [] };
   const source: AdminSurfaceSource = {
     list: async () => [fakeSurface()],
@@ -67,8 +68,8 @@ function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminS
   // Simulates what `requireAdminSession` records for an API-key credential (the owner's grants, a
   // machine credential kind), without minting a key through the api-keys module.
   app.use("/api/admin", (req, res, next) => { if (req.get("x-test-credential-kind") === "api_key") res.locals.authCredentialKind = "api_key"; next(); });
-  registerAgentPluginAdminSurfaceRoutes({ app, deps });
-  registerAdminSurfaceFilesRoute({ app, deps });
+  registerAgentPluginAdminSurfaceRoutes({ errors: routeErrors, app, deps });
+  registerAdminSurfaceFilesRoute({ errors: routeErrors, app, deps });
   return { app, harness, baseDeps };
 }
 

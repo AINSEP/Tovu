@@ -37,15 +37,15 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminTaxonomyListRoute({ app, deps });
-  registerAdminTaxonomyCreateRoute({ app, deps });
-  registerAdminTaxonomyCreateTermRoute({ app, deps });
-  registerAdminTaxonomyRenameTermRoute({ app, deps });
-  registerAdminTaxonomyAssignTermsRoute({ app, deps });
-  registerAdminTaxonomyUnassignTermsRoute({ app, deps });
-  registerAdminTaxonomyAssignedTermsRoute({ app, deps });
-  registerAdminTaxonomyDeleteRoute({ app, deps });
-  registerAdminTaxonomyDeleteTermRoute({ app, deps });
+  registerAdminTaxonomyListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyCreateTermRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyRenameTermRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyAssignTermsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyUnassignTermsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyAssignedTermsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyDeleteRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminTaxonomyDeleteTermRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -66,6 +67,7 @@ test("U1: catalog failure degrades page diagnostics to unavailable without faili
 });
 
 function buildApp(options: { jsonParser?: boolean } = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { jsonParser = true } = options;
   const deps = {
     ...createRouteDeps(),
@@ -85,7 +87,7 @@ function buildApp(options: { jsonParser?: boolean } = {}) {
     registerAdminPageUpdateHtmlRoute,
     registerAdminPageDeleteRoute,
   ]) {
-    register({ app, deps });
+    register({ errors: routeErrors, app, deps });
   }
   return { app, deps };
 }

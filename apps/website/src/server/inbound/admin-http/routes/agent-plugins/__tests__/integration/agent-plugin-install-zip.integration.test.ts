@@ -1,5 +1,6 @@
+import { assertReporterDiagnostics, recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
-import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -48,12 +49,13 @@ async function withTempPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function buildTestApp(baseDeps = createRouteDeps()): express.Express {
+function buildTestApp(baseDeps = createRouteDeps(), { recorded = recordingComposedReporter() } = {}): express.Express {
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginInstallRoute({ app, deps: baseDeps });
+  registerAgentPluginInstallRoute({ errors: routeErrors, app, deps: baseDeps });
   return app;
 }
 
@@ -296,8 +298,9 @@ test("AGENT_PLUGIN_INSTALL_ZIP: an unreadable activation record refuses installa
 });
 
 test("AGENT_PLUGIN_INSTALL_ZIP: a host layout failure returns a redacted internal error", async (t) => {
+  const recorded = recordingComposedReporter();
   const deps = createRouteDeps();
-  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps), t);
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps, { recorded }), t);
   const fault = t.mock.method(deps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/layout"); });
   const logged = t.mock.method(console, "error", () => undefined);
   const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
@@ -306,8 +309,8 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a host layout failure returns a redacted interna
   assertAdminResponse({ actual: await response.json(), expected: { code: "INTERNAL_ERROR", error: "internal error" } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
   assert.equal(fault.mock.callCount(), 1);
   // Redacted for the client, so the operator's log is the only place the cause survives.
-  assert.equal(logged.mock.callCount(), 1);
-  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/agent-plugins/install-response]", diagnostics: [/private \/secret\/layout/] });
+  assert.equal(recorded.records.length, 1);
+  assertReporterDiagnostics({ records: recorded.records, operation: "routes/agent-plugins/install-response", diagnostics: [/private \/secret\/layout/] });
 });
 
 for (const oversized of ["file", "entries"] as const) {
@@ -445,6 +448,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: the install runs under the plugin host's identit
 });
 
 test("AGENT_PLUGIN_INSTALL_ZIP: without a plugin host the upload still installs switched off", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   await withTempPluginsDir(async () => {
     const deps = createRouteDeps();
     const { pluginHost: _host, ...hostless } = deps;
@@ -452,7 +456,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: without a plugin host the upload still installs 
     app.use(express.json());
     registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
-    registerAgentPluginInstallRoute({ app, deps: hostless });
+    registerAgentPluginInstallRoute({ errors: routeErrors, app, deps: hostless });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
     const response = await upload(baseUrl, cookie, archive);
@@ -569,6 +573,7 @@ test("AGENT_PLUGIN_UPDATE_ZIP: permission is checked before the update target", 
 });
 
 test("AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answers a redacted 500 and changes nothing", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   await withTempPluginsDir(async () => {
     const deps = createRouteDeps();
     const { snapshotAgentPluginSettings: _unbound, ...withoutSnapshot } = deps;
@@ -576,7 +581,7 @@ test("AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answer
     app.use(express.json());
     registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
     app.use("/api/admin", requireAdminSession(deps));
-    registerAgentPluginInstallRoute({ app, deps: withoutSnapshot as typeof deps });
+    registerAgentPluginInstallRoute({ errors: routeErrors, app, deps: withoutSnapshot as typeof deps });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
     const response = await postUpdate(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]), { expectedOldDigest: digest });

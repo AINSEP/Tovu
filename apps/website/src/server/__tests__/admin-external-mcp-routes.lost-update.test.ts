@@ -24,7 +24,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.({ app });
+  createExternalMcpModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   return { app, deps };
 }
 const put = (baseUrl: string, cookie: string, payload: unknown) => fetch(`${baseUrl}${BASE}/github`, { method: "PUT", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(payload) });

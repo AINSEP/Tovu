@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** A real HTTP server used only by disk-leak.test; stdout/stderr are its on-disk server log. */
 import express from 'express';
 import { createServer } from 'node:http';
@@ -33,8 +34,8 @@ app.use((_request, response, next) => {
   response.on('finish', () => console.log(JSON.stringify({ status: response.statusCode })));
   next();
 });
-registerAdminExternalMcpPutRoute({ app, deps });
-registerAdminExternalMcpListRoute({ app, deps });
+registerAdminExternalMcpPutRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+registerAdminExternalMcpListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 registerAdminExternalMcpProbeRoute({ app, deps, limiter: createExternalMcpProbeLimiter(deps) });
 const server = createServer(app);
 server.listen(0, '127.0.0.1', () => {

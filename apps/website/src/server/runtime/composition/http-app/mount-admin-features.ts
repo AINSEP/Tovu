@@ -28,46 +28,45 @@ import { createScreenshotStorageModule } from "../modules/screenshot-storage.js"
 import { createMediaConversionPorts } from "../media-video-ports.js";
 import { operatorLogVideoNote } from "#src/features/media/import-video-conversion";
 import { mountRoutes } from "./module-handles.js";
-import type { MountInput } from "./module-handles.js";
+import type { ErrorBoundMountInput } from "./module-handles.js";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
-import { NO_OPERATION_TRACKING } from "#src/platform/express/jini-routes";
 
 /** Comment moderation, menus, widgets, plugins, skills, webhooks admin, media, trash, external MCP, identity, settings, forms admin, redirects and database recovery modules, in registration order.
  * @param required.reporter - The site's one reporter (`createApp`'s); the routes these modules mount directly on http-kit record through it. */
-export function mountAdminFeatures({ app, routeDeps, reporter }: MountInput & { reporter: ErrorReporter }, _optional = {}): void {
+export function mountAdminFeatures({ app, routeDeps, errors, reporter }: ErrorBoundMountInput & { reporter: ErrorReporter }, _optional = {}): void {
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
   // unauthenticated submission route, which stays inline near the site catch-all).
-  mountRoutes({ app, mod: createCommentsModerationModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createCommentsModerationModule(routeDeps) });
   // ADR-046 Phase 3 (SPEC-040): the `menus` server module — 6 admin CRUD/location-assignment
   // routes (ADR-029), Jini route specs mounted with per-route deps (see `modules/menus.ts`).
-  mountRoutes({ app, mod: createMenusModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createMenusModule(routeDeps) });
   // SPEC-043 (widgets, ADR-047) — 13 admin routes (instance CRUD, region binding/placement,
   // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.
   // `RouteDeps` already carries every dependency this module needs (`widgetBindingRepo`/
   // `entryRefsRepo`, added by this same dispatch) — no widened deps type, unlike menus.
-  mountRoutes({ app, mod: createWidgetsModule({ deps: routeDeps, errors: { reporter, observability: NO_OPERATION_TRACKING } }) });
+  mountRoutes({ app, errors, mod: createWidgetsModule({ deps: routeDeps, errors }) });
   // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
-  mountRoutes({ app, mod: createPluginsModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createPluginsModule(routeDeps) });
   // 2026-09-09 — the `agent-plugins` server module: AGENT_PLUGINS_LIST, the admin Agent Plugins
   // screen's read of real installed Agent Plugins (a SEPARATE family from the `plugins` module
   // above — see `modules/agent-plugins.ts`'s own header).
-  mountRoutes({ app, mod: createAgentPluginsModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createAgentPluginsModule(routeDeps) });
   // skills-composer-typeahead (implementation-outline.md, C-001/C-003) — the `skills` server
   // module: GET .../skills, the browser-reachable enumeration of installed standalone Agent Skills.
-  mountRoutes({ app, mod: createSkillsModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createSkillsModule(routeDeps) });
   // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
   // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
   // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
-  mountRoutes({ app, mod: createIntegrationsAdminModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createIntegrationsAdminModule(routeDeps) });
   // ADR-046 Phase 3 (SPEC-034): the `media` server module — 5 admin routes + the public rendition
   // route (previously registered much later, see below near the old catch-all-precedence group;
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
   // The owner's video import rule (2026-10-31) gets the same ffmpeg adapter the assistant's convert tool uses; a conversion that
   // cannot be made is logged for the operator and never fails the upload (no owner-facing field exists on the upload response).
-  mountRoutes({ app, mod: createMediaModule(routeDeps, { videoImport: {
+  mountRoutes({ app, errors, mod: createMediaModule(routeDeps, { videoImport: {
     ports: createMediaConversionPorts({ env: process.env }),
     reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }),
   } }) });
@@ -84,7 +83,7 @@ export function mountAdminFeatures({ app, routeDeps, reporter }: MountInput & { 
   // `trash-user-admin-override.ts`'s file header for why the override lives here and not in
   // `permissions.ts`/`mayActOnEntityType`, which are shared by every other trashable kind.
   mountRoutes(
-    { app,
+    { app, errors,
     mod: createTrashModule({
       ...routeDeps,
       authorize: withUserTrashAdminOverride({
@@ -98,32 +97,32 @@ export function mountAdminFeatures({ app, routeDeps, reporter }: MountInput & { 
       movers: new Map([...(routeDeps.trashMovers ?? []), [THEME_ENTITY_TYPE, createThemeTrashMover(routeDeps)]]),
     }) }
   );
-  mountRoutes({ app, mod: createExternalMcpModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createExternalMcpModule(routeDeps) });
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
-  mountRoutes({ app, mod: createUsersModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createUsersModule(routeDeps) });
   // SPEC-006 REQ-08: the `api-keys` server module — the 3 api-key admin routes. Registered next to
   // `users` because both are the ADR-021/SPEC-006 identity surface, but kept a separate module —
   // see `modules/api-keys.ts` for why. Must sit after `createCoreModule` above, which mounts the
   // `/api/admin` session gate these three routes rely on for both auth and credential-kind.
-  mountRoutes({ app, mod: createApiKeysModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createApiKeysModule(routeDeps) });
   // SPEC-044: the `workspace` server module — 5 admin routes (list/create/get/update/delete), the
   // real successor to the original unauthenticated inline `POST /workspaces` route this file used
   // to own directly (see the file header note).
-  mountRoutes({ app, mod: createWorkspaceModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createWorkspaceModule(routeDeps) });
   // ADR-046 Phase 3 (SPEC-040): the `settings` server module — 5 admin settings HTTP routes
   // (SPEC-007 Phase 5, T043).
-  mountRoutes({ app, mod: createSettingsModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createSettingsModule(routeDeps) });
 
   // ADR-046 Phase 3 (SPEC-041): the `forms-admin` server module — 7 admin routes (definitions
   // CRUD + submissions list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
   // Distinct from `createFormsModule` below, which owns the Forms-to-notify-subscriber
   // subscription, not an HTTP surface.
-  mountRoutes({ app, mod: createFormsAdminModule({ deps: routeDeps, errors: { reporter, observability: NO_OPERATION_TRACKING } }) });
+  mountRoutes({ app, errors, mod: createFormsAdminModule({ deps: routeDeps, errors }) });
 
   // ADR-046 Phase 3 (SPEC-041): the `redirects` server module — 7 admin routes (list/get/create/
   // update/tombstone/import/hits), each gated by `admin.redirects.manage` (api.spec.md §1/§2).
-  mountRoutes({ app, mod: createRedirectsModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createRedirectsModule(routeDeps) });
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `database-recovery` server module — all 7
   // Database/Recovery plain registrations (Timeline + restore-points list/create, Recovery's own
@@ -133,7 +132,7 @@ export function mountAdminFeatures({ app, routeDeps, reporter }: MountInput & { 
   // disclosure of why that consolidation is safe (no path overlap with content-types/entries/
   // taxonomy). `registerAdminDatabaseMigrateForwardRoutes`/`registerAdminRecoveryRestoreRoutes`
   // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
-  mountRoutes({ app, mod: createDatabaseRecoveryModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createDatabaseRecoveryModule(routeDeps) });
   // Owner-only manual screenshot cleanup (preview, then confirmed apply); never scheduled.
-  mountRoutes({ app, mod: createScreenshotStorageModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createScreenshotStorageModule(routeDeps) });
 }

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { SiteImportPageInput } from "@jini-ai/core/contracts/site/site-import-history";
 import { mountJsonRoute } from "@jini-ai/http-kit";
 import { ImportHistoryUnavailable, mapSqliteError } from "@jini-ai/devops/backup/site/import-index/errors";
@@ -45,8 +46,11 @@ function requestSignal(req: Request, res: Response) {
   return controller.signal;
 }
 
+const originPolicy = { isSameOrigin: () => false };
+
 /** What each import route registrar needs: the app, deps, mount path and the shared guards. */
 interface ImportRouteContext {
+  errors: RouteErrorPorts;
   app: Express;
   deps: Deps;
   root: string;
@@ -56,7 +60,7 @@ interface ImportRouteContext {
 }
 
 /** Maps a failed import step onto its HTTP answer: refusals and parser errors are 4xx, anything else is an incident. */
-function answerImportFailure({ deps, res, error, step }: { deps: Deps; res: Response; error: unknown; step: string }, _optional: Record<string, never> = {}): void {
+function answerImportFailure({ deps, res, error, step, errors }: { deps: Deps; res: Response; error: unknown; step: string; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   try {
     mapSqliteError({ error, messages: {
       busy: "Import history is busy. Try again in a moment.",
@@ -65,12 +69,12 @@ function answerImportFailure({ deps, res, error, step }: { deps: Deps; res: Resp
     } });
   } catch (mapped) { error = mapped; }
   if (error instanceof ImportHistoryUnavailable) {
-    sendAdminFailure({ res, error, tracker: deps.tracker }, { code: error.code, message: error.message, status: error.status, field: "message" });
+    sendAdminFailure({ res, error, tracker: deps.tracker, reporter: errors.reporter }, { code: error.code, message: error.message, status: error.status, field: "message" });
     return;
   }
   const mapped = mapImportFailure({ step, error, collaborators: failureCollaborators });
   if (mapped) { reply(res, mapped); return; }
-  sendAdminFailure({ res, error, tracker: deps.tracker }, importIncident({ step }));
+  sendAdminFailure({ res, error, tracker: deps.tracker, reporter: errors.reporter }, importIncident({ step }));
 }
 
 /** Common headers, workspace match, authorization and backend-availability gate; returns the backend or `false` after answering. */
@@ -93,10 +97,11 @@ async function gateImportOwner(input: { ctx: Pick<ImportRouteContext, "deps" | "
   return backend;
 }
 
-function registerListAndImportRoutes({ app, deps, root, fail, gate }: ImportRouteContext, _options = {}): void {
+function registerListAndImportRoutes({ app, deps, root, fail, gate, errors }: ImportRouteContext, _options = {}): void {
   const answered = Symbol("import gate answered");
   let backend: NonNullable<Deps["siteImportBackend"]>;
-  mountJsonRoute({ app, deps: { listPage: (input: SiteImportPageInput, _optional = {}) => backend.listPage(input) }, spec: {
+  if ("requireSameOrigin" in siteImportListRouteSpec && siteImportListRouteSpec.requireSameOrigin) throw new Error("site import routes require an explicit origin policy for same-origin specs");
+  mountJsonRoute({ app, adapter: { originPolicy, errors }, deps: { listPage: (input: SiteImportPageInput, _optional = {}) => backend.listPage(input) }, spec: {
     ...siteImportListRouteSpec,
     ports: {
       // Authorization precedes query interpretation.
@@ -108,10 +113,10 @@ function registerListAndImportRoutes({ app, deps, root, fail, gate }: ImportRout
       },
       onReturnedError: ({ res }, _optional = {}) => res.status(400).json({ code: "INVALID_CURSOR", message: "Import history failed: This list of imports changed. Reload it to see the newest imports." }),
       onError: ({ res, error }, _optional = {}) => {
-        if (error !== answered) answerImportFailure({ deps, res, error, step: "Import history" });
+        if (error !== answered) answerImportFailure({ deps, res, error, errors, step: "Import history" });
       },
     },
-  } });
+  } }, { preserveHostErrorRouting: true });
   app.post(root, async (req, res) => {
     try {
       const backend = await gate(req, res, "system.write");
@@ -187,15 +192,15 @@ function registerOwnerRoutes({ app, deps, root, fail, ownerGate }: ImportRouteCo
  * @complexity O(body bytes), bounded raw parsing AFTER authorization and concurrency admission.
  */
 export function registerAdminSiteImportRoutes(
-  required: { app: Express; deps: Deps },
+  required: { app: Express; deps: Deps; errors: RouteErrorPorts },
   { uploadDeadlineMs = UPLOAD_DEADLINE_MS, uploadIdleMs = UPLOAD_IDLE_MS }: { uploadDeadlineMs?: number; uploadIdleMs?: number } = {},
 ): void {
-  const { app, deps } = required;
+  const { app, deps, errors } = required;
   const context: ImportRouteContext = {
-    app,
+    app, errors,
     deps,
     root: "/api/admin/v1/workspaces/:workspaceId/site-imports",
-    fail: (res, error, req) => answerImportFailure({ deps, res, error, step: importStep({ req }) }),
+    fail: (res, error, req) => answerImportFailure({ deps, res, error, errors, step: importStep({ req }) }),
     gate: (req, res, permission) => gateImport({ deps, res, workspaceId: String(req.params.workspaceId), step: importStep({ req }), permission }),
     ownerGate: (req, res) => gateImportOwner({ ctx: context, req, res }),
   };

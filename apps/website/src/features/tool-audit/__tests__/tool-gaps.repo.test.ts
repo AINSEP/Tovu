@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -15,6 +16,7 @@ import { redactSecretShapes } from '@tovu/contracts/secret-redaction';
 
 /** The existing audit table on SQLite/PGlite: latest revision, scoped reads and no catalog noise. */
 describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], make: kernel => kernel }, makeKernel => {
+  const routeErrors = createRouteIncidentReporter().errors;
   test('A7: a real Bash event is redacted before storage and returned by the tool and Observability endpoint', async () => {
     const kernel = makeKernel();
     const secret = 'Sw0rdFish!'.repeat(2);
@@ -50,7 +52,7 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     assert.deepEqual(result.output, { entries });
 
     let handler!: (req: Request, res: Response) => Promise<void>;
-    registerAdminToolGapsRoute({ app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps });
+    registerAdminToolGapsRoute({ errors: routeErrors, app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps });
     let body: unknown;
     const res = { locals: { principal: { id: 'owner' } }, status() { return this; }, json(value: unknown) { body = value; return this; } };
     await handler({ params: { workspaceId: 'w' } } as unknown as Request, res as unknown as Response);

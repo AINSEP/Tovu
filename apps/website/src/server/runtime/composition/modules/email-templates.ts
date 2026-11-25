@@ -57,18 +57,18 @@ const templateErrorDeps = {
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) every route of this family used. */
 const MOUNT_OPTIONS = { authorization: "guarded" as const, failure: { operation: "routes/email-templates/routes", code: "INTERNAL_ERROR" } };
 
-export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
   const base = { ...emailTemplatePortDeps({ deps }), ...templateErrorDeps };
   // The store is built per call from `deps`, as the hand-written handlers did, so a test that swaps a repo method after boot is honoured.
   const store = () => emailTemplateStore({ deps });
   const editHtmlPermission = PAGES_EDIT_HTML_PERMISSION;
-  mountAdminJsonRoute({ app, spec: emailTemplateListRoute, deps: { ...base, listTemplates: ({ input }) => listEmailTemplates({ store: store(), input }) } }, MOUNT_OPTIONS);
-  mountAdminJsonRoute({ app: capped, spec: emailTemplateCreateRoute, deps: { ...base, editHtmlPermission, createTemplate: ({ input, actorId }) => createEmailTemplate({ store: store(), input, actorId }) } }, MOUNT_OPTIONS);
+  mountAdminJsonRoute({ errors, app, spec: emailTemplateListRoute, deps: { ...base, listTemplates: ({ input }) => listEmailTemplates({ store: store(), input }) } }, MOUNT_OPTIONS);
+  mountAdminJsonRoute({ errors, app: capped, spec: emailTemplateCreateRoute, deps: { ...base, editHtmlPermission, createTemplate: ({ input, actorId }) => createEmailTemplate({ store: store(), input, actorId }) } }, MOUNT_OPTIONS);
   // Before `/:templateId` routes only for readability: methods and segment counts already differ.
-  mountAdminJsonRoute({ app: capped, spec: emailTemplatePreviewRoute, deps: { ...base, previewTemplate: ({ input }) => previewEmailTemplate({ store: store(), input }) } }, MOUNT_OPTIONS);
-  mountAdminJsonRoute({ app, spec: emailTemplateGetRoute, deps: { ...base, getTemplate: ({ id }) => getEmailTemplate({ store: store(), id }) } }, MOUNT_OPTIONS);
-  mountAdminJsonRoute({ app: capped, spec: emailTemplateEditHtmlRoute, deps: { ...base, editHtmlPermission, editTemplate: ({ input, actorId }) => editEmailTemplate({ store: store(), input, actorId }) } }, MOUNT_OPTIONS);
-  mountAdminJsonRoute({ app: capped, spec: emailTemplateRenameRoute, deps: { ...base, editHtmlPermission, renameTemplate: ({ input }) => renameEmailTemplate({ store: store(), input }) } }, MOUNT_OPTIONS);
-  mountAdminJsonRoute({ app: capped, spec: emailTemplateRenderRoute, deps: { ...base, renderTemplate: ({ id, values }) => renderEmailTemplateForSend({ store: store(), id, values: readFieldValues({ value: values }) }) } }, MOUNT_OPTIONS);
+  mountAdminJsonRoute({ errors, app: capped, spec: emailTemplatePreviewRoute, deps: { ...base, previewTemplate: ({ input }) => previewEmailTemplate({ store: store(), input }) } }, MOUNT_OPTIONS);
+  mountAdminJsonRoute({ errors, app, spec: emailTemplateGetRoute, deps: { ...base, getTemplate: ({ id }) => getEmailTemplate({ store: store(), id }) } }, MOUNT_OPTIONS);
+  mountAdminJsonRoute({ errors, app: capped, spec: emailTemplateEditHtmlRoute, deps: { ...base, editHtmlPermission, editTemplate: ({ input, actorId }) => editEmailTemplate({ store: store(), input, actorId }) } }, MOUNT_OPTIONS);
+  mountAdminJsonRoute({ errors, app: capped, spec: emailTemplateRenameRoute, deps: { ...base, editHtmlPermission, renameTemplate: ({ input }) => renameEmailTemplate({ store: store(), input }) } }, MOUNT_OPTIONS);
+  mountAdminJsonRoute({ errors, app: capped, spec: emailTemplateRenderRoute, deps: { ...base, renderTemplate: ({ id, values }) => renderEmailTemplateForSend({ store: store(), id, values: readFieldValues({ value: values }) }) } }, MOUNT_OPTIONS);
 };

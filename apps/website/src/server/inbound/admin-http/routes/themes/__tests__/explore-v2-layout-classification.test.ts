@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,6 +31,7 @@ const WORKSPACE_ID = "ws-v2-explore";
 const REAL_THEMES_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../../../../../../content/themes");
 
 function buildTestApp(t: TestContext): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const themesDir = mkdtempSync(join(tmpdir(), "tovu-explore-theme-"));
   t.after(() => rmSync(themesDir, { recursive: true, force: true }));
   cpSync(join(REAL_THEMES_DIR, "static", "tovu-theme"), join(themesDir, "static", "tovu-theme"), { recursive: true });
@@ -49,8 +51,8 @@ function buildTestApp(t: TestContext): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute({ app, deps });
-  registerAdminThemeFileRenameRoute({ app, deps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileRenameRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

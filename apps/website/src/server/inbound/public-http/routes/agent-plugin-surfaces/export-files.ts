@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 /** Public declarative export assets; templates and undeclared files are never served. */
 import type { Express } from "express";
 import { createPluginExportFilesRoute } from "@jini-ai/cms/public-http/routes/agent-plugin-surfaces/export-files";
@@ -27,11 +28,11 @@ const exportFilesRoute = createPluginExportFilesRoute<PluginExportPackage>({ pat
 /** Rate-limit before catalog I/O; the spec answers every refusal as its fixed 404.
  * @complexity One lifecycle catalog scan and one declared file read per allowed request.
  */
-export function registerPluginExportFilesRoute(required: { app: Express; deps: ExportFilesDeps }, options: { source?: PluginExportSource; limiter?: RateLimiter } = {}): void {
+export function registerPluginExportFilesRoute(required: { errors: RouteErrorPorts; app: Express; deps: ExportFilesDeps }, options: { source?: PluginExportSource; limiter?: RateLimiter } = {}): void {
   const { app, deps } = required;
   const source = options.source ?? createPluginExportSource({ lifecycle: deps.agentPluginLifecycle });
   const limiter = options.limiter ?? createRateLimiter({ profile: ADMIN_SURFACE_FILES_PER_IP, clock: deps.clock });
-  mountPublicRawRoute({
+  mountPublicRawRoute({ errors: required.errors,
     app,
     spec: exportFilesRoute,
     deps: { workspaceId: deps.workspaceId, limiter, source },

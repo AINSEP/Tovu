@@ -46,7 +46,7 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: NewsletterR
     clock: deps.clock,
     idGen: deps.idGen,
   };
-  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ app });
+  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   return { app, deps };
 }
 

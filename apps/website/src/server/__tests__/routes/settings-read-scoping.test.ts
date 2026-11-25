@@ -38,10 +38,10 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
-  registerAdminSettingsGetEffectiveRoute({ app, deps });
-  registerAdminSettingsGetRawRoute({ app, deps });
-  registerAdminSettingsSetRoute({ app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsGetEffectiveRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsGetRawRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminSettingsSetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

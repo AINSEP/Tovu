@@ -70,16 +70,16 @@ function findSurfaceFor({ deps }: { deps: AgentPluginsRouteDeps }, _optional: Re
 }
 
 /** The surface list, bootstrap and action routes, GET then the two POSTs as before. */
-export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: routes.list, deps: {
+export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: routes.list, deps: {
     ...portDeps({ deps }), listSurfaces: (args) => sourceFor(deps).list(args), surfaceFileUrl: adminSurfaceFileUrl,
   } }, SURFACE_FAILURE);
-  mountAdminJsonRoute({ app, spec: routes.bootstrap, deps: {
+  mountAdminJsonRoute({ errors, app, spec: routes.bootstrap, deps: {
     ...portDeps({ deps }), findSurface: findSurfaceFor({ deps }),
     bootstrapData: (args) => hostFor(deps).bootstrapData(args),
     createBootstrap: createAdminSurfaceBootstrap, bootstrapHeaders: () => adminSurfaceBootstrapHeaders(), nowMs: () => deps.clock.nowMs(),
   } }, SURFACE_WRITE_GATES);
-  mountAdminJsonRoute({ app, spec: routes.action, deps: {
+  mountAdminJsonRoute({ errors, app, spec: routes.action, deps: {
     ...portDeps({ deps }), findSurface: findSurfaceFor({ deps }),
     dispatcherFor: ({ surface }) => createAdminSurfaceActionDispatcher({ descriptor: surface.descriptor, handlers: hostFor(deps).handlersFor({ pluginId: surface.plugin.pluginId, surfaceId: surface.descriptor.id }) }, {
       // Only the error's class reaches the log: a handler's message could quote provider detail.

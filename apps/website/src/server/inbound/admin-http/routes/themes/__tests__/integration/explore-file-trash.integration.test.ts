@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -18,6 +19,7 @@ const BASE = "/api/admin/v1/workspaces/ws-trash/themes/fixture";
 
 /** Real Express routes and theme filesystem; no listening socket is needed for this round trip. */
 function fixture(t: TestContext) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-explore-trash-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const themeDir = path.join(root, "static", "fixture");
@@ -38,8 +40,8 @@ function fixture(t: TestContext) {
   };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; next(); });
-  registerAdminThemeDetailRoute({ app, deps: deps as unknown as ContentRouteDeps });
-  registerAdminThemeFileDeleteRoute({ app, deps: deps as unknown as ContentRouteDeps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps: deps as unknown as ContentRouteDeps });
+  registerAdminThemeFileDeleteRoute({ errors: routeErrors, app, deps: deps as unknown as ContentRouteDeps });
   const files = () => listThemeFiles({ themeDir, themesRoot: root });
   return { app, deps, themeDir, files };
 }

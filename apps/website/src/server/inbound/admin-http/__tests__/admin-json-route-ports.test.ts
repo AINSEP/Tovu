@@ -1,3 +1,6 @@
+import { NOOP_OPERATION_TRACKER } from "@jini-ai/core/errors/reporter";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import type { ErrorRequestHandler } from "express";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
@@ -209,4 +212,54 @@ test("an unexpected failure is the redacted admin 500 and the visitor-safe publi
   assert.equal(body.error, "The site couldn’t load the probe.");
   assert.match(body.errorId, /\S/);
   assert.deepEqual(Object.keys(body).sort(), ["error", "errorId"]);
+});
+
+
+test("bound admin mounts use one site reporter without changing the failure envelope", async (t) => {
+  const fixture = createRouteIncidentReporter();
+  const operations: unknown[] = [];
+  const errors = { ...fixture.errors, observability: { trackOperation: (required: unknown) => { operations.push(required); return NOOP_OPERATION_TRACKER; } } };
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "caller", kind: "user" }; res.locals.failureReporter = fixture.reporter; next(); });
+  mountAdminJsonRoute({ app, errors, spec: probeRoute([]), deps: { probe: true, workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never });
+  const server = app.listen(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  await new Promise((resolve) => server.once("listening", resolve));
+  const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/admin/v1/workspaces/local/probe`, { method: "POST" });
+  assert.equal(response.status, 201);
+  await response.body?.cancel();
+  assert.equal(operations.length, 1);
+  const failure = new Error("private driver canary");
+  const failedApp = express();
+  failedApp.use((_req, res, next) => { res.locals.principal = { id: "caller" }; next(); });
+  mountAdminJsonRoute({ app: failedApp, errors, spec: defineJsonRoute<void, never, object, { id: string }>({ method: "get", path: "/bound", parse: () => ok({ value: undefined }), handle: async () => { throw failure; } }), deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } });
+  const failedServer = failedApp.listen(0);
+  t.after(() => new Promise((resolve) => failedServer.close(resolve)));
+  await new Promise((resolve) => failedServer.once("listening", resolve));
+  const failed = await fetch(`http://127.0.0.1:${(failedServer.address() as AddressInfo).port}/bound`);
+  const body = await failed.json();
+  assert.equal(failed.status, 500);
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(typeof body.error, "string");
+  assert.equal(body.errorId, fixture.entries[0]?.meta?.errorId);
+  assert.equal(fixture.entries.length, 1);
+  assert.doesNotMatch(JSON.stringify(body), /private driver canary/);
+});
+
+test("an opted-in admin rejection still reaches Express error middleware", async (t) => {
+  const fixture = createRouteIncidentReporter();
+  const failure = Object.assign(new Error("unclaimed"), { status: 422 });
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "caller" }; next(); });
+  mountAdminJsonRoute({ app, errors: fixture.errors, spec: defineJsonRoute<void, never, object, { id: string }>({ method: "get", path: "/forwarded", parse: () => ok({ value: undefined }), handle: async () => { throw failure; } }), deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } }, { forwardUncaughtErrors: true });
+  let forwarded: unknown;
+  const middleware: ErrorRequestHandler = (error, _req, res, _next) => { forwarded = error; res.status(error.status).json({ error: "host-selected" }); };
+  app.use(middleware);
+  const server = app.listen(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  await new Promise((resolve) => server.once("listening", resolve));
+  const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/forwarded`);
+  assert.deepEqual({ status: response.status, body: await response.json() }, { status: 422, body: { error: "host-selected" } });
+  assert.equal(forwarded, failure);
+  assert.equal(fixture.entries.length, 0);
 });

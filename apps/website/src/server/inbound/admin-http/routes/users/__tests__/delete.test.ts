@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "@jini-ai/db/events";
@@ -68,13 +69,14 @@ function urlFor(principalId: string) {
  *  seeded database (e.g. the OWNER_REQUIRED case) can reuse one `deps`/wiring instead of standing
  *  up an unrelated second in-memory database. */
 function mountApp(deps: UsersRouteDeps, callerId: string): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserDeleteRoute({ app, deps });
+  registerAdminUserDeleteRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

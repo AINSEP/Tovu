@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import type { Express, Request, Response } from 'express';
@@ -11,12 +13,14 @@ mock.module('#src/features/agent-plugins/memory', { namedExports: { pluginMemory
 const { registerAgentPluginMemoryRoutes } = await import('#src/server/runtime/composition/modules/agent-plugin-memory-routes');
 
 test('note validation is a refusal while filesystem errors report a redacted incident', async (t) => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const logs: unknown[][] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
   let put: ((req: Request, res: Response) => Promise<void>) | undefined;
   const app = { get() {}, put: (_path: string, handler: typeof put) => { put = handler; } } as unknown as Express;
   const deps = { workspaceId: 'ws', authorize: async () => ({ allowed: true }), agentPluginLayout: { forWorkspace: () => ({ root: '/tmp/plugins' }) } };
-  registerAgentPluginMemoryRoutes({ app, deps: deps as unknown as Parameters<typeof registerAgentPluginMemoryRoutes>[0]["deps"] });
+  registerAgentPluginMemoryRoutes({ errors: routeErrors, app, deps: deps as unknown as Parameters<typeof registerAgentPluginMemoryRoutes>[0]["deps"] });
   assert.ok(put, 'the note route is registered');
   const handler = put;
   const req = { params: { workspaceId: 'ws', pluginId: 'example' }, body: { entryPath: 'note.md', text: 'PRIVATE_NOTE_BODY' } } as unknown as Request;
@@ -30,16 +34,16 @@ test('note validation is a refusal while filesystem errors report a redacted inc
   const refusal = await attempt(new Error('invalid note'));
   assert.equal(refusal.status, 422);
   assert.deepEqual(refusal.body, { error: 'note path, text or size is invalid', code: 'PLUGIN_MEMORY_INVALID' });
-  assert.equal(logs.length, 0);
+  assert.equal(recorded.records.length, 0);
   const failure = await attempt(Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EACCES' }));
   assert.equal(failure.status, 500);
   assert.ok(failure.body && typeof failure.body === 'object' && 'errorId' in failure.body && 'error' in failure.body);
   assert.match(String(failure.body.error), /The note could not be saved/);
-  const entry = logs.find(args => args[0] === '[agent-plugins:write-note]');
+  const entry = recorded.records.find(args => (args[1] as { meta: { step: string } }).meta.step === 'agent-plugins:write-note');
   assert.ok(entry, 'the server reports the note-write incident');
-  const detail = entry[1] as { errorId: string; diagnostic: string };
+  const detail = (entry[1] as { meta: { errorId: string; diagnostic: string } }).meta;
   assert.equal(detail.errorId, failure.body.errorId);
   assert.match(detail.diagnostic, /boom/);
   assert.match(detail.diagnostic, /memory\.errors\.unit\.test\.ts/);
-  assert.doesNotMatch(JSON.stringify({ body: failure.body, logs }), /SECRETSECRETSECRETSECRET|PRIVATE_NOTE_BODY/);
+  assert.doesNotMatch(JSON.stringify({ body: failure.body, logs: recorded.records }), /SECRETSECRETSECRETSECRET|PRIVATE_NOTE_BODY/);
 });

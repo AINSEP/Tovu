@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
@@ -81,25 +82,25 @@ const mountOptions = (step: string): AdminJsonRouteMountOptions => ({ authorizat
  * deliberate step.
  * @complexity O(1) registration.
  */
-export function registerAdminHeldBackThemeRoutes(required: { app: Express; deps: HeldBackRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminHeldBackThemeRoutes(required: { errors: RouteErrorPorts; app: Express; deps: HeldBackRouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
   const { siteBinding, themesDir, themes, explainThemeTree } = deps;
   const gateway = deps.gatedMutations.gatewayDeps;
-  mountAdminJsonRoute({ app, spec: heldBackListRoute, deps: { ...deps, ...failures, listHeldBack: async () => {
+  mountAdminJsonRoute({ errors: required.errors, app, spec: heldBackListRoute, deps: { ...deps, ...failures, listHeldBack: async () => {
     const active = (await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId }))?.activeThemeId ?? null;
     return { themes: listHeldBackThemes({ siteDir: siteBinding.dir, themesDir }), chosenThemeHeldBack: chosenThemeHeldBack({ siteDir: siteBinding.dir, activeThemeId: active }) };
   } } }, mountOptions("list"));
-  mountAdminJsonRoute({ app, spec: checkRoute, deps: { ...deps, ...failures,
+  mountAdminJsonRoute({ errors: required.errors, app, spec: checkRoute, deps: { ...deps, ...failures,
     checkTheme: ({ themeId }) => ({ ...checkHeldBackTheme({ siteDir: siteBinding.dir, themesDir, themeId, explainThemeTree }) }),
     planRestore: ({ principal, themeId, digest }) => plan({ deps: gateway, ...actor(principal), hooks: restoreHooks({ deps, scope: { themeId, digest } }) }),
   } }, mountOptions("check"));
-  mountAdminJsonRoute({ app, spec: approvalRoute, deps: { ...deps, ...failures,
+  mountAdminJsonRoute({ errors: required.errors, app, spec: approvalRoute, deps: { ...deps, ...failures,
     confirmRestore: ({ principal, planId, planHash }) => {
       const hooks = buildConfirmOnlyHooks({ domain: HELD_BACK_RESTORE_DOMAIN, readPermission: HELD_BACK_READ_PERMISSION, mutatePermission: HELD_BACK_RESTORE_PERMISSION, scopeId: deps.workspaceId });
       return confirm({ deps: gateway, ...actor(principal), hooks, planId, planHash });
     },
   } }, mountOptions("approval"));
-  mountAdminJsonRoute({ app, spec: restoreRoute, deps: { ...deps, ...failures,
+  mountAdminJsonRoute({ errors: required.errors, app, spec: restoreRoute, deps: { ...deps, ...failures,
     restoreTheme: ({ principal, themeId, approvedDigest, confirmationToken }) => {
       const restore = () => restoreHeldBackTheme({ siteDir: siteBinding.dir, themesDir, themes, themeId, approvedDigest, explainThemeTree });
       return execute({ deps: gateway, ...actor(principal), hooks: restoreHooks({ deps, scope: { themeId, digest: approvedDigest }, restore }), confirmationToken });

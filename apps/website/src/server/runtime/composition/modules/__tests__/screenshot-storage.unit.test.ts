@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import path from "node:path";
@@ -29,7 +30,7 @@ async function harness() {
     previewStore: createCleanupPreviewStore({ randomToken: () => crypto.randomUUID(), mono: () => 0 }),
     authorizeOwner: screenshotOwnerFrom({ ownerPrincipalId: async () => "owner" }),
   }, {});
-  mountScreenshotCleanup({ app, retention, adminPorts: { mount: mountAdminJsonRoute, deps: { workspaceId: WS, authorize: (() => ({ ok: true })) as never }, origin: adminSameOriginWrites } });
+  mountScreenshotCleanup({ app, retention, adminPorts: { errors: createRouteIncidentReporter().errors, mount: mountAdminJsonRoute, deps: { workspaceId: WS, authorize: (() => ({ ok: true })) as never }, origin: adminSameOriginWrites } });
   const server = app.listen(0);
   await new Promise<void>(resolve => server.once("listening", resolve));
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -50,7 +51,7 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
   };
   const app = express();
   app.use(express.json());
-  registerPublicMemberSignInRequestRoute({ app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
+  registerPublicMemberSignInRequestRoute({ errors: createRouteIncidentReporter().errors, app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
   return { app, deps };
 }
 

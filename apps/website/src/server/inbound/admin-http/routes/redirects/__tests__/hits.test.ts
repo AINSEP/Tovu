@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -15,6 +16,7 @@ import type { RedirectRouteDeps } from "#src/server/runtime/composition/modules/
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const fakeRule = {
     id: "red-1",
     workspaceId: "ws-1",
@@ -55,7 +57,7 @@ function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): express.Expre
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminRedirectHitsRoute({ app, deps });
+  registerAdminRedirectHitsRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

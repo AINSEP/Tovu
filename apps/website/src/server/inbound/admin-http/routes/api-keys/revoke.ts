@@ -5,6 +5,6 @@ import { API_KEY_MOUNT_OPTIONS, apiKeyMountDeps, type ApiKeysRouteRegistrar } fr
 
 /** POST api-keys/:id/revoke — `APIKEY_REVOKE`; the spec (and its rationale) lives in Jini.
  * Host binding only: the service and the per-request deps bag are injected here. */
-export const registerAdminApiKeyRevokeRoute: ApiKeysRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: apiKeyRevokeRoute, deps: { ...apiKeyMountDeps({ deps }), revokeApiKey } }, API_KEY_MOUNT_OPTIONS);
+export const registerAdminApiKeyRevokeRoute: ApiKeysRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: apiKeyRevokeRoute, deps: { ...apiKeyMountDeps({ deps }), revokeApiKey } }, API_KEY_MOUNT_OPTIONS);
 };

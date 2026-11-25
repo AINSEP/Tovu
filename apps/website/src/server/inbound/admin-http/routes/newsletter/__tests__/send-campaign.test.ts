@@ -1,4 +1,6 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -66,7 +68,8 @@ const smtpMailer = {
   },
 } as unknown as MailerPort;
 
-async function buildApp(register: RouteRegistrar = registerAdminNewsletterSendCampaignRoute) {
+async function buildApp(register: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void = registerAdminNewsletterSendCampaignRoute) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps = {
     ...base,
@@ -81,7 +84,7 @@ async function buildApp(register: RouteRegistrar = registerAdminNewsletterSendCa
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  register({ app, deps });
+  register({ errors: routeErrors, app, deps });
   return { app, deps };
 }
 

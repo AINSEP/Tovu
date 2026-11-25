@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -10,6 +11,7 @@ import type { ContentTypesRouteDeps } from "#src/server/runtime/composition/modu
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 test("update-fields HTTP characterization", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   // Replace only the write port: keep the real parser and error constructors so instanceof
   // mappings, including compatibility errors the current writer never returns, stay pinned.
   let write: typeof contentTypes.updateContentTypeFields = async (_required) => {
@@ -39,7 +41,7 @@ test("update-fields HTTP characterization", async (t) => {
     res.locals.principal = { id: "operator", kind: "user", displayName: "Operator" };
     next();
   });
-  registerAdminContentTypeUpdateFieldsRoute({ app, deps });
+  registerAdminContentTypeUpdateFieldsRoute({ errors: routeErrors, app, deps });
   const baseUrl = await startTestServer(app, t);
   const fields = [{ name: "title", kind: "text", required: false, queryable: false }];
   async function send({ body }: { body: unknown }, _options = {}) {

@@ -34,11 +34,11 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMediaListRoute({ app, deps });
-  registerAdminMediaUploadRoute({ app, deps });
-  registerAdminMediaUpdateRoute({ app, deps });
-  registerAdminMediaTrashRoute({ app, deps });
-  registerAdminMediaDeleteRoute({ app, deps });
+  registerAdminMediaListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMediaUploadRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMediaUpdateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMediaTrashRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminMediaDeleteRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

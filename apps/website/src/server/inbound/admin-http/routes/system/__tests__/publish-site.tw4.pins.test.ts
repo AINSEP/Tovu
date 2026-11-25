@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import assert from "node:assert/strict";
@@ -11,6 +12,7 @@ import type { LoadedDeployTarget, DeployTargetRegistry } from "@jini-ai/devops/d
 
 // Real registry/config/plan code runs; no provider or export can be reached by these refusals.
 test("publish trigger preserves shape errors, validation order, and domain confirmation before consent", async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const calls: string[] = [];
   const target: LoadedDeployTarget = {
     pluginId: "fixture", descriptor: { id: "fixture", label: "Fixture", module: "fixture.mjs", configFields: [{ name: "customDomain", label: "Domain", required: false }] },
@@ -27,7 +29,7 @@ test("publish trigger preserves shape errors, validation order, and domain confi
   const deps = { ...createRouteDeps(), ...ports };
   // This pin exercises the missing-consent-service refusal, not the bootstrap owner's authorization.
   delete deps.siteConsent;
-  registerAdminPublishSiteRoutes({ app, deps });
+  registerAdminPublishSiteRoutes({ errors: routeErrors, app, deps });
   const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/ws/system/publish`;
   const post = ({ body }: { body: unknown }, _options = {}) => fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const cases: readonly [unknown, string][] = [

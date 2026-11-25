@@ -10,10 +10,10 @@ import { createContentTypesModule } from "../modules/content-types.js";
 import { createSeoModule } from "../modules/seo.js";
 import { registerSiteSearchRoute } from "#src/server/inbound/public-http/routes/site/search";
 import { mountRoutes } from "./module-handles.js";
-import type { MountInput } from "./module-handles.js";
+import type { ErrorBoundMountInput } from "./module-handles.js";
 
 /** Content types, taxonomy, the gated-mutation ceremonies, SEO and site search, in registration order. */
-export function mountAdminData({ app, routeDeps }: MountInput, _optional = {}): void {
+export function mountAdminData({ app, routeDeps, errors }: ErrorBoundMountInput, _optional = {}): void {
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
   // lifecycle, entries' list/create/update/lifecycle). Admin-UI backend-gap closure (design-
@@ -22,19 +22,19 @@ export function mountAdminData({ app, routeDeps }: MountInput, _optional = {}): 
   // `mergeTerm`'s plan/confirm/execute ceremony and the migrate-forward/restore-ceremony routes
   // were deferred at the time this block was first written; see the gated-mutation route
   // registrations below for where they now live.
-  mountRoutes({ app, mod: createContentTypesModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createContentTypesModule(routeDeps) });
   // ADR-046 Phase 3 (SPEC-034): the `taxonomy` server module — the 5 plain CRUD/list routes.
   // `registerAdminTaxonomyMergeTermRoutes` (the gated-mutation ceremony) stays inline below,
   // alongside the unrelated database/recovery ceremonies it shares a gateway pattern with.
-  mountRoutes({ app, mod: createTaxonomyModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createTaxonomyModule(routeDeps) });
 
   // SPEC-016 (`core/gated-mutations`'s gateway composed into a real composition root, this
   // dispatch) — the 3 deferred gated-mutation ceremonies: taxonomy `mergeTerm`, database
   // `migrate-forward`, recovery `restore`. Each registers 3 endpoints (`/plan`, `/confirm`,
   // `/execute`) mirroring `gateway.ts`'s own 3-method shape.
-  registerAdminTaxonomyMergeTermRoutes({ app, deps: routeDeps });
-  registerAdminDatabaseMigrateForwardRoutes({ app, deps: routeDeps });
-  registerAdminRecoveryRestoreRoutes({ app, deps: routeDeps });
+  registerAdminTaxonomyMergeTermRoutes({ errors, app, deps: routeDeps });
+  registerAdminDatabaseMigrateForwardRoutes({ errors, app, deps: routeDeps });
+  registerAdminRecoveryRestoreRoutes({ errors, app, deps: routeDeps });
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `seo` server module (SPEC-008 SEO) — 6 admin
   // routes gated by `admin.seo.manage`, plus the 2 public site routes (sitemap.xml/robots.txt),
@@ -42,8 +42,8 @@ export function mountAdminData({ app, routeDeps }: MountInput, _optional = {}): 
   // sits at the exact same position the 8 inline registrations previously occupied — well before
   // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
   // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
-  mountRoutes({ app, mod: createSeoModule(routeDeps) });
+  mountRoutes({ app, errors, mod: createSeoModule(routeDeps) });
   // `GET /api/search` (site search, lot S4): public, audiences from the visitor's own member cookie
   // only; answers 503 `not_configured` in a composition without `siteSearch`.
-  registerSiteSearchRoute(app, routeDeps);
+  registerSiteSearchRoute({ app, deps: routeDeps, errors });
 }

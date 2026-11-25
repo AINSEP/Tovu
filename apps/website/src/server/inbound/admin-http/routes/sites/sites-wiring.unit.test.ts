@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -25,7 +26,7 @@ test("Sites snapshot exposes the injected host and Trash; trashing the default r
     siteTrash: { trash: ({ name }) => ({ name, id: "new-id", displayName: name }), restore() {}, remove() {} },
     devRestart: { canSwitchSite: true, requestRestart() {} },
   };
-  const app = express(); registerAdminSitesRoutes({ app, deps });
+  const app = express(); registerAdminSitesRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   const root = "/api/admin/v1/workspaces/:workspaceId/system/sites";
   const get = extractRouteHandler(app, "get", root);
   const response = createCapturingResponse(); response.res.locals.principal = { id: "operator" };

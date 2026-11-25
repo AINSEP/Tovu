@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { dockerfileReadRoute, dockerfileWriteRoute } from "@jini-ai/cms/admin-http/routes/system/dockerfile-source";
@@ -18,8 +19,8 @@ export type AdminDockerfileSourceDeps = Pick<RouteDeps, "workspaceId" | "authori
 
 const MOUNT: AdminJsonRouteMountOptions = { authorization: "direct", failure: { operation: "routes/system/dockerfile-source", code: "INTERNAL_ERROR" } };
 
-export function registerAdminDockerfileSourceRoute({ app, deps }: { app: Express; deps: AdminDockerfileSourceDeps }, _optional: Record<string, never> = {}): void {
+export function registerAdminDockerfileSourceRoute({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminDockerfileSourceDeps }, _optional: Record<string, never> = {}): void {
   const routeDeps = { workspaceId: deps.workspaceId, authorize: deps.authorize, read: () => readDockerfileSource(), writeWithIfMatch: writeDockerfileSourceWithIfMatch };
-  mountAdminJsonRoute({ app, spec: dockerfileReadRoute, deps: routeDeps }, MOUNT);
-  mountAdminJsonRoute({ app, spec: dockerfileWriteRoute, deps: routeDeps }, MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: dockerfileReadRoute, deps: routeDeps }, MOUNT);
+  mountAdminJsonRoute({ errors, app, spec: dockerfileWriteRoute, deps: routeDeps }, MOUNT);
 }

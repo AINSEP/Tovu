@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -12,7 +13,7 @@ import { registerAdminAssistantTestConnectionRoute } from "#src/server/runtime/c
 
 test("test-connection returns a validation error for an absent or null request body", async () => {
   const app = express();
-  registerAdminAssistantTestConnectionRoute({ app, deps: {
+  registerAdminAssistantTestConnectionRoute({ errors: createRouteIncidentReporter().errors, app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
@@ -34,8 +35,9 @@ test("test-connection returns a validation error for an absent or null request b
 });
 
 function buildConnectionRoute(overrides: Partial<Parameters<typeof registerAdminAssistantTestConnectionRoute>[0]["deps"]> = {}) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const app = express();
-  registerAdminAssistantTestConnectionRoute({ app, deps: {
+  registerAdminAssistantTestConnectionRoute({ errors: routeErrors, app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),

@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -64,6 +65,7 @@ function makeThemesRoot(): { themesDir: string; live: string } {
 }
 
 async function startApp(t: test.TestContext): Promise<{ baseUrl: string; live: string }> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { themesDir, live } = makeThemesRoot();
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -78,8 +80,8 @@ async function startApp(t: test.TestContext): Promise<{ baseUrl: string; live: s
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute({ app, deps });
-  registerAdminThemeFileResetRoute({ app, deps });
+  registerAdminThemeDetailRoute({ errors: routeErrors, app, deps });
+  registerAdminThemeFileResetRoute({ errors: routeErrors, app, deps });
   return { baseUrl: await startTestServer(app, t), live };
 }
 

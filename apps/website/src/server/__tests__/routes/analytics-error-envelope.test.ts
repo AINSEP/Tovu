@@ -1,3 +1,5 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { IncomingMessage, ServerResponse } from "node:http";
@@ -43,6 +45,8 @@ async function request(app: express.Express, requestId: string | undefined) {
 for (const failure of ["authorize", "sink"] as const) {
   for (const requestId of [undefined, "analytics-existing-request"] as const) {
     test(`analytics/recent-hits: ${failure} failure preserves the canonical 500 with ${requestId ? "existing" : "generated"} requestId`, async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
       const secret = "ghp_" + "x".repeat(36);
       const fail = async () => { throw new Error(`private ${failure} failure ${secret}`); };
       const logs: unknown[][] = [];
@@ -66,7 +70,7 @@ for (const failure of ["authorize", "sink"] as const) {
           list: failure === "sink" ? fail : async () => [],
         },
       };
-      registerAdminAnalyticsRecentHitsRoute({ app, deps });
+      registerAdminAnalyticsRecentHitsRoute({ errors: routeErrors, app, deps });
       const response = await request(app, requestId);
 
       assert.equal(response.status, 500);
@@ -74,14 +78,14 @@ for (const failure of ["authorize", "sink"] as const) {
       assert.ok(correlation);
       if (requestId) assert.equal(correlation, requestId);
       const errorId = assertAnalyticsFailure({ body: response.body, requestId: correlation });
-      assert.equal(logs.length, 1);
-      assert.equal(reports.length, 1);
-      assert.equal((logs[0]![1] as { errorId: string }).errorId, errorId);
-      assert.deepEqual(reports[0]!.options, { context: { operation: "analytics/recent-hits", attributes: { errorId } } });
-      assert.match(JSON.stringify(logs), new RegExp(`private ${failure} failure`));
-      assert.match(reports[0]!.error.message, new RegExp(`private ${failure} failure`));
-      assert.equal(JSON.stringify(logs).includes(secret), false);
-      assert.equal(reports[0]!.error.message.includes(secret), false);
+      assert.equal(recorded.records.length, 1);
+      assert.equal(recorded.reports.length, 1);
+      assert.equal((recorded.records[0]![1] as { meta: { errorId: string } }).meta.errorId, errorId);
+      assert.deepEqual(recorded.reports[0]![1], { context: { operation: "analytics/recent-hits", level: "error", attributes: { incidentId: errorId, errorLabel: "Error" } } });
+      assert.match(JSON.stringify(recorded.records), new RegExp(`private ${failure} failure`));
+      assert.match(recorded.reports[0]![0].error.message, new RegExp(`private ${failure} failure`));
+      assert.equal(JSON.stringify(recorded.records).includes(secret), false);
+      assert.equal(recorded.reports[0]![0].error.message.includes(secret), false);
       assert.doesNotMatch(JSON.stringify(response.body), new RegExp(`private|${secret}`));
     });
   }

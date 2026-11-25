@@ -1,4 +1,6 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -47,7 +49,7 @@ const VALID_CAMPAIGN_BODY = {
 
 interface RouteCase {
   name: string;
-  register: RouteRegistrar;
+  register: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void;
   method: "GET" | "POST" | "DELETE";
   path: string;
   /** The Express route pattern the registrar mounts, for direct handler extraction. */
@@ -81,7 +83,7 @@ function buildApp(route: RouteCase, depsOverrides: Partial<NewsletterRouteDeps> 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  route.register({ app, deps });
+  route.register({ app, deps, errors: createRouteIncidentReporter().errors });
   return app;
 }
 
@@ -154,14 +156,15 @@ for (const route of ROUTES) {
 }
 
 /** A host that mounts these registrars without a JSON body parser leaves `req.body` undefined. */
-function buildAppWithoutBodyParser(register: RouteRegistrar) {
+function buildAppWithoutBodyParser(register: (required: Parameters<RouteRegistrar>[0] & { errors: RouteErrorPorts }, optional?: Record<string, never>) => void) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as NewsletterRouteDeps;
   const app = express();
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  register({ app, deps });
+  register({ errors: routeErrors, app, deps });
   return app;
 }
 

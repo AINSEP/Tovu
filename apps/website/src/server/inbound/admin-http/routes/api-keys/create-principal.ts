@@ -5,6 +5,6 @@ import { API_KEY_MOUNT_OPTIONS, apiKeyMountDeps, type ApiKeysRouteRegistrar } fr
 
 /** POST api-keys/principals — `APIKEY_PRINCIPAL_CREATE`; the spec (and its rationale) lives in Jini.
  * Host binding only: the service and the per-request deps bag are injected here. */
-export const registerAdminApiKeyPrincipalCreateRoute: ApiKeysRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: apiKeyPrincipalCreateRoute, deps: { ...apiKeyMountDeps({ deps }), createApiKeyPrincipal } }, API_KEY_MOUNT_OPTIONS);
+export const registerAdminApiKeyPrincipalCreateRoute: ApiKeysRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: apiKeyPrincipalCreateRoute, deps: { ...apiKeyMountDeps({ deps }), createApiKeyPrincipal } }, API_KEY_MOUNT_OPTIONS);
 };

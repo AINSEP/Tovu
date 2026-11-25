@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -42,6 +43,7 @@ async function buildApp(
   depsOverrides: Partial<UsersRouteDeps> = {},
   principalId?: string
 ): Promise<{ app: express.Express; deps: UsersRouteDeps; ownerId: string }> {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   await base.identityReady;
   const ownerId = await base.ownerPrincipalId;
@@ -75,7 +77,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserUpdateRoute({ app, deps });
+  registerAdminUserUpdateRoute({ errors: routeErrors, app, deps });
   return { app, deps, ownerId };
 }
 
@@ -215,6 +217,7 @@ test("UPDATE_USER route: a non-string username is rejected before looking up the
  * asserting on any implementation-internal shape.
  */
 test("UPDATE_USER route: 404 RESOURCE_NOT_FOUND when the principal row is missing after a successful user update", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const { app, deps, ownerId } = await buildApp();
   const { principal: target } = await createUser({
     deps: identityServiceDepsFrom(deps),
@@ -233,7 +236,7 @@ test("UPDATE_USER route: 404 RESOURCE_NOT_FOUND when the principal row is missin
     res.locals.principal = { id: ownerId };
     next();
   });
-  registerAdminUserUpdateRoute({ app: patchedApp, deps: { ...deps, principalRepo: patchedPrincipalRepo } });
+  registerAdminUserUpdateRoute({ errors: routeErrors, app: patchedApp, deps: { ...deps, principalRepo: patchedPrincipalRepo } });
   const baseUrl = await startTestServer(patchedApp, t);
 
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, {

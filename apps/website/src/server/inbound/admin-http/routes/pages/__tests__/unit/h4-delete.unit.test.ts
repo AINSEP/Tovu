@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
@@ -13,7 +14,7 @@ test('page delete losing its version compare-and-set is 409 and leaves the page 
   const { post } = await createPost({ deps: { repo: deps.postRepo, clock: deps.clock },
     input: { workspaceId: deps.workspaceId, id: 'page', kind: 'page', title: 'Keep this page' } });
   deps.removePost = async () => ({ ok: false, reason: 'version-changed' });
-  const app = express(); registerAdminPageDeleteRoute({ app, deps });
+  const app = express(); registerAdminPageDeleteRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'delete', '/api/admin/v1/workspaces/:workspaceId/pages/:pageId')({
     params: { workspaceId: deps.workspaceId, pageId: post.id }, get: () => undefined,
@@ -23,11 +24,12 @@ test('page delete losing its version compare-and-set is 409 and leaves the page 
 });
 
 test('page delete compensates a failed audit write using its captured page', async t => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: 'owner' }) };
   const { post } = await createPost({ deps: { repo: deps.postRepo, clock: deps.clock },
     input: { workspaceId: deps.workspaceId, id: 'page', kind: 'page', title: 'Keep after audit failure' } });
   t.mock.method(deps.changeSets, 'insert', async () => { throw new Error('private audit failure'); });
-  const app = express(); registerAdminPageDeleteRoute({ app, deps });
+  const app = express(); registerAdminPageDeleteRoute({ errors: routeErrors, app, deps });
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'delete', '/api/admin/v1/workspaces/:workspaceId/pages/:pageId')({
     params: { workspaceId: deps.workspaceId, pageId: post.id }, get: () => undefined,

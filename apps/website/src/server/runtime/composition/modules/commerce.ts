@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -25,11 +26,11 @@ export type AdminCommerceStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize
  * @complexity O(1) per registration.
  */
 export function registerAdminCommerceStatusRoute(
-  { app, deps }: { app: Express; deps: AdminCommerceStatusDeps },
+  { errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminCommerceStatusDeps },
   _optional: Record<string, never> = {}
 ): void {
   mountAdminJsonRoute(
-    {
+    { errors,
       app,
       spec: commerceStatusRoute,
       deps: {

@@ -27,18 +27,18 @@ function mountOptions(operation: string) {
 }
 
 /** GET the discovered themes with source/status/errors/active, gated by `theme.set`. */
-export const registerAdminThemesListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminThemesListRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const listDeps = {
     ...themesPortDeps({ deps }),
     presentationRepo: deps.presentationRepo,
     themes: () => deps.themes,
     findStoredTheme: ({ id }: { id: string }) => findStoredTheme({ themes: deps.themes, id }),
   };
-  mountAdminJsonRoute({ app, spec: themesListRoute, deps: listDeps }, mountOptions("routes/themes/list"));
+  mountAdminJsonRoute({ errors, app, spec: themesListRoute, deps: listDeps }, mountOptions("routes/themes/list"));
 };
 
 /** POST duplicate one discovered theme into a new folder, gated by `theme.edit`. */
-export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const duplicateDeps = {
     ...themesPortDeps({ deps }),
     duplicateTheme: ({ sourceThemeId, newName }: { sourceThemeId: string; newName: string }, { newId }: { newId?: string | undefined }) =>
@@ -47,5 +47,5 @@ export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = ({ app, d
     catalogThemeIds: () => validThemeIds({ themes: deps.themes }),
     duplicateThemeErrorCode: ({ err }: { err: unknown }) => (err instanceof DuplicateThemeError ? err.code : undefined),
   };
-  mountAdminJsonRoute({ app, spec: themeDuplicateRoute, deps: duplicateDeps }, mountOptions("routes/themes/duplicate"));
+  mountAdminJsonRoute({ errors, app, spec: themeDuplicateRoute, deps: duplicateDeps }, mountOptions("routes/themes/duplicate"));
 };

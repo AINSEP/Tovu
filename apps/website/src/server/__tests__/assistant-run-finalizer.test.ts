@@ -77,6 +77,7 @@ function streamOf(...chunks: string[]): Response {
 }
 
 function harness(daemon: RunDaemonClient | undefined, deps: RouteDeps = createRouteDeps(), checkpointIntervalMs = 0) {
+  const routeErrors = createRouteIncidentReporter().errors;
   const finalizer: AssistantRunFinalizer = createAssistantRunFinalizer({
     ledger: deps.chatRunLedger,
     daemon,
@@ -88,7 +89,7 @@ function harness(daemon: RunDaemonClient | undefined, deps: RouteDeps = createRo
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
-  createAssistantChatsModule(deps, { finalizer, recoverInterrupted: true }).registerRoutes?.({ app });
+  createAssistantChatsModule(deps, { finalizer, recoverInterrupted: true }).registerRoutes?.({ errors: routeErrors, app });
   return { app, deps, finalizer };
 }
 

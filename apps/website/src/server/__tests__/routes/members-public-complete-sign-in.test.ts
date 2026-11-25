@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -26,6 +27,7 @@ import { registerPublicMemberSignInRequestRoute } from "../../runtime/compositio
  */
 
 function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: MemberPublicRouteDeps } {
+  const routeErrors = createRouteIncidentReporter().errors;
   const routeDeps = createRouteDeps();
   const capabilities = routeDeps.mailer.capabilities();
   routeDeps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
@@ -53,8 +55,8 @@ function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: M
   const app = express();
   app.use(express.json());
   if (upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
-  registerPublicMemberSignInRequestRoute({ app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
-  registerPublicMemberCompleteSignInRoute({ app, deps });
+  registerPublicMemberSignInRequestRoute({ errors: routeErrors, app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
+  registerPublicMemberCompleteSignInRoute({ errors: routeErrors, app, deps });
   return { app, deps };
 }
 

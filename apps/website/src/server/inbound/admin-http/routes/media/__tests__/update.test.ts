@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -26,6 +27,7 @@ import type { MediaRouteDeps } from "../deps.js";
 const WORKSPACE_ID = "workspace-local";
 
 function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express {
+  const routeErrors = createRouteIncidentReporter().errors;
   const base = createRouteDeps();
   const deps: MediaRouteDeps = {
     tracker: createNoopTracker({}),
@@ -51,7 +53,7 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaUpdateRoute({ app, deps });
+  registerAdminMediaUpdateRoute({ errors: routeErrors, app, deps });
   return app;
 }
 

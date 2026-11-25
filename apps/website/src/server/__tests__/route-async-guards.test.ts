@@ -1,3 +1,4 @@
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import express from "express";
@@ -448,11 +449,12 @@ test("commerce off: status GET responds 404 without calling a failing authorizat
 });
 
 test("commerce/status explicitly mounted: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps = withThrowingAuthorize(createRouteDeps());
   // Preserve async-error coverage through the retained Jini-backed adapter while production stays off.
   const app = express();
   app.use("/api/admin/v1/workspaces", requireAdminSession(deps));
-  registerAdminCommerceStatusRoute({ app, deps });
+  registerAdminCommerceStatusRoute({ errors: routeErrors, app, deps });
   app.use(createApp(deps));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

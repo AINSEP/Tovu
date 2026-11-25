@@ -29,11 +29,11 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
-  registerAdminRecoveryRestorePointsListRoute({ app, deps });
-  registerAdminRecoveryDisclosureRoute({ app, deps });
-  registerAdminRecoveryDeepLinkRoute({ app, deps });
-  registerAdminRecoveryStatusRoute({ app, deps });
+  registerAdminDatabaseRestorePointsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminRecoveryRestorePointsListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminRecoveryDisclosureRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminRecoveryDeepLinkRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminRecoveryStatusRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 
@@ -75,12 +75,13 @@ test("recovery routes: disclosure always renders 'unknown' (never a fabricated 0
 });
 
 test("recovery routes: disclosure is 403 for a caller without backup.read", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "insufficient role" }) };
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminRecoveryDisclosureRoute({ app, deps });
+  registerAdminRecoveryDisclosureRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
@@ -124,6 +125,7 @@ test("recovery routes: disclosure is 400 VALIDATION_ERROR when restorePointId is
 });
 
 test("recovery routes: disclosure 500s with the concealed incident envelope (no thrown message) when the watermark source explodes", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.disclosureWatermarkSource.getBaseline = async () => {
     throw new Error("watermark source unreachable");
@@ -132,7 +134,7 @@ test("recovery routes: disclosure 500s with the concealed incident envelope (no 
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminRecoveryDisclosureRoute({ app, deps });
+  registerAdminRecoveryDisclosureRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
@@ -145,6 +147,7 @@ test("recovery routes: disclosure 500s with the concealed incident envelope (no 
 });
 
 test("recovery routes: disclosure 500s with a generic message when a non-Error is thrown", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.disclosureWatermarkSource.getBaseline = async () => {
     // eslint-disable-next-line @typescript-eslint/no-throw-literal
@@ -154,7 +157,7 @@ test("recovery routes: disclosure 500s with a generic message when a non-Error i
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminRecoveryDisclosureRoute({ app, deps });
+  registerAdminRecoveryDisclosureRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
@@ -167,6 +170,7 @@ test("recovery routes: disclosure 500s with a generic message when a non-Error i
 });
 
 test("recovery routes: disclosure renders real counts once the watermark baseline is usable", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   deps.disclosureWatermarkSource.getBaseline = async () => ({ available: true, watermarkAtCapture: 42, currentWatermark: 50 });
   deps.disclosureWatermarkSource.getCategoryCounts = async () => ({ posts_pages: 7 });
@@ -174,7 +178,7 @@ test("recovery routes: disclosure renders real counts once the watermark baselin
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminRecoveryDisclosureRoute({ app, deps });
+  registerAdminRecoveryDisclosureRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
@@ -466,6 +470,7 @@ test("recovery restore-points list and status surface a thrown error as 500 INTE
 // these mounted requests pin the other half: what the host's bindings forward to `@jini-ai/db`
 // and that the wire bodies are the computations' results, byte-for-byte.
 test("recovery mount: disclosure forwards only the covered categories and answers the computation's exact body", async (t) => {
+  const routeErrors = createRouteIncidentReporter().errors;
   const deps: RouteDeps = createRouteDeps();
   let countReads = 0;
   deps.disclosureWatermarkSource.getBaseline = async () => ({ available: true, watermarkAtCapture: 1, currentWatermark: 3 });
@@ -474,7 +479,7 @@ test("recovery mount: disclosure forwards only the covered categories and answer
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminRecoveryDisclosureRoute({ app, deps });
+  registerAdminRecoveryDisclosureRoute({ errors: routeErrors, app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {

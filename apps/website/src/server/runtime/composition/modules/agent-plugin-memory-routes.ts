@@ -41,12 +41,12 @@ function agentPluginMemoryDeps({ deps }: { deps: AgentPluginsRouteDeps }, _optio
  * (`agent-plugins:write-note`); only errors the bound `writeNote` itself threw are claimed, so a
  * failing list read still answers the route's own `routes/agent-plugins/memory` copy.
  */
-export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: agentPluginMemoryGetRoute, deps: agentPluginMemoryDeps({ deps }) },
+export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ errors, app, spec: agentPluginMemoryGetRoute, deps: agentPluginMemoryDeps({ deps }) },
     MEMORY_FAILURE);
   const noteWriteFaults = new WeakSet<object>();
   const memoryDeps = agentPluginMemoryDeps({ deps });
-  mountAdminJsonRoute({ app, spec: agentPluginMemoryPutRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: agentPluginMemoryPutRoute, deps: {
     ...memoryDeps,
     openMemory: (required) => {
       const memory = memoryDeps.openMemory(required);

@@ -1,3 +1,4 @@
+import { NO_OPERATION_TRACKING } from "#src/platform/express/jini-routes";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { createNavMenuReadModel } from "@jini-ai/cms/navigation";
 
@@ -459,30 +460,31 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
   // reporter through `res.locals`; shared inbound code reads it there and never imports composition.
   // Request ID, ALS admission and the fallback 5xx marker stay with `applyRequestTracking`.
   const failureReporter = siteFailureReporter({ routeDeps }, options);
+  const errors = { reporter: failureReporter, observability: NO_OPERATION_TRACKING };
   app.use((_req, res, next) => { res.locals.failureReporter = failureReporter; next(); });
   // All admin error mappers share this request-scoped diagnostic port, including narrow route deps.
   app.use("/api/admin", (_req, res, next) => { res.locals.adminFailureTracker = routeDeps.tracker; next(); });
   const internalRouter = express.Router();
-  applyPublicMiddleware({ app, routeDeps, internalRouter }, options);
+  applyPublicMiddleware({ app, routeDeps, errors, internalRouter }, options);
   registerPluginContributionRoutes({ app, deps: routeDeps, auth: createPluginRouteAuthPorts({ deps: routeDeps }) });
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
 
-  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps, reporter: failureReporter }, { onAdminSignIn: options.onAdminSignIn });
+  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps, errors, reporter: failureReporter }, { onAdminSignIn: options.onAdminSignIn });
 
-  mountMembersNewsletter({ app, routeDeps, reporter: failureReporter });
+  mountMembersNewsletter({ app, routeDeps, errors, reporter: failureReporter });
 
-  mountAdminSystem({ app, routeDeps, reporter: failureReporter }, { onShutdown: options.onShutdown, ...(options.siteStorage ? { siteStorage: options.siteStorage } : {}) });
-  mountAdminFeatures({ app, routeDeps, reporter: failureReporter });
+  mountAdminSystem({ app, routeDeps, errors, reporter: failureReporter }, { onShutdown: options.onShutdown, ...(options.siteStorage ? { siteStorage: options.siteStorage } : {}) });
+  mountAdminFeatures({ app, routeDeps, errors, reporter: failureReporter });
 
-  mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps: siteAppBootWorkByDeps, reporter: failureReporter }, options);
+  mountAssistant({ app, routeDeps, errors, internalRouter, bootWorkByDeps: siteAppBootWorkByDeps, reporter: failureReporter }, options);
 
-  mountAdminData({ app, routeDeps });
+  mountAdminData({ app, routeDeps, errors });
 
   registerAdminSpa({ app, routeDeps });
 
-  mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision });
+  mountPublicSite({ app, routeDeps, errors, isAuthenticatedPreviewRevision });
 
   // Last, so it sees a body-parser 413 from any route and answers JSON instead of Express's HTML page.
   app.use(respondToOversizedBody);

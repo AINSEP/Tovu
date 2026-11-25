@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from 'express';
 import { beginOwnerEnrollment, confirmOwnerEnrollment, removeOwnerFactor } from '@jini-ai/user-management/server';
@@ -11,7 +12,7 @@ import { resolveSiteConsentOrigin } from '../public-http/middleware/site-consent
 import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-auth';
 import { mountPublicRawRoute } from './admin-raw-route-ports.js';
 
-type Admission = { app: Express; deps: RouteDeps; limiter: RateLimiter;
+type Admission = { errors: RouteErrorPorts; app: Express; deps: RouteDeps; limiter: RateLimiter;
   authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ principal: { id: string }; kind: string } | null> };
 
 const services = { beginOwnerEnrollment, confirmOwnerEnrollment, removeOwnerFactor };
@@ -20,8 +21,8 @@ const services = { beginOwnerEnrollment, confirmOwnerEnrollment, removeOwnerFact
  * so storage exceptions never disclose secrets.
  * @complexity O(1), one response, no request input logged.
  */
-function failure({ res, error }: { res: Response; error: unknown }): void {
-  sendAdminFailure({ res, error }, { operation: 'owner-authenticator', code: 'MFA_UNAVAILABLE',
+function failure({ res, error, errors }: { res: Response; error: unknown; errors: RouteErrorPorts }): void {
+  sendAdminFailure({ res, error, reporter: errors.reporter }, { operation: 'owner-authenticator', code: 'MFA_UNAVAILABLE',
     message: 'Authenticator action could not finish.', failure: { step: 'owner-authenticator',
       action: 'Try a new attempt, or use your authenticator app or recovery code to sign in. Copy the error ID if it continues.' } });
 }
@@ -53,7 +54,7 @@ function requestDepsFor({ req, admission }: { req: Request; admission: Admission
 export function registerOwnerMfaRoutes(admission: Admission, _options: Record<string, never> = {}): void {
   for (const spec of [ownerMfaEnrollRoute, ownerMfaConfirmRoute, ownerMfaRemoveRoute, ownerMfaStatusRoute]) {
     // The mounted bag is never read: `requestDeps` binds this request's ports before every gate.
-    mountPublicRawRoute<OwnerMfaRouteDeps>({ app: admission.app, spec, deps: requestDepsFor({ req: undefined as never, admission }), failure },
+    mountPublicRawRoute<OwnerMfaRouteDeps>({ errors: admission.errors, app: admission.app, spec, deps: requestDepsFor({ req: undefined as never, admission }), failure: ({ res, error }) => failure({ res, error, errors: admission.errors }) },
       { requestDeps: ({ req }) => requestDepsFor({ req, admission }) });
   }
 }
