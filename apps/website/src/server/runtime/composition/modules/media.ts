@@ -30,6 +30,9 @@ import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveMediaByteSizes } from "@jini-ai/cms/admin-http/routes/media/byte-size";
 import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-used";
+import { mediaGridRoute, type MediaGridRouteDeps } from "@jini-ai/cms/admin-http/routes/media/grid";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
+import type { SqlMediaRepo } from "#src/platform/db/repos/media-repo";
 import { findMediaWhereUsed } from "@jini-ai/cms/media/site/where-used";
 import type { RouteDeps } from "#src/server/routes/types";
 import { mediaTextRoute } from "@jini-ai/cms/admin-http/routes/media/text";
@@ -300,6 +303,48 @@ export const registerAdminMediaWhereUsedRoute = ({ app, deps }: { app: Express; 
 /** The `RouteDeps` slice the URL import reads: the asset routes' deps plus the dedicated egress client. */
 export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
 
+/** The bounded grid queries; the durable SQL media repo provides them, in-memory doubles do not. */
+type MediaGridQueries = Pick<SqlMediaRepo, "listGridPage" | "findGridItem">;
+
+/** The repo's bounded grid queries, or a plain 501 when this store has none. Read per
+ *  request so a test's later replacement of the repo or one of its methods is honoured.
+ *  @complexity O(1). */
+function gridQueries({ repo }: { repo: MediaRouteDeps["mediaRepo"] }, _optional: Record<string, never> = {}): MediaGridQueries {
+  const candidate = repo as Partial<MediaGridQueries>;
+  if (typeof candidate.listGridPage === "function" && typeof candidate.findGridItem === "function") return repo as unknown as MediaGridQueries;
+  // Never fall back to a full-library read and slice it: that is the unbounded path this route replaces.
+  return rejectRoute({ status: 501, error: "this media store cannot answer grid pages" });
+}
+
+/** DTO enrichment for exactly the answered rows: recorded content types only (no byte sniffing on a
+ *  grid read), public URLs and blob sizes. @complexity O(n) in `media.length` plus the batch lookups. */
+async function enrichGridMedia({ deps, media }: { deps: MediaRouteDeps; media: readonly MediaRecord[] }, _optional: Record<string, never> = {}): ReturnType<MediaGridRouteDeps["enrichMedia"]> {
+  const sha256s = [...new Set(media.filter((item) => item.kind !== "document").map((item) => item.source.sha256))];
+  const [contentTypesBySha256, publicUrlsById, byteSizesBySha256] = await Promise.all([
+    deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s }),
+    resolveMediaPublicUrls({ deps, assets: media }),
+    resolveMediaByteSizes({ deps, media }),
+  ]);
+  return { contentTypesBySha256, publicUrlsById, byteSizesBySha256 };
+}
+
+/** GET grid (Jini spec `mediaGridRoute`): one bounded page or one exact asset, beside the full list.
+ *  Like the list route it answers 404 for a foreign workspace and asks `media.read` directly. Only the
+ *  newest-first order is paged: no SQL collation reproduces the admin's `localeCompare` title order,
+ *  so alphabetical stays on the full list until a persisted sort key exists.
+ *  @complexity O(1) setup; per request one bounded page read plus the summary aggregate. */
+export const registerAdminMediaGridRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ app, spec: mediaGridRoute, deps: {
+    ...mediaPortDeps({ deps }),
+    readPage: (required, optional) => {
+      if (required.orderBy !== "created") return rejectRoute({ status: 400, error: "alphabetical order is not available in pages yet" });
+      return gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional);
+    },
+    findItem: (required) => gridQueries({ repo: deps.mediaRepo }).findGridItem(required),
+    enrichMedia: ({ media }) => enrichGridMedia({ deps, media }),
+  } }, mountOptions({ operation: "routes/media/grid", authorization: "direct" }));
+};
+
 /** POST import-url (Jini spec `mediaImportUrlRoute`). It read `deps.authorize` directly, so it mounts
  *  with `authorizeDirectOrRespond` semantics. `logEgressRefusal` receives an egress refusal's full
  *  diagnosis; without it, the operator console does.
@@ -344,6 +389,7 @@ export function createMediaModule(
     name: "media",
     registerRoutes: ({ app }, _options = {}) => {
       registerAdminMediaListRoute({ app, deps });
+      registerAdminMediaGridRoute({ app, deps });
       registerAdminMediaWhereUsedRoute({ app, deps });
       registerAdminMediaUploadRoute({ app, deps }, { videoImport });
       registerAdminMediaImportUrlRoute({ app, deps }, { videoImport });

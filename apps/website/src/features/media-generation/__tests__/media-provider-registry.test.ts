@@ -7,12 +7,13 @@ import test from "node:test";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { loadMediaProviderRegistry, parseMediaProvidersFile } from "@jini-ai/cms/media/site-generation/media-provider-registry";
 import { contributeProviders, defineProviderContribution, type ProviderContributionDescriptor } from "@jini-ai/agent-plugins/lifecycle";
-import { createMediaProviderRegistry, MEDIA_PROVIDER_CONTRACT, mediaProviderRegistryId, type MediaProviderContribution } from "@jini-ai/integrations/media-providers";
+import { MEDIA_PROVIDER_CONTRACT, type MediaProviderContribution } from "@jini-ai/integrations/media-providers";
+import { createHostMediaProviderRegistry, hostMediaProviderRegistryId } from "../host-media-providers.js";
 
 /** Host binding, as in composition `deps.ts`: Tovu names the manifest file and supplies the cross-package seams. */
 const MEDIA_PROVIDERS_FILENAME = "tovu-media-providers.json";
-const mediaProviderPorts = { filename: MEDIA_PROVIDERS_FILENAME, contract: MEDIA_PROVIDER_CONTRACT, createRegistry: createMediaProviderRegistry,
-  registryId: mediaProviderRegistryId, contributeProviders,
+const mediaProviderPorts = { filename: MEDIA_PROVIDERS_FILENAME, contract: MEDIA_PROVIDER_CONTRACT, createRegistry: createHostMediaProviderRegistry,
+  registryId: hostMediaProviderRegistryId, contributeProviders,
     defineProviderContribution: defineProviderContribution<ProviderContributionDescriptor, MediaProviderContribution> };
 
 /** A plugin-shaped vendor module; `providerId` lets a test make the manifest id disagree with it. */

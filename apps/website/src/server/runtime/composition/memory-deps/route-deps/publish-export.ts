@@ -31,7 +31,7 @@ import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-con
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
+import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
 
 /**
@@ -229,7 +229,7 @@ export function memoryClientsAndSiteContextDeps(required: MemoryRootContext, _op
     mediaGenerationHttpClient: guardedOutboundHttpClient,
     // Built-in vendors only: this hermetic root reads no plugin modules at construction (same rule as
     // the plugin seams above); `deps.ts` adds plugin vendors via `loadMediaProviderRegistry`.
-    mediaProviderRegistry: createMediaProviderRegistry(),
+    mediaProviderRegistry: createHostMediaProviderRegistry(),
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc. `routeDeps`
     // spread LAST: this self-referencing closure captures the `const routeDeps` binding below (safe —
     // the arrow body only runs after `createRouteDeps()` has returned, by which point `routeDeps` is

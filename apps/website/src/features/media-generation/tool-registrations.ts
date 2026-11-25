@@ -10,13 +10,13 @@ import type { Clock, HttpClientPort } from "@jini-ai/core/primitives";
 import {
   createMediaDispatchEngine,
   resolveProviderCredentialsFromEnv,
-  PROVIDER_CREDENTIAL_ENV_VARS,
   type MediaGenerationRequest,
   type MediaGenerationResult,
   type MediaProviderRegistry,
   type ProviderCredentials,
 } from "@jini-ai/integrations/media-providers";
 import { nodeMediaGuardedFetch } from "@jini-ai/integrations/media-providers/node";
+import { MEDIA_PROVIDER_ALIASES, MEDIA_PROVIDER_ENV_VARS } from "./host-media-providers.js";
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
@@ -194,7 +194,7 @@ async function resolveCredentialForProvider({ routeDeps, providerId }: { routeDe
   if (saved) {
     return { apiKey: saved.apiKey, ...(saved.baseUrl ? { baseUrl: saved.baseUrl } : {}) };
   }
-  const fromEnv = resolveProviderCredentialsFromEnv({ providerId, env: routeDeps.env ?? process.env });
+  const fromEnv = resolveProviderCredentialsFromEnv({ providerId, env: routeDeps.env ?? process.env }, { envVars: MEDIA_PROVIDER_ENV_VARS, aliases: MEDIA_PROVIDER_ALIASES });
   return fromEnv.apiKey ? fromEnv : null;
 }
 
@@ -312,7 +312,7 @@ async function requireImageModel({ raw, routeDeps, imageModelIds }: { raw: strin
  */
 function buildNoCredentialError({ providerId, registry }: { providerId: string; registry: MediaProviderRegistry }, _optional = {}): Error {
   const label = registry.findProvider({ id: providerId })?.label ?? providerId;
-  const envCandidates = PROVIDER_CREDENTIAL_ENV_VARS[providerId] ?? [];
+  const envCandidates = MEDIA_PROVIDER_ENV_VARS[providerId] ?? [];
   const envNote = envCandidates.length > 0 ? ` (also checked ${envCandidates.join(", ")} in this process's environment — none were set)` : "";
   return new Error(
     `media_generate_asset: no ${label} media-provider credential is configured for this workspace${envNote}. ` +

@@ -11,7 +11,6 @@ import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
-import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaRepo, SqliteMediaContentTypeStore } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { InMemoryBlobStore, InMemoryTransformDefinitionRepo, registerTransform, uploadMedia } from "../index.js";
@@ -21,6 +20,7 @@ import { buildMediaImportRegistrations } from "../../media-import/tool-registrat
 import { buildPromoteChatAttachmentTool } from "../promote-chat-attachment.js";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
+import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
 
 // Exercise the real registered handlers, upload/replacement services and codec. Only paid vendor
 // generation and outbound downloads are substituted; no HTTP server or external I/O is needed.
@@ -42,7 +42,7 @@ test("every registered media-producing tool returns the same inline image previe
     resolveRoots: () => ({ repo: root, site: root, custom: root }),
     mediaImportHttpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "", bodyBytes: bytes, bodyTruncated: false }) },
     mediaGenerationHttpClient: { send: async () => { throw new Error("unexpected generation HTTP"); } },
-    mediaProviderRegistry: createMediaProviderRegistry(), mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
+    mediaProviderRegistry: createHostMediaProviderRegistry(), mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
     siteAssistantSecretSealer: { seal: async () => { throw new Error("unexpected seal"); }, open: async () => { throw new Error("unexpected open"); } },
     env: { OPENAI_API_KEY: "test-preview-key" },
     generateMedia: async () => ({ bytes, providerNote: "test fixture", providerId: "openai", usedStubFallback: false, warnings: [] }),

@@ -156,7 +156,7 @@ test("omitting a provider from a later PUT deletes it, over the wire", async (t)
 
   await put(baseUrl, PROVIDERS_PATH, cookie, {
     openai: { apiKey: "sk-one-1111" },
-    grok: { apiKey: "xai-two-2222" },
+    fal: { apiKey: "fal-two-2222" },
   });
   await put(baseUrl, PROVIDERS_PATH, cookie, { openai: { apiKeyConfigured: true, apiKeyTail: "1111" } });
 
@@ -168,29 +168,29 @@ test("editing baseUrl without resending the key keeps the stored key", async (t)
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  await put(baseUrl, PROVIDERS_PATH, cookie, { grok: { apiKey: "xai-keep-8888" } });
+  await put(baseUrl, PROVIDERS_PATH, cookie, { "xai-grok-imagine": { apiKey: "xai-keep-8888" } });
   await put(baseUrl, PROVIDERS_PATH, cookie, {
-    grok: { apiKeyConfigured: true, apiKeyTail: "8888", baseUrl: "https://api.x.ai/v1" },
+    "xai-grok-imagine": { apiKeyConfigured: true, apiKeyTail: "8888", baseUrl: "https://api.x.ai/v1" },
   });
 
   const body = (await (await get(baseUrl, PROVIDERS_PATH, cookie)).json()) as Record<
     string,
     { apiKeyConfigured?: boolean; apiKeyTail?: string; baseUrl?: string }
   >;
-  assert.equal(body.grok?.apiKeyConfigured, true);
-  assert.equal(body.grok?.apiKeyTail, "8888");
-  assert.equal(body.grok?.baseUrl, "https://api.x.ai/v1");
+  assert.equal(body["xai-grok-imagine"]?.apiKeyConfigured, true);
+  assert.equal(body["xai-grok-imagine"]?.apiKeyTail, "8888");
+  assert.equal(body["xai-grok-imagine"]?.baseUrl, "https://api.x.ai/v1");
   assert.deepEqual(await resolveMediaProviderCredential(
     { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-    { workspaceId: deps.workspaceId, providerId: "grok" },
+    { workspaceId: deps.workspaceId, providerId: "xai-grok-imagine" },
   ), { apiKey: "xai-keep-8888", baseUrl: "https://api.x.ai/v1", model: null });
 });
 
-test("a UI-spelled provider id is rejected at the boundary with a 400", async (t) => {
+test("a legacy alias provider id is rejected at the write boundary with a 400", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const res = await put(baseUrl, PROVIDERS_PATH, cookie, { "xai-grok-imagine": { apiKey: "k-1234" } });
+  const res = await put(baseUrl, PROVIDERS_PATH, cookie, { grok: { apiKey: "k-1234" } });
   assert.equal(res.status, 400);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "MEDIA_PROVIDER_CREDENTIAL_VALIDATION_ERROR");

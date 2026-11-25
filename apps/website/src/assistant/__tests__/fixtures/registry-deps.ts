@@ -1,7 +1,7 @@
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 
 import type { AssistantToolRegistryDeps } from "../../tool-registrations.js";
+import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
 
 /**
  * @file Completes a plain route-deps bag into the {@link AssistantToolRegistryDeps} that
@@ -36,7 +36,7 @@ export function toAssistantRegistryDeps({ routeDeps }: {
 }): AssistantToolRegistryDeps {
   return {
     ...routeDeps,
-    mediaProviderRegistry: routeDeps.mediaProviderRegistry ?? createMediaProviderRegistry(),
+    mediaProviderRegistry: routeDeps.mediaProviderRegistry ?? createHostMediaProviderRegistry(),
     magicLinkPerEmailLimiter:
       routeDeps.magicLinkPerEmailLimiter ?? createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock }),
   };

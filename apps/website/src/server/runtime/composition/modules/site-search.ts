@@ -21,6 +21,12 @@ import { CMS_SEARCH_RULES } from "#src/features/site-search/cms-search-rules";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
+import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
+import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
+import type { MediaRecord } from "@jini-ai/cms/media";
+import {
+  createMediaSearchAccessPort, createMediaSearchSource, isPublicSearchImage, unionSearchAccessPorts, type MediaSearchPorts,
+} from "#src/features/media/media-search-source";
 import type { HttpClientPort } from "#src/platform/http/index";
 
 /**
@@ -411,6 +417,37 @@ const SEARCH_INDEX_TABLES: SearchIndexTables = {
   retired: "search_index_retired",
 };
 
+/** The public URL a search hit links to: the sanitized public rendition, or the SVG passthrough. */
+function mediaSearchPublicPath({ record }: { readonly record: MediaRecord }, _optional = {}): string {
+  const contentType = record.source.contentType ?? "";
+  const variant = contentType === "image/svg+xml"
+    ? { kind: "original" as const, contentType }
+    : { kind: "transform" as const, name: "public", version: 1, ext: "webp" };
+  return mediaPublicPath({ key: mediaUrlKey(record), variant, sha256: record.source.sha256 });
+}
+
+/**
+ * The media search ports over the content database. One publication rule ({@link isPublicSearchImage})
+ * feeds both the source and the access port. Scan pages in id order with the last id as cursor.
+ * @complexity scan O(n log n) per page over the workspace's rows (v1 media libraries are small).
+ */
+function bindMediaSearchPorts({ kernel, now }: { readonly kernel: ContentKernel; readonly now: () => number }, _optional = {}): MediaSearchPorts {
+  const repo = new SqliteMediaRepo({ store: kernel });
+  return {
+    loadMedia: ({ workspaceId, id }) => repo.findById({ workspaceId, id }),
+    scanMedia: async ({ workspaceId, limit }, optional = {}) => {
+      const rows = (await repo.list({ workspaceId })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const after = optional.cursor === undefined ? rows : rows.filter(row => row.id > (optional.cursor ?? ""));
+      const records = after.slice(0, limit);
+      const last = records.at(-1);
+      return after.length > limit && last !== undefined ? { records, nextCursor: last.id } : { records };
+    },
+    publicAccess: ({ record }) => isPublicSearchImage({ record }),
+    publicPath: mediaSearchPublicPath,
+    now,
+  };
+}
+
 /**
  * Bind the site's content database, settings, vault, member sessions and plugin loader to the
  * runtime's ports.
@@ -420,13 +457,15 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
   const { workspaceId, kernel, now } = required;
   const readSetting = readSearchProviderSetting({ settingsRepo: required.settingsRepo, getEffective });
   const writeSetting = writeSearchProviderSetting({ deps: required.settingsWriteDeps, writeSetting: set });
+  const media = bindMediaSearchPorts({ kernel, now });
   return {
     workspaceId,
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.
     siteId: workspaceId,
-    sources: createCmsSearchDocumentSources({ kernel, now, ...CMS_SEARCH_RULES }),
+    sources: [...createCmsSearchDocumentSources({ kernel, now, ...CMS_SEARCH_RULES }), createMediaSearchSource(media)],
     ...createSqlSearchIndexStore({ kernel: schemaErasedKernel({ store: kernel }), now, tables: SEARCH_INDEX_TABLES }),
-    access: createCmsSearchAccessPort({ kernel, now, ...CMS_SEARCH_RULES }),
+    // Each port drops collections it does not own, so the union keeps both rules fail-closed.
+    access: unionSearchAccessPorts({ ports: [createCmsSearchAccessPort({ kernel, now, ...CMS_SEARCH_RULES }), createMediaSearchAccessPort(media)] }),
     installId: () => deriveInstallationId({ keyring: required.keyring, workspaceId }),
     resolveCredential: async ({ label }) => {
       const resolved = await required.resolveCredentialByLabel({ workspaceId, label });
