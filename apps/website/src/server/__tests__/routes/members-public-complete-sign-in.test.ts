@@ -320,6 +320,8 @@ test("req.body ?? {}: an undefined body (impossible with express.json() mounted)
     is: () => "application/json",
   } as unknown as Parameters<typeof handler>[0];
 
+  // The raw mount watches the response for a client disconnect.
+  Object.assign(res, { on: () => res, off: () => res });
   await handler(req, res);
   assert.equal(capture.statusCode, 400);
 });

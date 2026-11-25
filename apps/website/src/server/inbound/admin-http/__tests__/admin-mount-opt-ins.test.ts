@@ -124,3 +124,28 @@ test("without the writers the same refusals and failures keep the JSON envelope"
   assert.deepEqual(await server.call("/api/admin/v1/workspaces/elsewhere/optin"), { status: 404, body: { error: "workspace was not found" } });
   assert.equal((await server.call("/api/admin/v1/workspaces/local/optin")).status, 500);
 });
+
+test("requestDeps hands each request its own bound deps through the admin and public mounts; absent, the mounted deps pass unchanged", async (t) => {
+  type Bound = Deps & { who: () => string };
+  const mounted: Bound = { ...deps(), who: () => "nobody" };
+  const bind = ({ req, deps: base }: { req: express.Request; deps: Bound }): Bound => ({ ...base, who: () => String(req.headers["x-who"] ?? "") });
+  const jsonAt = (at: string) => defineJsonRoute<unknown, { who: string }, Bound, { id: string }>({ method: "get", path: at, parse: () => ok({ value: undefined }), handle: async ({ deps: d }) => ok({ value: { who: d.who() } }) });
+  const rawAt = (at: string) => defineRawRoute<Bound, { id: string }>({ method: "get", path: at, handle: async ({ deps: d }) => new Response(JSON.stringify({ who: d.who() })) });
+  const { mountPublicJsonRoute } = await import("../admin-json-route-ports.js");
+  const { mountPublicRawRoute } = await import("../admin-raw-route-ports.js");
+  const app = fakeAdminApp();
+  const failure = { operation: "probe", visitorError: "x" };
+  mountAdminJsonRoute({ app, spec: jsonAt(`${path}-j`), deps: mounted }, { requestDeps: bind });
+  mountAdminRawRoute({ app, spec: rawAt(`${path}-r`), deps: mounted }, { requestDeps: bind });
+  mountPublicJsonRoute({ app, spec: jsonAt("/pub-j"), deps: mounted, failure }, { requestDeps: bind });
+  mountPublicRawRoute({ app, spec: rawAt("/pub-r"), deps: mounted, failure }, { requestDeps: bind });
+  mountPublicJsonRoute({ app, spec: jsonAt("/pub-plain"), deps: mounted, failure });
+  const server = await listen({ app });
+  t.after(server.close);
+  const read = async (at: string, who: string) => (await server.call(at, { headers: { "x-who": who } })).body?.who;
+  const at = (suffix: string) => path.replace(":workspaceId", "local") + suffix;
+  assert.deepEqual(
+    [await read(at("-j"), "ada"), await read(at("-j"), "bob"), await read(at("-r"), "ada"), await read("/pub-j", "cy"), await read("/pub-r", "di"), await read("/pub-plain", "ed")],
+    ["ada", "bob", "ada", "cy", "di", "nobody"],
+  );
+});

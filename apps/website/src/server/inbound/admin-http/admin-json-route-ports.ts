@@ -1,5 +1,5 @@
 import type { Express, RequestHandler, Response } from "express";
-import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
+import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec, type RouteMountOptions } from "@jini-ai/http-kit";
 import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
@@ -121,6 +121,22 @@ export interface AdminJsonRouteMountOptions {
 /** What a {@link AdminMountPreflight.check} is given: its declared headers (lower-cased keys, an absent
  *  header has no key) and the mount's port deps. */
 export interface AdminPreflightArgs { headers: Readonly<Record<string, string>>; deps: AdminJsonRoutePortDeps }
+
+/** Per-request host deps for one mount (http-kit `RouteMountOptions.requestDeps`): the host binds the
+ *  facts only a request holds (socket addresses, a consent cookie, the failure tracker on `res.locals`)
+ *  into closures over THAT request, so the spec receives them as deps and never sees `req`. */
+export interface RequestDepsMountOption<Deps> {
+  requestDeps?: RouteMountOptions<Deps>["requestDeps"];
+}
+
+/** http-kit's mount options with only the opt-ins a mount was given, so an absent one stays absent.
+ *  @complexity O(1). */
+export function routeMountOptionsFor<Deps>(
+  { bodyParsers, requestDeps }: { bodyParsers?: readonly RequestHandler[] | undefined; requestDeps?: RouteMountOptions<Deps>["requestDeps"] | undefined },
+  _optional: Record<string, never> = {},
+): RouteMountOptions<Deps> {
+  return { ...(bodyParsers ? { bodyParsers } : {}), ...(requestDeps ? { requestDeps } : {}) };
+}
 
 /** A mount-level check evaluated before every other admin gate ({@link AdminJsonRouteMountOptions.preflight}). */
 export interface AdminMountPreflight {
@@ -358,13 +374,13 @@ export function adminPortsFor(
  */
 export function mountAdminJsonRoute<Input, Output, Deps>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
-  optional: AdminJsonRouteMountOptions = {},
+  optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
-  const { forwardRejection, bodyParsers, ...portOptions } = optional;
+  const { forwardRejection, bodyParsers, requestDeps, ...portOptions } = optional;
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
   const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps }, bodyParsers ? { bodyParsers } : {});
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps }, routeMountOptionsFor({ bodyParsers, requestDeps }));
 }
 
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
@@ -389,9 +405,9 @@ function registeringThroughAsyncRoute(
  */
 export function mountPublicJsonRoute<Input, Output, Deps extends object>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string },
-  _optional: Record<string, never> = {},
+  optional: RequestDepsMountOption<Deps> = {},
 ): void {
   // Only a `:workspaceId` path can name a foreign workspace; elsewhere the option is inert.
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
-  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps });
+  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }) }, deps: required.deps }, routeMountOptionsFor({ requestDeps: optional.requestDeps }));
 }
