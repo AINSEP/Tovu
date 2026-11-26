@@ -188,7 +188,7 @@ function runChangeFeed(required: Admission & { req: Request; res: Response; deps
   const viewer: ChangeFeedViewer = { workspaceId: deps.workspaceId, principalId: principal.id };
   const resolveNamespace = createNamespaceResolver(deps);
   let previewFeed: ReturnType<typeof createThemePreviewFeed>;
-  return settingsEventsRoute.open({ workspaceId: deps.workspaceId, initialAccess: required.access,
+  const feed: Parameters<typeof settingsEventsRoute.open<ReturnType<typeof timers.scheduleInterval>>>[0] = { workspaceId: deps.workspaceId, initialAccess: required.access,
     lastEventId: req.headers["last-event-id"]?.toString(), afterRevision: req.query.afterRevision, ports: {
       writeHead: () => { res.writeHead(200, sseWriteHeadHeaders(req)); },
       write: ({ frame }) => { res.write(frame); }, end: () => { res.end(); },
@@ -211,7 +211,8 @@ function runChangeFeed(required: Admission & { req: Request; res: Response; deps
       report: ({ phase, error }) => console.error(phase === "head" ? "[settings] change feed could not read the revision head" : phase === "poll" ? "[settings] change feed poll failed" : "[settings] change feed re-authorization failed", error),
       headFailureText: "Live settings updates stopped because the server could not read the latest settings change. Reload the page to reconnect.",
     },
-  });
+  };
+  return settingsEventsRoute.open(feed);
 }
 
 export const registerAdminSettingsEventsRoute = ({ app, deps }: { app: Express; deps: SettingsEventsDeps }, _optional: Record<string, never> = {}): void => {
