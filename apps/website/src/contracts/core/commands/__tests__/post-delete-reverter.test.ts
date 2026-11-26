@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, deletePost, createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "#src/features/post/index";
+import { deletePost } from "@jini-ai/cms/posts/post-trash";
+import { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "@jini-ai/cms/posts/reverters";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/core/contracts/events";

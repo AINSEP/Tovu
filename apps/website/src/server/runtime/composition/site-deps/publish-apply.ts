@@ -124,6 +124,7 @@ function publishContentApplyDeps(required: Pick<ComposePublishContentApplyPortRe
 
 function postPublishPorts({ postRepo, trashRepo, trash }: Pick<ComposePublishContentApplyPortRequired, "postRepo" | "trashRepo" | "trash">) {
   return {
+    reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic),
         repo: postRepo,
         forgetRemoved: bindForgetRemovedEntity({
           repo: trashRepo,

@@ -8,7 +8,7 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 
 import { type MenuRepoPort, type NavLocationBindingRepoPort, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuDoc, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { contributeMenusPublish } from "../publish-content.js";
+import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
 
 /**
  * @file S3 (`menu` publish type) — `features/navigation/publish-content.ts`. Uses Jini's own

@@ -1,3 +1,4 @@
+import { isOwnShareFolder } from "#src/features/site-backup/share-own-folder";
 /**
  * @file P11 ST-12b: the share expiry pass. Only a row with an explicit, valid, past `expiresAt` hosted in
  * this server's own share folder expires: a create-only tombstone first (both downloads refuse it), then
@@ -15,7 +16,7 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SiteShareRegistry, type SiteShareRecord } from "../share-registry.js";
 import { newShareIdentity } from "@jini-ai/devops/backup/site/share-registry";
 import { acknowledgeSiteShare, receiveSiteShareArtifact, revokeSiteShare } from "../share-service.js";
-import { createShareMutex, createShareRetention, type ShareRetentionFs } from "../share-retention.js";
+import { createShareMutex, createShareRetention, type ShareRetentionFs } from "@jini-ai/devops/backup/site/share-retention";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-11-25T12:00:00.000Z");
@@ -45,7 +46,7 @@ const zipOf = (registry: SiteShareRegistry, row: SiteShareRecord) => registry.ar
 
 function retention(registry: SiteShareRegistry, overrides: { fs?: ShareRetentionFs; errors?: Error[] } = {}) {
   const errors = overrides.errors ?? [];
-  return createShareRetention({
+  return createShareRetention({ isOwnShareFolder,
     registry, shareMutex: createShareMutex({}), fs: overrides.fs ?? { stat, unlink }, clock: { now: () => NOW },
     reportError: ({ error }) => { errors.push(error); }, signal: new AbortController().signal,
   });
@@ -160,7 +161,7 @@ test("download admitted just before expiry completes", async (t) => {
   const chunks: Buffer[] = [];
   const done = new Promise<void>((resolve, reject) => { stream.on("data", chunk => chunks.push(chunk as Buffer)); stream.once("end", resolve); stream.once("error", reject); });
   stream.pause();
-  const later = createShareRetention({ registry, shareMutex: createShareMutex({}), fs: { stat, unlink }, clock: { now: () => NOW + 1 }, reportError: () => {}, signal: new AbortController().signal });
+  const later = createShareRetention({ isOwnShareFolder, registry, shareMutex: createShareMutex({}), fs: { stat, unlink }, clock: { now: () => NOW + 1 }, reportError: () => {}, signal: new AbortController().signal });
   assert.deepEqual(await later.sweep({ now: NOW + 1 }), { removed: 1, freedBytes: archive.length });
   assert.equal(await present(zipOf(registry, row)), false);
   stream.resume();
@@ -173,7 +174,7 @@ test("an aborted pass stops before the next row", async (t) => {
   await seed(registry, { expiresAt: PAST });
   const controller = new AbortController();
   controller.abort();
-  const policy = createShareRetention({ registry, shareMutex: createShareMutex({}), fs: { stat, unlink }, clock: { now: () => NOW }, reportError: () => {}, signal: controller.signal }, { limit: 50 });
+  const policy = createShareRetention({ isOwnShareFolder, registry, shareMutex: createShareMutex({}), fs: { stat, unlink }, clock: { now: () => NOW }, reportError: () => {}, signal: controller.signal }, { limit: 50 });
   assert.equal(policy.id, "share-files");
   assert.equal(policy.kind, "old-copy");
   assert.deepEqual(await policy.sweep({ now: NOW }), { removed: 0, freedBytes: 0 });

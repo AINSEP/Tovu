@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { buildStaticPublishRegistrations, contributeStaticPublishTools, staticPublishDerivedRisk } from "../publish-agent-tools.js";
-import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
+import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 
 /** abortGuardedCredentialRepo: writes refuse an aborted signal before reaching the store; reads,
  *  deletes, label updates and non-function vault members pass straight through unchanged. */

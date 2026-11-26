@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { MediaStillReferencedError } from "@jini-ai/cms/media";
 import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -10,7 +11,7 @@ import test, { type TestContext } from "node:test";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
-import { createPost } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { createApp } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
@@ -38,7 +39,7 @@ async function bootComposedSite(t: TestContext) {
 
 test("Trash hide and restore clear the media access evidence once they commit", async t => {
   const { deps, workspaceId } = await bootComposedSite(t);
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId, id: "gated-post", title: "Gated", slug: "gated-post", kind: "post" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId, id: "gated-post", title: "Gated", slug: "gated-post", kind: "post" } });
   const post = await deps.postRepo.findById({ workspaceId, id: "gated-post" });
   const cache = deps.mediaAccessEvidence.getCache({ postRepo: deps.postRepo });
   const remember = () => cache.set("asset", { expiresAt: Number.MAX_SAFE_INTEGER, value: Promise.resolve({ byAsset: new Map(), opaqueGated: new Set() }) });

@@ -16,7 +16,8 @@ import { sql } from "kysely";
 import { fingerprintSiteKeyHex } from "../keyring.env.js";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import { ensureSiteKey, ensureSiteKeyForBoot, installSiteKey, mintSiteKeyHex, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
+import { type SiteKeyMaterialCheck } from "@jini-ai/platform/secrets/root-key/decide";
+import { ensureSiteKey, ensureSiteKeyForBoot, installSiteKey, mintSiteKeyHex, planSiteKeyEnsure } from "../site-key-ensure.js";
 
 /** Site-key plan §A.4 additions to this suite start at "ensureSiteKey: fingerprint stamp" below —
  *  everything above is unchanged from A2/A3a. */

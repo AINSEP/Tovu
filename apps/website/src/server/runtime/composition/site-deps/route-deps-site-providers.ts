@@ -25,7 +25,7 @@ import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { buildAnalyticsProviders } from "../analytics-providers.js";
 import { builtInThemesDir } from "../site-paths.js";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { createPostRevertRegistry } from "#src/features/post/index";
+import { createPostRevertRegistry } from "@jini-ai/cms/posts/reverters";
 import { createSettingsAnalyticsConfig } from "@jini-ai/analytics/site/config.settings";
 import { createSiteMailFeedbackRoute } from "@jini-ai/platform/mail/sql";
 import { MAIL_WEBHOOK_SECRET_LABEL_PREFIX } from "#src/features/mail/index";

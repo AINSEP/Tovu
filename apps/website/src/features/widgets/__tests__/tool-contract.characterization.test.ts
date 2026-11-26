@@ -27,7 +27,7 @@ import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { contributeWidgetsTools, type WidgetsToolDeps } from "../tool-registrations.js";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";

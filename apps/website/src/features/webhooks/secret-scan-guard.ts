@@ -5,7 +5,8 @@ import { resolveOnPath } from "@jini-ai/agent-runtime";
 import { pathToFileURL } from "node:url";
 
 import { PEM_PATTERN_NAME } from "@jini-ai/diagnostics/redaction/secrets-only";
-import { scanTrackedRepo, scanRepoHistory, type SecretScanViolation } from "@jini-ai/diagnostics/redaction/repo-secret-scan";
+import type { SecretScanViolation } from "@jini-ai/diagnostics/redaction/repo-secret-scan";
+import { scanRepoForSecrets as scan, scanGitHistoryForSecrets as scanHistory } from "@jini-ai/diagnostics/redaction/repo-secret-scan.node";
 
 /**
  * @file Repo-scanning static check (same shape as `seal-aad-invariant.ts` in this folder): fails
@@ -164,168 +165,16 @@ function gitCommand(_required: Record<string, never>, _options: Record<string, n
   return command;
 }
 
-function listTrackedFiles({ repoRoot }: { repoRoot: string }, _optional: Record<string, never> = {}): string[] {
-  const out = execFileSync(gitCommand({}), ["ls-files", "-z"], { cwd: repoRoot, encoding: "utf8" });
-  return out.split("\0").filter(Boolean);
-}
-
-/** One tracked file's (or historical blob's) already-read, latin1-decoded content, ready to scan. */
-interface ScannableContent {
-  readonly text: string;
-  readonly isBinary: boolean;
-}
-
-/** Reads one tracked file's content for scanning, or `null` if it should be skipped: a skipped
- *  binary-media extension, missing from disk (e.g. removed locally but not yet staged as
- *  deleted), not a regular file, or over the size cap (see file header). */
-function readScannableFile({ repoRoot, relFile }: { repoRoot: string; relFile: string }, _optional: Record<string, never> = {}): ScannableContent | null {
-  const absFile = path.join(repoRoot, relFile);
-  let stat: fs.Stats;
-  try {
-    stat = fs.statSync(absFile);
-  } catch {
-    return null;
-  }
-  if (!stat.isFile() || stat.size > MAX_SCAN_BYTES) return null;
-
-  const buf = fs.readFileSync(absFile);
-  return { text: buf.toString("latin1"), isBinary: buf.subarray(0, 8000).includes(0) };
-}
-
-/** Real-repo scan: every tracked file (per `git ls-files`), latin1-decoded so binary content is
- *  scanned byte-for-byte alongside text (see file header). */
 export function scanRepoForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
-  const repoRoot = options?.repoRoot ?? REPO_ROOT;
-  return scanTrackedRepo({
-    ports: {
-      trackedPaths: () => listTrackedFiles({ repoRoot }),
-      readTracked: ({ file }) => readScannableFile({ repoRoot, relFile: file }),
-    },
+  return scan({ repoRoot: options?.repoRoot ?? REPO_ROOT, fs,
+    runner: (args, options) => execFileSync(gitCommand({}), [...args], options),
     policy: { selectPath: ({ file }) => !SKIP_EXTENSIONS.has(path.extname(file).toLowerCase()), maxScanBytes: MAX_SCAN_BYTES, isAllowlisted },
   });
 }
 
-interface HistoricalBlob {
-  readonly sha: string;
-  /** Repo-root-relative path this blob was found under (its first-seen path — a blob can appear
-   *  under multiple paths/commits; content, not path, is what's deduped on). */
-  readonly path: string;
-}
-
-/** Every blob object reachable from any local branch or tag, deduped by blob SHA (a content hash,
- *  so identical file content is scanned exactly once regardless of how many commits or paths
- *  reference it). See file header's History scanning section. */
-/** Parses `git rev-list --objects --all` output into a sha -> first-seen-path map. Commit objects
- *  (listed with no path suffix) are skipped; only the first path seen per sha is kept (content,
- *  not path, is what {@link listHistoricalBlobs} dedupes on). */
-function parseObjectPaths({ objectsOut }: { objectsOut: string }, _optional = {}): Map<string, string> {
-  const pathBySha = new Map<string, string>();
-  for (const line of objectsOut.split("\n")) {
-    const spaceIdx = line.indexOf(" ");
-    if (spaceIdx === -1) continue; // commit objects are listed with no path suffix
-    const sha = line.slice(0, spaceIdx);
-    const relPath = line.slice(spaceIdx + 1);
-    if (relPath && !pathBySha.has(sha)) pathBySha.set(sha, relPath);
-  }
-  return pathBySha;
-}
-
-/** Parses `git cat-file --batch-check` output, keeping only blob objects — `rev-list --objects`
- *  also lists tree objects (which carry a path but aren't scannable file content). */
-function filterBlobShas(
-  { typeCheckOut, pathBySha }: { typeCheckOut: string; pathBySha: ReadonlyMap<string, string> },
-  _optional = {}
-): HistoricalBlob[] {
-  const blobs: HistoricalBlob[] = [];
-  for (const line of typeCheckOut.split("\n")) {
-    if (!line) continue;
-    const [sha, type] = line.split(" ");
-    if (type === "blob" && sha !== undefined) {
-      const path = pathBySha.get(sha);
-      if (path === undefined) throw new Error(`Historical blob ${sha} has no source path`);
-      blobs.push({ sha, path });
-    }
-  }
-  return blobs;
-}
-
-function listHistoricalBlobs({ repoRoot }: { repoRoot: string }, _optional = {}): HistoricalBlob[] {
-  const objectsOut = execFileSync(gitCommand({}), ["rev-list", "--objects", "--all"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    maxBuffer: 256 * 1024 * 1024,
-  });
-
-  const pathBySha = parseObjectPaths({ objectsOut });
-  if (pathBySha.size === 0) return [];
-
-  const shas = [...pathBySha.keys()];
-  const typeCheckOut = execFileSync(gitCommand({}), ["cat-file", "--batch-check=%(objectname) %(objecttype)"], {
-    cwd: repoRoot,
-    input: shas.join("\n") + "\n",
-    encoding: "utf8",
-    maxBuffer: 256 * 1024 * 1024,
-  });
-
-  return filterBlobShas({ typeCheckOut, pathBySha });
-}
-
-/** Reads every listed blob's content in one `git cat-file --batch` pass, latin1-decoded (same
- *  binary-preserving technique `scanRepoForSecrets` uses; see file header). Keyed by blob SHA. */
-function readBlobContents(
-  { repoRoot, shas }: { repoRoot: string; shas: readonly string[] },
-  _optional = {}
-): Map<string, string> {
-  const contents = new Map<string, string>();
-  if (shas.length === 0) return contents;
-
-  const out = execFileSync(gitCommand({}), ["cat-file", "--batch"], {
-    cwd: repoRoot,
-    input: shas.join("\n") + "\n",
-    encoding: "latin1",
-    maxBuffer: 512 * 1024 * 1024,
-  });
-
-  let offset = 0;
-  while (offset < out.length) {
-    const headerEnd = out.indexOf("\n", offset);
-    if (headerEnd === -1) break;
-    const [sha, , sizeStr] = out.slice(offset, headerEnd).split(" ");
-    // Malformed/unexpected batch records stop the scan rather than misparse.
-    if (sha === undefined || sizeStr === undefined) return contents;
-    const size = Number(sizeStr);
-    const contentStart = headerEnd + 1;
-    contents.set(sha, out.slice(contentStart, contentStart + size));
-    offset = contentStart + size + 1; // +1 for the trailing newline git appends after each record
-  }
-  return contents;
-}
-
-/** Every distinct path any commit on any local branch/tag ever added or changed (merges included),
- *  sorted. Blob dedupe keys on content, so a credential-named file sharing its blob with another
- *  file never reaches the blob list under its own name; paths are listed separately. */
-function listHistoricalPaths({ repoRoot }: { repoRoot: string }, _optional: Record<string, never> = {}): string[] {
-  const out = execFileSync(gitCommand({}), ["log", "--all", "-m", "--no-renames", "--format=", "--name-only", "-z"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  return [...new Set(out.split("\0").map((entry) => entry.replace(/^\n+/, "")).filter(Boolean))].sort();
-}
-
-/** History scan: every blob ever committed to any local branch/tag, not just the current tip.
- *  Closes the gap where a secret committed then removed in a later commit is still fully
- *  recoverable from `git log`/`git show` while `scanRepoForSecrets` (tip-only) reports clean.
- *  `repoRoot` defaults to this repo but is overridable so tests can point it at a throwaway repo
- *  instead of mutating real history. */
 export function scanGitHistoryForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
-  const repoRoot = options?.repoRoot ?? REPO_ROOT;
-  return scanRepoHistory({
-    ports: {
-      historicalPaths: () => listHistoricalPaths({ repoRoot }),
-      historicalBlobs: () => listHistoricalBlobs({ repoRoot }),
-      readBlobContents: ({ shas }) => readBlobContents({ repoRoot, shas }),
-    },
+  return scanHistory({ repoRoot: options?.repoRoot ?? REPO_ROOT, fs,
+    runner: (args, options) => execFileSync(gitCommand({}), [...args], options),
     policy: { selectPath: ({ file }) => !SKIP_EXTENSIONS.has(path.extname(file).toLowerCase()), maxScanBytes: MAX_SCAN_BYTES, isAllowlisted },
   });
 }

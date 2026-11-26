@@ -15,7 +15,7 @@ import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { PagesHtmlDocumentStore } from "#src/features/pages/html-document-store.sqlite";
-import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
 import { SqliteWorkspaceRepo } from "@jini-ai/cms/workspace/site/repo.sqlite";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
@@ -36,7 +36,7 @@ import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/new
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 
 interface RouteDepsContentTrashRequired {
   assistantAgentInventory: ReturnType<typeof composeAgentPluginBootstrap>["assistantAgentInventory"];

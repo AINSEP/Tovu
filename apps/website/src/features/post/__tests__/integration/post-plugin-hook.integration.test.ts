@@ -1,7 +1,9 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, createPost, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /**
@@ -154,7 +156,7 @@ test("createPost passes the new draft to its hook and persists the derived exten
   const repo = new InMemoryPostRepo({});
   const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "created body" }] }] };
   const { post } = await createPost({
-    deps: { repo, clock, outbox, beforeSaveHook: async (draft) => {
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock, outbox, beforeSaveHook: async (draft) => {
       assert.deepEqual(draft, { id: "created", workspaceId: "ws-1", title: "Created", slug: "created", status: "published", bodyJson, ext: {} });
       return { "word-count": { count: JSON.stringify(draft.bodyJson).length } };
     } },

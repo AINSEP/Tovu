@@ -1,18 +1,13 @@
+import { planSiteKeyEnsure as plan, type SiteKeyEnsurePlan, type SiteKeyEnsureAction, type SiteKeyMaterialCheck } from "@jini-ai/platform/secrets/root-key/decide";
+import { reconcileRootKey } from "@jini-ai/platform/secrets/root-key/reconcile";
+import { atomicCreateSiteKeyFile as atomicCreate, moveSiteKeyFileAside as moveAside, installSiteKey as install } from "@jini-ai/platform/secrets/root-key/files";
 import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, closeSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 
-import { fingerprintSiteKeyHex, parseSiteKeyHex, type ParsedSiteKeyHex, type SiteKeyRejection } from "./keyring.env.js";
-import {
-  readSiteKeySourceMaterial,
-  readSiteMetaJson,
-  resolveSiteKeyFingerprint,
-  resolveSiteKeyId,
-  siteKeySources,
-  type SiteKeySource,
-  type SiteKeySourceMaterial,
-} from "./site-key-sources.js";
+import type { SiteKeyRejection } from "./keyring.env.js";
+import { readSiteKeySourceMaterial, readSiteMetaJson, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
@@ -60,30 +55,6 @@ import { buildSiteMetaForNewKey } from "#src/platform/site-dir/index";
 // ensureSiteKey — the per-site decision table and its one writer.
 // ---------------------------------------------------------------------------
 
-/** {@link planSiteKeyEnsure}'s own pure decision-table outcomes only. `"mismatch"` (site-key plan
- *  §A.4) is deliberately NOT one of them — no input to that pure function can ever produce it; it is
- *  a POST-hoc outcome {@link withFingerprintReconciliation} derives afterward, from `.site-meta.json`'s
- *  own stamped fingerprint, which `planSiteKeyEnsure` never sees. Keeping it out of this narrower type
- *  (rather than folding it into {@link SiteKeyEnsureAction} and switching on that everywhere) is what
- *  lets `ensureSiteKey`'s own `switch (decision.action)` stay genuinely exhaustive over the real planned
- *  outcomes (production returns before it, so that switch carries no dead `"production-noop"` case
- *  either), instead of carrying a dead `"mismatch"` case no plan input could ever reach. */
-export type SiteKeyEnsurePlanAction = "noop" | "adopt" | "mint" | "refuse" | "invalid" | "production-noop";
-
-export interface SiteKeyEnsurePlan {
-  readonly action: SiteKeyEnsurePlanAction;
-}
-
-/** {@link EnsureSiteKeyResult.action}'s full range: every {@link SiteKeyEnsurePlanAction} the pure
- *  decision table can produce, plus `"mismatch"` — see {@link SiteKeyEnsurePlanAction}'s own doc for
- *  why that one extra value lives at this (I/O result) level and not the plan level. */
-export type SiteKeyEnsureAction = SiteKeyEnsurePlanAction | "mismatch";
-
-/** One material check's outcome — never carries a "why" beyond what {@link planSiteKeyEnsure}
- *  needs to decide; the payload (`hex`/`reason`) a caller needs afterward stays in the caller's
- *  own variable, this type is not threaded back out of the pure decision. */
-export type SiteKeyMaterialCheck = { readonly kind: "absent" } | { readonly kind: "valid" } | { readonly kind: "invalid" };
-
 export interface PlanSiteKeyEnsureInput {
   readonly mode: RuntimeMode;
   /** This site's own `~/.tovu/site-keys/<id>.hex`. */
@@ -118,50 +89,7 @@ export interface PlanSiteKeyEnsureInput {
  * @complexity O(1) — a fixed sequence of checks over already-computed inputs.
  */
 export function planSiteKeyEnsure(input: PlanSiteKeyEnsureInput): SiteKeyEnsurePlan {
-  if (input.mode === "production") return { action: "production-noop" };
-  const decision = decideLocalSiteKeyEnsure({
-    perSite: verdictOfCheck(input.perSite),
-    other: verdictOfCheck(input.other),
-    siteDbsWithKeyData: input.siteDbsWithKeyData,
-  });
-  return { action: decision.action };
-}
-
-/** A {@link SiteKeyMaterialCheck} that also carries what the caller needs afterward: the valid
- *  material (`V`) or the rejection (`I`). {@link planSiteKeyEnsure} carries nothing; `ensureSiteKey`
- *  carries the key hex and the {@link SiteKeyRejection}, so its dispatch needs no "the plan implies
- *  …" guards — the decision itself hands back the payload it was made on. */
-type SiteKeyVerdict<V, I> = { readonly kind: "absent" } | { readonly kind: "valid"; readonly value: V } | { readonly kind: "invalid"; readonly value: I };
-
-/** {@link decideLocalSiteKeyEnsure}'s outcome — the local-mode rows of the decision table. */
-type LocalSiteKeyDecision<V, I> =
-  | { readonly action: "noop" | "adopt"; readonly value: V }
-  | { readonly action: "invalid"; readonly value: I }
-  | { readonly action: "refuse" | "mint" };
-
-/**
- * Rows 2–7 of {@link planSiteKeyEnsure}'s decision table (row 1, production, is decided before
- * this is ever reached — `ensureSiteKey` returns early for production, as the table does).
- * @complexity O(1).
- */
-function decideLocalSiteKeyEnsure<V, I>(input: {
-  perSite: SiteKeyVerdict<V, I>;
-  other: SiteKeyVerdict<V, I>;
-  siteDbsWithKeyData: boolean;
-}): LocalSiteKeyDecision<V, I> {
-  if (input.perSite.kind === "valid") return { action: "noop", value: input.perSite.value };
-  if (input.perSite.kind === "invalid") return { action: "invalid", value: input.perSite.value };
-  // perSite.kind === "absent" from here on.
-  if (input.other.kind === "valid") return { action: "adopt", value: input.other.value };
-  if (input.other.kind === "invalid") return { action: "invalid", value: input.other.value };
-  // other.kind === "absent" too — nothing anywhere.
-  if (input.siteDbsWithKeyData) return { action: "refuse" };
-  return { action: "mint" };
-}
-
-/** {@link planSiteKeyEnsure}'s payload-free checks as verdicts. */
-function verdictOfCheck(check: SiteKeyMaterialCheck): SiteKeyVerdict<undefined, undefined> {
-  return check.kind === "absent" ? check : { kind: check.kind, value: undefined };
+  return plan({ ...input, mode: input.mode === "production" ? "production" : "local" });
 }
 
 export interface EnsureSiteKeyInput {
@@ -226,31 +154,23 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
 
   const { perSiteSource, otherSources } = splitPerSiteSource({ input, mode, env });
   const perSiteFilePath = perSiteSource.path;
-  const perSiteRaw = readRawSiteKeyMaterial(perSiteSource, env);
-  const perSiteParsed = perSiteRaw === undefined ? undefined : parseSiteKeyHex({ raw: perSiteRaw });
-
-  // A source holding exactly the key `.site-meta.json` names is the right one to adopt wherever it
-  // sits in the order; only without such a source does the first-present rule apply.
-  const stampedFingerprint = resolveSiteKeyFingerprint({ siteDir: input.siteDir });
-  const stampedHex = findStampedHex({ sources: otherSources, env, stampedFingerprint });
-
-  // A per-site file the stamp does not name (a different key, or malformed) while another source
-  // holds the stamped key: the per-site file would otherwise outrank the right key forever. It is
-  // moved aside, never deleted, and the stamped key takes its place.
-  if (perSiteRaw !== undefined && stampedHex !== undefined && !matchesFingerprint({ parsed: perSiteParsed, fingerprint: stampedFingerprint })) {
-    moveSiteKeyFileAside({ filePath: perSiteFilePath, expectedContent: perSiteRaw });
-    const written = atomicCreateSiteKeyFile({ filePath: perSiteFilePath, hex: stampedHex });
-    return withFingerprintReconciliation({ siteDir: input.siteDir, action: "adopt", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: written }), mayRestamp: neverRestamp });
-  }
-
-  return settleSiteKey({
-    siteDir: input.siteDir,
-    perSiteFilePath,
-    perSite: verdictOf({ parsed: perSiteParsed }),
-    other: stampedHex !== undefined ? { kind: "valid", value: stampedHex } : verdictOf({ parsed: parseRawMaterial({ raw: findFirstPresentMaterial(otherSources, env) }) }),
-    stampedFingerprint,
-    findSiteKeyDependentData: input.findSiteKeyDependentData,
-  });
+  const result = await reconcileRootKey({ ports: {
+    readPerSite: () => readRawSiteKeyMaterial(perSiteSource, env),
+    get stampedFingerprint() { return resolveSiteKeyFingerprint({ siteDir: input.siteDir }); },
+    others: otherSources.map(source => () => readRawSiteKeyMaterial(source, env)),
+    hasDependentData: () => input.findSiteKeyDependentData({ siteDir: input.siteDir }),
+    moveAside: ({ expectedContent }) => { moveSiteKeyFileAside({ filePath: perSiteFilePath, expectedContent }); },
+    createExclusive: ({ hex }) => atomicCreateSiteKeyFile({ filePath: perSiteFilePath, hex }),
+    mint: () => mintSiteKeyHex(),
+    readStamp: () => {
+      const meta = readSiteMetaJson({ siteDir: input.siteDir });
+      if (meta === undefined) return { kind: "no-meta" };
+      return { kind: "meta", fingerprint: meta.siteKeyFingerprint as string | undefined,
+        write: ({ fingerprint }) => writeFingerprintStamp({ siteDir: input.siteDir, meta, fingerprint }),
+      };
+    },
+  } });
+  return { action: result.action, perSiteFilePath, ...("reason" in result ? { reason: result.reason } : {}), ...("fingerprint" in result ? { fingerprint: result.fingerprint } : {}) };
 }
 
 /** `siteKeySources` for this site, split into its per-site file and every OTHER source.
@@ -271,137 +191,6 @@ function splitPerSiteSource(required: {
     throw new Error("ensureSiteKey: siteKeySources did not return a per-site-file candidate for a given siteKeyId");
   }
   return { perSiteSource, otherSources: sources.filter((source) => source.kind !== "per-site-file") };
-}
-
-/** `ensureSiteKey` once no stamped key has to displace the per-site file: decides by the table
- *  ({@link decideLocalSiteKeyEnsure}) and carries out that one outcome. */
-async function settleSiteKey(required: {
-  siteDir: string;
-  perSiteFilePath: string;
-  perSite: SiteKeyVerdict<string, SiteKeyRejection>;
-  other: SiteKeyVerdict<string, SiteKeyRejection>;
-  stampedFingerprint: string | undefined;
-  findSiteKeyDependentData: KeyDependentDataScan;
-}): Promise<EnsureSiteKeyResult> {
-  const { siteDir, perSiteFilePath, perSite, other } = required;
-  let hasKeyDataMemo: boolean | undefined;
-  const siteHasKeyData = async (): Promise<boolean> => {
-    hasKeyDataMemo ??= await required.findSiteKeyDependentData({ siteDir });
-    return hasKeyDataMemo;
-  };
-  const needsDataCheck = perSite.kind === "absent" && other.kind === "absent";
-  const siteDbsWithKeyData = needsDataCheck ? await siteHasKeyData() : false;
-
-  const decision = decideLocalSiteKeyEnsure({ perSite, other, siteDbsWithKeyData });
-
-  switch (decision.action) {
-    case "noop":
-      return withFingerprintReconciliation({ siteDir, action: "noop", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: decision.value }), mayRestamp: neverRestamp });
-    case "invalid":
-      return { action: "invalid", perSiteFilePath, reason: decision.value };
-    case "adopt":
-      return adoptSiteKey({ siteDir, perSiteFilePath, hex: decision.value, stampedFingerprint: required.stampedFingerprint, siteHasKeyData });
-    case "refuse":
-      return { action: "refuse", perSiteFilePath };
-    case "mint": {
-      const written = atomicCreateSiteKeyFile({ filePath: perSiteFilePath, hex: mintSiteKeyHex() });
-      // `mint` is only planned when the site has no key-dependent data, so a stale stamp (a moved or
-      // copied site folder) protects nothing — it is replaced rather than left as a permanent,
-      // false "mismatch".
-      return withFingerprintReconciliation({ siteDir, action: "mint", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: written }), mayRestamp: async () => !(await siteHasKeyData()) });
-    }
-    default: {
-      const unhandled: never = decision;
-      throw new TypeError(`Unknown site key decision: ${String(unhandled)}`);
-    }
-  }
-}
-
-/** The `"adopt"` outcome: copies `hex` (another source's valid key) into the per-site file. */
-async function adoptSiteKey(required: {
-  siteDir: string;
-  perSiteFilePath: string;
-  hex: string;
-  stampedFingerprint: string | undefined;
-  siteHasKeyData: () => Promise<boolean>;
-}): Promise<EnsureSiteKeyResult> {
-  const { siteDir, perSiteFilePath, hex, stampedFingerprint, siteHasKeyData } = required;
-  // The stamp is checked BEFORE the write: once a per-site file exists it outranks every other
-  // source, so adopting a key the stamp already proves wrong would make it permanent and block
-  // the right key from ever being adopted. With no key-dependent data the stamp protects
-  // nothing, so adoption goes ahead and the stamp is updated.
-  const candidateFingerprint = fingerprintSiteKeyHex({ hex });
-  if (stampedFingerprint !== undefined && stampedFingerprint !== candidateFingerprint && (await siteHasKeyData())) {
-    return { action: "mismatch", perSiteFilePath, fingerprint: candidateFingerprint };
-  }
-  const written = atomicCreateSiteKeyFile({ filePath: perSiteFilePath, hex });
-  return withFingerprintReconciliation({ siteDir, action: "adopt", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: written }), mayRestamp: async () => !(await siteHasKeyData()) });
-}
-
-/** `mayRestamp` for outcomes that never re-stamp (`"noop"`, and replacing a per-site file with the
- *  stamped key): a differing stamp there is evidence, reported as `"mismatch"`. */
-const neverRestamp = async (): Promise<boolean> => false;
-
-/**
- * Site-key plan §A.2's fingerprint stamp / §A.4: after `ensureSiteKey` settles on the key now
- * actually in the per-site file (`"noop"`, `"adopt"`, or `"mint"`), makes sure `.site-meta.json`
- * records that key's fingerprint — atomically, and preserving every other field in the file — so a
- * LATER substitution of the physical key file becomes visible before any decrypt ever fails on it
- * (§A.5's `"mismatch"` banner state).
- *
- * - No readable/parseable `.site-meta.json` at `siteDir` → nothing to stamp against; the caller's
- *   own key-material outcome is untouched. This keeps every pre-A4 `ensureSiteKey` caller (a raw
- *   temp `siteDir` with no meta file at all, e.g. this module's own unit-test fixtures) working
- *   exactly as before this stamp existed.
- * - Field absent → stamped now, merged into the EXISTING parsed object so no other field is lost or
- *   reset (never a fresh object built from scratch).
- * - Field present and equal → nothing written; the file already reflects reality.
- * - Field present and different, and `mayRestamp()` is false (the site has key-dependent data, or
- *   the caller is `"noop"`) → the stamp is evidence, not a cache: this call returns `"mismatch"`
- *   instead of the caller's own action and does not rewrite `.site-meta.json`.
- * - Field present and different, and `mayRestamp()` is true (`"mint"`/`"adopt"` on a site with no
- *   key-dependent data — nothing sealed under the stamped key can be orphaned) → re-stamped to the
- *   key now in the file, and the caller's own action is returned.
- *
- * @complexity O(1) — one bounded JSON read, at most one atomic JSON write.
- */
-async function withFingerprintReconciliation(
-  {
-    siteDir,
-    action,
-    perSiteFilePath,
-    fingerprint,
-    mayRestamp,
-  }: {
-    siteDir: string;
-    action: "noop" | "adopt" | "mint";
-    perSiteFilePath: string;
-    fingerprint: string;
-    mayRestamp: () => Promise<boolean>;
-  },
-  _optional = {}
-): Promise<EnsureSiteKeyResult> {
-  // `readSiteMetaJson` (site-key-sources.ts) — the shared `.site-meta.json` parse both this
-  // function and `site-key-sources.ts`'s own `resolveSiteKeyId`/`resolveSiteKeyFingerprint` build
-  // on, so a corrupt-file/non-object verdict can never drift between the writer's own
-  // reconciliation and the admin route's read-only state derivation.
-  const meta = readSiteMetaJson({ siteDir });
-  if (meta === undefined) {
-    return { action, perSiteFilePath, fingerprint };
-  }
-  const stamped = meta.siteKeyFingerprint;
-  if (stamped === undefined) {
-    writeFingerprintStamp({ siteDir, meta, fingerprint });
-    return { action, perSiteFilePath, fingerprint };
-  }
-  if (stamped === fingerprint) {
-    return { action, perSiteFilePath, fingerprint };
-  }
-  if (await mayRestamp()) {
-    writeFingerprintStamp({ siteDir, meta, fingerprint });
-    return { action, perSiteFilePath, fingerprint };
-  }
-  return { action: "mismatch", perSiteFilePath, fingerprint };
 }
 
 export interface EnsureSiteKeyForBootInput {
@@ -533,17 +322,12 @@ export type InstallSiteKeyResult =
  * @complexity O(n) in the (fixed-size) source list, plus a few small file reads/writes.
  */
 export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult | undefined {
-  const parsed = parseSiteKeyHex({ raw: input.hex });
-  if (!parsed.ok) throw new Error(`installSiteKey: not a valid site key (${parsed.reason})`);
-  const resolved = resolveInstallSources(input);
-  if (resolved === undefined) return undefined;
-  const target = { siteDir: input.siteDir, hex: parsed.hex, fingerprint: fingerprintSiteKeyHex({ hex: parsed.hex }) };
-
-  for (const source of resolved.sources) {
-    const installed = installIntoSource({ ...target, source, env: resolved.env });
-    if (installed !== undefined) return installed;
-  }
-  throw new Error("installSiteKey: this site has no key file to write");
+  return install({ ...input, resolveInstallSources: () => resolveInstallSources(input), readSiteKeySourceMaterial,
+    moveSiteKeyFileAside, atomicCreateSiteKeyFile, stampFingerprint,
+    invalidKeyError: reason => new Error(`installSiteKey: not a valid site key (${reason})`),
+    noFileError: () => new Error("installSiteKey: this site has no key file to write"),
+    concurrentWriteError: () => new Error("installSiteKey: another process wrote a different key at the same moment; nothing was stamped"),
+  });
 }
 
 /** This site's ordered sources for {@link installSiteKey} (a missing local meta file is minted), or
@@ -556,43 +340,6 @@ function resolveInstallSources(input: InstallSiteKeyInput): { env: NodeJS.Proces
   return { env, sources: siteKeySources({ mode, env, home: input.home ?? homedir(), cwd: input.cwd ?? process.cwd(), siteKeyId }) };
 }
 
-interface InstallTarget {
-  readonly siteDir: string;
-  readonly hex: string;
-  readonly fingerprint: string;
-}
-
-/** One step of {@link installSiteKey}'s scan: an env source decides only when it holds material,
- *  a file source with a path is always the target; anything else is skipped (`undefined`). */
-function installIntoSource(required: InstallTarget & { source: SiteKeySource; env: NodeJS.ProcessEnv }): InstallSiteKeyResult | undefined {
-  const { source, env, ...target } = required;
-  if (source.kind === "env") return installAgainstEnvKey({ ...target, material: readSiteKeySourceMaterial({ source, env }) });
-  if (source.path === undefined) return undefined;
-  return installIntoKeyFile({ ...target, path: source.path, current: readRawSiteKeyMaterial(source, env) });
-}
-
-/** An env var ahead of every key file: holding a DIFFERENT key it outranks any file, so nothing is
- *  written (`env-key-set`); holding `hex` already, only the stamp is set. */
-function installAgainstEnvKey(required: InstallTarget & { material: SiteKeySourceMaterial | undefined }): InstallSiteKeyResult | undefined {
-  const { siteDir, fingerprint, material } = required;
-  if (material === undefined) return undefined;
-  if (!matchesFingerprint({ parsed: parseSiteKeyHex({ raw: material.raw }), fingerprint })) return { outcome: "env-key-set" };
-  stampFingerprint({ siteDir, fingerprint });
-  return { outcome: "installed", keyFilePath: `env:${material.envVarName}`, fingerprint };
-}
-
-/** Writes `hex` into the target key file, backing up a different (or garbage) one first. */
-function installIntoKeyFile(required: InstallTarget & { path: string; current: string | undefined }): InstallSiteKeyResult {
-  const { siteDir, hex, fingerprint, path, current } = required;
-  if (current !== undefined && !matchesFingerprint({ parsed: parseSiteKeyHex({ raw: current }), fingerprint })) moveSiteKeyFileAside({ filePath: path, expectedContent: current });
-  const written = atomicCreateSiteKeyFile({ filePath: path, hex });
-  if (fingerprintSiteKeyHex({ hex: written }) !== fingerprint) throw new Error("installSiteKey: another process wrote a different key at the same moment; nothing was stamped");
-  stampFingerprint({ siteDir, fingerprint });
-  return { outcome: "installed", keyFilePath: path, fingerprint };
-}
-
-/** Sets `.site-meta.json`'s `siteKeyFingerprint`, keeping every other field; no meta file is left
- *  alone. @complexity O(1). */
 function stampFingerprint({ siteDir, fingerprint }: { siteDir: string; fingerprint: string }, _optional = {}): void {
   const meta = readSiteMetaJson({ siteDir });
   if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
@@ -692,146 +439,15 @@ function mintMinimalSiteMetaJson(
 
 /** {@link decideLocalSiteKeyEnsure}'s input from a raw {@link parseSiteKeyHex} result (or
  *  `undefined` for "nothing there"). */
-function verdictOf(
-  { parsed }: { parsed: ParsedSiteKeyHex | undefined },
-  _optional = {}
-): SiteKeyVerdict<string, SiteKeyRejection> {
-  if (parsed === undefined) return { kind: "absent" };
-  return parsed.ok ? { kind: "valid", value: parsed.hex } : { kind: "invalid", value: parsed.reason };
+function moveSiteKeyFileAside(required: { filePath: string; expectedContent: string }, _optional = {}): string | undefined {
+  return moveAside({ ...required, fs: { readFileSync, renameSync, chmodSync }, nowIso: () => new Date().toISOString(), randomHex: ({ bytes }) => randomBytes(bytes).toString("hex"), fileMode: 0o600 });
 }
 
-/** {@link parseSiteKeyHex} over material that may be absent. */
-function parseRawMaterial({ raw }: { raw: string | undefined }, _optional = {}): ParsedSiteKeyHex | undefined {
-  return raw === undefined ? undefined : parseSiteKeyHex({ raw });
+export function atomicCreateSiteKeyFile(required: { filePath: string; hex: string }, _optional = {}): string {
+  return atomicCreate({ ...required, fs: { mkdirSync, openSync, writeSync, fsyncSync, closeSync, chmodSync, linkSync, unlinkSync, readFileSync },
+    pid: process.pid, randomHex: ({ bytes }) => randomBytes(bytes).toString("hex"), directoryMode: 0o700, fileMode: 0o600 });
 }
 
-/** The (trimmed) key of the first source in `sources` holding a valid key whose fingerprint is
- *  `stampedFingerprint`, or `undefined` when nothing is stamped or no source matches. A match is
- *  proof it is the key the site's data was sealed with, so a broken or different source earlier in
- *  the order does not hide it.
- *  @complexity O(n) in `sources.length` — one read and one hash per source. */
-function findStampedHex(
-  {
-    sources,
-    env,
-    stampedFingerprint,
-  }: {
-    sources: readonly SiteKeySource[];
-    env: NodeJS.ProcessEnv;
-    stampedFingerprint: string | undefined;
-  },
-  _optional = {}
-): string | undefined {
-  if (stampedFingerprint === undefined) return undefined;
-  for (const source of sources) {
-    const parsed = parseRawMaterial({ raw: readRawSiteKeyMaterial(source, env) });
-    if (parsed?.ok && fingerprintSiteKeyHex({ hex: parsed.hex }) === stampedFingerprint) return parsed.hex;
-  }
-  return undefined;
-}
-
-/** Whether `parsed` is a valid key whose fingerprint is `fingerprint`. @complexity O(1). */
-function matchesFingerprint(
-  { parsed, fingerprint }: { parsed: ParsedSiteKeyHex | undefined; fingerprint: string | undefined },
-  _optional = {}
-): boolean {
-  return parsed?.ok === true && fingerprint !== undefined && fingerprintSiteKeyHex({ hex: parsed.hex }) === fingerprint;
-}
-
-/**
- * Renames a wrong site key file to `<name>.wrong-<timestamp>` beside it (`0600`) so a key is never
- * lost, even one that turned out to be the wrong one. Only moves the file when it still holds
- * `expectedContent`: another instance that already replaced it must not have its fix moved aside.
- * A file already gone (another instance moved it first) is not an error.
- *
- * @returns the backup path, or `undefined` when nothing was moved.
- * @throws whatever `fs` throws other than `ENOENT`.
- * @complexity O(1) — one read, one rename, one chmod.
- */
-function moveSiteKeyFileAside(
-  { filePath, expectedContent }: { filePath: string; expectedContent: string },
-  _optional = {}
-): string | undefined {
-  let current: string;
-  try {
-    current = readFileSync(filePath, "utf8");
-  } catch (err) {
-    if (isErrorCode({ err, code: "ENOENT" })) return undefined;
-    throw err;
-  }
-  if (current !== expectedContent) return undefined;
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const backupPath = `${filePath}.wrong-${stamp}-${randomBytes(2).toString("hex")}`;
-  try {
-    renameSync(filePath, backupPath);
-  } catch (err) {
-    if (isErrorCode({ err, code: "ENOENT" })) return undefined;
-    throw err;
-  }
-  chmodSync(backupPath, 0o600);
-  return backupPath;
-}
-
-/** The first source in `sources` that has ANY material — present-but-invalid still counts and
- *  stops the scan (site-key plan §A.2: adopting silently past a broken source would still be
- *  wrong, the same reasoning `keyring.env.ts`'s own env-then-file resolution already follows). */
-function findFirstPresentMaterial(sources: readonly SiteKeySource[], env: NodeJS.ProcessEnv): string | undefined {
-  for (const source of sources) {
-    const raw = readRawSiteKeyMaterial(source, env);
-    if (raw !== undefined) return raw;
-  }
-  return undefined;
-}
-
-/**
- * Writes `hex` to `filePath`, race-safe with no single-instance lock (site-key plan §A.2): write a
- * temp file in the same directory (`0600`, fsynced), then `linkSync` it onto `filePath` — `link(2)`
- * fails atomically with `EEXIST` if anything is already there, so at most one process's bytes ever
- * become the file. The loser's temp file is still removed; its `EEXIST` is swallowed, not
- * propagated. Both the winner and every loser then read `filePath` back and return THAT (never
- * their own `hex` argument), so two instances racing on the same `siteKeyId` always converge on
- * the one file that won, whichever process actually wrote it. Also the project key's publisher
- * (`server/runtime/composition/project-store.ts`), for the same race (web + desktop first start).
- *
- * @param required.filePath - the target `~/.tovu/site-keys/<id>.hex`. Its containing directory is created
- *   (`0700`) if missing.
- * @param required.hex - this call's own candidate key material, used only if no one else wins the race.
- * @returns the final file's content (trimmed) — always read from disk, never `hex` verbatim.
- * @throws whatever `fs` throws other than `EEXIST` from the `linkSync` step.
- * @complexity O(1) — a fixed number of syscalls, independent of `hex`'s length.
- */
-export function atomicCreateSiteKeyFile({ filePath, hex }: { filePath: string; hex: string }, _optional = {}): string {
-  const dir = dirname(filePath);
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const tmpPath = join(dir, `.${basename(filePath)}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);
-  const fd = openSync(tmpPath, "w", 0o600);
-  try {
-    writeSync(fd, hex);
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
-  chmodSync(tmpPath, 0o600);
-  try {
-    linkSync(tmpPath, filePath);
-  } catch (err) {
-    if (!isErrorCode({ err, code: "EEXIST" })) throw err;
-    // Lost the race — another process's file is now canonical; fall through to read it back.
-  } finally {
-    try {
-      unlinkSync(tmpPath);
-    } catch {
-      // Already gone (e.g. a concurrent cleanup of the same temp name) — nothing left to remove.
-    }
-  }
-  return readFileSync(filePath, "utf8").trim();
-}
-
-/** Whether a failed fs call failed with exactly `code` (e.g. `EEXIST`: the target path was already
- *  taken), as opposed to a genuine I/O or permission fault that must keep propagating. Shared by
- *  {@link atomicCreateSiteKeyFile}'s `linkSync` and {@link mintMinimalSiteMetaJson}'s `writeFileSync(…,
- *  {flag:"wx"})` — both are "only the FIRST writer wins, everyone else reads the result back"
- *  primitives — and by {@link moveSiteKeyFileAside}'s `ENOENT` (another instance moved it first). */
 function isErrorCode({ err, code }: { err: unknown; code: "EEXIST" | "ENOENT" }, _optional = {}): boolean {
   if (typeof err !== "object" || err === null || !("code" in err)) return false;
   return (err as { code?: unknown }).code === code;

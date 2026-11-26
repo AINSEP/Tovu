@@ -1,9 +1,10 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { updatePost } from "../post-update.js";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
@@ -13,7 +14,7 @@ const clock = { nowMs: () => Date.parse("2026-10-09T00:00:00Z") };
 describeEachDialect<PostRepoPort>("post author", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }, (makeRepo) => {
   test("author and showAuthor round-trip through insert, CAS update, omission, clearing, and revisions", async () => {
     const repo = makeRepo();
-    const created = (await createPost({ deps: { repo, clock }, input: {
+    const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: {
       workspaceId: "ws-author", id: "p-author", title: "Authored", author: "A & B", showAuthor: true, actorId: "human",
     } })).post;
     const key = { workspaceId: created.workspaceId, id: created.id };

@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { pageCreateRoute } from "@jini-ai/cms/admin-http/routes/pages/create";
 import { pageUpdateRoute } from "@jini-ai/cms/admin-http/routes/pages/update";
 import { pageDeleteRoute } from "@jini-ai/cms/admin-http/routes/pages/delete";
@@ -5,7 +6,8 @@ import { pageGetRoute } from "@jini-ai/cms/admin-http/routes/pages/get-by-id";
 import { pageListRoute } from "@jini-ai/cms/admin-http/routes/pages/list";
 import { pageUpdateHtmlRoute } from "@jini-ai/cms/admin-http/routes/pages/update-html";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
-import { createPost, getAdminPostByIdOrSlug, listAdminPages } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { getAdminPostByIdOrSlug, listAdminPages } from "#src/features/post/index";
 import { PostNotFoundError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { DEFAULT_PAGE_SKELETON, PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { PageConcurrentEditError, PageKindMismatchError, PageNotFoundError } from "@jini-ai/cms/pages/html-document-store";
@@ -106,7 +108,7 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ errors, ap
   mountAdminJsonRoute({ errors, app: capped, spec: { ...pageCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
     createEntry: ({ workspaceId, id, actorId, body }) => createPost({
-      deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox },
       input: pageCreateInput({ body, workspaceId, pageId: id, actorId }),
     }),
   } }, { failure: { operation: "routes/pages/create", code: "INTERNAL_ERROR" } });

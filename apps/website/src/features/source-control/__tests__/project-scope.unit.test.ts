@@ -2,7 +2,7 @@ import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/cre
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
@@ -15,22 +15,12 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import type { SourceControlCredentialSetRepoPort } from "../types.js";
+import type { SourceControlCredentialSetRepoPort } from "@jini-ai/core/contracts/site/source-control-credentials";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { exampleProviders, exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
-import {
-  createSourceControlCredential,
-  deleteSourceControlCredential,
-  describeCredential,
-  findDefaultSourceControlCredential,
-  listSourceControlCredentials,
-  resolveDefaultForSourceControl,
-  SourceControlCredentialDuplicateLabelError,
-  SourceControlCredentialValidationError,
-  updateSourceControlCredential,
-  type SourceControlCredentialWriteDeps,
-} from "../store.js";
+import { deleteSourceControlCredential, describeCredential, findDefaultSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialDuplicateLabelError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 
 /**
  * @file Source-control (git host) tokens are project-first (owner 2026-10-25), the same rule as custom

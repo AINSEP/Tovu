@@ -1,5 +1,4 @@
-import type { MutationActor } from "@jini-ai/core/contracts/events";
-import { indexCatalogById, type AgentToolSideEffect, type DerivedRiskByToolId } from "@jini-ai/core";
+import { indexCatalogById } from "@jini-ai/core";
 import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import type { PostToolDeps } from "./post-tool-deps.js";
 
@@ -53,62 +52,10 @@ export const CONTENT_WRITE_PERMISSION = "content.write" as const;
 
 export const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
 
-/**
- * This wiring layer's OWN risk classification, authored from what each handler below actually
- * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
- * `sideEffects` declaration.
- */
-export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> searchAdminPosts (search.ts) -> PostSearchPort.search(): a SELECT against the FTS5 index
-  //    joined back to `posts`. Read-only in both adapters — the durable one runs one prepared
-  //    query, and the in-memory one's per-query mirror writes only to its own private `:memory:`
-  //    scratch database, never to anything a caller can observe or that survives the process.
-  ["content_post_search", "none"],
-  // -> listAdminPosts/listAdminPages (post.ts): postRepo.list() only, no write.
-  ["content_post_list", "none"],
-  // -> getAdminPostById (post.ts): postRepo.findById() only, no write.
-  ["content_post_get", "none"],
-  // -> executeCommand -> createPost (post.ts): postRepo.save() + change-set record, plus an
-  //    outbox-drained entry.published event when created directly as `status: "published"`.
-  ["content_post_create", "mutates-durable-state"],
-  // -> executeCommand -> updatePost (post.ts): postRepo.save() + change-set record, plus an
-  //    outbox-drained entry.published/entry.updated/entry.unpublished event on a status transition.
-  ["content_post_update", "mutates-durable-state"],
-  // -> executeCommand -> deletePost (post.ts): postRepo.softDelete() + change-set record, plus an
-  //    outbox-drained entry.unpublished event when the trashed row was published. Classified
-  //    `deletes-durable-state` and NOT `mutates-durable-state`: what the handler calls makes the
-  //    row vanish from listAdminPosts/listAdminPages/getAdminPostById/listPublishedPosts/
-  //    getPublishedPostBySlug and from the public site — a different kind of consequence from an
-  //    edit, and the whole reason this file's classification is derived from the call graph rather
-  //    than read off the catalog. Note this entry describes the call's CONFIRMED outcome (the human
-  //    clicked Delete); the SAME call's cancelled/expired/abandoned outcomes write nothing, so the
-  //    classification here is the strictly worse of the outcomes, which is the conservative
-  //    direction (ADR-055 Decision 2 — one held-open call, not a mint call plus a redeem call).
-  ["content_post_delete", "deletes-durable-state"],
-]);
-// NOTE: no "content_post_duplicate" entry — duplication is no longer this domain's own bespoke
-// tool. See `duplicatePostOrPage`/`contributePostDuplicateHandlers` below: this domain contributes
-// its "post"/"page" copy capability to the cross-resource `content_duplicate` tool
-// (`features/content-duplication/`) instead, via `assistant/duplicate-resource-registry.ts`.
-
 /** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
  *  imported, the same "structurally typed, no `features/trash` import" convention
  *  {@link RemovePostFn}'s own doc already follows. */
 export const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
-
-/**
- * The attribution every assistant post write passes to its writer (P10-H2, FIX 19): the acting
- * principal AND the `agent` kind together, so no assistant write can name a principal without also
- * recording the channel it came through. The writers' own `actor` field stays optional for their
- * other callers; this family goes through here and cannot drop it.
- *
- * @param required - `principalId`: the tool context's acting principal.
- * @returns `{ actorId, actor }` with `actor.kind === "agent"`.
- * @complexity O(1).
- */
-export function assistantPostAttribution(required: { principalId: string }, _optional: Record<string, never> = {}): { actorId: string; actor: MutationActor & { kind: "agent" } } {
-  return { actorId: required.principalId, actor: { id: required.principalId, kind: "agent" } };
-}
 
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */

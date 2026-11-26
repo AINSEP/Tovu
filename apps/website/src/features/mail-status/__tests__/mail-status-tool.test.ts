@@ -10,7 +10,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
 import type { ToolExecutionOptions } from "@jini-ai/core";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
-import { buildMailStatusRegistrations, contributeMailStatusTools, mailStatusDerivedRisk, type MailStatusToolDeps } from "../tool-registrations.js";
+import { mailStatusDerivedRisk } from "@jini-ai/user-management/mail/status/tool-registrations";
+import { buildMailStatusRegistrations, contributeMailStatusTools, type MailStatusToolDeps } from "../tool-registrations.js";
 
 const NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider agent plugin and save its key in Access Tokens to send real email.";
 function exchanges() {

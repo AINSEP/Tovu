@@ -16,7 +16,8 @@ import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openContentDb } from "../content-db.js";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
-import { prepareSharePluginTables, type StagingSpacePort } from "#src/features/site-backup/share-database/repo.sqlite";
+import { type StagingSpacePort } from "@jini-ai/devops/backup/site/share-database/projection";
+import { prepareSharePluginTables } from "#src/features/site-backup/share-database/repo.sqlite";
 
 const NEWSLETTER_DATA_MODULE = createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER });
 

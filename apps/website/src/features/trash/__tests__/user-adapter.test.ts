@@ -11,7 +11,8 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { assignRole, createUser } from "@jini-ai/user-management/server";
 import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 
-import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
+import { USER_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/user";
+import { createUserTrashAdapter } from "../adapters/user.js";
 import { mayActOnEntityType } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";

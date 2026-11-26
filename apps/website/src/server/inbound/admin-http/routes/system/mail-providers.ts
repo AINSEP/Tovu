@@ -8,10 +8,8 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
 } from "#src/features/custom-credentials/index";
-import {
-  MailProviderOperationError,
-  saveMailProviderCredential,
-} from "#src/features/mail-status/provider-operations";
+import { MailProviderOperationError } from "@jini-ai/user-management/mail/status/provider-operations";
+import { saveMailProviderCredential } from "#src/features/mail-status/provider-operations";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 

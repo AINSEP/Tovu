@@ -1,7 +1,6 @@
 import { requireInputRecord, ToolInputError, type ToolHandler } from "@jini-ai/core";
-import type { CleanupPreviewStore } from "@jini-ai/core/contracts/storage";
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
-import { createRevisionThinning } from "@jini-ai/cms/posts/revision-thinning";
+import { bindRevisionThinning as bind, type RevisionThinningScope } from "@jini-ai/cms/posts/sql/revision-thinning";
 
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
@@ -22,113 +21,10 @@ import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
  * not invent one. Survivors read exactly as before; the gap is visible as missing `seq` values.
  */
 
-export type RevisionThinningScope = { workspaceId: string; postId: string; kind: string };
-/** The revision row a reference probe sees, read from the table at apply time. */
-export type ThinnedRevision = { id: string; seq: number; recordedAt: string; restoredFrom: string | null };
-/** True when something outside `post_revisions` still points at this revision. A throw keeps it. */
-export type RevisionRefProbe = (required: { scope: RevisionThinningScope; revision: ThinnedRevision }, optional?: Record<string, never>) => Promise<boolean>;
+export interface RevisionThinningRequired extends Omit<Parameters<typeof bind>[0], "kernel" | "postRevisionLockKey"> { kernel: ContentKernel }
 
-export interface RevisionThinningRequired {
-  kernel: ContentKernel;
-  /** The revision a published post currently serves (or a scheduled publish will). */
-  publishedRefs: RevisionRefProbe;
-  /** A revision a pending restore (Trash, version history) would read back. */
-  restoreRefs: RevisionRefProbe;
-  /** A revision a change-set item (`before_revision_id`/`after_revision_id`) or undo names. */
-  undoRefs: RevisionRefProbe;
-  previewStore: CleanupPreviewStore;
-  /** Epoch ms; a cutoff date in the future is refused. */
-  clock: () => number;
-  /** Owner-only; throws to refuse. */
-  authorize: (required: { principal: string; scope: RevisionThinningScope }) => Promise<void>;
-}
-
-const SCOPE_ERROR = "Choose one workspace and one post or page.";
-const DATE_ERROR = "Choose a past date (YYYY-MM-DD) to thin revisions recorded before it.";
-
-/** The cutoff as epoch ms at UTC midnight of a `YYYY-MM-DD` day no later than today. */
-function readCutoff({ before, now }: { before: unknown; now: number }): number {
-  const day = typeof before === "string" && /^\d{4}-\d{2}-\d{2}$/.test(before) ? Date.parse(`${before}T00:00:00.000Z`) : Number.NaN;
-  if (!Number.isFinite(day) || day > now) throw new Error(DATE_ERROR);
-  return day;
-}
-
-type Row = { id: string; seq: number; recorded_at: string; restored_from: string | null };
-const toRevision = (row: Row): ThinnedRevision => ({ id: row.id, seq: row.seq, recordedAt: row.recorded_at, restoredFrom: row.restored_from });
-
-/** The `revisions` port over the kernel. Reads are oldest-first by `seq` (then `recorded_at`, `id`
- *  so equal `seq` rows from a pre-fix rollback still have one order) and stop at the first row on
- *  or after the cutoff, so the run is contiguous even if a clock went backwards. */
-function revisionsPort({ kernel }: { kernel: ContentKernel }) {
-  type Db = Parameters<Parameters<ContentKernel["run"]>[0]>[0];
-  const rows = (db: Db, scope: RevisionThinningScope) => db.selectFrom("post_revisions").select(["id", "seq", "recorded_at", "restored_from"])
-    .where("workspace_id", "=", scope.workspaceId).where("post_id", "=", scope.postId);
-  return {
-    withPostLock: ({ scope, run }: { scope: RevisionThinningScope; run: () => Promise<void> }) =>
-      kernel.transaction(async () => { await kernel.lockKey(postRevisionLockKey(scope, {})); await run(); }),
-    listOldest: async ({ scope, olderThan, limit }: { scope: RevisionThinningScope; olderThan: number; limit: number }) => {
-      const oldest = await kernel.run((db) => db.selectFrom("post_revisions").select(["id", "recorded_at"])
-        .where("workspace_id", "=", scope.workspaceId).where("post_id", "=", scope.postId)
-        .orderBy("seq", "asc").orderBy("recorded_at", "asc").orderBy("id", "asc").limit(limit).execute());
-      const end = oldest.findIndex((row) => !(Date.parse(row.recorded_at) < olderThan));
-      return (end === -1 ? oldest : oldest.slice(0, end)).map((row) => ({ id: row.id }));
-    },
-    newestId: async ({ scope }: { scope: RevisionThinningScope }) => {
-      const newest = await kernel.run((db) => db.selectFrom("post_revisions").select("id")
-        .where("workspace_id", "=", scope.workspaceId).where("post_id", "=", scope.postId)
-        .orderBy("seq", "desc").orderBy("recorded_at", "desc").orderBy("id", "desc").limit(1).executeTakeFirst());
-      return newest?.id ?? null;
-    },
-    deleteIds: async ({ scope, ids }: { scope: RevisionThinningScope; ids: readonly string[] }) => {
-      await kernel.run((db) => db.deleteFrom("post_revisions").where("workspace_id", "=", scope.workspaceId)
-        .where("post_id", "=", scope.postId).where("id", "in", [...ids]).execute());
-    },
-    readRow: async ({ scope, id }: { scope: RevisionThinningScope; id: string }) => {
-      const row = await kernel.run((db) => rows(db, scope).where("id", "=", id).executeTakeFirst());
-      if (!row) throw new Error("revision vanished under the fence");
-      return toRevision(row as Row);
-    },
-    isRestoredFrom: async ({ scope, id }: { scope: RevisionThinningScope; id: string }) =>
-      (await kernel.run((db) => rows(db, scope).where("restored_from", "=", id).limit(1).executeTakeFirst())) !== undefined,
-  };
-}
-
-/** The scope's kind must match the newest snapshot's own `kind`, so a page is never thinned as a post. */
-async function requireScope({ kernel, scope }: { kernel: ContentKernel; scope: Partial<RevisionThinningScope> | undefined }): Promise<RevisionThinningScope> {
-  if (!scope?.workspaceId || !scope.postId || (scope.kind !== "post" && scope.kind !== "page")) throw new Error(SCOPE_ERROR);
-  const newest = await kernel.run((db) => db.selectFrom("post_revisions").select("state_json").where("workspace_id", "=", scope.workspaceId!)
-    .where("post_id", "=", scope.postId!).orderBy("seq", "desc").limit(1).executeTakeFirst());
-  const kind = newest ? (JSON.parse(newest.state_json) as { kind?: string }).kind ?? "post" : undefined;
-  if (kind !== scope.kind) throw new Error(SCOPE_ERROR);
-  return { workspaceId: scope.workspaceId, postId: scope.postId, kind: scope.kind };
-}
-
-/**
- * Binds Jini's engine to this site's `post_revisions`. Each protection reads the row's actual
- * `seq`, `recorded_at` and `restored_from` under the fence before asking the host's probes.
- * @complexity preview O(limit); apply O(limit) rows, up to 4 probes each, one batched delete.
- */
 export function bindRevisionThinning(required: RevisionThinningRequired, _optional: Record<string, never> = {}) {
-  const { kernel, publishedRefs, restoreRefs, undoRefs, previewStore, clock, authorize } = required;
-  const revisions = revisionsPort({ kernel });
-  const probe = (refs: RevisionRefProbe) => async ({ scope, id }: { scope: RevisionThinningScope; id: string }) =>
-    refs({ scope, revision: await revisions.readRow({ scope, id }) }, {});
-  const engine = createRevisionThinning({
-    revisions, previewStore, clock,
-    protections: { isPublished: probe(publishedRefs), isRestoreTarget: probe(restoreRefs), isRestoredFrom: revisions.isRestoredFrom, isUndoReferenced: probe(undoRefs) },
-  });
-  return {
-    async preview({ principal, scope, before }: { principal: string; scope: Partial<RevisionThinningScope>; before: unknown }, _options: Record<string, never> = {}) {
-      const bound = await requireScope({ kernel, scope });
-      await authorize({ principal, scope: bound });
-      return engine.preview({ principal, scope: bound, olderThan: readCutoff({ before, now: clock() }) }, {});
-    },
-    async apply({ principal, scope, previewToken, confirm }: { principal: string; scope: Partial<RevisionThinningScope>; previewToken: string; confirm: boolean }, _options: Record<string, never> = {}) {
-      const bound = await requireScope({ kernel, scope });
-      await authorize({ principal, scope: bound });
-      return engine.apply({ principal, scope: bound, previewToken, confirm }, {});
-    },
-  };
+  return bind({ ...required, postRevisionLockKey });
 }
 
 export type RevisionThinningBinding = ReturnType<typeof bindRevisionThinning>;

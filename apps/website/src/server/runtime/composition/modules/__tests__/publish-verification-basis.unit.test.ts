@@ -10,7 +10,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
 import { createPublishCredential, describeCredential, PublishCredentialDuplicateLabelError } from "#src/features/deployments/publish-credentials/index";
-import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
+import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 import { bootAuthenticated } from "../../../../__tests__/helpers/http-test-server.js";
 
 /**

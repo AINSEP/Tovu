@@ -7,7 +7,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";

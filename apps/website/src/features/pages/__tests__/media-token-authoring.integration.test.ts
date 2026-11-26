@@ -1,6 +1,6 @@
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
@@ -19,7 +19,7 @@ test('page writers refuse unresolved Media widget tokens before saving a broken 
   const clock = { nowMs: () => Date.parse('2026-11-02T00:00:00Z') };
   const original = '<section data-agent-element="photo"><p>Visit us</p></section>';
   await kernel.run(q => q.insertInto('posts').values({ id: 'visit', workspace_id: 'site', title: 'Visit', slug: 'visit-us', kind: 'page', body_format: 'html', body_html: original, body_json: null, status: 'published', updated_at: '2026-11-02T00:00:00Z', version: 1, ext: '{}' }).execute());
-  const tools = buildPagesRegistrations({ deps: { workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), ...pageHtmlChangeTestDeps(), pagesHtmlStore: scope => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }) }, host: bindPagesToolHost({}) });
+  const tools = buildPagesRegistrations({ deps: { workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), ...pageHtmlChangeTestDeps(), pagesHtmlStore: scope => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }) }, host: bindPagesToolHost({}) });
   for (const name of ['pages_write_html', 'pages_write_region']) {
     const tool = tools.find(entry => entry.descriptor.id === name)!;
     for (const photo of ['<img src="{{media:pastry-counter-3}}">', '<img src="&#123;{media:pastry-counter-3}}">', '<template><img src="{{media:pastry-counter-3}}"></template>', '<p>{{media:pastry-counter-3}}</p>']) {

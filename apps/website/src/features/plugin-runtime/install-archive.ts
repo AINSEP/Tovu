@@ -7,35 +7,14 @@
  * plus `guardedYauzl`'s special-Unix-entry refusal — and the old optional test-reader signature.
  */
 import * as yauzl from "yauzl";
-import { createYauzlAgentPluginArchiveReader, type YauzlEntry, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
+import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
 import { PluginInstallError, readPluginArchive } from "@jini-ai/plugins/host/node";
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 
-/** True for a Unix-authored entry whose file-type bits are neither unset, a regular file nor a directory. */
-function isSpecialUnixEntry(required: { entry: YauzlEntry }): boolean {
-  const kind = (required.entry.externalFileAttributes >>> 16) & 0xf000;
-  return (required.entry.versionMadeBy >>> 8) === 3 && kind !== 0 && kind !== 0x8000 && kind !== 0x4000;
-}
-
-// Compatibility guard for published Jini readers that classify a trailing slash before Unix mode.
-// The shared reader fix is in Jini; this job cannot publish it. Also refuse special Unix entries.
-const guardedYauzl: YauzlPort = {
-  async fromBufferPromise(buffer, options) {
-    const zip = await (yauzl as unknown as YauzlPort).fromBufferPromise(buffer, options);
-    return {
-      close: () => zip.close(),
-      openReadStreamPromise: (entry) => zip.openReadStreamPromise(entry),
-      async *eachEntry() {
-        for await (const entry of zip.eachEntry()) {
-          if (isSpecialUnixEntry({ entry })) throw new PluginInstallError("PLUGIN_PACKAGE_UNSAFE", "ZIP links and special entries are not allowed.");
-          yield entry;
-        }
-      },
-    };
-  },
-};
-const defaultReader = createYauzlAgentPluginArchiveReader({ yauzl: guardedYauzl });
+const defaultReader = createYauzlAgentPluginArchiveReader({ yauzl: yauzl as unknown as YauzlPort }, {
+  rejectSpecialUnixEntry: () => { throw new PluginInstallError("PLUGIN_PACKAGE_UNSAFE", "ZIP links and special entries are not allowed."); },
+});
 
 export async function readSitePluginArchive(
   required: { archive: Uint8Array },

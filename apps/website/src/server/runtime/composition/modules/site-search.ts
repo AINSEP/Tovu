@@ -25,9 +25,7 @@ import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
 import type { MediaRecord } from "@jini-ai/cms/media";
-import {
-  createMediaSearchAccessPort, createMediaSearchSource, isPublicSearchImage, unionSearchAccessPorts, type MediaSearchPorts,
-} from "#src/features/media/media-search-source";
+import { createMediaSearchAccessPort, createMediaSearchSource, isPublicSearchImage, unionSearchAccessPorts, type MediaSearchPorts } from "@jini-ai/search/site/media-search-source";
 import type { HttpClientPort } from "#src/platform/http/index";
 
 /**

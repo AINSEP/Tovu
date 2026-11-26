@@ -1,5 +1,6 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
@@ -12,7 +13,8 @@ import path from "node:path";
 import test from "node:test";
 import Ajv from "ajv";
 import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
-import { InMemoryPostRepo, createPost } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
 import { VERSION_CONFLICT_CODE } from "@jini-ai/cms/posts/expected-version";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { discoverAllBuiltInThemes, type DiscoveredTheme } from "../../theme/index.js";
@@ -48,7 +50,7 @@ function harness(
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: storeFactory ?? ((scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } })),
+    pagesHtmlStore: storeFactory ?? ((scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} })),
   }, host: bindPagesToolHost({}) });
   // Keyed by `descriptor.id` — the registry's own key (`ToolRegistry.register` throws on a
   // duplicate id), which is what the catalog's `name` becomes once wired.
@@ -66,7 +68,7 @@ function harness(
 }
 
 async function seedPage(repo: InMemoryPostRepo, id: string, title: string) {
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id, title, kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id, title, kind: "page" } });
 }
 
 test("pages_write_html and pages_write_region document the collection embed marker, including its <template> placeholders", () => {
@@ -231,7 +233,7 @@ test("pages_write_html suggests a handle derived from an untagged section's head
 test("pages_write_html refuses a post id with a reason the model can act on, not a thrown error", async () => {
   const { repo, call } = harness();
   await createPost({
-    deps: { repo, clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
     input: { workspaceId: WS, id: "post-1", title: "A blog post", kind: "post" },
   });
 
@@ -283,7 +285,7 @@ const DOC_WITH_PARAGRAPH = { type: "doc", content: [{ type: "paragraph", content
 
 test("pages_read_html on a doc page with content reports bodyFormat, the real version, and hasDocContent — not an empty not-found", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.ok(row);
 
@@ -315,7 +317,7 @@ test("pages_read_html on a brand-new (empty doc) page reports hasDocContent: fal
 
 test("pages_write_html with a stale expectedVersion on a doc page rejects with the version-conflict code, and the row is untouched", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.ok(row);
 
@@ -332,7 +334,7 @@ test("pages_write_html with a stale expectedVersion on a doc page rejects with t
 
 test("pages_write_html with the CORRECT expectedVersion on a doc page converts and writes normally", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.ok(row);
 
@@ -429,7 +431,7 @@ test("a theme roster without an active-theme resolver supplies no invented vocab
 
 test("a doc page without a content array is reported as empty", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "empty-doc", title: "Landing", kind: "page", bodyJson: { type: "doc" } } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "empty-doc", title: "Landing", kind: "page", bodyJson: { type: "doc" } } });
   const result = await call("pages_read_html", { id: "empty-doc" }) as { html: string; hasDocContent: boolean; note?: string };
   assert.equal(result.html, "");
   assert.equal(result.hasDocContent, false);
@@ -438,13 +440,13 @@ test("a doc page without a content array is reported as empty", async () => {
 
 test("reading a post through the page tool does not advertise an empty page to author", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Post", kind: "post" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Post", kind: "post" } });
   await assert.rejects(call("pages_read_html", { id: "post-1" }), { name: "ToolInputError", message: /^PAGES_NOT_FOUND: / });
 });
 
 test("a page trashed between the HTML read and fallback lookup is not reported as authorable", async () => {
   const h = harness({}, scope => {
-    const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     const read = store.read.bind(store);
     store.read = async () => {
       try {
@@ -556,7 +558,7 @@ test("a region edit on legacy HTML without handles explains that there are no re
   const { repo, call } = harness();
   await seedPage(repo, "legacy", "Legacy");
   // Legacy markup enters through the store: the tools correctly refuse to author untagged HTML.
-  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "legacy" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "legacy" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await store.ensureHtmlFormat({ seedHtml: "<p>Keep this legacy copy.</p>" });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "legacy" }));
 
@@ -575,7 +577,7 @@ test("a region edit on legacy HTML without handles explains that there are no re
 test("an unclosed region is refused with repair guidance and its stored HTML survives", async () => {
   const { repo, call } = harness();
   await seedPage(repo, "unclosed", "Unclosed");
-  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "unclosed" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "unclosed" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await store.ensureHtmlFormat({ seedHtml: '<section data-agent-element="hero"><p>Keep the unclosed section.</p>' });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "unclosed" }));
 
@@ -617,7 +619,7 @@ for (const { bodyJson, hasDocContent } of [
 ]) {
   test(`L254 doc fallback preserves every response field for ${JSON.stringify(bodyJson)}`, async () => {
     const { repo, call } = harness();
-    await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "fallback", title: "Landing", kind: "page", bodyJson } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "fallback", title: "Landing", kind: "page", bodyJson } });
     const before = structuredClone(await repo.findById({ workspaceId: WS, id: "fallback" }));
     assert.ok(before);
     const result = await call("pages_read_html", { id: "fallback" });
@@ -651,7 +653,7 @@ for (const state of ["missing", "post", "trashed"] as const) {
       write: async () => { assert.fail("read must not write"); },
     }));
     if (state !== "missing") {
-      await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "fallback", title: "Landing", kind: state === "post" ? "post" : "page" } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "fallback", title: "Landing", kind: state === "post" ? "post" : "page" } });
     }
     if (state === "trashed") {
       const row = await repo.findById({ workspaceId: WS, id: "fallback" });

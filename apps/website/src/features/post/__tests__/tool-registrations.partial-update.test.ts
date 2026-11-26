@@ -1,4 +1,5 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +10,7 @@ import { Validator, type Schema } from "@cfworker/json-schema";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
@@ -20,7 +21,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
-import { createPostReverters } from "../reverters.js";
+import { createPostReverters } from "@jini-ai/cms/posts/reverters";
 import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 
 
@@ -296,10 +297,10 @@ test("content_post_update: a partial patch with no expectedVersion is still CAS-
 
 async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo, html: string) {
   await createPost({
-    deps: { repo: postRepo, clock: deps.clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: deps.clock },
     input: { workspaceId: WORKSPACE_ID, id: "page-1", title: "Pricing", kind: "page" },
   });
-  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WORKSPACE_ID, postId: "page-1" }, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WORKSPACE_ID, postId: "page-1" }, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
   await store.write({ html });

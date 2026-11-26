@@ -6,12 +6,8 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import {
-  createSourceControlCredential,
-  resolveDefaultForSourceControl,
-  SourceControlCredentialSecretStoreUnconfiguredError,
-  type SourceControlCredentialWriteDeps,
-} from "../store.js";
+import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

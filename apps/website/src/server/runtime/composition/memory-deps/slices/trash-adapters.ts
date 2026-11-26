@@ -1,5 +1,6 @@
 import type { TrashAdapter } from "@jini-ai/cms/trash";
-import { COMMENT_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
+import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";

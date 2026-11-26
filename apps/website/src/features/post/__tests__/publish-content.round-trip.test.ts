@@ -29,7 +29,7 @@ import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import { contributePagePublish, contributePostPublish } from "../publish-content.js";
+import { contributePagePublish, contributePostPublish } from "@jini-ai/cms/posts/publish-content";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
@@ -52,7 +52,7 @@ function makeDeps(rows: PostRecord[]) {
     // Required by `apply()`'s guard: its rollback restores through `restorePostForward`, which
     // needs the Trash-index forget. Nothing in this file trashes a post, so it never fires.
     forgetRemovedPost: async () => {},
-    ports: { post: { repo: postRepo, forgetRemoved: async () => {} } },
+    ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: postRepo, forgetRemoved: async () => {} } },
   };
 }
 

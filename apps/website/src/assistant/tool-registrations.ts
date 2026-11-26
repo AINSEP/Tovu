@@ -131,7 +131,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
     siteUpdateRuntime?: import("../features/site-update/tools.js").SiteUpdateCheckRuntime | null;
     apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };
     // Dynamically installed provider/project-key contributors consume these narrow ports too.
-    projectKeys?: import("../features/project-keys/service.js").ProjectKeysPort;
+    projectKeys?: import("@jini-ai/user-management/project-keys/service").ProjectKeysPort;
     providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
     reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
     providerConfig?: ProviderConfigSource;

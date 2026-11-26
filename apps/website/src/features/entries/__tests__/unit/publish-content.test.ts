@@ -12,7 +12,7 @@ import type Database from "better-sqlite3";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
-import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
+import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "@jini-ai/cms/entries";

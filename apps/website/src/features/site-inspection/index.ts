@@ -23,8 +23,4 @@ export {
 } from "./deps.js";
 
 
-export {
-  buildSiteInspectionRegistrations,
-  contributeSiteInspectionTools,
-  siteInspectionDerivedRisk,
-} from "./tool-registrations.js";
+export { buildSiteInspectionRegistrations, contributeSiteInspectionTools } from "./tool-registrations.js";

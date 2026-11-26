@@ -76,7 +76,7 @@ async function planRowWithBaselineUnder({ baselinePeer }: { baselinePeer: string
   const hooks = buildPublishContentImportHooks({
     workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ADMIN_ID, clock, idGen,
     planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
-    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } } },
+    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}) } } },
     bundleRepo, baselineRepo, blobStore: { exists: async () => true },
     dbOps: { captureRestorePoint: async () => ({ artifactRef: "artifact-1", watermarkAtCapture: 1 }) },
     restorePointsRepo: { save: async () => {} },

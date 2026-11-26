@@ -26,7 +26,7 @@ import { createRedirectsModule } from "../modules/redirects.js";
 import { createDatabaseRecoveryModule } from "../modules/database-recovery.js";
 import { createScreenshotStorageModule } from "../modules/screenshot-storage.js";
 import { createMediaConversionPorts } from "../media-video-ports.js";
-import { operatorLogVideoNote } from "#src/features/media/import-video-conversion";
+import { operatorLogVideoNote } from "@jini-ai/cms/media/site/import-video-conversion";
 import { mountRoutes } from "./module-handles.js";
 import type { ErrorBoundMountInput } from "./module-handles.js";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";

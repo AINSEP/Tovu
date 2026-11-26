@@ -8,7 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
-import { contributeTaxonomyPublish, contributeTermPublish } from "../publish-content.js";
+import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 function ports(): TaxonomyPublishPorts & { taxonomies: SqlTaxonomyRepo; terms: SqlTermRepo } {
   const db = openContentDb(":memory:");

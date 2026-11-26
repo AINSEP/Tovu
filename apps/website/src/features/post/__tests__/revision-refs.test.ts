@@ -8,9 +8,9 @@ import type { ChangeSetItemRecord, ChangeSetStatus } from "@jini-ai/core/contrac
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { postRepoFor } from "../repo.js";
-import { postRevisionRefProbes } from "../revision-refs.js";
+import { postRevisionRefProbes } from "@jini-ai/cms/posts/sql/revision-refs";
 import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
-import type { ThinnedRevision } from "../revision-thinning.js";
+import type { ThinnedRevision } from "@jini-ai/cms/posts/sql/revision-thinning";
 
 /**
  * @file The three production reference probes revision thinning asks before it deletes a revision,

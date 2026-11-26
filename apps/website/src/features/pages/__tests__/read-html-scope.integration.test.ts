@@ -1,16 +1,17 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { BatchResult } from "@jini-ai/core";
 import { peerFixture } from "../../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
-import { createPost } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { PagesHtmlDocumentStore } from "#src/features/pages/html-document-store.sqlite";
 
 test("pages_read_html resolves the same slug on the selected site for single reads and mixed batches", async t => {
   const f = await peerFixture(t);
   for (const site of [f.a, f.b]) {
     const id = `${site.name}-landing`;
-    await createPost({ deps: { repo: site.postRepo, clock: site.clock }, input: {
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: site.postRepo, clock: site.clock }, input: {
       workspaceId: site.workspaceId, id, kind: "page", slug: "/", title: `${site.name} landing`, actorId: site.ownerId,
     } });
     await new PagesHtmlDocumentStore({ workspaceId: site.workspaceId, postId: id, actorId: site.ownerId }, { db: site.kernel, clock: site.clock })

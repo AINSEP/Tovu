@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { resolveDefaultForSourceControl } from "#src/features/source-control/index";
+import { resolveDefaultForSourceControl } from "@jini-ai/devops/source-control/site/store";
 import { bootAuthenticated, loginAsBarePrincipal as loginWithoutGrants } from "../helpers/http-test-server.js";
 import { exampleRegistry } from "../../../features/source-control/__tests__/fixtures/example-provider.js";
 import type { RouteDeps } from "../../routes/types.js";

@@ -8,7 +8,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { createPublishCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
-import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
+import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 import { registerAdminPublishCredentialsRoutes } from "#src/server/runtime/composition/modules/system-credentials";
 import {
   bootAuthenticated,

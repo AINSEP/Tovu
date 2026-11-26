@@ -1,4 +1,4 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
@@ -280,7 +280,7 @@ function withPagesHtmlStore(deps: PostToolDeps, postRepo: InMemoryPostRepo): Pos
   return {
     ...deps,
     pagesHtmlStore: (scope: { workspaceId: string; postId: string }) =>
-      new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: { nowMs: () => Date.parse(NOW) }, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+      new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: { nowMs: () => Date.parse(NOW) }, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
   } as PostToolDeps;
 }
 
@@ -323,7 +323,7 @@ test("HTML conversion failure leaves no copy, slug, revision or change set", asy
   const before = await postRepo.list({ workspaceId: WORKSPACE_ID });
   const failure = new Error("conversion failed");
   const registrations = registrationsFor({ ...deps, pagesHtmlStore: (scope) => {
-    if (scope.postId === "source-1") return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    if (scope.postId === "source-1") return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     return { read: async () => "", ensureHtmlFormat: async () => { throw failure; } };
   } } as PostToolDeps);
   await assert.rejects(call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1", overrides: { slug: "failed-copy" } }), (error) => error === failure);

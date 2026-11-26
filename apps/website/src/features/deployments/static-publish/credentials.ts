@@ -4,7 +4,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { describeCredential, hasDefaultForPublish, resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
 import type { PublishConnectionInput } from "@jini-ai/devops/deploy/site/publish-credentials/types";
-import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
+import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import type { DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry, LoadedDeployTarget  } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { DeployTargetCredential } from "@jini-ai/core/contracts/site/devops-deploy";

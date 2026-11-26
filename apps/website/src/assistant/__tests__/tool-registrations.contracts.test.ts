@@ -122,7 +122,7 @@ import { analyticsAgentToolCatalog } from "@jini-ai/analytics/site/agent-tools";
 import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
 import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import { newsletterAgentToolCatalog } from "@jini-ai/user-management/newsletter/agent-tools";
-import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
+import { newsletterDeliveryAgentToolCatalog } from "@jini-ai/user-management/newsletter/delivery/tool-registrations";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { buildTrashAgentToolCatalog } from "@jini-ai/cms/trash";
 import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";

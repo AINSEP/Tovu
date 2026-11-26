@@ -1,4 +1,5 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -10,7 +11,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { DEFAULT_BODY_JSON } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -80,10 +81,10 @@ function call(registration: ToolRegistration, input: unknown) {
  *  `features/pages/__tests__/metadata-edit-preserves-html.test.ts`'s own `seedHtmlPage` uses. */
 async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo | SqlitePostRepo, html: string) {
   await createPost({
-    deps: { repo: postRepo, clock: deps.clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: deps.clock },
     input: { workspaceId: WORKSPACE_ID, id: "page-1", title: "Pricing", kind: "page" },
   });
-  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WORKSPACE_ID, postId: "page-1" }, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WORKSPACE_ID, postId: "page-1" }, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
   await store.write({ html });

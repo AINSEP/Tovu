@@ -15,7 +15,8 @@ import {
   readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,
 } from "@jini-ai/platform/mail";
 import { planMailDeliveryCaptureClear } from "#src/server/runtime/composition/mail-capture-clear-planner";
-import { buildMailDeliveryRegistrations, contributeMailDeliveryTools, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
+import { mailDeliveryDerivedRisk } from "@jini-ai/user-management/mail/status/delivery-tool-registrations";
+import { buildMailDeliveryRegistrations, contributeMailDeliveryTools, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_SUPPRESSIONS_MANAGE_PERMISSION, registerMailPermissionGrants } from "@jini-ai/user-management/mail/status/permissions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDeps } from "@jini-ai/platform/mail/use-readiness";
 

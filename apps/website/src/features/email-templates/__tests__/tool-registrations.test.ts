@@ -1,4 +1,4 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -21,7 +21,7 @@ function harness(granted: ReadonlySet<string>) {
     postRepo: repo,
     clock,
     idGen: { newId: () => `tpl-${++n}` },
-    pagesHtmlStore: (scope, options = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+    pagesHtmlStore: (scope, options = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
     authorize: (async (request: { permission: string }) => {
       asked.push(request.permission);
       return granted.has(request.permission) ? { allowed: true, reason: "matched" } : { allowed: false, reason: "no grant" };

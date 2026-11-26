@@ -28,16 +28,16 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import { contributePagePublish, contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
+import { contributePagePublish, contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
-import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
+import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 
 import { type MenuRepoPort, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
-import { contributeMenusPublish } from "#src/features/navigation/publish-content";
+import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
 import { urlFor } from "#src/platform/routing/adapter";
 import { type RouteTarget } from '@jini-ai/cms/routing';
 
@@ -198,7 +198,7 @@ function makeHarness(
     changeSets,
     authorize,
     ports: {
-      post: {
+      post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic),
         repo: postRepo,
         // Required by `features/post/publish-content.ts`'s apply guard — its rollback restores through
         // `restorePostForward`, which drops the Trash index row when the write it undoes was a trash.
@@ -1024,7 +1024,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
     changeSets,
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
     ports: {
-      post: {
+      post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic),
         repo: postRepo,
         // See the harness bag above for why `apply()` requires this.
         forgetRemoved: async () => {},
@@ -1244,7 +1244,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
     // Both types ask `content.write`; only the registry's stamp tells them apart.
     authorize: async () => ({ allowed: false, reason: "factory authority denies all writes" }),
     ports: {
-      post: { repo: postRepo, forgetRemoved: async () => {} },
+      post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: postRepo, forgetRemoved: async () => {} },
       media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
     },
   };
@@ -1434,7 +1434,7 @@ function makeMenuHarness(rows: PostRecord[] = [], options: { menuRepo?: MenuRepo
     changeSets,
     authorize,
     ports: {
-      post: { repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) },
+      post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) },
       ...(wireMenuDeps ? { menu: { repo: menuRepo, bindingRepo: navLocationBindingRepo } } : {}),
     },
   };

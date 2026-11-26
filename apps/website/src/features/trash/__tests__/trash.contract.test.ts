@@ -8,7 +8,8 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
-import { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "../adapters/redirect.js";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
+import { createRedirectTrashAdapter } from "../adapters/redirect.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindRemoveEntity, createTrashService, TrashAdapterMissingError } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";

@@ -41,7 +41,7 @@ export interface MemoryPublishPortsInput {
 export function memoryPublishContentPorts(required: MemoryPublishPortsInput, _optional = {}): ApplyPorts {
   const { postRepo, trashRepo, trash, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, redirectsWriteDeps, menuRepo, navLocationBindingRepo, siteThemes, content } = required;
   return {
-    post: {
+    post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic),
       repo: postRepo,
       forgetRemoved: bindForgetRemovedEntity({
         repo: trashRepo,

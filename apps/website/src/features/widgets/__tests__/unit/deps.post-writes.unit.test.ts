@@ -1,11 +1,12 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import { createPost } from "../../../post/post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { updatePost } from "../../../post/post-update.js";
-import { restorePostForward } from "../../../post/post-trash.js";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { InMemoryPostRepo } from "../../../post/repo.memory.js";
 import { buildWidgetHostPorts, buildWidgetsDeps, READ_ONLY_WIDGET_POST_WRITES, type WidgetsRouteDeps } from "../../deps.js";
 
@@ -56,7 +57,7 @@ function makeRouteDeps(repo: TracingPostRepo, seen: string[]): WidgetsRouteDeps 
 
 async function seed() {
   const repo = new TracingPostRepo({});
-  const created = (await createPost({ deps: { repo, clock }, input: { workspaceId: "ws", id: "p1", title: "Host", actorId: "human" } })).post;
+  const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: "ws", id: "p1", title: "Host", actorId: "human" } })).post;
   return { repo, created };
 }
 

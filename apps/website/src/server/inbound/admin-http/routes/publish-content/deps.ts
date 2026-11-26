@@ -137,7 +137,7 @@ export function toPublishContentDeps(deps: PublishContentProjectionDeps): Publis
     // `theme-files.onReplaced`) are supplied only by the apply bag (`apply-loop.ts`'s
     // `toPublishContentApplyDeps`), never here — this route bag only ever packs/inspects/prechecks.
     ports: {
-      post: { repo: deps.postRepo },
+      post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: deps.postRepo },
       media: {
         repo: deps.mediaRepo,
         assetBlobRepo: deps.assetBlobRepo,

@@ -10,7 +10,7 @@ import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";

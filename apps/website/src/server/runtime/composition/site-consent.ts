@@ -3,7 +3,7 @@ import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import path from 'node:path';
 import { getEffective, set } from "@jini-ai/core/settings";
 import { ensureSitePrivacyDefaults } from "@jini-ai/cookie-consent/site/ensure-privacy-defaults";
-import { createPost } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { consentServiceHostPorts } from "#src/features/consent/host-bindings";
 import { SITE_CONSENT_NAMESPACE } from "@jini-ai/cookie-consent/site/config";
 import { resolveSiteTitle } from "@jini-ai/cms/settings/site/site-title";
@@ -95,7 +95,7 @@ export async function ensureSiteConsentPrivacy({ deps: pendingDeps }: { deps: Pr
   return ensureSitePrivacyDefaults({
     workspaceId: deps.workspaceId, ids: deps.idGen,
     post: { repo: deps.postRepo },
-    createPost: ({ input }) => createPost({ deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, authorAccounts: deps.userRepo }, input }),
+    createPost: ({ input }) => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, authorAccounts: deps.userRepo }, input }),
     pagesHtmlStore: deps.pagesHtmlStore,
     readUrl: async () => {
       const value = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: SITE_CONSENT_NAMESPACE,

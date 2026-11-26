@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -7,7 +8,10 @@ import type Database from "better-sqlite3";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost, createPostReverters, deletePost, restorePostForward, SqlitePostRepo } from "#src/features/post/index";
+import { deletePost, restorePostForward } from "@jini-ai/cms/posts/post-trash";
+import { createPostReverters } from "@jini-ai/cms/posts/reverters";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { SqlitePostRepo } from "#src/features/post/index";
 import type { RemovePostFn } from "#src/platform/publish-contracts";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 
@@ -100,7 +104,7 @@ function harness(): Harness {
 /** Creates a published post, then trashes it through the real `remove` port. */
 async function seedTrashedPost(h: Harness): Promise<PostRecord> {
   await createPost({
-    deps: { repo: h.postRepo, clock, outbox: h.outbox },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo: h.postRepo, clock, outbox: h.outbox },
     input: { workspaceId: WS, id: "post-1", title: "Original Title", status: "published" },
   });
   const prior = await h.postRepo.findById({ workspaceId: WS, id: "post-1" });

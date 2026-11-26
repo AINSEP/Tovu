@@ -57,7 +57,7 @@ import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
 import { createSeoDeps } from "#src/features/seo/index";
 import { SqliteTrashRepo } from "#src/features/trash/index";
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { createAppPermissionGrants } from "./app-permission-grants.js";
 import { registeredSources, isLocalTovuHost, type RegisteredSiteSource } from "./registered-sites.js";

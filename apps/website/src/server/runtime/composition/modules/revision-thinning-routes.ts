@@ -7,7 +7,7 @@ import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refus
 
 import type { CleanupPreviewStore } from "@jini-ai/core/contracts/storage";
 
-import { postRevisionRefProbes } from "#src/features/post/revision-refs";
+import { postRevisionRefProbes } from "@jini-ai/cms/posts/sql/revision-refs";
 import { bindRevisionThinning, type RevisionThinningBinding } from "#src/features/post/revision-thinning";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";

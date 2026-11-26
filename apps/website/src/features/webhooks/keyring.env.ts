@@ -11,7 +11,8 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
-import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource, type SiteKeySourceMaterial } from "./site-key-sources.js";
+import { type SiteKeySourceMaterial } from "@jini-ai/platform/secrets/root-key/material";
+import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource } from "./site-key-sources.js";
 
 // Validation/derivation rationale: Jini packages/platform/src/secrets/keyring.env.ts.
 /**

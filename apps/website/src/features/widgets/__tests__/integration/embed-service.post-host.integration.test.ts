@@ -2,7 +2,7 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";

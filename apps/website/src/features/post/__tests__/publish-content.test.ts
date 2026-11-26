@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file Task 2 (data-only registry mechanics) AND Task 8 (the real `apply()`, 2026-09-18) of the
  * publish-content (Publish Content) feature — direct unit tests for
@@ -22,16 +23,16 @@ import { InMemoryChangeSetRepo, revertChangeSet } from "@jini-ai/cms/core/comman
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "@jini-ai/cms/posts/post";
 import type { ForgetRemovedPostFn } from "#src/platform/publish-contracts";
-import { createPostRevertRegistry } from "../reverters.js";
+import { createPostRevertRegistry } from "@jini-ai/cms/posts/reverters";
 import { removeVia } from "./remove-post-double.js";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import type { RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
-import { contributePagePublish, contributePostPublish, toPublishableState } from "../publish-content.js";
+import { contributePagePublish, contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -68,7 +69,7 @@ function makeDeps(rows: PostRecord[]) {
     postRepo,
     clock: makeClock(),
     idGen: makeIdGen(),
-    ports: { post: { repo: postRepo } },
+    ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: postRepo } },
   };
 }
 
@@ -92,7 +93,7 @@ function makeApplyDeps(rows: PostRecord[]) {
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
     forgetRemovedPost,
     removePost,
-    ports: { post: { repo: base.postRepo, forgetRemoved: forgetRemovedPost, remove: removePost } },
+    ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: base.postRepo, forgetRemoved: forgetRemovedPost, remove: removePost } },
     // The apply port merges the run's trusted actor into every handler's deps (`openRun`); a handler driven
     // without one is refused before it writes (FIX 19 / H2). The operator these tests apply as.
     mutationActor: { id: "operator-1", kind: "user" as const },
@@ -454,7 +455,7 @@ test("apply() 'applied' path: writes through updatePost with expectedVersion, ac
 for (const byline of [{ author: null, showAuthor: false }, { author: "Hidden credit", showAuthor: false }, { author: "Visible credit", showAuthor: true }]) {
 test(`apply() restores an existing destination forward when change-set recording fails (byline=${byline.author}, visible=${byline.showAuthor})`, async () => {
   const deps = makeApplyDeps([]);
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "post-1", title: "Original", slug: "original", status: "published", actorId: "original-author", ...byline } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "post-1", title: "Original", slug: "original", status: "published", actorId: "original-author", ...byline } });
   const prior = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.ok(prior);
   const failure = new Error("change-set store is down");

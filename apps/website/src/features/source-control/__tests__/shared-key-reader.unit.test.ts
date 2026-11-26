@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveDefaultForSourceControl, findDefaultSourceControlCredential } from '../store.js';
+import { resolveDefaultForSourceControl, findDefaultSourceControlCredential } from '@jini-ai/devops/source-control/site/store';
 
 test('canonical API key binding wins over stale source-control copies and revocation has no fallback', async () => {
   let granted = true;

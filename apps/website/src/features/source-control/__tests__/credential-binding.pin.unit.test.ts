@@ -10,7 +10,8 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { validateRepositoryTarget } from "../../custom-credentials/repository-target.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import { createSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl } from "../store.js";
+import { listSourceControlCredentials, resolveDefaultForSourceControl } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential } from "../store.js";
 import type { SourceControlProviderRegistry } from "../provider-registry.js";
 import { bindSourceControlWritePort } from "../write-port.js";
 import { exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";

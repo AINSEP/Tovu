@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -11,9 +12,9 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
-import { createPost } from "../post-create.js";
-import { deletePost } from "../post-trash.js";
-import { retirePostForReplacement } from "../post-retire.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { deletePost } from "@jini-ai/cms/posts/post-trash";
+import { retirePostForReplacement } from "@jini-ai/cms/posts/post-retire";
 import { updatePost } from "../post-update.js";
 import { PostConflictError, ROOT_SLUG, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -66,7 +67,7 @@ for (const adapter of ADAPTERS) {
     const repo = await adapter.make([trashed({ id: "old-about", slug: "about", kind: "page" })]);
 
     const { post } = await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: "new-about", title: "About", slug: "about", kind: "page" },
     });
 
@@ -82,7 +83,7 @@ for (const adapter of ADAPTERS) {
     const repo = await adapter.make([trashed({ id: "old-home", slug: ROOT_SLUG, kind: "page" })]);
 
     const { post } = await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: "new-home", title: "Home", slug: ROOT_SLUG, kind: "page" },
     });
 
@@ -97,7 +98,7 @@ test("the moved-aside slug suffixes past one an earlier release already used", a
     trashed({ id: "second", slug: "about" }),
   ] });
 
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "third", title: "About", slug: "about" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "third", title: "About", slug: "about" } });
 
   assert.equal((await repo.findById({ workspaceId: WS, id: "second" }))?.slug, "about-trashed-2");
   assert.equal((await repo.findById({ workspaceId: WS, id: "first" }))?.slug, "about-trashed");
@@ -106,7 +107,7 @@ test("the moved-aside slug suffixes past one an earlier release already used", a
 test("a DERIVED slug takes the base a trashed row held instead of suffixing past it", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [trashed({ id: "old", slug: "hello-world" })] });
 
-  const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "Hello World" } });
+  const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "new", title: "Hello World" } });
 
   assert.equal(post.slug, "hello-world");
   assert.equal((await repo.findById({ workspaceId: WS, id: "old" }))?.slug, "hello-world-trashed");
@@ -118,7 +119,7 @@ test("a DERIVED slug still suffixes past a LIVE holder, and takes a trashed hold
     trashed({ id: "old", slug: "hello-world-1" }),
   ] });
 
-  const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "Hello World" } });
+  const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "new", title: "Hello World" } });
 
   assert.equal(post.slug, "hello-world-1");
   const moved = await repo.findById({ workspaceId: WS, id: "old" });
@@ -132,7 +133,7 @@ test("a LIVE holder still conflicts, and nothing is renamed", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ id: "live", workspaceId: WS, slug: "about" })] });
 
   await assert.rejects(
-    () => createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "About", slug: "about" } }),
+    () => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "new", title: "About", slug: "about" } }),
     new PostConflictError("slug 'about' already exists")
   );
   assert.equal((await repo.findById({ workspaceId: WS, id: "live" }))?.slug, "about");
@@ -194,9 +195,9 @@ function openRealTrash() {
 test("a row trashed through deletePost and then moved aside is still restorable through the real Trash", async () => {
   const { client, repo, trash, remove } = openRealTrash();
 
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "old-about", title: "About", slug: "about", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "old-about", title: "About", slug: "about", kind: "page" } });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove }, input: { workspaceId: WS, id: "old-about" } });
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-about", title: "About", slug: "about", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "new-about", title: "About", slug: "about", kind: "page" } });
 
   const outcome = await trash.restore({ workspaceId: WS, entityType: POST_ENTITY_TYPE, entityId: "old-about", at: AT });
 
@@ -211,7 +212,7 @@ test("a row trashed through deletePost and then moved aside is still restorable 
 test("publish retiring a holder that is ALREADY in the Trash leaves it restorable through the real Trash", async () => {
   const { client, repo, trash, remove } = openRealTrash();
 
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "old-about", title: "About", slug: "about", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "old-about", title: "About", slug: "about", kind: "page" } });
   const { post: inTrash } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove }, input: { workspaceId: WS, id: "old-about" } });
   const { post: retired } = await retirePostForReplacement({
     deps: { repo, clock, outbox: noopOutbox, remove },
@@ -231,7 +232,7 @@ test("publish retiring a holder that is ALREADY in the Trash leaves it restorabl
 
 test("the in-memory remove double still works with a moved-aside row (deletePost after release)", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [trashed({ id: "old", slug: "about" })] });
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "About", slug: "about" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "new", title: "About", slug: "about" } });
 
   const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "new" } });
 

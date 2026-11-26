@@ -9,7 +9,7 @@ import type { OverwritablePrecheckRefusal } from "@jini-ai/cms/publish/content/t
 
 import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "@jini-ai/cms/media/site/import-media-entity";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
-import { createHostBlobWriteBindings } from "./blob-write-bindings.js";
+import { createHostBlobWriteBindings } from "@jini-ai/cms/media/site/blob-write-bindings";
 import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "@jini-ai/cms/media/site/verify-published-media";
 import { orFallback } from "@jini-ai/core/errors/idioms";

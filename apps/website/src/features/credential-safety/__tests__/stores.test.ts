@@ -10,7 +10,8 @@ import { saveExternalMcpServer, readEnabledExternalMcpConfigs, listExternalMcpSe
 import { InMemoryCustomCredentialSetRepo } from '../../custom-credentials/repo.memory.js';
 import { createCustomCredential, updateCustomCredential, resolveCustomCredentialByLabel, listCustomCredentials } from '../../custom-credentials/store.js';
 import { InMemorySourceControlCredentialSetRepo } from '../../source-control/repo.memory.js';
-import { createSourceControlCredential, updateSourceControlCredential, resolveDefaultForSourceControl, listSourceControlCredentials } from '../../source-control/store.js';
+import { resolveDefaultForSourceControl, listSourceControlCredentials } from '@jini-ai/devops/source-control/site/store';
+import { createSourceControlCredential, updateSourceControlCredential } from '../../source-control/store.js';
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createPublishCredential, updatePublishCredential, resolveForPublish, listPublishCredentials } from '../../deployments/publish-credentials/store.js';
 import type { DeployTargetRegistry } from '@jini-ai/devops/deploy/site/deploy-targets/types';

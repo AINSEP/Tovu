@@ -1,5 +1,6 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { getAdminPostById } from "@jini-ai/cms/posts/post-read";
-import { createPost } from "./post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { AGENT_TOOL_PRINCIPAL_KIND } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type PostStatus } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
@@ -10,7 +11,8 @@ import { executeCommand } from "@jini-ai/cms/core/commands";
 import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import type { DeriveDuplicateName } from "@jini-ai/cms/forms";
-import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, assistantPostAttribution, postCommandDeps } from "./post-tool-policy.js";
+import { assistantPostAttribution } from "@jini-ai/cms/posts/post-tool-policy";
+import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, postCommandDeps } from "./post-tool-policy.js";
 import { toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
 import { postToolViewDeps } from "./post-tool-view-deps.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
@@ -134,7 +136,7 @@ async function createDuplicatePost(routeDeps: PostToolDeps, { source, newId, tit
   input: Parameters<typeof duplicatePostOrPage>[0]["input"];
 }) {
   const created = await createPost({
-    deps: {
+    deps: { reservedSegments: RESERVED_SEGMENTS,
       repo: routeDeps.postRepo,
       clock: routeDeps.clock,
       beforeSaveHook: routeDeps.pluginBeforeSaveHook,

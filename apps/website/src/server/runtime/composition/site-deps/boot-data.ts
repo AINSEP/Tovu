@@ -6,7 +6,7 @@ import { SqliteTransformDefinitionRepo } from "#src/platform/db/sqlite/media-rep
 import { builtInSeedUploadsDir } from "../site-paths.js";
 import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { ensureDefaultList } from "@jini-ai/user-management/newsletter/lists";
-import { createHostBlobWriteBindings } from "#src/features/media/blob-write-bindings";
+import { createHostBlobWriteBindings } from "@jini-ai/cms/media/site/blob-write-bindings";
 import { hydrateBlobStoreFromSeed } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
 import { installCommentsDataModule } from "@jini-ai/cms/comments/site/data-module-install";
 import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";

@@ -9,7 +9,8 @@ import { trashRestoreRoute } from "@jini-ai/cms/admin-http/routes/trash/restore"
 import type { TrashEntryGateFn, TrashKindGateFn } from "@jini-ai/cms/admin-http/routes/trash/shared";
 import type { TrashPort, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/user-management";
-import { filterVisibleTrashItems, mayActOnEntityType, TRASH_READ_PERMISSION, type TrashAuthorizeFn, type TrashDb } from "#src/features/trash/index";
+import { type TrashAuthorizeFn } from "@jini-ai/cms/trash/site/permissions";
+import { filterVisibleTrashItems, mayActOnEntityType, TRASH_READ_PERMISSION, type TrashDb } from "#src/features/trash/index";
 import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { type TrashKindMover } from "@jini-ai/core/contracts/site/cms-trash";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";

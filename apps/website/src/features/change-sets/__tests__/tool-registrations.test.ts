@@ -18,7 +18,8 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { InMemoryPostRepo, createPostRevertRegistry } from "#src/features/post/index";
+import { createPostRevertRegistry } from "@jini-ai/cms/posts/reverters";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemoryPostSearchIndex } from "@jini-ai/cms/posts/search-index.memory";
 import { contributePostTools } from "#src/features/post/tool-registrations";
 import { buildChangeSetsRegistrations, contributeChangeSetsTools, type ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";

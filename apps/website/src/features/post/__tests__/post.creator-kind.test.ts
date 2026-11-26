@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -17,7 +18,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { updatePost } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -43,8 +44,8 @@ function runCreatorKindContract(name: string, withRepo: () => { repo: PostRepoPo
   test(`createPost records the creator kind given — "agent" for an agent, "person" when omitted (${name})`, async () => {
     const { repo, teardown } = withRepo();
     try {
-      await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-agent", title: "A", actorId: "p-1", creatorKind: "agent" } });
-      await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-person", title: "B", actorId: "p-1" } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-agent", title: "A", actorId: "p-1", creatorKind: "agent" } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-person", title: "B", actorId: "p-1" } });
       assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "by-agent" }))?.createdByKind, "agent");
       assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "by-person" }))?.createdByKind, "person");
     } finally {
@@ -55,7 +56,7 @@ function runCreatorKindContract(name: string, withRepo: () => { repo: PostRepoPo
   test(`updatePost never changes the creator kind, whoever edits (${name})`, async () => {
     const { repo, teardown } = withRepo();
     try {
-      await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "agent-draft", title: "Draft", actorId: "p-1", creatorKind: "agent" } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "agent-draft", title: "Draft", actorId: "p-1", creatorKind: "agent" } });
       const result = await updatePost({
         deps: { repo, clock, outbox: noopOutbox },
         input: { workspaceId: WORKSPACE_ID, id: "agent-draft", title: "Owner edit", slug: "agent-draft", bodyJson: { type: "doc", content: [] }, status: "draft", actorId: "owner-1" },

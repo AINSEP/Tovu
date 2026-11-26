@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { retirePostForReplacement } from "../post-retire.js";
+import { retirePostForReplacement } from "@jini-ai/cms/posts/post-retire";
 import { PostConflictError, PostVersionConflictError, ROOT_SLUG, type PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { removeVia } from "./remove-post-double.js";

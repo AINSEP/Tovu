@@ -23,7 +23,8 @@ import type { CustomCredentialSetRepoPort } from "../../custom-credentials/types
 import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 import { githubFromSource } from "./fixtures/github-from-source.js";
 
-import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
+import { sourceControlDerivedRisk } from "@jini-ai/devops/source-control/site/tool-registrations";
+import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, type SourceControlToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";

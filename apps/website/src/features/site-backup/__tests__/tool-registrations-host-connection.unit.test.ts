@@ -19,7 +19,7 @@ import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { InMemorySourceControlCredentialSetRepo } from "../../source-control/repo.memory.js";
-import * as sourceControlStore from "../../source-control/store.js";
+import * as sourceControlStore from "@jini-ai/devops/source-control/site/store";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { FakeGitHub } from "./fixtures/fake-github.js";
@@ -34,7 +34,7 @@ class UntouchedDbOps implements DbOpsPort {
 
 test("an unexpected host-connection lookup failure propagates unchanged and takes no snapshot", async t => {
   const failure = new Error("source-control store offline");
-  t.mock.module("../../source-control/store.js", {
+  t.mock.module("@jini-ai/devops/source-control/site/store", {
     namedExports: { ...sourceControlStore, resolveDefaultForSourceControl: async () => { throw failure; } },
   });
   const { buildSiteBackupRegistrations } = await import("../tool-registrations.js");

@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -5,8 +6,8 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost } from "../post-create.js";
-import { deletePost } from "../post-trash.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { deletePost } from "@jini-ai/cms/posts/post-trash";
 import { getAdminPostById, getPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { updatePost } from "../post-update.js";
@@ -245,7 +246,7 @@ test("a trashed row yields its slug: creating a new post with that explicit slug
   const repo = new InMemoryPostRepo({}, { initialRows: [seed({ slug: "hello-world" })] });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
-  const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World", slug: "hello-world" } });
+  const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World", slug: "hello-world" } });
   assert.equal(post.slug, "hello-world");
   assert.equal((await repo.findById({ workspaceId: WS, id: "post-1" }))?.slug, "hello-world-trashed");
 });
@@ -254,7 +255,7 @@ test("a DERIVED slug takes a trashed row's slug instead of suffixing past it", a
   const repo = new InMemoryPostRepo({}, { initialRows: [seed({ slug: "hello-world" })] });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
-  const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World" } });
+  const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World" } });
   assert.equal(post.slug, "hello-world");
 });
 

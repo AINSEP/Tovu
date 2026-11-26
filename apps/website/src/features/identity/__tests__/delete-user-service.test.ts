@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, USER_ENTITY_TYPE } from "#src/features/trash/index";
+import { USER_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/user";
+import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo } from "#src/features/trash/index";
 import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { SqlUserPurge } from "#src/features/identity/user-purge";

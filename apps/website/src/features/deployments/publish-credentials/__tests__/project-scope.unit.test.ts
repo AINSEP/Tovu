@@ -1,7 +1,7 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
@@ -18,7 +18,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
-import type { VendorCredentialProjectScope } from "#src/features/vendor-credentials/types";
+import type { VendorCredentialProjectScope } from "@jini-ai/core/contracts/site/vendor-credentials";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";

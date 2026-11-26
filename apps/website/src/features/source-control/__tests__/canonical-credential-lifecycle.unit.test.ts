@@ -16,11 +16,8 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { LoadSourceControlProviders } from "../provider-registry.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import {
-  createSourceControlCredential, deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl,
-  SourceControlCredentialNotFoundError, SourceControlCredentialValidationError, updateSourceControlCredential,
-  type SourceControlCredentialWriteDeps,
-} from "../store.js";
+import { deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialNotFoundError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 import { exampleRegistry } from "./fixtures/example-provider.js";
 import { githubFromSource } from "./fixtures/github-from-source.js";
 import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";

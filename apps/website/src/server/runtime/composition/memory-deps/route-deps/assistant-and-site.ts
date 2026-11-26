@@ -15,7 +15,7 @@ import { createLazyProxy } from "@jini-ai/core/primitives";
 import { createSiteConsentStore } from '@jini-ai/cookie-consent/site/revisions.repo';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { registerMenuReverters } from "@jini-ai/cms/navigation/site/reverters";
-import { createPostRevertRegistry } from "#src/features/post/index";
+import { createPostRevertRegistry } from "@jini-ai/cms/posts/reverters";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { createSite } from "../../site-dir.js";

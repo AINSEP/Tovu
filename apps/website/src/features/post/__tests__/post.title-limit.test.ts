@@ -1,8 +1,9 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { MAX_TITLE_LENGTH } from "@jini-ai/cms/posts/post-write-fields";
 import { PostValidationError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { updatePost, type UpdatePostDeps } from "../post-update.js";
@@ -54,7 +55,7 @@ function retitle(record: PostRecord, title: string) {
 async function createRejection(title: string): Promise<string> {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   try {
-    await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "post-new", title } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "post-new", title } });
   } catch (err) {
     assert.ok(err instanceof PostValidationError);
     return err.message;

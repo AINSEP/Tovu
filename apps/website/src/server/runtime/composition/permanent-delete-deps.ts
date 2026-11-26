@@ -8,11 +8,12 @@ import { MediaNotFoundError, MediaStillReferencedError } from "#src/features/med
 import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { deleteCustomCredential, describeCredential as describeCustomCredential } from "#src/features/custom-credentials/index";
 import { deletePublishCredential, findPublishCredentialRecord } from "#src/features/deployments/publish-credentials/index";
-import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "#src/features/source-control/index";
+import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "@jini-ai/devops/source-control/site/store";
 import { deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
 import { mayActOnEntityType } from "#src/features/trash/index";
 import { type TrashItem } from "@jini-ai/cms/trash";
-import type { PermanentDeletePlan, PermanentDeleteToolDeps } from "#src/features/permanent-delete/tool-registrations";
+import type { PermanentDeletePlan } from "@jini-ai/cms/trash/permanent/tool-registrations";
+import type { PermanentDeleteToolDeps } from "#src/features/permanent-delete/tool-registrations";
 import type { PermanentDeleteToolId } from "@jini-ai/cms/trash/permanent/agent-tools";
 import type { RouteDeps } from "#src/server/routes/types";
 

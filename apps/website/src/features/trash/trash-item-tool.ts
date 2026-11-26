@@ -48,9 +48,9 @@ import {
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
-import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
-import { USER_ENTITY_TYPE } from "./adapters/user.js";
+import { USER_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/user";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash } from "@jini-ai/cms/trash/site/move-to-trash";
 import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";

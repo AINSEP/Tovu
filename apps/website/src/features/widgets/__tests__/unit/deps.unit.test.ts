@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { VersionConflictError } from "@jini-ai/cms/entries";

@@ -1,3 +1,5 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/permissions";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry, type ToolContributor as OwnedToolContributor, type DerivedToolContributor as OwnedDerivedToolContributor, type ToolRegistration } from "@jini-ai/core";
@@ -13,7 +15,7 @@ import express from "express";
 
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { createPost } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
@@ -23,7 +25,7 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
-import { createPageHtmlReverter } from "../html-reverter.js";
+import { createPageHtmlReverter } from "@jini-ai/cms/pages/html-reverter";
 import type { PagesHtmlDocumentStorePort } from "@jini-ai/core/contracts/site/page-html-store";
 
 /**
@@ -89,7 +91,7 @@ async function row(deps: RootDeps, id: string) {
 }
 
 async function seedPage(deps: RootDeps, id: string, html?: string): Promise<number> {
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id, title: "Landing", kind: "page", bodyJson: DOC } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id, title: "Landing", kind: "page", bodyJson: DOC } });
   const created = await row(deps, id);
   if (html === undefined) return created.version;
   const { applied } = await deps.postRepo.saveIfVersion({ record: { ...created, bodyFormat: "html", bodyHtml: html, version: created.version + 1 }, ifVersion: created.version });
@@ -194,7 +196,7 @@ for (const [label, makeRoot] of ROOTS) {
         return real.restore!(required);
       } } as unknown as PagesHtmlDocumentStorePort;
     };
-    const reverter = createPageHtmlReverter({ store: racingStore, postRepo: deps.postRepo });
+    const reverter = createPageHtmlReverter({ editPermission: PAGES_EDIT_HTML_PERMISSION, store: racingStore, postRepo: deps.postRepo });
     await assert.rejects(reverter.applyInverse({ workspaceId: deps.workspaceId, item }, { actorId: PRINCIPAL }), (err: unknown) => {
       assert.ok(err instanceof RevertConflictError);
       assert.match(err.message, /changed/i);
@@ -213,7 +215,7 @@ for (const [label, makeRoot] of ROOTS) {
     const item = (await deps.changeSets.findById({ workspaceId: deps.workspaceId, id: written.changeSetId as string }))?.items[0];
     assert.ok(item);
     await humanSave(deps, "p-own-cas", NEWER);
-    const reverter = createPageHtmlReverter({ store: deps.pagesHtmlStore, postRepo: deps.postRepo });
+    const reverter = createPageHtmlReverter({ editPermission: PAGES_EDIT_HTML_PERMISSION, store: deps.pagesHtmlStore, postRepo: deps.postRepo });
     await assert.rejects(reverter.applyInverse({ workspaceId: deps.workspaceId, item }, { actorId: PRINCIPAL }), RevertConflictError);
     assert.equal((await row(deps, "p-own-cas")).bodyHtml, NEWER);
   });
@@ -222,7 +224,7 @@ for (const [label, makeRoot] of ROOTS) {
     const deps = await makeRoot(t);
     const version = await seedPage(deps, "p-same", RAW_PRIOR);
     const revisionsBefore = (await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-same" })).length;
-    const reverter = createPageHtmlReverter({ store: deps.pagesHtmlStore, postRepo: deps.postRepo });
+    const reverter = createPageHtmlReverter({ editPermission: PAGES_EDIT_HTML_PERMISSION, store: deps.pagesHtmlStore, postRepo: deps.postRepo });
     const item = { id: "i1", changeSetId: "c1", entityType: "page-html", entityId: "p-same", operation: "update" as const, position: 0, entityVersionAtApply: version, inversePayload: { format: "html", html: RAW_PRIOR } };
     await reverter.applyInverse({ workspaceId: deps.workspaceId, item }, { actorId: PRINCIPAL });
     const after = await row(deps, "p-same");

@@ -1,12 +1,14 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost, updatePost, InMemoryPostRepo } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { updatePost, InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor } from "#src/features/post/repo";
@@ -49,10 +51,10 @@ const noopOutbox: OutboxPort = {
 /** Creates a Page and converts it to a bespoke-HTML one carrying `html`, the way the editor does. */
 async function seedHtmlPage(repo: InMemoryPostRepo, html: string) {
   await createPost({
-    deps: { repo, clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
     input: { workspaceId: "ws-1", id: "page-1", title: "Pricing", kind: "page" },
   });
-  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: "ws-1", postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: "ws-1", postId: "page-1" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
   await store.write({ html });
@@ -116,7 +118,7 @@ test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, 
 test("updatePost: a doc-format Page is unaffected — the fix must not widen the CIC-3 guarantee", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await createPost({
-    deps: { repo, clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
     input: { workspaceId: "ws-1", id: "page-2", title: "About", kind: "page" },
   });
 
@@ -143,9 +145,9 @@ describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revi
   test("SQL metadata edit ignores the supplied document and keeps body_json NULL", async () => {
     const kernel = makeKernel();
     const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
-    await createPost({ deps: { repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
     const html = "<section>Original HTML</section>";
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: "ws-1", postId: "page-sql" }, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: "ws-1", postId: "page-sql" }, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await store.ensureHtmlFormat({ seedHtml: html });
     const original = await repo.findById({ workspaceId: "ws-1", id: "page-sql" });
     assert.ok(original);

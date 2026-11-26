@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file Pins the refusal and fallback branches of `post.ts`'s write paths that the scenario suites
  * do not reach: publish-import guards, Trash write races, the derived-slug exhaustion refusal and
@@ -7,13 +8,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost } from "../post-create.js";
-import { deletePost } from "../post-trash.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { deletePost } from "@jini-ai/cms/posts/post-trash";
 import type { RemovePostFn } from "#src/platform/publish-contracts";
 import { findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
 import { importPostEntity } from "@jini-ai/cms/posts/post-import";
 import { normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
-import { retirePostForReplacement } from "../post-retire.js";
+import { retirePostForReplacement } from "@jini-ai/cms/posts/post-retire";
 import { updatePost } from "../post-update.js";
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -136,7 +137,7 @@ class LosingCasRepo extends InMemoryPostRepo {
 test("create: a trashed slug holder that changes while it is being moved aside is a conflict", async () => {
   const repo = new LosingCasRepo({}, { initialRows: [buildPostRecord({ id: "trashed", deletedAt: "2026-10-01T00:00:00.000Z" })] });
   await assert.rejects(
-    createPost({ deps: { clock, repo }, input: { workspaceId: WS, id: "new", title: "Hello World", slug: "hello-world" } }),
+    createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, clock, repo }, input: { workspaceId: WS, id: "new", title: "Hello World", slug: "hello-world" } }),
     (error: unknown) => error instanceof PostConflictError && error.message === "slug 'hello-world' changed while it was being taken from the Trash",
   );
 });
@@ -150,7 +151,7 @@ class FullRepo extends InMemoryPostRepo {
 
 test("create: a derived slug with every candidate taken is refused after the bounded search", async () => {
   await assert.rejects(
-    createPost({ deps: { clock, repo: new FullRepo({}, { initialRows: [] }) }, input: { workspaceId: WS, id: "new", title: "Busy" } }),
+    createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, clock, repo: new FullRepo({}, { initialRows: [] }) }, input: { workspaceId: WS, id: "new", title: "Busy" } }),
     (error: unknown) => error instanceof PostConflictError && error.message === "slug 'busy' already exists",
   );
 });

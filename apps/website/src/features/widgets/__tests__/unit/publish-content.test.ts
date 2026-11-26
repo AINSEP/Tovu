@@ -1,3 +1,6 @@
+import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
+import { findWidgetTypeRegistration } from "@jini-ai/cms/widgets";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,11 +11,19 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { contributeWidgetAreaPublish, contributeWidgetPublish } from "../../publish-content.js";
+import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/cms/widgets/site/publish-content";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
+
+const widgetPublishPolicy = {
+  bindingTable: WIDGET_REGION_BINDINGS_TABLE,
+  buildWidgetHostPorts: () => buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
+  findWidgetTypeRegistration, configReferences: { formDefinitionId: "form", menuRef: "menu", categoryTermId: "term" },
+  formReference: { field: "formDefinitionId", widgetType: "contact-form" },
+};
+
 
 function instance(name: string) {
   const ports = {
@@ -37,7 +48,7 @@ function instance(name: string) {
 }
 
 async function sites() {
-  registerOnly([contributeWidgetAreaPublish(), contributeWidgetPublish()]);
+  registerOnly([contributeWidgetAreaPublish(widgetPublishPolicy), contributeWidgetPublish(widgetPublishPolicy)]);
   const src = instance("src");
   const dst = instance("dst");
   const actor = { principalId: "owner", kind: "user" as const };
@@ -159,7 +170,7 @@ test("widget/widget-area references: a widget names the media its config uses; a
   assert.ok(row);
   await src.ports.entries.save({ ...row, fieldsJson: { ext: { widget: { payload: JSON.stringify({ widgetType: "text", config: { body: '<img src="/media/hero-key/original">' }, status: "active" }) } } } });
   const entities = await packAll(src.site);
-  const byType = new Map([["widget", contributeWidgetPublish().build(src.site)], ["widget-area", contributeWidgetAreaPublish().build(src.site)]] as const);
+  const byType = new Map([["widget", contributeWidgetPublish(widgetPublishPolicy).build(src.site)], ["widget-area", contributeWidgetAreaPublish(widgetPublishPolicy).build(src.site)]] as const);
   const widget = entities.find((e) => e.entityType === "widget" && e.id === a.id)!;
   const area = entities.find((e) => e.entityType === "widget-area")!;
   const unknownType = { ...widget, state: { ...widget.state, widgetType: "no-such-widget-type" } };
@@ -187,7 +198,7 @@ test("widget precheck refuses a widget type the destination lacks, and settings 
 
 test("widget references name configured form, menu and term references, and tolerate a widget with no config", async () => {
   const { src, a } = await sites();
-  const handler = contributeWidgetPublish().build(src.site);
+  const handler = contributeWidgetPublish(widgetPublishPolicy).build(src.site);
   const widget = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id)!;
   const refs = await handler.references!({ entity: { ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } } });
   assert.deepEqual(refs.filter((r) => r.entityType !== "media"), [{ entityType: "form", key: "contact" }, { entityType: "menu", key: "main" }]);

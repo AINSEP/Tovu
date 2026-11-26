@@ -1,5 +1,5 @@
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -114,11 +114,11 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
     const events: DomainEvent[] = [];
     const outbox = { enqueue: async (event: DomainEvent) => { events.push(event); } };
     const storeClock = { nowMs: () => T0 + 120_000 };
-    const page = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "g1" }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const page = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "g1" }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await page.read();
     await page.write({ html: "<p>New quokka text</p>" });
     await page.write({ html: "<p>New quokka text</p>" });
-    const draft = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "g2" }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const draft = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "g2" }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await draft.read();
     await draft.write({ html: "<p>Changed draft</p>" });
     // b46eb6e29 adds save telemetry for drafts too; unchanged HTML still emits nothing.
@@ -145,8 +145,8 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
     const events: DomainEvent[] = [];
     const outbox = { enqueue: async (event: DomainEvent) => { events.push(event); } };
     const storeClock = { nowMs: () => T0 + 120_000 };
-    for (const postId of ["g3", "g4"]) await new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }).ensureHtmlFormat({ seedHtml: "<p>Seeded</p>" });
-    await new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "g3" }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }).ensureHtmlFormat({ seedHtml: "<p>Seeded</p>" });
+    for (const postId of ["g3", "g4"]) await new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, outbox, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }).ensureHtmlFormat({ seedHtml: "<p>Seeded</p>" });
+    await new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "g3" }, deps: { statements: createPageHtmlStatements({ kernel: s.kernel }), clock: storeClock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }).ensureHtmlFormat({ seedHtml: "<p>Seeded</p>" });
     assert.deepEqual(events.map(event => [event.name, event.aggregateId, event.id]), [
       ["content.saved", "g3", "g3-content.saved-4"],
       ["entry.updated", "g3", "g3-entry.updated-4"],

@@ -17,7 +17,7 @@ import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { openProjectStore } from "../project-store.js";
 import { createOtherSiteKeys } from "../other-site-keys.js";
 import { composeProviderConfig } from "../site-deps/provider-identity.js";

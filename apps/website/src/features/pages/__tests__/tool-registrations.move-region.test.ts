@@ -1,5 +1,6 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
@@ -10,7 +11,8 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { InMemoryPostRepo, createPost } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
 
@@ -34,7 +36,7 @@ function harness() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
   }, host: bindPagesToolHost({}) });
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
   // A fresh execution id per spread call, as the real executor gives each tool call its own.
@@ -59,7 +61,7 @@ const STYLE = `<style>\n  .tv .h2 { font-size: 3rem; }\n</style>\n`;
 const LANDING = `${STYLE}${HERO}\n${ADMIN_TOUR}\n${AGENTS}\n${CLOSER}\n`;
 
 async function seedLanding(h: ReturnType<typeof harness>, id = "landing") {
-  await createPost({ deps: { repo: h.repo, clock }, input: { workspaceId: WS, id, title: "Landing", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: h.repo, clock }, input: { workspaceId: WS, id, title: "Landing", kind: "page" } });
   await h.call("pages_write_html", { id, html: LANDING });
   return (await h.call("pages_read_html", { id })) as { version: number };
 }
@@ -150,7 +152,7 @@ test("moving a region relative to itself is refused with a reason, not written",
 
 test("moving a region next to a region nested inside it is refused with a reason, not written", async () => {
   const h = harness();
-  await createPost({ deps: { repo: h.repo, clock }, input: { workspaceId: WS, id: "nested", title: "N", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: h.repo, clock }, input: { workspaceId: WS, id: "nested", title: "N", kind: "page" } });
   const html = `<section data-agent-element="outer" data-agent-role="region"><div data-agent-element="inner"><p>i</p></div></section>\n`;
   await h.call("pages_write_html", { id: "nested", html });
   const result = await h.call("pages_move_region", { id: "nested", handle: "outer", before: "inner" });
@@ -175,7 +177,7 @@ test("a region already in the requested position is reported, not rewritten", as
 
 test("a page with no HTML body is reported, not converted", async () => {
   const h = harness();
-  await createPost({ deps: { repo: h.repo, clock }, input: { workspaceId: WS, id: "empty", title: "E", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: h.repo, clock }, input: { workspaceId: WS, id: "empty", title: "E", kind: "page" } });
   const result = await h.call("pages_move_region", { id: "empty", handle: "a", before: "b" });
   assert.deepEqual(result, {
     written: false,
@@ -213,7 +215,7 @@ for (const selector of ["regionId", "handle", "region"]) {
   test(`pages_move_region: ${selector} refuses absent and duplicate DOM regions without writes`, async () => {
     const h = harness();
     await seedLanding(h);
-    const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "landing" }, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "landing" }, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await store.read();
     await store.write({ html: LANDING + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>' });
     const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
@@ -241,7 +243,7 @@ for (const selector of ["regionId", "handle", "region"]) {
         return { allowed: false, reason: "permission denied" };
       },
       ...pageHtmlChangeTestDeps(),
-      pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }); },
+      pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }); },
     }, host: bindPagesToolHost({}) }).find((entry) => entry.descriptor.id === "pages_move_region")!;
     const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, [selector]: "agents", before: "admin-tour" } });
     assert.equal(result.status, "failed");
@@ -278,7 +280,7 @@ test("pages_move_region: all coexisting target spellings are rejected, including
   const registration = buildPagesRegistrations({ deps: {
     workspaceId: WS, postRepo: h.repo, authorize: async () => ({ allowed: true, reason: "matched" }),
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }); },
+    pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }); },
   }, host: bindPagesToolHost({}) }).find((entry) => entry.descriptor.id === "pages_move_region")!;
   for (const targets of [
     { regionId: "agents", handle: "other" }, { regionId: "agents", region: "other" },

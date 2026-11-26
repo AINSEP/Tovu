@@ -6,10 +6,10 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { toRecord, toRow, updatableColumns } from "../repo.rows.js";
-import { createPostReverters } from "../reverters.js";
+import { createPostReverters } from "@jini-ai/cms/posts/reverters";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { contributePostPublish, toPublishableState } from "../publish-content.js";
+import { contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 import { buildPostRecord } from "./post-record.fixture.js";
 
 const clock = { nowMs: () => Date.parse("2026-10-10T00:00:00Z") };
@@ -125,7 +125,7 @@ test("L156 publish import uses source provenance only on create and keeps destin
   const handler = contributePostPublish().build({ workspaceId: existing.workspaceId, clock,
     idGen: { newId: () => `generated-${++id}` }, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test" }),
-    ports: { post: { repo, forgetRemoved: async () => {} } },
+    ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo, forgetRemoved: async () => {} } },
   });
   const source = toPublishableState(buildPostRecord({ createdAt: "source-created", createdByPrincipalId: "source-author" }));
   const entity = { entityType: "post", id: existing.id, schemaVersion: 2, state: source, contentHash: contentHash({ entityType: "post", state: source }), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [] };

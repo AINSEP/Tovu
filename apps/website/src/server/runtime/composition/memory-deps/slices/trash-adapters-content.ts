@@ -4,7 +4,8 @@ import type { RedirectRecord, InMemoryRedirectRepo } from "@jini-ai/cms/redirect
 import type { CommentRecord, InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import type { MediaRecord } from "#src/features/media/index";
-import { COMMENT_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
+import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { createRecordStoreTrashAdapter, type TrashAdapter } from "@jini-ai/cms/trash";

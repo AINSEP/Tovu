@@ -10,7 +10,7 @@ import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetReg
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import type { DeployTargetCredential } from "@jini-ai/core/contracts/site/devops-deploy";
 import { resolveForPublish } from "../publish-credentials/store.js";
-import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
+import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
 

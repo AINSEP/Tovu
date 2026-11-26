@@ -1,8 +1,9 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { updatePost } from "./post-update.js";
-import { restorePostForward, deletePost } from "./post-trash.js";
+import { restorePostForward, deletePost } from "@jini-ai/cms/posts/post-trash";
 import { getAdminPostById, listAdminPosts } from "@jini-ai/cms/posts/post-read";
 import { normalizeShowPostAuthor, normalizePostAuthor } from "@jini-ai/cms/posts/post-write-fields";
-import { createPost } from "./post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/post';
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
@@ -21,7 +22,8 @@ import { processOutbox } from "../../contracts/core/events/outbox-worker.js";
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion } from "@jini-ai/cms/posts/expected-version";
 import { searchAdminPosts } from "@jini-ai/cms/posts/search";
-import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, CATALOG_BY_ID, ASSISTANT_ACTOR_PLUGIN_ID, assistantPostAttribution, postCommandDeps, postDerivedRisk } from "./post-tool-policy.js";
+import { assistantPostAttribution, postDerivedRisk } from "@jini-ai/cms/posts/post-tool-policy";
+import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, CATALOG_BY_ID, ASSISTANT_ACTOR_PLUGIN_ID, postCommandDeps } from "./post-tool-policy.js";
 import { isPostShapeRejection, POST_MODEL_FACING_ERRORS } from "@jini-ai/cms/posts/post-tool-errors";
 import { requirePostKind, optionalPostStatus, requireBodyJson, optionalPublishAt, resolveFeaturedImageInput } from "./post-tool-input.js";
 import { toPostToolView, toPostToolViewWithPublicUrl, toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
@@ -67,7 +69,7 @@ function executePostToolCreate({ routeDeps, ctx, kind, title, slug, bodyJson, st
   author: ReturnType<typeof normalizePostAuthor> | undefined; showAuthor: ReturnType<typeof normalizeShowPostAuthor>; postId: string;
 }) {
   return createPost({
-    deps: {
+    deps: { reservedSegments: RESERVED_SEGMENTS,
       repo: routeDeps.postRepo,
       clock: routeDeps.clock,
       beforeSaveHook: routeDeps.pluginBeforeSaveHook,

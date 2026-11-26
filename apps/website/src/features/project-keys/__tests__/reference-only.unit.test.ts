@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { attachedOnlyVault } from '@jini-ai/user-management/project-keys/attached-vault';
-import { createProjectKeys } from '../service.js';
+import { createProjectKeys } from '../host-bindings.js';
 import { buildProjectKeyRegistrations } from '../host-bindings.js';
 import { fakeAttachments, vaultRow } from './helpers.js';
 import { ProjectKeyCreateConflictError } from '../../../contracts/core/credential-store.js';

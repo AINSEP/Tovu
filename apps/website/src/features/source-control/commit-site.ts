@@ -12,9 +12,9 @@ import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token"
 import { validateCommitTarget } from "@jini-ai/devops/source-control/site/commit-target";
 import type { RepositoryTargetValidator, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 
-import { resolveDefaultForSourceControl } from "./store.js";
+import { resolveDefaultForSourceControl } from "@jini-ai/devops/source-control/site/store";
 import type { StaticSitePackagerPort } from "@jini-ai/devops/source-control/site/static-site-packager-port";
-import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
+import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "@jini-ai/core/contracts/site/source-control-credentials";
 
 /**
  * @file Tovu's binding of `@jini-ai/devops/source-control`'s commit orchestration for `source_control_execute_commit`

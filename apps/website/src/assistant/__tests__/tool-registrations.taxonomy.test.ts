@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -10,7 +11,8 @@ import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.j
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
-import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../features/post/index.js";
 import { type AgentToolDefinition as TaxonomyAgentToolDefinition } from "@jini-ai/core";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import {
@@ -103,7 +105,7 @@ function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
 async function seedPost(deps: RegistryDepsWithoutLimiter, title = "My Post"): Promise<string> {
   const id = deps.idGen.newId();
   const { post } = await createPost({
-    deps: { repo: deps.postRepo, clock: deps.clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock },
     input: { workspaceId: WORKSPACE_ID, id, title, kind: "post" },
   });
   return post.id;

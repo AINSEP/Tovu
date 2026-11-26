@@ -1,8 +1,9 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost, type CreatePostInput } from "../post-create.js";
+import { createPost, type CreatePostInput } from "@jini-ai/cms/posts/post-create";
 import { updatePost, type UpdatePostInput } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
@@ -35,7 +36,7 @@ test("createPost: a new post always carries bodyFormat 'doc' and bodyHtml null, 
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
 
   const { post } = await createPost({
-    deps: { repo, clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
     input: { workspaceId: "ws-1", id: "post-1", title: "Hello", kind: "post" },
   });
 
@@ -58,7 +59,7 @@ test("createPost: a Post can never carry body_format 'html', even if a caller-su
     bodyHtml: "<p>not tiptap</p>",
   } as unknown as CreatePostInput;
 
-  const { post } = await createPost({ deps: { repo, clock }, input: smuggledInput });
+  const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: smuggledInput });
 
   assert.equal(post.bodyFormat, "doc", "the chokepoint must derive bodyFormat from kind, never trust a caller-supplied value");
   assert.equal(post.bodyHtml ?? null, null, "bodyHtml must never be populated on a kind:'post' write");
@@ -72,7 +73,7 @@ test("createPost: a kind:'page' input also gets bodyFormat 'doc' in v1 through t
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
 
   const { post } = await createPost({
-    deps: { repo, clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
     input: { workspaceId: "ws-1", id: "page-1", title: "About", kind: "page" },
   });
 

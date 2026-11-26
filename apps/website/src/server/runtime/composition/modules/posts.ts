@@ -1,9 +1,11 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { postCreateRoute } from "@jini-ai/cms/admin-http/routes/posts/create";
 import { postUpdateRoute } from "@jini-ai/cms/admin-http/routes/posts/update";
 import { postDeleteRoute } from "@jini-ai/cms/admin-http/routes/posts/delete";
 import { postAutosaveDeleteRoute, postAutosaveGetRoute, postAutosavePutRoute } from "@jini-ai/cms/admin-http/routes/posts/autosave";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
-import { createPost, getAdminPostByIdOrSlug } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { getAdminPostByIdOrSlug } from "#src/features/post/index";
 import { PostNotFoundError, PostValidationError } from "@jini-ai/cms/posts/post";
 import { normalizePostAuthor } from "@jini-ai/cms/posts/post-write-fields";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -41,7 +43,7 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = ({ errors, ap
   mountAdminJsonRoute({ errors, app: capped, spec: { ...postCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
     createEntry: ({ workspaceId, id, actorId, body }) => createPost({
-      deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
       input: postCreateInput({ body, workspaceId, postId: id, actorId }),
     }),
   } }, { failure: { operation: "routes/posts/create", code: "INTERNAL_ERROR" } });

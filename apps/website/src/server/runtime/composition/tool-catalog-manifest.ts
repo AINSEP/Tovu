@@ -161,7 +161,7 @@ import { contributeMediaGenerationTools } from "#src/features/media-generation/t
 import { mediaProviderHost } from "#src/features/media-generation/provider-card-host";
 import { saveMediaCredential, contributeMediaProviderTools } from "@jini-ai/cms/media/site-generation/providers-tools";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
-import { operatorLogVideoNote } from "#src/features/media/import-video-conversion";
+import { operatorLogVideoNote } from "@jini-ai/cms/media/site/import-video-conversion";
 import { contributeMembersTools } from "#src/features/members/tool-registrations";
 import { contributeMenusTools } from "#src/features/navigation/tool-registrations";
 import { contributeNewsletterTools } from "#src/features/newsletter/tool-registrations";

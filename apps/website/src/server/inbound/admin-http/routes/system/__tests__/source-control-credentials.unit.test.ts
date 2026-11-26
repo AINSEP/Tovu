@@ -136,7 +136,7 @@ for (const [method, route] of [['get', PROVIDERS], ['get', BASE], ['post', BASE]
 }
 
 test('store duplicate and encryption errors retain their established HTTP codes', async () => {
-  const { SourceControlCredentialDuplicateLabelError, SourceControlCredentialSecretStoreUnconfiguredError } = await import('#src/features/source-control/store');
+  const { SourceControlCredentialDuplicateLabelError, SourceControlCredentialSecretStoreUnconfiguredError } = await import('@jini-ai/devops/source-control/site/store');
   for (const [failure, statusCode, error] of [
     [new SourceControlCredentialDuplicateLabelError('duplicate'), 409, 'DUPLICATE_LABEL'],
     [new SourceControlCredentialSecretStoreUnconfiguredError('storage unavailable'), 503, 'SECRET_STORE_UNCONFIGURED'],

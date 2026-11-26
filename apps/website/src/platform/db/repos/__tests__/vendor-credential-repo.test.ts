@@ -3,7 +3,7 @@ import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-r
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
-import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
+import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 import { eq } from "drizzle-orm";
 
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
@@ -12,7 +12,7 @@ import { SqlVendorCredentialSetRepo } from "../../../../features/vendor-credenti
 import { openContentDb } from "../../sqlite/content-db.js";
 import { SqliteVendorCredentialSetRepo } from "../../../../features/vendor-credentials/vendor-credential-repo.sqlite.js";
 import { workspaces } from "../../schema.sqlite.js";
-import type { VendorCredentialSetRecord } from "#src/features/vendor-credentials/types";
+import type { VendorCredentialSetRecord } from "@jini-ai/core/contracts/site/vendor-credentials";
 import type { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 
 /**

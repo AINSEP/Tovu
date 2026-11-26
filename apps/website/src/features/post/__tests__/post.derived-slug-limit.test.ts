@@ -1,8 +1,9 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { MAX_SLUG_LENGTH } from "@jini-ai/cms/posts/slug";
 import { MAX_TITLE_LENGTH } from "@jini-ai/cms/posts/post-write-fields";
 import { PostValidationError, type PostRecord } from "@jini-ai/cms/posts/post";
@@ -46,7 +47,7 @@ function legacy(overrides: Partial<PostRecord>): PostRecord {
 test("createPost derives a slug no longer than the bound from a 200-character title, and that post can be re-saved", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const title = "a".repeat(MAX_TITLE_LENGTH);
-  const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "p1", title } });
+  const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "p1", title } });
   assert.ok(post.slug.length <= MAX_SLUG_LENGTH, `derived slug is ${post.slug.length} characters`);
   const { post: saved } = await updatePost({ deps: deps(repo), input: bodyEdit(post) });
   assert.equal(saved.version, 2);
@@ -57,7 +58,7 @@ test("colliding derived slugs keep room for their numeric suffix and never excee
   const title = "word ".repeat(40).trim();
   const slugs: string[] = [];
   for (let i = 1; i <= 12; i++) {
-    const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: `p${i}`, title } });
+    const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: `p${i}`, title } });
     slugs.push(post.slug);
   }
   assert.equal(new Set(slugs).size, 12);

@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -6,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { updatePost } from "../post-update.js";
 import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -44,7 +45,7 @@ function runAuthorshipContract(
     try {
       const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
       const result = await createPost({
-        deps: { repo, clock },
+        deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
         input: { workspaceId: "ws-1", id: "post-1", title: "Hello", actorId: "principal-1" },
       });
 
@@ -64,7 +65,7 @@ function runAuthorshipContract(
     try {
       const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
       const result = await createPost({
-        deps: { repo, clock },
+        deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
         input: { workspaceId: "ws-1", id: "post-2", title: "No known author" },
       });
 
@@ -83,7 +84,7 @@ function runAuthorshipContract(
     try {
       const createClock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
       await createPost({
-        deps: { repo, clock: createClock },
+        deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock: createClock },
         input: { workspaceId: "ws-1", id: "post-3", title: "Original", actorId: "principal-1" },
       });
 

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { contributeCollectionEntryPublish } from "#src/features/entries/publish-content";
-import { contributeMenusPublish } from "#src/features/navigation/publish-content";
-import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
-import { contributeTermPublish } from "#src/features/taxonomy/publish-content";
-import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
+import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
+import { contributePagePublish, contributePostPublish } from "@jini-ai/cms/posts/publish-content";
+import { contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
+import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/cms/widgets/site/publish-content";
 
 import type { PublishContentContributor, PublishContentDeps } from "../type-registry.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";

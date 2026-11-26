@@ -1,11 +1,12 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { announceDueGoLives } from "@jini-ai/cms/entries";
-import { createPost } from "../post-create.js";
-import { deletePost, restorePostForward } from "../post-trash.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { deletePost, restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { importPostEntity } from "@jini-ai/cms/posts/post-import";
 import { updatePost } from "../post-update.js";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
@@ -58,7 +59,7 @@ const updateInput = (fields: Record<string, unknown> = {}) => ({
 
 test("createPost scheduled for later emits nothing; the sweep announces it exactly once at go-live", async () => {
   const { repo, outbox, clock, sweep } = setup();
-  await createPost({ deps: { repo, clock, outbox }, input: { workspaceId: WS, id: "p1", title: "Embargoed", status: "published", publishAt: GO_LIVE } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock, outbox }, input: { workspaceId: WS, id: "p1", title: "Embargoed", status: "published", publishAt: GO_LIVE } });
   await sweep(SAVED);
   assert.deepEqual(await events(outbox), [], "nothing before go-live");
 
@@ -70,7 +71,7 @@ test("createPost scheduled for later emits nothing; the sweep announces it exact
 test("createPost with a past publishAt is live now and emits entry.published at save; the sweep leaves it alone", async () => {
   const { repo, outbox, clock, sweep } = setup();
   clock.set(LATER);
-  await createPost({ deps: { repo, clock, outbox }, input: { workspaceId: WS, id: "p1", title: "Backdated", status: "published", publishAt: GO_LIVE } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock, outbox }, input: { workspaceId: WS, id: "p1", title: "Backdated", status: "published", publishAt: GO_LIVE } });
   await sweep(LATER);
   assert.deepEqual(await events(outbox), ["p1-entry.published-1"]);
 });
@@ -221,7 +222,7 @@ for (const [name, write] of failingWrites) {
 test("createPost: a failed event enqueue leaves no row behind", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await assert.rejects(
-    createPost({ deps: { repo, clock: fakeClock(LATER), outbox: new FailingOutbox() }, input: { workspaceId: WS, id: "p1", title: "Live now", status: "published" } }),
+    createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock: fakeClock(LATER), outbox: new FailingOutbox() }, input: { workspaceId: WS, id: "p1", title: "Live now", status: "published" } }),
     /outbox unavailable/
   );
   assert.equal(await repo.findById({ workspaceId: WS, id: "p1" }), null);

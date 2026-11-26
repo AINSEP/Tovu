@@ -1,5 +1,6 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { invokeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -7,7 +8,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createContributionRegistry, type ToolExecutionContext } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "../index.js";
-import { InMemoryPostRepo, createPost } from "../../features/post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../features/post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { contributePagesTools } from "@jini-ai/cms/pages/tool-registrations";
 import { peerFixture } from "../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
@@ -22,9 +24,9 @@ async function harness({ resolveTargets = false } = {}) {
   const clock = { nowMs: () => Date.parse("2026-10-17T00:00:00.000Z") };
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const pagesHtmlStore = (scope: { workspaceId: string; postId: string; actorId?: string }) =>
-    new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   for (const id of ["first", "second", "third", "home"]) {
-    await createPost({ deps: { repo, clock }, input: { workspaceId, id, title: id, kind: "page", ...(id === "home" ? { slug: "/" } : {}) } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId, id, title: id, kind: "page", ...(id === "home" ? { slug: "/" } : {}) } });
     await pagesHtmlStore({ workspaceId, postId: id }).ensureHtmlFormat({ seedHtml: `<main>${id}</main>` });
   }
   const checks: unknown[] = [];

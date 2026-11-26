@@ -1,6 +1,6 @@
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
@@ -97,7 +97,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("read() returns the current body_html of an existing html-format page", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<section data-agent-element=\"hero\">Hi</section>" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     assert.equal(store.capturedVersion(), null);
     const html = await store.read();
@@ -107,7 +107,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
 
   test("read() throws PageNotFoundError for an id that does not exist", async () => {
     const db = makeKernel();
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "missing" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "missing" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await assert.rejects(() => store.read(), PageNotFoundError);
   });
@@ -115,7 +115,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("read() throws PageNotFoundError for a 'doc'-format row with the same id — indistinguishable from not-found", async () => {
     const db = makeKernel();
     await insertPost(db, { id: "post-1", title: "Hello", slug: "hello", kind: "post" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "post-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "post-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await assert.rejects(() => store.read(), PageNotFoundError);
   });
@@ -123,7 +123,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("read() is workspace-scoped — a page in another workspace is not found", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", workspaceId: OTHER_WS, html: "<p>x</p>" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await assert.rejects(() => store.read(), PageNotFoundError);
   });
@@ -135,7 +135,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write() after read() updates body_html and increments version", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>old</p>", version: 5 });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     assert.equal(store.capturedVersion(), null);
     await store.read();
@@ -151,7 +151,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write() before any read() throws — there is no version to condition the write on", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>old</p>" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await assert.rejects(() => store.write({ html: "<p>new</p>" }), /before read\(\)/);
   });
@@ -159,7 +159,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write() lets a single instance write repeatedly with no intervening read() — mirrors createHtmlRegionTarget's restore() calling write() several times in one pass", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>v1</p>", version: 1 });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
     await store.write({ html: "<p>v2</p>" });
@@ -184,8 +184,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
 
     // Two independent instances, exactly as two concurrent EditTarget callers would be.
-    const writerA = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
-    const writerB = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const writerA = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
+    const writerB = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     // Both read the SAME base version (1) — interleaved before either has written.
     const seenByA = await writerA.read();
@@ -217,8 +217,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
 
-    const writerA = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
-    const writerB = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const writerA = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
+    const writerB = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await writerA.read();
     await writerB.read();
@@ -238,7 +238,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write()'s WHERE clause is bodyFormat-scoped in its own right, not just version-scoped: a row converted to 'doc' out-of-band after read() rejects the write even though the version still matches", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
 
@@ -261,7 +261,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>no embeds yet</p>", version: 1 });
     const entryRefsRepo = new InMemoryEntryRefsRepo();
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
     await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
@@ -276,7 +276,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
     const entryRefsRepo = new InMemoryEntryRefsRepo();
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
     await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
@@ -289,7 +289,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write() with NO entryRefsRepo supplied still succeeds — the dependency is optional, not required", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
     await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
@@ -307,7 +307,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write() stores a canvas-serialized (double-quoted, &quot;-encoded) embed marker in the readable single-quoted form", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
     await store.write({ html: `<p>That marker, live:</p>${CANVAS_SERIALIZED_MARKER}` });
@@ -318,7 +318,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("ensureHtmlFormat() seeds a canvas-serialized embed marker in the readable single-quoted form", async () => {
     const db = makeKernel();
     await insertPost(db, { id: "page-3", title: "New page", slug: "new-page-3", kind: "page" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-3" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-3" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     assert.equal(store.capturedVersion(), null);
     await store.ensureHtmlFormat({ seedHtml: CANVAS_SERIALIZED_MARKER });
@@ -333,7 +333,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
     const entryRefsRepo = new InMemoryEntryRefsRepo();
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
     await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-does-not-exist-anywhere"}'></div>` });
@@ -347,7 +347,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertPost(db, { id: "page-2", title: "New page", slug: "new-page", kind: "page" });
     const entryRefsRepo = new InMemoryEntryRefsRepo();
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-2" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-2" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, entryRefsRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.ensureHtmlFormat({ seedHtml: `<div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>` });
 
@@ -368,7 +368,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>trashed</p>" });
     await setRow(db, "page-1", { deleted_at: "2026-09-24T00:00:00.000Z" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await assert.rejects(() => store.read(), { message: TRASH_MESSAGE });
   });
@@ -376,7 +376,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("ensureHtmlFormat() rejects a trashed page before the bodyFormat conversion — a trashed doc-format page also reports Trash, not not-found", async () => {
     const db = makeKernel();
     await insertPost(db, { id: "page-1", title: "New page", slug: "new-page", kind: "page", deleted_at: "2026-09-24T00:00:00.000Z" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await assert.rejects(() => store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" }), { message: TRASH_MESSAGE });
   });
@@ -384,7 +384,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write() rejects when the row was trashed between this instance's read() and write() — the row's body_html stays unchanged", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await store.read();
     await setRow(db, "page-1", { deleted_at: "2026-09-24T00:00:00.000Z" });
@@ -398,8 +398,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write() still throws PageConcurrentEditError (not the Trash message) for an ordinary stale write on a LIVE row", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-    const writerA = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
-    const writerB = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const writerA = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
+    const writerB = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
 
     await writerA.read();
     await writerB.read();
@@ -412,7 +412,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     await insertPost(db, { id: "post-guard", kind: "post", body_json: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Keep me"}]}]}' });
     const before = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow());
     const repo = postRepoFor(db, { mediaAccessEvidence: createMediaAccessEvidence() });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "post-guard" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions: repo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "post-guard" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions: repo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>replacement</p>" }), PageKindMismatchError);
     assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow()), before);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "post-guard" }), []);
@@ -427,7 +427,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
       authorize: async () => ({ allowed: true, reason: "matched" }),
       postRepo: postRepoFor(db, { mediaAccessEvidence: createMediaAccessEvidence() }),
       ...pageHtmlChangeTestDeps(),
-      pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+      pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
     }, host: bindPagesToolHost({}) });
     const call = (name: string, input: Record<string, unknown>) => {
       const entry = registrations.find((entry) => entry.descriptor.id === name)!;
@@ -444,7 +444,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
 
   test("ensureHtmlFormat refuses a missing page without capturing a version", async () => {
     const db = makeKernel();
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "missing" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "missing" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" }), { message: "page 'missing' was not found" });
     assert.equal(store.capturedVersion(), null);
   });
@@ -452,7 +452,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("write refuses a page permanently removed after read", async () => {
     const db = makeKernel();
     await insertHtmlPage(db, { id: "removed", html: "<p>base</p>" });
-    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "removed" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "removed" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await store.read();
     await db.run(q => q.deleteFrom("posts").where("id", "=", "removed").execute());
     await assert.rejects(store.write({ html: "<p>new</p>" }), { message: "page 'removed' was edited elsewhere since this turn started — re-read and retry" });
@@ -475,7 +475,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
         }
         return result;
       } };
-      const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "cas-race" }, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+      const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "cas-race" }, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
       await store.read();
       race = true;
       await assert.rejects(store.write({ html: "<p>loser</p>" }), change === "trash"

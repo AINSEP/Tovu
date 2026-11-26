@@ -1,7 +1,8 @@
 import { MailActivityForbiddenError, MailActivityUnavailableError } from "@jini-ai/platform/mail";
 import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
 import { planMailCaptureClear } from "@jini-ai/user-management/mail/site/capture-clear";
-import type { CaptureClearPlan, MailCaptureClearPlanner } from "#src/features/mail-status/delivery-tool-registrations";
+import type { CaptureClearPlan } from "@jini-ai/user-management/mail/status/delivery-tool-registrations";
+import type { MailCaptureClearPlanner } from "#src/features/mail-status/delivery-tool-registrations";
 
 /**
  * @file The host binding of `mail_clear_captured`'s planner: the capture repo over the site's

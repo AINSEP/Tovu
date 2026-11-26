@@ -12,7 +12,7 @@ import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { announceDueGoLives } from "@jini-ai/cms/entries";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { createPostRevertRegistry } from "../reverters.js";
+import { createPostRevertRegistry } from "@jini-ai/cms/posts/reverters";
 import { buildPostRecord } from "./post-record.fixture.js";
 
 /**

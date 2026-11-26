@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -8,7 +9,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { createPost } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { harness, config, owner } from "#src/features/agent-plugins/__tests__/fixtures/plugin-exports";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
@@ -41,7 +42,7 @@ const VALID_BODY_JSON = { type: "doc", content: [{ type: "paragraph", content: [
 
 test("U1: page cards receive only authored export identities and safe host readiness", async () => {
   const { app, deps } = buildApp();
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WS, id: "embed-page", title: "Embed", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WS, id: "embed-page", title: "Embed", kind: "page" } });
   const store = deps.pagesHtmlStore({ workspaceId: WS, postId: "embed-page" });
   await store.ensureHtmlFormat({ seedHtml: embedMarkerSnippetFromConfig({ config }) });
   const { source } = harness({ packages: [{ ...owner, displayName: "Example sign-in" }] });
@@ -55,7 +56,7 @@ test("U1: page cards receive only authored export identities and safe host readi
 
 test("U1: catalog failure degrades page diagnostics to unavailable without failing the page read", async () => {
   const { app, deps } = buildApp();
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WS, id: "unavailable-embed", title: "Embed", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WS, id: "unavailable-embed", title: "Embed", kind: "page" } });
   const store = deps.pagesHtmlStore({ workspaceId: WS, postId: "unavailable-embed" });
   await store.ensureHtmlFormat({ seedHtml: embedMarkerSnippetFromConfig({ config }) });
   const runtime = harness().runtime;

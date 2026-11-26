@@ -16,7 +16,7 @@ import { createEntry } from "@jini-ai/cms/entries";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
 import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, WidgetEmbedReorderCountMismatchError, type EmbedServiceDeps } from "@jini-ai/cms/widgets";
 import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";

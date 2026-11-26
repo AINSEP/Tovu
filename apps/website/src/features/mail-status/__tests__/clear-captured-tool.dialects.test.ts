@@ -7,7 +7,8 @@ import { createSystemClock } from "@jini-ai/platform/system";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { capture, DAY, keys, MAIL_TABLES, NOW, seed, workspaces, type Db } from "../../mail/__tests__/capture-fixtures";
 import { planMailDeliveryCaptureClear } from "#src/server/runtime/composition/mail-capture-clear-planner";
-import { buildMailDeliveryRegistrations, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
+import { mailDeliveryDerivedRisk } from "@jini-ai/user-management/mail/status/delivery-tool-registrations";
+import { buildMailDeliveryRegistrations, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 
 /**
  * `mail_clear_captured` (owner decision 2026-11-23, bt2-todos G7-7/848): the assistant's "clear all

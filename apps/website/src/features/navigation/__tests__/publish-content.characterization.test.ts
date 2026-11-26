@@ -7,7 +7,7 @@ import type { PublishContentDeps } from "#src/features/publish-content/type-regi
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
-import { contributeMenusPublish } from "../publish-content.js";
+import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

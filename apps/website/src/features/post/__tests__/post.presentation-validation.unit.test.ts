@@ -1,6 +1,7 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createPost, type CreatePostInput } from "../post-create.js";
+import { createPost, type CreatePostInput } from "@jini-ai/cms/posts/post-create";
 import { updatePost, type UpdatePostInput } from "../post-update.js";
 import { PostValidationError } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -17,7 +18,7 @@ for (const operation of ["create", "update"] as const) {
       const repo = new InMemoryPostRepo({}, { initialRows: operation === "update" ? [existing] : [] });
       const input = { ...existing, ...patch };
       const write = operation === "create"
-        ? createPost({ deps: { repo, clock }, input: input as unknown as CreatePostInput })
+        ? createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: input as unknown as CreatePostInput })
         : updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: input as unknown as UpdatePostInput });
       await assert.rejects(write, PostValidationError, JSON.stringify(patch));
       assert.deepEqual(await repo.list({ workspaceId: existing.workspaceId }), operation === "update" ? [existing] : []);
@@ -30,7 +31,7 @@ for (const operation of ["create", "update"] as const) {
       const existing = buildPostRecord({ templateChoice: "old.html", overridesThemePage: true });
       const repo = new InMemoryPostRepo({}, { initialRows: operation === "update" ? [existing] : [] });
       const input = { ...existing, ...patch };
-      const result = operation === "create" ? await createPost({ deps: { repo, clock }, input }) : await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input });
+      const result = operation === "create" ? await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input }) : await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input });
       assert.equal(result.post.templateChoice, patch.templateChoice);
       assert.equal(result.post.overridesThemePage, patch.overridesThemePage);
     }

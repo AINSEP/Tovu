@@ -1,6 +1,6 @@
 import type { ForgetRemovedPostFn, RemovePostFn } from "#src/platform/publish-contracts";
 import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
-import type { PostAuthorAccountPort } from "./post-create.js";
+import type { PostAuthorAccountPort } from "@jini-ai/cms/posts/post-create";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";

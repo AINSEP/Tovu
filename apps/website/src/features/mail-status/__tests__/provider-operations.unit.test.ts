@@ -7,14 +7,8 @@ import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomC
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 import type { MailProviderControl } from "@jini-ai/platform/mail";
-import {
-  activateMailProvider,
-  checkMailProvider,
-  MailProviderOperationError,
-  planMailProviderCredential,
-  readMailProviderConfigurations,
-  saveMailProviderCredential,
-} from "../provider-operations.js";
+import { activateMailProvider, checkMailProvider, MailProviderOperationError, readMailProviderConfigurations } from "@jini-ai/user-management/mail/status/provider-operations";
+import { planMailProviderCredential, saveMailProviderCredential } from "../provider-operations.js";
 
 /**
  * @file The shared provider operations behind the admin routes and the assistant tools: configure

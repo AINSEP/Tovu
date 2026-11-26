@@ -4,7 +4,7 @@ import { createSystemClock } from "@jini-ai/platform/system";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { createProjectKeys } from "../service.js";
+import { createProjectKeys } from "../host-bindings.js";
 import { buildProjectKeyRegistrations } from "../host-bindings.js";
 import { fakeAttachments, vaultRow } from "./helpers.js";
 import { saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";

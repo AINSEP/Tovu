@@ -13,16 +13,8 @@ import type { PublishCredentialView } from "@jini-ai/cms/admin-http/routes/syste
 import {
   sourceControlCreateRoute, sourceControlDeleteRoute, sourceControlListRoute, sourceControlProvidersRoute, sourceControlUpdateRoute,
 } from "@jini-ai/cms/admin-http/routes/system/source-control-credentials";
-import {
-  createSourceControlCredential,
-  deleteSourceControlCredential,
-  listSourceControlCredentials,
-  SourceControlCredentialDuplicateLabelError,
-  SourceControlCredentialNotFoundError,
-  SourceControlCredentialSecretStoreUnconfiguredError,
-  SourceControlCredentialValidationError,
-  updateSourceControlCredential,
-} from "#src/features/source-control/index";
+import { deleteSourceControlCredential, listSourceControlCredentials, SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError, SourceControlCredentialSecretStoreUnconfiguredError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential, updateSourceControlCredential } from "#src/features/source-control/index";
 import {
   createCustomCredential,
   describeCredential as describeCustomCredentialForDelete,

@@ -45,15 +45,8 @@ export type { TrashDb } from "./db-port.js";
 export { withFollowUps } from "@jini-ai/cms/trash";
 export type { AfterPurge, BeforePurge, HideFollowUp, TrashFollowUpHooks, UnhideFollowUp } from "@jini-ai/cms/trash";
 
-export {
-  filterVisibleTrashItems,
-  mayActOnEntityType,
-  trashDaysRemaining,
-  trashPermissionFor,
-  TRASH_PERMISSION_BY_ENTITY_TYPE,
-  TRASH_READ_PERMISSION,
-} from "./permissions.js";
-export type { TrashAuthorizeFn } from "./permissions.js";
+export { filterVisibleTrashItems, mayActOnEntityType, trashPermissionFor, TRASH_PERMISSION_BY_ENTITY_TYPE, TRASH_READ_PERMISSION } from "./permissions.js";
+
 
 export {
   createTrashSweep,
@@ -69,12 +62,12 @@ export { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 export { decodeTrashCursor, encodeTrashCursor } from "@jini-ai/cms/trash";
 
 export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
-export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
+export { createRedirectTrashAdapter } from "./adapters/redirect.js";
 export { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms/trash";
 /** The one host binding of the Jini rollback reporter: a failed unhide is written to stderr, the error
  *  redacted through `describeErrorForLog` (type/code only, never a raw error object). Every composition
  *  mount and theme trash wiring imports it from here (theme files are frozen). */
 export const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, describeErrorForLog({ err: error })) });
-export { createUserTrashAdapter, USER_ENTITY_TYPE } from "./adapters/user.js";
+export { createUserTrashAdapter } from "./adapters/user.js";
 export type { UserTrashAdapterDeps } from "./adapters/user.js";

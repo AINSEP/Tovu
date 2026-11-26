@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
@@ -6,8 +7,8 @@ import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost } from "../post-create.js";
-import { deletePost } from "../post-trash.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { deletePost } from "@jini-ai/cms/posts/post-trash";
 import { updatePost } from "../post-update.js";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -67,7 +68,7 @@ function harness(): Harness {
     search,
     async add(spec) {
       const { post } = await createPost({
-        deps: { repo, clock },
+        deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
         input: {
           workspaceId: spec.workspaceId ?? WS,
           id: spec.id,

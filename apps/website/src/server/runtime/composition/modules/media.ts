@@ -17,7 +17,8 @@ import { mediaPutProvidersRoute, type MediaProvidersSaveOutcome } from "@jini-ai
 import { mediaPatchProviderRoute } from "@jini-ai/cms/admin-http/routes/media/patch-provider";
 import { mediaDeleteProviderRoute } from "@jini-ai/cms/admin-http/routes/media/delete-provider";
 import { mediaProviderCatalogRoute } from "#src/server/inbound/admin-http/routes/media/provider-catalog";
-import { projectMediaProviderCatalog } from "#src/features/media-generation/media-provider-catalog";
+import { projectMediaProviderCatalog } from "@jini-ai/integrations/media-providers/catalog-projection";
+import { MEDIA_PROVIDER_ALIASES } from "#src/features/media-generation/host-media-providers";
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
@@ -290,7 +291,7 @@ export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = 
 /** GET the admin provider cards, projected per request from the live registry generation uses, so a
  *  plugin vendor mounted after boot is listed exactly when it can generate. */
 export const registerAdminMediaProviderCatalogRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
-  const listCatalog = () => projectMediaProviderCatalog({ registry: deps.mediaProviderRegistry });
+  const listCatalog = () => projectMediaProviderCatalog({ registry: deps.mediaProviderRegistry, aliases: MEDIA_PROVIDER_ALIASES });
   mountAdminJsonRoute({ errors, app, spec: mediaProviderCatalogRoute, deps: { ...mediaPortDeps({ deps }), listCatalog } }, mountOptions({ operation: "routes/media/provider-catalog", authorization: "direct" }));
 };
 

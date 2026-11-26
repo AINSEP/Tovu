@@ -1,5 +1,6 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
@@ -11,7 +12,8 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPoli
 import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 
 import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
-import { InMemoryPostRepo, createPost } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -356,7 +358,7 @@ async function toolHarness() {
     postRepo,
     ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => {
-      const real = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+      const real = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
       return {
         ensureHtmlFormat: async ({ seedHtml }: { seedHtml: string }) => {
           storeCalls.push("ensureHtmlFormat");
@@ -390,7 +392,7 @@ async function toolHarness() {
   };
 
   await createPost({
-    deps: { repo: postRepo, clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock },
     input: { workspaceId: WORKSPACE, id: "page-1", title: "Landing", kind: "page" },
   });
 
