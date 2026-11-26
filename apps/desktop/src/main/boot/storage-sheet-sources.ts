@@ -85,8 +85,9 @@ function labelFor(required: StorageSheetSourcesRequired, partition: string): str
   if (match) return folderLabel(match);
   const ledger = required.ledger.readStrict({}, {});
   if (ledger.state !== "ok") return undefined;
-  const record = ledger.records.find((entry) => entry.partition === partition && typeof entry.subjectDir === "string");
-  return record ? folderLabel(record.subjectDir) : undefined;
+  // Only an "erased" record names the folder it came from; other record kinds carry no folder.
+  const subjectDir = ledger.records.flatMap((entry) => entry.partition === partition && "subjectDir" in entry ? [entry.subjectDir] : [])[0];
+  return typeof subjectDir === "string" ? folderLabel(subjectDir) : undefined;
 }
 
 /** J3's inventory over the boot pass's root, names, fresh claims and ledger. @complexity O(candidates + claims). */

@@ -104,6 +104,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  *   real launch — see the constant's own doc for why this exists instead of scoping `HOME`.
  */
 import fs from "node:fs";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { bindDesktopRetirement } from "../site-retirement.ts";
 import { desktopJsonFile } from "../durable-json-file.ts";
@@ -113,7 +114,7 @@ import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import electronUpdater from "electron-updater";
 import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
-import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
+import { startTovuServer, DEFAULT_STOP_GRACE_MS, buildCliEnv, buildCliSpawnPlan } from "../tovu-server.ts";
 import { startDesktopCaptureBridge } from "../desktop-capture.ts";
 import { initializeStartupSecrets } from '../../../website/src/platform/secrets/startup-secrets.ts';
 // The shared boot env schema: a side-effect-free module (it imports no website server entry).
@@ -159,13 +160,14 @@ import { STORAGE_SHEET_ENABLED } from "../contracts/storage-sheet.ts";
 import { registerStorageSheetIpc, type StorageSheetRequired, type StorageTarget } from "../storage/storage-sheet-ipc.ts";
 import { createStorageItemIds } from "../storage/storage-item-ids.ts";
 import { bindStorageSignInRemoval, isSitesHomeMainFrame, mountStorageSheet, storageConfirmDialog } from "./boot/storage-sheet-binding.ts";
+import { bindStorageSheetSources } from "./boot/storage-sheet-sources.ts";
 import { nodePartitionPassFs, runDesktopPartitionPass, type DesktopPartitionPassRun } from "./boot/desktop-partition-pass.ts";
 import { bindDesktopPartitions, nodePartitionFs } from "../desktop-partition-lock.ts";
 import { bindDesktopCachePolicy, bindDesktopCodeCache, desktopCacheMaintenance, desktopMaintenanceMarker, evidenceForElectron, measureTreeBytes, nodeCacheFs, PACKAGED_CACHE_EVIDENCE } from "./boot/desktop-cache-policy.ts";
 import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
 import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
-import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "../tracked-sites.ts";
+import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites, readProjectsFile } from "../tracked-sites.ts";
 import { writeSiteName } from "../site-config.ts";
 import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "../site-preview-store.ts";
 import { trimRetiredSiteCacheIn } from "../site-cache-trim.ts";
@@ -965,10 +967,10 @@ function registerAppWideIpc(): void {
 
 /**
  * The Storage sheet's main-process ports. Bound for real: the exact sites-home sender, the owner
- * confirm dialog, main-held IDs and sign-in removal through the boot pass's own interlock, ledger and fs.
- * NOT YET BOUND, and so failing closed (no item, no action is offered): the strict tracked/dismissed
- * list, the J3 partition inventory, the CLI report, tree measuring, labels, OS Trash and T7 tidy
- * capabilities. Each must be bound to its real source before STORAGE_SHEET_ENABLED may flip.
+ * confirm dialog, main-held IDs, sign-in removal through the boot pass's own interlock, ledger and fs,
+ * and (`storage-sheet-sources.ts`) the strict tracked/dismissed list, the J3 inventory over the boot
+ * pass's claim sources, the capped CLI report, tree measuring, labels and dismissed-folder OS Trash
+ * under the per-folder add/open serializer. NOT YET BOUND, failing closed: T7 tidy capabilities.
  */
 function desktopStorageSheetDeps(): StorageSheetRequired {
   const shellUrl = pathToFileURL(SITES_RENDERER_PATH).href;
@@ -981,12 +983,16 @@ function desktopStorageSheetDeps(): StorageSheetRequired {
     itemIds: createStorageItemIds<StorageTarget>({ randomId: () => randomBytes(16).toString("hex"), now: () => Date.now() }),
     reportError: ({ where, error }) => console.error(`[storage-sheet] ${where}: ${error instanceof Error ? error.message : String(error)}`),
     now: () => new Date(),
-    listStrict: async () => ({ state: "unknown" }),
-    partitionInventory: async () => ({ state: "unknown" }),
-    runReport: async () => ({ state: "unknown" }),
-    measureTree: async () => null,
-    labelForPartition: () => undefined,
-    trashFolder: async () => ({ state: "kept", reason: "unknown" }),
+    ...bindStorageSheetSources({
+      projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }), readProjects: readProjectsFile, ledger: desktopRetirement.ledger, measure: cacheMeasure,
+      partitions: { sessionDataDir: app.getPath("sessionData"), fs: nodePartitionPassFs({ fs }), isManaged: desktopPartitions.isManaged, readClaims: desktopPartitions.readClaims },
+      cli: { planFor: ({ cliArgs }) => buildCliSpawnPlan({ repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(), cliArgs: [...cliArgs] }),
+        spawn: ({ command, args }) => spawn(command, [...args], { env: buildCliEnv({}, { warn: () => {} }), stdio: ["ignore", "pipe", "ignore"] }) },
+      trash: { protectedRoots: [PAYLOAD_ROOT, app.getAppPath(), app.getPath("userData"), app.getPath("sessionData")],
+        fs: { lstat: (target) => fs.promises.lstat(target), realpath: (target) => fs.promises.realpath(target) },
+        siteActivity: ({ dir }) => (openSites.get(dir) ? "live" : siteTransitions.get({ key: dir }) ?? "idle"),
+        withAddOpenFence: ({ dir, run }) => serializer.run({ key: dir, fn: run }), trashItem: (target) => shell.trashItem(target) },
+    }),
     tidyActions: async () => [],
   };
 }
