@@ -16,7 +16,8 @@ import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mc
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { agentPluginsToolMetadata as toolMetadata } from "../../../../contracts/core/tool-metadata/index.js";
-import { AGENT_PLUGINS_UPDATE_TOOL_ID, buildRegistrations, catalog, derivedRisk } from "../../install-tool.js";
+import { AGENT_PLUGINS_UPDATE_TOOL_ID, derivedRisk } from "@jini-ai/agent-plugins/site/install-tool";
+import { buildRegistrations, catalog } from "../../install-tool.js";
 import { installUploadedAgentPlugin } from "../../install-upload.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";

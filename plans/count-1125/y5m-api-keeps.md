@@ -1,11 +1,12 @@
 # Y5M api G3 bindings (coordinator tovu-30, read by hand 2026-11-26)
 
-Each file below is imports, host constants and one Jini factory call per exported function, with one-expression adapters. install-tool.ts is NOT kept (21 control-flow lines remain).
+Each file below is imports, host constants and one Jini factory call per exported function, with one-expression adapters.
 
 ## Keep rules
 
 ```text
 ^apps/website/src/features/agent\-plugins/automatic\-agent\-plugins\.ts$
+^apps/website/src/features/agent\-plugins/install\-tool\.ts$
 ^apps/website/src/features/agent\-plugins/install\-upload\.ts$
 ^apps/website/src/features/agent\-plugins/memory\.ts$
 ^apps/website/src/features/agent\-plugins/set\-enabled\.ts$
