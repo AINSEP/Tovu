@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, RequestHandler } from "express";
 import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
@@ -121,15 +122,15 @@ async function withinRateLimit(limiter: RateLimiter, req: import("express").Requ
  * `externalMcpOAuthCallbackUrl`) so a reverse-proxied deployment gets the origin the browser
  * actually used, not the one this process thinks it has.
  */
-export function registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
-  registerExternalMcpBrowserSignInRoute({ app, deps, limiter });
-  registerSharedMcpRoutes({ app, deps, limiter });
+export function registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter, errors }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter; errors: RouteErrorPorts }, _optional = {}): void {
+  registerExternalMcpBrowserSignInRoute({ app, deps, limiter, errors });
+  registerSharedMcpRoutes({ app, deps, limiter, errors });
   const limitedApp: Express = Object.create(app);
   limitedApp.post = ((path: string, handler: RequestHandler) => app.post(path, asyncRoute({ handler: async (req, res, next) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     return handler(req, res, next);
   } }))) as Express["post"];
-  mountAdminJsonRoute({ app: limitedApp, spec: externalMcpOAuthConnectRoute, deps: {
+  mountAdminJsonRoute({ errors, app: limitedApp, spec: externalMcpOAuthConnectRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     beginConnect: (input) => deps.externalMcpOAuth.beginConnect(input),
     callbackUrl: (_input: { serverId: string }): string => { throw new Error("bound per request"); },
@@ -146,7 +147,7 @@ export function registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter }
 /** Authenticated, user-opened host hop: one cookie and redirect, never proof in a link.
  * @complexity O(1) plus the existing bounded connect/discovery work for one connection.
  */
-function registerExternalMcpBrowserSignInRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
+function registerExternalMcpBrowserSignInRoute({ app, deps, limiter, errors }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter; errors: RouteErrorPorts }, _optional = {}): void {
   const browserApp: Express = Object.create(app);
   browserApp.get = ((path: string, handler: RequestHandler) => app.get(path, asyncRoute({ handler: async (req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
@@ -154,7 +155,7 @@ function registerExternalMcpBrowserSignInRoute({ app, deps, limiter }: { app: Ex
     if (!rejectUnlessSessionCredential({ res, message: 'Open this sign-in link from your signed-in Tovu browser, then try again.', permission: SHARED_MCP_PERMISSION })) return;
     return handler(req, res, next);
   } }))) as Express["get"];
-  mountAdminRawRoute({ app: browserApp, spec: createExternalMcpBrowserSignInRoute({ path: EXTERNAL_MCP_SIGN_IN_PATH }), deps: {
+  mountAdminRawRoute({ errors, app: browserApp, spec: createExternalMcpBrowserSignInRoute({ path: EXTERNAL_MCP_SIGN_IN_PATH }), deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     beginConnect: (input) => deps.externalMcpOAuth.beginConnect(input),
     makeBinding: () => generateOAuthState({ randomBytesFn: ({ byteLength }) => randomBytes(byteLength) }, { stateBytes: 32 }),
@@ -174,20 +175,20 @@ function registerExternalMcpBrowserSignInRoute({ app, deps, limiter }: { app: Ex
  * hide the RFC 8628 `slow_down` contract inside a catch block, and give the operator nothing to
  * cancel. `status: "pending"` carries the interval to wait before calling again.
  */
-export function registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
+export function registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limiter, errors }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter; errors: RouteErrorPorts }, _optional = {}): void {
   const limitedApp: Express = Object.create(app);
   limitedApp.post = ((path: string, handler: RequestHandler) => app.post(path, asyncRoute({ handler: async (req, res, next) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     return handler(req, res, next);
   } }))) as Express["post"];
-  mountAdminJsonRoute({ app: limitedApp, spec: externalMcpOAuthPollRoute, deps: {
+  mountAdminJsonRoute({ errors, app: limitedApp, spec: externalMcpOAuthPollRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     pollDeviceAuthorization: (input) => deps.externalMcpOAuth.pollDeviceAuthorization(input),
   } }, { authorization: "direct", failureWriter: ({ res, error }) => sendExternalMcpOAuthError({ res, error }) });
 }
 
 /** Saved selection is a session-only owner act; a site reference alone cannot grant itself access. */
-function registerSharedMcpRoutes({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
+function registerSharedMcpRoutes({ app, deps, limiter, errors }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter; errors: RouteErrorPorts }, _optional = {}): void {
   const limitedApp: Express = Object.create(app);
   for (const method of ["delete", "post"] as const) {
     limitedApp[method] = ((path: string, handler: RequestHandler) => app[method](path, asyncRoute({ handler: async (req, res, next) => {
@@ -195,14 +196,14 @@ function registerSharedMcpRoutes({ app, deps, limiter }: { app: Express; deps: E
       return handler(req, res, next);
     } }))) as Express[typeof method];
   }
-  mountAdminJsonRoute({ app, spec: externalMcpSharedListRoute, deps: {
+  mountAdminJsonRoute({ errors, app, spec: externalMcpSharedListRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     requireSharedSession: (): void => { throw new Error("bound per request"); },
     listSharedConnections: undefined as ExternalMcpOAuthService["listSharedConnections"],
   } }, { authorization: "direct", failureWriter: ({ res, error }) => sendExternalMcpOAuthError({ res, error }),
     requestDeps: ({ res, deps: base }) => ({ ...base, get listSharedConnections() { return deps.externalMcpOAuth.listSharedConnections?.bind(deps.externalMcpOAuth); }, requireSharedSession: () => refuseUnlessSessionCredential({ res, gate: { message: 'Open saved connections from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION } }) }),
   });
-  mountAdminJsonRoute({ app: limitedApp, spec: externalMcpSharedLocalRoute, deps: {
+  mountAdminJsonRoute({ errors, app: limitedApp, spec: externalMcpSharedLocalRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     requireSharedSession: (): void => { throw new Error("bound per request"); },
     useLocalConnection: undefined as ExternalMcpOAuthService["useLocalConnection"],
@@ -210,7 +211,7 @@ function registerSharedMcpRoutes({ app, deps, limiter }: { app: Express; deps: E
   } }, { authorization: "direct", failureWriter: ({ res, error }) => sendExternalMcpOAuthError({ res, error }),
     requestDeps: ({ res, deps: base }) => ({ ...base, get useLocalConnection() { return deps.externalMcpOAuth.useLocalConnection?.bind(deps.externalMcpOAuth); }, requireSharedSession: () => refuseUnlessSessionCredential({ res, gate: { message: 'Choose the local connection from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION } }) }),
   });
-  mountAdminJsonRoute({ app: limitedApp, spec: externalMcpSharedSelectRoute, deps: {
+  mountAdminJsonRoute({ errors, app: limitedApp, spec: externalMcpSharedSelectRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     requireSharedSession: (): void => { throw new Error("bound per request"); },
     useSharedConnection: undefined as ExternalMcpOAuthService["useSharedConnection"],

@@ -284,7 +284,7 @@ export function createPluginsModule(deps: RouteDeps): ServerModuleHandle<RouteRe
       registerPluginUninstallRoute({ errors, app, deps });
       registerPluginFilesRoute({ errors, app, deps });
       registerPluginProviderSettingsRoutes({ errors, app, deps });
-      registerPluginInstallRoutes({ app, deps });
+      registerPluginInstallRoutes({ errors, app, deps });
       // After the install routes: `.../plugins/:pluginId/preview` also matches
       // `.../plugins/install/preview`, and Express runs the first registered match.
       registerPluginPreviewRoute({ errors, app, deps });

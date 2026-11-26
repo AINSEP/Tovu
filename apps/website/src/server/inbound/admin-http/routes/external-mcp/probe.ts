@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
@@ -74,13 +75,13 @@ async function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Res
  *
  * @complexity O(t) in the remote's advertised tool count, plus one round trip.
  */
-export function registerAdminExternalMcpProbeRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpProbeRouteDeps; limiter: RateLimiter }, _optional = {}): void {
+export function registerAdminExternalMcpProbeRoute({ app, deps, limiter, errors }: { app: Express; deps: ExternalMcpProbeRouteDeps; limiter: RateLimiter; errors: RouteErrorPorts }, _optional = {}): void {
   const limitedApp: Express = Object.create(app);
   limitedApp.post = ((path: string, handler: RequestHandler) => app.post(path, asyncRoute({ handler: async (req, res, next) => {
     if (!(await withinProbeRateLimit(limiter, req, res))) return;
     return handler(req, res, next);
   } }))) as Express["post"];
-  mountAdminJsonRoute({ app: limitedApp, spec: externalMcpProbeRoute, deps: {
+  mountAdminJsonRoute({ errors, app: limitedApp, spec: externalMcpProbeRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     probe: ({ serverId }) => probeExternalMcpServer({ deps, serverId }),
   } }, { authorization: "direct", failureWriter: ({ res, error }) => sendAdminFailure({ res, error }, { operation: "routes/external-mcp/probe", code: "INTERNAL_ERROR" }) });
