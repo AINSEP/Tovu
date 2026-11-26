@@ -37,6 +37,7 @@ The full Appendix B was not supplied. These are the 31 unchanged STAYS-HOST clas
 | `^apps/website/src/features/form\-destinations/key\-store\.ts$` | Supplied WAL STAYS-HOST policy |
 | `^apps/website/src/features/api\-connections/contribution\.ts$` | G3 BIND, 26 LOC |
 | `^apps/website/src/features/api\-connections/shared\-owner\.ts$` | G3 BIND, 26 LOC |
+| `^apps/website/src/features/api\-connections/vault\-store\-binding\.ts$` | G3 BIND, 85 LOC |
 | `^apps/website/src/features/fs\-files/agent\-tools\.ts$` | G3 BIND, 9 LOC |
 | `^apps/website/src/features/fs\-files/tool\-registrations\.ts$` | G3 BIND, 63 LOC |
 | `^apps/website/src/features/forms/protect\-existing\-files\.ts$` | G3 BIND, 20 LOC |

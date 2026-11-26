@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createVaultMetaParsers, type VaultArchiveEntry, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultRepoPort, type KeyringPort, type SecretSealerPort } from "@jini-ai/core/contracts/vault";
+import { authorizeScopedVaultContext } from "@jini-ai/core/contracts/site/vault-context";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ApiConnectionRecordStore, ApiConnectionTokenStore } from "@jini-ai/integrations/api-connections";
 import {
@@ -56,10 +57,7 @@ export function createApiConnectionVault(required: ApiConnectionVaultDeps, _opti
   return new SecretsVaultService({
     repo: required.repo, keyring: required.keyring, sealer: required.sealer,
     metaParsers: createVaultMetaParsers({}, { parsers: { [API_CONNECTION_VAULT_KIND]: input => parseTovuStoreMeta({ ...input, kind: API_CONNECTION_VAULT_KIND }) } }),
-    authorize: async ({ context }) => {
-      const wrongScope = context.workspaceId !== scope.workspaceId || context.kind !== scope.kind || context.ownerKey !== scope.ownerKey;
-      if (wrongScope || context.principalId !== null || ("binding" in context && context.binding !== null)) throw new VaultError({ code: "context" });
-    },
+    authorize: ({ context }) => authorizeScopedVaultContext({ context, scope }),
     now: () => new Date(required.clock.nowMs()).toISOString(),
     newId: () => { throw new VaultError({ code: "invalid-record" }); },
   });
