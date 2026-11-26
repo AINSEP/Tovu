@@ -49,6 +49,7 @@ import {
 } from "./lifecycle.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
 
 const { setAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } = agentPluginActivations;
 
@@ -134,7 +135,7 @@ async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint
   } catch (error) {
     throw new AgentPluginInstallError({ code: "MANIFEST_INVALID", message: "plugin.json is not valid JSON" }, { cause: error });
   }
-  const parsed = parseAgentPluginManifest({ value });
+  const parsed = parseAgentPluginManifest({ value }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
   if (!parsed.ok) throw new AgentPluginInstallError({ code: "MANIFEST_INVALID", message: `plugin.json failed validation: ${parsed.errors.join("; ")}` });
   return { prefix, pluginId: parsed.manifest.name };
 }
@@ -231,7 +232,7 @@ export async function installUploadedAgentPlugin(
         return installed;
       };
       if (!optional.pluginHost) return run();
-      const identity = await readInstalledAgentPluginIdentity({ plugin: indexed });
+      const identity = await readInstalledAgentPluginIdentity({ plugin: indexed }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
       return optional.pluginHost.withInstallIdentity({ candidate: { id: identity.id, localId: pluginId, family: "agent-plugin" }, run });
     },
   });

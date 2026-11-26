@@ -22,6 +22,7 @@ import { agentPluginMcpPortsOf, withAgentPluginMcpPorts, withOverrides } from '#
 import type { provisionAgentPluginMcpServers as provisionPortableMcpServers } from '@jini-ai/agent-plugins/connect';
 import { createPluginHost, type PluginHostMessages } from '@jini-ai/agent-plugins/connect/plugin-host';
 import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 /** Tovu's product copy for the portable host: these texts name Tovu's enable tool. Bytes unchanged. */
 const tovuPluginHostMessages: PluginHostMessages = {
@@ -85,7 +86,7 @@ export function createTovuPluginHost(
   const readAgentManifest = optional.readAgentManifest;
   const readAgentIdentity = readAgentManifest
     ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await readAgentManifest({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
-    : readInstalledAgentPluginIdentity;
+    : ({ plugin }: { plugin: InstalledAgentPlugin }) => readInstalledAgentPluginIdentity({ plugin }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
 
   // Thin Tovu binder: every runtime owner, path, namespace and product text is bound here; the
   // decisions live in the portable plugin host. The projection pair is resolved once per binding:

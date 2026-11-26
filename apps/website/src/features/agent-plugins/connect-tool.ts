@@ -29,6 +29,7 @@ import {
   type ResolvedAgentPluginForConnect,
   parsePluginCredentialCards,
 } from "@jini-ai/agent-plugins/connect";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
 
 export const AGENT_PLUGIN_CONNECT_TOOL_ID = "agent_plugin_connect";
 
@@ -81,7 +82,7 @@ export async function defaultResolveInstalledAgentPlugin(input: { workspaceId: s
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   if (!plugin) return null;
-  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile({ plugin, filename: "plugin.json" }) });
+  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile({ plugin, filename: "plugin.json" }) }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
   return { servers: await readInstalledMcpServers({ packageRoot: plugin.packageRoot }), credentialCards: cards.ok ? cards.descriptors : [] };
 }
 

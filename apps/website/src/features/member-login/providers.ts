@@ -10,6 +10,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions,
   type PluginContributionDefinition } from "../agent-plugins/lifecycle.js";
 import type { LoginProviderPreset } from "@jini-ai/user-management/server";
 import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "../agent-plugins/identity-read-policy.js";
 
 export const LOGIN_PROVIDERS_FILENAME = "jini-login-providers.json";
 
@@ -32,7 +33,7 @@ export async function loadBundledLoginProviders(required: { sourceRoot: string }
   const items: LoginProvider[] = [];
   for (const plugin of bundledContributionSources({ sourceRoot: required.sourceRoot, filename: LOGIN_PROVIDERS_FILENAME })) {
     const manifest = JSON.parse(await readFile(path.join(plugin.packageRoot, "plugin.json"), "utf8"));
-    if (readAgentPluginPortableExtension({ value: manifest })?.id !== `tovu/${plugin.pluginId}`) continue;
+    if (readAgentPluginPortableExtension({ value: manifest }, TOVU_AGENT_PLUGIN_IDENTITY_READ)?.id !== `tovu/${plugin.pluginId}`) continue;
     const loaded = await loadPluginContributionsFromSource({ plugin, definition: contribution });
     items.push(...loaded.items);
   }

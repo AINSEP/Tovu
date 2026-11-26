@@ -488,3 +488,38 @@ test('an approved enable missing its snapshot cannot provision connections', asy
   await assert.rejects(host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true }), /approved access snapshot is missing/);
   assert.equal(provisions, 0);
 });
+
+test('an installed N-1 plugin keeps its identity, OAuth declaration, card and Soon status across preboot and boot', async () => {
+  const { createPluginCredentialCardsLoader } = await import('../plugin-credential-cards.js');
+  const { agentPluginHostToolPorts } = await import('#src/features/agent-plugins/host-tool-ports');
+  const providerCard = { target: 'metrics', label: 'Metrics', category: 'ops', title: 'Connect metrics', intro: 'Send metrics.', keyHint: 'Paste the project key.', saveKind: 'provider-settings', saveTarget: 'metrics-provider' };
+  const legacy = { providerPlugin: 'metrics-provider', credentialCards: [providerCard] };
+  // An own canonical key wins even when malformed, so its valid legacy sibling is never consulted.
+  const manifests: Record<string, unknown> = { legacy: { extensions: { tovu: legacy } }, shadowed: { extensions: { jini: { credentialCards: 'not-a-list' }, tovu: legacy } } };
+  const refusals: string[] = [];
+  const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as ReturnType<typeof resolveAgentPluginLayout>, loadMailCards: async () => [] }, {
+    readFile: async ({ plugin, filename }) => filename === 'plugin.json' ? JSON.stringify(manifests[plugin.pluginId]) : '{}',
+    onRefusal: message => refusals.push(message),
+    loadContributions: async ({ definition }) => {
+      const items = [];
+      const loadRefusals: string[] = [];
+      for (const pluginId of Object.keys(manifests)) {
+        const parsed = definition.parse({ raw: JSON.stringify(manifests[pluginId]) });
+        if (!parsed.ok) { loadRefusals.push(parsed.reason); continue; }
+        for (const descriptor of parsed.descriptors) {
+          const loaded = await definition.load({ plugin: { pluginId, packageRoot: '/unused' }, descriptor, importModule: async () => assert.fail('data only') });
+          if (typeof loaded === 'string') loadRefusals.push(loaded); else items.push(loaded);
+        }
+      }
+      return { items, refusals: loadRefusals };
+    },
+  });
+  const cards = await load('workspace');
+  // Card parse and the provider-face destination check both read the same legacy declaration.
+  assert.deepEqual(cards.map(card => [card.providerId, card.pluginId, card.saveTarget]), [['metrics', 'legacy', 'metrics-provider']]);
+  assert.equal(refusals.some(refusal => refusal.includes('destination is not owned')), false, refusals.join('\n'));
+  // Installed identity, maturity and provider links for host tools are read with the same descriptor.
+  const ports = agentPluginHostToolPorts({ agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }, { env: {} }) });
+  assert.equal(ports.legacyIdentity?.namespace, 'tovu');
+  assert.match(ports.legacyIdentity?.warning ?? '', /2027-05-06/);
+});

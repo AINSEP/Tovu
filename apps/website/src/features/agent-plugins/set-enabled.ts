@@ -46,6 +46,7 @@ import { AgentPluginLinkedError, providerFaceLifecycle } from "./provider-plugin
 export { AgentPluginLinkedError } from "./provider-plugin-link.js";
 export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 import type { SetAgentPluginEnabledInput } from '@jini-ai/core/contracts/headless/plugin-host';
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
 
 /**
  * Records an operator's enable/disable decision for one installed Agent Plugin.
@@ -72,11 +73,11 @@ export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, o
   readonly unlessOperatorDisabled?: boolean;
 } = {}): Promise<SetAgentPluginEnabledResult> {
   // A provider plugin's assistant face has no switch of its own (`provider-plugin-link.ts`).
-  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, ...providerFaceLifecycle });
+  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
   if (providerPluginId !== undefined) {
     // A Soon face says it isn't ready rather than pointing at a provider switch that can't help.
-    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
+    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
     throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
   }
   const conditional = options.unlessOperatorDisabled ? { unlessOperatorDisabled: true } : {};

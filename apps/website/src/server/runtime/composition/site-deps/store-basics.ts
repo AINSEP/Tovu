@@ -10,6 +10,7 @@ import { redactSecrets } from "@jini-ai/core";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import type { SiteStore } from "../open-site-store.js";
 import type { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 interface ComposeStoreBasicsRequired {
   kernel: SiteStore["content"];
@@ -40,6 +41,6 @@ export function composeStoreBasics(required: ComposeStoreBasicsRequired, _option
   // One vendor, one switch (owner 2026-10-25): a provider plugin's linked agent plugin face follows
   // every write of its activation row (`provider-plugin-link.ts`).
   const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId, reportFollowFailure: warnProviderFace,
-    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root, ...providerFaceLifecycle }) });
+    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ) });
   return { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo };
 }

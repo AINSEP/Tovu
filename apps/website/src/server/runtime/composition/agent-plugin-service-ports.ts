@@ -23,6 +23,7 @@ import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';
 import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { agentPluginMcpProjections, classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { PluginProviderFacesPort } from '@jini-ai/plugins/runtime/service-ports';
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 /** Preserve persistence and error identity over the site's bound sealing capability. O(1). */
 export function composeAgentPluginMcp(required: ExternalMcpStoreDeps, _options = {}): AgentPluginMcpServicesPort {
@@ -69,14 +70,14 @@ export function composeAgentPluginPreferences({ settings, read = getEffective, w
 
 /** Fresh provider lookup and safe refusal copy come from the same lifecycle owner. O(1) to bind. */
 export function composePluginProviderFaces({ workspaceRoot }: { workspaceRoot: () => string }, _options = {}): PluginProviderFacesPort {
-  const ports = bindProviderFacePorts({ workspaceRoot, ...providerFaceLifecycle });
+  const ports = bindProviderFacePorts({ workspaceRoot, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
   return {
     linkedProvider: (input, _options = {}) => linkedProviderOf({ ...input, ports }),
     affectedPluginIds: async ({ pluginId }, _options = {}) => [pluginId, ...[...await ports.links({})].filter(([, provider]) => provider === pluginId).map(([face]) => face)],
     describeLinkedFace: (input, _options = {}) => new AgentPluginLinkedError(input),
     describeLinkedError: ({ error }, _options = {}) => error instanceof AgentPluginLinkedError ? error : undefined,
     describeNotReady: async ({ pluginId }, _options = {}) => {
-      const soon = await findSoonAgentPlugin({ catalog: explicitRootSoonCatalog, workspaceRoot: workspaceRoot(), pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
+      const soon = await findSoonAgentPlugin({ catalog: explicitRootSoonCatalog, workspaceRoot: workspaceRoot(), pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
       return soon ? new AgentPluginNotReadyError({ pluginId, name: soon.name }) : undefined;
     },
   };

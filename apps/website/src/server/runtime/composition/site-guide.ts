@@ -20,6 +20,7 @@ import { capabilityCard as backup } from "#src/features/recovery/capability-card
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
 import { capabilityCard as plugins } from "#src/features/plugin-runtime/plugin-host-copy";
 import { capabilityCard as jini } from "#src/features/site-guide/index";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 // The engine card names its read pointer `{{read:member}}`; Tovu reads members through `content_read.member`.
 const members = resolveHostReadRefs({ value: membersCard }, { hostReads: contentReadVocabulary });
@@ -69,7 +70,7 @@ export function siteGuideFactDeps(
       if (installed.length > 256) throw new ToolInputError({ message: "site_guide: agent-plugin inventory exceeds the 256-record read limit." });
       return Promise.all(installed.map(async plugin => {
         const activation = await lifecycle.resolveAgentPluginActivation({ workspaceRoot: layout.root, pluginId: plugin.pluginId });
-        const { maturity } = await (options.readIdentity ?? readInstalledAgentPluginIdentity)({ plugin });
+        const { maturity } = await (options.readIdentity ?? ((input: Parameters<typeof readInstalledAgentPluginIdentity>[0]) => readInstalledAgentPluginIdentity(input, TOVU_AGENT_PLUGIN_IDENTITY_READ)))({ plugin });
         return {
           ...(maturity ? { maturity } : {}),
           id: plugin.id ?? plugin.pluginId, name: plugin.displayName ?? plugin.pluginId, version: plugin.version ?? null,
