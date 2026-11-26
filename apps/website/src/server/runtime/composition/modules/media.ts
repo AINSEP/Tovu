@@ -296,7 +296,7 @@ export const registerAdminMediaDeleteRoute = ({ errors, app, deps }: { errors: R
 function mediaProviderStoreDeps({ deps }: { deps: MediaProviderRouteDeps }, _optional: Record<string, never> = {}) {
   return {
     repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring,
-    clock: deps.clock, providerCatalog: deps.mediaProviderRegistry,
+    clock: deps.clock, idGen: deps.idGen, providerCatalog: deps.mediaProviderRegistry,
   };
 }
 

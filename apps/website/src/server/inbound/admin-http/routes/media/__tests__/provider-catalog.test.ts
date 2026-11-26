@@ -34,6 +34,7 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
     workspaceId: base.workspaceId,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: base.clock,
+    idGen: base.idGen,
     mediaProviderCredentialRepo: base.mediaProviderCredentialRepo,
     siteAssistantSecretSealer: base.siteAssistantSecretSealer,
     mediaProviderRegistry: base.mediaProviderRegistry,

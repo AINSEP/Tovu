@@ -93,7 +93,7 @@ interface RouteDepsProviderAnalyticsRequired {
   observability: Awaited<ReturnType<ReturnType<typeof providerPluginBoot>>>["observability"];
 }
 
-export function routeDepsSiteThemesTelemetry(required: RouteDepsSiteThemesTelemetryRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "mailFeedbackRoute" | "siteTitlePreservationStore" | "siteDisplayName" | "siteTimeZone" | "changeSets" | "revertRegistry" | "themes" | "themesDir" | "packageThemesDir" | "siteBinding" | "createSite" | "federatedMcpPresetRegistry" | "agentPluginLayout" | "agentPluginLifecycle" | "skillLayout" | "siteBackupSources" | "siteStoragePaths" | "outbox" | "bus" | "observability" | "tracker" | "visitorTracker" | "observabilityEnabled" | "flushTelemetry" | "browserAnalytics" | "consentAdapters" | "telemetryStatus" | "sendTelemetryTest" | "aiTraceSink" | "providerConfig" | "reapplyProvider"> {
+export function routeDepsSiteThemesTelemetry(required: RouteDepsSiteThemesTelemetryRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "mailFeedbackRoute" | "siteTitlePreservationStore" | "siteDisplayName" | "siteTimeZone" | "changeSets" | "revertRegistry" | "revertTransaction" | "themes" | "themesDir" | "packageThemesDir" | "siteBinding" | "createSite" | "federatedMcpPresetRegistry" | "agentPluginLayout" | "agentPluginLifecycle" | "skillLayout" | "siteBackupSources" | "siteStoragePaths" | "outbox" | "bus" | "observability" | "tracker" | "visitorTracker" | "observabilityEnabled" | "flushTelemetry" | "browserAnalytics" | "consentAdapters" | "telemetryStatus" | "sendTelemetryTest" | "aiTraceSink" | "providerConfig" | "reapplyProvider"> {
   const { dbPath, resolvedSiteBinding, agentPluginLayout, agentPluginLifecycle, federatedMcpPresetRegistry, skillLayout, resolvedThemesDir, kernel, resolvedUploadsDir, isMediaRemote, mediaIsRemoteByEnv, workspaceId, clock, idGen, pluginRuntime, siteTitlePreservationStore, siteDisplayName, siteTimeZone, menuRepo, outbox, bus, trashRepo, siteAssistantSecretSealer, providerConfigSource, customCredentialSetRepo, providerPlugins, aiTraceSink, observability, tracker, postRepo, siteThemes } = required;
   return {
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
@@ -108,6 +108,7 @@ export function routeDepsSiteThemesTelemetry(required: RouteDepsSiteThemesTeleme
     // P10-O4: the same late-read capture as the outbox binding; executeCommand's co-persisted
     // event carries its producer's trace parent to the background drainer.
     changeSets: new SqliteChangeSetRepo({ store: kernel }, { prepareOutboxEvent: captureOutboxTraceParent({ activeTraceparent: () => observability.activeTraceparent?.() }) }),
+    revertTransaction: ({ work }, _optional = {}) => kernel.transaction(work),
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).

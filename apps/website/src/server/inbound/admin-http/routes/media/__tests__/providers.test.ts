@@ -10,6 +10,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMediaGetProvidersRoute } from "#src/server/runtime/composition/modules/media";
 import { registerAdminMediaPutProvidersRoute } from "#src/server/runtime/composition/modules/media";
+import { registerAdminMediaPatchProviderRoute, registerAdminMediaDeleteProviderRoute } from "#src/server/runtime/composition/modules/media";
 import type { MediaProviderRouteDeps } from "../deps.js";
 import { mediaProviderDefinition } from "@jini-ai/integrations/media-providers";
 import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
@@ -31,6 +32,7 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
     workspaceId: base.workspaceId,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: base.clock,
+    idGen: base.idGen,
     mediaProviderCredentialRepo: base.mediaProviderCredentialRepo,
     siteAssistantSecretSealer: base.siteAssistantSecretSealer,
     mediaProviderRegistry: base.mediaProviderRegistry,
@@ -45,6 +47,8 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
   });
   registerAdminMediaGetProvidersRoute({ errors: routeErrors, app, deps });
   registerAdminMediaPutProvidersRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaPatchProviderRoute({ errors: routeErrors, app, deps });
+  registerAdminMediaDeleteProviderRoute({ errors: routeErrors, app, deps });
   return app;
 }
 
@@ -70,6 +74,41 @@ async function put(t: import("node:test").TestContext, app: express.Express, bod
   });
   const json = await res.json().catch(() => ({}));
   return { status: res.status, json };
+}
+
+for (const model of ["changed-model", "original-model"]) {
+  test(`a pre-delete ETag cannot overwrite a same-tick recreated provider (${model})`, async (t) => {
+    const base = createRouteDeps();
+    const clock = { nowMs: () => Date.parse("2026-11-26T00:00:00.000Z") };
+    let nextId = 0;
+    const app = buildApp({ mediaProviderCredentialRepo: base.mediaProviderCredentialRepo, clock,
+      idGen: { newId: () => `fresh-vault-${++nextId}` } });
+    const baseUrl = await startTestServer(app, t);
+    const first = await fetch(`${baseUrl}${PATH}/openai`, { method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ apiKey: "sk-1", model: "original-model" }) });
+    assert.equal(first.status, 200, await first.text());
+    const oldTag = (await fetch(`${baseUrl}${PATH}`)).headers.get("etag");
+    assert.ok(oldTag);
+    const removed = await fetch(`${baseUrl}${PATH}/openai`, { method: "DELETE" });
+    assert.equal(removed.status, 200, await removed.text());
+    const recreated = await fetch(`${baseUrl}${PATH}/openai`, { method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ apiKey: "sk-1", model }) });
+    assert.equal(recreated.status, 200, await recreated.text());
+    const newTag = (await fetch(`${baseUrl}${PATH}`)).headers.get("etag");
+    assert.ok(newTag);
+    assert.notEqual(newTag, oldTag);
+    const before = await base.mediaProviderCredentialRepo.listByWorkspaceId({ workspaceId: WORKSPACE_ID });
+    const stale = await fetch(`${baseUrl}${PATH}`, { method: "PUT",
+      headers: { "content-type": "application/json", "if-match": oldTag },
+      body: JSON.stringify({ openai: { model: "stale-overwrite" } }) });
+    assert.equal(stale.status, 409);
+    assert.equal((await stale.json() as { code: string }).code, "MEDIA_PROVIDERS_STALE");
+    const after = await base.mediaProviderCredentialRepo.listByWorkspaceId({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual(after, before);
+    assert.deepEqual(after[0]?.vaultRecord, before[0]?.vaultRecord);
+  });
 }
 
 test("get-providers: mismatched workspaceId 404s", async (t) => {

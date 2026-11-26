@@ -141,18 +141,19 @@ function fakeRouteDeps(
   const blobStore = new InMemoryBlobStore();
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
-  const mediaProviderCredentialRepo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
+  let counter = 0;
+  const idGen = { newId: () => `id-${++counter}` };
+  const mediaProviderCredentialRepo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock(), idGen });
   const keyring = new InMemoryKeyring();
   const siteAssistantSecretSealer = new AesGcmSecretSealer({ keyring });
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const generateCalls: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }> = [];
 
-  let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
     tracker: { ...createNoopTracker({}), capture: (...args: Parameters<Tracker["capture"]>) => { captures.push(args); } },
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
-    idGen: { newId: () => `id-${++counter}` },
+    idGen,
     mediaRepo,
     assetBlobRepo,
     assetRenditionRepo,
@@ -182,9 +183,9 @@ function fakeRouteDeps(
  *  (not just its `deps`) because the repo/sealer/keyring instances it needs are returned alongside
  *  `deps`, not readable off `deps` itself — `RouteDeps` has no `keyring` field of its own; only this
  *  test's own seeding needs one. */
-async function seedOpenAiCredential(fixture: Pick<ReturnType<typeof fakeRouteDeps>, "mediaProviderCredentialRepo" | "siteAssistantSecretSealer" | "keyring">): Promise<void> {
+async function seedOpenAiCredential(fixture: Pick<ReturnType<typeof fakeRouteDeps>, "mediaProviderCredentialRepo" | "siteAssistantSecretSealer" | "keyring" | "deps">): Promise<void> {
   await saveMediaProviderCredentials(
-    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", baseUrl: "https://api.openai.com/v1" } } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, idGen: fixture.deps.idGen, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", baseUrl: "https://api.openai.com/v1" } } } }
   );
 }
 
@@ -521,7 +522,7 @@ test("no model specified, no OpenAI credential anywhere, but a different vendor'
 test("an omitted model uses the image model saved with the provider credential", async () => {
   const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-be-ignored" } });
   await saveMediaProviderCredentials(
-    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", model: "dall-e-3" } } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, idGen: fixture.deps.idGen, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", model: "dall-e-3" } } } }
   );
 
   await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a logo" }));
@@ -719,7 +720,7 @@ test("a punctuation-only prompt uses a safe fallback title", async () => {
 test("a saved key without a base URL reaches the generator without inventing one", async () => {
   const fixture = fakeRouteDeps();
   await saveMediaProviderCredentials(
-    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "key-without-base-url" } } } },
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, idGen: fixture.deps.idGen, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "key-without-base-url" } } } },
   );
   const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({
     prompt: "Abstract shape", model: "gpt-image-2", allowStubFallback: false,
@@ -850,7 +851,7 @@ test("a plugin vendor generates end to end through the composition-built registr
   const registry = registryWithAcme();
   const fixture = fakeRouteDeps({ generateMedia: null, httpClient, mediaProviderRegistry: registry });
   await saveMediaProviderCredentials(
-    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }), providerCatalog: registry }, input: { workspaceId: WORKSPACE_ID, providers: { "acme-media": { apiKey: "acme-key-1" } } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, idGen: fixture.deps.idGen, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }), providerCatalog: registry }, input: { workspaceId: WORKSPACE_ID, providers: { "acme-media": { apiKey: "acme-key-1" } } } }
   );
   await seedPublicTransform(fixture.transformDefinitionRepo);
   const result = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a kite", model: "acme-image-1" })) as { media: { placeholder: boolean; sha256: string } };

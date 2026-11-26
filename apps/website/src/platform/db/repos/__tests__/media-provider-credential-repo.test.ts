@@ -33,6 +33,8 @@ const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
 const WORKSPACE = "workspace-1";
 const OTHER_WORKSPACE = "workspace-2";
 const NOW = "2026-08-09T00:00:00.000Z";
+let nextId = 0;
+const idGen = { newId: () => `fresh-vault-${++nextId}` };
 
 function makeRecord(overrides: Partial<MediaProviderCredentialRecord> = {}): MediaProviderCredentialRecord {
   return {
@@ -51,7 +53,7 @@ function makeRecord(overrides: Partial<MediaProviderCredentialRecord> = {}): Med
 
 describeEachDialect(
   "MediaProviderCredentialRepoPort",
-  { tables: ["workspaces"], make: (kernel) => ({ kernel, repo: new SqlMediaProviderCredentialRepo(kernel) }) },
+  { tables: ["workspaces"], make: (kernel) => ({ kernel, repo: new SqlMediaProviderCredentialRepo({ kernel, idGen }) }) },
   (make) => {
     async function makeRepo() {
       const { kernel, repo } = make();
@@ -94,7 +96,7 @@ describeEachDialect(
       const repo = await makeRepo();
       const keyring = new InMemoryKeyring();
       const sealer = new AesGcmSecretSealer({ keyring });
-      const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
+      const deps = { repo, keyring, sealer, idGen, clock: { nowMs: () => Date.parse(NOW) } };
       await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "real-media-token-1234" } } } });
       const [selected] = await repo.vault.list({ workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, provider: "openai" });
       await repo.vault.put({ record: { ...selected!, isDefault: false, revision: selected!.revision + 1 }, expectedRevision: selected!.revision });
@@ -271,7 +273,7 @@ describeEachDialect(
           return kernel.run(fn);
         },
       };
-      const repo = new SqlMediaProviderCredentialRepo(observedKernel);
+      const repo = new SqlMediaProviderCredentialRepo({ kernel: observedKernel, idGen });
       await repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => {
         assert.equal(kernel.inTransaction(), true, "the planner must run inside the transaction");
         return { upserts: [makeRecord()], tombstoneProviderIds: [] };
@@ -285,7 +287,7 @@ describeEachDialect(
       const repo = await makeRepo();
       const keyring = new InMemoryKeyring();
       const sealer = new AesGcmSecretSealer({ keyring });
-      const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
+      const deps = { repo, keyring, sealer, idGen, clock: { nowMs: () => Date.parse(NOW) } };
       await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-old-1111" } } } });
       let release!: () => void;
       let entered!: () => void;

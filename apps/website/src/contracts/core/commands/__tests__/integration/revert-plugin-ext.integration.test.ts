@@ -102,6 +102,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
   await revertChangeSet({
     deps: {
       changeSets,
+      transaction: ({ work }, _optional = {}) => postRepo.transaction({ fn: work }),
       registry: createPostRevertRegistry(reverterDeps),
       clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
       idGen: { newId: () => "id-1" },
@@ -149,6 +150,7 @@ for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "h
     await revertChangeSet({
       deps: {
         changeSets,
+        transaction: ({ work }, _optional = {}) => postRepo.transaction({ fn: work }),
         registry: createPostRevertRegistry(reverterDeps),
         clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
         idGen: { newId: () => "id-1" },

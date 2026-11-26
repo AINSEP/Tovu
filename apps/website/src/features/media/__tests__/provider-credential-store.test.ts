@@ -45,10 +45,12 @@ const WORKSPACE = "workspace-1";
 const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () => "2026-08-09T00:00:00.000Z" };
 
 function makeDeps() {
-  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
+  let nextId = 0;
+  const idGen = { newId: () => `fresh-vault-${++nextId}` };
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock(), idGen });
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
-  return { repo, deps: { repo, keyring, sealer, clock } };
+  return { repo, deps: { repo, keyring, sealer, clock, idGen } };
 }
 
 /** A `KeyringPort` that always fails — simulates a missing `TOVU_SITE_KEY` without
@@ -611,11 +613,11 @@ test("resolveMediaProviderCredential returns null (not an error) for a row saved
 });
 
 test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the site key is unavailable at decrypt time", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
+  const { repo, deps: { idGen } } = makeDeps();
   const workingKeyring = new InMemoryKeyring();
   const workingSealer = new AesGcmSecretSealer({ keyring: workingKeyring });
   await saveMediaProviderCredentials(
-    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, keyring: workingKeyring, sealer: workingSealer, clock }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-will-fail-to-open") } } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, keyring: workingKeyring, sealer: workingSealer, clock, idGen }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-will-fail-to-open") } } } }
   );
 
   // Same row, but resolved through a sealer backed by a broken keyring — mirrors this suite's own
@@ -958,16 +960,18 @@ test("a key sealed under the xai-grok-imagine alias still works and replacement 
   // Metadata-only edit migrates: open under the old identity, seal a new canonical envelope.
   await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog: xaiCatalog }, input: { workspaceId: WORKSPACE, providers: { [XAI]: { baseUrl: "https://proxy.example.test/v1" } } } });
   const [canonical] = await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: XAI, policy: MEDIA_CREDENTIAL_POLICY }));
-  assert.equal(canonical?.id, mediaVaultId({ providerId: XAI }));
+  assert.ok(canonical);
+  assert.equal(canonical.id, "fresh-vault-1");
   assert.notEqual(canonical?.sealed?.ciphertext, legacy.sealed?.ciphertext);
   assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: XAI }),
     { apiKey: "test-media-key-1", baseUrl: "https://proxy.example.test/v1", model: null });
   await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog: xaiCatalog }, input: { workspaceId: WORKSPACE, providers: { [XAI]: { apiKey: "test-media-key-2" } } } });
   assert.equal((await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: XAI }))?.apiKey, "test-media-key-2");
+  assert.equal((await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: XAI, policy: MEDIA_CREDENTIAL_POLICY })))[0]?.id, canonical.id);
   // The legacy envelope is never rewritten or relabelled: same id, revision and ciphertext.
   assert.deepEqual((await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine", policy: MEDIA_CREDENTIAL_POLICY })))[0], legacy);
   // storedXaiRows sorts by vault id, so the canonical `grok` row precedes the `xai-grok-imagine` legacy row.
-  assert.deepEqual(await storedXaiRows(repo), [{ id: mediaVaultId({ providerId: XAI }), provider: XAI }, { id: mediaVaultId({ providerId: "xai-grok-imagine" }), provider: "xai-grok-imagine" }]);
+  assert.deepEqual(await storedXaiRows(repo), [{ id: "fresh-vault-1", provider: XAI }, { id: mediaVaultId({ providerId: "xai-grok-imagine" }), provider: "xai-grok-imagine" }]);
   assert.deepEqual(Object.keys(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE })), [XAI]);
 });
 
