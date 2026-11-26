@@ -86,6 +86,7 @@ async function seedBarePrincipal(deps: UsersRouteDeps, id: string): Promise<void
 async function attachRoleManageOnlyPolicy(deps: UsersRouteDeps, principalId: string): Promise<void> {
   const policyId = `role-manage-only-${principalId}`;
   await deps.policyRepo.save({
+    version: 1,
     id: policyId,
     workspaceId: deps.workspaceId,
     name: policyId,
@@ -109,7 +110,7 @@ async function attachRoleManageOnlyPolicy(deps: UsersRouteDeps, principalId: str
 }
 
 async function createTargetPolicy(deps: UsersRouteDeps, id: string): Promise<string> {
-  await deps.policyRepo.save({ id, workspaceId: deps.workspaceId, name: id, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id, workspaceId: deps.workspaceId, name: id, isBuiltin: false, isFrozen: false });
   return id;
 }
 
@@ -215,6 +216,7 @@ test("WRITE_POLICY_PERMISSION route: 400 VALIDATION_ERROR when the target policy
   const { app, deps } = await buildApp();
   const frozenPolicyId = "frozen-policy-for-write-test";
   await deps.policyRepo.save({
+    version: 1,
     id: frozenPolicyId,
     workspaceId: WORKSPACE_ID,
     name: frozenPolicyId,

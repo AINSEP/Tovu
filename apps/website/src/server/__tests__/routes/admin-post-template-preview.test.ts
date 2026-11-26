@@ -497,7 +497,7 @@ test("draft previews require content.read, allow read-only sessions, and conceal
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "preview-no-grants" });
   const readerCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "preview-reader" });
   const policyId = "preview-content-read-only";
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({
     id: "preview-read-grant", workspaceId: deps.workspaceId, policyId, permission: "content.read",
     resourceType: null, constraintJson: null,

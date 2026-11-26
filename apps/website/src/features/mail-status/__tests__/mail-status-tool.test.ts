@@ -83,7 +83,7 @@ function controls(overrides: Partial<MailStatusToolDeps> = {}, grants: string[] 
       select: async (input) => { selected.push(input); },
       readSelection: async () => ({ setting: { transactional: "before", bulk: "before" }, revisionSeq: 7 }),
     },
-    userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: "ws", username: "owner", email: "owner@example.com", passwordHash: "x" }) },
+    userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: "ws", username: "owner", email: "owner@example.com", passwordHash: "x", version: 1 }) },
     mailSenderIdentity: { resolve: async () => ({ email: "news@example.com", name: "Site" }) },
     ...overrides,
   };
@@ -162,7 +162,7 @@ test("mail_send_test reports a refusal, uses a username address, and refuses an 
   refusing.deps.mailer.send = async () => ({ ok: false, retryable: false, errorCode: "MAIL_UNCONFIGURED", message: "no provider" });
   const { at: _at, ...refused } = await refusing.call("mail_send_test", {}, refusing.answer("mail_send_test")) as { at: string };
   assert.deepEqual(refused, { sent: false, outcome: "failed", to: "owner@example.com", from: "news@example.com", driver: "smtp", errorCode: "MAIL_UNCONFIGURED", message: "No mail provider is configured. Nothing was sent.", retryable: false });
-  const byUsername = controls({ userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: "ws", username: "ops@example.com", passwordHash: "x" }) } });
+  const byUsername = controls({ userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: "ws", username: "ops@example.com", passwordHash: "x", version: 1 }) } });
   assert.equal((await byUsername.call("mail_send_test", {}, byUsername.answer("mail_send_test")) as { to: string }).to, "ops@example.com");
   const none = controls({ userRepo: { findByPrincipalId: async () => null } });
   await assert.rejects(none.call("mail_send_test"), /Your account has no email address/);

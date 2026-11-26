@@ -250,12 +250,14 @@ async function loginWithPermissions(
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: deps.workspaceId,
     username,
     passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
   await deps.policyRepo.save({
+    version: 1,
     id: policyId,
     workspaceId: deps.workspaceId,
     name: `grant-policy-trash-${suffix}`,
@@ -413,6 +415,7 @@ test("list: resolves the deleting principal to a username, and falls back to a r
     createdAt: h.deps.clock.nowIso(),
   });
   await h.deps.userRepo.save({
+    version: 1,
     principalId: deleterPrincipalId,
     workspaceId: h.deps.workspaceId,
     username: "row-deleter",

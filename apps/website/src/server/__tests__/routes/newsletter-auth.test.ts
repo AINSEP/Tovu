@@ -63,6 +63,7 @@ async function loginAsBarePrincipal(deps: NewsletterRouteDeps, baseUrl: string):
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: deps.workspaceId,
     username,

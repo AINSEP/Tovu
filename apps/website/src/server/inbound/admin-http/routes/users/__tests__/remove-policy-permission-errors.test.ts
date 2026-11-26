@@ -39,7 +39,7 @@ async function grant(deps: ReturnType<typeof createRouteDeps>, suffix: string, p
   const principalId = `rpp-principal-${suffix}`;
   const policyId = `rpp-grant-policy-${suffix}`;
   await deps.principalRepo.save({ id: principalId, workspaceId: deps.workspaceId, kind: "user", displayName: suffix, status: "active", createdAt: deps.clock.nowIso() });
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-${suffix}`, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: `grant-${suffix}`, isBuiltin: false, isFrozen: false });
   for (const permission of permissions) {
     await deps.policyPermissionRepo.save({ id: `rpp-pp-${suffix}-${permission}`, workspaceId: deps.workspaceId, policyId, permission, resourceType: null, constraintJson: null });
   }
@@ -49,7 +49,7 @@ async function grant(deps: ReturnType<typeof createRouteDeps>, suffix: string, p
 
 async function targetPolicy(deps: ReturnType<typeof createRouteDeps>, permission: string, isBuiltin = false,
   scope: { resourceType: string | null; constraintJson: string | null } = { resourceType: null, constraintJson: null }) {
-  const policy = { id: `rpp-target-${permission === "*" ? "wild" : permission}-${isBuiltin}-${scope.resourceType}-${scope.constraintJson === null}`, workspaceId: deps.workspaceId, name: `target ${permission} ${isBuiltin}`, isBuiltin, isFrozen: false };
+  const policy = { version: 1, id: `rpp-target-${permission === "*" ? "wild" : permission}-${isBuiltin}-${scope.resourceType}-${scope.constraintJson === null}`, workspaceId: deps.workspaceId, name: `target ${permission} ${isBuiltin}`, isBuiltin, isFrozen: false };
   const row = { id: `${policy.id}-row`, workspaceId: deps.workspaceId, policyId: policy.id, permission, ...scope };
   await deps.policyRepo.save(policy);
   await deps.policyPermissionRepo.save(row);

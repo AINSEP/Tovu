@@ -13,7 +13,7 @@ test("permission removal refuses a different workspace without deleting the perm
   const deps = createRouteDeps();
   await deps.identityReady;
   const ownerId = await deps.ownerPrincipalId;
-  const policy = { id: "workspace-guard-policy", workspaceId: deps.workspaceId, name: "Workspace guard", isBuiltin: false, isFrozen: false };
+  const policy = { version: 1, id: "workspace-guard-policy", workspaceId: deps.workspaceId, name: "Workspace guard", isBuiltin: false, isFrozen: false };
   const permission = { id: "workspace-guard-permission", workspaceId: deps.workspaceId, policyId: policy.id, permission: "content.read", resourceType: null, constraintJson: null };
   await deps.policyRepo.save(policy);
   await deps.policyPermissionRepo.save(permission);
@@ -39,7 +39,7 @@ test("permission removal hides storage failures, retains the row on failure, and
   const deps = createRouteDeps();
   await deps.identityReady;
   const ownerId = await deps.ownerPrincipalId;
-  const policy = { id: "b07-custom-policy", workspaceId: deps.workspaceId, name: "Retry removal", isBuiltin: false, isFrozen: false };
+  const policy = { version: 1, id: "b07-custom-policy", workspaceId: deps.workspaceId, name: "Retry removal", isBuiltin: false, isFrozen: false };
   const permission = { id: "b07-permission", workspaceId: deps.workspaceId, policyId: policy.id, permission: "content.read", resourceType: null, constraintJson: null };
   await deps.policyRepo.save(policy);
   await deps.policyPermissionRepo.save(permission);

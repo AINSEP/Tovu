@@ -74,6 +74,7 @@ async function loginAsBarePrincipal(deps: MenuRouteDeps, baseUrl: string) {
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-menus",
@@ -117,12 +118,14 @@ async function loginWithPermissions(
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: deps.workspaceId,
     username,
     passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
   await deps.policyRepo.save({
+    version: 1,
     id: policyId,
     workspaceId: deps.workspaceId,
     name: `grant-policy-${suffix}`,

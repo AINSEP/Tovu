@@ -63,7 +63,7 @@ test("T042: GET entry-meta without admin.seo.manage is denied 403", async (t) =>
   assert.equal(refusal.code, "FORBIDDEN");
   assert.deepEqual(refusal.details, { permission: "admin.seo.manage", reason: "no_grant" });
   const policyId = "seo-meta-only";
-  await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({ id: "seo-meta-grant", workspaceId: WORKSPACE_ID, policyId, permission: "admin.seo.manage", resourceType: null, constraintJson: null });
   await deps.principalPolicyRepo.save({ id: "seo-meta-link", workspaceId: WORKSPACE_ID, principalId: "bare-bare-seo-meta", policyId });
   const allowed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${post!.id}`, { headers: { cookie } });

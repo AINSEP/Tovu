@@ -91,7 +91,7 @@ async function createTestUser(deps: UsersRouteDeps, ownerId: string, username: s
  *  `assign-role.test.ts`'s `attachRoleManageOnlyPolicy` fixture shape. */
 async function attachSinglePermissionPolicy(deps: UsersRouteDeps, principalId: string, permission: string): Promise<void> {
   const policyId = `${permission}-only-${principalId}`;
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({
     id: `pp-${policyId}`,
     workspaceId: deps.workspaceId,
@@ -143,7 +143,7 @@ test("DISABLE_PRINCIPAL route: 200 disables a user, session-gate flips, and repo
   // `[]` that would pass even if that code never ran).
   await attachSinglePermissionPolicy(deps, targetId, "member.manage");
   const roleId = `role-for-${targetId}`;
-  await deps.roleRepo.save({ id: roleId, workspaceId: WORKSPACE_ID, name: roleId, isBuiltin: false });
+  await deps.roleRepo.save({ version: 1, id: roleId, workspaceId: WORKSPACE_ID, name: roleId, isBuiltin: false });
   await deps.principalRoleRepo.save({ id: `pr-${targetId}`, workspaceId: WORKSPACE_ID, principalId: targetId, roleId });
 
   const svcDeps = identityServiceDepsFrom(deps);

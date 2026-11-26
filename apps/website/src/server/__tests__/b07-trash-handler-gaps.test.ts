@@ -74,7 +74,7 @@ test("trash list projects snapshot values and rounds remaining partial days upwa
   const reads: unknown[] = [];
   const capture = await invoke(registerAdminTrashListRoute, {
     trash: { list: async () => ({ items: [snapshot], nextCursor: "next-page" }) },
-    userRepo: { async list(input: unknown) { reads.push(input); return [{ principalId: "deleter-7", workspaceId: WS, username: "curator", passwordHash: "argon2id$never-projected" }]; } },
+    userRepo: { async list(input: unknown) { reads.push(input); return [{ principalId: "deleter-7", workspaceId: WS, username: "curator", passwordHash: "argon2id$never-projected", version: 1 }]; } },
   });
   assert.deepEqual(reads, [{ workspaceId: WS }]);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: { items: [{

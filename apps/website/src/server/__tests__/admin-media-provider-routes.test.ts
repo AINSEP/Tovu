@@ -83,7 +83,7 @@ test("bare and wrong-grant sessions cannot read or replace provider credentials"
   assert.equal(me.status, 200);
   const principal = await me.json() as { user: { id: string } };
   const policyId = "media-provider-route-test-policy";
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.principalPolicyRepo.save({ id: "media-provider-route-test-link", workspaceId: deps.workspaceId, principalId: principal.user.id, policyId });
 
   for (const grant of [null, "media.write", "media.read"]) {

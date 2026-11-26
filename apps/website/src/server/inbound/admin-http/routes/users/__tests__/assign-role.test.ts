@@ -107,6 +107,7 @@ async function seedBarePrincipal(
 async function attachRoleManageOnlyPolicy(deps: UsersRouteDeps, principalId: string): Promise<void> {
   const policyId = `role-manage-only-${principalId}`;
   await deps.policyRepo.save({
+    version: 1,
     id: policyId,
     workspaceId: deps.workspaceId,
     name: policyId,

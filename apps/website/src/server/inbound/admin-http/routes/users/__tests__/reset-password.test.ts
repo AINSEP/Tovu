@@ -82,7 +82,7 @@ async function createTestUser(deps: UsersRouteDeps, ownerId: string, username: s
  *  `user.manage` grant (never the owner wildcard) cannot use it against the seeded owner. */
 async function attachSinglePermissionPolicy(deps: UsersRouteDeps, principalId: string, permission: string): Promise<void> {
   const policyId = `${permission}-only-${principalId}`;
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({
     id: `pp-${policyId}`,
     workspaceId: deps.workspaceId,

@@ -38,7 +38,7 @@ async function setup() {
   }, { email: `${username}@example.com` })).principal;
   const grant = async (principalId: string, permissions: string[]) => {
     const policyId = idGen.newId();
-    await deps.policyRepo.save({ id: policyId, workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+    await deps.policyRepo.save({ version: 1, id: policyId, workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
     for (const permission of permissions) {
       await deps.policyPermissionRepo.save({ id: idGen.newId(), workspaceId, policyId, permission, resourceType: null, constraintJson: null });
     }

@@ -37,7 +37,7 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
   };
   await deps.principalRepo.save({ id: "operator-9", workspaceId: "ws-7", kind: "user", displayName: "Operator", status: "active", createdAt: NOW });
   await deps.principalRepo.save({ id: "machine-3", workspaceId: "ws-7", kind: "api_key", displayName: "Exporter", status: "active", createdAt: NOW });
-  await deps.policyRepo.save({ id: "manage-keys", workspaceId: "ws-7", name: "Manage keys", isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: "manage-keys", workspaceId: "ws-7", name: "Manage keys", isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({ id: "manage-permission", workspaceId: "ws-7", policyId: "manage-keys", permission: "apikey.manage", resourceType: null, constraintJson: null });
   await deps.principalPolicyRepo.save({ id: "operator-grant", workspaceId: "ws-7", principalId: "operator-9", policyId: "manage-keys" });
   return deps;

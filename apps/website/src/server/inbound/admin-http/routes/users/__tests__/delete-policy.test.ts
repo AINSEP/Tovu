@@ -136,10 +136,10 @@ test("DELETE_POLICY route: 400 VALIDATION_ERROR when target is a built-in policy
 test("DELETE_POLICY route: a frozen custom policy and a role-referenced policy survive refusal", async (t) => {
   const { app, deps } = await buildApp();
   const baseUrl = await startTestServer(app, t);
-  const role = { id: "policy-reference-role", workspaceId: WORKSPACE_ID, name: "policy-reference-role", isBuiltin: false };
+  const role = { version: 1, id: "policy-reference-role", workspaceId: WORKSPACE_ID, name: "policy-reference-role", isBuiltin: false };
   await deps.roleRepo.save(role);
   for (const frozen of [true, false]) {
-    const policy = { id: frozen ? "frozen-custom" : "role-referenced", workspaceId: WORKSPACE_ID, name: frozen ? "frozen-custom" : "role-referenced", isBuiltin: false, isFrozen: frozen };
+    const policy = { version: 1, id: frozen ? "frozen-custom" : "role-referenced", workspaceId: WORKSPACE_ID, name: frozen ? "frozen-custom" : "role-referenced", isBuiltin: false, isFrozen: frozen };
     await deps.policyRepo.save(policy);
     const permission = { id: `permission-${policy.id}`, workspaceId: WORKSPACE_ID, policyId: policy.id, permission: "member.manage", resourceType: null, constraintJson: null };
     await deps.policyPermissionRepo.save(permission);

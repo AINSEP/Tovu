@@ -71,7 +71,7 @@ function harness() {
     workspaceId, entityType: "member", entityId: id, expectedVersion, actor: { principalId: "operator", pluginId: "assistant" },
   }, { registry, trash, clock: { nowIso: () => AT }, authorize, readLiveSnapshot: input => readLiveSnapshot(input, { kernel: kernel, registry: registry }) });
   const tools = buildTrashRegistrations({ registry, trash, authorize, workspaceId: WS, clock: { nowIso: () => LATER },
-    userRepo: { findByPrincipalId: async () => null, findByUsername: async () => null, list: async () => [], save: async () => {} },
+    userRepo: { findByPrincipalId: async () => null, findByUsername: async () => null, list: async () => [], save: async () => {}, recordLogin: async () => {} },
   });
   const invoke = (id: string, input: unknown) => tools.find(t => t.descriptor.id === id)!.handler({
     executionId: "execution", principal: { id: "operator" }, run: { id: "run" }, input, signal: new AbortController().signal,

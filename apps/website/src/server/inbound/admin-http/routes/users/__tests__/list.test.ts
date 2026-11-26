@@ -237,7 +237,7 @@ for (const permission of ["user.manage", "member.manage"]) {
       status: "active", createdAt: deps.clock.nowIso(),
     });
     const policyId = `policy-${permission}`;
-    await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
+    await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
     await deps.policyPermissionRepo.save({
       id: `pp-${permission}`, workspaceId: WORKSPACE_ID, policyId, permission, resourceType: null, constraintJson: null,
     });
