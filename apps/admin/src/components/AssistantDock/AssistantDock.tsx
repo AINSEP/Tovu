@@ -15,14 +15,20 @@ import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "
 import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks";
 import { useComposerSendStopGuard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-composer-send-stop-guard.hooks";
-import { useAgentFailureSurface } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
+import { FailureSurfaceContext, useAgentFailureSurface } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { selectedLocalCliReasoning, hasUsableAdminKey } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { useMessagesChangeHandler } from "@jini-ai/admin/shell/components/AssistantDock/hooks/messages-change.hooks";
 import { useRunContext } from "@jini-ai/admin/shell/components/AssistantDock/hooks/run-context.hooks";
-import { useSkillAwareAttachmentUploader } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-files.hooks";
+import { resolveSkillsAvailable, useSkillAwareAttachmentUploader } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-files.hooks";
 import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
-import { useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
+import { useAssistantTransportSeam, useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
 import { DockCleanupHeader } from "@jini-ai/admin/shell/components/AssistantDock/DockCleanupHeader";
+import { DockHeader } from "@jini-ai/admin/shell/components/AssistantDock/DockHeader";
+import { DockLeadingAccessory } from "@jini-ai/admin/shell/components/AssistantDock/DockLeadingAccessory";
+import { FolderPathButton } from "@jini-ai/admin/shell/components/AssistantDock/FolderPathButton";
+import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS, chatPaneDisplayProps } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS, visibleAssistantRuntimePreferences } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
 import { VOICE_INPUT_ENABLED } from "@jini-ai/admin/screens/voice-input/voice-input-config";
 import { useAssistantPromptRequests } from "@jini-ai/admin/shell/lib/assistant-prompt-bus";
@@ -93,6 +99,7 @@ const useAssistantDockState = bindAssistantDockState({
     useLocalCliSelectionSeam,
     useChatsSeam,
     useAssistantTransport: useTovuAssistantTransport,
+    useAssistantTransportSeam,
     useAttachmentUploaderSeam,
     useAttachmentValidatorSeam,
     useSkillInstall,
@@ -119,6 +126,8 @@ const useAssistantDockState = bindAssistantDockState({
     useConversationRefreshSignal,
   },
   deps: {
+    visibleAssistantRuntimePreferences,
+    resolveSkillsAvailable,
     agUiApprovals: agUiApprovalPoster,
     translateMedia,
     legacyManifestNames: TOVU_LEGACY_MANIFEST_NAMES,
@@ -140,10 +149,13 @@ const useAssistantDockState = bindAssistantDockState({
 
 const DockChatPane = bindDockChatPane({
   kit: {
+    FailureSurfaceProvider: FailureSurfaceContext.Provider,
+    DockLeadingAccessory,
+    FolderPathButton,
     JiniChatProvider,
     ChatSettingsDialog,
     ConversationTitle,
-    DockCleanupHeader,
+    DockCleanupHeader: (props, _optional = {}) => <DockCleanupHeader {...props} DockHeader={DockHeader} />,
     ChatCleanupPanel: (props) => <ChatCleanupPanel {...props} cleanup={props.cleanup as ReturnType<typeof useDockChatCleanup>} />,
     SkillInstallConfirmation,
     ConfirmDialog,
@@ -152,6 +164,10 @@ const DockChatPane = bindDockChatPane({
   },
   hooks: { useDockChatCleanup, useWiredAssistantSubagentsSettings },
   deps: {
+    dockSettingsMenuSections,
+    toolCallOptions: CHAT_TOOL_CALL_OPTIONS,
+    replyLengthOptions: REPLY_LENGTH_OPTIONS,
+    chatPaneDisplayProps,
     createAdminTypedAnswerPoster,
     createMidRunMessagePoster,
     fetch,

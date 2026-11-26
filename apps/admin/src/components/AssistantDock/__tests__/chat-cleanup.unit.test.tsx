@@ -14,6 +14,7 @@ import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantD
 import { ChatCleanupPanel } from "@jini-ai/chat/react/chat-cleanup/ChatCleanupPanel";
 import { chatCleanupCopy } from "../chat-cleanup-copy";
 import { DockCleanupHeader } from "@jini-ai/admin/shell/components/AssistantDock/DockCleanupHeader";
+import { DockHeader } from "@jini-ai/admin/shell/components/AssistantDock/DockHeader";
 
 /**
  * @file The dock's chat cleanup: the age chooser's server-counted preview, the token-bound apply,
@@ -113,7 +114,7 @@ describe("chat cleanup", () => {
       deleteSelected: vi.fn(), error: null,
     };
     const useChatCleanup = vi.fn(() => fake);
-    render(<DockCleanupHeader ChatCleanupPanel={ChatCleanupPanel} chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
+    render(<DockCleanupHeader DockHeader={DockHeader} ChatCleanupPanel={ChatCleanupPanel} chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
       activeTitle="Tovu assistant" mode="local-cli" agentId="claude" locale="en" t={({ key }) => key}
       chatI18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: "en" })} conversationDelete={{ confirm: vi.fn(async () => true) }}
       chatDisplay={{ preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn(), saveFailed: false }} agentPlugins={{ mode: "auto", update: vi.fn(), saveFailed: false }}
@@ -133,7 +134,7 @@ describe("chat cleanup", () => {
   // test above hands the panel a native `"button"`; the app hands it `@jini-ai/ui-kit`'s `Button`, whose
   // contract is `onPress`, so the panel's `onClick` was dropped. These two mount the kit the app mounts.
   it("the dock's own cleanup hook opens the panel from the header, as DockChatPane mounts it", async () => {
-    render(<DockCleanupHeader ChatCleanupPanel={ChatCleanupPanel} chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
+    render(<DockCleanupHeader DockHeader={DockHeader} ChatCleanupPanel={ChatCleanupPanel} chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
       activeTitle="Tovu assistant" mode="local-cli" agentId="claude" locale="en" t={({ key }) => key}
       chatI18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: "en" })} conversationDelete={{ confirm: vi.fn(async () => true) }}
       chatDisplay={{ preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn(), saveFailed: false }} agentPlugins={{ mode: "auto", update: vi.fn(), saveFailed: false }}
