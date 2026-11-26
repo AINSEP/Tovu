@@ -110,6 +110,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
   try {
     // Code hashing is asynchronous too: synchronize on delivery rather than one event-loop turn.
     await sendStarted;
+    await new Promise<void>(resolve => setImmediate(resolve));
     assert.deepEqual(providerSends, ["member@example.com"]);
     assert.equal(options[0]?.lane, "interactive");
     assert.equal(completed, false, "the request must remain pending while the provider send is pending");

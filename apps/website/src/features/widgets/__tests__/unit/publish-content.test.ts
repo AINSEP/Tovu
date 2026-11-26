@@ -214,6 +214,8 @@ test("a contact-form reference to a form the source cannot find packs unchanged"
 test("widget-area: a placement change on the source updates the destination's existing area in place (forced)", async () => {
   const { src, dst, a, b } = await sites();
   await roundTrip(src.site, dst.site);
+  const originalAreaEntryId = (await dst.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" }))?.areaEntryId;
+  assert.ok(originalAreaEntryId);
   const binding = await src.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" });
   assert.ok(binding);
   const area = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: binding.areaEntryId });
@@ -225,6 +227,7 @@ test("widget-area: a placement change on the source updates the destination's ex
   await applyReport(await plan(entities, dst.site, ["widget-area:sidebar"]), entities, dst.site);
   const dstBinding = await dst.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" });
   assert.ok(dstBinding);
+  assert.equal(dstBinding.areaEntryId, originalAreaEntryId);
   const dstArea = await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: dstBinding.areaEntryId });
   assert.ok(dstArea);
   assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: dstArea.fieldsJson }).doc.placements, reordered);

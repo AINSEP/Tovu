@@ -74,13 +74,16 @@ test("widget embed update writes through the injected live-editor updatePost on 
   const deps = buildWidgetsDeps(makeRouteDeps(repo, seen));
   // The embed service passes ITS post repo — the public read view — as `deps.repo`.
   const writeDeps = { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox };
-  const input = { workspaceId: "ws", id: "p1", title: "Embed edited", slug: created.slug, status: created.status, bodyJson: { type: "doc", content: [] }, expectedVersion: created.version, actorId: "human" };
+  const input = { workspaceId: "ws", id: "p1", title: "Embed edited", slug: created.slug, status: created.status, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Edited body" }] }] }, expectedVersion: created.version, actorId: "human" };
 
   repo.calls.length = 0;
   const { post } = await deps.host.posts.updatePost({ deps: writeDeps, input });
   assert.equal(post.version, created.version + 1);
   assert.ok(repo.calls.length > 0 && repo.calls.every((c) => c === "findById:true"), "the original instance served every read");
-  assert.equal((await repo.findById({ workspaceId: "ws", id: "p1" }))?.version, created.version + 1);
+  const saved = await repo.findById({ workspaceId: "ws", id: "p1" });
+  assert.equal(saved?.version, created.version + 1);
+  assert.equal(saved?.title, "Embed edited");
+  assert.deepEqual(saved?.bodyJson, input.bodyJson);
 
   const stale = await deps.host.posts.updatePost({ deps: writeDeps, input }).then(() => null, (error: unknown) => error);
   assert.ok(deps.host.posts.isVersionConflict(stale), "a stale expectedVersion is refused by the live editor's version guard");
@@ -109,11 +112,16 @@ test("widget embed rollback calls the injected forward restore on the original r
 test("a read-only widget host binding refuses post writes in plain words instead of silently no-oping", async () => {
   const { repo, created } = await seed();
   const host = buildWidgetHostPorts({ postRepo: repo, postWrites: READ_ONLY_WIDGET_POST_WRITES }, {});
+  const deps = { repo: createPublicPostReader({ repo }), clock, outbox: new InMemoryOutbox() };
   await assert.rejects(
-    host.posts.updatePost({ deps: { repo: createPublicPostReader({ repo }), clock, outbox: new InMemoryOutbox() }, input: {
+    host.posts.updatePost({ deps, input: {
       workspaceId: "ws", id: "p1", title: "x", slug: created.slug, status: created.status, bodyJson: created.bodyJson, expectedVersion: created.version,
     } }),
     /read-only/,
   );
+  await assert.rejects(host.posts.restorePostForward({
+    deps: { ...deps, forgetRemoved: async () => assert.fail("forgetRemoved must not be called") },
+    input: { prior: created, actorId: "human" },
+  }), /read-only/);
   assert.equal((await repo.findById({ workspaceId: "ws", id: "p1" }))?.version, created.version, "nothing was written");
 });

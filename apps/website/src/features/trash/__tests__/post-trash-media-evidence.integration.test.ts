@@ -71,10 +71,15 @@ test("a post save through the composed repo is seen by the public media-renditio
   const url = `${baseUrl}/m/${media.id}/public.v1/image.webp`;
   const cache = deps.mediaAccessEvidence.getCache({ postRepo: deps.postRepo, entryRepo: deps.entryRepo });
   assert.equal(cache.size, 0, "nothing is cached before the first public request");
-  await (await fetch(url)).arrayBuffer();
+  const beforeSave = await fetch(url);
+  assert.equal(beforeSave.status, 200);
+  await beforeSave.arrayBuffer();
   assert.equal(cache.size, 1, "the rendition reader recorded its reference index in the composition's evidence instance");
   await deps.postRepo.save({ workspaceId, id: "gated", slug: "gated", title: "T", bodyJson: { type: "doc", content: [] }, status: "published", kind: "post", bodyFormat: "doc", bodyHtml: null, updatedAt: "2026-10-20T00:00:00.000Z", version: 1, featuredMediaId: media.id, memberAccessJson: JSON.stringify({ visibility: "members" }) } as Parameters<typeof deps.postRepo.save>[0]);
   assert.equal(cache.size, 0, "the save cleared the very instance the reader holds, so the gate re-evaluates on the next request");
+  const afterSave = await fetch(url);
+  assert.equal(afterSave.status, 404);
+  assert.equal(afterSave.headers.get("cache-control"), "private, no-store");
 });
 
 

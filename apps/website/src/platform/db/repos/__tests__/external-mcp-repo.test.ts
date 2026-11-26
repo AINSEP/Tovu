@@ -391,17 +391,23 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     const repo = makeRepo();
     const records = Array.from({ length: 8 }, (_, n) => makeOAuthRecord({
       serverId: `batch-${n}`,
-      sealedEnv: { keyId: "k1", ciphertext: Buffer.from(`env-${n}`).toString("base64"), nonce: "bm9uY2U=", alg: "aes-256-gcm" },
-      sealedOAuth: { keyId: "k2", ciphertext: Buffer.from(`oauth-${n}`).toString("base64"), nonce: "bjI=", alg: "aes-256-gcm" },
+      sealedEnv: { keyId: `env-key-${n}`, ciphertext: Buffer.from(`env-${n}`).toString("base64"), nonce: Buffer.from(`env-nonce-${n}`).toString("base64"), alg: "aes-256-gcm" },
+      sealedOAuth: { keyId: `oauth-key-${n}`, ciphertext: Buffer.from(`oauth-${n}`).toString("base64"), nonce: Buffer.from(`oauth-nonce-${n}`).toString("base64"), alg: "aes-256-gcm" },
     }));
     for (const record of records) await repo.upsert(record);
     const kernel = (repo as unknown as { kernel: ContentKernel }).kernel;
-    const observed = t.mock.method(kernel, "query");
+    const query = t.mock.method(kernel, "query");
+    const run = t.mock.method(kernel, "run");
+    const find = t.mock.method(repo.vaultRepo, "find");
+    const list = t.mock.method(repo.vaultRepo, "list");
     const rows = await repo.listByWorkspaceId(WORKSPACE);
-    assert.equal(observed.mock.callCount(), 1);
+    assert.equal(query.mock.callCount(), 1);
+    assert.equal(run.mock.callCount(), 0);
+    assert.equal(find.mock.callCount(), 0);
+    assert.equal(list.mock.callCount(), 0);
     assert.equal(rows.length, 8);
     const payloads = (values: ExternalMcpServerRecord[]) => new Map(values.map(({ serverId, sealedEnv, sealedOAuth }) =>
-      [serverId, [sealedEnv?.ciphertext, sealedOAuth?.ciphertext]]));
+      [serverId, [sealedEnv, sealedOAuth]]));
     assert.deepEqual(payloads(rows), payloads(records));
   });
 

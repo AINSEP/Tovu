@@ -53,6 +53,11 @@ test("admin media list and single-record response report exact stored bytes and 
   assert.equal((await patch.json() as { media: { byteSize: number } }).media.byteSize, 13);
   await deps.blobStore.remove({ storageKey: blob.storageKey });
   assert.equal((await list()).byteSize, null, "missing blob cannot become a fictitious zero-byte file");
+  const patchWithoutBlob = await fetch(`${mediaUrl}/${media.id}`, {
+    method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ caption: "edited after blob removal" }),
+  });
+  assert.equal(patchWithoutBlob.status, 200);
+  assert.equal((await patchWithoutBlob.json() as { media: { byteSize: number | null } }).media.byteSize, null);
   // Absence is not cached forever: a restored original becomes visible without restarting.
   await deps.blobStore.put({ workspaceId: deps.workspaceId, sha256: media.source.sha256, bytes });
   assert.equal((await list()).byteSize, 13);

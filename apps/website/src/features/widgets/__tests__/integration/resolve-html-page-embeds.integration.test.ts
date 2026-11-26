@@ -11,7 +11,6 @@ import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/feature
 import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import type { MediaRecord, TransformDefinitionRecord } from "#src/features/media/index";
-import { MAX_HTML_EMBEDS_PER_PAGE } from "@jini-ai/cms/widgets/html";
 import { WIDGET_PAYLOAD_FIELD } from "@jini-ai/cms/widgets";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { registerCoreResolver, createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
@@ -259,9 +258,9 @@ test("resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same
 
 test("resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE distinct widget refs only resolves the first cap-worth (resource bound, REQ-25-style)", async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const total = MAX_HTML_EMBEDS_PER_PAGE + 10;
+  const expectedCap = 50;
   let html = "";
-  for (let i = 0; i < total; i += 1) {
+  for (let i = 0; i < 60; i += 1) {
     await seedTextWidget(entryRepo, `widget-${i}`, `body ${i}`);
     html += `<div data-embed-config='{"type":"widget","id":"widget-${i}"}'></div>`;
   }
@@ -271,9 +270,9 @@ test("resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE dist
     input: { workspaceId: WORKSPACE_ID, html },
   });
 
-  assert.equal(
-    resolved.get("widget")?.size,
-    MAX_HTML_EMBEDS_PER_PAGE,
+  assert.deepEqual(
+    new Set(resolved.get("widget")?.keys()),
+    new Set(Array.from({ length: expectedCap }, (_, i) => `widget-${i}`)),
     "only the first MAX_HTML_EMBEDS_PER_PAGE distinct refs are resolved"
   );
 });
@@ -662,13 +661,15 @@ test('resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transf
   assert.equal(resolved.get("media")?.has("asset-1"), false);
 });
 
-test('resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant never reaches the transform lookup — shape-rejected before becoming a /m/ URL path segment', async () => {
+test('resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant never reaches the transform lookup — shape-rejected before becoming a /m/ URL path segment', async (t) => {
   const entryRepo = new InMemoryEntryRepo();
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord()] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ name: "evil/../../escape" })] });
+  const host = buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {});
+  const lookup = t.mock.method(host.media, "getLatestTransformDefinition");
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host, entryRepo, mediaRepo, transformRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div data-embed-config='{"type":"media","id":"asset-1","variant":"evil/../../escape"}'></div>`,
@@ -676,6 +677,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant neve
   });
 
   assert.equal(resolved.get("media")?.has("asset-1"), false);
+  assert.equal(lookup.mock.callCount(), 0);
 });
 
 test('resolveHtmlPageEmbeds: with NO mediaRepo/transformRepo dependency supplied, a "media" embed never throws and simply cannot resolve — widget embeds on the same page are unaffected', async () => {
