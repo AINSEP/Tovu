@@ -37,7 +37,7 @@ function buildApp(sink: ReturnType<typeof createLocalAnalyticsSink> = createLoca
   };
   const app = express();
   app.use(express.json());
-  registerAnalyticsIngestRoute({ app, deps });
+  registerAnalyticsIngestRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, sink };
 }
 
@@ -365,7 +365,7 @@ test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct han
   };
   const app = express();
   app.use(express.json());
-  registerAnalyticsIngestRoute({ app, deps });
+  registerAnalyticsIngestRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const handler = extractHandler(app, "/_analytics/e");
 
   let statusCode: number | undefined;

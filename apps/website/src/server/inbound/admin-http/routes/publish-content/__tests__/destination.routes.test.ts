@@ -102,7 +102,7 @@ async function boot(t: test.TestContext, options: HarnessOptions = {}): Promise<
     next();
   });
   const candidate = options.candidate === undefined ? null : options.candidate;
-  registerPublishContentDestinationRoutes({ app, deps, own: { provisioning, findCandidate: async () => candidate } });
+  registerPublishContentDestinationRoutes({ errors: createRouteIncidentReporter().errors, app, deps, own: { provisioning, findCandidate: async () => candidate } });
 
   const url = await startTestServer(app, t);
   return { url, app, repo, httpCalls, provisioningCalls, authorizeCalls };

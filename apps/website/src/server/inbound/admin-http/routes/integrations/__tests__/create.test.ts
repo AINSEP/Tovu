@@ -58,7 +58,7 @@ function buildApp(depsOverrides: Partial<IntegrationsRouteDeps> = {}): express.E
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminIntegrationsCreateRoute({ app, deps });
+  registerAdminIntegrationsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return app;
 }
 

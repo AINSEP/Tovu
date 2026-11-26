@@ -8,6 +8,7 @@ import { fixture, WS } from '#src/server/__tests__/helpers/admin-route-failures'
 import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
 import { registerAdminFormsAuthoringRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import { registerAdminFormsDeleteSubmissionRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 // Capture the real route callback; the response fake also observes bodyless 204 responses.
 async function invoke({ register, deps, params, body, key }: {
@@ -16,7 +17,7 @@ async function invoke({ register, deps, params, body, key }: {
 }, _options = {}) {
   let handler: RequestHandler | undefined;
   const capture = (_path: string, callback: RequestHandler) => { handler = callback; };
-  register({ app: { put: capture, delete: capture } as unknown as Express, deps });
+  register({ errors: createRouteIncidentReporter().errors, app: { put: capture, delete: capture } as unknown as Express, deps });
   assert.ok(handler);
   let status = 200;
   let responseBody: unknown;

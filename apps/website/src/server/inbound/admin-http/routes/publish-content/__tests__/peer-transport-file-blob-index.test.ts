@@ -72,8 +72,8 @@ function buildApp(options: {
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerPublishContentPeerRoutes({ app, deps });
-  registerPublishContentPeerTransportRoutes({ app, deps });
+  registerPublishContentPeerRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerPublishContentPeerTransportRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, repo };
 }
 

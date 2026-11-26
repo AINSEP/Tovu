@@ -123,7 +123,7 @@ test("forms routes answer the engine's status and body for a recognised error, a
   } as unknown as FormsRouteDeps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; next(); });
-  registerAdminFormsAuthoringRoute({ app, deps });
+  registerAdminFormsAuthoringRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const path = "/api/admin/v1/workspaces/ws/forms/form/authoring";
   repo.update = async () => { throw new FormSlugConflictError({ message: "slug occupied", slug: "contact" }); };
   const known = await dispatchJsonRequest(app, "PUT", path, { name: "Edit" });

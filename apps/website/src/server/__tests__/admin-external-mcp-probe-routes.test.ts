@@ -77,7 +77,7 @@ function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps:
   app.use(express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
-  if (options.limiter) registerAdminExternalMcpProbeRoute({ app, deps: probeDeps, limiter: options.limiter });
+  if (options.limiter) registerAdminExternalMcpProbeRoute({ errors: createRouteIncidentReporter().errors, app, deps: probeDeps, limiter: options.limiter });
   createExternalMcpModule(deps).registerRoutes?.({ errors: routeErrors, app });
   return { app, deps };
 }

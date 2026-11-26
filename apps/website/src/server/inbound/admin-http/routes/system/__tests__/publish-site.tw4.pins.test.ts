@@ -80,7 +80,7 @@ test("chosen credential reaches the start unchanged and busy or consent refusal 
     resolve: async input => { chosen.push(input.credentialId!); entered(); await held; return { ok: false, reason: "fixture" }; },
   };
   const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminPublishTriggerRoute({ app, context });
+  registerAdminPublishTriggerRoute({ errors: createRouteIncidentReporter().errors, app, context });
   const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/ws/system/publish`;
   const post = () => fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ target: "fixture", projectName: "site", credentialId: " selected " }) });
   assert.equal((await post()).status, 409); assert.deepEqual(chosen, []);

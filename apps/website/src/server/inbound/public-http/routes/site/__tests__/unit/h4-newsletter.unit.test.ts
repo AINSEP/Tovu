@@ -6,6 +6,7 @@ import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { registerPublicNewsletterConfirmRoute } from '../../newsletter-confirm.js';
 import { registerPublicNewsletterUnsubscribeRoute } from '../../newsletter-unsubscribe.js';
 import type { NewsletterPublicRouteDeps } from '../../newsletter-deps.js';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 for (const [path, register, title, message] of [
   ['/newsletter/confirm', registerPublicNewsletterConfirmRoute, 'Confirmation link invalid', 'This confirmation link is invalid or has expired. Please request a new one.'],
@@ -14,7 +15,7 @@ for (const [path, register, title, message] of [
   for (const [token, query] of [[undefined, ''], [['first', 'second'], '?token=first&token=second'], [{ nested: 'token' }, '?token[nested]=token']] as const) {
     test(`${path} refuses a missing or ambiguous token (${JSON.stringify(token)}) as HTML`, async () => {
       const app = express();
-      register({ app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
+      register({ errors: createRouteIncidentReporter().errors, app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
         newsletterConfirmationTokenRepo: { findByTokenHash: async () => null },
         clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
       }) });
@@ -33,7 +34,7 @@ for (const [path, register, title, message] of [
   test(`${path} redacts unexpected dependency failures in its HTML error page`, async t => {
     const logs = t.mock.method(console, "error", () => {});
     const app = express();
-    register({ app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
+    register({ errors: createRouteIncidentReporter().errors, app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
       newsletterConfirmationTokenRepo: { findByTokenHash: async () => { throw new Error('private database path password=NEWSLETTER_CANARY'); } },
       newsletterKeyring: { derive: async () => { throw new Error('private key path password=NEWSLETTER_CANARY'); } },
       clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },

@@ -36,7 +36,7 @@ function fixture(t: TestContext) {
     res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
     res.locals.adminFailureTracker = { error: (input: unknown) => { reports.push(input); } }; next();
   });
-  registerPublishBackstopRoutes({ app, deps: portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
+  registerPublishBackstopRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => ({ allowed: true, reason: "owner" }), contentKernel: kernel, siteBinding: { dir }, fileBlobIndex: new Map(),
     publishContentPeerRepo: { findById: async () => ({ baseUrl: "https://live.example" }) },
   }) });

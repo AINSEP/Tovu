@@ -27,7 +27,7 @@ async function serve(t: { after: (fn: () => void) => void }, { requireSameOrigin
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner", kind: "user" }; next(); });
   const deps = { workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "ok" }) } as never;
-  mountAdminJsonRoute({ app, spec: guardedRoute(calls, requireSameOrigin), deps, ...(origin ? { origin } : {}) });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: guardedRoute(calls, requireSameOrigin), deps, ...(origin ? { origin } : {}) });
   const server = app.listen(0, "127.0.0.1");
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));

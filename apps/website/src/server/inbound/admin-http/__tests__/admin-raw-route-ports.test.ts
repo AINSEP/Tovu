@@ -37,7 +37,7 @@ function rawSpec(mode: { crash?: boolean } = {}) {
 async function adminServer({ allowed = true, crash = false, sessionOnly = false } = {}) {
   const app = fakeAdminApp();
   const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed, reason: "no_grant" }) };
-  mountAdminRawRoute({ app, spec: rawSpec({ crash }), deps }, sessionOnly ? { sessionCredentialOnly: { message: "Sessions only.", permission: "probe.read" } } : {});
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec({ crash }), deps }, sessionOnly ? { sessionCredentialOnly: { message: "Sessions only.", permission: "probe.read" } } : {});
   const server = await listen({ app });
   const get = (workspace = "local", headers: Record<string, string> = {}) => fetch(`${server.base}/api/admin/v1/workspaces/${workspace}/raw`, { redirect: "manual", headers });
   return { ...server, get };
@@ -80,8 +80,8 @@ test("every Tovu mount binds the request facts; header opt-ins and routeReply pa
   const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
   const echo = (raw: RouteInputContext) => ok({ value: routeReply({ status: 429, body: { facts: raw.facts, headers: raw.headers }, headers: { "Retry-After": "7" } }) });
   const factsSpec = <Context,>(path: string) => ({ ...defineJsonRoute<RouteInputContext, unknown, Deps, Context>({ method: "get", path, parse: (raw) => ok({ value: raw }), handle: async ({ input }) => echo(input) }), requestFacts: true as const, readHeaders: ["x-probe"] });
-  mountAdminJsonRoute({ app, spec: factsSpec<{ id: string }>("/api/admin/v1/workspaces/:workspaceId/facts"), deps });
-  mountPublicJsonRoute({ app, spec: factsSpec<undefined>("/public/facts"), deps, failure: visitor });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: factsSpec<{ id: string }>("/api/admin/v1/workspaces/:workspaceId/facts"), deps });
+  mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: factsSpec<undefined>("/public/facts"), deps, failure: visitor });
   const server = await listen({ app });
   t.after(server.close);
   const host = new URL(server.base).host;
@@ -99,8 +99,8 @@ test("every Tovu mount binds the request facts; header opt-ins and routeReply pa
 test("a public mount answers the workspace 404 only when given a workspaceId, with its static headers", async (t) => {
   const app = fakeAdminApp({ principal: false });
   const spec = { ...defineJsonRoute<void, { ok: true }, object>({ method: "get", path: "/api/p/:workspaceId/probe", parse: () => ok({ value: undefined }), handle: async () => ok({ value: { ok: true as const } }) }), responseHeaders: { "Cache-Control": "no-store" } };
-  mountPublicJsonRoute({ app, spec, deps: {}, failure: visitor, workspaceId: "local" });
-  mountPublicJsonRoute({ app, spec: { ...spec, path: "/api/q/:workspaceId/probe" }, deps: {}, failure: visitor });
+  mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps: {}, failure: visitor, workspaceId: "local" });
+  mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: { ...spec, path: "/api/q/:workspaceId/probe" }, deps: {}, failure: visitor });
   const server = await listen({ app });
   t.after(server.close);
   const foreign = await fetch(`${server.base}/api/p/other/probe`);
@@ -114,8 +114,8 @@ test("a public raw spec writes its bytes, and an unexpected failure is the visit
   const app = fakeAdminApp({ principal: false });
   const xml = defineRawRoute<object>({ method: "get", path: "/sitemap.xml", handle: async () => new Response("<urlset/>", { headers: { "content-type": "application/xml" } }) });
   const broken = defineRawRoute<object>({ method: "get", path: "/broken.xml", handle: async () => { throw new Error("private"); } });
-  mountPublicRawRoute({ app, spec: xml, deps: {}, failure: visitor });
-  mountPublicRawRoute({ app, spec: broken, deps: {}, failure: visitor });
+  mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: xml, deps: {}, failure: visitor });
+  mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: broken, deps: {}, failure: visitor });
   const server = await listen({ app });
   t.after(server.close);
   const ok200 = await fetch(`${server.base}/sitemap.xml`);
@@ -133,9 +133,9 @@ test("a guarded raw spec answers same-origin requests and refuses cross-origin o
   const app = fakeAdminApp();
   const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
   const origin = { originPolicy: { isSameOrigin: ({ req }: { req: { headers: Record<string, unknown> } }) => req.headers.origin === undefined || req.headers.origin === "http://site.test" } };
-  mountAdminRawRoute({ app, spec: { ...rawSpec(), requireSameOrigin: true }, deps, origin });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: { ...rawSpec(), requireSameOrigin: true }, deps, origin });
   const xml = defineRawRoute<object>({ method: "get", path: "/guarded.xml", handle: async () => new Response("<ok/>") }, { requireSameOrigin: true });
-  mountPublicRawRoute({ app, spec: xml, deps: {}, failure: visitor, origin });
+  mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: xml, deps: {}, failure: visitor, origin });
   const server = await listen({ app });
   t.after(server.close);
   for (const [path, status] of [["/api/admin/v1/workspaces/local/raw", 302], ["/guarded.xml", 200]] as const) {
@@ -150,9 +150,9 @@ test("a guarded raw spec answers same-origin requests and refuses cross-origin o
 // first request, which then answers a 500 instead of the server refusing to start.
 test("a guarded raw spec mounted without an origin context is refused at registration", () => {
   const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
-  assert.throws(() => mountAdminRawRoute({ app: fakeAdminApp(), spec: { ...rawSpec(), requireSameOrigin: true }, deps }), /origin context/);
+  assert.throws(() => mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app: fakeAdminApp(), spec: { ...rawSpec(), requireSameOrigin: true }, deps }), /origin context/);
   const xml = defineRawRoute<object>({ method: "get", path: "/guarded.xml", handle: async () => new Response("<ok/>") }, { requireSameOrigin: true });
-  assert.throws(() => mountPublicRawRoute({ app: fakeAdminApp(), spec: xml, deps: {}, failure: visitor }), /origin context/);
+  assert.throws(() => mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app: fakeAdminApp(), spec: xml, deps: {}, failure: visitor }), /origin context/);
 });
 
 /** The Express layer names registered for `path`, in registration order (what the route-table pin records). */
@@ -164,7 +164,7 @@ function layerNames({ app, path }: { app: ReturnType<typeof fakeAdminApp>; path:
 test("a raw mount registers one anonymous handler unless it opts into a handlerName", () => {
   const plain = fakeAdminApp();
   const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
-  mountAdminRawRoute({ app: plain, spec: rawSpec(), deps });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app: plain, spec: rawSpec(), deps });
   assert.deepEqual(layerNames({ app: plain, path: adminPath }), ["<anonymous>"]);
 });
 
@@ -172,7 +172,7 @@ test("a raw mount registers one anonymous handler unless it opts into a handlerN
 test("handlerName gives the one registered handler that function name (the route-table pin's installHandler) and it still answers", async (t) => {
   const app = fakeAdminApp();
   const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
-  mountAdminRawRoute({ app, spec: rawSpec(), deps, handlerName: "installHandler" });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec(), deps, handlerName: "installHandler" });
   assert.deepEqual(layerNames({ app, path: adminPath }), ["installHandler"]);
   const server = await listen({ app });
   t.after(server.close);
@@ -190,9 +190,9 @@ test("public mounts register route-scoped bodyParsers ahead of the handler, and 
   const rawPlain = defineRawRoute<object>({ method: "post", path: "/hooks/plain", handle: async ({ raw }) => new Response(bodyLength(raw.body)) });
   const jsonEcho = defineJsonRoute<string, { seen: string }, object>({ method: "post", path: "/hooks/json", parse: (raw) => ok({ value: bodyLength(raw.body) }), handle: async ({ input }) => ok({ value: { seen: input } }) });
   const bodyParsers = [express.raw({ type: () => true, limit: "1kb" })];
-  mountPublicRawRoute({ app, spec: rawEcho, deps: {}, failure: visitor }, { bodyParsers });
-  mountPublicRawRoute({ app, spec: rawPlain, deps: {}, failure: visitor });
-  mountPublicJsonRoute({ app, spec: jsonEcho, deps: {}, failure: visitor }, { bodyParsers });
+  mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawEcho, deps: {}, failure: visitor }, { bodyParsers });
+  mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawPlain, deps: {}, failure: visitor });
+  mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: jsonEcho, deps: {}, failure: visitor }, { bodyParsers });
   const server = await listen({ app });
   t.after(server.close);
   const post = async (path: string, body?: string) => (await fetch(`${server.base}${path}`, { method: "POST", headers: { "content-type": "text/odd" }, ...(body === undefined ? {} : { body }) })).text();

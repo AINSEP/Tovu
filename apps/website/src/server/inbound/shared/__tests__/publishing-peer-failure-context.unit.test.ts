@@ -31,7 +31,7 @@ for (const row of cases) {
         if (authenticated) res.locals.principal = { id: "owner" };
         next();
       });
-      registerPublishContentPeerRoutes({ app, deps: { workspaceId: "ws", authorize: async () => {
+      registerPublishContentPeerRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => {
         throw new Error(`PRIVATE_BACKEND password=${CANARY}`);
       } } as never });
       const baseUrl = await startTestServer(app, t);

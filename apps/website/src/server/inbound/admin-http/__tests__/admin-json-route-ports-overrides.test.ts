@@ -32,7 +32,7 @@ async function serve(options: AdminJsonRouteMountOptions & { allowed?: boolean; 
       return ok({ value: { done: true } });
     },
   });
-  mountAdminJsonRoute({ app, spec, deps: { workspaceId: "local", authorize } as never }, mount);
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps: { workspaceId: "local", authorize } as never }, mount);
   const server = await listen({ app });
   return { ...probe, ...server, post: (headers: Record<string, string> = {}) => server.call(url, { method: "POST", body: "{}", headers }) };
 }

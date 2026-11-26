@@ -50,7 +50,7 @@ const ids: IdGeneratorPort = { newId: () => "id-1" as UUID };
 async function startTestApp(deps: AnalyticsIngestRouteDeps) {
   const app = express();
   app.use(express.json());
-  registerAnalyticsIngestRoute({ app, deps });
+  registerAnalyticsIngestRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   const server = createServer(app);
   server.listen(0);

@@ -33,7 +33,7 @@ async function serve(options: AdminJsonRouteMountOptions & { principal?: boolean
       return ok({ value: { done: true } });
     },
   }, requireSameOrigin ? { requireSameOrigin } : {});
-  mountAdminJsonRoute({ app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never }, mount);
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never }, mount);
   const server = await listen({ app });
   // Raw text, so a `sendStatus` reply's plain-text body is visible as written.
   const post = async (workspaceId: string, headers: Record<string, string> = {}) => {
@@ -148,7 +148,7 @@ test("mountAdminRawRoute takes the same preflight, ahead of the workspace 404", 
   const seen: unknown[] = [];
   const app = fakeAdminApp();
   const spec = defineRawRoute<object, { id: string }>({ method: "get", path, handle: async () => new Response("raw") });
-  mountAdminRawRoute({ app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never }, { preflight: probePreflight(seen) });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never }, { preflight: probePreflight(seen) });
   const server = await listen({ app });
   t.after(server.close);
   const get = (workspaceId: string, origin: string) => fetch(`${server.base}/api/admin/v1/workspaces/${workspaceId}/probe`, { headers: { "x-probe-origin": origin } });

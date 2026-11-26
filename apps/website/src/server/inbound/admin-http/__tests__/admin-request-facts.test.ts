@@ -26,7 +26,7 @@ async function serve({ gate, arrived, authorization }: { gate?: Promise<void>; a
     },
   });
   const deps: FactsDeps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }), requestFacts: adminRequestFactsFor, gate, arrived };
-  mountAdminJsonRoute({ app, spec, deps }, authorization ? { authorization } : {});
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps }, authorization ? { authorization } : {});
   const server = await listen({ app });
   return { ...server, get: (headers: Record<string, string>) => server.call("/api/admin/v1/workspaces/local/facts", { headers }) };
 }
@@ -80,7 +80,7 @@ test("the grant-only read needs an authenticated context but no credential kind"
     method: "get", path, parse: () => ok({ value: undefined }),
     handle: async ({ context }) => ok({ value: { grant: adminPublishTrustFor({ context }) } }),
   });
-  mountAdminJsonRoute({ app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }), requestFacts: adminRequestFactsFor } });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }), requestFacts: adminRequestFactsFor } });
   const server = await listen({ app });
   t.after(server.close);
   const withGrant = await server.call("/api/admin/v1/workspaces/local/facts", { headers: { "x-grant": "1" } });

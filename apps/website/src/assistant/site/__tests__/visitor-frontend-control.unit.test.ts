@@ -28,7 +28,7 @@ function policyFixture() {
   });
   frontend.mount({ app });
   let deliveries = 0;
-  registerSiteAssistantConfirm({ app, ports: {
+  registerSiteAssistantConfirm({ errors: createRouteIncidentReporter().errors, app, ports: {
     confirmations: { request: async () => false, confirm: async () => { deliveries++; return true; } },
     enabled: async () => true, allowsOrigin: async ({ origin }) => origin === 'https://public.test',
     limiter: { check: async () => ({ allowed: true }) }, reportError: ({ error }) => { throw error; },

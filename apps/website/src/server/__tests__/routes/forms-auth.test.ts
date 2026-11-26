@@ -30,13 +30,13 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminFormsListRoute({ app, deps });
-  registerAdminFormsCreateRoute({ app, deps });
-  registerAdminFormsGetRoute({ app, deps });
-  registerAdminFormsUpdateRoute({ app, deps });
-  registerAdminFormsListSubmissionsRoute({ app, deps });
-  registerAdminFormsGetSubmissionRoute({ app, deps });
-  registerAdminFormsDeleteSubmissionRoute({ app, deps });
+  registerAdminFormsListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsGetRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsUpdateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsListSubmissionsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsGetSubmissionRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsDeleteSubmissionRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 

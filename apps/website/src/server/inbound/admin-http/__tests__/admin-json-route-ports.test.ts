@@ -62,8 +62,8 @@ async function serve(options: ServeOptions = {}) {
     ...(options.forwardRejection ? { forwardRejection: true } : {}),
     ...(options.authorizationByPermission ? { authorizationByPermission: options.authorizationByPermission } : {}),
   };
-  mountAdminJsonRoute({ app, spec: probeRoute(calls), deps: { probe: true, workspaceId: "local", authorize } as never }, mountOptions);
-  mountPublicJsonRoute({ app, spec: defineJsonRoute<void, void, object>({ method: "get", path: "/public/probe",
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: probeRoute(calls), deps: { probe: true, workspaceId: "local", authorize } as never }, mountOptions);
+  mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: defineJsonRoute<void, void, object>({ method: "get", path: "/public/probe",
     parse: () => ok({ value: undefined }), handle: async () => { throw new Error("private"); } }), deps: {},
   failure: { operation: "probe:public", visitorError: "The site couldn’t load the probe." } });
   const server = app.listen(0);
@@ -112,7 +112,7 @@ test("a deployment-level path without :workspaceId never runs the workspace guar
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "caller", kind: "user" }; next(); });
-  mountAdminJsonRoute({ app, spec: defineJsonRoute<void, { ok: true }, object, { id: string }>({ method: "get", path: "/api/admin/v1/deployment-probe",
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: defineJsonRoute<void, { ok: true }, object, { id: string }>({ method: "get", path: "/api/admin/v1/deployment-probe",
     parse: () => ok({ value: undefined }), handle: async () => ok({ value: { ok: true as const } }) }),
   deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never });
   const server = app.listen(0);

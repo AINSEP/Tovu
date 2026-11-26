@@ -36,7 +36,7 @@ app.use((_request, response, next) => {
 });
 registerAdminExternalMcpPutRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 registerAdminExternalMcpListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
-registerAdminExternalMcpProbeRoute({ app, deps, limiter: createExternalMcpProbeLimiter(deps) });
+registerAdminExternalMcpProbeRoute({ errors: createRouteIncidentReporter().errors, app, deps, limiter: createExternalMcpProbeLimiter(deps) });
 const server = createServer(app);
 server.listen(0, '127.0.0.1', () => {
   const address = server.address();
