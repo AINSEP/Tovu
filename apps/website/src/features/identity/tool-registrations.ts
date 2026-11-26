@@ -1,6 +1,7 @@
 import { buildGatedIdentityRegistrations as buildJiniGatedIdentityRegistrations, type IdentityToolDeps } from "@jini-ai/user-management/identity/tool-registrations";
-import { identityDerivedRisk, assertCallerHasAnyPermission } from "@jini-ai/user-management/server";
-import { assertUserAccountAction } from "@jini-ai/user-management/identity/delete-user-service";
+import { buildIdentityRegistrations, identityDerivedRisk, assertCallerHasAnyPermission, normalizeUsername, parseIdentityToolInput } from "@jini-ai/user-management/server";
+import { assertUserAccountAction, SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
+import { createUsernameChangePort } from "@jini-ai/user-management/identity/username-change-ports";
 import type { ToolContributor, ToolRegistration } from "@jini-ai/core";
 import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { Clock } from "@jini-ai/core/primitives";
@@ -14,7 +15,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 /** Tovu keeps its ISO clock ABI at this adapter; shared service/rationale live in user-management/server. */
-export type TovuIdentityToolDeps = Omit<IdentityToolDeps, "clock" | "assertUserAccountAction" | "assertCallerHasAnyPermission" | "defineSecretCardTool" | "askThenReport" | "secretCardOptions" | "secretField" | "formApp" | "outcomeApp" | "notConfirmedResult" | "approvalToolHandler"> & {
+export type TovuIdentityToolDeps = Omit<IdentityToolDeps, "clock" | "assertUserAccountAction" | "assertCallerHasAnyPermission" | "defineSecretCardTool" | "askThenReport" | "secretCardOptions" | "secretField" | "formApp" | "outcomeApp" | "notConfirmedResult" | "approvalToolHandler" | "buildIdentityRegistrations" | "identityDerivedRisk" | "normalizeUsername" | "parseIdentityToolInput" | "createUsernameChangePort" | "SelfDeleteError"> & {
   clock: Clock | { nowIso(): string };
   outbox: OutboxPort;
   isInTrash: (required: { principalId: string }, optional?: Record<string, never>) => Promise<boolean>;
@@ -35,6 +36,7 @@ export function buildGatedIdentityRegistrations(
     formApp: { appName: "tovu-identity-user-create", appVersion: "1" },
     outcomeApp: { appName: "tovu-identity-user-create-outcome", appVersion: "1" },
     notConfirmedResult, approvalToolHandler,
+    buildIdentityRegistrations, identityDerivedRisk, normalizeUsername, parseIdentityToolInput, createUsernameChangePort, SelfDeleteError,
   }, surfaces);
 }
 

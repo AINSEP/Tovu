@@ -1,6 +1,8 @@
 import { buildPublishContentRegistrations as build } from "@jini-ai/cms/publish/content/tool-registrations";
 import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan } from "#src/contracts/core/gated-mutations/gateway";
 import { publishContentDerivedRisk } from "@jini-ai/cms/publish/content/tool-helpers";
+import { buildPublishContentImportHooks, PublishContentBundleNotFoundError } from "@jini-ai/cms/publish/content/gated-hooks";
+import { connectDestination, disconnectDestination, PublishTrustConnectError } from "@jini-ai/cms/publish/trust/connect";
 import type { PublishContentToolDeps } from "./tool-deps.js";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
@@ -23,7 +25,8 @@ const TOVU_GATEWAY = { plan: gatewayPlan, confirm: gatewayConfirm, execute: gate
 export function buildPublishContentRegistrations({ routeDeps, surfaces }: { routeDeps: PublishContentToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}) {
   return build({ routeDeps: { ...routeDeps, catalog: publishContentAgentToolCatalog, gateway: TOVU_GATEWAY, readinessCopy: PUBLISH_READINESS_COPY,
     listPublishContentContributors, buildPublishContentCatalog, planHashOf, resolveActorClassIdentity, publishTrustProtocol: PUBLISH_TRUST_WIRE,
-    humanConfirmedToolHandler, refuseUnexpectedKeys, isPluginHookFailedError: error => error instanceof PluginHookFailedError,
+    humanConfirmedToolHandler, refuseUnexpectedKeys, buildPublishContentImportHooks, PublishContentBundleNotFoundError,
+    connectDestination, disconnectDestination, PublishTrustConnectError, isPluginHookFailedError: error => error instanceof PluginHookFailedError,
     toModelFacingPluginHookError: ({ err }) => toModelFacingPluginHookError({ err: err as PluginHookFailedError }),
     pullAndStageFromPeer: ({ input }) => pullAndStageFromPeer({ deps: routeDeps, input }),
     publishContentFromTool: ({ principalId }, input) => publishContentFromTool({ deps: routeDeps, principalId }, input),

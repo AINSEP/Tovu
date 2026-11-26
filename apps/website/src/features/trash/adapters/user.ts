@@ -1,4 +1,4 @@
-import { bindKernelUserTrashAdapter } from "@jini-ai/user-management/identity/sql/user-trash-adapter";
+import { bindKernelUserTrashAdapter } from "@jini-ai/user-management/identity/sql/kernel-user-trash-store";
 import { lazyKernel } from "@jini-ai/cms/trash/site/adapters/marker-sql";
 
 export const USER_ENTITY_TYPE = "user";

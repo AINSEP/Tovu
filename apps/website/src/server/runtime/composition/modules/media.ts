@@ -215,7 +215,7 @@ export function registerAdminMediaReplaceRoute(
     mediaRepo: deps.mediaRepo,
     ...UPLOAD_CAPS,
     maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES,
-    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { ...UPLOAD_CAPS, videoCodecProbe }),
+    replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps: { ...deps, createHash }, ...input }, { ...UPLOAD_CAPS, videoCodecProbe }),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ ...input, resolvePublicUrls: ({ media }) => resolveMediaPublicUrls({ deps, assets: media }), resolveByteSizes: ({ media }) => resolveMediaByteSizes({ deps, media }) }),
   };
   mountAdminJsonRoute({ errors, app, spec: mediaReplaceRoute, deps: replaceDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE });
@@ -251,7 +251,7 @@ export function registerAdminMediaUploadRoute(
   { videoImport }: { videoImport?: VideoImportOptions } = {},
 ): void {
   const uploadPorts = {
-    clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+    createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
     renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps),
   };
   // The owner's video import size rule (a video over the import size is converted after it is stored, the original stays)
@@ -425,7 +425,7 @@ export function registerAdminMediaImportUrlRoute(
   optional: { logEgressRefusal?: (line: string) => void; videoImport?: VideoImportOptions } = {},
 ): void {
   const convertingUpload = createConvertingUploader({
-    uploadDeps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+    uploadDeps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     caps: UPLOAD_CAPS, mediaRepo: deps.mediaRepo, clock: deps.clock,
   }, { video: optional.videoImport });
   mountAdminJsonRoute({ errors, app, spec: mediaImportUrlRoute, deps: {

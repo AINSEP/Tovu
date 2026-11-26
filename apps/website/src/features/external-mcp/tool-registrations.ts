@@ -11,10 +11,11 @@ import { assertCredentialFreeField } from '../../contracts/core/credential-token
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { approvalToolHandler } from '../../contracts/core/human-confirm.js';
+import { externalMcpAccessSnapshot, ExternalMcpValidationError, applyExternalMcpAccess, parseArgs, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants } from '@jini-ai/mcp/federation/hosted';
 import { askThenReport } from '@jini-ai/daemon/surface-exchanges';
 import { listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from './external-mcp-store.js';
 import { notifyExternalMcpRosterChanged } from '../../assistant/mcp-services.js';
-import { externalMcpAgentToolCatalog } from './external-mcp-host-copy.js';
+import { externalMcpAgentToolCatalog, EXTERNAL_MCP_HOST_COPY } from './external-mcp-host-copy.js';
 
 /** Mirrors `oauth-callback-url.ts`'s own constant — restated, not imported. See this file's header
  *  ("no live HTTP request") for why. Both must keep naming the SAME path: `mcp-federation/registrations.ts`'s
@@ -70,6 +71,18 @@ function resolveExternalMcpOAuthRedirectUri({ serverId, derivedPublicOrigin }: {
 }
 
 
+const settings = EXTERNAL_MCP_HOST_COPY.settingsLocation;
+/** The access-review collaborators and this host's refusal copy the external MCP save/access tools are bound with. */
+const externalMcpAccessPorts = {
+  externalMcpAccessSnapshot, ExternalMcpValidationError, applyExternalMcpAccess, parseArgs,
+  parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants,
+  unverifiedAccessMessage: ({ serverId }: { serverId: string }) => `The '${serverId}' connection has no verified tool listing for this proposed access. Open ${settings}, turn on this connection there if it is off, then choose its allowed tools in Tools after it connects. Nothing was changed.`,
+  unverifiedConnectionMessage: `This new connection has no verified tool listing. Save the connection with no allowed tools, then choose its allowed tools in ${settings} after it connects. Nothing was saved.`,
+  staleApprovalMessage: `This connection or your access approval is no longer current. Review the connection and its allowed tools in ${settings}, then request the card again. Nothing was saved.`,
+  oauthUnavailableMessage: ({ serverId }: { serverId: string }) => `external_mcp_oauth_connect: this execution context has no OAuth service wired, so an authorization cannot be started here. Ask the operator to connect '${serverId}' from ${settings} instead.`,
+  accessErrorCode: 'EXTERNAL_MCP',
+};
+
 export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, surfaces: ChatDeleteSurfaceDeps) {
   return buildWithPorts({ ...routeDeps, catalog: externalMcpAgentToolCatalog, requireToolPermission, resolveOperatorLocale,
     assertCredentialFreeField, ForbiddenError, defineSecretCardTool, askThenReport, appName: 'tovu-external-mcp-save',
@@ -79,7 +92,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
     } },
     resolveExternalMcpOAuthRedirectUri, saveExternalMcpServer, listExternalMcpServerViews, readEnabledExternalMcpConfigs,
     notifyExternalMcpRosterChanged, credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage,
-    issueCredentialSetup, approvalToolHandler,
+    issueCredentialSetup, approvalToolHandler, ...externalMcpAccessPorts,
   }, surfaces);
 }
 

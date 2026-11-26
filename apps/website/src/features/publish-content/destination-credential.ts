@@ -1,4 +1,5 @@
-import { openPublishSession, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
+import { openPublishSession } from "@jini-ai/cms/publish/trust/handshake-client";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-error";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";

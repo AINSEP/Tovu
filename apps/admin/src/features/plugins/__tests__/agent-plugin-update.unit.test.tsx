@@ -12,7 +12,8 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { AgentPlugins, AgentPluginUpdateSlot } from "@jini-ai/admin/screens/plugins/AgentPlugins";
+import { AgentPlugins } from "@jini-ai/admin/screens/plugins/AgentPlugins";
+import { AgentPluginUpdateSlot } from "@jini-ai/admin/screens/plugins/AgentPluginUpdateControl";
 import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
 import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";

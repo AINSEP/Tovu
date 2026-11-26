@@ -144,8 +144,8 @@ export const deps: ExternalMcpSettingsPanelProps["deps"] = {
   isBuiltInExternalMcpSource, externalMcpNeedsSignIn,
   resolveExternalMcpEffectiveTransport, resolveExternalMcpEffectiveAuthMode,
   parseSavedToolNames, grantWriteFieldValue, describeDriftHeadline,
-  buildExternalMcpRemoveConfirmCopy, EXTERNAL_MCP_DRIFT_COPY,
-  EXTERNAL_MCP_PICKER_COLLABORATORS, EXTERNAL_MCP_PRODUCT_VARS,
+  buildExternalMcpRemoveConfirmCopy, driftCopy: EXTERNAL_MCP_DRIFT_COPY,
+  pickerCollaborators: EXTERNAL_MCP_PICKER_COLLABORATORS, EXTERNAL_MCP_PRODUCT_VARS,
   EXTERNAL_MCP_ADD_FORM_HANDLE,
 };
 

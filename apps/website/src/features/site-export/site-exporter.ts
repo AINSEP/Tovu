@@ -57,7 +57,7 @@ export interface ExportSiteOptions {
 
 
 export function exportSite({ routeDeps, ...options }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
-  return runExport({ ...options, routeDeps: { ...routeDeps, trackFetch, preflightCopy: EXPORT_PREFLIGHT_COPY,
+  return runExport({ ...options, routeDeps: { ...routeDeps, fetch: globalThis.fetch, trackFetch, preflightCopy: EXPORT_PREFLIGHT_COPY,
     buildPreviewExportManifest: ({ routeDeps: supplied }, optional) => buildPreviewExportManifest({ routeDeps: supplied as EngineRouteDeps & ExportSiteRouteDeps }, optional),
     bindExportMediaUrls: () => bindExportMediaUrls({ deps: routeDeps }),
     themeLayout: { resolve: ({ theme }) => ({ pagesDir: resolveThemeLayout({}, { apiVersion: theme.apiVersion as 2 | undefined }).pagesDir, assetUrlPrefix: `/theme-assets/${theme.id}/` }) },

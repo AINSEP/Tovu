@@ -18,6 +18,7 @@ import {
 } from "../custom-credentials/index.js";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage } from "@jini-ai/integrations/custom-credentials/write-files-validation";
+import { findReservedPath } from "@jini-ai/devops/source-control";
 import { validateRepositoryTarget } from "../custom-credentials/repository-target.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
@@ -109,7 +110,7 @@ const CREDENTIAL_MESSAGES = {
 const DEFAULT_COMMIT_MESSAGE = ({ siteName, createdAt }: { siteName: string; createdAt: string }) => `Tovu site backup: ${siteName} (${createdAt})`;
 
 export const { planSiteBackup, pushSiteBackup } = createSiteBackupService<SiteBackupSources, SiteBackupPlanContent, SiteBackupToolDeps>({
-  deps: { CustomCredentialValidationError, normalizeWriteFilePath, validateBranch, validateCommitMessage, buildAuthorizationHeader },
+  deps: { findReservedPath, CustomCredentialValidationError, normalizeWriteFilePath, validateBranch, validateCommitMessage, buildAuthorizationHeader },
   siteBackupSanitize: sanitizeShareDatabase,
   siteBackupPlanStore: DEFAULT_PLAN_STORE,
   createSiteBackupPushJobs: () => new SiteBackupPushJobs<PushResult>({}),

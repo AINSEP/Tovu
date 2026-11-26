@@ -9,7 +9,8 @@ import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { bindSiteConsentService } from '../site-consent.js';
 import { registerAdminConsentRoutes } from '../modules/consent.js';
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
-import { registerSiteImportRoutes } from "@jini-ai/cms/admin-http/routes/system/site-imports";
+import { registerSiteImportRoutes, type SiteImportIncident } from "@jini-ai/cms/admin-http/routes/system/site-imports";
+import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { ImportHistoryUnavailable, mapSqliteError } from "@jini-ai/devops/backup/site/import-index/errors";
 import { parseSiteImportInput } from "@jini-ai/devops/backup/site/import-backend";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
@@ -306,6 +307,17 @@ const UPLOAD_IDLE_MS = 30_000;
  * `uploadDeadlineMs`/`uploadIdleMs` default to the production stall limits; tests shorten them.
  * @complexity O(body bytes), bounded raw parsing AFTER authorization and concurrency admission.
  */
+/** Site import failures carry any HTTP status; the admin failure writer answers only 503/507 itself, so any
+ *  other status falls back to its default internal-error answer rather than being written verbatim. */
+function siteImportFailureOptions(
+  { options }: { options: SiteImportIncident | { code: string; message: string; status: number; field: "message" } },
+  _optional: Record<string, never> = {},
+): FailureOptions {
+  if (!("status" in options)) return options;
+  const { status, ...rest } = options;
+  return status === 503 || status === 507 ? { ...rest, status } : rest;
+}
+
 export function registerAdminSiteImportRoutes(
   { app, deps, errors }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend" | "tracker">; errors: RouteErrorPorts },
   { uploadDeadlineMs = UPLOAD_DEADLINE_MS, uploadIdleMs = UPLOAD_IDLE_MS }: { uploadDeadlineMs?: number; uploadIdleMs?: number } = {},
@@ -328,7 +340,7 @@ export function registerAdminSiteImportRoutes(
       authorize: params => authorizeOrRespond({ res, authorize: deps.authorize, params }),
       requireSession: options => rejectUnlessSessionCredential({ res, ...options }),
       noStore: headers => { res.set(headers); }, json: (body, status) => res.status(status).json(body),
-      failure: (error, options) => sendAdminFailure({ res, error, reporter: errors.reporter }, options),
+      failure: (error, options) => sendAdminFailure({ res, error, reporter: errors.reporter }, siteImportFailureOptions({ options })),
       body: () => req.body, query: () => req.query, importId: () => String(req.params.importId),
       origin: () => req.get("origin"), protocol: () => req.protocol, host: () => req.get("host"),
       parseZip: options => new Promise<void>((resolve, reject) => express.raw(options)(req, res, error => error ? reject(error) : resolve())),

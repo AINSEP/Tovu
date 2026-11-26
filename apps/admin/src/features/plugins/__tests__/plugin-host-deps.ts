@@ -1,4 +1,4 @@
-import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
+import { folderZipPort as folderZip } from "../folder-zip-port";
 import { tPlugins } from "../../../lib/i18n-common";
 import { defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
 import { isApiError, pluginRules, agentPluginDisplayName, updatableAgentPluginDigest, pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl, providerSettingRequiredHere } from "../rules";

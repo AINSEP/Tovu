@@ -160,8 +160,9 @@ export function memoryPublishExportDeps(required: MemoryRootContext, _optional =
 export function memoryDeployRegistryDeps(_required: MemoryRootContext, _optional = {}) {
   return {
     // 2026-08-16 rework — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqlitePublishHistoryStore`;
-    // see `routes/types.ts`'s `publishHistoryStore` doc.
-    publishHistoryStore: new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }),
+    // see `routes/types.ts`'s `publishHistoryStore` doc. `peerKind` is the history kind the peer transport
+    // records (`features/publish-content/peer-transport-binding.ts`), the one the SQL store also replays.
+    publishHistoryStore: new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit }),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
     // `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so a test can still exercise
     // `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.

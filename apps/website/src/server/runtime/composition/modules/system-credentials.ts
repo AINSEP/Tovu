@@ -14,7 +14,8 @@ import type { PublishCredentialView } from "@jini-ai/cms/admin-http/routes/syste
 import {
   sourceControlCreateRoute, sourceControlDeleteRoute, sourceControlListRoute, sourceControlProvidersRoute, sourceControlUpdateRoute,
 } from "@jini-ai/cms/admin-http/routes/system/source-control-credentials";
-import { deleteSourceControlCredential, listSourceControlCredentials, SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError, SourceControlCredentialSecretStoreUnconfiguredError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { deleteSourceControlCredential, listSourceControlCredentials, SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError, SourceControlCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/source-control/site/store";
+import { SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store.validation";
 import { createSourceControlCredential, updateSourceControlCredential } from "#src/features/source-control/index";
 import {
   createCustomCredential,
@@ -30,7 +31,8 @@ import {
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
 import { listPublishCredentials, createPublishCredential, invalidatePublishCredentialCompatibility, describeCredential as describePublishCredential, updatePublishCredential } from "#src/features/deployments/publish-credentials/store";
-import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, PublishCredentialValidationError, type UpdatePublishCredentialInput } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, type UpdatePublishCredentialInput } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store-validation";
 import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "@jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler";
 import { canYieldAccountLabel, type PublishCredentialVerificationResult } from "@jini-ai/devops/deploy/site/static-publish/verify";

@@ -6,7 +6,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import type { PostTemplateDeps } from "./template-options.js";
 import { POST_TOOL_HOST } from "./post-tool-policy.js";
 
-export type PostToolDeps = Omit<Deps, "reservedSegments" | "postPublicPath" | "isDeepStrictEqual" | "contentReadPermission" | "contentWritePermission" | "assistantActorPluginId" | "catalog" | "executeCommand" | "processOutbox" | "withPluginHookRefusals" | "postToolViewDeps" | "headerNavigationView" | "readPostTemplateOptions" | "findMediaByIdOrSlug" | "featuredImageRefusals"> & PostTemplateDeps;
+export type PostToolDeps = Omit<Deps, "reservedSegments" | "postPublicPath" | "isDeepStrictEqual" | "copyBodyJsonWithFreshEmbedPlacements" | "contentPostReadToolId" | "contentReadPermission" | "contentWritePermission" | "assistantActorPluginId" | "catalog" | "executeCommand" | "processOutbox" | "withPluginHookRefusals" | "postToolViewDeps" | "headerNavigationView" | "readPostTemplateOptions" | "findMediaByIdOrSlug" | "featuredImageRefusals"> & PostTemplateDeps;
 
 export const buildPostRegistrations = (routeDeps: PostToolDeps, surfaces: AssistantSurfaceDeps) =>
   build({ ...routeDeps, ...POST_TOOL_HOST }, surfaces);

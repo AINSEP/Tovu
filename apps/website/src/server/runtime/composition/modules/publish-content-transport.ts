@@ -16,7 +16,7 @@ import { listPublishContentContributors } from "#src/features/publish-content/ty
 import { connectDestination, disconnectDestination, PublishTrustConnectError } from "@jini-ai/cms/publish/trust/connect";
 import { nowIso } from "@jini-ai/core/primitives";
 import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
-import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-error";
 import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/publish-content/deps";

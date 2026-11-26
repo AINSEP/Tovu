@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/permissions";
 import { registerPageHtmlReverter } from "@jini-ai/cms/pages/html-reverter";
 import { memoryTrashCoreDeps, memoryTrashRemoverDeps, memoryTrashSweepDeps, memoryPostChatDeps, memorySettingsSeoDeps } from "./trash-and-content.js";
@@ -29,6 +30,8 @@ export function assembleMemoryRouteDeps(required: MemoryRootContext, _optional =
     ...memoryPublishExportDeps(required),
     ...memoryDeployRegistryDeps(required),
     ...memoryClientsAndSiteContextDeps(required),
+    // The hash every byte-storing path (media upload/replace, form files, the assistant's media tools) computes.
+    createHash,
   };
   // P1-T2.T: same page-store factory as the assistant write path, once registry and factory both exist.
   registerPageHtmlReverter({ editPermission: PAGES_EDIT_HTML_PERMISSION, registry: deps.revertRegistry, store: deps.pagesHtmlStore, postRepo: deps.postRepo });

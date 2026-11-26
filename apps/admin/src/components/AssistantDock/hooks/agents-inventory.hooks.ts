@@ -1,4 +1,4 @@
-import { recordAgents as jiniRecordAgents, fetchAgents as jiniFetchAgents, replaceAgents as jiniReplaceAgents, rescanAgentsInto as jiniRescanAgentsInto, useAgentsLoader as jiniUseAgentsLoader, readDaemonOnline as jiniReadDaemonOnline, type AgentsLoader } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
+import { getResumeCapableAgentIds as jiniGetResumeCapableAgentIds, resetResumeCapableAgentIds as jiniResetResumeCapableAgentIds, recordAgents as jiniRecordAgents, fetchAgents as jiniFetchAgents, replaceAgents as jiniReplaceAgents, rescanAgentsInto as jiniRescanAgentsInto, useAgentsLoader as jiniUseAgentsLoader, readDaemonOnline as jiniReadDaemonOnline, type AgentsLoader } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
 import { type ChatPaneAgent } from "@jini-ai/chat/react";
 
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
@@ -18,6 +18,25 @@ import type { CachedLoader } from "@jini-ai/core/fetch";
 const AGENTS_URL = "/api/agents";
 const AGENTS_FETCH_TIMEOUT_MS = 60_000;
 
+/** This admin's resume-capable agentId set: what the inventory writes below record and what the
+ *  assistant transport reads through {@link getResumeCapableAgentIds}. One instance per admin page,
+ *  starting empty (every agent fails open to the full transcript until `/api/agents` answers). */
+const resumeCapableAgentIds: { current: ReadonlySet<string> } = { current: new Set() };
+
+/** The transport's `getResumeCapableAgentIds` option: the CURRENT set, read fresh per call. */
+export function getResumeCapableAgentIds(
+  _required: Record<string, never> = {}, _options: Record<string, never> = {},
+): ReadonlySet<string> {
+  return jiniGetResumeCapableAgentIds({ resumeCapableAgentIds });
+}
+
+/** Test seam: empties the set so a suite asserting on it starts cold. */
+export function resetResumeCapableAgentIds(
+  _required: Record<string, never> = {}, _options: Record<string, never> = {},
+): void {
+  jiniResetResumeCapableAgentIds({ resumeCapableAgentIds });
+}
+
 /** Records one fresh inventory everywhere that reads it: the resume-capable set the transport
  *  consults, and the localStorage placeholder for the next cold load. Called on what the cache
  *  settles on, not inside {@link fetchAgents}: a GET that was in flight across a rescan answers
@@ -25,7 +44,7 @@ const AGENTS_FETCH_TIMEOUT_MS = 60_000;
 export function recordAgents<T extends readonly ChatPaneAgent[]>(
   { agents }: { agents: T }, _options: Record<string, never> = {},
 ): T {
-  return jiniRecordAgents({ agents, writeAgentsSnapshot });
+  return jiniRecordAgents({ agents, writeAgentsSnapshot, resumeCapableAgentIds });
 }
 
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
@@ -34,7 +53,7 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
 
 /** Writes a fresh inventory into the cache and everything that reads it. */
 export function replaceAgents({ loader, agents }: { loader: CachedLoader<ChatPaneAgent[]>; agents: ChatPaneAgent[] }, _options: Record<string, never> = {}): ChatPaneAgent[] {
-  return jiniReplaceAgents({ loader, agents, clock: Date.now, writeAgentsSnapshot });
+  return jiniReplaceAgents({ loader, agents, clock: Date.now, writeAgentsSnapshot, resumeCapableAgentIds });
 }
 
 /** A rescan: the POST's answer replaces the cached list; when the POST gives no usable answer, a
@@ -43,7 +62,7 @@ export function replaceAgents({ loader, agents }: { loader: CachedLoader<ChatPan
 export async function rescanAgentsInto(
   { loader }: { loader: CachedLoader<ChatPaneAgent[]> }, _options: Record<string, never> = {},
 ): Promise<ChatPaneAgent[]> {
-  return jiniRescanAgentsInto({ loader, request: authenticatedAdminRequest, agentsUrl: AGENTS_URL, fetchTimeoutMs: AGENTS_FETCH_TIMEOUT_MS, ApiError, clock: Date.now, writeAgentsSnapshot });
+  return jiniRescanAgentsInto({ loader, request: authenticatedAdminRequest, agentsUrl: AGENTS_URL, fetchTimeoutMs: AGENTS_FETCH_TIMEOUT_MS, ApiError, clock: Date.now, writeAgentsSnapshot, resumeCapableAgentIds });
 }
 
 /** Shares GET ownership through Jini's boot-scoped cache; accepted snapshot deadlines govern reads.

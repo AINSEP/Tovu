@@ -16,7 +16,8 @@ import { probeCredentialConnection } from '#src/features/custom-credentials/cred
 import { resolveOperatorLocale } from '@jini-ai/core/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "@jini-ai/cms/settings/site/admin-interface";
 import { AgentPluginLinkedError, providerFaceLifecycle } from '#src/features/agent-plugins/provider-plugin-link';
-import { bindProviderFacePorts, linkedProviderOf } from '@jini-ai/agent-plugins/site/provider-plugin-link';
+import { bindProviderFacePorts } from '@jini-ai/agent-plugins/site/provider-plugin-link';
+import { linkedProviderOf } from '@jini-ai/agent-plugins/core/provider-plugin-link';
 import { AgentPluginNotReadyError, findSoonAgentPlugin } from '@jini-ai/agent-plugins/site/soon-lock';
 import { HOST_SOON_AGENT_PLUGINS } from '#src/features/agent-plugins/bundled-catalog';
 import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import type { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { withFollowUps, type TrashAdapter } from "@jini-ai/cms/trash";
@@ -59,7 +60,7 @@ export function formAttachmentRemover(required: FormAttachmentPurgeInput, _optio
     if (!asset) return;
     const root = routeDeps();
     const files = createFormFileStorage({ mediaOps: { sniffContentType, uploadMedia, trashMedia, purgeMedia }, media: {
-      mediaRepo, clock, idGen, entryRefsRepo: entryRefsRepo(), postRepo, blobRepo: root.assetBlobRepo,
+      createHash, mediaRepo, clock, idGen, entryRefsRepo: entryRefsRepo(), postRepo, blobRepo: root.assetBlobRepo,
       renditionRepo: root.assetRenditionRepo, blobStore: root.blobStore,
       ...createFormMediaCleanup({ kernel: root.contentKernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }),
     }, contentTypes: root.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });

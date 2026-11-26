@@ -4,6 +4,7 @@
  * forms builds file storage with a deferred free-space probe — so each runs once per app. Moved verbatim out of `app.ts`.
  */
 
+import { createHash } from "node:crypto";
 import { statfs } from "node:fs/promises";
 import { createFormMediaCleanup } from '#src/features/forms/form-file-purge';
 import { analyticsProviderRouteDeps } from "../analytics-providers.js";
@@ -103,7 +104,7 @@ export function registerFormsSubmit({ app, routeDeps }: MountInput, _optional = 
       },
       uploadSpaceMessage: "This site has no room for another attachment. Your answers are kept below. Your form has not been sent.",
       files: createFormFileStorage({ mediaOps: { sniffContentType, uploadMedia, trashMedia, purgeMedia }, media: {
-        clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
+        createHash, clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
         entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
         blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
         ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox: routeDeps.outbox, clock: routeDeps.clock, graceMs: DEFAULT_GC_GRACE_MS }),

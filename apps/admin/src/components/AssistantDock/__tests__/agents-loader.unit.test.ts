@@ -6,8 +6,8 @@ import type { CachedLoader } from "@jini-ai/core/fetch";
 import { useAgentsLoader } from "../hooks/agents-inventory.hooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAgentsLoader, resetResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
-import { replaceAgents } from "../hooks/agents-inventory.hooks";
+import { createAgentsLoader } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
+import { replaceAgents, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
 import { useTovuAssistantTransport as useAssistantTransport } from "../hooks/assistant-transport.binding";
 
 /**

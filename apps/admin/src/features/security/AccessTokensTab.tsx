@@ -25,6 +25,17 @@ const REMOVE_FROM_TOVU = "Remove from Tovu";
 /** Whether the "Use a saved key" entry renders above the list (see its render site). */
 const SHOW_COPY_KEYS_ENTRY = true;
 
+/** The bindings each "Other credentials" row's {@link OtherCredentialEntry} renders with. */
+export const OTHER_CREDENTIAL_ENTRY_DEPS = {
+  useAdminLocaleHook: useAdminLocale,
+  useOtherCredentialRemoveDialogHook: useOtherCredentialRemoveDialog,
+  removeDialogTitle,
+  otherCredentialRemoveDialogBody,
+  VIEWER_TIME_ZONE,
+  REMOVE_FROM_HOST: REMOVE_FROM_TOVU,
+  removeHandleLabel: ({ name }: { name: string }) => `Remove ${name} from Tovu`,
+};
+
 export const AccessTokensTab = bindAccessTokensTab({
   hooks: {
     useAdminLocaleHook: useAdminLocale,
@@ -37,7 +48,7 @@ export const AccessTokensTab = bindAccessTokensTab({
   },
   kit: {
     CredentialHint, OnboardingChipField, ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon,
-    OtherCredentialEntry: props => <OtherCredentialEntry {...props} deps={{ useAdminLocaleHook: useAdminLocale, useOtherCredentialRemoveDialogHook: useOtherCredentialRemoveDialog, removeDialogTitle, otherCredentialRemoveDialogBody, VIEWER_TIME_ZONE, REMOVE_FROM_TOVU, removeHandleLabel: ({ name }) => `Remove ${name} from Tovu` }} />,
+    OtherCredentialEntry: props => <OtherCredentialEntry {...props} deps={OTHER_CREDENTIAL_ENTRY_DEPS} />,
   },
   deps: {
     ACCESS_TOKEN_CATEGORIES, ACCESS_TOKEN_PROVIDER_COPY,
@@ -47,7 +58,8 @@ export const AccessTokensTab = bindAccessTokensTab({
     removeTokenHandleLabel: ({ provider }) => `Open the confirm dialog to remove this ${provider} token from Tovu`,
     storedTokenNotice: "Stored encrypted on the server. Once saved, Tovu never displays it again.",
     hostingPluginsHref: "/admin/addons/agent-plugins",
-    providerGroupHandleLabel, tokenRowHandleLabel, fieldNameHandleSegment, fieldHelpText,
+    providerGroupHandleLabel, tokenRowHandleLabel, fieldNameHandleSegment,
+    fieldHelpText: ({ field }) => fieldHelpText({ field }) ?? "",
     accessTokenExtraFieldIdSuffix, resolveTabBarTabIndex, otherCredentialMatchesQuery,
     accessTokensCountText, removeDialogTitle, removeDialogBody,
   },

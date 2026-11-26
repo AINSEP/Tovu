@@ -1,4 +1,5 @@
 import { serveNestedPage, serveSlugPage } from "@jini-ai/cms/public-http/routes/site/pages/handlers/slug-routes";
+import { checkSiteRelativeTarget } from "@jini-ai/cms/routing/site/reserved-paths";
 import { listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
@@ -28,7 +29,7 @@ import { reportSiteRenderFault } from "./virtual-page.js";
 // Earlier content routes keep precedence, even over override rules. Restrict this fallback to
 // nested paths so single-segment slug eligibility stays unchanged; admin/API misses stay theirs.
 export const registerNestedPathRoute: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) =>
-  void app.get(/^\/[^/]+\/.+/, (req, res, next) => serveNestedPage({ path: req.path, next,
+  void app.get(/^\/[^/]+\/.+/, (req, res, next) => serveNestedPage({ path: req.path, next, checkSiteRelativeTarget,
     tryRedirectPhase: ({ phase, path }) => tryRedirectPhase({ phase, path, workspaceId: appDeps.workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } }),
   }));
 

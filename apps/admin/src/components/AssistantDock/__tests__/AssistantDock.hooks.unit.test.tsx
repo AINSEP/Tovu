@@ -20,7 +20,8 @@ vi.mock("../../../features/plugins/composer-capabilities", async (importOriginal
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 import { buildAssistantMcpUiSandboxProxyUrl } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-mcp-ui";
 import { useComposerCapabilities } from "../hooks/composer-discovery.hooks";
-import { extractResumeCapableAgentIds, getResumeCapableAgentIds, resetResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
+import { extractResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
+import { getResumeCapableAgentIds, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
 import { useRuntimeAccess } from "../hooks/runtime-access.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";

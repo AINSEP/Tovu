@@ -1,5 +1,5 @@
 /** Tovu wiring for Jini's automatic-use owner. No plugin identities or matching rules live here. */
-import { type AutomaticAgentPluginPorts } from '@jini-ai/agent-plugins/lifecycle';
+import { createAutomaticAgentPluginUse, readChatAgentPluginState, type AutomaticAgentPluginPorts } from '@jini-ai/agent-plugins/lifecycle';
 import { bindAutomaticGuidanceResolver, createScopedAutomaticPluginRuns } from '@jini-ai/agent-plugins/site/automatic-agent-plugins';
 import { type AgentToolDefinition, type AgentToolSideEffect, type SurfaceEmitter } from '@jini-ai/core';
 import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
@@ -41,7 +41,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     list: () => loadAgentPluginSearchCandidates(deps),
     rank: rankInstalledAgentPlugins,
     resolveForEntry: ({ workspaceId }) => bindAutomaticGuidanceResolver({ workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId }), resolveGuidance: resolveAgentPluginGuidance }),
-    formatPluginToolPointer,
+    formatPluginToolPointer, createAutomaticAgentPluginUse, readChatAgentPluginState,
     catalog: agentPluginGuidanceCatalog,
     metadata: toolMetadata,
     derivedRisk: agentPluginGuidanceRisk,

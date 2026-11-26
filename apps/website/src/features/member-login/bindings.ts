@@ -23,7 +23,7 @@ const contribution: PluginContributionDefinition<LoginProviderPreset, LoginProvi
 };
 
 export function loadBundledLoginProviders(required: { sourceRoot: string }, _options = {}) {
-  return loadBundled({ ...required, bundledContributionSources, loadPluginContributionsFromSource,
+  return loadBundled({ ...required, bundledContributionSources, loadPluginContributionsFromSource, parseLoginProviders,
     sha256Hex: ({ text }) => createHash("sha256").update(text).digest("hex"),
     readManifest: async ({ plugin }) => JSON.parse(await readFile(path.join(plugin.packageRoot, "plugin.json"), "utf8")),
     acceptsManifest: ({ manifest, plugin }) => readAgentPluginPortableExtension({ value: manifest }, TOVU_AGENT_PLUGIN_IDENTITY_READ)?.id === `tovu/${plugin.pluginId}`,

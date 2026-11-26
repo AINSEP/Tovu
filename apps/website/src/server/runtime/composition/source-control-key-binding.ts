@@ -3,7 +3,8 @@ import { sourceControlSavedApiKeyLabels } from '@jini-ai/devops/source-control/s
 import { createCustomCredential, deleteCustomCredential, describeCredentialByLabel, listCustomCredentials, resolveCustomCredentialByLabel,
   updateCustomCredential, CustomCredentialDuplicateLabelError, CustomCredentialNotFoundError, CustomCredentialValidationError,
   type CustomCredentialSummary, type CustomCredentialWriteDeps } from '#src/features/custom-credentials/index';
-import { SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError, SourceControlCredentialValidationError } from '@jini-ai/devops/source-control/site/store';
+import { SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError } from '@jini-ai/devops/source-control/site/store';
+import { SourceControlCredentialValidationError } from '@jini-ai/devops/source-control/site/store.validation';
 import type { CanonicalSourceControlKeys, SourceControlCredentialPatch, SourceControlCredentialSummary } from '@jini-ai/core/contracts/site/source-control-credentials';
 import type { LoadSourceControlProviders } from '#src/features/source-control/provider-registry';
 

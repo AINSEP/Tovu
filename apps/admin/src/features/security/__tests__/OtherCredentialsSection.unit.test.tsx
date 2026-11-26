@@ -1,7 +1,3 @@
-import { useOtherCredentialRemoveDialog } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection.hooks";
-import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { otherCredentialRemoveDialogBody, removeDialogTitle } from "@/lib/i18n-common";
-import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { isValidElementHandle } from "@jini-ai/core/agent-handles";
@@ -9,6 +5,7 @@ import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 import { OtherCredentialEntry } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection";
 import type { OtherCredentialRowState, OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { OTHER_CREDENTIAL_STORES } from "../other-credential-stores";
+import { OTHER_CREDENTIAL_ENTRY_DEPS } from "../AccessTokensTab";
 import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 
 /**
@@ -41,15 +38,8 @@ if (typeof HTMLDialogElement.prototype.close !== "function") {
   };
 }
 
-const otherCredentialEntryDeps = {
-  useAdminLocaleHook: useAdminLocale,
-  useOtherCredentialRemoveDialogHook: useOtherCredentialRemoveDialog,
-  removeDialogTitle,
-  otherCredentialRemoveDialogBody,
-  VIEWER_TIME_ZONE,
-  REMOVE_FROM_TOVU: "Remove from Tovu",
-  removeHandleLabel: ({ name }: { name: string }) => `Remove ${name} from Tovu`,
-};
+/** The production bindings, so these cases pin what the Access Tokens tab actually renders. */
+const otherCredentialEntryDeps = OTHER_CREDENTIAL_ENTRY_DEPS;
 
 function makeController(overrides: Partial<OtherCredentialsController> = {}): OtherCredentialsController {
   return {

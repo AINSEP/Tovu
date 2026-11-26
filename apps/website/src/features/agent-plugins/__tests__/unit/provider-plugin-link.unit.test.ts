@@ -8,7 +8,8 @@ import test from "node:test";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 
-import { bindProviderFacePorts, followProviderActivations, linkedProviderOf, type ProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { bindProviderFacePorts, followProviderActivations, type ProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { linkedProviderOf } from "@jini-ai/agent-plugins/core/provider-plugin-link";
 import { AgentPluginLinkedError, providerFaceLifecycle, warnProviderFace } from "../../provider-plugin-link.js";
 import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "../../identity-read-policy.js";
 

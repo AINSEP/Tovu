@@ -1,8 +1,10 @@
 import { buildStaticPublishRegistrations as buildWithPorts, buildPublishHostCredentialHandler as credentialWithPorts,
-  staticPublishDerivedRisk, EXECUTE_STATIC_PUBLISH_SCHEMA } from '@jini-ai/devops/deploy/site/publish-agent-tools';
+  staticPublishDerivedRisk } from '@jini-ai/devops/deploy/site/publish-agent-tools';
+import { EXECUTE_STATIC_PUBLISH_SCHEMA } from '@jini-ai/devops/deploy/site/publish-tool-schema';
 import type { AgentToolDefinition, ToolContributor } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { StaticPublishToolDeps } from './publish-tool-deps.js';
+import type { StaticPublishToolDeps as JiniStaticPublishToolDeps } from '@jini-ai/devops/deploy/site/publish-tool-deps';
 import { staticPublishPorts } from './static-publish/adapter.js';
 import { credentialStorePorts, describeCredential, hasDefaultForPublish, resolveForPublish, resolveDefaultForPublish } from './publish-credentials/store.js';
 import { verificationPorts } from './static-publish/verify.js';
@@ -139,6 +141,14 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   },
 ];
 
+/**
+ * Adapts the shared approval handler to the publish port, whose `describe` step declares the
+ * execution options as a second parameter; the shared handler describes from `{ ctx, prepared }`
+ * alone, so the step receives empty options (every `ToolExecutionOptions` field is optional).
+ */
+const publishApprovalToolHandler: JiniStaticPublishToolDeps['approvalToolHandler'] = (steps, optional) =>
+  approvalToolHandler({ ...steps, describe: (required) => steps.describe(required, {}) }, optional);
+
 export const publishToolPorts = {
   catalog: staticPublishAgentToolCatalog, staticPublishPorts, credentialStorePorts,
   credentialSourceStorePorts: { describeCredential, hasDefaultForPublish, resolveForPublish, resolveDefaultForPublish },
@@ -150,7 +160,7 @@ export const publishToolPorts = {
   credentialFormApp: { appName: 'tovu-deployment-propose-custom-provider-credential', appVersion: '1' },
   credentialRowLabel: 'default', credentialSaveToolId: CREDENTIAL_SAVE_TOOL_ID, abortGuardedCredentialRepo,
   findPluginCredentialCard, applyPluginCredentialCard, assertCredentialFreeField, credentialText, formatCredentialHint,
-  translateCredentialMessage, issueCredentialSetup, toolApprovalConfirmation, approvalToolHandler,
+  translateCredentialMessage, issueCredentialSetup, toolApprovalConfirmation, approvalToolHandler: publishApprovalToolHandler,
 };
 
 export function buildPublishHostCredentialHandler(required: { deps: StaticPublishToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}) {

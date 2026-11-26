@@ -19,6 +19,9 @@ import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
+/** The publish-history row kind the peer transport records (matches the composed `publishHistoryStore`'s `peerKind`). */
+const PUBLISH_PEER_HISTORY_KIND = "tovu-peer";
+
 
 /**
  * @file Admin Deployment panel → publish-to-a-static-host backend.
@@ -202,7 +205,7 @@ export function registerAdminPublishDestinationsRoute({ app, context, errors }: 
     workspaceId: deps.workspaceId,
     loadRegistry: () => deps.loadDeployTargets({ workspaceId: deps.workspaceId }),
     listPeers: () => listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input: { workspaceId: deps.workspaceId } }),
-    listDestinations: ({ registry, peers }) => listPublishDestinations({ workspaceId: deps.workspaceId, historyStore: deps.publishHistoryStore, registry, peers }),
+    listDestinations: ({ registry, peers }) => listPublishDestinations({ workspaceId: deps.workspaceId, historyStore: deps.publishHistoryStore, registry, peers, peerKind: PUBLISH_PEER_HISTORY_KIND }),
     authorize: deps.authorize,
     authorizeForTrust: publishTrustAuthorizeFor,
     operation: "routes/system/publish-site",

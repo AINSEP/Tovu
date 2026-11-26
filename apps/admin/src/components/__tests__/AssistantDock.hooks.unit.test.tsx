@@ -107,7 +107,7 @@ import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/
 import { useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
 import { useTovuAssistantTransport as useAssistantTransport } from "../AssistantDock/hooks/assistant-transport.binding";
 import { useAgentsPlaceholder, useRuntimeAccess } from "../AssistantDock/hooks/runtime-access.hooks";
-import { getResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
+import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventory.hooks";
 import { useByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
 import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
 import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";

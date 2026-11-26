@@ -12,6 +12,7 @@ import { CONFIG_ID } from "@jini-ai/cookie-consent";
 import { hasConsentGatedScripts } from "@jini-ai/cookie-consent/site/pre-consent-cache";
 import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
 import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../../../http/site/form-feedback-policy.js";
 import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
 import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS, MEMBER_AUTH_NAMES, MEMBER_AUTH_SCRIPT_MARKER } from "../../../http/site/form-wire-policy.js";
@@ -93,6 +94,7 @@ export const sendPublicPage = ({ req, res, deps, html, perVisitor }: {
   hasConsentGatedScripts: ({ html }) => hasConsentGatedScripts({ html, configId: CONFIG_ID }),
   writer: { vary: name => void res.vary(name), set: (name, value) => void res.set(name, value), type: value => void res.type(value), send: html => void res.send(html) },
   ports: {
+    injectFormAttemptTokens,
     listingBatchBody: ({ html }) => listingState.listingBatchBody({ req, html }),
     assertListingPageServed: ({ html }) => listingState.assertListingPageServed({ req, html }),
     pluginHead: () => deps.pluginExportRender?.headHtml({}),

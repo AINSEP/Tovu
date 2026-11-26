@@ -1,3 +1,4 @@
+import { bytesMatchSha256 } from "@jini-ai/cms/publish/transfer/blob-staging";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { blobGetRoute, type BlobGetRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-get";
 import { blobPutRoute, type BlobPutRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/blob-put";
@@ -41,7 +42,7 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
   const routeDeps: BlobPutRouteDeps & AdminJsonRoutePortDeps = {
     ...blobPortDeps({ deps }),
     blobStore: { putIfAbsent: (input) => deps.blobStore.putIfAbsent(input) },
-    ...createHostBlobWriteBindings({ blobStore: deps.blobStore }),
+    ...createHostBlobWriteBindings({ blobStore: deps.blobStore, bytesMatchSha256 }),
     maxUploadBytes: MAX_DOCUMENT_BYTES,
   };
   mountAdminJsonRoute(

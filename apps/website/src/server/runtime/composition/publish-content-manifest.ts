@@ -17,7 +17,13 @@ import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-c
 import { contributeRawFilePublish } from "#src/features/publish-content/raw-file-contributor";
 import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
-import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
+import { applyRunActor, createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
+import { collectBodyReferences } from "@jini-ai/cms/publish/content/content-references";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
+import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
+import { ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError } from "@jini-ai/cms/entries";
+import { updateMenuTree } from "@jini-ai/cms/navigation/node";
 import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
 import { contributeSiteSettingPublish } from "@jini-ai/cms/settings/site/publish-content";
 import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
@@ -27,7 +33,14 @@ import { contributeActiveThemePublish } from "#src/features/theme/active-theme-p
 import { contributeThemeFilesPublish } from "#src/features/theme/publish-content";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/cms/widgets/site/publish-content";
 
+/** The engine functions every repo-backed contributor is built over (Jini injects them rather than importing them). */
+const repoPublishBindings = { createRepoPublishHandler, gatewayDeps };
+/** Term sync, shared by post/page and collection entries. */
+const termSyncBindings = { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, collectBodyReferences } as const;
+
 const widgetPublishPolicy = {
+  ...repoPublishBindings, applyRunActor,
+  ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError,
   bindingTable: WIDGET_REGION_BINDINGS_TABLE,
   buildWidgetHostPorts: () => buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
   findWidgetTypeRegistration, configReferences: { formDefinitionId: "form", menuRef: "menu", categoryTermId: "term" },
@@ -78,18 +91,20 @@ const seededKeyRefusal = ({ key }: { key: string }, _optional = {}): string | nu
   SEEDED_KEYS.has(key) ? `content-type '${key}' is seeded on every instance and is never published` : null;
 
 export function installFirstPartyPublishContentTypes(): void {
-  registerPublishContentContributor({ contributor: contributePostPublish() });
-  registerPublishContentContributor({ contributor: contributePagePublish() });
+  const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
+  registerPublishContentContributor({ contributor: contributePostPublish(postBindings) });
+  registerPublishContentContributor({ contributor: contributePagePublish(postBindings) });
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
   registerPublishContentContributor({ contributor: contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }) });
-  registerPublishContentContributor({ contributor: contributeMenusPublish() });
+  registerPublishContentContributor({ contributor: contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }) });
   registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
-  registerPublishContentContributor({ contributor: contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }) });
-  registerPublishContentContributor({ contributor: contributeContentTypePublish({ seededKeys: SEEDED_KEYS, seededKeyRefusal,
+  registerPublishContentContributor({ contributor: contributeFormPublish({ ...repoPublishBindings, tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }) });
+  registerPublishContentContributor({ contributor: contributeContentTypePublish({ ...repoPublishBindings, okOrThrow, seededKeys: SEEDED_KEYS, seededKeyRefusal,
     permission: 'admin.collections.manage', registerContentType }) });
-  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
-  registerPublishContentContributor({ contributor: contributeTermPublish() });
-  registerPublishContentContributor({ contributor: contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }) });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributeTermPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributeCollectionEntryPublish({ ...repoPublishBindings, ...termSyncBindings, applyRunActor, okOrThrow,
+    ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError, excludedTypes: ["widget", "widget_area"] }) });
   registerPublishContentContributor({ contributor: contributeWidgetPublish(widgetPublishPolicy) });
   registerPublishContentContributor({ contributor: contributeWidgetAreaPublish(widgetPublishPolicy) });
   registerPublishContentContributor({ contributor: contributeSiteSettingPublish({ createRepoPublishHandler, gatewayDeps: gatewayDeps<TovuPublishPorts>, publishableSettings: PUBLISHABLE_SETTINGS, writePolicies: SETTINGS_WRITE_POLICIES, principalLookup: createSettingsPrincipalLookup }) });

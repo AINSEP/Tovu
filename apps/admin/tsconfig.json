@@ -13,6 +13,8 @@
     "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/*": ["./node_modules/@types/react/*"],
       "@tovu/headless": ["../website/src/contracts/headless/index.ts"],
       "@tovu/publish-content-ui": ["../website/src/features/publish-content/ui/index.ts"],
       "@tovu/assistant-run-events": ["../website/src/contracts/core/assistant-run-events.ts"]

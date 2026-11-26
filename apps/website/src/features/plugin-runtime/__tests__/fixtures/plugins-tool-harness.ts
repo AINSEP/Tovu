@@ -13,7 +13,8 @@ import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-no
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "@jini-ai/core/contracts/headless/plugin-host";
-import { bindProviderFacePorts, linkedProviderOf } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { bindProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { linkedProviderOf } from "@jini-ai/agent-plugins/core/provider-plugin-link";
 import { AgentPluginLinkedError, providerFaceLifecycle } from "../../../agent-plugins/provider-plugin-link.js";
 import type { PluginProviderFacesPort } from "@jini-ai/plugins/runtime/service-ports";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";

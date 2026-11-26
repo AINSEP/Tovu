@@ -1,5 +1,5 @@
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
+import { folderZipPort as folderZip } from "../folder-zip-port";
 import { usePlugins, type PluginsController } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 
 import { tPlugins as translate } from "../../../lib/i18n-common";

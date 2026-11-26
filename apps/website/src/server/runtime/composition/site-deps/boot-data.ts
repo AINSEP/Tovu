@@ -1,3 +1,4 @@
+import { bytesMatchSha256 } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
 import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
@@ -127,7 +128,7 @@ export function startBootData(required: StartBootDataRequired, _optional = {}) {
   const blobHydrationReady = hydrateBlobStoreFromSeed({
     seedUploadsDir: builtInSeedUploadsDir({ siteName: resolvedSiteBinding.name }),
     blobStore,
-    ...createHostBlobWriteBindings({ blobStore }),
+    ...createHostBlobWriteBindings({ blobStore, bytesMatchSha256 }),
   }).catch((err) => {
     consoleLogger.error({ message: `hydrateBlobStoreFromSeed failed at boot: ${(err as Error).message}` });
     return undefined;

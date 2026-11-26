@@ -4,7 +4,7 @@ import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { isAgUiTransportEnabled } from "@/lib/assistant-transport-ag-ui";
 import { selectedLocalCliReasoning } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { localCliSelectionFromConfig } from "../execution-config-write";
-import { getResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
+import { getResumeCapableAgentIds } from "./agents-inventory.hooks";
 
 /** The host collaborators the shell's `useAssistantTransport` requires: Tovu's transport factory, its two
  *  flag reads (the AG-UI canary and the resume-capable agent set) and the saved Local CLI selection readers. */
@@ -19,8 +19,9 @@ export const tovuAssistantTransportOptions: AssistantTransportOptions = {
   // `getResumeCapableAgentIds` doc, and `assistant-transport.ts`'s
   // `CreateTovuAssistantTransportOptions.getResumeCapableAgentIds` for the full contract.
   // `useRuntimeAccess`'s `listAgents`/`rescanAgents` keep the set it reads current.
-  // (Here "this file" is `agents-inventory.hooks.ts`, where `getResumeCapableAgentIds` is defined;
-  // the hook that passes both to the factory now lives in `@jini-ai/admin`'s `assistant-transport.hooks`.)
+  // (Here "this file" is `agents-inventory.hooks.ts`, where `getResumeCapableAgentIds` is bound to
+  // this admin's own set; the hook that passes both to the factory lives in `@jini-ai/admin`'s
+  // `assistant-transport.hooks`.)
   getResumeCapableAgentIds,
   selectedLocalCliReasoning: (config) => selectedLocalCliReasoning({ config }, {}),
   localCliSelectionFromConfig,

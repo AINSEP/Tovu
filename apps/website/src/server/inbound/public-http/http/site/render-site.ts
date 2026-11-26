@@ -9,11 +9,14 @@ import { pageShell } from "./render/document-shell.js";
 import { entryContent } from "./render/post-body.js";
 import { entryList, productEntryContent, productEntryList } from "./render/components/entry-lists.js";
 import { renderBlock } from "./render/blocks.js";
+import { siteHeader, siteFooter } from "@jini-ai/cms/public-http/http/site/render/components/layout";
+import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
 
 export type RenderSiteRequired = Omit<JiniRenderSiteRequired<StaticMenuMap[string]>,
   "theme" | "footerCredit" | "renderScriptAssets" | "resolveTemplateId" | "resolveLiquidTemplateId" | "resolveHandlebarsTemplateId" |
   "loadLiquidSandbox" | "loadHandlebarsSandbox" | "renderBlock" | "renderStaticPage" | "injectSiteAssistantIntoStaticPage" |
-  "entryContent" | "entryList" | "productEntryContent" | "productEntryList" | "pageShell"
+  "entryContent" | "entryList" | "productEntryContent" | "productEntryList" | "pageShell" |
+  "siteHeader" | "siteFooter" | "EMPTY_INLINE_RESOLVED" | "EMPTY_MEDIA_TRANSFORM_VERSIONS" | "EMPTY_MEDIA_ASSET_METADATA"
 > & { theme: DiscoveredTheme | null };
 
 export const renderSite = (required: RenderSiteRequired): Promise<string> => renderSiteWithPorts({
@@ -32,5 +35,10 @@ export const renderSite = (required: RenderSiteRequired): Promise<string> => ren
   entryList,
   productEntryContent,
   productEntryList,
+  siteHeader,
+  siteFooter,
+  EMPTY_INLINE_RESOLVED,
+  EMPTY_MEDIA_TRANSFORM_VERSIONS,
+  EMPTY_MEDIA_ASSET_METADATA,
   pageShell: input => pageShell({ ...input, theme: required.theme }),
 });

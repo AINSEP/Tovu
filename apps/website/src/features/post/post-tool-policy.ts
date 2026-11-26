@@ -7,6 +7,7 @@ import { executeCommand } from "@jini-ai/cms/core/commands";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { withPluginHookRefusals } from "@jini-ai/plugins/host/hook-refusals";
 import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
+import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { postAgentToolCatalog } from "./post-catalog-host.js";
 import { headerNavigationView, postToolViewDeps } from "./post-tool-view-deps.js";
 import { readPostTemplateOptions } from "./template-options.js";
@@ -57,8 +58,8 @@ import { readPostTemplateOptions } from "./template-options.js";
  * truncation is never silent.
  */
 export const POST_TOOL_HOST = {
-  reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,
-  contentReadPermission: "content.read", contentWritePermission: "content.write", assistantActorPluginId: "assistant",
+  reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, copyBodyJsonWithFreshEmbedPlacements,
+  contentPostReadToolId: "content_read.content_post", contentReadPermission: "content.read", contentWritePermission: "content.write", assistantActorPluginId: "assistant",
   catalog: indexCatalogById({ catalog: postAgentToolCatalog }), executeCommand, processOutbox, withPluginHookRefusals,
   postToolViewDeps, headerNavigationView, readPostTemplateOptions, findMediaByIdOrSlug,
   featuredImageRefusals: createPostFeaturedImageRefusals({ mediaAssetReadToolId: "content_read.media_asset" }),

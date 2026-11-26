@@ -1,4 +1,6 @@
 import { buildDatabaseRegistrations as buildWithPorts, databaseDerivedRisk } from '@jini-ai/db/site/tool-registrations';
+import { createDatabaseReadTools } from '@jini-ai/db/tools';
+import { executeMigrateForward } from '@jini-ai/db/recovery';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { ToolRegistration, ToolContributor } from '@jini-ai/core';
 import type { AuthorizeFn, MutationActor } from '@jini-ai/core/contracts/events';
@@ -53,6 +55,7 @@ export function buildDatabaseRegistrations(
     catalog: getDatabaseAgentToolCatalog(), messages: TOVU_DATABASE_MESSAGES, migrateForwardDialog: MIGRATE_FORWARD_DIALOG_COPY,
     gatewayPlan, gatewayConfirm, gatewayExecute, buildMigrateForwardHooks,
     operationLock: { acquireOperationLock, releaseOperationLock }, adaptLegacyAuthorize, refuseUnexpectedKeys, humanConfirmedToolHandler,
+    createDatabaseReadTools, executeMigrateForward,
   });
 }
 

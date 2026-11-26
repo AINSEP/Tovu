@@ -1,9 +1,9 @@
 import { providerKeyId } from "@jini-ai/user-management/project-keys/service";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
-import { sql } from "kysely";
+import { sql, type RawBuilder } from "kysely";
 import { openSqliteConnection } from "@jini-ai/db/sqlite";
 import type { KeyAttachments, ProjectKeyTransaction } from "@jini-ai/core/contracts/site/project-key-attachments";
-import { createKeyAttachments } from "@jini-ai/user-management/project-keys/sql/attachments";
+import { createKeyAttachments, type AttachmentSqlPort } from "@jini-ai/user-management/project-keys/sql/attachments";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { homedir } from "node:os";
@@ -221,6 +221,17 @@ export interface ProjectStore {
  *   be opened or migrated. The caller must not fall back to another store for writes (`deps.ts`).
  * @complexity O(m) pending migrations.
  */
+
+/** The attachments port over the project kernel: the port takes an untyped statement and names its row
+ *  type per call, so the statement declares that row shape with Kysely's `$castTo` before it runs. */
+function attachmentSqlPort({ kernel }: { kernel: KyselyKernel<SecretsVaultDatabase> }, _optional: Record<string, never> = {}): AttachmentSqlPort {
+  return {
+    dialect: kernel.dialect,
+    query: <Row>(statement: RawBuilder<unknown>) => kernel.query(statement.$castTo<Row>()),
+    execute: statement => kernel.execute(statement),
+  };
+}
+
 export async function openProjectStore(
   required: { sitesHome: string; home: string; appDataDir?: string },
   optional: { clock?: { nowMs(): number } } = {},
@@ -270,7 +281,7 @@ export async function openProjectStore(
     },
     transaction: ({ run }) => kernel.transaction(run),
     providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),
-    attachments: createKeyAttachments({ sql: kernel, tables: { attachments: "site_key_attachments", vault: "secrets_vault" },
+    attachments: createKeyAttachments({ sql: attachmentSqlPort({ kernel }), tables: { attachments: "site_key_attachments", vault: "secrets_vault" },
       nowIso: () => new Date().toISOString(), credentialTypeText: ({ column }) => jsonText({ dialect: kernel.dialect, column, path: ["credentialType"] }),
       policy: { ownerWorkspaceId: "project", customKind: "custom", vendorKind: "vendor", vendorCredentialType: "custom", maxGrants: 100,
         tooManyKeys: "This site uses more than 100 saved keys. Remove unused site grants in Shared Keys before continuing.",

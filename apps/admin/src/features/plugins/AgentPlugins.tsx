@@ -1,5 +1,5 @@
 import { bindAgentPlugins } from "@jini-ai/admin/screens/plugins/AgentPlugins";
-import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
+import { folderZipPort as folderZip } from "./folder-zip-port";
 import { AgentPluginDetailsModal } from "@jini-ai/agent-plugins/react/AgentPluginDetailsModal";
 import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
 import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";

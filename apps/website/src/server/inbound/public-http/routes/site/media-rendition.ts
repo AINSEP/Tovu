@@ -37,7 +37,7 @@ const sendMediaRenditionResult = ({ deps }: { deps: MediaRenditionRouteDeps }, _
     get workspaceId() { return deps.workspaceId; },
     rendition: { get mediaRepo() { return deps.mediaRepo; }, get blobRepo() { return deps.assetBlobRepo; }, get renditionRepo() { return deps.assetRenditionRepo; },
       get transformRepo() { return deps.transformDefinitionRepo; }, get blobStore() { return deps.blobStore; }, get imageTransformer() { return deps.imageTransformer; },
-      get clock() { return deps.clock; }, get idGen() { return deps.idGen; } },
+      get clock() { return deps.clock; }, get idGen() { return deps.idGen; }, createHash },
     original: deps, get blobStore() { return deps.blobStore; }, resolveMediaRendition, sanitizeOriginalBytes, parseRangeHeader,
     hash: ({ identity, bytes }) => bytes === undefined ? createHash('sha256').update(identity).digest('hex') : createHash('sha256').update(identity).update(bytes).digest('hex'),
     ImageTransformUnavailableError, ImageSourceCorruptError,
