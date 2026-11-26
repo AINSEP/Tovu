@@ -6,6 +6,7 @@ import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AccessTokensTab } from "../AccessTokensTab";
+import { useWiredOtherCredentials } from "../hooks/use-other-credentials.hooks";
 import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave } from "@jini-ai/integrations/react/credentials/access-token-forms";
 import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
@@ -921,7 +922,7 @@ describe("AccessTokensTab — default hook resolution", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "credential read failed" }), { status: 500, headers: { "content-type": "application/json" } })));
     render(<FetchQueryProvider><AccessTokensTab
       useAccessTokensHook={kind === "access" ? undefined : () => makeAccessTokens()}
-      useOtherCredentialsHook={kind === "other" ? undefined : () => makeOtherCredentials()}
+      useOtherCredentialsHook={kind === "other" ? useWiredOtherCredentials : () => makeOtherCredentials()}
     /></FetchQueryProvider>);
     expect(screen.getByText("Loading access tokens…")).toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent("credential read failed");

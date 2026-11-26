@@ -9,7 +9,7 @@ import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-medi
 import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
 import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
-import { createElement } from "react";
+import { createElement, type ComponentProps } from "react";
 import { Media } from "./panel-pages";
 import type { MediaProps } from "@jini-ai/admin/screens/media/Media";
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
@@ -25,7 +25,7 @@ import { ChromePlaybackNote } from "@jini-ai/cms/react/media/chrome-playback-not
 import { EyeIcon, ExpandIcon, PlaceholderIcon, PlayIcon, UploadIcon } from "@jini-ai/cms/react/media/media-icons";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { Icon, I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { Icon, I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES, useMediaProvidersTab } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { MediaLoadMore } from "@jini-ai/cms/react/media/MediaLoadMore";
 import { t as mediaTranslate, VIDEO_CONVERSION_NOTICE_KEY } from "./features/media/media-i18n";
@@ -44,6 +44,10 @@ import "./styles/native-domain-dialogs.css";
 /** Browser-storage key for the Media grid's card size (owner default, 2026-11-01). The sizes, their parser and
  *  `useMediaGridSize` live in `@jini-ai/admin/screens/media`; this product key is passed in at the call site. */
 const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
+
+function BoundMediaProvidersTab(required: ComponentProps<ComponentProps<typeof ExternalProvidersPanel>["kit"]["MediaProvidersTab"]>, _optional = {}) {
+  return createElement(MediaProvidersTab, { ...required, useMediaProvidersTabHook: useMediaProvidersTab });
+}
 
 export const MEDIA_PROPS = {
   hooks: {
@@ -67,7 +71,7 @@ export const MEDIA_PROPS = {
     MiddleTruncate, ServerLabel, EyeIcon, ExpandIcon, PlaceholderIcon, PlayIcon, UploadIcon,
     MediaLoadMore, DockHeaderTip, PublishSectionButton, RemoteImageImport,
     ChromePlaybackNote: (props) => createElement(ChromePlaybackNote, { maxUploadBytes: MAX_UPLOAD_BYTES, ...props }),
-    ExternalProvidersPanel: (props) => createElement(ExternalProvidersPanel, { ...props, kit: { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES }, mediaProvidersPort, mediaProviderCatalogPolicy, pinnedProviderIds: PINNED_MEDIA_PROVIDER_IDS }),
+    ExternalProvidersPanel: (props) => createElement(ExternalProvidersPanel, { ...props, kit: { I18nProvider, MediaProvidersTab: BoundMediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES }, mediaProvidersPort, mediaProviderCatalogPolicy, pinnedProviderIds: PINNED_MEDIA_PROVIDER_IDS }),
   },
   deps: {
     mediaProviderCatalogPort, VIEWER_TIME_ZONE, MEDIA_GRID_SIZE_STORAGE_KEY, mediaTranslate,

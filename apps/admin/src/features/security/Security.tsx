@@ -19,6 +19,7 @@ import { AccessTokensTab } from "./AccessTokensTab";
 import { SiteKeyTab } from "@jini-ai/integrations/react/site-key/SiteKeyTab";
 import { AccessTokensIcon, SiteKeyIcon } from "../../integrations/jini-admin/security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
+import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import { useWiredSiteKey } from "./hooks/site-key-dependencies.hooks";
 import { useWiredSecurityPermissions } from "./hooks/security-permissions-dependencies.hooks";
 
@@ -111,7 +112,7 @@ export const Security = bindSecurity({
   kit: { TabBar, AccessTokensIcon, SiteKeyIcon },
   deps: {
     createPanels: ({ useAccessTokensHook, useSiteKeyHook, useAdminLocaleHook }) => ({
-      AccessTokens: () => <AccessTokensTab useAccessTokensHook={useAccessTokensHook} />,
+      AccessTokens: () => <AccessTokensTab useAccessTokensHook={useAccessTokensHook} useOtherCredentialsHook={useWiredOtherCredentials} />,
       SiteKey: () => <SiteKeyTab useSiteKeyHook={useSiteKeyHook} useSiteKeyRecoveryHook={useWiredSiteKeyRecovery} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocaleHook} kit={{ SecretInput }} copy={{
         siteKeyEnvVarName: "TOVU_SITE_KEY",
         scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",

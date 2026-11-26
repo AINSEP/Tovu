@@ -7,7 +7,7 @@ import { createSiteCapabilityRegistry } from "#src/assistant/site/capability-reg
 import { publicCapabilityCard } from "#src/assistant/site/capability-card";
 import { VISITOR_TOOL_PRESENTATION } from "#src/assistant/site/visitor-tool-presentation";
 import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
-import { SYSTEM_PREAMBLE as VISITOR_SYSTEM_PREAMBLE } from "../modules/site-assistant.js";
+import { SYSTEM_PREAMBLE as VISITOR_SYSTEM_PREAMBLE } from "../modules/site-assistant-turn.js";
 import { runPublicSiteGuide } from "../public-site-guide.js";
 
 // The reviewed visitor catalog, not a hand-copied id list: dfea76018 renamed the page-action tools

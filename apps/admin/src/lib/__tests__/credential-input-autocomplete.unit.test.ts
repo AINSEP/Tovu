@@ -8,12 +8,13 @@ import { uiKit } from "@/integrations/jini-kits";
 import { renderToStaticMarkup } from "react-dom/server";
 import { fireEvent, render, waitFor } from "@/__tests__/render-with-jini-kits";
 import { DEFAULT_PROVIDER_PRESETS, mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
-import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
+import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField, useMediaProvidersTab } from "@jini-ai/ui";
 import { Users as JiniUsers } from "@jini-ai/user-management/react";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { render as renderWithFetchQuery } from "@/__tests__/fetch-query-render";
 import { Login } from "@/features/auth";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { MEDIA_PROPS } from "@/media-panel";
 
 /**
  * @file Guard: every credential-shaped `<input>` in the admin says what the browser may autofill.
@@ -341,6 +342,19 @@ describe.skipIf(!HAS_JINI_UI_SRC)("Jini UI credential inputs the admin renders (
 
 describe("installed Jini credential components (source checkout not required)", () => {
   const noop = () => {};
+  it("the External Providers host slot renders a protected credential input", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToStaticMarkup(createElement(UiKitProvider, { kit: uiKit, children:
+      createElement(MEDIA_PROPS.kit.ExternalProvidersPanel, {
+        locale: "en", catalog: [{ id: "fixture", label: "Fixture" }],
+        useAdminThemeBoundaryHook: () => ({ "data-theme": "classic" }),
+      }),
+    }));
+    const passwords = container.querySelectorAll('input[type="password"]');
+    expect(passwords).toHaveLength(1);
+    expect(passwords[0].getAttribute("autocomplete")).toBe("new-password");
+  });
+
   const components = [
     ["ByokProviderForm", () => createElement(ByokProviderForm, {
       config: { protocol: "openai", providerId: null, apiKey: "", baseUrl: "https://example.test/v1", model: "fixture" },
@@ -354,6 +368,7 @@ describe("installed Jini credential components (source checkout not required)", 
       spec: { key: "apiKey", label: "API key", kind: "password" }, value: "", onChange: noop,
     })],
     ["MediaProvidersTab", () => createElement(MediaProvidersTab, {
+      useMediaProvidersTabHook: useMediaProvidersTab,
       catalog: [{ id: "fixture", label: "Fixture" }], catalogPolicy: mediaProviderCatalogPolicy, initialProviders: {},
       port: {
         fetchMediaProviders: async () => { throw new Error("static credential render must not fetch"); },
