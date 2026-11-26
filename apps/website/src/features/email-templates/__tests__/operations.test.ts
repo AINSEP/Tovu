@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
@@ -7,7 +9,8 @@ import test from "node:test";
 
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { InMemoryPostRepo, updatePost } from "../../post/index.js";
+import { InMemoryPostRepo } from "../../post/index.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { EMAIL_TEMPLATE_KIND } from "@jini-ai/cms/posts/post";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
@@ -154,7 +157,7 @@ test("updatePost treats an email template as not found, so it can never be publi
   const { repo, deps } = harness();
   await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "T", html: HTML }, actorId: "u1" });
   await assert.rejects(
-    updatePost({ deps: { repo, clock: deps.clock }, input: { workspaceId: WS, id: "tpl-1", title: "T", slug: "t", bodyJson: { type: "doc", content: [] }, status: "published" } } as never),
+    updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock: deps.clock }, input: { workspaceId: WS, id: "tpl-1", title: "T", slug: "t", bodyJson: { type: "doc", content: [] }, status: "published" } } as never),
     /was not found/,
   );
   assert.equal((await repo.findById({ workspaceId: WS, id: "tpl-1" }))?.status, "draft");

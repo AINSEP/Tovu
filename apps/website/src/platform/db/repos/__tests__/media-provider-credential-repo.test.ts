@@ -1,14 +1,30 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { createHash } from "node:crypto";
+import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
 import type { MediaProviderCredentialRecord } from "@jini-ai/cms/media/site/provider-credential-contracts";
-import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "#src/features/media/provider-credential-store";
+import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMediaProviderCredentialRepo } from "../../../../features/media/media-provider-credential-repo.js";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 /** Existing characterization suite now exercises Jini's vault-backed facade on both dialects.
  * The step is activated on disposable fixtures only; production migration registration is untouched.
@@ -79,7 +95,7 @@ describeEachDialect(
       const keyring = new InMemoryKeyring();
       const sealer = new AesGcmSecretSealer({ keyring });
       const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
-      await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "real-media-token-1234" } } });
+      await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "real-media-token-1234" } } } });
       const [selected] = await repo.vault.list({ workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, provider: "openai" });
       await repo.vault.put({ record: { ...selected!, isDefault: false, revision: selected!.revision + 1 }, expectedRevision: selected!.revision });
       let reads = 0;
@@ -87,9 +103,9 @@ describeEachDialect(
       const list = repo.vault.list.bind(repo.vault);
       repo.vault.list = input => { reads++; assert.equal(input.provider, "openai"); return list(input); };
       repo.vault.find = async () => { throw new Error("unexpected second read"); };
-      const resolved = await resolveMediaProviderCredential({ repo, sealer: {
+      const resolved = await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, sealer: {
         seal: sealer.seal.bind(sealer), open: (input, options) => { opens++; return sealer.open(input, options); },
-      } }, { workspaceId: WORKSPACE, providerId: "openai" });
+      } }, workspaceId: WORKSPACE, providerId: "openai" });
       assert.equal(resolved?.apiKey, "real-media-token-1234");
       assert.equal(reads, 1);
       assert.equal(opens, 1);
@@ -270,26 +286,26 @@ describeEachDialect(
       const keyring = new InMemoryKeyring();
       const sealer = new AesGcmSecretSealer({ keyring });
       const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
-      await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-old-1111" } } });
+      await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-old-1111" } } } });
       let release!: () => void;
       let entered!: () => void;
       const gate = new Promise<void>((resolve) => { release = resolve; });
       const sealing = new Promise<void>((resolve) => { entered = resolve; });
-      const slow = saveMediaProviderCredentials({ ...deps, sealer: {
+      const slow = saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, sealer: {
         open: sealer.open.bind(sealer),
         seal: async (input) => { entered(); await gate; return sealer.seal(input); },
-      } }, { workspaceId: WORKSPACE, providers: { openai: { model: "edited" }, leonardo: { apiKey: "xai-new-3333" } } });
+      } }, input: { workspaceId: WORKSPACE, providers: { openai: { model: "edited" }, leonardo: { apiKey: "xai-new-3333" } } } });
       try {
         await sealing;
-        await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-rotated-9999" } } });
+        await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-rotated-9999" } } } });
       } finally {
         release();
       }
       await slow;
-      assert.deepEqual(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }), {
+      assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" }), {
         apiKey: "sk-rotated-9999", baseUrl: null, model: "edited",
       });
-      assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "leonardo" }))?.apiKey, "xai-new-3333");
+      assert.equal((await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "leonardo" }))?.apiKey, "xai-new-3333");
     });
 
     test("replaceWorkspace never reads or tombstones another workspace's rows", async () => {

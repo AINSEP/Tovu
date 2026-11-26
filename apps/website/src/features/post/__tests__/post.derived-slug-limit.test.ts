@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -7,7 +9,7 @@ import { createPost } from "@jini-ai/cms/posts/post-create";
 import { MAX_SLUG_LENGTH } from "@jini-ai/cms/posts/slug";
 import { MAX_TITLE_LENGTH } from "@jini-ai/cms/posts/post-write-fields";
 import { PostValidationError, type PostRecord } from "@jini-ai/cms/posts/post";
-import { updatePost, type UpdatePostDeps } from "../post-update.js";
+import { updatePost, type UpdatePostDeps } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
@@ -27,7 +29,7 @@ const noopOutbox: OutboxPort = {
   markFailed: async () => {},
 };
 
-function deps(repo: InMemoryPostRepo): UpdatePostDeps {
+function deps(repo: InMemoryPostRepo): Omit<UpdatePostDeps, "reservedSegments" | "postPublicPath" | "isDeepStrictEqual"> {
   return { repo, clock, outbox: noopOutbox };
 }
 
@@ -49,7 +51,7 @@ test("createPost derives a slug no longer than the bound from a 200-character ti
   const title = "a".repeat(MAX_TITLE_LENGTH);
   const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "p1", title } });
   assert.ok(post.slug.length <= MAX_SLUG_LENGTH, `derived slug is ${post.slug.length} characters`);
-  const { post: saved } = await updatePost({ deps: deps(repo), input: bodyEdit(post) });
+  const { post: saved } = await updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: bodyEdit(post) });
   assert.equal(saved.version, 2);
 });
 
@@ -70,7 +72,7 @@ test("colliding derived slugs keep room for their numeric suffix and never excee
 test("updatePost lets an unchanged over-limit legacy slug and title through a body-only edit", async () => {
   const record = legacy({ title: "t".repeat(MAX_TITLE_LENGTH + 5), slug: "s".repeat(MAX_SLUG_LENGTH + 5) });
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
-  const { post } = await updatePost({ deps: deps(repo), input: bodyEdit(record) });
+  const { post } = await updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: bodyEdit(record) });
   assert.equal(post.version, 2);
   assert.equal(post.slug, record.slug);
   assert.equal(post.title, record.title);
@@ -80,11 +82,11 @@ test("updatePost still refuses CHANGING to an over-limit slug or title, with the
   const record = legacy({ title: "t".repeat(MAX_TITLE_LENGTH + 5), slug: "s".repeat(MAX_SLUG_LENGTH + 5) });
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   await assert.rejects(
-    () => updatePost({ deps: deps(repo), input: { ...bodyEdit(record), slug: "s".repeat(MAX_SLUG_LENGTH + 6) } }),
+    () => updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: { ...bodyEdit(record), slug: "s".repeat(MAX_SLUG_LENGTH + 6) } }),
     (err: unknown) => err instanceof PostValidationError && err.message === "slug must be 120 characters or fewer"
   );
   await assert.rejects(
-    () => updatePost({ deps: deps(repo), input: { ...bodyEdit(record), title: "t".repeat(MAX_TITLE_LENGTH + 6) } }),
+    () => updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: { ...bodyEdit(record), title: "t".repeat(MAX_TITLE_LENGTH + 6) } }),
     (err: unknown) => err instanceof PostValidationError && err.message === "title must be 200 characters or fewer"
   );
   assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }))?.version, 1);

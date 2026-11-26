@@ -1,11 +1,16 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { TurnLock } from "@jini-ai/db/kernel";
-import { MediaProviderCredentialVaultRepo } from "./provider-credential-vault.js";
+import { MediaProviderCredentialVaultRepo } from "@jini-ai/cms/media/site/provider-credential-vault";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+
 
 /** Jini stages/publishes batches once, so failed planners cannot expose a half-replaced map. */
 export class InMemoryMediaProviderCredentialRepo extends MediaProviderCredentialVaultRepo {
   private readonly providerWrites = new TurnLock();
-  constructor(_required = {}, _options = {}) { super({ vault: new InMemoryVaultRepo({}) }); }
+  constructor(_required = {}, _options = {}) { super({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY }); }
 
   /** Serialize the host's read/plan/batch with primitive writes, as the SQL writer lock does.
    * Without this, a new provider inserted after the snapshot could evade whole-map tombstones.

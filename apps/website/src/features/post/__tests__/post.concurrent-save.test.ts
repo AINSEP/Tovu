@@ -1,9 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { PostNotFoundError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
-import { updatePost, type UpdatePostInput } from "../post-update.js";
+import { updatePost, type UpdatePostInput } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
@@ -67,7 +70,7 @@ function operatorSave(
   beforeSaveHook?: () => Promise<Record<string, never>>
 ) {
   return updatePost({
-    deps: {
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,
       repo,
       clock,
       outbox: noopOutbox,

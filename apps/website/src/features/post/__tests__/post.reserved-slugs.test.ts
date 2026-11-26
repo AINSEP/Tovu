@@ -1,10 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /** @file Owner request 2026-10-11: public post/page writes never claim admin or api. */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { PostValidationError } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
@@ -24,7 +26,7 @@ for (const kind of ["post", "page"] as const) {
       await assert.rejects(createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "bad", kind, title: "Safe", slug } }), expected);
       assert.equal(await repo.findById({ workspaceId, id: "bad" }), null);
       const { post } = await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "safe", kind, title: "Safe" } });
-      await assert.rejects(updatePost({ deps, input: { workspaceId, id: post.id, title: post.title, slug, status: post.status, bodyJson: post.bodyJson, expectedVersion: post.version } }), expected);
+      await assert.rejects(updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { workspaceId, id: post.id, title: post.title, slug, status: post.status, bodyJson: post.bodyJson, expectedVersion: post.version } }), expected);
       assert.deepEqual(await repo.findById({ workspaceId, id: post.id }), post);
       assert.equal((await repo.listRevisions({ workspaceId, postId: post.id })).length, 1);
     });
@@ -48,7 +50,7 @@ test("an unpublished automatic post slug follows the title onto API with collisi
   const deps = { repo, clock, outbox: new InMemoryOutbox() };
   const { post } = await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "draft", title: "Safe" } });
   await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "occupied", title: "API" } });
-  const result = await updatePost({ deps, input: { workspaceId, id: post.id, title: "api", slugFromTitle: true, status: "draft", bodyJson: post.bodyJson, expectedVersion: post.version } });
+  const result = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { workspaceId, id: post.id, title: "api", slugFromTitle: true, status: "draft", bodyJson: post.bodyJson, expectedVersion: post.version } });
   assert.equal(result.post.slug, "api-2");
   assert.equal((await repo.findById({ workspaceId, id: post.id }))?.slug, "api-2");
 });

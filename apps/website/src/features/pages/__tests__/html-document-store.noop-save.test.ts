@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
 import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
@@ -11,7 +13,7 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { updatePost } from "../../post/post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { postRepoFor } from "../../post/repo.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
@@ -47,9 +49,9 @@ function saveContract(make: () => Harness): void {
     const deps = { repo, clock, outbox: new InMemoryOutbox() };
     const input = { ...key, title: before.title, slug: before.slug, status: before.status,
       bodyJson: before.bodyJson, expectedVersion: before.version };
-    assert.deepEqual((await updatePost({ deps, input })).post, before);
+    assert.deepEqual((await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input })).post, before);
     assert.deepEqual(await repo.listRevisions(scope), history);
-    const changed = (await updatePost({ deps, input: { ...input, title: "New title" } })).post;
+    const changed = (await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, title: "New title" } })).post;
     assert.equal(changed.bodyHtml, before.bodyHtml);
     assert.equal(changed.bodyFormat, "html");
     assert.equal(changed.version, before.version + 1);

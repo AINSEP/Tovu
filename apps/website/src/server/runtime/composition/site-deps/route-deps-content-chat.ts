@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import type { WidgetSlugLookupPort } from "@jini-ai/cms/widgets";
 import type { composeAgentPluginBootstrap } from "./agent-plugin-bootstrap.js";
 import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
@@ -35,7 +38,7 @@ import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-port
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
-import { updatePost } from "#src/features/post/post-update";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 
 interface RouteDepsContentTrashRequired {
@@ -107,7 +110,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
       entityType: POST_ENTITY_TYPE
     }),
     // A14: widget embeds on a post/page host write through the live editor's own chokepoints.
-    widgetPostWrites: { updatePost, restorePostForward },
+    widgetPostWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward },
     // The 60-day backstop's one pass. `createServingApp` owns the timer that calls it, so it runs
     // only in a site-serving process — never in the exporter or the agent daemon.
     sweepTrash: createTrashSweep({

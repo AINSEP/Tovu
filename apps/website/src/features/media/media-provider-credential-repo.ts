@@ -1,12 +1,17 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
-import { MediaProviderCredentialVaultRepo } from "#src/features/media/provider-credential-vault";
+import { MediaProviderCredentialVaultRepo } from "@jini-ai/cms/media/site/provider-credential-vault";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+
 
 /** Thin dialect-independent facade; Jini owns queries, CAS and vault transactions. */
 export class SqlMediaProviderCredentialRepo extends MediaProviderCredentialVaultRepo {
   constructor(private readonly kernel: ContentKernel, _options = {}) {
-    super({ vault: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }) });
+    super({ vault: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), policy: MEDIA_CREDENTIAL_POLICY });
   }
 
   /** Join the vault writer lock before the synchronous planner reads; every dialect commits the

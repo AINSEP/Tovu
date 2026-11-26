@@ -1,4 +1,4 @@
-import { trashPermissionFor as permission, mayActOnEntityType as mayAct, filterVisibleTrashItems as filter } from "@jini-ai/cms/trash/site/permissions";
+import { trashPermissionFor as permission, mayActOnEntityType as mayAct, filterVisibleTrashItems as filter } from "@jini-ai/cms/trash/visibility";
 /**
  * @file Who may see, restore and permanently remove which kind of trashed thing.
  *
@@ -25,7 +25,7 @@ import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
-import { USER_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/user";
+import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashEntityType, TrashItem, TrashRegistry } from "@jini-ai/cms/trash";
 
 /** The entry gate on the Trash surface itself. Every row is then filtered again, per kind. */
@@ -57,14 +57,11 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
 ]);
 
 
-export function trashPermissionFor({ entityType, deps }: { entityType: Parameters<typeof permission>[0]["entityType"]; deps: Omit<Parameters<typeof permission>[0]["deps"], "permissionByEntityType"> }, _optional: Record<string, never> = {}) {
-  return permission({ entityType, deps: { ...deps, permissionByEntityType: TRASH_PERMISSION_BY_ENTITY_TYPE } });
-}
+export const trashPermissionFor = ({ entityType, deps }: { entityType: TrashEntityType; deps: { registry: TrashRegistry } }, _optional = {}) =>
+  permission({ entityType, registry: deps.registry, permissions: TRASH_PERMISSION_BY_ENTITY_TYPE });
 
-export function mayActOnEntityType(deps: Omit<Parameters<typeof mayAct>[0], "permissionByEntityType">, required: Parameters<typeof mayAct>[1]) {
-  return mayAct({ ...deps, permissionByEntityType: TRASH_PERMISSION_BY_ENTITY_TYPE }, required);
-}
+export const mayActOnEntityType = (deps: Omit<Parameters<typeof mayAct>[0]["deps"], "permissions">, required: Omit<Parameters<typeof mayAct>[0], "deps">) =>
+  mayAct({ ...required, deps: { ...deps, permissions: TRASH_PERMISSION_BY_ENTITY_TYPE } });
 
-export function filterVisibleTrashItems(deps: Omit<Parameters<typeof filter>[0], "permissionByEntityType">, required: Parameters<typeof filter>[1]) {
-  return filter({ ...deps, permissionByEntityType: TRASH_PERMISSION_BY_ENTITY_TYPE }, required);
-}
+export const filterVisibleTrashItems = (deps: Omit<Parameters<typeof filter>[0]["deps"], "permissions">, required: Omit<Parameters<typeof filter>[0], "deps">) =>
+  filter({ ...required, deps: { ...deps, permissions: TRASH_PERMISSION_BY_ENTITY_TYPE } });

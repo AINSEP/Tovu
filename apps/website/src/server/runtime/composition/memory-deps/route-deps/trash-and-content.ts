@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
@@ -24,7 +27,7 @@ import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switche
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { composeVisitorToolsManagement } from "../../visitor-tools-management.js";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
-import { updatePost } from "#src/features/post/post-update";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 
 /** Trash service and registry, the forms mover, and the site-backup sanitizer, plugin exports and agent inventory that open the root. */
@@ -119,7 +122,7 @@ export function memoryTrashSweepDeps(required: MemoryRootContext, _optional = {}
       entityType: POST_ENTITY_TYPE
     }),
     // A14: widget embeds on a post/page host write through the live editor's own chokepoints.
-    widgetPostWrites: { updatePost, restorePostForward },
+    widgetPostWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward },
     // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the
     // timer (`createServingApp` does), and the hermetic media/comment adapters have no
     // `hardDelete`, so a pass here would stand down rather than claim a removal.

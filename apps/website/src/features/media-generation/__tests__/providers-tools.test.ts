@@ -1,3 +1,9 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { createHash } from "node:crypto";
+import { CREDENTIAL_MESSAGES, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderHost } from "../provider-card-host.js";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 /** t10: human credential setup; real exchange/store/sealer, no HTTP listener or provider API. */
@@ -14,7 +20,7 @@ import { type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext } 
 type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
-import { resolveMediaProviderCredential, saveMediaProviderCredentials } from '../../media/provider-credential-store.js';
+import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { buildMediaGenerationRegistrations, type MediaGenerationToolDeps } from '../tool-registrations.js';
@@ -27,6 +33,16 @@ import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { createHostMediaProviderRegistry } from "../host-media-providers.js";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 
 const SECRET = 't10-media-secret-unique-731';
@@ -61,7 +77,7 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
   const result = await pending;
   assert.deepEqual(result, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assertNoSecret(result); assertNoSecret(emitted);
-  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: f.repo, sealer: f.sealer }, workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: null, model: null });
   assert.deepEqual(await callback('person', params), { status: 409, body: {
     error: 'that dialog is no longer waiting for an answer', code: 'SURFACE_NOT_PENDING', reason: 'unknown-or-closed',
@@ -116,7 +132,7 @@ test('t10 media registration risk, permissions and exact model input fields', ()
 
 test('t10 media list contains exact safe keys, includes configured and unconfigured image/video providers', async () => {
   const f = fixture();
-  await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...f.writeDeps }, input: { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } } });
   const result = await f.call('media_list_providers', {}) as { providers: Array<{ id: string; label: string; kinds: string[]; configured: boolean }> };
   assert.deepEqual(Object.keys(result), ['providers']); assert.ok(result.providers.length > 1);
   for (const provider of result.providers) {
@@ -131,9 +147,9 @@ test('t10 media list contains exact safe keys, includes configured and unconfigu
 
 test('t10 media form masks the key and submits through a bound exchange; save readback preserves other providers and metadata', async () => {
   const f = fixture();
-  await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...f.writeDeps }, input: { workspaceId: 'ws-t10', providers: {
     openai: { apiKey: 'old-key', baseUrl: 'https://images.example.com', model: 'chosen-model' }, replicate: { apiKey: 'other-key' },
-  } });
+  } } });
   const otherBefore = (await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate');
   const { pending, emitted, html } = await form(f);
   assert.match(html, /Connect OpenAI/); assert.match(html, /name="apiKey"[^>]*type="password"|type="password"[^>]*name="apiKey"/);
@@ -141,7 +157,7 @@ test('t10 media form masks the key and submits through a bound exchange; save re
   assert.deepEqual(f.surfaces.deliver({ exchangeId: 'exchange-t10', principalId: 'intruder', params: { apiKey: SECRET } }, { toolId: 'credential_save' }), { ok: false, reason: 'binding-mismatch' });
   submit(f, { apiKey: SECRET, provider: 'replicate' }); // provider identity is bound, not taken from the browser.
   assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
-  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: f.repo, sealer: f.sealer }, workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: 'https://images.example.com', model: 'chosen-model' });
   assert.deepEqual((await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate'), otherBefore);
   assert.equal(f.surfaces.size(), 0); assert.equal(emitted.length, 2); assertNoSecret(emitted);
@@ -221,7 +237,7 @@ test('t10 media failed outcome emission still returns the persisted safe result'
   const result = await pending;
   assert.deepEqual(result, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assertNoSecret(result);
-  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }), { apiKey: SECRET, baseUrl: null, model: null });
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: f.repo, sealer: f.sealer }, workspaceId: 'ws-t10', providerId: 'openai' }), { apiKey: SECRET, baseUrl: null, model: null });
   assert.equal(emissions, 2); assert.equal(f.surfaces.size(), 0);
 });
 
@@ -241,14 +257,14 @@ test('t10 media generation missing key names the human setup tool in its refusal
 
 test('t10 media saving while a different provider rotates preserves the latest ciphertext and current metadata', async () => {
   const f = fixture(); const { pending } = await form(f);
-  await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...f.writeDeps }, input: { workspaceId: 'ws-t10', providers: {
     openai: { apiKey: 'previous-key', baseUrl: 'https://new-images.example.com', model: 'latest-model' }, replicate: { apiKey: 'concurrent-key' },
-  } });
+  } } });
   const otherBefore = (await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate');
   submit(f, { apiKey: SECRET });
   assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assert.deepEqual((await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' })).find(r => r.providerId === 'replicate'), otherBefore);
-  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: f.repo, sealer: f.sealer }, workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: 'https://new-images.example.com', model: 'latest-model' });
 });
 
@@ -307,14 +323,14 @@ test('media credential reasons longer than 1000 characters refuse before authori
 
 test('a configured media provider can preserve its exact key with an empty submission', async () => {
   const f = fixture();
-  await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...f.writeDeps }, input: { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } } });
   const before = await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' });
   const { pending, emitted } = await form(f);
   submit(f, { apiKey: '' });
   assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true,
     tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), before);
-  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: f.repo, sealer: f.sealer }, workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: null, model: null });
   assert.equal(emitted.length, 2);
   assert.equal(f.surfaces.size(), 0);
@@ -323,7 +339,7 @@ test('a configured media provider can preserve its exact key with an empty submi
 
 test('preserving a migrated media credential with unknown length reports success without a hint', async () => {
   const f = fixture();
-  await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...f.writeDeps }, input: { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } } });
   const [row] = await f.repo.vault.list({ workspaceId: 'ws-t10', kind: 'media-provider', ownerKey: 'tovu', principalId: null });
   assert.ok(row, 'the saved credential must exist before its legacy hint metadata is restored');
   await f.repo.vault.put({ record: { ...row, tokenLength: null, last4: null, revision: row.revision + 1 }, expectedRevision: row.revision });
@@ -331,7 +347,7 @@ test('preserving a migrated media credential with unknown length reports success
   submit(f, { apiKey: '' });
   assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: null,
     connection: 'not_tested', message: 'Saved, not tested.' });
-  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: f.repo, sealer: f.sealer }, workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: null, model: null });
   assert.equal(emitted.length, 2);
   assert.match(JSON.stringify(emitted[1]), /Saved, not tested\./);
@@ -386,7 +402,7 @@ for (const provider of ['openai', 'replicate']) {
   for (const withHint of [true, false]) {
     test(`L241 ${provider} saved result and outcome agree with hint=${withHint}`, async () => {
       const f = fixture();
-      await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { [provider]: { apiKey: SECRET } } });
+      await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...f.writeDeps }, input: { workspaceId: 'ws-t10', providers: { [provider]: { apiKey: SECRET } } } });
       if (!withHint) {
         const [row] = await f.repo.vault.list({ workspaceId: 'ws-t10', kind: 'media-provider', ownerKey: 'tovu', principalId: null });
         assert.ok(row);

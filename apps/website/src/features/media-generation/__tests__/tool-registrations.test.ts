@@ -1,3 +1,8 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
@@ -14,16 +19,8 @@ import { createHash } from "node:crypto";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import {
-  InMemoryAssetBlobRepo,
-  InMemoryAssetRenditionRepo,
-  InMemoryMediaRepo,
-  InMemoryBlobStore,
-  InMemoryTransformDefinitionRepo,
-  MediaProviderCredentialSecretStoreUnconfiguredError,
-  registerTransform,
-  saveMediaProviderCredentials,
-} from "../../media/index.js";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryBlobStore, InMemoryTransformDefinitionRepo, registerTransform } from "../../media/index.js";
+import { MediaProviderCredentialSecretStoreUnconfiguredError, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
@@ -42,6 +39,16 @@ import { mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationReque
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";
 import { createHostMediaProviderRegistry } from "../host-media-providers.js";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
@@ -174,8 +181,7 @@ function fakeRouteDeps(
  *  test's own seeding needs one. */
 async function seedOpenAiCredential(fixture: Pick<ReturnType<typeof fakeRouteDeps>, "mediaProviderCredentialRepo" | "siteAssistantSecretSealer" | "keyring">): Promise<void> {
   await saveMediaProviderCredentials(
-    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
-    { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", baseUrl: "https://api.openai.com/v1" } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", baseUrl: "https://api.openai.com/v1" } } } }
   );
 }
 
@@ -512,8 +518,7 @@ test("no model specified, no OpenAI credential anywhere, but a different vendor'
 test("an omitted model uses the image model saved with the provider credential", async () => {
   const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-be-ignored" } });
   await saveMediaProviderCredentials(
-    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
-    { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", model: "dall-e-3" } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", model: "dall-e-3" } } } }
   );
 
   await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a logo" }));
@@ -711,8 +716,7 @@ test("a punctuation-only prompt uses a safe fallback title", async () => {
 test("a saved key without a base URL reaches the generator without inventing one", async () => {
   const fixture = fakeRouteDeps();
   await saveMediaProviderCredentials(
-    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
-    { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "key-without-base-url" } } },
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) }, input: { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "key-without-base-url" } } } },
   );
   const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({
     prompt: "Abstract shape", model: "gpt-image-2", allowStubFallback: false,
@@ -843,8 +847,7 @@ test("a plugin vendor generates end to end through the composition-built registr
   const registry = registryWithAcme();
   const fixture = fakeRouteDeps({ generateMedia: null, httpClient, mediaProviderRegistry: registry });
   await saveMediaProviderCredentials(
-    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }), providerCatalog: registry },
-    { workspaceId: WORKSPACE_ID, providers: { "acme-media": { apiKey: "acme-key-1" } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }), providerCatalog: registry }, input: { workspaceId: WORKSPACE_ID, providers: { "acme-media": { apiKey: "acme-key-1" } } } }
   );
   await seedPublicTransform(fixture.transformDefinitionRepo);
   const result = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a kite", model: "acme-image-1" })) as { media: { placeholder: boolean; sha256: string } };

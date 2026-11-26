@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -126,7 +127,7 @@ for (const dialect of SITE_DIALECTS) {
     const base = `${site.ws}/system/source-control/credentials`;
     const resolveNamedProvider = () =>
       resolveDefaultForSourceControl(
-        { repo: site.deps.sourceControlCredentialSetRepo, sealer: site.deps.siteAssistantSecretSealer },
+        { repo: site.deps.sourceControlCredentialSetRepo, sealer: site.deps.siteAssistantSecretSealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS },
         { workspaceId: site.deps.workspaceId, providerId: NAMED_PROVIDER_ID }
       );
 

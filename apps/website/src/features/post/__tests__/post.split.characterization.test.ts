@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +11,7 @@ import { importPostEntity } from "@jini-ai/cms/posts/post-import";
 import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { retirePostForReplacement } from "@jini-ai/cms/posts/post-retire";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 import { removeVia } from "./remove-post-double.js";
@@ -76,7 +78,7 @@ for (const throws of [false, true]) {
     const appendRevision = repo.appendRevision.bind(repo);
     repo.saveIfVersion = async (input) => { const result = await saveIfVersion(input); trace.push("CAS"); return result; };
     repo.appendRevision = async (input) => { trace.push("revision"); return appendRevision(input); };
-    const pending = updatePost({ deps: {
+    const pending = updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,
       repo, clock, outbox: { ...noopOutbox },
       beforeSaveHook: async () => { trace.push("hook"); enteredHook(); await paused; return {}; },
       slugChangeCapture: () => { trace.push("lookup"); return capture; },

@@ -7,4 +7,3 @@
 
 
 export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";
-export { credentialVault, credentialScope, credentialHint } from "./vault-adapter.js";

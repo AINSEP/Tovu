@@ -1,3 +1,4 @@
+import { contributeMediaViewVideoTools, createMediaViewVideoCatalog, type MediaVideoToolPorts } from "@jini-ai/cms/media/site/view-video-tool";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { WEB_FETCH_PER_HOST } from "#src/features/web/policy";
@@ -130,7 +131,8 @@ import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-co
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
 import { contributePostTools } from "#src/features/post/tool-registrations";
-import { contributePostDuplicateHandlers } from "#src/features/post/post-tool-duplicate";
+import { contributePostDuplicateHandlers } from "@jini-ai/cms/posts/post-tool-duplicate";
+import { POST_TOOL_HOST } from "#src/features/post/post-tool-policy";
 // Keep the standalone read tool on the existing registration seam, outside the content barrel.
 import { contributeContentStatsTools } from "@jini-ai/cms/posts/content-stats-tool";
 // Keep assistant contribution ports on the registration seam, outside the general post barrel.
@@ -149,7 +151,7 @@ import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-regis
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
-import { contributeMediaTools, contributeMediaViewVideoTools, type MediaConversionPorts, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
+import { contributeMediaTools, type MediaConversionPorts } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
@@ -574,7 +576,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeMediaTools(mediaConversionPorts) });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset", mediaMetadataWriteToolId: "media_update_metadata" }) });
   contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
-  contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
+  contributions.contributors.register({ contribution: contributeMediaViewVideoTools({ ports: mediaVideoPorts, catalog: createMediaViewVideoCatalog({ mediaAssetReadToolId: "content_read.media_asset" }) }, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools({ host: mediaProviderHost }) });
   contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: mediaConversionPorts, reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
@@ -813,7 +815,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   // why): each resource's "how do I copy myself" contribution, resolved into the cross-resource
   // `content_duplicate` tool `contributeContentDuplicationTools()` registered above already exposes.
   for (const contributor of [
-    ...contributePostDuplicateHandlers({ deriveDuplicateName }),
+    ...contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })),
     ...contributeFormsDuplicateHandlers({ deriveDuplicateName }),
     ...contributeMediaDuplicateHandlers({ deriveDuplicateName, ...UPLOAD_CAPS }),
   ]) {

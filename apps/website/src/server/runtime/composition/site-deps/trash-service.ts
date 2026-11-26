@@ -1,7 +1,7 @@
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
-import { USER_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/user";
+import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner } from "#src/features/trash/index";
 import { createTrashService } from "@jini-ai/cms/trash";

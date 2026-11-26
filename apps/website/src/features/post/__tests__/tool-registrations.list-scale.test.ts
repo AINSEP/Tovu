@@ -9,7 +9,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "@jini-ai/cms/posts/post-read";
 import { buildPostRegistrations } from "../tool-registrations.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

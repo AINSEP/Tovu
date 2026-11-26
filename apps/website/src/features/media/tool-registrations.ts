@@ -218,5 +218,3 @@ export function contributeMediaTools(ports: MediaConversionPorts = {}): ToolCont
   const risk = ports.transcoder ? new Map([...mediaDerivedRisk, [CONVERT_VIDEO_TOOL_ID, "mutates-durable-state" as const]]) : mediaDerivedRisk;
   return { domain: "media", build: (routeDeps, surfaces) => buildMediaRegistrationsForTovu(routeDeps, surfaces, ports), risk };
 }
-
-export { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "./view-video-tool.js";

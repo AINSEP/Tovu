@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 import { publishCredentialCreateRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/create";
@@ -167,7 +168,7 @@ export function registerAdminSourceControlCredentialsRoutes({ errors, app, deps 
     reportRefusal: (refusal) => console.warn(`[source-control-providers] ${refusal}`),
   });
   mountAdminJsonRoute({ errors, app, spec: sourceControlProvidersRoute, deps: { ...base, loadSourceControlProviders } }, options);
-  mountAdminJsonRoute({ errors, app, spec: sourceControlListRoute, deps: { ...base, listCredentials: ({ workspaceId }) => listSourceControlCredentials(readDeps, { workspaceId }) } }, options);
+  mountAdminJsonRoute({ errors, app, spec: sourceControlListRoute, deps: { ...base, listCredentials: ({ workspaceId }) => listSourceControlCredentials({ ...readDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId }) } }, options);
   mountAdminJsonRoute({ errors, app, spec: sourceControlCreateRoute, deps: {
     ...base,
     createCredential: (input) => createSourceControlCredential({ deps: writeDeps, input: input as Parameters<typeof createSourceControlCredential>[0]["input"] }),
@@ -178,7 +179,7 @@ export function registerAdminSourceControlCredentialsRoutes({ errors, app, deps 
     ...base,
     updateCredential: (input) => updateSourceControlCredential({ deps: writeDeps, input: input as Parameters<typeof updateSourceControlCredential>[0]["input"] }),
   } }, options);
-  mountAdminJsonRoute({ errors, app, spec: sourceControlDeleteRoute, deps: { ...base, deleteCredential: (args) => deleteSourceControlCredential(readDeps, args) } }, options);
+  mountAdminJsonRoute({ errors, app, spec: sourceControlDeleteRoute, deps: { ...base, deleteCredential: (args) => deleteSourceControlCredential({ ...readDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, args) } }, options);
 }
 
 // ── custom ──────────────────────────────────────────────────────────────────────────────────────

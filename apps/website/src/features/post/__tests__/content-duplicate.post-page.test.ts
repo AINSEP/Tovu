@@ -1,3 +1,4 @@
+import { POST_TOOL_HOST } from "../post-tool-policy.js";
 import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
@@ -12,8 +13,8 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { contributePostDuplicateHandlers } from "@jini-ai/cms/posts/post-tool-duplicate";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 
 /**
@@ -104,7 +105,7 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
+    listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })),
   });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
@@ -114,7 +115,7 @@ test("content_duplicate is wired, and this domain contributes both 'post' and 'p
   const registrations = registrationsFor(deps);
   assert.ok(registrations.has("content_duplicate"));
   assert.deepEqual(
-    contributePostDuplicateHandlers({ deriveDuplicateName }).map((c) => c.resource).sort(),
+    contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })).map((c) => c.resource).sort(),
     ["page", "post"],
   );
 });

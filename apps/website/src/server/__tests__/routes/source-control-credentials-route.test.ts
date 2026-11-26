@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -152,7 +153,7 @@ test("source-control-credentials: full CRUD round trip — create, list, update 
   const { credential: renamed } = await updated.json();
   assert.equal(renamed.label, "renamed");
   assert.equal(renamed.id, credential.id);
-  const resolve = () => resolveDefaultForSourceControl({ repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: "example-git" });
+  const resolve = () => resolveDefaultForSourceControl({ repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: deps.workspaceId, providerId: "example-git" });
   assert.deepEqual((await resolve())?.connection, { providerId: "example-git", token: "fixture_secret_token" });
   const blank = await fetch(`${base}/${credential.id}`, {
     method: "PUT", headers: { cookie, "content-type": "application/json" },

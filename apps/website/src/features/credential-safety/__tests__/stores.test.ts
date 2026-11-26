@@ -1,3 +1,9 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { createHash } from "node:crypto";
+import { CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { exampleRegistry } from "../../source-control/__tests__/fixtures/example-provider.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -16,7 +22,17 @@ import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credential
 import { createPublishCredential, updatePublishCredential, resolveForPublish, listPublishCredentials } from '../../deployments/publish-credentials/store.js';
 import type { DeployTargetRegistry } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
-import { saveMediaProviderCredentials, resolveMediaProviderCredential, getMediaProviderCredentials } from '../../media/provider-credential-store.js';
+import { saveMediaProviderCredentials, resolveMediaProviderCredential, getMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 const workspaceId = 'credential-safety';
 function cryptoDeps() {
@@ -90,9 +106,9 @@ function publishHarness(): Harness {
 function mediaHarness(): Harness {
   const deps = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo() };
   return {
-    save: apiKey => saveMediaProviderCredentials(deps, { workspaceId, providers: { openai: { apiKey: apiKey as string } } }),
-    read: async () => (await resolveMediaProviderCredential(deps, { workspaceId, providerId: 'openai' }))?.apiKey,
-    hint: async () => (await getMediaProviderCredentials(deps, { workspaceId })).openai?.apiKeyHint,
+    save: apiKey => saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId, providers: { openai: { apiKey: apiKey as string } } } }),
+    read: async () => (await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId, providerId: 'openai' }))?.apiKey,
+    hint: async () => (await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId })).openai?.apiKeyHint,
   };
 }
 
@@ -191,7 +207,7 @@ test('plaintext labels and URL credentials are refused by the stores, with value
   const publish = { ...cryptoDeps(), repo: new InMemoryVendorCredentialSetRepo({}), loadDeployTargets: async () => registry };
   await assert.rejects(createPublishCredential(publish, { workspaceId, label: secretLabel, connection: { providerId: 'fixture-host', apiKey: 'safe-key-a9F2' } }), exactError(CREDENTIAL_MESSAGES.plain));
   const media = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo() };
-  await assert.rejects(saveMediaProviderCredentials(media, { workspaceId, providers: { openai: { apiKey: 'safe-key-a9F2', baseUrl: 'https://example.test?token=never-echo' } } }), exactError(CREDENTIAL_MESSAGES.plain));
+  await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...media }, input: { workspaceId, providers: { openai: { apiKey: 'safe-key-a9F2', baseUrl: 'https://example.test?token=never-echo' } } } }), exactError(CREDENTIAL_MESSAGES.plain));
 });
 
 test('env-only credentials receive server-unsealed hints without sending their values', async () => {

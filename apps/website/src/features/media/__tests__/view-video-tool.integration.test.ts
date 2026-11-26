@@ -1,3 +1,4 @@
+import { prepareMessageAttachments } from '@jini-ai/daemon';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -6,7 +7,8 @@ import sharp from 'sharp';
 import { createFfmpegVideoFrameExtractor, findVideoBinaries } from '@jini-ai/cms/media/node';
 import { VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_EDGE_PX, VIDEO_MAX_SHEET_BYTES, VIDEO_MAX_OUTPUT_BYTES } from '@jini-ai/cms/media';
 import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, uploadMedia } from '../index.js';
-import { buildMediaViewVideoRegistrations } from '../view-video-tool.js';
+import { createMediaViewVideoCatalog, buildMediaViewVideoRegistrations } from '@jini-ai/cms/media/site/view-video-tool';
+const catalog = createMediaViewVideoCatalog({ mediaAssetReadToolId: 'content_read.media_asset' });
 
 // Contract: ADS-memory/.local-artifacts/codex/2026-10-06-release-0111-video64/staged/spec.md. The fixture is read
 // only. Spec SHA256: 855beddf17d8f9a6a7f7974a54d3ca396fb8eab2a9e0bb3ed49b59a7bad6939d.
@@ -24,11 +26,11 @@ test('real tiny MP4 reaches the tool as N decodable bounded JPEGs with source me
     clock: { nowMs: () => 0 }, idGen: { newId: () => 'real-video' }, mediaRepo, blobRepo,
     renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore,
   }, input: { workspaceId, bytes, filename: 'iris-ai-motion.mp4', contentType: 'video/mp4', createdByPrincipal: principalId } });
-  const tool = buildMediaViewVideoRegistrations({
+  const tool = buildMediaViewVideoRegistrations({ catalog, deps: { prepareImages: prepareMessageAttachments,
     workspaceId, mediaRepo, assetBlobRepo: blobRepo, blobStore,
     authorize: async () => ({ allowed: true, reason: 'matched' }), extractor: createFfmpegVideoFrameExtractor({}, {}),
     readAttachment: async () => { throw new Error('this case uses a library id'); },
-  }, {})[0]!;
+  } }, {})[0]!;
   const output = await tool.handler({ executionId: 'real-video-exec', principal: { id: principalId }, run: { id: 'real-video-run' }, input: { mediaId: media.id, frames: 4 }, signal: new AbortController().signal }) as { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }> };
   const meta = JSON.parse(output.content.find(block => block.type === 'text')!.text!);
   assert.ok(meta.video, JSON.stringify(meta));

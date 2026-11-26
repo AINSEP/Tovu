@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
@@ -15,7 +18,7 @@ import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createEntry } from "@jini-ai/cms/entries";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
-import { updatePost } from "#src/features/post/post-update";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, WidgetEmbedReorderCountMismatchError, type EmbedServiceDeps } from "@jini-ai/cms/widgets";
@@ -139,7 +142,7 @@ function makeSharedRepos() {
 
 let idCounter = 0;
 function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<EmbedServiceDeps> = {}): EmbedServiceDeps {
-  return { host: buildWidgetHostPorts({ postRepo: repos.postRepo, postWrites: { updatePost, restorePostForward } }, {}),
+  return { host: buildWidgetHostPorts({ postRepo: repos.postRepo, postWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward } }, {}),
     ...repos,
     postRepo: createPublicPostReader({ repo: repos.postRepo }),
     // Required by `rollback`'s `restorePostForward`; nothing here trashes a post, so it never fires.
@@ -153,7 +156,7 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
 }
 
 function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetTrashDeps {
-  return { host: buildWidgetHostPorts({ postRepo: repos.postRepo, postWrites: { updatePost, restorePostForward } }, {}),
+  return { host: buildWidgetHostPorts({ postRepo: repos.postRepo, postWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward } }, {}),
     ...repos,
     remove: repos.trash.remove,
     clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },

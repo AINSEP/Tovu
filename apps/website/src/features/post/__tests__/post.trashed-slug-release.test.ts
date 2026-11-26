@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
@@ -15,7 +17,7 @@ import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-witho
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { deletePost } from "@jini-ai/cms/posts/post-trash";
 import { retirePostForReplacement } from "@jini-ai/cms/posts/post-retire";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { PostConflictError, ROOT_SLUG, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -146,7 +148,7 @@ test("updatePost renaming onto a slug only a trashed row holds succeeds and move
   ] });
 
   const { post } = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: { workspaceId: WS, id: "start", title: "Home", slug: ROOT_SLUG, bodyJson: { type: "doc", content: [] }, status: "published" },
   });
 
@@ -163,7 +165,7 @@ test("updatePost onto a LIVE holder's slug still conflicts", async () => {
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: { workspaceId: WS, id: "a", title: "A", slug: "b", bodyJson: { type: "doc", content: [] }, status: "draft" },
       }),
     new PostConflictError("slug 'b' already exists")

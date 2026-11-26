@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 /** t10: real human exchange and credential persistence; fake only the provider network boundary. */
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../../custom-credentials/credential-save-tool.js";
@@ -57,12 +58,12 @@ test('t10 source callback delivers a human token only to its parked call, reject
   assert.deepEqual(await callback('intruder', params), { status: 409, body: {
     error: 'that dialog is no longer waiting for an answer', code: 'SURFACE_NOT_PENDING', reason: 'binding-mismatch',
   } });
-  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []);
   assert.deepEqual(await callback('person', params), { status: 202, body: { delivered: true } });
   const result = await pending;
   assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Human label', tokenHint: { length: 28, last4: '-982' }, connection: 'connected', message: '…-982, 28 chars. Connected.' });
   assertNoSecret(result); assertNoSecret(emitted);
-  assert.equal((await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'github' }))?.connection.token, SECRET);
+  assert.equal((await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10', providerId: 'github' }))?.connection.token, SECRET);
   assert.deepEqual(await callback('person', params), { status: 409, body: {
     error: 'that dialog is no longer waiting for an answer', code: 'SURFACE_NOT_PENDING', reason: 'unknown-or-closed',
   } });
@@ -120,9 +121,9 @@ test('t10 source form uses the provider declared masked field; submit saves a us
   const result = await pending;
   assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Human chosen label', tokenHint: { length: 28, last4: '-982' }, connection: 'connected', message: '…-982, 28 chars. Connected.' });
   assertNoSecret(result); assertNoSecret(emitted);
-  const stored = await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' });
+  const stored = await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' });
   assert.equal(stored.length, 1); assert.equal(stored[0]!.label, 'Human chosen label'); assert.equal(stored[0]!.isDefault, true); assert.equal(stored[0]!.accountLabel, 't10-owner');
-  const resolved = await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'github' });
+  const resolved = await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10', providerId: 'github' });
   assert.ok(resolved); assert.equal(resolved.connection.token, SECRET); assert.equal(resolved.connection.providerId, 'github');
   assert.equal(f.surfaces.size(), 0); assert.equal(emitted.length, 2);
   assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'source-control.credentials.write', workspaceId: 'ws-t10', entityType: 'source-control' }]);
@@ -136,7 +137,7 @@ test('t10 source cancellation returns saved false, cancelled true, with no crede
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: true, message: PROPOSE_CREDENTIAL_CANCELLED });
   assert.deepEqual(emitted.map(s => (s.payload as { resource: { resource: { uri: string } } }).resource.resource.uri),
     ['ui://tovu/secret-card/credential_save/source-exchange-t10']);
-  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
 // Demo dry run 2026-10-05: the token form opened before the person heard the repository rules.
@@ -177,7 +178,7 @@ test('t10 source failed outcome emission still returns the persisted safe result
   const result = await pending;
   assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Saved despite closed tab', tokenHint: { length: 28, last4: '-982' }, connection: 'connected', message: '…-982, 28 chars. Connected.' });
   assertNoSecret(result);
-  const resolved = await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'github' });
+  const resolved = await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10', providerId: 'github' });
   assert.equal(resolved?.connection.token, SECRET);
   assert.equal(emissions, 2); assert.equal(f.surfaces.size(), 0);
 });
@@ -198,13 +199,13 @@ test('t10 source missing channel and abort fail closed without an outcome', asyn
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
   assert.deepEqual(emitted.map(s => (s.payload as { resource: { resource: { uri: string } } }).resource.resource.uri),
     ['ui://tovu/secret-card/credential_save/source-exchange-t10']);
-  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
 for (const token of ['', 42]) test(`t10 source malformed submitted token ${JSON.stringify(token)} saves nothing`, async () => {
   const f = fixture(); const { pending } = await form(f); submit(f, { label: 'New connection', token });
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: 'Enter a token. Spaces alone are not a token.' });
-  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []);
 });
 
 // Contrast for credential-setup.ts:138: failed saves still render a failure outcome.
@@ -238,13 +239,13 @@ test('t10 source expired form closes without saving or an outcome', async t => {
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
   assert.deepEqual(emitted.map(s => (s.payload as { resource: { resource: { uri: string } } }).resource.resource.uri),
     ['ui://tovu/secret-card/credential_save/source-exchange-t10']);
-  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
 test('t10 source initial emission failure releases the exchange', async () => {
   const f = fixture();
   await assert.rejects(f.call({ provider: 'github' }, { emitSurface: async () => { throw new Error('surface unavailable'); } }), { message: 'surface unavailable' });
-  assert.equal(f.surfaces.size(), 0); assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
+  assert.equal(f.surfaces.size(), 0); assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []);
 });
 
 /** Supplies the fixture emitter through the canonical handler options, including headless calls. */
@@ -292,7 +293,7 @@ test('a non-default token name stays on the human form and saves as canonical co
   const saved = await pending;
   assert.equal(saved.saved, true);
   assertNoSecret(saved);
-  assert.deepEqual((await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'example-access' }))?.connection,
+  assert.deepEqual((await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10', providerId: 'example-access' }))?.connection,
     { providerId: 'example-access', token: SECRET, username: 'operator' });
   assert.equal(f.surfaces.size(), 0);
 });
@@ -331,7 +332,7 @@ test('t10 source form without provider help shows the default hint, renders non-
   assert.match(html, /name="username"/);
   submit(f, { label: 'Team', token: SECRET, username: 'bb-user' });
   assert.deepEqual(await pending, { saved: true, credentialId: 'credential-t10', provider: 'bitbucket', label: 'Team', tokenHint: { length: 28, last4: '-982' }, connection: 'saved', message: '…-982, 28 chars. Saved, not tested.' });
-  const stored = await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' });
+  const stored = await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' });
   assert.equal(stored[0]!.accountLabel, 'bb-owner');
 });
 
@@ -348,7 +349,7 @@ test('t10 source abort during sealing writes nothing', async () => {
   const { pending, emitted } = await form(f, { signal: controller.signal });
   submit(f, { label: 'Human label', token: SECRET });
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
-  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []);
   assert.equal(emitted.length, 1);
   assert.equal(f.surfaces.size(), 0);
   assertNoSecret(emitted);

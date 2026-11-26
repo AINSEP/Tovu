@@ -1,9 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { PostConflictError, PostNotFoundError, PostVersionConflictError } from "@jini-ai/cms/posts/post";
-import { updatePost, type UpdatePostInput } from "../post-update.js";
+import { updatePost, type UpdatePostInput } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
@@ -57,7 +60,7 @@ function operatorSave(repo: InMemoryPostRepo, text: string, expectedVersion?: nu
     status: "published",
     ...(expectedVersion !== undefined ? { expectedVersion } : {}),
   };
-  return updatePost({ deps: { repo, clock, outbox: noopOutbox }, input });
+  return updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox }, input });
 }
 
 test("updatePost rejects a second save built on a superseded version, and operator A's content survives", async () => {

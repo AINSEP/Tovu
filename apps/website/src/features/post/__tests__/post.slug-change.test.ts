@@ -1,10 +1,13 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { type SlugChangeCapture, type SlugChangeCaptureInput } from '@jini-ai/cms/routing';
 import { PostValidationError, ROOT_SLUG, SYSTEM_ACTOR_ID, type PostRecord } from "@jini-ai/cms/posts/post";
-import { updatePost, type UpdatePostDeps } from "../post-update.js";
+import { updatePost, type UpdatePostDeps } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
@@ -59,7 +62,7 @@ function recordingCapture(options: { fail?: Error } = {}): SlugChangeCapture & {
   };
 }
 
-function deps(repo: InMemoryPostRepo, capture: SlugChangeCapture | undefined): UpdatePostDeps {
+function deps(repo: InMemoryPostRepo, capture: SlugChangeCapture | undefined): Omit<UpdatePostDeps, "reservedSegments" | "postPublicPath" | "isDeepStrictEqual"> {
   return { repo, clock, outbox: noopOutbox, slugChangeCapture: () => capture };
 }
 
@@ -80,7 +83,7 @@ test("a published entry's slug change hands the capture its old and new public p
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(repo, capture), input: rename(record, "renamed", { actorId: "principal-7" }) });
+  await updatePost({ deps: { ...deps(repo, capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "renamed", { actorId: "principal-7" }) });
 
   assert.deepEqual(capture.calls, [
     { workspaceId: WORKSPACE_ID, entryId: "post-1", oldPath: "/hello-world", newPath: "/renamed", actor: "principal-7" },
@@ -91,7 +94,7 @@ test("an unattributed slug change is captured as the system actor", async () => 
   const record = seed();
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed") });
+  await updatePost({ deps: { ...deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "renamed") });
 
   assert.equal(capture.calls[0]?.actor, SYSTEM_ACTOR_ID);
 });
@@ -100,7 +103,7 @@ test("a published entry moving ONTO the root slug is captured with '/' as its ne
   const record = seed({ kind: "page" });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, ROOT_SLUG) });
+  await updatePost({ deps: { ...deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, ROOT_SLUG) });
 
   assert.deepEqual(capture.calls.map(({ oldPath, newPath }) => ({ oldPath, newPath })), [{ oldPath: "/hello-world", newPath: "/" }]);
 });
@@ -109,7 +112,7 @@ test("a draft's slug change captures nothing: its old URL was never public", asy
   const record = seed({ status: "draft" });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed") });
+  await updatePost({ deps: { ...deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "renamed") });
 
   assert.deepEqual(capture.calls, []);
 });
@@ -118,7 +121,7 @@ test("publishing a draft under a new slug captures nothing: the old URL was a dr
   const record = seed({ status: "draft" });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed", { status: "published" }) });
+  await updatePost({ deps: { ...deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "renamed", { status: "published" }) });
 
   assert.deepEqual(capture.calls, []);
 });
@@ -127,7 +130,7 @@ test("unpublishing under a new slug still captures: the old URL was public until
   const record = seed();
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "renamed", { status: "draft" }) });
+  await updatePost({ deps: { ...deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "renamed", { status: "draft" }) });
 
   assert.equal(capture.calls.length, 1);
 });
@@ -136,7 +139,7 @@ test("a published save that keeps its slug captures nothing", async () => {
   const record = seed();
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: { ...rename(record, record.slug), title: "New title" } });
+  await updatePost({ deps: { ...deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: { ...rename(record, record.slug), title: "New title" } });
 
   assert.deepEqual(capture.calls, []);
 });
@@ -145,7 +148,7 @@ test("the homepage page leaving the root slug captures nothing: '/' must not red
   const record = seed({ kind: "page", slug: ROOT_SLUG });
   const capture = recordingCapture();
 
-  await updatePost({ deps: deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), input: rename(record, "about") });
+  await updatePost({ deps: { ...deps(new InMemoryPostRepo({}, { initialRows: [record] }), capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "about") });
 
   assert.deepEqual(capture.calls, []);
 });
@@ -154,7 +157,7 @@ test("no bound capture (lookup returns undefined) still saves the rename", async
   const record = seed();
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
-  const { post } = await updatePost({ deps: deps(repo, undefined), input: rename(record, "renamed") });
+  const { post } = await updatePost({ deps: { ...deps(repo, undefined), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "renamed") });
 
   assert.equal(post.slug, "renamed");
   assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }))?.slug, "renamed");
@@ -164,7 +167,7 @@ test("no lookup injected at all (a caller predating the slot) still saves the re
   const record = seed();
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
-  const { post } = await updatePost({ deps: { repo, clock, outbox: noopOutbox }, input: rename(record, "renamed") });
+  const { post } = await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox }, input: rename(record, "renamed") });
 
   assert.equal(post.slug, "renamed");
 });
@@ -174,7 +177,7 @@ test("a capture that throws rolls the rename back: no moved entry without its re
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   const capture = recordingCapture({ fail: new Error("redirect insert failed") });
 
-  await assert.rejects(() => updatePost({ deps: deps(repo, capture), input: rename(record, "renamed") }), /redirect insert failed/);
+  await assert.rejects(() => updatePost({ deps: { ...deps(repo, capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "renamed") }), /redirect insert failed/);
 
   const stored = await repo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.deepEqual({ slug: stored?.slug, version: stored?.version }, { slug: "hello-world", version: 1 });
@@ -188,7 +191,7 @@ for (const reserved of ["admin", "api"]) {
     const capture = recordingCapture();
 
     await assert.rejects(
-      () => updatePost({ deps: deps(repo, capture), input: rename(record, reserved) }),
+      () => updatePost({ deps: { ...deps(repo, capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, reserved) }),
       (err: unknown) => {
         assert.ok(err instanceof PostValidationError);
         assert.equal((err as Error).message, `slug '${reserved}' is reserved`);
@@ -209,7 +212,7 @@ test("updatePost refuses a 121-character slug with create's message, writing not
   const capture = recordingCapture();
 
   await assert.rejects(
-    () => updatePost({ deps: deps(repo, capture), input: rename(record, "a".repeat(121)) }),
+    () => updatePost({ deps: { ...deps(repo, capture), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "a".repeat(121)) }),
     (err: unknown) => {
       assert.ok(err instanceof PostValidationError);
       assert.equal((err as Error).message, "slug must be 120 characters or fewer");
@@ -225,7 +228,7 @@ test("updatePost accepts a slug of exactly 120 characters", async () => {
   const record = seed();
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
-  const { post } = await updatePost({ deps: deps(repo, undefined), input: rename(record, "a".repeat(120)) });
+  const { post } = await updatePost({ deps: { ...deps(repo, undefined), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: rename(record, "a".repeat(120)) });
 
   assert.equal(post.slug, "a".repeat(120));
 });

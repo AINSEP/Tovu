@@ -16,7 +16,7 @@ import { DEFAULT_BODY_JSON } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

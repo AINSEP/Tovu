@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveDefaultForSourceControl, findDefaultSourceControlCredential } from '@jini-ai/devops/source-control/site/store';
@@ -15,9 +16,9 @@ test('canonical API key binding wins over stale source-control copies and revoca
     listByProvider: async () => { legacyReads++; throw new Error('must not read a stale copy'); },
   };
   const deps = { repo, sealer: {} } as never;
-  assert.equal((await findDefaultSourceControlCredential(deps, { workspaceId: 'workspace-local', providerId: 'github' }))?.id, 'one-owner-entry');
-  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: 'workspace-local', providerId: 'github' }))?.connection.token, token);
+  assert.equal((await findDefaultSourceControlCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'workspace-local', providerId: 'github' }))?.id, 'one-owner-entry');
+  assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'workspace-local', providerId: 'github' }))?.connection.token, token);
   granted = false;
-  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: 'workspace-local', providerId: 'github' }), null);
+  assert.equal(await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'workspace-local', providerId: 'github' }), null);
   assert.equal(legacyReads, 0);
 });

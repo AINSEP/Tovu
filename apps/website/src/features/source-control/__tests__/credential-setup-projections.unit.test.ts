@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { PROPOSE_CREDENTIAL_ABORTED, PROPOSE_CREDENTIAL_CANCELLED, PROPOSE_CREDENTIAL_CLOSED, abortGuardedSourceControlRepo } from "@jini-ai/devops/source-control/site/credential-setup";
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
@@ -115,7 +116,7 @@ test('an ended run cannot update, delete or relabel a credential, and a live run
   const store = { insert: write('insert'), update: write('update'), delete: write('delete'), updateAccountLabel: write('updateAccountLabel'),
     findById: write('findById'), findDefaultByProvider: write('findDefault'), listByProvider: write('listByProvider'), listByWorkspace: write('listByWorkspace') } as never as SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'];
   const controller = new AbortController();
-  const repo = abortGuardedSourceControlRepo({ store, signal: controller.signal });
+  const repo = abortGuardedSourceControlRepo({ store, signal: controller.signal, deps: SOURCE_CONTROL_CREDENTIAL_DEPS });
   const writes = [() => repo.update({} as never), () => repo.delete({} as never), () => repo.updateAccountLabel!({} as never)];
   for (const write of writes) await write();
   assert.deepEqual(calls, ['update', 'delete', 'updateAccountLabel']);

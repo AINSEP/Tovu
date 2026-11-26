@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
@@ -15,7 +18,7 @@ import {
   type TaxonomyEventOutboxPort,
 } from "@jini-ai/cms/taxonomy";
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
-import { updatePost } from "#src/features/post/index";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 
 
@@ -234,7 +237,7 @@ test("a trashed tag disappears from the taxonomy's term list and from a post's a
   // The regression this test exists to catch: `updatePost` must never touch `entry_terms`, so saving
   // the post while one of its terms is trashed must not drop that assignment.
   await updatePost({
-    deps: { repo: h.posts, clock: createFakeClock({ startIso: "2026-09-21T13:00:00.000Z" }), outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: h.posts, clock: createFakeClock({ startIso: "2026-09-21T13:00:00.000Z" }), outbox: noopOutbox },
     input: { workspaceId: WS, id: "post-1", title: "Post 1 (edited)", slug: "slug-post-1", bodyJson: { type: "doc", content: [] }, status: "draft" },
   });
   assert.equal(entryTermCount(h, "red", "post-1"), 1, "saving the post must not drop the trashed term's assignment");

@@ -10,7 +10,7 @@ import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import type { ApiConnectionRecord } from '@jini-ai/integrations/api-connections';
 import { attachedOnlyVault } from '@jini-ai/user-management/project-keys/attached-vault';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../shared-oauth-disconnect.js';
-import type { SharedOAuthDisconnectContext, SharedOAuthDisconnectStorage } from '@jini-ai/user-management/project-keys/shared-oauth-disconnect';
+import type { SharedOAuthDisconnectContext, SharedOAuthDisconnectStorage } from '@jini-ai/integrations/api-connections/shared-oauth-disconnect';
 import { fakeAttachments, vaultRow } from './helpers.js';
 import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
 

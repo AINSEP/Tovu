@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
 import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
@@ -8,7 +10,8 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { updatePost, InMemoryPostRepo } from "../../post/index.js";
+import { InMemoryPostRepo } from "../../post/index.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor } from "#src/features/post/repo";
@@ -66,7 +69,7 @@ test("updatePost: renaming an html-format Page keeps its bodyFormat and body_htm
   await seedHtmlPage(repo, generated);
 
   const { post } = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "ws-1",
       id: "page-1",
@@ -95,7 +98,7 @@ test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, 
   assert.ok(original);
 
   const { post } = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "ws-1",
       id: "page-1",
@@ -124,7 +127,7 @@ test("updatePost: a doc-format Page is unaffected — the fix must not widen the
 
   const nextBody = { type: "doc", content: [{ type: "paragraph" }] };
   const { post } = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "ws-1",
       id: "page-2",
@@ -152,7 +155,7 @@ describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revi
     const original = await repo.findById({ workspaceId: "ws-1", id: "page-sql" });
     assert.ok(original);
     const { post } = await updatePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
       input: { workspaceId: "ws-1", id: "page-sql", title: "Renamed", slug: "renamed", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } },
     });
     assert.deepEqual(post.bodyJson, original.bodyJson);

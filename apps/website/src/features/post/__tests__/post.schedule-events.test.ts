@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,7 +10,7 @@ import { announceDueGoLives } from "@jini-ai/cms/entries";
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { deletePost, restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { importPostEntity } from "@jini-ai/cms/posts/post-import";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
@@ -78,28 +80,28 @@ test("createPost with a past publishAt is live now and emits entry.published at 
 
 test("updatePost: draft -> scheduled, reschedule and unschedule-to-draft before go-live emit nothing", async () => {
   const { repo, outbox, clock, sweep } = setup([scheduledRow({ status: "draft", publishAt: null })]);
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ publishAt: GO_LIVE }) });
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ publishAt: LATER }) });
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ title: "Edited while scheduled" }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ publishAt: GO_LIVE }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ publishAt: LATER }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ title: "Edited while scheduled" }) });
   assert.deepEqual(await events(outbox), []);
 
   await sweep(GO_LIVE);
   assert.deepEqual(await events(outbox), [], "rescheduled to LATER: not due at the old time");
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ status: "draft" }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ status: "draft" }) });
   await sweep(LATER);
   assert.deepEqual(await events(outbox), [], "unscheduled to draft: never announced");
 });
 
 test("updatePost clearing publishAt on a scheduled post publishes it now, once", async () => {
   const { repo, outbox, clock, sweep } = setup([scheduledRow()]);
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ publishAt: null }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ publishAt: null }) });
   await sweep(LATER);
   assert.deepEqual(await events(outbox), ["p1-entry.published-2"]);
 });
 
 test("moving a live post to a future publishAt unpublishes it now and republishes at go-live", async () => {
   const { repo, outbox, clock, sweep } = setup([scheduledRow({ publishAt: null })]);
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ publishAt: GO_LIVE }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ publishAt: GO_LIVE }) });
   await sweep(GO_LIVE);
   assert.deepEqual(await events(outbox), ["p1-entry.unpublished-2", GO_LIVE_ID]);
 });
@@ -107,7 +109,7 @@ test("moving a live post to a future publishAt unpublishes it now and republishe
 test("an edit after go-live but before the sweep announces the go-live first, then entry.updated", async () => {
   const { repo, outbox, clock, sweep } = setup([scheduledRow()]);
   clock.set(LATER);
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ title: "Edited after go-live" }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ title: "Edited after go-live" }) });
   await sweep(LATER);
   assert.deepEqual(await events(outbox), [GO_LIVE_ID, "p1-entry.updated-2"]);
 });
@@ -116,7 +118,7 @@ test("an edit after the sweep already announced does not announce twice", async 
   const { repo, outbox, clock, sweep } = setup([scheduledRow()]);
   await sweep(GO_LIVE);
   clock.set(LATER);
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ title: "Edited after go-live" }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ title: "Edited after go-live" }) });
   assert.deepEqual(await events(outbox), [GO_LIVE_ID, "p1-entry.updated-2"]);
 });
 
@@ -178,7 +180,7 @@ test("an edit straddling go-live (pre-deadline clock, committed after a sweep re
   const priorVersion = scheduledRow();
   await announceDueGoLives({ deps: { repo: { listGoLiveCandidates: async () => [priorVersion] }, outbox }, input: { workspaceId: WS, nowIso: GO_LIVE } });
   clock.set("2026-10-21T11:59:59.999Z");
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ title: "Edited at the deadline" }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ title: "Edited at the deadline" }) });
 
   await sweep(LATER); // sees version 2, still saved while scheduled, same publishAt
   assert.deepEqual(await events(outbox), [GO_LIVE_ID], "one publication, whatever version the sweeps saw");
@@ -189,14 +191,14 @@ test("rescheduling after an announced go-live is a new publication and announces
   await sweep(GO_LIVE);
   clock.set(LATER);
   const NEXT = "2026-10-21T14:00:00.000Z";
-  await updatePost({ deps: { repo, clock, outbox }, input: updateInput({ publishAt: NEXT }) });
+  await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ publishAt: NEXT }) });
   await sweep(NEXT);
   assert.deepEqual(await events(outbox), [GO_LIVE_ID, "p1-entry.unpublished-2", `p1-entry.published-at-${NEXT}`]);
 });
 
 /** Each write path that can move a due, unannounced row's `updatedAt` past its `publishAt`. */
 const failingWrites: Array<[string, (deps: { repo: InMemoryPostRepo; clock: ReturnType<typeof fakeClock>; outbox: InMemoryOutbox }) => Promise<unknown>]> = [
-  ["updatePost", ({ repo, clock, outbox }) => updatePost({ deps: { repo, clock, outbox }, input: updateInput({ title: "Edited after go-live" }) })],
+  ["updatePost", ({ repo, clock, outbox }) => updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: updateInput({ title: "Edited after go-live" }) })],
   ["deletePost", ({ repo, clock, outbox }) => deletePost({ deps: { repo, clock, outbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "p1" } })],
   ["importPostEntity", ({ repo, clock, outbox }) => importPostEntity({ deps: { repo, clock, outbox }, input: { workspaceId: WS, record: scheduledRow({ title: "Imported over" }), expectedVersion: 1 } })],
   ["restorePostForward", ({ repo, clock, outbox }) => restorePostForward({ deps: { repo, clock, outbox, forgetRemoved: async () => {} }, input: { prior: scheduledRow({ version: 0, title: "Older" }) } })],

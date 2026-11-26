@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -8,7 +10,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { deletePost } from "@jini-ai/cms/posts/post-trash";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -213,7 +215,7 @@ for (const adapter of ADAPTERS) {
     });
 
     const { post, revisionId, previousRevisionId } = await updatePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
       input: {
         workspaceId: WS,
         id: "post-1",
@@ -238,7 +240,7 @@ for (const adapter of ADAPTERS) {
     await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
 
     await updatePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
       input: {
         workspaceId: WS,
         id: "post-1",
@@ -314,7 +316,7 @@ for (const adapter of ADAPTERS) {
     );
 
     const { post } = await updatePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
       input: {
         workspaceId: WS,
         id: "post-1",
@@ -388,7 +390,7 @@ for (const adapter of ADAPTERS) {
     await assert.rejects(
       () =>
         updatePost({
-          deps: { repo, clock, outbox: noopOutbox },
+          deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
           input: {
             workspaceId: WS,
             id: "post-1",

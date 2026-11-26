@@ -1,3 +1,4 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { exampleRegistry } from "#src/features/source-control/__tests__/fixtures/example-provider";
 import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
 import { openSqliteSnapshot } from "#src/platform/db/kernel/drivers/sqlite";
@@ -19,12 +20,16 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { CompiledQuery, sql, type KyselyPlugin, type RootOperationNode } from "kysely";
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
-import { MediaProviderCredentialVaultRepo } from "#src/features/media/provider-credential-vault";
+import { MediaProviderCredentialVaultRepo } from "@jini-ai/cms/media/site/provider-credential-vault";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/repo.memory";
 import { VaultPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store-host";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+
 
 /**
  * @file Query-parity harness (DBMERGE-PLAN §2b/§2d). The pre-vault stores and repos are gone from
@@ -270,7 +275,7 @@ export async function memoryParityDeps(mods: ParityModules, ctx: ParityContext):
   return { ...parityDeps(mods, ctx),
     site: { ...base, repo: new InMemorySiteAssistantCredentialRepo({ vault }) },
     exec: { ...base, repo: new InMemoryAdminExecutionCredentialRepo({ vault }) },
-    media: { ...base, repo: new MediaProviderCredentialVaultRepo({ vault }) },
+    media: { ...base, repo: new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }) },
     custom: { ...base, repo: new CustomCredentialVaultRepo({ vault }) },
     vendor: { ...base, repo: new InMemoryVendorCredentialSetRepo({ vault }) },
     source: { ...base, loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["github"] }), repo: new InMemorySourceControlCredentialSetRepo({ vault }) },

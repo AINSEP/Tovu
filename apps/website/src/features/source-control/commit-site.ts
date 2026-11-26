@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { type SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { ExportReport } from "@tovu/contracts/export-report";
@@ -129,7 +130,7 @@ function commitArgs({ deps, input }: { deps: CommitSiteDeps; input: CommitSiteIn
     supportsFolder: deps.supportsFolder,
     describeMissingCredential: () => `No source control credential is configured for '${providerId}'. Connect one in the admin's Source Control page first.`,
     credentials: { resolve: async () => {
-      const credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId: input.workspaceId, providerId });
+      const credential = await resolveDefaultForSourceControl({ ...credentialDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: input.workspaceId, providerId });
       if (credential) return { providerId: credential.connection.providerId, token: credential.connection.token };
       const saved = await credentialDeps.resolveSavedApiKey?.({ workspaceId: input.workspaceId, providerId });
       return saved ? { providerId, token: saved.token } : null;

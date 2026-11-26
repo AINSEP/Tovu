@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -9,7 +11,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { deletePost } from "@jini-ai/cms/posts/post-trash";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { searchAdminPosts, type PostSearchHit } from "@jini-ai/cms/posts/search";
@@ -242,7 +244,7 @@ test("an update replaces the indexed text — the old wording stops matching", a
   const post = await h.add({ id: "p1", title: "Pricing and plans", text: "Ten dollars a month." });
 
   await updatePost({
-    deps: { repo: h.repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: h.repo, clock, outbox: noopOutbox },
     input: { workspaceId: WS, id: post.id, title: "Sponsorship tiers", slug: "sponsorship", bodyJson: body("Bronze, silver, gold."), status: "published" },
   });
 

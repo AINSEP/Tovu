@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -10,7 +12,7 @@ import { createPost } from "@jini-ai/cms/posts/post-create";
 import { deletePost } from "@jini-ai/cms/posts/post-trash";
 import { getAdminPostById, getPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { PostNotFoundError, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -228,7 +230,7 @@ test("updatePost refuses to edit a trashed row — there is no edit-through-the-
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: { workspaceId: WS, id: "post-1", title: "Resurrect", slug: "hello-world", bodyJson: { type: "doc", content: [] }, status: "draft" },
       }),
     PostNotFoundError,

@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +11,7 @@ import { createPost } from "@jini-ai/cms/posts/post-create";
 import { hasPostBeenPublished } from "@jini-ai/cms/posts/post-slugs";
 import { findPublishedPostById, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, listAdminPages, listAdminPosts } from "@jini-ai/cms/posts/post-read";
 import { PostConflictError, PostNotFoundError, PostValidationError } from "@jini-ai/cms/posts/post";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
@@ -44,7 +46,7 @@ test("updatePost stores edits and increments version", async () => {
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -75,7 +77,7 @@ test("updatePost rejects duplicate slug", async () => {
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -96,7 +98,7 @@ test("updatePost rejects invalid title", async () => {
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -615,7 +617,7 @@ test("updatePost preserves the existing record's kind (not editable after creati
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "workspace-1",
       id: "page-1",
@@ -701,7 +703,7 @@ test("updatePost runs the beforeSaveHook and merges its patch onto the entry's e
   };
 
   const result = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox, beforeSaveHook },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox, beforeSaveHook },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -740,7 +742,7 @@ test("updatePost rejects an invalid slug format", async () => {
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -767,7 +769,7 @@ test("updatePost rejects a slug of '/' when the existing row's kind is 'post'", 
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -791,7 +793,7 @@ test("updatePost accepts a slug of '/' when the existing row's kind is 'page'", 
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "workspace-1",
       id: "page-1",
@@ -812,7 +814,7 @@ test("updatePost rejects a non-object bodyJson on a doc-format row", async () =>
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -837,7 +839,7 @@ test("updatePost rejects an invalid status", async () => {
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -863,7 +865,7 @@ test("updatePost sets templateChoice and overridesThemePage when the caller prov
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 
   const result = await updatePost({
-    deps: { repo, clock, outbox: noopOutbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -913,7 +915,7 @@ test("rejecting create/update hooks leave rows, revisions, slugs and events unto
   assert.deepEqual(await repo.listRevisions({ workspaceId: "workspace-1", postId: "post-new" }), []);
   assert.equal(await repo.findBySlug({ workspaceId: "workspace-1", slug: "new-slug" }), null);
   assert.deepEqual(events, []);
-  await assert.rejects(() => updatePost({ deps, input: { workspaceId: "workspace-1", id: "post-1", title: "Rejected update", slug: "updated-slug", bodyJson: { type: "doc", content: [] }, status: "published" } }), (error) => error === rejection);
+  await assert.rejects(() => updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { workspaceId: "workspace-1", id: "post-1", title: "Rejected update", slug: "updated-slug", bodyJson: { type: "doc", content: [] }, status: "published" } }), (error) => error === rejection);
   assert.deepEqual(await repo.list({ workspaceId: "workspace-1" }), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: "workspace-1", postId: "post-1" }), revisions);
   assert.equal(await repo.findBySlug({ workspaceId: "workspace-1", slug: "updated-slug" }), null);
@@ -924,17 +926,17 @@ test("updatePost preserves omitted template/theme choices and honors explicit nu
   const repo = new InMemoryPostRepo({}, { initialRows: [{ ...seedPost, templateChoice: "x", overridesThemePage: true }] });
   const deps = { repo, clock: { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") }, outbox: noopOutbox };
   const input = { workspaceId: "workspace-1", id: "post-1", title: "Edited", slug: "hello-world", bodyJson: { type: "doc", content: [] }, status: "published" as const };
-  const kept = await updatePost({ deps, input });
+  const kept = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input });
   assert.equal(kept.post.templateChoice, "x");
   assert.equal(kept.post.overridesThemePage, true);
   const stored = await repo.findById({ workspaceId: "workspace-1", id: "post-1" });
   assert.equal(stored?.templateChoice, "x");
   assert.equal(stored?.overridesThemePage, true);
-  const cleared = await updatePost({ deps, input: { ...input, templateChoice: null, overridesThemePage: false } });
+  const cleared = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, templateChoice: null, overridesThemePage: false } });
   assert.equal(cleared.post.templateChoice, null);
   assert.equal(cleared.post.overridesThemePage, false);
   assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "post-1" }))?.templateChoice, null);
-  const unset = await updatePost({ deps, input: { ...input, overridesThemePage: null } });
+  const unset = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, overridesThemePage: null } });
   assert.equal(unset.post.overridesThemePage, null);
 });
 
@@ -961,18 +963,18 @@ test("postpolish: title derivation shares collision search and never renames a m
   const repo = new InMemoryPostRepo({}, { initialRows: [draft, buildPostRecord({ id: "taken", slug: "new-title" }), buildPostRecord({ id: "taken-1", slug: "new-title-1" })] });
   const deps = { repo, clock: { nowMs: () => 0 }, outbox: noopOutbox };
   const input = { workspaceId: draft.workspaceId, id: draft.id, title: "New title", slugFromTitle: true, bodyJson: draft.bodyJson, status: "draft" as const };
-  const derived = await updatePost({ deps, input });
+  const derived = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input });
   assert.equal(derived.post.slug, "new-title-2");
-  const manual = await updatePost({ deps, input: { ...input, slugFromTitle: false, slug: "custom-url" } });
+  const manual = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, slugFromTitle: false, slug: "custom-url" } });
   assert.equal(manual.post.slug, "custom-url");
-  assert.equal((await updatePost({ deps, input: { ...input, title: "Later title" } })).post.slug, "custom-url");
+  assert.equal((await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, title: "Later title" } })).post.slug, "custom-url");
   const published = buildPostRecord({ id: "past", status: "published", title: "Past", slug: "past" });
   await repo.save(published);
   await repo.appendRevision({ workspaceId: published.workspaceId, postId: published.id, seq: 1, op: "create", stateJson: published, actorId: "test", recordedAt: published.updatedAt });
   await repo.save({ ...published, status: "draft" });
   assert.equal(await hasPostBeenPublished({ post: { ...published, status: "draft" } }, { repo }), true);
-  assert.equal((await updatePost({ deps, input: { ...input, id: "past", title: "Changed again" } })).post.slug, "past");
-  assert.equal((await updatePost({ deps, input: { ...input, id: "past", slugFromTitle: false, slug: "manual-after-publication" } })).post.slug, "manual-after-publication");
+  assert.equal((await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, id: "past", title: "Changed again" } })).post.slug, "past");
+  assert.equal((await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, id: "past", slugFromTitle: false, slug: "manual-after-publication" } })).post.slug, "manual-after-publication");
 });
 
 test("postpolish: cover preference validates before writes and merges only its namespace through hooks", async () => {
@@ -982,13 +984,13 @@ test("postpolish: cover preference validates before writes and merges only its n
     beforeSaveHook: (async () => ({ plugin: { added: "hook" } })) satisfies BeforeSaveHookPort };
   const input = { workspaceId: stored.workspaceId, id: stored.id, title: stored.title, slug: stored.slug, status: stored.status, bodyJson: stored.bodyJson };
   for (const value of [null, "false", 0]) {
-    await assert.rejects(updatePost({ deps, input: { ...input, hideCoverImageInBody: value as unknown as boolean } }), { message: "hideCoverImageInBody must be a boolean" });
-    await assert.rejects(updatePost({ deps, input: { ...input, slugFromTitle: value as unknown as boolean } }), { message: "slugFromTitle must be a boolean" });
+    await assert.rejects(updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, hideCoverImageInBody: value as unknown as boolean } }), { message: "hideCoverImageInBody must be a boolean" });
+    await assert.rejects(updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, slugFromTitle: value as unknown as boolean } }), { message: "slugFromTitle must be a boolean" });
   }
   assert.equal((await repo.findById({ workspaceId: stored.workspaceId, id: stored.id }))?.version, 1);
-  const result = await updatePost({ deps, input: { ...input, hideCoverImageInBody: false } });
+  const result = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...input, hideCoverImageInBody: false } });
   assert.deepEqual(result.post.ext, { other: { keep: "value" }, plugin: { added: "hook" }, "post-presentation": { another: 7, hideCoverImageInBody: false } });
-  assert.deepEqual((await updatePost({ deps: { ...deps, beforeSaveHook: undefined }, input })).post.ext, result.post.ext);
+  assert.deepEqual((await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  ...deps, beforeSaveHook: undefined }, input })).post.ext, result.post.ext);
 });
 
 test("postpolish: exhausted derived slugs write no post or revision", async () => {

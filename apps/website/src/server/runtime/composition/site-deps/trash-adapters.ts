@@ -8,7 +8,7 @@ import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect"
 import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
-import { USER_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/user";
+import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
 import { assertUserAccountAction } from "@jini-ai/user-management/identity/delete-user-service";
 import { createCommentTrashAdapter } from "#src/features/trash/index";
 import { createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";

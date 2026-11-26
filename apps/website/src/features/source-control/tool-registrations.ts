@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "./store.js";
 import { buildSourceControlRegistrations as build, sourceControlDerivedRisk, type SourceControlToolDeps as Deps } from "@jini-ai/devops/source-control/site/tool-registrations";
 import { executeCommitSchema } from "@jini-ai/devops/source-control/site/commit-schema";
 import { indexCatalogById, type AgentToolDefinition, type ToolContributor, type ToolHandler } from "@jini-ai/core";
@@ -48,14 +49,14 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
 const CATALOG_BY_ID = indexCatalogById({ catalog: sourceControlAgentToolCatalog });
 
 
-export type SourceControlToolDeps = Omit<Deps, "catalog" | "switchedOffPluginSentence" | "buildSourceControlProvider" | "previewCommitExport" | "commitSiteToSourceControl" | "defineSecretCardTool" | "applyPluginCredentialCard" | "findPluginCredentialCard" | "askThenReport" | "credentialSaveToolId" | "credentialFormUriHost" | "backupRepositoryRules" | "credentialText" | "formatCredentialHint" | "reportCredentialFailure" | "assertCredentialFreeField" | "isProjectKeyCreateConflictError">;
+export type SourceControlToolDeps = Omit<Deps, "deps" | "catalog" | "switchedOffPluginSentence" | "buildSourceControlProvider" | "previewCommitExport" | "commitSiteToSourceControl" | "defineSecretCardTool" | "applyPluginCredentialCard" | "findPluginCredentialCard" | "askThenReport" | "credentialSaveToolId" | "credentialFormUriHost" | "backupRepositoryRules" | "credentialText" | "formatCredentialHint" | "reportCredentialFailure" | "assertCredentialFreeField" | "isProjectKeyCreateConflictError">;
 
 export function buildSourceControlCredentialHandler({ deps, surfaces }: { deps: SourceControlToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): ToolHandler {
   return (ctx, optional = {}) => proposeSourceControlCredential({ deps, surfaces, ctx }, optional);
 }
 
 export function buildSourceControlRegistrations(deps: SourceControlToolDeps, surfaces: AssistantSurfaceDeps) {
-  return build({ ...deps, catalog: CATALOG_BY_ID, switchedOffPluginSentence, buildSourceControlProvider, previewCommitExport, commitSiteToSourceControl,
+  return build({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS, catalog: CATALOG_BY_ID, switchedOffPluginSentence, buildSourceControlProvider, previewCommitExport, commitSiteToSourceControl,
     defineSecretCardTool, applyPluginCredentialCard, findPluginCredentialCard, askThenReport, credentialSaveToolId: CREDENTIAL_SAVE_TOOL_ID,
     credentialFormUriHost: "tovu", backupRepositoryRules: 'For a site backup, the repository must be private and already have at least one commit (for example a README).',
     credentialText, formatCredentialHint, reportCredentialFailure: message => console.warn(message), assertCredentialFreeField,

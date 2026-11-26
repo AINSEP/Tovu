@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -8,7 +10,7 @@ import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primiti
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { deletePost } from "@jini-ai/cms/posts/post-trash";
 import { postRepoFor } from "../repo.js";
 import { searchAdminPosts } from "@jini-ai/cms/posts/search";
@@ -99,7 +101,7 @@ describeEachDialect<ContentKernel>("post search eval", { tables: ["posts", "post
     const deps = { repo, clock, outbox, remove: removeVia(repo) };
     const { post } = await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId: WS, id: "lifecycle", title: "Oldword", bodyJson: body("Oldbody"), status: "published" } });
     assert.deepEqual(await run(kernel, "oldbody"), ["lifecycle"]);
-    await updatePost({ deps, input: { workspaceId: WS, id: post.id, title: "Newword", slug: "newword", bodyJson: body("Newbody"), status: "published", expectedVersion: post.version } });
+    await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { workspaceId: WS, id: post.id, title: "Newword", slug: "newword", bodyJson: body("Newbody"), status: "published", expectedVersion: post.version } });
     assert.deepEqual(await run(kernel, "newword"), ["lifecycle"]);
     assert.deepEqual(await run(kernel, "newbody"), ["lifecycle"]);
     assert.deepEqual(await run(kernel, "oldword"), []);

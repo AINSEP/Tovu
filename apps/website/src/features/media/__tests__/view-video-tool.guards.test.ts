@@ -1,3 +1,4 @@
+import { prepareMessageAttachments } from '@jini-ai/daemon';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import sharp from 'sharp';
@@ -7,7 +8,8 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createRandomUuidGenerator, createSystemClock } from '@jini-ai/platform/system';
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from '../index.js';
-import { buildMediaViewVideoRegistrations, contributeMediaViewVideoTools, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '../view-video-tool.js';
+import { createMediaViewVideoCatalog, buildMediaViewVideoRegistrations, contributeMediaViewVideoTools, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '@jini-ai/cms/media/site/view-video-tool';
+const catalog = createMediaViewVideoCatalog({ mediaAssetReadToolId: 'content_read.media_asset' });
 
 /**
  * @file Branch pins for `media_view_video`: every input refusal, every owned-media gate, the
@@ -28,10 +30,10 @@ function harness(input: { attachment?: Uint8Array; result?: VideoFrameResult } =
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const extractor: VideoFrameExtractor = { extract: async () => input.result ?? { ok: true, metadata, frames: [{ at: 0.5, bytes: jpeg, mimeType: 'image/jpeg' }] } };
-  const deps: MediaViewVideoToolDeps = { workspaceId, mediaRepo, assetBlobRepo, blobStore, extractor,
+  const deps: MediaViewVideoToolDeps = { prepareImages: prepareMessageAttachments, workspaceId, mediaRepo, assetBlobRepo, blobStore, extractor,
     authorize: async () => ({ allowed: true, reason: 'matched' }),
     readAttachment: async ({ ownerId }) => ownerId === owner ? { ok: true, bytes: input.attachment ?? mp4 } : { ok: false, refusal: 'not-owner' } };
-  const call = (toolInput: unknown, principalId = owner) => buildMediaViewVideoRegistrations(deps, {})[0]!.handler({ executionId: 'e', principal: { id: principalId },
+  const call = (toolInput: unknown, principalId = owner) => buildMediaViewVideoRegistrations({ deps, catalog }, {})[0]!.handler({ executionId: 'e', principal: { id: principalId },
     run: { id: 'r' }, input: toolInput, signal: new AbortController().signal } satisfies ToolExecutionContext);
   const seed = async (createdByPrincipal = owner) => (await uploadMedia({ deps: { clock: { nowMs: () => 0 }, idGen: { newId: () => 'video-1' }, mediaRepo,
     blobRepo: assetBlobRepo, renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore },
@@ -230,7 +232,7 @@ test('sheets one pixel edge over the combined tile pixel budget are refused', as
 test('the contributor binds its ports into the registrations it builds', async () => {
   const h = harness();
   const { extractor, readAttachment, ...rest } = h.deps;
-  const contributor = contributeMediaViewVideoTools({ extractor, readAttachment });
+  const contributor = contributeMediaViewVideoTools({ catalog, ports: { extractor, readAttachment, prepareImages: prepareMessageAttachments } });
   assert.equal(contributor.domain, 'media-video-view');
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
     idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });

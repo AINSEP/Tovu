@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -8,7 +10,7 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -96,7 +98,7 @@ function runAuthorshipContract(
         markFailed: async () => {},
       };
       const result = await updatePost({
-        deps: { repo, clock: updateClock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock: updateClock, outbox: noopOutbox },
         input: {
           workspaceId: "ws-1",
           id: "post-3",

@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -8,7 +10,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { postRepoFor } from "../repo.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { updatePost, type UpdatePostInput } from "../post-update.js";
+import { updatePost, type UpdatePostInput } from "@jini-ai/cms/posts/post-update";
 import { PostVersionConflictError, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 
 const clock = { nowMs: () => Date.parse("2026-10-10T12:00:00Z") };
@@ -31,7 +33,7 @@ function saveContract(makeRepo: () => PostRepoPort): void {
       const before = await repo.findById(key);
       const history = await repo.listRevisions(revisionKey);
       const outbox = new InMemoryOutbox();
-      const result = await updatePost({ deps: { repo, clock, outbox }, input: inputFor(post, {
+      const result = await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox }, input: inputFor(post, {
         title: "  Hello  ", bodyJson: { content: [], type: "doc" },
         templateChoice: null, overridesThemePage: null, publishAt: null,
         featuredMediaId: null, author: null, showAuthor: false,
@@ -59,11 +61,11 @@ function saveContract(makeRepo: () => PostRepoPort): void {
       for (const patch of changes) {
         const count = (await repo.listRevisions(revisionKey)).length;
         const beforeVersion = post.version;
-        post = (await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: inputFor(post, patch) })).post;
+        post = (await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: inputFor(post, patch) })).post;
         assert.equal(post.version, beforeVersion + 1, JSON.stringify(patch));
         assert.equal((await repo.listRevisions(revisionKey)).length, count + 1);
         const stored = await repo.findById(key);
-        const repeated = await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: inputFor(post, patch) });
+        const repeated = await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: inputFor(post, patch) });
         assert.deepEqual(repeated.post, stored);
         assert.equal((await repo.listRevisions(revisionKey)).length, count + 1);
         post = repeated.post;
@@ -74,8 +76,8 @@ function saveContract(makeRepo: () => PostRepoPort): void {
       const repo = makeRepo();
       const post = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...key, title: "Hello", kind } })).post;
       const deps = { repo, clock, outbox: new InMemoryOutbox() };
-      assert.equal((await updatePost({ deps, input: inputFor(post) })).post.version, post.version);
-      await assert.rejects(updatePost({ deps, input: inputFor(post, { expectedVersion: post.version - 1 }) }), PostVersionConflictError);
+      assert.equal((await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: inputFor(post) })).post.version, post.version);
+      await assert.rejects(updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: inputFor(post, { expectedVersion: post.version - 1 }) }), PostVersionConflictError);
       assert.equal((await repo.listRevisions(revisionKey)).length, 1);
     });
   }
@@ -84,12 +86,12 @@ function saveContract(makeRepo: () => PostRepoPort): void {
     const repo = makeRepo();
     const post = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...key, title: "Hello" } })).post;
     const deps = { repo, clock, outbox: new InMemoryOutbox(), beforeSaveHook: async () => ({ plugin: { a: 1, b: 2 } }) };
-    const changed = (await updatePost({ deps, input: inputFor(post) })).post;
+    const changed = (await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: inputFor(post) })).post;
     assert.equal(changed.version, post.version + 1);
     assert.equal((await repo.listRevisions(revisionKey)).length, 2);
     const stored = await repo.findById(key);
     const repeated = await updatePost({
-      deps: { ...deps, beforeSaveHook: async () => ({ plugin: { b: 2, a: 1 } }) }, input: inputFor(changed),
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  ...deps, beforeSaveHook: async () => ({ plugin: { b: 2, a: 1 } }) }, input: inputFor(changed),
     });
     assert.deepEqual(repeated.post, stored);
     assert.equal((await repo.listRevisions(revisionKey)).length, 2);
@@ -119,7 +121,7 @@ test("no-op saves skip both write ports and revision append, with or without exp
   const post = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...key, title: "Hello" } })).post;
   const before = [repo.writes, repo.appends];
   for (const expectedVersion of [post.version, undefined]) {
-    await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: inputFor(post, { expectedVersion }) });
+    await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: inputFor(post, { expectedVersion }) });
     assert.deepEqual([repo.writes, repo.appends], before);
   }
 });
@@ -128,9 +130,9 @@ test("an unchanged request rechecks its version after an awaited plugin hook", a
   const repo = new InMemoryPostRepo({});
   const post = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...key, title: "Hello" } })).post;
   const deps = { repo, clock, outbox: new InMemoryOutbox() };
-  assert.equal((await updatePost({ deps, input: inputFor(post) })).post.version, post.version);
+  assert.equal((await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: inputFor(post) })).post.version, post.version);
   await assert.rejects(updatePost({
-    deps: { ...deps, beforeSaveHook: async () => {
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  ...deps, beforeSaveHook: async () => {
       // Another writer changes only metadata/version: equality must not hide the stale basis.
       await repo.save({ ...post, version: post.version + 1 });
       return {};

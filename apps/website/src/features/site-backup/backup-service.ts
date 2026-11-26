@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { requireShareSecretFree } from "./share-file-policy.js";
 import { readPlannedFile } from "./sources.js";
 import type { CredentialWarning } from "@jini-ai/devops/backup/site/credential-warnings";
@@ -316,7 +317,7 @@ async function findHostConnection(required: {
 }): Promise<{ ok: true; found: HostConnection | null } | Refusal> {
   const { deps, provider } = required;
   try {
-    return { ok: true, found: await resolveDefaultForSourceControl({ repo: required.repo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: required.providerId }) };
+    return { ok: true, found: await resolveDefaultForSourceControl({ repo: required.repo, sealer: deps.siteAssistantSecretSealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: deps.workspaceId, providerId: required.providerId }) };
   } catch (err) {
     if (err instanceof SourceControlCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage({ deps, label: `${provider.label} connection` }) };
     throw err;

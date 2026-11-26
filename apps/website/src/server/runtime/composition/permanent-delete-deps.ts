@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
 import { OwnerRequiredError } from "@jini-ai/user-management";
 import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "@jini-ai/user-management/identity/delete-user-service";
@@ -289,7 +290,7 @@ function preparePublishCredentialDelete({ deps, toolId, id, key }: { deps: Deps;
 function prepareSourceControlCredentialDelete({ deps, toolId, id, key }: { deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string; key: Pick<Deps, "workspaceId"> & { id: string } }): Promise<PermanentDeletePlan> {
   
 
-          return recordPlan({ toolId, id, load: () => describeSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key), label: ({ record: credential }) => credential.label,
+          return recordPlan({ toolId, id, load: () => describeSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, key), label: ({ record: credential }) => credential.label,
             warning: "Deletes the saved source-control credential. Another credential may become the default. Repositories remain; the token is not revoked at its provider.",
-            remove: async () => { await deleteSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key); return { removed: true, id }; } });
+            remove: async () => { await deleteSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, key); return { removed: true, id }; } });
 }

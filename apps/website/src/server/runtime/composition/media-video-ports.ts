@@ -1,8 +1,9 @@
+import { prepareMessageAttachments } from "@jini-ai/daemon";
 import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/features/media/chat-attachment-reader-host";
 import { createFfmpegMediaTranscoder } from "@jini-ai/agent-plugins/ffmpeg-transcode/adapter";
 import { createFfmpegVideoCodecProbe, createFfmpegVideoFrameExtractor, createVideoExtractionLock, findVideoBinaries, runLowPriorityVideoProcess } from "@jini-ai/cms/media/node";
 import { VIDEO_CONVERSION_MESSAGES, VIDEO_TRANSCODE_MAX_INPUT_BYTES, sniffContentType } from "@jini-ai/cms/media";
-import type { MediaVideoToolPorts } from "#src/features/media/view-video-tool";
+import type { MediaVideoToolPorts } from "@jini-ai/cms/media/site/view-video-tool";
 import type { MediaConversionPorts } from "#src/features/media/tool-registrations";
 
 /** Both CLI and BYOK catalogs receive the same owner reader and frame-extraction port. Directory
@@ -16,6 +17,7 @@ export function createMediaVideoToolPorts(
   { uploadDirectory }: { uploadDirectory?: string } = {},
 ): MediaVideoToolPorts {
   return {
+    prepareImages: prepareMessageAttachments,
     extractor: createFfmpegVideoFrameExtractor({}, {}),
     readAttachment: async (input, { maxBytes }) => uploadDirectory === undefined
       ? { ok: false, refusal: "no-record" }

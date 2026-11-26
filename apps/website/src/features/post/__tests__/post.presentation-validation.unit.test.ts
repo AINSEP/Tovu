@@ -1,8 +1,10 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPost, type CreatePostInput } from "@jini-ai/cms/posts/post-create";
-import { updatePost, type UpdatePostInput } from "../post-update.js";
+import { updatePost, type UpdatePostInput } from "@jini-ai/cms/posts/post-update";
 import { PostValidationError } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
@@ -19,7 +21,7 @@ for (const operation of ["create", "update"] as const) {
       const input = { ...existing, ...patch };
       const write = operation === "create"
         ? createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: input as unknown as CreatePostInput })
-        : updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: input as unknown as UpdatePostInput });
+        : updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: input as unknown as UpdatePostInput });
       await assert.rejects(write, PostValidationError, JSON.stringify(patch));
       assert.deepEqual(await repo.list({ workspaceId: existing.workspaceId }), operation === "update" ? [existing] : []);
       assert.deepEqual(await repo.listRevisions({ workspaceId: existing.workspaceId, postId: existing.id }), []);
@@ -31,7 +33,7 @@ for (const operation of ["create", "update"] as const) {
       const existing = buildPostRecord({ templateChoice: "old.html", overridesThemePage: true });
       const repo = new InMemoryPostRepo({}, { initialRows: operation === "update" ? [existing] : [] });
       const input = { ...existing, ...patch };
-      const result = operation === "create" ? await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input }) : await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input });
+      const result = operation === "create" ? await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input }) : await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input });
       assert.equal(result.post.templateChoice, patch.templateChoice);
       assert.equal(result.post.overridesThemePage, patch.overridesThemePage);
     }

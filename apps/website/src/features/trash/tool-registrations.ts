@@ -3,7 +3,7 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { buildTrashToolRegistrations, trashDerivedRisk, type TrashPort, type TrashToolPolicy } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/trash";
-import { trashDaysRemaining } from "@jini-ai/cms/trash/site/permissions";
+import { trashDaysRemaining } from "@jini-ai/cms/trash/visibility";
 import { filterVisibleTrashItems, trashPermissionFor, TRASH_PERMISSION_BY_ENTITY_TYPE, TRASH_READ_PERMISSION } from "./permissions.js";
 import type { TrashRegistry } from "@jini-ai/cms/trash";
 import { trashToolEntityTypes } from "./tool-kinds.js";

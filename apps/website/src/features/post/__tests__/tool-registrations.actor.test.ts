@@ -11,7 +11,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { removeVia } from "./remove-post-double.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { type PostToolDeps } from "../tool-registrations.js";
 
 /**
  * @file P10-H2.T attribution at the assistant tool binding. The CLI executor (daemon tool-RPC

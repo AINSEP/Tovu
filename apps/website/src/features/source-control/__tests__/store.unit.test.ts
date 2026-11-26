@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -147,11 +148,11 @@ test("describeCredential/listSourceControlCredentials never touch the sealer —
   } });
 
   const brokenSealerRepoDeps = { repo: deps.repo }; // deliberately no sealer/keyring at all
-  const list = await listSourceControlCredentials(brokenSealerRepoDeps, { workspaceId: WORKSPACE });
+  const list = await listSourceControlCredentials({ ...brokenSealerRepoDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE });
   assert.equal(list.length, 1);
   assert.equal(list[0]!.label, "default");
 
-  const one = await describeCredential(brokenSealerRepoDeps, { workspaceId: WORKSPACE, id: list[0]!.id });
+  const one = await describeCredential({ ...brokenSealerRepoDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: list[0]!.id });
   assert.equal(one?.providerId, "example-token");
 });
 
@@ -182,7 +183,7 @@ test("isDefault group invariant: setting a new default clears the previous one, 
   } });
   assert.equal(second.isDefault, true);
 
-  const list = await listSourceControlCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  const list = await listSourceControlCredentials({ repo: deps.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE });
   const defaults = list.filter((c) => c.isDefault);
   assert.equal(defaults.length, 1, "at most one default per (workspace, provider) — never zero, never two");
   assert.equal(defaults[0]!.id, second.id);
@@ -200,13 +201,13 @@ test("deleting the default promotes the group's most-recently-updated remaining 
   const otherWorkspace = await createSourceControlCredential({ deps: deps, input: { workspaceId: "ws-2", label: "other", connection: { providerId: "example-git", token: "other" } } });
   now = "2026-08-18T00:00:00.000Z";
   await updateSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, id: second.id, label: "recently-updated" } });
-  await deleteSourceControlCredential(deps, { workspaceId: WORKSPACE, id: first.id });
-  const list = await listSourceControlCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  await deleteSourceControlCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: first.id });
+  const list = await listSourceControlCredentials({ repo: deps.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE });
   assert.equal(list.length, 3);
   assert.deepEqual(list.filter((row) => row.providerId === "example-git" && row.isDefault).map((row) => row.id), [second.id]);
   assert.equal(list.find((row) => row.id === third.id)?.isDefault, false);
   assert.equal(list.find((row) => row.id === otherProvider.id)?.isDefault, true);
-  assert.equal((await describeCredential(deps, { workspaceId: "ws-2", id: otherWorkspace.id }))?.isDefault, true);
+  assert.equal((await describeCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: "ws-2", id: otherWorkspace.id }))?.isDefault, true);
 });
 
 test("updateSourceControlCredential with connection OMITTED leaves the stored secret untouched (label-only rename)", async () => {
@@ -248,7 +249,7 @@ test("updateSourceControlCredential changing ONLY isDefault leaves the label unt
   assert.equal(updated.label, "two", "label must be left untouched when omitted from the update");
   assert.equal(updated.isDefault, true);
 
-  const refreshedFirst = await describeCredential({ repo: deps.repo }, { workspaceId: WORKSPACE, id: first.id });
+  const refreshedFirst = await describeCredential({ repo: deps.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: first.id });
   assert.equal(refreshedFirst?.isDefault, false, "promoting the second row must demote the first — at most one default per group");
 });
 
@@ -274,7 +275,7 @@ test("a duplicate (workspaceId, providerId, label) is rejected and never creates
     SourceControlCredentialDuplicateLabelError
   );
 
-  const list = await listSourceControlCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  const list = await listSourceControlCredentials({ repo: deps.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE });
   assert.equal(list.length, 1);
 });
 
@@ -372,12 +373,12 @@ test("updateSourceControlCredential with a NEW connection re-probes and can chan
     connection: { providerId: "example-git", token: "t2" },
   } });
   assert.equal(updated.accountLabel, "new-account", "a new connection must re-probe rather than carry the old account label forward");
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection,
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection,
     { providerId: "example-git", token: "t2" });
   await updateSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, id: created.id,
     connection: { providerId: "example-paired", token: "bb-new", username: "paired-new" } } });
-  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }), null);
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-paired" }))?.connection,
+  assert.equal(await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }), null);
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-paired" }))?.connection,
     { providerId: "example-paired", token: "bb-new", username: "paired-new" });
 });
 
@@ -553,7 +554,7 @@ test("updateSourceControlCredential rejects renaming into ANOTHER row's (provide
     updateSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, id: other.id, label: "taken" } }),
     SourceControlCredentialDuplicateLabelError
   );
-  const stillOriginal = await describeCredential({ repo: deps.repo }, { workspaceId: WORKSPACE, id: other.id });
+  const stillOriginal = await describeCredential({ repo: deps.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: other.id });
   assert.equal(stillOriginal?.label, "renameable", "a rejected rename must not partially apply");
 });
 
@@ -570,7 +571,7 @@ test("createSourceControlCredential leaves accountLabel null when a 200 Example 
 test("new credentials for an unavailable provider are refused without network or persistence", async () => {
   const deps = makeDeps({ loadSourceControlProviders: noProviders });
   await assert.rejects(createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'work', connection: { providerId: 'example-git', token: 'fixture-secret' } } }), SourceControlCredentialValidationError);
-  assert.deepEqual(await listSourceControlCredentials(deps, { workspaceId: WORKSPACE }), []);
+  assert.deepEqual(await listSourceControlCredentials({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE }), []);
 });
 
 test("credential CRUD and default resolution isolate workspaces and leave the owner's row untouched", async () => {
@@ -578,12 +579,12 @@ test("credential CRUD and default resolution isolate workspaces and leave the ow
   const created = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "owner", connection: { providerId: "example-git", token: "owner-secret" } } });
   const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
   await assert.rejects(() => updateSourceControlCredential({ deps: deps, input: { workspaceId: "ws-2", id: created.id, label: "attacker" } }), SourceControlCredentialNotFoundError);
-  await deleteSourceControlCredential(deps, { workspaceId: "ws-2", id: created.id });
-  assert.equal(await describeCredential(deps, { workspaceId: "ws-2", id: created.id }), null);
-  assert.deepEqual(await listSourceControlCredentials(deps, { workspaceId: "ws-2" }), []);
-  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: "ws-2", providerId: "example-git" }), null);
+  await deleteSourceControlCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: "ws-2", id: created.id });
+  assert.equal(await describeCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: "ws-2", id: created.id }), null);
+  assert.deepEqual(await listSourceControlCredentials({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: "ws-2" }), []);
+  assert.equal(await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: "ws-2", providerId: "example-git" }), null);
   assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }), before);
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection, { providerId: "example-git", token: "owner-secret" });
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection, { providerId: "example-git", token: "owner-secret" });
 });
 
 for (const status of [401, 403]) test(`save-time probe reports ${status} as authentication failure after saving`, async () => {
@@ -591,7 +592,7 @@ for (const status of [401, 403]) test(`save-time probe reports ${status} as auth
   const saved = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'auth-check', connection: { providerId: 'example-git', token: 'fixture-credential-a9F2' } } });
   assert.equal(saved.connection, 'auth');
   assert.deepEqual(saved.tokenHint, { length: 23, last4: 'a9F2' });
-  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token === 'fixture-credential-a9F2', true, 'rejection does not undo the save');
+  assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token === 'fixture-credential-a9F2', true, 'rejection does not undo the save');
 });
 
 test('a pending old probe cannot overwrite a newer token rotation or label', async () => {
@@ -614,7 +615,7 @@ test('a pending old probe cannot overwrite a newer token rotation or label', asy
   const current = await repo.findById({ workspaceId: WORKSPACE, id: saved.id });
   assert.equal(current?.label, 'renamed');
   assert.equal(current?.accountLabel, null, 'the old account label cannot attach to a new token');
-  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token === 'replacement-credential-b8G3', true);
+  assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token === 'replacement-credential-b8G3', true);
 });
 
 // Selection reads the host's summaries (fdc875823: the sole attached row may be a non-default), but only the
@@ -626,7 +627,7 @@ test("vault default resolution opens only the selected credential, never a sibli
   const open = deps.sealer.open.bind(deps.sealer);
   const opened: string[] = [];
   deps.sealer.open = async (input, options) => { const plaintext = await open(input, options); opened.push(plaintext); return plaintext; };
-  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }))?.id, created.id);
+  assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }))?.id, created.id);
   assert.equal(opened.length, 1);
   assert.match(opened[0]!, /default-secret/);
 });
@@ -636,7 +637,7 @@ test("vault summary hints require no per-row reads or opens and suppress short t
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Short", connection: { providerId: "example-git", token: "short" } } });
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Long", connection: { providerId: "example-git", token: "twelvechars!" } } });
   deps.repo.vault!.find = async () => { throw new Error("summary list must not hydrate rows"); };
-  const listed = await listSourceControlCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  const listed = await listSourceControlCredentials({ repo: deps.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE });
   assert.deepEqual(listed.map(row => row.tokenHint), [{ length: 5, last4: null }, { length: 12, last4: "ars!" }]);
 });
 
@@ -648,12 +649,12 @@ test("a source identity probe completing after deletion cannot recreate its vaul
   const deps = makeDeps({ fetchFn: async () => { begin(); await pending; return Response.json({ account: "old-account" }); } });
   const saving = createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Pending", connection: { providerId: "example-git", token: "pending-secret" } } });
   await started;
-  const saved = (await listSourceControlCredentials(deps, { workspaceId: WORKSPACE }))[0]!;
-  await deleteSourceControlCredential(deps, { workspaceId: WORKSPACE, id: saved.id });
+  const saved = (await listSourceControlCredentials({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE }))[0]!;
+  await deleteSourceControlCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: saved.id });
   finish();
   await saving;
   const reboot = new InMemorySourceControlCredentialSetRepo({ vault: deps.repo.vault! });
-  assert.deepEqual(await listSourceControlCredentials({ repo: reboot }, { workspaceId: WORKSPACE }), []);
+  assert.deepEqual(await listSourceControlCredentials({ repo: reboot, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE }), []);
 });
 
 test("a source identity probe completing after rotation cannot heal the new token", async () => {
@@ -668,12 +669,12 @@ test("a source identity probe completing after rotation cannot heal the new toke
   } });
   const saving = createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Pending", connection: { providerId: "example-git", token: "original-token" } } });
   await started;
-  const saved = (await listSourceControlCredentials(deps, { workspaceId: WORKSPACE }))[0]!;
+  const saved = (await listSourceControlCredentials({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE }))[0]!;
   await updateSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "example-git", token: "replacement-token" } } });
   finish();
   await saving;
-  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.accountLabel, "new-account");
-  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection.token, "replacement-token");
+  assert.equal((await describeCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: saved.id }))?.accountLabel, "new-account");
+  assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection.token, "replacement-token");
 });
 
 for (const selectDefault of [false, true]) {
@@ -700,11 +701,11 @@ for (const selectDefault of [false, true]) {
     assert.equal(after.revision, before.revision + 1);
     assert.equal((await deps.repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "example-git" }))?.id, sibling.id);
     assert.equal((await deps.repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "example-token" }))?.id, selectDefault ? original.id : destination.id);
-    assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-token" }))?.connection.token, selectDefault ? "original-secret" : "destination-secret");
+    assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-token" }))?.connection.token, selectDefault ? "original-secret" : "destination-secret");
     if (!selectDefault) {
       const returned = await updateSourceControlCredential({ deps: { ...deps, sealer: noCrypto }, input: { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "example-git" }, isDefault: true } });
       assert.equal(returned.isDefault, true);
-      assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection, { providerId: "example-git", token: "original-secret" });
+      assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }))?.connection, { providerId: "example-git", token: "original-secret" });
     }
   });
 }
@@ -730,7 +731,7 @@ test('paired-field transitions use the declaration message and never alter eithe
   assert.deepEqual(await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id }), before);
   const moved = await updateSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: 'example-paired', token: 'new-secret', username: 'operator' } } });
   assert.equal(moved.providerId, 'example-paired');
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-paired' }))?.connection, { providerId: 'example-paired', token: 'new-secret', username: 'operator' });
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: 'example-paired' }))?.connection, { providerId: 'example-paired', token: 'new-secret', username: 'operator' });
 });
 
 test('saved ids and payload fields stay opaque when their provider disappears', async () => {
@@ -741,12 +742,12 @@ test('saved ids and payload fields stay opaque when their provider disappears', 
   const renamed = await updateSourceControlCredential({ deps: absent, input: { workspaceId: WORKSPACE, id: saved.id, label: 'retained', connection: { providerId: 'example-paired', token: '' }, isDefault: true } });
   assert.equal(renamed.providerId, 'example-paired');
   assert.deepEqual((await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id }))?.sealed, before?.sealed);
-  assert.deepEqual((await resolveDefaultForSourceControl(absent, { workspaceId: WORKSPACE, providerId: 'example-paired' }))?.connection, { providerId: 'example-paired', token: 'saved-secret', username: 'operator' });
-  assert.equal((await describeCredential(absent, { workspaceId: WORKSPACE, id: saved.id }))?.label, 'retained');
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...absent, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: 'example-paired' }))?.connection, { providerId: 'example-paired', token: 'saved-secret', username: 'operator' });
+  assert.equal((await describeCredential({ ...absent, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: saved.id }))?.label, 'retained');
   await assert.rejects(updateSourceControlCredential({ deps: absent, input: { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: 'example-paired', token: 'replacement' } } }), SourceControlCredentialValidationError);
   await assert.rejects(updateSourceControlCredential({ deps: absent, input: { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: 'unavailable' } } }), SourceControlCredentialValidationError);
-  await deleteSourceControlCredential(absent, { workspaceId: WORKSPACE, id: saved.id });
-  assert.deepEqual(await listSourceControlCredentials(absent, { workspaceId: WORKSPACE }), []);
+  await deleteSourceControlCredential({ ...absent, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: saved.id });
+  assert.deepEqual(await listSourceControlCredentials({ ...absent, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE }), []);
 });
 
 test('optional and secret fields reuse credential.fields, while undeclared values are never sealed', async () => {
@@ -760,9 +761,9 @@ test('optional and secret fields reuse credential.fields, while undeclared value
   const loaded = { ...base, descriptor };
   const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === descriptor.id ? loaded : undefined, refusals: [] }) });
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'optional-absent', connection: { providerId: descriptor.id, token: 'token-one', undeclared: 'ignored' } } });
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: descriptor.id }))?.connection, { providerId: descriptor.id, token: 'token-one' });
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: descriptor.id }))?.connection, { providerId: descriptor.id, token: 'token-one' });
   const saved = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'optional-present', isDefault: true, connection: { providerId: descriptor.id, token: 'token-two', note: 'metadata', password: '  paired-secret  ' } } });
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: descriptor.id }))?.connection, { providerId: descriptor.id, token: 'token-two', note: 'metadata', password: 'paired-secret' });
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: descriptor.id }))?.connection, { providerId: descriptor.id, token: 'token-two', note: 'metadata', password: 'paired-secret' });
   assert.equal(JSON.stringify(saved).includes('paired-secret'), false);
   for (const note of ['', 42, '   ']) await assert.rejects(createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'invalid', connection: { providerId: descriptor.id, token: 'token-three', note } } }), SourceControlCredentialValidationError);
 });
@@ -779,7 +780,7 @@ test('non-default declared token names accept canonical admin input and normaliz
     const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label, isDefault: true,
       connection: { providerId: 'example-access', [field]: '  first-secret  ', username: 'operator' } } });
     const resolve = async () => {
-      const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-access' });
+      const resolved = await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: 'example-access' });
       assert.ok(resolved);
       return resolved.connection;
     };
@@ -811,7 +812,7 @@ test('opaque metadata and canonical blank-token patches never load provider code
   for (const connection of [undefined, {}, { providerId: 'example-git' }, { token: '' }]) {
     await updateSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, id: saved.id, label: 'renamed', connection } });
   }
-  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token, 'saved-secret');
+  assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token, 'saved-secret');
 });
 
 test('T26: token-only rotation retains the saved provider', async () => {
@@ -824,7 +825,7 @@ test('T26: token-only rotation retains the saved provider', async () => {
   await assert.doesNotReject(() => updateSourceControlCredential({ deps, input: {
     workspaceId: WORKSPACE, id: saved.id, connection: { token: 'replacement-fixture-token' },
   } }));
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, {
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, {
     workspaceId: WORKSPACE, providerId: 'example-git',
   }))?.connection, { providerId: 'example-git', token: 'replacement-fixture-token' });
 });
@@ -847,7 +848,7 @@ test('T36: blank-token patches refuse changes to other connection fields', async
     workspaceId: WORKSPACE, id: saved.id,
     connection: { providerId: loaded.descriptor.id, token: '', baseUrl: 'https://new.example.test' },
   } }), SourceControlCredentialValidationError);
-  assert.deepEqual((await resolveDefaultForSourceControl(deps, {
+  assert.deepEqual((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, {
     workspaceId: WORKSPACE, providerId: loaded.descriptor.id,
   }))?.connection, connection);
 });
@@ -870,7 +871,7 @@ for (const failure of [new DOMException('bounded', 'AbortError'), new DOMExcepti
     const deps = makeDeps({ fetchFn: async () => { throw failure; } });
     const saved = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'timeout', connection: { providerId: 'example-git', token: 'saved-secret' } } });
     assert.equal(saved.connection, 'timeout');
-    assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
+    assert.equal((await describeCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
   });
 }
 
@@ -886,7 +887,7 @@ test('a provider disabled after admission cannot prevent durable storage or run 
   const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'racing-disable', connection: { providerId: 'example-git', token: 'stored-secret' } } });
   assert.equal(saved.connection, 'saved');
   assert.equal(saved.accountLabel, null);
-  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
+  assert.equal((await describeCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
 });
 
 test('a write-only caller can retain an admitted connection if its discovery port disappears', async () => {
@@ -942,7 +943,7 @@ test("a redirect refused by the guarded client leaves the label unknown and repo
   const saved = await createSourceControlCredential({ deps, input: probeInput });
   assert.equal(saved.accountLabel, null);
   assert.equal(saved.connection, "unreachable");
-  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
+  assert.equal((await describeCredential({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
 });
 
 test("the guarded transport's own idle timeout is reported as a timeout", async () => {

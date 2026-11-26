@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file Pins the refusal and fallback branches of `post.ts`'s write paths that the scenario suites
@@ -15,7 +17,7 @@ import { findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
 import { importPostEntity } from "@jini-ai/cms/posts/post-import";
 import { normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
 import { retirePostForReplacement } from "@jini-ai/cms/posts/post-retire";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
@@ -159,7 +161,7 @@ test("create: a derived slug with every candidate taken is refused after the bou
 test("update: an omitted slug without slugFromTitle validates as an empty slug", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord()] });
   await assert.rejects(
-    updatePost({ deps: { clock, repo, outbox }, input: { workspaceId: WS, id: "post-1", title: "Hello World", bodyJson: { type: "doc", content: [] }, status: "draft" } }),
+    updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  clock, repo, outbox }, input: { workspaceId: WS, id: "post-1", title: "Hello World", bodyJson: { type: "doc", content: [] }, status: "draft" } }),
     (error: unknown) => error instanceof PostValidationError && error.message === "slug must use lowercase letters, numbers, and dashes",
   );
 });
@@ -185,7 +187,7 @@ test("update: an unchanged save whose row is trashed during the plugin hook is n
   const repo = new InMemoryPostRepo({}, { initialRows: [stored] });
   const beforeSaveHook = async () => { await repo.save({ ...stored, deletedAt: "2026-10-20T00:00:00.000Z" }); return {}; };
   await assert.rejects(
-    updatePost({ deps: { clock, repo, outbox, beforeSaveHook }, input: unchangedInput(stored) }),
+    updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  clock, repo, outbox, beforeSaveHook }, input: unchangedInput(stored) }),
     (error: unknown) => error instanceof PostNotFoundError && error.message === "post 'post-1' was not found",
   );
 });
@@ -194,7 +196,7 @@ test("update: an unchanged save whose row another writer edits during the hook i
   const stored = buildPostRecord();
   const repo = new InMemoryPostRepo({}, { initialRows: [stored] });
   const beforeSaveHook = async () => { await repo.save({ ...stored, title: "Edited elsewhere" }); return {}; };
-  const result = await updatePost({ deps: { clock, repo, outbox, beforeSaveHook }, input: unchangedInput(stored) });
+  const result = await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  clock, repo, outbox, beforeSaveHook }, input: unchangedInput(stored) });
   assert.equal(result.post.title, "Hello World");
   assert.notEqual(result.revisionId, null);
 });
@@ -202,14 +204,14 @@ test("update: an unchanged save whose row another writer edits during the hook i
 test("update: hideCoverImageInBody starts the presentation namespace on a post with no ext", async () => {
   const stored = buildPostRecord();
   const repo = new InMemoryPostRepo({}, { initialRows: [stored] });
-  const { post } = await updatePost({ deps: { clock, repo, outbox }, input: { ...unchangedInput(stored), hideCoverImageInBody: false } });
+  const { post } = await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  clock, repo, outbox }, input: { ...unchangedInput(stored), hideCoverImageInBody: false } });
   assert.deepEqual(post.ext, { "post-presentation": { hideCoverImageInBody: false } });
 });
 
 test("update: hideCoverImageInBody keeps the presentation namespace's other keys", async () => {
   const stored = buildPostRecord({ ext: { "post-presentation": { layout: "wide" }, other: { a: 1 } } });
   const repo = new InMemoryPostRepo({}, { initialRows: [stored] });
-  const { post } = await updatePost({ deps: { clock, repo, outbox }, input: { ...unchangedInput(stored), hideCoverImageInBody: true } });
+  const { post } = await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  clock, repo, outbox }, input: { ...unchangedInput(stored), hideCoverImageInBody: true } });
   assert.deepEqual(post.ext, { "post-presentation": { layout: "wide", hideCoverImageInBody: true }, other: { a: 1 } });
 });
 
@@ -218,7 +220,7 @@ test("update: a non-boolean slugFromTitle or hideCoverImageInBody is refused by 
   const repo = new InMemoryPostRepo({}, { initialRows: [stored] });
   for (const name of ["slugFromTitle", "hideCoverImageInBody"]) {
     await assert.rejects(
-      updatePost({ deps: { clock, repo, outbox }, input: { ...unchangedInput(stored), [name]: "yes" } as Parameters<typeof updatePost>[0]["input"] }),
+      updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  clock, repo, outbox }, input: { ...unchangedInput(stored), [name]: "yes" } as Parameters<typeof updatePost>[0]["input"] }),
       (error: unknown) => error instanceof PostValidationError && error.message === `${name} must be a boolean`,
     );
   }

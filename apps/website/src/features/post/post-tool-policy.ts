@@ -1,6 +1,14 @@
+import { isDeepStrictEqual } from "node:util";
 import { indexCatalogById } from "@jini-ai/core";
-import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
-import type { PostToolDeps } from "./post-tool-deps.js";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { postPublicPath } from "#src/platform/routing/index";
+import { executeCommand } from "@jini-ai/cms/core/commands";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
+import { withPluginHookRefusals } from "@jini-ai/plugins/host/hook-refusals";
+import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
+import { postAgentToolCatalog } from "./post-catalog-host.js";
+import { headerNavigationView, postToolViewDeps } from "./post-tool-view-deps.js";
+import { readPostTemplateOptions } from "./template-options.js";
 
 /**
  * @file Posts + Pages' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 6 catalog entries onto
@@ -47,24 +55,14 @@ import type { PostToolDeps } from "./post-tool-deps.js";
  * response, so a large workspace can no longer flood the agent's context with every row, and
  * truncation is never silent.
  */
-export const CONTENT_READ_PERMISSION = "content.read" as const;
-export const CONTENT_WRITE_PERMISSION = "content.write" as const;
-
-export const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
-
-/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
- *  imported, the same "structurally typed, no `features/trash` import" convention
- *  {@link RemovePostFn}'s own doc already follows. */
-export const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
-
-/** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
- * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
-export function postCommandDeps(routeDeps: PostToolDeps) {
-  return {
-    clock: routeDeps.clock,
-    idGen: routeDeps.idGen,
-    changeSets: routeDeps.changeSets,
-    outbox: routeDeps.outbox,
-    authorize: routeDeps.authorize,
-  };
-}
+export const POST_TOOL_HOST = {
+  reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,
+  contentReadPermission: "content.read", contentWritePermission: "content.write", assistantActorPluginId: "assistant",
+  catalog: indexCatalogById({ catalog: postAgentToolCatalog }), executeCommand, processOutbox, withPluginHookRefusals,
+  postToolViewDeps, headerNavigationView, readPostTemplateOptions, findMediaByIdOrSlug,
+  featuredImageRefusals: {
+    missing: ({ ref }: { ref: string }, _optional = {}) => `featuredImage: no media asset has the id or slug '${ref}'. Find one with content_read.media_asset, or upload one first.`,
+    trashed: ({ ref }: { ref: string }, _optional = {}) => `featuredImage: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
+    "not-image": ({ ref }: { ref: string }, { contentType }: { contentType?: string } = {}) => `featuredImage: media asset '${ref}' is ${contentType ?? "not an image"}, not an image. A featured image must be an image.`,
+  },
+};

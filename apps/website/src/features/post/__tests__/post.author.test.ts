@@ -1,9 +1,11 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createPost, type CreatePostInput } from "@jini-ai/cms/posts/post-create";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { PostValidationError } from "@jini-ai/cms/posts/post";
 import { createPostReverters } from "@jini-ai/cms/posts/reverters";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -20,7 +22,7 @@ test("creation defaults to the actor username once, stays hidden, and records th
   assert.equal(created.showAuthor, false);
   assert.equal(created.createdByPrincipalId, "human");
   assert.deepEqual(lookups, [{ workspaceId: "ws", principalId: "human" }]);
-  const changed = (await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  const changed = (await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: created.slug, bodyJson: created.bodyJson, status: created.status, author: "Guest Writer", showAuthor: true,
   } })).post;
   assert.equal(changed.author, "Guest Writer");
@@ -65,7 +67,7 @@ test("author accepts 200 display characters and rejects a longer edit without ch
   const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...input, author: `  ${"A".repeat(200)}  ` } })).post;
   assert.equal(created.author, "A".repeat(200));
   const revisions = await repo.listRevisions({ workspaceId: "ws", postId: "p1" });
-  await assert.rejects(updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  await assert.rejects(updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: created.slug, bodyJson: created.bodyJson, status: created.status, author: "A".repeat(201),
   } }), (error: unknown) => error instanceof PostValidationError && error.message === "author must be at most 200 characters");
   assert.deepEqual(await repo.findById({ workspaceId: "ws", id: "p1" }), created);
@@ -77,12 +79,12 @@ test("author counts Unicode code points across creation and edits, with no write
   const author = "😀".repeat(200);
   const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...input, author: `  ${author}  ` } })).post;
   assert.equal(created.author, author);
-  const changed = (await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  const changed = (await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: created.slug, bodyJson: created.bodyJson, status: created.status, author: "A😀".repeat(100),
   } })).post;
   assert.equal(changed.author, "A😀".repeat(100));
   const revisions = await repo.listRevisions({ workspaceId: "ws", postId: "p1" });
-  await assert.rejects(updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  await assert.rejects(updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: changed.slug, bodyJson: changed.bodyJson, status: changed.status, author: "😀".repeat(201),
   } }), (error: unknown) => error instanceof PostValidationError && error.message === "author must be at most 200 characters");
   assert.deepEqual(await repo.findById({ workspaceId: "ws", id: "p1" }), changed);

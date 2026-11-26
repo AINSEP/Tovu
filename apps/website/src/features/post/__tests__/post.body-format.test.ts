@@ -1,10 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost, type CreatePostInput } from "@jini-ai/cms/posts/post-create";
-import { updatePost, type UpdatePostInput } from "../post-update.js";
+import { updatePost, type UpdatePostInput } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
@@ -109,7 +111,7 @@ test("updatePost: an existing row's bodyFormat stays 'doc' after an update, even
     bodyHtml: "<p>not tiptap</p>",
   } as unknown as UpdatePostInput;
 
-  const { post } = await updatePost({ deps: { repo, clock, outbox: noopOutbox }, input: smuggledInput });
+  const { post } = await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox }, input: smuggledInput });
 
   assert.equal(post.bodyFormat, "doc");
   assert.equal(post.bodyHtml ?? null, null);

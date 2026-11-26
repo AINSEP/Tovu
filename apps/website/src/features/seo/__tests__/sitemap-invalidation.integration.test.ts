@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -6,7 +8,8 @@ import test from "node:test";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { InMemoryPostRepo, updatePost, type PostRecord } from "../../post/index.js";
+import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import {
@@ -144,7 +147,7 @@ test("publish -> entry.published -> sitemap cache invalidated", async () => {
   await primeCacheThenMutateDirectly(harness);
 
   await updatePost({
-    deps: { repo: harness.postRepo, clock, outbox: harness.outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: harness.postRepo, clock, outbox: harness.outbox },
     input: { workspaceId: WORKSPACE, id: "post-1", title: "Hello", slug: "hello", bodyJson: {}, status: "published" },
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
@@ -158,7 +161,7 @@ test("unpublish -> entry.unpublished -> sitemap cache invalidated", async () => 
   await primeCacheThenMutateDirectly(harness);
 
   await updatePost({
-    deps: { repo: harness.postRepo, clock, outbox: harness.outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: harness.postRepo, clock, outbox: harness.outbox },
     input: { workspaceId: WORKSPACE, id: "post-1", title: "Hello", slug: "hello", bodyJson: {}, status: "draft" },
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
@@ -173,7 +176,7 @@ test("published -> published edit -> entry.updated -> sitemap cache invalidated"
   await primeCacheThenMutateDirectly(harness);
 
   await updatePost({
-    deps: { repo: harness.postRepo, clock, outbox: harness.outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: harness.postRepo, clock, outbox: harness.outbox },
     input: { workspaceId: WORKSPACE, id: "post-1", title: "Hello (retitled)", slug: "hello", bodyJson: {}, status: "published" },
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
@@ -218,7 +221,7 @@ test("draft -> draft edit emits no event and the cache stays untouched", async (
   await primeCacheThenMutateDirectly(harness);
 
   await updatePost({
-    deps: { repo: harness.postRepo, clock, outbox: harness.outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: harness.postRepo, clock, outbox: harness.outbox },
     input: { workspaceId: WORKSPACE, id: "post-1", title: "Hello (edited)", slug: "hello", bodyJson: {}, status: "draft" },
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });

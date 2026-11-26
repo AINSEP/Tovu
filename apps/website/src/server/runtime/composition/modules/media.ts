@@ -1,3 +1,9 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { createHash } from "node:crypto";
+import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 /**
  * Owner policy: 50 MiB for media uploads, including Library documents, and 500 MiB for video
@@ -27,10 +33,8 @@ import { createConvertingUploader, type VideoImportOptions } from "#src/features
 import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
 import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
-import {
-  getMediaProviderCredentialsModel, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialStaleError,
-  MediaProviderCredentialValidationError, patchMediaProvider, removeMediaProvider, saveMediaProviderCredentials, uploadMedia,
-} from "#src/features/media/index";
+import { uploadMedia } from "#src/features/media/index";
+import { getMediaProviderCredentialsModel, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialStaleError, MediaProviderCredentialValidationError, patchMediaProvider, removeMediaProvider, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import { fetchImage } from "#src/features/media-import/fetch-image";
 import { EgressRefusedError } from "#src/platform/http/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
@@ -60,6 +64,16 @@ import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/
 import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { RouteRegistration, ServerModuleHandle } from "./types.js";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `media` server module.
@@ -284,7 +298,7 @@ function mediaProviderStoreDeps({ deps }: { deps: MediaProviderRouteDeps }, _opt
 }
 
 export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
-  const getProviders = ({ workspaceId }: { workspaceId: string }) => getMediaProviderCredentialsModel({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId });
+  const getProviders = ({ workspaceId }: { workspaceId: string }) => getMediaProviderCredentialsModel({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: deps.mediaProviderCredentialRepo }, workspaceId });
   mountAdminJsonRoute({ errors, app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
 };
 
@@ -303,12 +317,12 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
     { workspaceId, providers, expectedRevision }: { workspaceId: string; providers: Record<string, unknown>; expectedRevision: string },
   ): Promise<MediaProvidersSaveOutcome> => {
     try {
-      await saveMediaProviderCredentials(mediaProviderStoreDeps({ deps }), { workspaceId, providers: providers as Record<string, never> }, { expectedRevision });
+      await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...mediaProviderStoreDeps({ deps }) }, input: { workspaceId, providers: providers as Record<string, never> } }, { expectedRevision });
     } catch (err) {
       if (err instanceof MediaProviderCredentialStaleError) return { outcome: "stale" };
       throw err;
     }
-    return { outcome: "saved", ...(await getMediaProviderCredentialsModel({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId })) };
+    return { outcome: "saved", ...(await getMediaProviderCredentialsModel({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: deps.mediaProviderCredentialRepo }, workspaceId })) };
   };
   const putDeps = { ...mediaPortDeps({ deps }), saveProviders, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
   const spec = { ...mediaPutProvidersRoute, readHeaders: [MEDIA_PROVIDERS_REVISION_REQUEST_HEADER] };
@@ -318,7 +332,7 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
 /** PATCH one provider: only the named provider is written, merged against its current row. */
 export const registerAdminMediaPatchProviderRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const patchProvider = ({ workspaceId, providerId, fields }: { workspaceId: string; providerId: string; fields: { apiKey?: string; baseUrl?: string; model?: string } }) =>
-    patchMediaProvider({ deps: mediaProviderStoreDeps({ deps }), workspaceId, providerId, fields });
+    patchMediaProvider({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...mediaProviderStoreDeps({ deps }) }, workspaceId, providerId, fields });
   const patchDeps = { ...mediaPortDeps({ deps }), patchProvider, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
   mountAdminJsonRoute({ errors, app, spec: mediaPatchProviderRoute, deps: patchDeps }, mountOptions({ operation: "routes/media/patch-provider", authorization: "direct" }));
 };
@@ -326,7 +340,7 @@ export const registerAdminMediaPatchProviderRoute: MediaProviderRouteRegistrar =
 /** DELETE one provider: exactly the bound workspace and the named provider, catalog or not. */
 export const registerAdminMediaDeleteProviderRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const removeProvider = ({ workspaceId, providerId }: { workspaceId: string; providerId: string }) =>
-    removeMediaProvider({ deps: { repo: deps.mediaProviderCredentialRepo }, workspaceId, providerId });
+    removeMediaProvider({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: deps.mediaProviderCredentialRepo }, workspaceId, providerId });
   const deleteDeps = { ...mediaPortDeps({ deps }), removeProvider, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
   mountAdminJsonRoute({ errors, app, spec: mediaDeleteProviderRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete-provider", authorization: "direct" }));
 };

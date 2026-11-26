@@ -16,7 +16,7 @@ import {
   type IdentityRouteDepsSlice,
 } from "#src/features/identity/wiring";
 import { SqlUserPurge } from "#src/features/identity/user-purge";
-import { USER_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/user";
+import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
 import { bindRemoveEntity, createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, type TrashAdapter } from "#src/features/trash/index";
 import { createTrashService } from "@jini-ai/cms/trash";
 import {

@@ -1,4 +1,4 @@
-import { exportSite as runExport } from "@jini-ai/devops/static-export/site/site-exporter";
+import { exportHostSite as runExport } from "@jini-ai/devops/static-export/site/site-exporter";
 import type { ExportSiteRouteDeps as EngineRouteDeps } from "@jini-ai/devops/static-export/site/site-exporter";
 import type { ExportReport } from "@tovu/contracts/export-report";
 import type { SiteCookieConsentDeps } from "@jini-ai/core/contracts/headless/site-cookie-consent";

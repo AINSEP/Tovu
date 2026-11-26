@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -5,7 +7,7 @@ import test from "node:test";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { updatePost } from "../../../post/post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { InMemoryPostRepo } from "../../../post/repo.memory.js";
 import { buildWidgetHostPorts, buildWidgetsDeps, READ_ONLY_WIDGET_POST_WRITES, type WidgetsRouteDeps } from "../../deps.js";
@@ -49,7 +51,7 @@ function makeRouteDeps(repo: TracingPostRepo, seen: string[]): WidgetsRouteDeps 
     forgetRemovedPost: async () => {},
     removeWidget: (async () => ({ ok: true })) as unknown as WidgetsRouteDeps["removeWidget"],
     widgetPostWrites: {
-      updatePost: (required, optional) => { seen.push("updatePost"); return updatePost(required, optional); },
+      updatePost: (required, optional) => { seen.push("updatePost"); return updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional); },
       restorePostForward: (required, optional) => { seen.push("restorePostForward"); return restorePostForward(required, optional); },
     },
   };

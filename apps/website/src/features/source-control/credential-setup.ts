@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "./store.js";
 import { proposeSourceControlCredential as propose, type SourceControlCredentialSetupDeps as Deps } from "@jini-ai/devops/source-control/site/credential-setup";
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { findPluginCredentialCard } from "@jini-ai/agent-plugins/connect";
@@ -9,10 +10,10 @@ import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { buildSourceControlProvider } from "./provider-registry.js";
 import { ProjectKeyCreateConflictError } from '#src/contracts/core/credential-store';
 
-export type SourceControlCredentialSetupDeps = Omit<Deps, "defineSecretCardTool" | "applyPluginCredentialCard" | "findPluginCredentialCard" | "askThenReport" | "credentialSaveToolId" | "credentialFormUriHost" | "backupRepositoryRules" | "credentialText" | "formatCredentialHint" | "reportCredentialFailure" | "assertCredentialFreeField" | "buildSourceControlProvider" | "isProjectKeyCreateConflictError">;
+export type SourceControlCredentialSetupDeps = Omit<Deps, "deps" | "defineSecretCardTool" | "applyPluginCredentialCard" | "findPluginCredentialCard" | "askThenReport" | "credentialSaveToolId" | "credentialFormUriHost" | "backupRepositoryRules" | "credentialText" | "formatCredentialHint" | "reportCredentialFailure" | "assertCredentialFreeField" | "buildSourceControlProvider" | "isProjectKeyCreateConflictError">;
 
 export function proposeSourceControlCredential(spec: Omit<Parameters<typeof propose>[0], "deps"> & { deps: SourceControlCredentialSetupDeps }, optional: Parameters<typeof propose>[1] = {}) {
-  return propose({ ...spec, deps: { ...spec.deps, defineSecretCardTool, applyPluginCredentialCard, findPluginCredentialCard, askThenReport,
+  return propose({ ...spec, deps: { ...spec.deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS, defineSecretCardTool, applyPluginCredentialCard, findPluginCredentialCard, askThenReport,
     credentialSaveToolId: CREDENTIAL_SAVE_TOOL_ID, credentialFormUriHost: "tovu",
     backupRepositoryRules: 'For a site backup, the repository must be private and already have at least one commit (for example a README).',
     credentialText, formatCredentialHint, reportCredentialFailure: message => console.warn(message), assertCredentialFreeField, buildSourceControlProvider,
