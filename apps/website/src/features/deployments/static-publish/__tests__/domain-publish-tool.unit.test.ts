@@ -55,7 +55,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
     },
     tryRedeem: input => tokenOwner.tryRedeem(input), count: () => tokenOwner.count(), expire: input => tokenOwner.expire(input),
   };
-  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }), resolve: async () => ({ ok: true, token: 'never-disclose', accountId: 'acct', ...(options.anonymous ? {} : { credentialId: 'chosen' }) }) };
+  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }), resolve: async () => ({ ok: true, basis: { kind: "env" as const }, token: 'never-disclose', accountId: 'acct', ...(options.anonymous ? {} : { credentialId: 'chosen' }) }) };
   const target: LoadedDeployTarget = {
     pluginId: 'fixture', descriptor: { id: 'fixture', label: 'Fixture', module: 'target.mjs', configFields: [{ name: 'customDomain', label: 'Domain', required: false }] },
     module: {

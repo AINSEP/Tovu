@@ -59,7 +59,7 @@ function fakeSource(resolved: Awaited<ReturnType<PublishCredentialSource["resolv
 
 test("verifyPublishCredential: no credential configured returns null, makes no network call, clears any stale cache entry", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
-  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, { status: "valid", message: "stale", checkedAt: "2020-01-01T00:00:00.000Z" });
+  cache.set({ workspaceId: WORKSPACE, target: "github-pages", basis: { kind: "env" } }, { status: "valid", message: "stale", checkedAt: "2020-01-01T00:00:00.000Z" });
   let fetchCalls = 0;
   const fetchFn = (async () => {
     fetchCalls += 1;
@@ -75,7 +75,7 @@ test("verifyPublishCredential: no credential configured returns null, makes no n
   // Deliberately `null`, not a fabricated `status: "invalid"`/`"unreachable"` — see `verify.ts`'s own
   // doc on why "nothing to check" is not one of the three real states.
   assert.equal(result, null);
-  assert.equal(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), undefined, "a stale cached entry must not survive a credential that no longer exists");
+  assert.equal(cache.get({ workspaceId: WORKSPACE, target: "github-pages", basis: { kind: "env" } }), undefined, "a stale cached entry must not survive a credential that no longer exists");
 });
 
 /** A one-target registry whose module is a stub, so a test can see core call the plugin's own check. */
@@ -108,7 +108,7 @@ test("verifyPublishCredential: a plugin host is checked by its own module's veri
   };
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "acme-token" }), cache, clock, loadDeployTargets: stubRegistry(module, { vendorLabel: "Acme" }) },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "acme-token" }), cache, clock, loadDeployTargets: stubRegistry(module, { vendorLabel: "Acme" }) },
     { workspaceId: WORKSPACE, target: "acme-host" }
   );
 
@@ -127,7 +127,7 @@ test("verifyPublishCredential: a module whose check throws is 'unreachable', nev
   };
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "t" }), cache: new InMemoryPublishCredentialVerificationCache(), clock, loadDeployTargets: stubRegistry(module) },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "t" }), cache: new InMemoryPublishCredentialVerificationCache(), clock, loadDeployTargets: stubRegistry(module) },
     { workspaceId: WORKSPACE, target: "acme-host" }
   );
 
@@ -146,7 +146,7 @@ test("verifyPublishCredential: a target no installed plugin provides (or one wit
     ["acme-host", stubRegistry(noCheck)],
   ] as const) {
     const result = await verifyPublishCredential(
-      { credentialSource: fakeSource({ ok: true, token: "t" }), cache: new InMemoryPublishCredentialVerificationCache(), clock, loadDeployTargets, fetchFn: (async () => assert.fail("no network")) as typeof fetch },
+      { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "t" }), cache: new InMemoryPublishCredentialVerificationCache(), clock, loadDeployTargets, fetchFn: (async () => assert.fail("no network")) as typeof fetch },
       { workspaceId: WORKSPACE, target }
     );
     assert.equal(result!.status, "unreachable");
@@ -172,7 +172,7 @@ test("verifyPublishCredential: GitHub accepts (200) — status:'valid', cached, 
   }) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "real-token-must-not-appear" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "real-token-must-not-appear" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "github-pages" }
   );
 
@@ -180,7 +180,7 @@ test("verifyPublishCredential: GitHub accepts (200) — status:'valid', cached, 
   assert.equal(result!.status, "valid");
   assert.match(result!.message, /GitHub accepted/);
   assert.equal(requestedUrls[0], "https://api.github.com/user");
-  assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result);
+  assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages", basis: { kind: "env" } }), result);
   assert.equal(JSON.stringify(result).includes("real-token-must-not-appear"), false);
   // 2026-08-16 (Defect 1, live-publish finding): `login` IS now captured deliberately — it is about
   // to be printed in a public URL a real publish already prints (`https://<login>.github.io/<repo>/`),
@@ -199,7 +199,7 @@ test("verifyPublishCredential: Vercel accepts (200) — captures ONLY `user.user
     new Response(JSON.stringify({ user: { id: "u1", username: "acme-han", email: "han@example.com", billing: { plan: "pro" } } }), { status: 200 })) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "vercel" }
   );
 
@@ -215,7 +215,7 @@ test("verifyPublishCredential: Netlify and Cloudflare Pages acceptances leave ac
     const cache = new InMemoryPublishCredentialVerificationCache();
     // The Cloudflare adapter now requires its success envelope as well as an active token status.
     const fetchFn = (async () => new Response(JSON.stringify({ success: true, id: "x", email: "x@example.test", full_name: "X", result: { status: "active" } }), { status: 200 })) as typeof fetch;
-    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target });
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target });
     assert.ok(result);
     assert.equal(result!.status, "valid");
     assert.equal(result!.accountLabel, undefined, `${target} must not fabricate an accountLabel from a field it has no reviewed mapping for`);
@@ -227,7 +227,7 @@ test("verifyPublishCredential: a 200 response with an unparseable body still ret
   const fetchFn = (async () => new Response("not json", { status: 200 })) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "github-pages" }
   );
 
@@ -241,7 +241,7 @@ test("verifyPublishCredential: GitHub rejects (401) — status:'invalid', distin
   const fetchFn = (async () => new Response(JSON.stringify({ message: "Bad credentials" }), { status: 401 })) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "ghp_should_never_leak" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "ghp_should_never_leak" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "github-pages" }
   );
 
@@ -259,7 +259,7 @@ test("verifyPublishCredential: a network failure (DNS/timeout/etc.) never throws
   }) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "vercel" }
   );
 
@@ -288,7 +288,7 @@ test("verifyPublishCredential: dispatches each provider to its own documented en
       authentication.push(new Headers(init?.headers).get("authorization"));
       return new Response("{}", { status: 200 });
     }) as typeof fetch;
-    await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target });
+    await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target });
     assert.equal(requested[0], url, `${target} must be checked against its own documented endpoint`);
     assert.deepEqual(authentication, ["Bearer tok"], target);
   }
@@ -308,7 +308,7 @@ test("verifyPublishCredential: s3-compatible signs a HEAD against the bucket (vi
   }) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "s3-secret-should-never-leak", accessKeyId: "AKIA_FAKE", bucket: "my-bucket", region: "us-east-1" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "s3-secret-should-never-leak", accessKeyId: "AKIA_FAKE", bucket: "my-bucket", region: "us-east-1" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "s3-compatible" }
   );
 
@@ -324,7 +324,7 @@ test("verifyPublishCredential: GitHub rejects with 403 (not just 401) — status
   const fetchFn = (async () => new Response("", { status: 403 })) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "github-pages" }
   );
 
@@ -338,7 +338,7 @@ test("verifyPublishCredential: an HTTP-level provider failure (5xx, not a networ
   const fetchFn = (async () => new Response("", { status: 503 })) as typeof fetch;
 
   const result = await verifyPublishCredential(
-    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+    { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
     { workspaceId: WORKSPACE, target: "vercel" }
   );
 
@@ -351,7 +351,7 @@ test("verifyPublishCredential: a valid JSON body that is not an object (the modu
   const cache = new InMemoryPublishCredentialVerificationCache();
   for (const literal of ['"just a string"', "42", "null"]) {
     const fetchFn = (async () => new Response(literal, { status: 200 })) as typeof fetch;
-    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target: "github-pages" });
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target: "github-pages" });
     assert.ok(result, literal);
     assert.equal(result!.status, "valid", literal);
     assert.equal(result!.accountLabel, undefined, `a non-object JSON body (${literal}) must never crash the login read or fabricate a label`);
@@ -362,7 +362,7 @@ test("verifyPublishCredential: GitHub accepts but the body carries no usable log
   const cache = new InMemoryPublishCredentialVerificationCache();
   for (const body of [{}, { login: "" }, { login: 12345 }]) {
     const fetchFn = (async () => new Response(JSON.stringify(body), { status: 200 })) as typeof fetch;
-    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target: "github-pages" });
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target: "github-pages" });
     assert.ok(result, JSON.stringify(body));
     assert.equal(result!.accountLabel, undefined, JSON.stringify(body));
   }
@@ -372,7 +372,7 @@ test("verifyPublishCredential: Vercel accepts but the body's `user` is missing/n
   const cache = new InMemoryPublishCredentialVerificationCache();
   for (const body of [{}, { user: "not-an-object" }, { user: null }, { user: {} }, { user: { username: "" } }, { user: { username: 7 } }]) {
     const fetchFn = (async () => new Response(JSON.stringify(body), { status: 200 })) as typeof fetch;
-    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target: "vercel" });
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target: "vercel" });
     assert.ok(result, JSON.stringify(body));
     assert.equal(result!.accountLabel, undefined, JSON.stringify(body));
   }
@@ -388,7 +388,7 @@ test("verifyPublishCredential: s3-compatible uses an explicit, non-blank endpoin
 
   await verifyPublishCredential(
     {
-      credentialSource: fakeSource({ ok: true, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "https://abc123.r2.cloudflarestorage.com/" }),
+      credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "https://abc123.r2.cloudflarestorage.com/" }),
       cache,
       clock,
       fetchFn,
@@ -415,7 +415,7 @@ test("verifyPublishCredential: s3-compatible trims a leading/trailing-whitespace
 
   await verifyPublishCredential(
     {
-      credentialSource: fakeSource({ ok: true, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "  https://abc123.r2.cloudflarestorage.com/  " }),
+      credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "  https://abc123.r2.cloudflarestorage.com/  " }),
       cache,
       clock,
       fetchFn,
@@ -440,7 +440,7 @@ test("verifyPublishCredential: s3-compatible signing failure (a malformed derive
       // Not a valid absolute URL once `/${bucket}` is appended — `aws4fetch`'s own `sign()` throws a
       // `TypeError: Invalid URL` for this, before ever touching the network (verified directly against
       // `aws4fetch` — signing is pure local computation, no I/O).
-      credentialSource: fakeSource({ ok: true, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "not-a-valid-url" }),
+      credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "not-a-valid-url" }),
       cache,
       clock,
       fetchFn,
@@ -469,18 +469,18 @@ test("canYieldAccountLabel: true only for the bundled hosts with a reviewed acco
 
 test("InMemoryPublishCredentialVerificationCache: isolates by workspace AND target", () => {
   const cache: PublishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
-  cache.set({ workspaceId: "ws-a", target: "github-pages" }, { status: "valid", message: "a", checkedAt: NOW });
-  cache.set({ workspaceId: "ws-a", target: "vercel" }, { status: "invalid", message: "b", checkedAt: NOW });
-  cache.set({ workspaceId: "ws-b", target: "github-pages" }, { status: "unreachable", message: "c", checkedAt: NOW });
+  cache.set({ workspaceId: "ws-a", target: "github-pages", basis: { kind: "env" } }, { status: "valid", message: "a", checkedAt: NOW });
+  cache.set({ workspaceId: "ws-a", target: "vercel", basis: { kind: "env" } }, { status: "invalid", message: "b", checkedAt: NOW });
+  cache.set({ workspaceId: "ws-b", target: "github-pages", basis: { kind: "env" } }, { status: "unreachable", message: "c", checkedAt: NOW });
 
-  assert.equal(cache.get({ workspaceId: "ws-a", target: "github-pages" })?.message, "a");
-  assert.equal(cache.get({ workspaceId: "ws-a", target: "vercel" })?.message, "b");
-  assert.equal(cache.get({ workspaceId: "ws-b", target: "github-pages" })?.message, "c");
-  assert.equal(cache.get({ workspaceId: "ws-b", target: "vercel" }), undefined);
+  assert.equal(cache.get({ workspaceId: "ws-a", target: "github-pages", basis: { kind: "env" } })?.message, "a");
+  assert.equal(cache.get({ workspaceId: "ws-a", target: "vercel", basis: { kind: "env" } })?.message, "b");
+  assert.equal(cache.get({ workspaceId: "ws-b", target: "github-pages", basis: { kind: "env" } })?.message, "c");
+  assert.equal(cache.get({ workspaceId: "ws-b", target: "vercel", basis: { kind: "env" } }), undefined);
 
   cache.delete({ workspaceId: "ws-a", target: "github-pages" });
-  assert.equal(cache.get({ workspaceId: "ws-a", target: "github-pages" }), undefined);
-  assert.equal(cache.get({ workspaceId: "ws-a", target: "vercel" })?.message, "b", "deleting one entry must not disturb a sibling");
+  assert.equal(cache.get({ workspaceId: "ws-a", target: "github-pages", basis: { kind: "env" } }), undefined);
+  assert.equal(cache.get({ workspaceId: "ws-a", target: "vercel", basis: { kind: "env" } })?.message, "b", "deleting one entry must not disturb a sibling");
 });
 
 // ---------------------------------------------------------------------------
@@ -510,8 +510,8 @@ test("verifyPublishCredentialById cannot probe another workspace's row or alter 
   const row = await createPublishCredential(writeDeps, { workspaceId: "ws-other", label: "foreign", connection: { providerId: "github-pages", token: "foreign-secret" } });
   const cache = new InMemoryPublishCredentialVerificationCache();
   const cached = { status: "valid" as const, message: "existing", checkedAt: NOW };
-  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, cached);
-  cache.set({ workspaceId: "ws-other", target: "github-pages" }, cached);
+  cache.set({ workspaceId: WORKSPACE, target: "github-pages", basis: { kind: "env" } }, cached);
+  cache.set({ workspaceId: "ws-other", target: "github-pages", basis: { kind: "env" } }, cached);
   let probes = 0;
   let decryptions = 0;
   const sealer = { seal: writeDeps.sealer.seal.bind(writeDeps.sealer), open: async () => { decryptions++; assert.fail("must not decrypt a foreign row"); } };
@@ -519,8 +519,8 @@ test("verifyPublishCredentialById cannot probe another workspace's row or alter 
   assert.equal(result, null);
   assert.equal(probes, 0);
   assert.equal(decryptions, 0);
-  assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), cached);
-  assert.deepEqual(cache.get({ workspaceId: "ws-other", target: "github-pages" }), cached);
+  assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages", basis: { kind: "env" } }), cached);
+  assert.deepEqual(cache.get({ workspaceId: "ws-other", target: "github-pages", basis: { kind: "env" } }), cached);
 });
 
 test("verifyPublishCredentialById handles removed hosts and changed token fields without probing", async () => {
@@ -531,7 +531,7 @@ test("verifyPublishCredentialById handles removed hosts and changed token fields
     for (const mode of ["removed", "missing-token"] as const) {
       const cache = new InMemoryPublishCredentialVerificationCache();
       const stale = { status: "valid" as const, message: "cached default", checkedAt: NOW };
-      cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, stale);
+      cache.set({ workspaceId: WORKSPACE, target: "github-pages", basis: { kind: "env" } }, stale);
       const bundled = await loadBundledDeployTargets();
       const hosts = bundled.list().filter((host) => mode !== "removed" || host.descriptor.id !== "github-pages").map((host) => host.descriptor.id !== "github-pages" ? host : {
         ...host, descriptor: { ...host.descriptor, credential: { ...host.descriptor.credential!, tokenField: "newToken" } },
@@ -548,7 +548,7 @@ test("verifyPublishCredentialById handles removed hosts and changed token fields
         await assert.rejects(verification, PublishCredentialSecretStoreUnconfiguredError);
       }
       assert.equal(probes, 0);
-      assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), stale);
+      assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages", basis: { kind: "env" } }), stale);
     }
   }
 });
@@ -569,7 +569,7 @@ test("verifyPublishCredentialById: the provider's DEFAULT row updates the shared
 
   assert.ok(result);
   assert.equal(result!.status, "invalid");
-  assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result, "the default row's result IS the target's ready-signal");
+  assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages", basis: { id: summary.id, revision: 1 } }), result, "the default row's result IS the target's ready-signal");
   assert.equal(authentication, "Bearer real-secret");
 });
 
@@ -588,7 +588,7 @@ test("verifyPublishCredentialById: a NON-default row's own result is returned bu
   const cache = new InMemoryPublishCredentialVerificationCache();
   // Seed the cache as if the DEFAULT row was already verified and known-good — the invariant under
   // test is that checking the unrelated SECOND row must never clobber this.
-  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, { status: "valid", message: "default row is fine", checkedAt: NOW });
+  cache.set({ workspaceId: WORKSPACE, target: "github-pages", basis: { id: defaultRow.id, revision: 1 } }, { status: "valid", message: "default row is fine", checkedAt: NOW });
 
   let authentication: string | null = null;
   const fetchFn = (async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -602,7 +602,7 @@ test("verifyPublishCredentialById: a NON-default row's own result is returned bu
   assert.equal(result!.status, "invalid", "the row that was actually checked (the second, bad one) still gets an honest own result");
   assert.equal(authentication, "Bearer second-secret");
   assert.equal(
-    cache.get({ workspaceId: WORKSPACE, target: "github-pages" })?.message,
+    cache.get({ workspaceId: WORKSPACE, target: "github-pages", basis: { id: defaultRow.id, revision: 1 } })?.message,
     "default row is fine",
     "checking a non-default row must never change what a real publish (which always uses the default) would report as ready"
   );
@@ -681,12 +681,12 @@ test("verification pins host-check classification precedence, labels and cache p
   ];
   for (const scenario of checks) {
     const cache = new InMemoryPublishCredentialVerificationCache();
-    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "valid-token" }), cache, clock,
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "valid-token" }), cache, clock,
       loadDeployTargets: stubRegistry({ create: () => assert.fail("no target construction"), verifyCredential: async () => scenario.check }) },
     { workspaceId: WORKSPACE, target: "acme-host" });
     const { check: _check, ...expected } = scenario;
     assert.deepEqual(result, { ...expected, checkedAt: NOW });
-    assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "acme-host" }), result);
+    assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "acme-host", basis: { kind: "env" } }), result);
   }
 });
 
@@ -694,7 +694,7 @@ test("verification pins secret-field validation and ignores absent, public and t
   for (const extra of [undefined, "valid-extra", "bad\nextra"]) {
     let calls = 0;
     const result = await verifyPublishCredential({
-      credentialSource: fakeSource({ ok: true, token: "valid-token", alias: "bad\nalias", publicField: "public\nvalue", ...(extra !== undefined ? { extra } : {}) }),
+      credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "valid-token", alias: "bad\nalias", publicField: "public\nvalue", ...(extra !== undefined ? { extra } : {}) }),
       cache: new InMemoryPublishCredentialVerificationCache(), clock,
       loadDeployTargets: stubRegistry({ create: () => assert.fail("no target construction"), verifyCredential: async () => { calls++; return { ok: true }; } }, {
         tokenField: "alias", fields: [
@@ -724,7 +724,7 @@ test("verification pins invalid primary tokens, unexpected validation errors, an
       module: { create: () => assert.fail("no target construction"), verifyCredential: async () => { calls++; return { ok: true }; } },
     };
     const result = await verifyPublishCredential({
-      credentialSource: fakeSource({ ok: true, token: mode === "invalid-token" ? "bad\ntoken" : "valid-token" }),
+      credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: mode === "invalid-token" ? "bad\ntoken" : "valid-token" }),
       cache: new InMemoryPublishCredentialVerificationCache(), clock,
       loadDeployTargets: async () => ({ get: () => loaded, list: () => [loaded], refusals: [] }),
     }, { workspaceId: WORKSPACE, target: "acme" });
@@ -754,7 +754,7 @@ test("verifyPublishCredentialById: a host removed or re-specified between the re
     assert.equal(result?.status, "unreachable");
     if (mode === "removed") assert.equal(result?.message, "Could not verify this credential: no turned-on hosting plugin can check 'github-pages' credentials.");
     else assert.equal(result?.message, "Could not verify this credential: the saved 'github-pages' credential has no newToken — save the connection again.");
-    assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result, "the default row's answer is cached");
+    assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages", basis: { id: row.id, revision: 1 } }), result, "the default row's answer is cached");
   }
 });
 
@@ -763,7 +763,7 @@ test("verifyPublishCredential: a provider-side timeout (408 or 504) reads as the
     const cache = new InMemoryPublishCredentialVerificationCache();
     const fetchFn = (async () => new Response(JSON.stringify({ message: "gateway body" }), { status })) as typeof fetch;
     const result = await verifyPublishCredential(
-      { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+      { credentialSource: fakeSource({ ok: true, basis: { kind: "env" as const }, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
       { workspaceId: WORKSPACE, target: "github-pages" }
     );
     assert.equal(result!.message, credentialText({ id: "timeout" }));

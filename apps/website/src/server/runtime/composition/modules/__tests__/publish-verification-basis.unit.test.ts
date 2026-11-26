@@ -9,7 +9,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
-import { createPublishCredential, describeCredential } from "#src/features/deployments/publish-credentials/store";
+import { createPublishCredential, describeCredential, hasDefaultForPublish } from "#src/features/deployments/publish-credentials/store";
 import { PublishCredentialDuplicateLabelError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 import { bootAuthenticated } from "../../../../__tests__/helpers/http-test-server.js";
@@ -24,7 +24,7 @@ import { bootAuthenticated } from "../../../../__tests__/helpers/http-test-serve
 
 const CREDENTIALS_PATH = "system/publish/credentials";
 type Deps = ReturnType<typeof createRouteDeps>;
-type Capability = { providerId: string; ready: boolean; verified: string | null };
+type Capability = { providerId: string; ready: boolean; verified: string | null; verifiedAt: string | null };
 
 /** Local requests pass through; anything else is the provider probe, answered by `provider`. */
 function fakeProvider(t: { after(fn: () => void): void }, baseUrl: string, provider: () => Response): { outbound: () => number } {
@@ -59,11 +59,7 @@ async function saveKey(deps: Deps, label: string, token: string) {
   );
 }
 
-test("B226: changing the default publishing key does not inherit the previous key's valid check", {
-  todo: "B226 verify-first: the verification cache is keyed by (workspace, target) only, so promoting another key keeps the old key's valid check and readiness stays true",
-}, async (t) => {
-  // Repro: save key A (default) and key B; seed A's successful check; PUT B {isDefault:true};
-  // capabilities still report netlify ready/valid although B was never verified.
+test("B226: changing the default publishing key does not inherit the previous key's valid check", async (t) => {
   const deps: Deps = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -71,7 +67,10 @@ test("B226: changing the default publishing key does not inherit the previous ke
   const keyA = await saveKey(deps, "Key A", "synthetic-netlify-a");
   const keyB = await saveKey(deps, "Key B", "synthetic-netlify-b");
   assert.equal(keyA.isDefault, true);
-  deps.publishCredentialVerificationCache.set({ workspaceId: deps.workspaceId, target: "netlify" }, { status: "valid", message: "Key A was accepted.", checkedAt: "2026-11-01T00:00:00.000Z" });
+  const basis = await hasDefaultForPublish({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets }, { workspaceId: deps.workspaceId, providerId: "netlify" });
+  assert.ok(basis);
+  assert.equal(basis.id, keyA.id);
+  deps.publishCredentialVerificationCache.set({ workspaceId: deps.workspaceId, target: "netlify", basis }, { status: "valid", message: "Key A was accepted.", checkedAt: "2026-11-01T00:00:00.000Z" });
   const before = await readiness(deps, "netlify");
   assert.equal(before.verified, "valid", "baseline: A's own check is read while A is the default");
   assert.equal(before.ready, true, "baseline: A is ready on its own check");
@@ -85,7 +84,8 @@ test("B226: changing the default publishing key does not inherit the previous ke
   const after = await readiness(deps, "netlify");
   assert.equal(provider.outbound(), 0, "readiness was inspected before any new verification ran");
   assert.equal(after.ready, false, "a never-verified default key must not read as ready");
-  assert.notEqual(after.verified, "valid", "the previous key's check must not be inherited");
+  assert.equal(after.verified, null, "the previous key's check must not be inherited");
+  assert.equal(after.verifiedAt, null, "the previous key's timestamp must not be inherited");
 });
 
 /** Wraps the real repo so only the post-commit account-label heal write collides. */

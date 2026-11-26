@@ -60,8 +60,8 @@ function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event: 
   const handlers = new Map<string, Handler>();
   const calls: Record<string, unknown[]> = { startTurn: [], stream: [], cancel: [], get: [], unsubscribe: [], listAgents: [], pick: [], resolve: [] };
   const store = {
-    list: () => [{ id: "c1", title: "One", messageCount: 0, createdAt: 1, updatedAt: 1 }],
-    create: () => ({ id: "c2", title: "New", messageCount: 0, createdAt: 2, updatedAt: 2 }),
+    list: () => { calls.list = [true]; return [{ id: "c1", title: "One", messageCount: 0, createdAt: 1, updatedAt: 1 }]; },
+    create: () => { calls.create = [true]; return { id: "c2", title: "New", messageCount: 0, createdAt: 2, updatedAt: 2 }; },
     rename: (input: unknown) => { calls.rename = [input]; },
     remove: (input: unknown) => { calls.remove = [input]; },
     loadMessages: (input: unknown) => { calls.loadMessages = [input]; return [{ id: "m1" }]; },
@@ -97,6 +97,26 @@ function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event: 
 }
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test("workspace chat auxiliary invokes require a top-level sender frame", async () => {
+  const { handlers, calls } = setup();
+  const { sender } = fakeSender();
+  const cases: [string, unknown?][] = [
+    [AGENT_INVENTORY_IPC.list], [AGENT_INVENTORY_IPC.rescan], [AGENT_INVENTORY_IPC.daemonOnline],
+    [CONVERSATION_IPC.list], [CONVERSATION_IPC.create],
+    [CONVERSATION_IPC.rename, { id: "c1", title: "Renamed" }], [CONVERSATION_IPC.delete, { id: "c1" }],
+    [CONVERSATION_IPC.loadMessages, { conversationId: "c1" }],
+    [CONVERSATION_IPC.saveMessage, { conversationId: "c1", message: { id: "m1" } }],
+    [WORKING_DIRECTORY_IPC.pick, "/current"], [WORKING_DIRECTORY_IPC.recent],
+    [WORKING_DIRECTORY_IPC.exists, "/current"], [WORKING_DIRECTORY_IPC.normalize, "/current"],
+  ];
+  for (const senderFrame of [undefined, null, { parent: TOP_FRAME }]) {
+    for (const [channel, input] of cases) {
+      await assert.rejects(async () => handlers.get(channel)!({ sender, senderFrame }, input), /Chat is only available in the main window\./);
+    }
+  }
+  assert.deepEqual(calls, { startTurn: [], stream: [], cancel: [], get: [], unsubscribe: [], listAgents: [], pick: [], resolve: [] });
+});
 
 test("the inlined channel literals match the contracts exactly", () => {
   assert.deepEqual({ ...WORKSPACE_CHAT_IPC }, { ...WORKSPACE_CHAT_CHANNELS });

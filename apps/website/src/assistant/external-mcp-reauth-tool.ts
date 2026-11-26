@@ -147,6 +147,7 @@ const CATALOG_BY_ID = new Map(externalMcpReauthAgentToolCatalog.map((entry) => [
 export interface ExternalMcpReauthToolDeps {
   readonly workspaceId: UUID;
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
+  authorize(input: { ctx: Parameters<ToolHandler>[0]; serverId: string }): Promise<void>;
 }
 
 function reauthSurfaceUri({ exchangeId }: { exchangeId: string }, _optional = {}): UIResourceUri {
@@ -320,6 +321,7 @@ export function buildExternalMcpReauthRegistrations(
   const handlers: Record<string, ToolHandler> = {
     [EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0], optional = {}) => {
       const serverId = parseReauthServerId(ctx);
+      await routeDeps.authorize({ ctx, serverId });
       const record = await requireReauthableExternalMcpServer({ routeDeps: routeDeps, serverId: serverId });
       const label = record.label ?? record.serverId;
 

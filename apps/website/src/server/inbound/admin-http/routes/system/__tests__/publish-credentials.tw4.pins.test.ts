@@ -83,7 +83,7 @@ test("publish update passes explicit invalid values to store validation and keep
 
 test("publish update invalidates cached compatibility only when worksFor changes eligibility", async () => {
   const f = await fixture();
-  const key = { workspaceId: "ws", target: "fixture" };
+  const key = { workspaceId: "ws", target: "fixture", basis: { id: f.saved.id, revision: 1 } };
   const result = { status: "valid" as const, message: "cached", checkedAt: "2026-10-20T00:00:00.000Z" };
   f.cache.set(key, result);
   await f.put({ body: { label: "Rename" } }); assertAdminResponse({ actual: f.cache.get(key), expected: result });

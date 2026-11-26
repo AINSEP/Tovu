@@ -18,7 +18,7 @@ async function publishCapturingHeaders(t: TestContext, deps: Pick<Parameters<typ
     checkReachability: async () => ({ reachable: true }),
   }) } };
   const outcome = await publishStaticSite({
-    credentialSource: { resolve: async () => ({ ok: true, token: 'dummy' }), isConfigured: async () => ({ configured: true }) },
+    credentialSource: { resolve: async () => ({ ok: true, token: 'dummy', basis: { kind: 'env' as const } }), isConfigured: async () => ({ configured: true, basis: { kind: 'env' as const } }) },
     loadDeployTargets: async () => ({ get: () => target, list: () => [target], refusals: [] }),
     ...deps,
   }, {

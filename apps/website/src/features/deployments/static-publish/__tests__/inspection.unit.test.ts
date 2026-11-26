@@ -22,8 +22,8 @@ function setup({ inspectionError, legacy = false, configured = true }: { inspect
     list: () => [],
   };
   const credentialSource: PublishCredentialSource = {
-    isConfigured: async () => ({ configured: true }),
-    resolve: async input => { seen.push(input); return configured ? { ok: true, token: 'secret-token', accountId: 'account', credentialId: 'selected-id' } : { ok: false, reason: 'Save a connection in the secure form.' }; },
+    isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }),
+    resolve: async input => { seen.push(input); return configured ? { ok: true, basis: { kind: "env" as const }, token: 'secret-token', accountId: 'account', credentialId: 'selected-id' } : { ok: false, reason: 'Save a connection in the secure form.' }; },
   };
   return { deps: { credentialSource, loadDeployTargets: async () => registry, hostKit: kit }, seen, inspection };
 }
@@ -70,7 +70,7 @@ test('a connection that cannot be opened refuses with the repair step and never 
   const logs: unknown[][] = [];
   t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
   const f = setup();
-  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }), resolve: async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } };
+  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }), resolve: async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } };
   await assert.rejects(inspectStaticPublish({ deps: { ...{ ...f.deps, credentialSource }, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
     { message: 'CREDENTIAL_RESOLUTION_FAILED: The saved connection could not be opened. Reopen the secure connection form and select or repair it before previewing again.' });
   assert.equal(logs.length, 1);
@@ -117,8 +117,8 @@ test('provider preview errors redact both declared secrets, including repeated v
       throw new Error(`Provider refused ${credential.token}; secondary ${credential.secondSecret}; retry ${credential.secondSecret}. Check permissions.`);
     } },
   } : undefined };
-  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }),
-    resolve: async () => ({ ok: true, token: primary, secondSecret: secondary }) };
+  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }),
+    resolve: async () => ({ ok: true, basis: { kind: "env" as const }, token: primary, secondSecret: secondary }) };
   await assert.rejects(inspectStaticPublish({ deps: { ...{ ...f.deps, credentialSource, loadDeployTargets: async () => multiSecret }, ...staticPublishPorts },
     input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }), error => {
     assert.ok(error instanceof Error);

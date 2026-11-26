@@ -4,7 +4,10 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/platform/system';
 import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
-import { externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
+import { externalMcpAccessSnapshot, ExternalMcpValidationError } from '@jini-ai/mcp/federation/hosted';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { saveExternalMcpServer } from '../external-mcp-store.js';
 import type { ExternalMcpServerRecord } from '@jini-ai/core/contracts/hosted-mcp';
 import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
@@ -24,6 +27,25 @@ const STALE_COPY = 'This connection or your access approval is no longer current
 // so only the save path's refusal to interpolate submitted values keeps it out of the copy.
 const PATH_SECRET = 'k9Qz7Xw2Lp4Rt8Vn3Bm6Hy1Jc5Fd0Gs';
 const turn = () => new Promise<void>(resolve => setImmediate(resolve));
+
+test('invalid auth mode and OAuth grant report fields without submitted values', async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const deps = { repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => Date.parse(now), nowIso: () => now } };
+  const marker = 'synthetic-private-enum-marker';
+  for (const field of ['authMode', 'oauth.grant']) {
+    const input = { ...key, label: 'Source', transport: 'streamable_http', enabled: false, command: '', args: '',
+      url: 'https://example.test/mcp', principalId: 'person', allowedToolNames: '', writeAllowedToolNames: '',
+      authMode: field === 'authMode' ? marker : 'oauth', oauth: { clientId: 'synthetic-client', grant: marker } };
+    await assert.rejects(saveExternalMcpServer(deps, input as Parameters<typeof saveExternalMcpServer>[1]), (error: unknown) => {
+      assert.ok(error instanceof ExternalMcpValidationError);
+      assert.equal(error.field, field);
+      assert.match(error.message, /expected one of/);
+      assert.ok(!error.message.includes(marker));
+      return true;
+    });
+  }
+});
 
 function source(): ExternalMcpServerRecord {
   return { ...key, label: 'Source', provisionedByPluginId: null, transport: 'streamable_http', authMode: 'none', enabled: true,

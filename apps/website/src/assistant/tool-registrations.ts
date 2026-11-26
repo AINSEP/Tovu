@@ -1,5 +1,6 @@
 import type { BatchableTool } from "@jini-ai/core";
 import { withBatchInput } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildToolGapsRegistrations, toolGapsDerivedRisk } from "./tool-gaps-tool.js";
 import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
@@ -189,7 +190,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
   SeoToolDeps &
   SiteEvidenceToolDeps &
   WidgetsToolDeps &
-  ExternalMcpReauthToolDeps &
+  Omit<ExternalMcpReauthToolDeps, "authorize"> &
   ExternalMcpToolDeps &
   TrashToolDeps &
   TrashItemToolDeps &
@@ -245,7 +246,12 @@ const DOMAIN_SLICES: readonly ToolContributor[] = [
   { domain: "ask-choice", build: buildAskChoiceRegistrations, risk: askChoiceDerivedRisk },
   // Re-auth notices point to Settings' authorize flow; see `external-mcp-reauth-tool.ts`
   // for the cross-process and sandbox constraints against calling beginConnect here.
-  { domain: "external-mcp-reauth", build: buildExternalMcpReauthRegistrations, risk: externalMcpReauthDerivedRisk },
+  { domain: "external-mcp-reauth", build: (routeDeps, surfaces) => buildExternalMcpReauthRegistrations({
+    workspaceId: routeDeps.workspaceId, externalMcpServerRepo: routeDeps.externalMcpServerRepo,
+    authorize: ({ ctx, serverId }) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+      workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" },
+    { entityType: "external-mcp-server", entityId: serverId }),
+  }, surfaces), risk: externalMcpReauthDerivedRisk },
   // Read-only fallback for actions requiring an admin screen; `admin-screen-link-tool.ts`
   // explains why neither server-route validation nor page.navigate owns that contract.
   { domain: "admin-screen-link", build: buildAdminScreenLinkRegistrations, risk: adminScreenLinkDerivedRisk },

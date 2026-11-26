@@ -184,7 +184,7 @@ test("publishStaticSite: github-pages gets the module's /<repo> base path, core 
   let exportCalls = 0;
 
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       buildTarget: () => fakeDeployTarget(captured),
     },
     {
@@ -222,7 +222,7 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
   const deps: RouteDeps = testRouteDeps();
 
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       buildTarget: () => fakeDeployTarget(captured),
     },
     {
@@ -248,7 +248,7 @@ async function publishInputFor(config: StaticPublishConfig): Promise<HostDeployP
   let received: HostDeployPublishInput | undefined;
   const deps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       buildTarget: () => ({
         id: "fake",
         // The devops port passes response headers as its optional second argument.
@@ -313,7 +313,7 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
   });
 
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       // The target is built before export so it can name its public URL; it must never upload.
       buildTarget: () => ({ id: "fake", publish: async () => { throw new Error("publish must not be called when the export had a failed asset"); },
         checkReachability: async () => ({ reachable: false }) }),
@@ -379,10 +379,10 @@ test("publishStaticSite: two concurrent publishes to the SAME target both still 
   const config: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo-repo" };
 
   const [resultA, resultB] = await Promise.all([
-    publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: { async resolve() { return { ok: true, token: "fake-token-a" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedA) },
+    publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-a" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } }, buildTarget: () => fakeDeployTarget(capturedA) },
       { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo-a" }
     ),
-    publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: { async resolve() { return { ok: true, token: "fake-token-b" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedB) },
+    publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-b" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } }, buildTarget: () => fakeDeployTarget(capturedB) },
       { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo-b" }
     ),
   ]);
@@ -407,10 +407,10 @@ test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pag
     const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
         credentialSource: {
           async resolve() {
-            return { ok: true, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" };
+            return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" };
           },
           async isConfigured() {
-            return { configured: true };
+            return { configured: true, basis: { kind: "env" as const } };
           },
         },
         buildTarget: () => fakeDeployTarget(captured),
@@ -432,10 +432,10 @@ test("publishStaticSite: passes the resolved credential's accountId through to b
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
-          return { ok: true, token: "cf-token", accountId: "acct-42" };
+          return { ok: true, basis: { kind: "env" as const }, token: "cf-token", accountId: "acct-42" };
         },
         async isConfigured() {
-          return { configured: true };
+          return { configured: true, basis: { kind: "env" as const } };
         },
       },
       buildTarget: (_config, credential) => {
@@ -457,10 +457,10 @@ test("publishStaticSite: a resolved credential for vercel/github-pages/netlify n
   await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
-          return { ok: true, token: "vercel-token" };
+          return { ok: true, basis: { kind: "env" as const }, token: "vercel-token" };
         },
         async isConfigured() {
-          return { configured: true };
+          return { configured: true, basis: { kind: "env" as const } };
         },
       },
       buildTarget: (_config, credential) => {
@@ -486,6 +486,7 @@ test("publishStaticSite: forwards all six s3-compatible credential fields throug
         async resolve() {
           return {
             ok: true,
+            basis: { kind: "env" as const },
             token: "s3cr3t",
             accessKeyId: "AKIAEXAMPLE",
             bucket: "my-bucket",
@@ -495,7 +496,7 @@ test("publishStaticSite: forwards all six s3-compatible credential fields throug
           };
         },
         async isConfigured() {
-          return { configured: true };
+          return { configured: true, basis: { kind: "env" as const } };
         },
       },
       buildTarget: (_config, credential) => {
@@ -524,10 +525,10 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
   await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
-          return { ok: true, token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://my-bucket.example.test" };
+          return { ok: true, basis: { kind: "env" as const }, token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://my-bucket.example.test" };
         },
         async isConfigured() {
-          return { configured: true };
+          return { configured: true, basis: { kind: "env" as const } };
         },
       },
       buildTarget: (_config, credential) => {
@@ -545,7 +546,7 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
 test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true success", async () => {
   const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       buildTarget: () => ({
         id: "fake",
         async publish() {
@@ -565,7 +566,7 @@ for (const notReadyStatus of ["link-delayed", "protected"] as const) {
   test(`publishStaticSite: a target's terminal status of '${notReadyStatus}' is a genuine "partial" outcome — never ok:true, never ok:false`, async () => {
     const deps: RouteDeps = testRouteDeps();
     const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-        credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
+        credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
         buildTarget: () => ({
           id: "fake",
           async publish() {
@@ -631,7 +632,7 @@ test("publishStaticSite: a buildTarget that THROWS (credential missing a target-
   // own check is covered by its plugin test); a plain throw isolates `publishStaticSite`'s own catch.
   const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       buildTarget: () => {
         throw new Error("s3-compatible credential is missing required field 'bucket'");
       },
@@ -684,7 +685,7 @@ test("publishStaticSite: exportSiteBound itself throwing (not merely returning f
   const deps: RouteDeps = testRouteDeps();
   let runDir: string | undefined;
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       // The target is built before export so it can name its public URL; it must never upload.
       buildTarget: () => ({ id: "fake", publish: async () => { throw new Error("publish must not be called when exportSiteBound itself threw"); },
         checkReachability: async () => ({ reachable: false }) }),
@@ -715,7 +716,7 @@ test("publishStaticSite: exportSiteBound itself throwing (not merely returning f
 test("publishStaticSite: a partial outcome with no statusMessage falls back to the default not-yet-reachable message", async () => {
   const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       buildTarget: () => ({
         id: "fake",
         async publish() {
@@ -826,7 +827,7 @@ test("concurrent publishes preserve each run's route and asset bytes and clean b
   const bothEntered = new Promise<void>((resolve) => { release = resolve; });
   const results = await Promise.all(["A", "B"].map((marker, index) => publishStaticSite({
     loadDeployTargets: hermeticDeployTargets,
-    credentialSource: { resolve: async () => ({ ok: true, token: `token-${marker}` }), isConfigured: async () => ({ configured: true }) },
+    credentialSource: { resolve: async () => ({ ok: true, basis: { kind: "env" as const }, token: `token-${marker}` }), isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }) },
     buildTarget: () => fakeDeployTarget(captures[index]!),
   }, {
     workspaceId: "workspace-local", publishOutputRootDir: publishOutputDir, idGen: { newId: () => `content-${marker}` }, config: { target: "vercel" }, projectName: marker,
@@ -857,7 +858,7 @@ test("concurrent publishes preserve each run's route and asset bytes and clean b
 
 test("publishStaticSite: a form receiver that cannot be prepared stops the publish; a prepared one saves its key at the published URL, and a failed save only warns", async (t) => {
   const deps: RouteDeps = testRouteDeps();
-  const credentialSource: PublishCredentialSource = { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } };
+  const credentialSource: PublishCredentialSource = { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } };
   const input = { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: async ({ outputDir }: { outputDir: string }) => ({
     outputDir, routes: { succeeded: [{ path: '/', kind: 'home' as const, outputFile: 'index.html', data: 'site' }], failed: [] },
     assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
@@ -899,7 +900,7 @@ test("publishStaticSite: a connection changed after domain review is refused bef
   let exports = 0;
   const registry = await hermeticDeployTargets({ workspaceId: deps.workspaceId });
   const result = await publishStaticSite({ loadDeployTargets: async () => ({ ...registry, refusals: ["deploy target 'ghost' was not loaded: fixture refusal"] }),
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
       buildTarget: () => fakeDeployTarget({ value: null }) },
     { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen,
       exportSiteBound: async (options) => { exports++; return deps.exportSiteBound(options); },
@@ -913,7 +914,7 @@ test("publishStaticSite: a connection changed after domain review is refused bef
 test("publishStaticSite: a provider's failed status is refused, never a published outcome", async () => {
   const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-    credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => ({ id: "fake", async publish() {
       return { targetId: "fake", url: "https://example.test/failed", deploymentId: "dpl_failed", status: "failed" as const, statusMessage: "Build failed. Check the provider dashboard." };
     }, async checkReachability() { assert.fail("a failed deployment cannot be verified through an old public URL"); } }),
@@ -930,7 +931,7 @@ test('publishStaticSite carries the export cookie preferences warning through a 
   const deps = testRouteDeps();
   const consentWarning = 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-    credentialSource: { async resolve() { return { ok: true, token: 'fixture-token' }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: 'fixture-token' }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => fakeDeployTarget(captured),
   }, {
     workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen,

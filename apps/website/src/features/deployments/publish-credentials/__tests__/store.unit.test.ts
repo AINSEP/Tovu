@@ -794,10 +794,10 @@ test("a vendor row no deploy host declares (a source-control-only vendor) is not
 
 test("hasDefaultForPublish reads the host's vendor group without decrypting", async () => {
   const deps = makeDeps();
-  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), false);
-  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "v", connection: { providerId: "vercel", token: "t" } });
-  assert.equal(await hasDefaultForPublish({ repo: deps.repo, loadDeployTargets: deps.loadDeployTargets }, { workspaceId: WORKSPACE, providerId: "vercel" }), true);
-  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "no-such-host" }), false);
+  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), null);
+  const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "v", connection: { providerId: "vercel", token: "t" } });
+  assert.deepEqual(await hasDefaultForPublish({ repo: deps.repo, loadDeployTargets: deps.loadDeployTargets }, { workspaceId: WORKSPACE, providerId: "vercel" }), { id: saved.id, revision: 1 });
+  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "no-such-host" }), null);
 });
 
 test("a deleted credential stays deleted when adapters are reconstructed over the persistent vault", async () => {
@@ -818,7 +818,7 @@ test("vault publish selection reads each credential kind once and opens only the
   const listed: string[] = [], opened: string[] = [];
   vault.list = async input => { listed.push(input.kind); return list(input); };
   vault.find = async input => { opened.push(input.id); return find(input); };
-  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), true);
+  assert.deepEqual(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), { id: created.id, revision: 1 });
   assert.deepEqual(listed, ["vendor", "custom"]);
   assert.deepEqual(opened, [], "readiness is metadata-only");
   listed.length = 0;

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
+import { createToolRegistry, ToolPermissionDeniedError, type SurfaceEmission } from "@jini-ai/core";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import { createToolExecutor } from "@jini-ai/daemon";
 
@@ -100,7 +100,7 @@ async function makeOAuthServerFixture(status: "needs_reauth" | "connected" = "ne
  *  `mcp-ui-tool-calls-route.ask-choice.integration.test.ts` uses for its own tool. */
 function buildRealReauthToolExecutor(repo: InMemoryExternalMcpServerRepo, surfaceExchanges: SurfaceExchangeStore) {
   const registry = createToolRegistry({});
-  for (const registration of buildExternalMcpReauthRegistrations({ workspaceId: WORKSPACE, externalMcpServerRepo: repo }, { surfaceExchanges })) {
+  for (const registration of buildExternalMcpReauthRegistrations({ workspaceId: WORKSPACE, externalMcpServerRepo: repo, authorize: async () => {} }, { surfaceExchanges })) {
     registry.register(registration);
   }
   return createToolExecutor({ registry });
@@ -114,6 +114,26 @@ function exchangeIdFromEmission(emission: SurfaceEmission): string {
   assert.ok(match, "the surface must carry its exchange id, or the administrator's acknowledgement has nothing to name");
   return match[1]!;
 }
+
+test("reauth notice requires integration management before reading the connection", async (t) => {
+  const repo = await makeOAuthServerFixture();
+  const lookup = t.mock.method(repo, "findByServerId", async () => assert.fail("denied notice must not read the connection"));
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const denied = new ToolPermissionDeniedError({ message: "permission denied", permission: "admin.integrations.manage", reason: "no_grant" });
+  const registration = buildExternalMcpReauthRegistrations({ workspaceId: WORKSPACE, externalMcpServerRepo: repo,
+    authorize: async ({ ctx, serverId }) => {
+      assert.equal(ctx.principal.id, PRINCIPAL);
+      assert.equal(serverId, SERVER_ID);
+      throw denied;
+    },
+  }, { surfaceExchanges }).find((entry) => entry.descriptor.id === EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID)!;
+  const emitted: SurfaceEmission[] = [];
+  await assert.rejects(async () => registration.handler({ executionId: "denied", principal: { id: PRINCIPAL }, run: { id: "denied" },
+    input: { id: SERVER_ID }, signal: new AbortController().signal }, { emitSurface: async (emission) => { emitted.push(emission); } }), (error) => error === denied);
+  assert.equal(lookup.mock.callCount(), 0);
+  assert.deepEqual(emitted, []);
+  assert.equal(surfaceExchanges.size(), 0);
+});
 
 test("an expired-token connection raises the re-auth surface, naming the server", async () => {
   const repo = await makeOAuthServerFixture("needs_reauth");
@@ -475,7 +495,7 @@ test("a connection deleted while the notice was open is reported disconnected", 
 test("the registration's own handler refuses an absent input with the domain's id validation", async () => {
   const repo = await makeOAuthServerFixture("needs_reauth");
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registration = buildExternalMcpReauthRegistrations({ workspaceId: WORKSPACE, externalMcpServerRepo: repo }, { surfaceExchanges })
+  const registration = buildExternalMcpReauthRegistrations({ workspaceId: WORKSPACE, externalMcpServerRepo: repo, authorize: async () => {} }, { surfaceExchanges })
     .find((r) => r.descriptor.id === EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID);
   assert.ok(registration);
   await assert.rejects(() => registration.handler({ executionId: "exec-1", principal: { id: PRINCIPAL }, run: { id: "run-1" }, input: undefined,

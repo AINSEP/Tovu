@@ -29,8 +29,8 @@ import { verifyPublishCredential } from "../verify.js";
 const TOKEN = "pub-tok-91c2";
 const clock = { nowIso: () => "2026-10-04T00:00:00.000Z" };
 const source: PublishCredentialSource = {
-  async resolve() { return { ok: true, token: TOKEN }; },
-  async isConfigured() { return { configured: true }; },
+  async resolve() { return { ok: true, basis: { kind: "env" as const }, token: TOKEN }; },
+  async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; },
 };
 
 test("a credential check through the default kit is one outbound span without the token", async () => {

@@ -119,6 +119,7 @@ test("initSiteDir hands tokens to tovu init on stdin with the flag, never on arg
   await initSiteDir({
     repoRoot: fakeRepoRoot(),
     dir: "/new/site",
+    generateAdminPassword: () => "synthetic-generated-password",
     baseEnv: { TOVU_ADMIN_PASSWORD: "inherited-test-password", TOVU_ADMIN_USER: "inherited-test-user" },
     agentPluginTokens: { supabase: TOKEN },
     onInitOutput: ({ output }, _options = {}) => (reported = output),
@@ -131,9 +132,9 @@ test("initSiteDir hands tokens to tovu init on stdin with the flag, never on arg
       return child;
     },
   });
-  assert.deepEqual(args.slice(1), ["init", "/new/site", "--admin-password", "tovu-dev", "--agent-plugin-tokens-stdin"]);
+  assert.deepEqual(args.slice(1), ["init", "/new/site", "--create-input-stdin"]);
   assert.deepEqual(stdio, ["pipe", "pipe", "pipe"]);
-  assert.deepEqual(JSON.parse(stdinText), { supabase: TOKEN });
+  assert.deepEqual(JSON.parse(stdinText), { adminPassword: "synthetic-generated-password", agentPluginTokens: { supabase: TOKEN } });
   assert.ok(!args.join(" ").includes(TOKEN), "a token must never be on argv");
   assert.ok(!JSON.stringify(env).includes(TOKEN), "a token must never be in env");
   assert.equal(env.TOVU_ADMIN_PASSWORD, undefined);
@@ -141,7 +142,7 @@ test("initSiteDir hands tokens to tovu init on stdin with the flag, never on arg
   assert.match(reported, /agent-plugin-tokens: saved supabase/);
 });
 
-test("initSiteDir without tokens selects the default create password: no token flag, stdin ignored", async () => {
+test("initSiteDir without tokens still pipes create credentials", async () => {
   let args: string[] = [];
   let stdio: unknown;
   await initSiteDir({
@@ -155,8 +156,8 @@ test("initSiteDir without tokens selects the default create password: no token f
       return fakeChild(0);
     },
   });
-  assert.deepEqual(args.slice(1), ["init", "/new/site", "--admin-password", "tovu-dev"]);
-  assert.deepEqual(stdio, ["ignore", "pipe", "pipe"]);
+  assert.deepEqual(args.slice(1), ["init", "/new/site", "--create-input-stdin"]);
+  assert.deepEqual(stdio, ["pipe", "pipe", "pipe"]);
 });
 
 test("handleCreate passes the tokens to adoptSiteDir and returns tovu init's outcome on the record", async () => {

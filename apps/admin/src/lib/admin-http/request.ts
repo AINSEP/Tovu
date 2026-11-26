@@ -256,10 +256,10 @@ export const authenticatedAdminRequest = adminHttp.authenticatedAdminRequest;
  * would be a regression, not a fix — see the audit fix's own instruction to preserve each
  * screen's existing per-code copy rather than picking one.
  *
- * @complexity O(1) — two `instanceof` checks, no iteration.
+ * @complexity O(1) — one `instanceof` check, no iteration.
  * @overallScore 100
  */
 export function describeApiError({ e, fallback }: { e: unknown; fallback: string }, _optional: Record<string, never> = {}): string {
   if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message || fallback : fallback;
+  return fallback;
 }

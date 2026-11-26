@@ -34,7 +34,7 @@ for (const errorKind of ["Error", "DeployError"] as const) {
     };
     const outcome = await publishStaticSite({
       credentialSource: {
-        async resolve() { return { ok: true, token }; },
+        async resolve() { return { ok: true, token, basis: { kind: "env" as const } }; },
         async isConfigured() { assert.fail("publish must resolve the credential directly"); },
       },
       loadDeployTargets: async () => ({ get: (id) => id === "acme" ? target : undefined, list: () => [target], refusals: [] }),
@@ -73,7 +73,7 @@ test("provider errors redact both declared credential secrets, including repeate
   };
   const outcome = await publishStaticSite({
     credentialSource: {
-      resolve: async () => ({ ok: true, token: primarySecret, secondSecret: secondarySecret }),
+      resolve: async () => ({ ok: true, token: primarySecret, secondSecret: secondarySecret, basis: { kind: "env" as const } }),
       isConfigured: async () => assert.fail("resolve directly"),
     },
     loadDeployTargets: async () => ({ get: () => target, list: () => [target], refusals: [] }),

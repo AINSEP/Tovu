@@ -91,6 +91,13 @@ function assertTopFrame({ event }: { event: { senderFrame?: SenderFrame } }, _op
   if (!event.senderFrame || event.senderFrame.parent !== null) throw new Error("Chat is only available in the main window.");
 }
 
+function topFrameOnly(handler: Parameters<ChatIpcMain["handle"]>[1]) {
+  return (event: Parameters<typeof handler>[0], ...args: Parameters<typeof handler>[1][]) => {
+    assertTopFrame({ event });
+    return handler(event, ...args);
+  };
+}
+
 /** The pane's start input plus the active site the shell renderer reports for THIS turn. */
 type DesktopChatStartInput = WorkspaceChatStartInput & { activeSiteDir?: string | null };
 
@@ -164,22 +171,22 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
     return run === undefined ? null : { runId: run.id, state: run.state };
   });
 
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.list, () => deps.listAgents({ rescan: false }));
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.rescan, () => deps.listAgents({ rescan: true }));
+  deps.ipcMain.handle(AGENT_INVENTORY_IPC.list, topFrameOnly(() => deps.listAgents({ rescan: false })));
+  deps.ipcMain.handle(AGENT_INVENTORY_IPC.rescan, topFrameOnly(() => deps.listAgents({ rescan: true })));
   // The daemon is in-process: if this handler answers, it is online.
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.daemonOnline, () => true);
+  deps.ipcMain.handle(AGENT_INVENTORY_IPC.daemonOnline, topFrameOnly(() => true));
 
-  deps.ipcMain.handle(CONVERSATION_IPC.list, () => deps.conversations.list());
-  deps.ipcMain.handle(CONVERSATION_IPC.create, () => deps.conversations.create());
-  deps.ipcMain.handle(CONVERSATION_IPC.rename, (_event, input: RenameConversationInput) => deps.conversations.rename(input));
-  deps.ipcMain.handle(CONVERSATION_IPC.delete, (_event, { id }: { id: string }) => deps.conversations.remove({ id }));
-  deps.ipcMain.handle(CONVERSATION_IPC.loadMessages, (_event, { conversationId }: { conversationId: string }) => deps.conversations.loadMessages({ conversationId }));
-  deps.ipcMain.handle(CONVERSATION_IPC.saveMessage, (_event, input: SaveConversationMessageInput) => deps.conversations.saveMessage(input));
+  deps.ipcMain.handle(CONVERSATION_IPC.list, topFrameOnly(() => deps.conversations.list()));
+  deps.ipcMain.handle(CONVERSATION_IPC.create, topFrameOnly(() => deps.conversations.create()));
+  deps.ipcMain.handle(CONVERSATION_IPC.rename, topFrameOnly((_event, input: RenameConversationInput) => deps.conversations.rename(input)));
+  deps.ipcMain.handle(CONVERSATION_IPC.delete, topFrameOnly((_event, { id }: { id: string }) => deps.conversations.remove({ id })));
+  deps.ipcMain.handle(CONVERSATION_IPC.loadMessages, topFrameOnly((_event, { conversationId }: { conversationId: string }) => deps.conversations.loadMessages({ conversationId })));
+  deps.ipcMain.handle(CONVERSATION_IPC.saveMessage, topFrameOnly((_event, input: SaveConversationMessageInput) => deps.conversations.saveMessage(input)));
 
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory({}, { currentDirectory }));
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.recent, () => []);
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory({ directory }));
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, topFrameOnly((_event, currentDirectory?: string) => deps.pickDirectory({}, { currentDirectory })));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.recent, topFrameOnly(() => []));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, topFrameOnly((_event, directory: string) => isDirectory({ directory })));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, topFrameOnly((_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null)));
 
   return { activeSubscriptions: () => subscriptions.size };
 }

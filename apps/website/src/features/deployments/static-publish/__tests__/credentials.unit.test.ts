@@ -302,20 +302,20 @@ test("isConfigured: env presence is workspace-bound; composition uses DB first a
   const writeDeps = makeWriteDeps();
   const env = { VERCEL_TOKEN: "from-env" };
   const envSource = createEnvPublishCredentialSource({ workspaceId: WORKSPACE, loadDeployTargets: loadBundledDeployTargets }, { env });
-  assert.deepEqual(await envSource.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true });
+  assert.deepEqual(await envSource.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true, basis: { kind: "env" } });
   assert.equal((await envSource.isConfigured({ workspaceId: OTHER_WORKSPACE, target: "vercel" })).configured, false);
   for (const executionMode of ["self-hosted-cli", "hosted-api-only"] as const) {
     const source = composePublishCredentialSource({ workspaceId: WORKSPACE, executionMode, dbDeps: writeDeps, env });
     assert.equal((await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" })).configured, executionMode === "self-hosted-cli");
     assert.equal((await source.isConfigured({ workspaceId: OTHER_WORKSPACE, target: "vercel" })).configured, false);
   }
-  await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "Saved", connection: { providerId: "vercel", token: "from-db" } });
+  const saved = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "Saved", connection: { providerId: "vercel", token: "from-db" } });
   for (const executionMode of ["self-hosted-cli", "hosted-api-only"] as const) {
     const source = composePublishCredentialSource({
       workspaceId: WORKSPACE, executionMode, dbDeps: writeDeps,
       env: new Proxy({}, { get() { throw new Error("DB hit must not consult env"); } }),
     });
-    assert.deepEqual(await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true });
+    assert.deepEqual(await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true, basis: { id: saved.id, revision: 1 } });
   }
 });
 
@@ -514,7 +514,7 @@ test("credentialId: readiness selects a named non-default key without decrypting
   });
   assert.equal((await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" })).configured, false);
   const input = { workspaceId: WORKSPACE, target: "vercel", credentialId: chosen.id };
-  assert.deepEqual(await source.isConfigured(input), { configured: true });
+  assert.deepEqual(await source.isConfigured(input), { configured: true, basis: { id: chosen.id, revision: 1 } });
 });
 
 test("credentialId: readiness refuses missing, foreign and incompatible IDs despite a valid default", async () => {
@@ -540,7 +540,7 @@ test("credentialId: neither composed nor env readiness falls back for an unavail
   const composed = composePublishCredentialSource({ workspaceId: WORKSPACE, executionMode: "self-hosted-cli", dbDeps: makeWriteDeps(), env });
   const fromEnv = createEnvPublishCredentialSource({ workspaceId: WORKSPACE, loadDeployTargets: loadBundledDeployTargets }, { env });
   for (const source of [composed, fromEnv]) {
-    assert.deepEqual(await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true });
+    assert.deepEqual(await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true, basis: { kind: "env" } });
     const input = { workspaceId: WORKSPACE, target: "vercel", credentialId: "missing" };
     assert.equal((await source.isConfigured(input)).configured, false);
   }
@@ -724,14 +724,14 @@ test("env source: a plugin-only host's token and extra fields come from the env 
     reason: "FIXTURE_ZONE is not set — publishing to fixture-host requires both a token (FIXTURE_KEY) and FIXTURE_ZONE",
   });
   const source = createEnvPublishCredentialSource({ workspaceId: WORKSPACE, loadDeployTargets: pluginOnlyHostRegistry }, { env: { FIXTURE_KEY: " k ", FIXTURE_ZONE: "eu" } as NodeJS.ProcessEnv });
-  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "k", zone: "eu" });
+  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "k", zone: "eu", basis: { kind: "env" } });
 });
 
 test("db source: a plugin-only host's saved token field becomes the resolved token; other declared fields pass through", async () => {
   const writeDeps = { ...makeWriteDeps(), loadDeployTargets: pluginOnlyHostRegistry };
   const saved = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "main", connection: { providerId: "fixture-host", apiKey: "secret-k", zone: "eu" } });
   const source = createDbPublishCredentialSource(writeDeps);
-  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "secret-k", zone: "eu", credentialId: saved.id });
+  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "secret-k", zone: "eu", credentialId: saved.id, basis: { id: saved.id, revision: 1 } });
 });
 
 test("saved API keys publish by worksFor, never by their label", async () => {
@@ -753,7 +753,7 @@ test('historical Pages env variables do not silently configure Workers; its expl
   assert.equal((await pagesOnly.isConfigured({ workspaceId: WORKSPACE, target: 'cloudflare-pages' })).configured, true);
   assert.equal((await pagesOnly.isConfigured({ workspaceId: WORKSPACE, target: 'cloudflare-workers' })).configured, false);
   const workers = createEnvPublishCredentialSource({ workspaceId: WORKSPACE, loadDeployTargets: loadBundledDeployTargets }, { env: { CLOUDFLARE_WORKERS_TOKEN: 'workers-token', CLOUDFLARE_ACCOUNT_ID: 'account' } });
-  assert.deepEqual(await workers.resolve({ workspaceId: WORKSPACE, target: 'cloudflare-workers' }), { ok: true, token: 'workers-token', accountId: 'account' });
+  assert.deepEqual(await workers.resolve({ workspaceId: WORKSPACE, target: 'cloudflare-workers' }), { ok: true, token: 'workers-token', accountId: 'account', basis: { kind: 'env' } });
 });
 
 // --- registry changes between the decrypt and the projection ----------------------------------

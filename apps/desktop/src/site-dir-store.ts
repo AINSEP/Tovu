@@ -25,6 +25,7 @@ import fs from "node:fs";
 import { readCatalogSite } from "./site-config.ts";
 import path from "node:path";
 import { spawn as nodeSpawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import type { SpawnOptions } from "node:child_process";
 import { finished } from "node:stream";
 import type { Readable, Writable } from "node:stream";
@@ -215,9 +216,10 @@ interface InitSiteDirInput {
   adminPassword?: string;
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
+  generateAdminPassword?: () => string;
   cliMode?: CliMode;
   /** Optional `{ [pluginId]: token }` from the create form's "Connect services" fields. Handed to
-   *  `tovu init --agent-plugin-tokens-stdin` on stdin — never argv or env, which other processes can
+   *  `tovu init --create-input-stdin` on stdin — never argv or env, which other processes can
    *  read — and checked there before anything is created. */
   agentPluginTokens?: Readonly<Record<string, string>>;
   /** Called with `tovu init`'s output once it succeeds (its `agent-plugin-tokens:` line). */
@@ -246,17 +248,8 @@ interface InitSiteDirInput {
  */
 function initSiteDir(input: InitSiteDirInput): Promise<string> {
   const spawnFn = input.spawnFn ?? nodeSpawn as InitSpawnFn;
-  const cliArgs = ["init", input.dir];
-  if (input.name) cliArgs.push("--name", input.name);
-  const tokens = input.agentPluginTokens ?? {};
-  const withTokens = Object.keys(tokens).length > 0;
   const withPassword = input.adminPassword !== undefined;
-  if (withPassword) cliArgs.push("--create-input-stdin");
-  else {
-    cliArgs.push("--admin-password", "tovu-dev");
-    if (withTokens) cliArgs.push("--agent-plugin-tokens-stdin");
-  }
-  const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs });
+  const { plan, adminPassword, tokens } = buildInitInvocation({ input, generateAdminPassword: input.generateAdminPassword ?? (() => randomBytes(24).toString("base64url")) });
   // Init and serve are separate children. No inherited deployment credential may enter init;
   // a custom password travels with the tokens over stdin, never in argv or the child env.
   const initEnv = buildCliEnv({ baseEnv: input.baseEnv, siteDir: input.dir });
@@ -265,9 +258,9 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
 
   const child = spawnFn(plan.command, plan.args, {
     env: initEnv,
-    stdio: [withTokens || withPassword ? "pipe" : "ignore", "pipe", "pipe"],
+    stdio: ["pipe", "pipe", "pipe"],
   });
-  const payload = initStdinPayload({ adminPassword: input.adminPassword, tokens });
+  const payload = initStdinPayload({ adminPassword, tokens });
   const tokenDelivery = deliverTokens({ stdin: child.stdin, payload });
 
   return new Promise((resolve, reject) => {
@@ -297,14 +290,23 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
   });
 }
 
-/** Encode create credentials only for stdin; absent credentials produce no payload.
+function buildInitInvocation({ input, generateAdminPassword }: { input: InitSiteDirInput; generateAdminPassword: () => string }, _optional = {}) {
+  const cliArgs = ["init", input.dir];
+  if (input.name) cliArgs.push("--name", input.name);
+  const tokens = input.agentPluginTokens ?? {};
+  const adminPassword = input.adminPassword ?? generateAdminPassword();
+  cliArgs.push("--create-input-stdin");
+  const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs });
+  return { plan, adminPassword, tokens };
+}
+
+/** Encode create credentials only for stdin.
  * @complexity O(n) in the serialized token data.
  */
 function initStdinPayload(
-  { adminPassword, tokens }: { adminPassword: string | undefined; tokens: Readonly<Record<string, string>> }, _options = {},
-): string | null {
-  if (adminPassword !== undefined) return JSON.stringify({ adminPassword, agentPluginTokens: tokens });
-  return Object.keys(tokens).length > 0 ? JSON.stringify(tokens) : null;
+  { adminPassword, tokens }: { adminPassword: string; tokens: Readonly<Record<string, string>> }, _options = {},
+): string {
+  return JSON.stringify({ adminPassword, agentPluginTokens: tokens });
 }
 
 /**

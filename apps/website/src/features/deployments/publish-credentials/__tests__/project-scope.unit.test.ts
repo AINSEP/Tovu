@@ -102,12 +102,12 @@ test("regression: an API key saved with Works for vercel lands in the project an
   assert.equal(key.scope, "project");
   assert.equal(await a.deps.repo.findById({ workspaceId: SITE_A, id: key.id }), null, "nothing in the site vault");
 
-  assert.deepEqual(await a.source.isConfigured({ workspaceId: SITE_A, target: "vercel" }), { configured: true });
-  assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel" }), { ok: true, token, credentialId: key.id });
-  assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel", credentialId: key.id }), { ok: true, token, credentialId: key.id });
+  assert.deepEqual(await a.source.isConfigured({ workspaceId: SITE_A, target: "vercel" }), { configured: true, basis: { id: key.id, revision: 1 } });
+  assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel" }), { ok: true, token, credentialId: key.id, basis: { id: key.id, revision: 1 } });
+  assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel", credentialId: key.id }), { ok: true, token, credentialId: key.id, basis: { id: key.id, revision: 1 } });
   // A second site of the same project deploys with it too.
   const b = site(project);
-  assert.deepEqual(await b.source.resolve({ workspaceId: SITE_B, target: "vercel" }), { ok: true, token, credentialId: key.id });
+  assert.deepEqual(await b.source.resolve({ workspaceId: SITE_B, target: "vercel" }), { ok: true, token, credentialId: key.id, basis: { id: key.id, revision: 1 } });
   const rows = await listPublishCredentials(b.deps, { workspaceId: SITE_B });
   assert.deepEqual(rows.map(row => [row.id, row.credentialType, row.scope, row.isDefault]), [[key.id, "custom", "project", true]]);
   assert.doesNotMatch(JSON.stringify(rows), new RegExp(token));
@@ -161,8 +161,8 @@ test("readiness honors an attached project key among non-default peers and refus
   for (const key of saved.slice(0, 2)) await attachments.attach({ siteId: SITE_A, keyId: key.id, siteName: "A" });
   assert.equal((await a.source.isConfigured({ workspaceId: SITE_A, target: "vercel" })).configured, false);
   const input = { workspaceId: SITE_A, target: "vercel", credentialId: saved[0]!.id };
-  assert.deepEqual(await a.source.isConfigured(input), { configured: true });
-  assert.deepEqual(await a.source.resolve(input), { ok: true, token: secret("Chosen"), credentialId: saved[0]!.id });
+  assert.deepEqual(await a.source.isConfigured(input), { configured: true, basis: { id: saved[0]!.id, revision: 1 } });
+  assert.deepEqual(await a.source.resolve(input), { ok: true, token: secret("Chosen"), credentialId: saved[0]!.id, basis: { id: saved[0]!.id, revision: 1 } });
   assert.equal((await a.source.isConfigured({ ...input, credentialId: saved[2]!.id })).configured, false);
   const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments, policy: attachedVaultPolicy }) });
   assert.equal((await b.source.isConfigured({ ...input, workspaceId: SITE_B })).configured, false);
@@ -232,7 +232,7 @@ test("no project store (Fly): saves stay in the site vault and summaries carry n
   const saved = await saveVercel(a.deps, SITE_A, "default", token);
   assert.equal("scope" in saved, false);
   assert.ok(await a.deps.repo.findById({ workspaceId: SITE_A, id: saved.id }));
-  assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel" }), { ok: true, token, credentialId: saved.id });
+  assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel" }), { ok: true, token, credentialId: saved.id, basis: { id: saved.id, revision: 1 } });
   await deletePublishCredential(a.deps, { workspaceId: SITE_A, id: saved.id });
   assert.equal(await a.deps.repo.findById({ workspaceId: SITE_A, id: saved.id }), null);
 });

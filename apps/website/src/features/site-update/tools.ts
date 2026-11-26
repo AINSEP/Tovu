@@ -89,8 +89,8 @@ async function checkTool({ deps, runtime, ctx }: { deps: SiteUpdateToolDeps; run
     if (!update) return { checked: true, available: false, runningVersion, message: `You are on the latest version (${runningVersion}).` };
     const notes = update.notes.trim();
     return { checked: true, available: true, runningVersion, latest: update.latest, notes, message: `Version ${update.latest} is available${notes ? `: ${notes}` : "."}` };
-  } catch (error) {
-    return { checked: false, available: false, runningVersion, message: `Could not check for updates: ${error instanceof Error ? error.message : String(error)} Nothing was changed.` };
+  } catch {
+    return { checked: false, available: false, runningVersion, message: "Could not check for updates. Nothing was changed." };
   }
 }
 
@@ -103,8 +103,8 @@ async function prepareApply({ deps, runtime, ctx }: { deps: SiteUpdateToolDeps; 
   refuseUnexpectedKeys({ input: input, allowed: ["toVersion"] });
   await deps.authorize({ ctx, permission: "system.write" });
   const runningVersion = await runtime.runningVersion();
-  const update = await runtime.site.checkForUpdate({ runningVersion }, { signal: ctx.signal }).catch((error: unknown) => {
-    throw new ToolInputError({ message: `Could not check for updates: ${error instanceof Error ? error.message : String(error)} Nothing was changed.` });
+  const update = await runtime.site.checkForUpdate({ runningVersion }, { signal: ctx.signal }).catch(() => {
+    throw new ToolInputError({ message: "Could not check for updates. Nothing was changed." });
   });
   if (!update) return { runningVersion, plan: null };
   if (input.toVersion !== undefined && input.toVersion !== update.latest) {

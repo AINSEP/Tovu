@@ -248,23 +248,18 @@ test("property: any list of well-formed bindings with non-secret config parses t
   }
 });
 
-// ---- (reported, not fixed) ----
-
-test("a raw vendor-prefixed token under an innocent config key is accepted (reported, not fixed)", () => {
-  // Only Bearer/Basic values, JWTs, PEM private keys and user:pass URLs are recognised by shape;
-  // a bare provider token (built at runtime here) under a key like `value` is stored and frozen
-  // into every delivery job. Pinned so a later shape rule shows up as a deliberate change.
-  const rawToken = "gh" + "p_" + "x".repeat(36);
-  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config: { header: { value: rawToken } } })] })[0]?.config, { header: { value: rawToken } });
+test("ordinary delivery config values remain accepted", () => {
+  const config = { column: "main", endpoint: "https://example.com/hook" };
+  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config })] })[0]?.config, config);
 });
 
-// B170 verify-first witness: the fix step deletes the `(reported, not fixed)` pin above and drops the `todo`.
-test("a vendor-shaped secret under an ordinary delivery config key is refused before job serialization", { todo: "B170 verify-first: parseFormDeliveryBindings accepts a bare ghp_/sk-ant-/AIza token under config.column, so it reaches every delivery job" }, () => {
-  // Same generated shape as the property above (ordinary key from its `keys` list); tokens built at runtime.
+test("a vendor-shaped secret under an ordinary delivery config key is refused before job serialization", () => {
   const vendorShaped = ["gh" + "p_" + "x".repeat(36), "sk-" + "ant-" + "y".repeat(95), "AI" + "za" + "z".repeat(35)];
   for (const secret of vendorShaped) {
-    const message = refusal([binding({ config: { column: secret } }), binding({ bindingId: "b2", config: { range: { author: [secret, 1] } } })]);
-    assert.match(message, /^Form delivery bindings \(core\.forms\.deliveryBindings\) binding 1: /);
-    assert.equal(message.includes(secret), false, "the refusal must not repeat the secret");
+    for (const config of [{ column: secret }, { range: { author: [secret, 1] } }]) {
+      const message = refusal([binding({ config })]);
+      assert.match(message, /^Form delivery bindings \(core\.forms\.deliveryBindings\) binding 1: /);
+      assert.equal(message.includes(secret), false, "the refusal must not repeat the secret");
+    }
   }
 });

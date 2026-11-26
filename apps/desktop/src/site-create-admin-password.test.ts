@@ -10,7 +10,7 @@ import { PassThrough, Writable } from "node:stream";
 import test from "node:test";
 import { adoptSiteDir, initSiteDir, resolveOrInitSiteDir, resolveSiteDir, stateFilePath } from "./site-dir-store.ts";
 
-test("every desktop create arm passes an explicit default or private custom password and strips inherited credentials", async () => {
+test("every desktop create arm passes a private password on stdin and strips inherited credentials", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-owner-spawn-"));
   fs.mkdirSync(path.join(root, "dist", "src", "cli"), { recursive: true });
   fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ bin: { tovu: "dist/src/cli/main.js" } }));
@@ -43,11 +43,14 @@ test("every desktop create arm passes an explicit default or private custom pass
         assert.equal(childEnv.TOVU_ADMIN_PASSWORD, undefined);
         assert.equal(childEnv.TOVU_ADMIN_USER, undefined);
         assert.equal(baseEnv.TOVU_ADMIN_PASSWORD, "desktop-inherited-password-fixture");
+        assert.deepEqual(argv.slice(1), ["init", dir, "--create-input-stdin"]);
         if (adminPassword === undefined) {
-          assert.deepEqual(argv.slice(1), ["init", dir, "--admin-password", "tovu-dev"]);
-          assert.equal(payload, "");
+          const submitted = JSON.parse(payload);
+          assert.ok(submitted.adminPassword.length > 0);
+          assert.notEqual(submitted.adminPassword, "tovu-dev");
+          assert.ok(!argv.includes(submitted.adminPassword));
+          assert.deepEqual(submitted.agentPluginTokens, {});
         } else {
-          assert.deepEqual(argv.slice(1), ["init", dir, "--create-input-stdin"]);
           assert.ok(!argv.includes(adminPassword));
           assert.deepEqual(JSON.parse(payload), { adminPassword, agentPluginTokens: {} });
         }
@@ -58,7 +61,7 @@ test("every desktop create arm passes an explicit default or private custom pass
   }
 });
 
-test("REGRESSION: desktop source CLI creation ignores the parent production password and authenticates with tovu-dev", async () => {
+test("REGRESSION: desktop source CLI creation ignores the parent production password and authenticates with the private create password", async () => {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-owner-real-"));
   const repoRoot = path.resolve(import.meta.dirname, "../../..");
   const inherited = "desktop-inherited-password-fixture";
@@ -67,7 +70,8 @@ test("REGRESSION: desktop source CLI creation ignores the parent production pass
   try {
     for (const adminPassword of [undefined, "private-desktop-password-fixture"]) {
       const dir = path.join(parent, adminPassword === undefined ? "default" : "custom");
-      await initSiteDir({ repoRoot, dir, cliMode: "source", adminPassword,
+      const generatedPassword = "synthetic-generated-desktop-password";
+      await initSiteDir({ repoRoot, dir, cliMode: "source", adminPassword, generateAdminPassword: () => generatedPassword,
         baseEnv: { ...process.env, TOVU_ADMIN_PASSWORD: inherited, TOVU_ADMIN_USER: "production-owner" },
       });
       // Reuse the website's real login assertions in its own TSX process: importing them here
@@ -79,7 +83,7 @@ test("REGRESSION: desktop source CLI creation ignores the parent production pass
         await assertSiteOwnerLogin(JSON.parse(fs.readFileSync(0, "utf8")));
       `], {
         cwd: repoRoot,
-        input: JSON.stringify({ dir, password: adminPassword ?? "tovu-dev", rejectedPassword: inherited }),
+        input: JSON.stringify({ dir, password: adminPassword ?? generatedPassword, rejectedPassword: inherited }),
         stdio: ["pipe", "ignore", "ignore"],
         timeout: 60_000,
       });

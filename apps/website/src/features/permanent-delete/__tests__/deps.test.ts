@@ -86,6 +86,28 @@ function harness(initial: TrashItem[] = [row("a")]) {
   return { deps: buildPermanentDeleteDeps(routeDeps), effects, permissions, setMediaReferences: (state: boolean | Error) => { mediaReferenceState = state; }, setItems: (v: TrashItem[]) => { items = v; }, setRecord: (v: Record<string, unknown> | null) => { record = v; }, setAllowed: (v: boolean) => { allowed = v; }, setMedia: (v: Record<string, unknown> | null) => { media = v; } };
 }
 
+test("permanent delete reviews and removes a canonical source-control credential", async () => {
+  const key = { workspaceId: "ws", id: "canonical-key" };
+  const item = { ...key, label: "Canonical credential", providerId: "github", updatedAt: "v1" };
+  const removed: unknown[] = [];
+  const routeDeps = {
+    workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
+    sourceControlCredentialSetRepo: {
+      findById: async () => null,
+      delete: async () => assert.fail("canonical deletion must not call the legacy remover"),
+      canonical: {
+        list: async ({ workspaceId }: { workspaceId: string }) => { assert.equal(workspaceId, key.workspaceId); return [item]; },
+        remove: async (input: unknown) => { removed.push(input); return { owned: true }; },
+      },
+    },
+  } as unknown as RouteDeps;
+  const plan = await buildPermanentDeleteDeps(routeDeps).prepare("source_control_delete_credential", key.id, "owner");
+  assert.deepEqual(plan.details, [{ label: "Count", value: "1" }, { label: "Item", value: "Canonical credential (canonical-key)" }]);
+  assert.deepEqual(removed, []);
+  assert.deepEqual(await plan.execute(), { removed: true, id: key.id });
+  assert.deepEqual(removed, [key]);
+});
+
 test("empty Trash refuses new arrivals or changed rows before deleting any reviewed item", async () => {
   const h = harness([row("a"), row("b")]);
   const plan = await h.deps.prepare("trash_empty", null, "owner");

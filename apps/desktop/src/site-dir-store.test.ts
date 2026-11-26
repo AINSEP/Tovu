@@ -14,6 +14,7 @@ import { EventEmitter, once } from "node:events";
 import { spawn } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { PassThrough, Writable } from "node:stream";
+import { validatePasswordPolicy } from "@jini-ai/user-management/server";
 
 import { SiteDirSelectionCancelled, stateFilePath, rememberSiteDir, existingRecentSiteDirs, classifySiteDir, classifySiteDirSafely, resolveDevFallback, initSiteDir, resolveOrInitSiteDir, adoptSiteDir, resolveSiteDir } from "./site-dir-store.ts";
 import type { RejectedDevFallback } from "./site-dir-store.ts";
@@ -37,12 +38,14 @@ function tempStatePath(): string {
 
 /** A `tovu init` child that exits with `code`, having written `output` to stderr. */
 interface FakeInitChild extends EventEmitter {
+  stdin: PassThrough;
   stdout: PassThrough;
   stderr: PassThrough;
 }
 
 function fakeInitChild(code: number, output = ""): FakeInitChild {
   const child = new EventEmitter() as FakeInitChild;
+  child.stdin = new PassThrough();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   queueMicrotask(() => {
@@ -60,6 +63,42 @@ function fakeRepoRoot(): string {
   fs.writeFileSync(path.join(root, "dist", "src", "cli", "main.js"), "");
   return root;
 }
+
+test("desktop init gives each new site a unique stdin-only owner password", async () => {
+  const passwords: string[] = [];
+  for (const adminPassword of [undefined, undefined, " desktop chosen 🔑 "]) {
+    let payload = "";
+    let argv: string[] = [];
+    let env: NodeJS.ProcessEnv = {};
+    await initSiteDir({
+      repoRoot: fakeRepoRoot(), dir: "/new/site", adminPassword,
+      baseEnv: { TOVU_ADMIN_PASSWORD: "inherited-private-password", TOVU_ADMIN_USER: "inherited-owner" },
+      agentPluginTokens: { supabase: "synthetic-plugin-token" },
+      spawnFn: (_command, args, options) => {
+        argv = args;
+        env = options.env!;
+        assert.deepEqual(options.stdio, ["pipe", "pipe", "pipe"]);
+        const child = fakeInitChild(0);
+        child.stdin.on("data", (chunk) => { payload += String(chunk); });
+        return child;
+      },
+    });
+    assert.deepEqual(argv.slice(1), ["init", "/new/site", "--create-input-stdin"]);
+    const submitted = JSON.parse(payload);
+    assert.equal(typeof submitted.adminPassword, "string");
+    assert.ok(submitted.adminPassword.length > 0);
+    assert.equal(validatePasswordPolicy({ password: submitted.adminPassword }), null);
+    assert.deepEqual(submitted.agentPluginTokens, { supabase: "synthetic-plugin-token" });
+    assert.ok(!argv.join(" ").includes(submitted.adminPassword));
+    assert.ok(!JSON.stringify(env).includes(submitted.adminPassword));
+    assert.equal(env.TOVU_ADMIN_PASSWORD, undefined);
+    assert.equal(env.TOVU_ADMIN_USER, undefined);
+    if (adminPassword === undefined) passwords.push(submitted.adminPassword);
+    else assert.equal(submitted.adminPassword, adminPassword);
+  }
+  assert.notEqual(passwords[0], passwords[1]);
+  assert.ok(!passwords.includes("tovu-dev"));
+});
 
 test("classifySiteDir calls a folder with a config.json a site", () => {
   assert.equal(classifySiteDir({ dir: fakeSiteDir() }), "site");
@@ -162,7 +201,7 @@ test('resolveSiteDir DOES initialize an empty TOVU_DESKTOP_SITE_DIR under the "i
     pickDir: () => assert.fail("an env override must never fall through to the picker"),
   });
   assert.equal(dir, empty);
-  assert.deepEqual(args!.slice(1), ["init", empty, "--admin-password", "tovu-dev"]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--create-input-stdin"]);
 });
 
 test("resolveSiteDir still refuses an occupied or half-initialized TOVU_DESKTOP_SITE_DIR under either policy", async () => {
@@ -328,7 +367,7 @@ test('resolveOrInitSiteDir("init") runs `tovu init` for an empty folder, the sam
     },
   });
   assert.equal(dir, empty);
-  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site", "--admin-password", "tovu-dev"]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site", "--create-input-stdin"]);
 });
 
 test('resolveOrInitSiteDir("fail") refuses an empty folder with a specific reason instead of creating anything', async () => {
@@ -383,7 +422,7 @@ test("adoptSiteDir runs `tovu init` for an empty folder", async () => {
       return fakeInitChild(0);
     },
   });
-  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site", "--admin-password", "tovu-dev"]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site", "--create-input-stdin"]);
 });
 
 test("adoptSiteDir does NOT re-init a folder that is already a site", async () => {
@@ -490,8 +529,7 @@ test("initSiteDir: a real child that exits before reading the tokens rejects the
 });
 
 test("initSiteDir: tokens that never reached the child fail the create even when the child exits 0", async () => {
-  const child = fakeInitChild(0) as FakeInitChild & { stdin: Writable };
-  child.stdin = new Writable({ write: (_chunk, _encoding, callback) => callback(Object.assign(new Error("write EPIPE"), { code: "EPIPE" })) });
+  const child = Object.assign(fakeInitChild(0), { stdin: new Writable({ write: (_chunk, _encoding, callback) => callback(Object.assign(new Error("write EPIPE"), { code: "EPIPE" })) }) });
   const stdinClosed = new Promise(resolve => child.stdin.once("close", resolve));
   let result: unknown;
   const uncaught = await uncaughtDuring(async () => {

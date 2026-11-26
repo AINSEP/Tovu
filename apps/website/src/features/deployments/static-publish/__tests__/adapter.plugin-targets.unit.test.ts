@@ -47,10 +47,10 @@ const GITHUB_PAGES_MODULE_PATH = path.join(agentPluginSourceDir({ pluginId: "git
 function credentialSource(extra: Record<string, string> = {}): PublishCredentialSource {
   return {
     async resolve() {
-      return { ok: true, token: "tok", ...extra };
+      return { ok: true, basis: { kind: "env" as const }, token: "tok", ...extra };
     },
     async isConfigured() {
-      return { configured: true };
+      return { configured: true, basis: { kind: "env" as const } };
     },
   };
 }

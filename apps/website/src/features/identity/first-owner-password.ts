@@ -1,10 +1,9 @@
 /**
  * @file The first owner's password for a site that has no owner yet (G7-1, owner decision).
  *
- * The desktop app keeps the shared starter password: it serves on loopback for one person, and the
- * owner ruled that default not a bug (B213). A SERVER site is different — it is reachable by
- * strangers from its first boot, so seeding the published default there hands the owner account to
- * anyone who has read the docs. A server site must therefore be given its own password at setup.
+ * Desktop creation supplies a random per-site password over stdin, signs in through a boot token,
+ * and lets the owner choose a password under Users (Q2, replacing B213). A server site must be
+ * given its own password at setup because it is reachable by strangers from its first boot.
  * Tovu has no first-run setup screen, so the setup step is the existing `TOVU_ADMIN_PASSWORD`
  * variable, and a missing/default/blank/weak value fails closed with instructions instead.
  *
@@ -40,8 +39,8 @@ export function isServerSite({ env }: { env: Env }, _optional = {}): boolean {
 }
 
 /**
- * The password to seed the first owner with. Desktop/local: exactly today's
- * `TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD` (`wiring.ts` `resolveOwnerCredentials`).
+ * The password to seed the first owner with. Desktop creation supplies its private password;
+ * local development retains `TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD`.
  * Server: the operator's own password, or {@link FirstOwnerPasswordRequiredError}.
  * @throws {FirstOwnerPasswordRequiredError} server site with an unset, blank, default, or policy-rejected password.
  * @complexity O(n) in the password's length.

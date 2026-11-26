@@ -103,7 +103,7 @@ function failingDeployTarget(): DeployTarget {
 function fakeCredentialSource(): PublishCredentialSource {
   return {
     async resolve() {
-      return { ok: true, token: "fake-token-never-real" };
+      return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" };
     },
     async isConfigured() {
       throw new Error("not used by publishStaticSite");

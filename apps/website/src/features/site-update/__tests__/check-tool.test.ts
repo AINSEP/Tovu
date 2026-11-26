@@ -62,10 +62,10 @@ test("a denied permission stops before the feed is asked", async () => {
 
 test("a feed that cannot be reached is explained in plain words, not thrown", async () => {
   const { toolDeps } = deps();
-  toolDeps.runtime = { ...toolDeps.runtime!, feed: { latestRelease: async () => { throw new Error("offline"); } } };
+  toolDeps.runtime = { ...toolDeps.runtime!, feed: { latestRelease: async () => { throw new Error("offline /private/site token=synthetic-private-marker"); } } };
   const result = (await call(find(buildSiteUpdateRegistrations(toolDeps, surfaces), "site_update_check"))) as { checked: boolean; message: string };
   assert.equal(result.checked, false);
-  assert.match(result.message, /^Could not check for updates: offline/);
+  assert.equal(result.message, "Could not check for updates. Nothing was changed.");
 });
 
 test("this tool takes no input", async () => {

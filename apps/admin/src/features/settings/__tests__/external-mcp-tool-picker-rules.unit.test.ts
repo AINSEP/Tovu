@@ -192,7 +192,7 @@ describe("seedToolPickerRows — existing servers do not change", () => {
     expect(isToolPickerDirty({ rows, allowedToolNames, writeAllowedToolNames })).toBe(false);
   });
 
-  it("seeds from the recommended-defaults policy only when the saved allowlist is empty", () => {
+  it("seeds from the recommended-defaults policy only when the saved allowlist is absent", () => {
     const tools = [
       tool({ remoteName: "list_styles" }),
       tool({ remoteName: "generate_image", writeDeclared: true }),

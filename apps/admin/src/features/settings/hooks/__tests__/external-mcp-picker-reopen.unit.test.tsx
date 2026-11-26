@@ -11,7 +11,7 @@ import type { ExternalMcpProbeErrors } from "@jini-ai/admin/screens/settings/ext
  * @file B239 picker subclaim, verification only: a recommended tool the operator deliberately
  * declined must stay declined when the picker is reopened, in what the operator sees AND in the
  * payload a Save would send. Recommended defaults are meant for a never-configured connection only
- * (`seedToolPickerRows`: applied when the saved allowlist is empty).
+ * (`seedToolPickerRows`: applied when the saved allowlist is absent).
  */
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -36,15 +36,15 @@ const enabledNames = (rows: readonly { remoteName: string; enabled: boolean }[])
 describe("reopening the MCP tool picker", () => {
   it("reopening the picker preserves a deliberately unticked recommended tool", async () => {
     const tools = [tool("read_a"), tool("read_b")];
-    const first = mount({ tools, input: { serverId: "atlas", active: true, allowedToolNames: "", writeAllowedToolNames: "" } });
+    const first = mount({ tools, input: { serverId: "atlas", active: true, allowedToolNames: undefined, writeAllowedToolNames: "" } });
     await waitFor(() => expect(enabledNames(first.result.current.rows)).toEqual(["read_a", "read_b"]));
     act(() => first.result.current.setEnabled("read_a", false));
     const saved = first.result.current.fieldValues();
     expect(saved).toEqual({ allowedToolNames: "read_b", writeAllowedToolNames: "" });
 
     // Closing and reopening the same tab keeps the draft rather than re-applying recommendations.
-    first.rerender({ serverId: "atlas", active: false, allowedToolNames: "", writeAllowedToolNames: "" });
-    first.rerender({ serverId: "atlas", active: true, allowedToolNames: "", writeAllowedToolNames: "" });
+    first.rerender({ serverId: "atlas", active: false, allowedToolNames: undefined, writeAllowedToolNames: "" });
+    first.rerender({ serverId: "atlas", active: true, allowedToolNames: undefined, writeAllowedToolNames: "" });
     expect(enabledNames(first.result.current.rows)).toEqual(["read_b"]);
     first.unmount();
 
@@ -56,10 +56,21 @@ describe("reopening the MCP tool picker", () => {
     expect(reopened.result.current.dirty).toBe(false);
   });
 
-  // RED today (B239, ledger): declining the ONLY recommended tool saves an empty allowlist, and an
-  // empty allowlist is indistinguishable from "never configured", so the next open re-ticks it.
-  // Repro: tools=[read_a]; mount allowed="" -> read_a ticked; setEnabled("read_a", false);
-  // fieldValues().allowedToolNames === ""; remount with allowed="" -> rows[0].enabled === true
-  // (expected false) and fieldValues().allowedToolNames === "read_a" (expected "").
-  it.todo("reopening after declining every recommended tool keeps them unticked");
+  it("reopening after declining every recommended tool keeps them unticked", async () => {
+    const tools = [tool("read_a")];
+    const first = mount({ tools, input: { serverId: "atlas", active: true, allowedToolNames: undefined, writeAllowedToolNames: "" } });
+    await waitFor(() => expect(enabledNames(first.result.current.rows)).toEqual(["read_a"]));
+    act(() => first.result.current.setEnabled("read_a", false));
+    const saved = first.result.current.fieldValues();
+    expect(saved).toEqual({ allowedToolNames: "", writeAllowedToolNames: "" });
+    first.rerender({ serverId: "atlas", active: true, ...saved });
+    await waitFor(() => expect(first.result.current.dirty).toBe(false));
+    first.unmount();
+
+    const reopened = mount({ tools, input: { serverId: "atlas", active: true, ...saved } });
+    await waitFor(() => expect(reopened.result.current.advertisedCount).toBe(1));
+    expect(enabledNames(reopened.result.current.rows)).toEqual([]);
+    expect(reopened.result.current.fieldValues()).toEqual(saved);
+    expect(reopened.result.current.dirty).toBe(false);
+  });
 });

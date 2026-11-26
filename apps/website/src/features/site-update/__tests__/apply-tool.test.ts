@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
@@ -105,6 +105,19 @@ test("a version other than the one on offer is refused before any card or change
   const { emitted, pending } = await raiseCard(tool, { toVersion: "9.9.9" });
   await assert.rejects(pending, /9\.9\.9 is not the version on offer \(1\.3\.0\)\. Nothing was changed\./);
   assert.equal(emitted.length, 0);
+  assert.deepEqual(fake.calls, []);
+});
+
+test("failed update preparation does not expose upstream details", async () => {
+  const { tool, fake } = setup();
+  fake.ports.site.checkForUpdate = async () => { throw new Error("/private/site token=synthetic-private-marker"); };
+  const { emitted, pending } = await raiseCard(tool);
+  await assert.rejects(pending, (error: unknown) => {
+    assert.ok(error instanceof ToolInputError);
+    assert.equal(error.message, "Could not check for updates. Nothing was changed.");
+    return true;
+  });
+  assert.deepEqual(emitted, []);
   assert.deepEqual(fake.calls, []);
 });
 

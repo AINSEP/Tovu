@@ -73,7 +73,7 @@ test("a destination resolver failure never uploads or exposes the saved credenti
       publish: async () => assert.fail("a URL-resolution failure must not upload files"),
       checkReachability: async () => ({ reachable: false }) }) } };
   const outcome = await publishStaticSite({
-    credentialSource: { resolve: async () => ({ ok: true, token }), isConfigured: async () => ({ configured: true }) },
+    credentialSource: { resolve: async () => ({ ok: true, token, basis: { kind: "env" as const } }), isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }) },
     loadDeployTargets: async () => ({ get: () => target, list: () => [target], refusals: [] }),
   }, { workspaceId: "site", config: { target: "fixture" }, projectName: "zoran", publishOutputRootDir: root,
     idGen: { newId: () => "run" }, exportSiteBound: async () => assert.fail("a URL-resolution failure must not render") });
@@ -100,7 +100,7 @@ test(`publishing with ${scenario} renders canonical and og:url for the deploy ta
       publish: async input => { uploaded = input.files; return { targetId: "fixture", url, status: "ready" }; },
       checkReachability: async () => ({ reachable: true }) }) } };
   const outcome = await publishStaticSite({
-    credentialSource: { resolve: async () => ({ ok: true, token: "test-token" }), isConfigured: async () => ({ configured: true }) },
+    credentialSource: { resolve: async () => ({ ok: true, token: "test-token", basis: { kind: "env" as const } }), isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }) },
     loadDeployTargets: async () => ({ get: () => target, list: () => [target], refusals: [] }),
   }, { workspaceId: deps.workspaceId, config: { target: "fixture" }, projectName: "zoran", publishOutputRootDir: root,
     idGen: deps.idGen, exportSiteBound: async options => ({ ...await deps.exportSiteBound(options), outputDir: options.outputDir }) });
@@ -128,7 +128,7 @@ for (const resolver of [undefined, async () => ""]) {
     const target: LoadedDeployTarget = { pluginId: "fixture", descriptor: { id: "fixture", label: "Fixture", module: "fixture.mjs", configFields: [] },
       module: { create: () => ({ id: "fixture", ...(resolver ? { resolvePublicUrl: resolver } : {}),
         publish: async () => ({ targetId: "fixture", url: "https://fixture.example", status: "ready" }), checkReachability: async () => ({ reachable: true }) }) } };
-    const outcome = await publishStaticSite({ credentialSource: { resolve: async () => ({ ok: true, token: "test-token" }), isConfigured: async () => ({ configured: true }) },
+    const outcome = await publishStaticSite({ credentialSource: { resolve: async () => ({ ok: true, token: "test-token", basis: { kind: "env" as const } }), isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }) },
       loadDeployTargets: async () => ({ get: () => target, list: () => [target], refusals: [] }) },
       { workspaceId: "site", config: { target: "fixture" }, projectName: "Site", publishOutputRootDir: root, idGen: { newId: () => "run" },
         exportSiteBound: async options => { requested.push(options.publicUrl); return { outputDir: options.outputDir, routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>Site</main>" }], failed: [] },

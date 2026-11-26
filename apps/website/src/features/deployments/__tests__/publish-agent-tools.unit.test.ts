@@ -320,7 +320,7 @@ test('preview/execute schemas provide concise approval field titles without drop
 });
 
 test("deployment_preview_static_publish refuses a field its host does not declare (a credential can never ride in as config)", async () => {
-  const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true }; } } });
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } } });
   const preview = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_preview_static_publish");
   await assert.rejects(
     () => call(preview, { input: { target: "github-pages", owner: "octo", repo: "site", token: "ghp_secret" } }),
@@ -329,7 +329,7 @@ test("deployment_preview_static_publish refuses a field its host does not declar
 });
 
 test("deployment_execute_static_publish refuses a field its host does not declare, before any dialog is raised", async () => {
-  const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true }; } } });
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } } });
   const execute = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_execute_static_publish");
   await assert.rejects(
     () => call(execute, { input: { target: "vercel", projectName: "p", owner: "octo" } }),
@@ -347,9 +347,9 @@ test("deployment_preview_static_publish reports validity, computed base path, an
     credentialSource: {
       async resolve() {
         resolveCallCount += 1;
-        return { ok: true, token: "should-never-appear-in-output" };
+        return { ok: true, basis: { kind: "env" as const }, token: "should-never-appear-in-output" };
       },
-      async isConfigured() { return { configured: true }; },
+      async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; },
     },
   });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -467,11 +467,11 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
     credentialSource: {
       async resolve() {
         resolveCallCount += 1;
-        return { ok: true, token: "should-never-appear" };
+        return { ok: true, basis: { kind: "env" as const }, token: "should-never-appear" };
       },
       async isConfigured(input) {
         return input.target === "github-pages"
-          ? { configured: true }
+          ? { configured: true, basis: { kind: "env" as const } }
           : { configured: false, reason: `no default '${input.target}' credential is saved for this workspace yet — add one in the Static Site tab` };
       },
     },
@@ -483,7 +483,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   // tests below for the unverified/invalid/unreachable cases). Seeding this here keeps this test's
   // github-pages assertions about the "fully ready" case meaningful.
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
-  deps.publishCredentialVerificationCache.set({ workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" }, { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW });
+  deps.publishCredentialVerificationCache.set({ workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages", basis: { kind: "env" } }, { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW });
 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
@@ -530,7 +530,7 @@ test("deployment_get_static_publish_capabilities: a saved credential surfaces it
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured() { return { configured: true }; },
+      async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; },
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
@@ -596,13 +596,13 @@ test("deployment_get_static_publish_capabilities: a verified credential's accoun
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true, basis: { kind: "env" as const } } : { configured: false, reason: "not configured" }; },
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
-    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages", basis: { kind: "env" } },
     { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "leonaburime-ucla" }
   );
 
@@ -635,7 +635,7 @@ test("deployment_get_static_publish_capabilities: accountLabel is read from the 
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true, basis: { kind: "env" as const } } : { configured: false, reason: "not configured" }; },
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
@@ -660,14 +660,14 @@ test("deployment_get_static_publish_capabilities: accountLabel falls back to the
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true, basis: { kind: "env" as const } } : { configured: false, reason: "not configured" }; },
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
   deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
-    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages", basis: { kind: "env" } },
     { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "leonaburime-ucla" }
   );
 
@@ -686,7 +686,7 @@ test("deployment_get_static_publish_capabilities: the DB column wins over a stal
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true, basis: { kind: "env" as const } } : { configured: false, reason: "not configured" }; },
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
@@ -694,7 +694,7 @@ test("deployment_get_static_publish_capabilities: the DB column wins over a stal
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   // A deliberately different, stale cached value — the column must win.
   deps.publishCredentialVerificationCache.set(
-    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages", basis: { kind: "env" } },
     { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "some-stale-value" }
   );
 
@@ -733,7 +733,7 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true, basis: { kind: "env" as const } } : { configured: false, reason: "not configured" }; },
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
@@ -761,7 +761,7 @@ test("confirm: a real publish records history in the injected historyStore, read
   const captured: { value: DeployFile[] | null } = { value: null };
   const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     // History's owner/repo are the host's own facts (`providerMetadata`), as the github-pages module reports them.
     buildTarget: () => fakeDeployTarget(captured, { owner: "octo", repo: "my-site", branch: "gh-pages" }),
   });
@@ -807,7 +807,7 @@ test("deployment_get_static_publish_capabilities: a saved credential that has NE
     vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
   ];
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
   deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
@@ -831,13 +831,13 @@ test("deployment_get_static_publish_capabilities: a saved credential the provide
     vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
   ];
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
   deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
-    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages", basis: { kind: "env" } },
     { status: "invalid", message: "GitHub rejected this credential (HTTP 401) — it is invalid, expired, or missing the required permissions.", checkedAt: NOW }
   );
 
@@ -861,13 +861,13 @@ test("deployment_get_static_publish_capabilities: a saved credential whose last 
     vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
   ];
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
   deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
-    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages", basis: { kind: "env" } },
     { status: "unreachable", message: "Could not reach GitHub to verify this credential — this does not necessarily mean the credential is bad.", checkedAt: NOW }
   );
 
@@ -980,12 +980,12 @@ test("execute: exported bytes reach publishStaticSite and the same call reports 
   let resolveCallCount = 0;
   const resolveInputs: unknown[] = [];
   const targetInputs: unknown[] = [];
-  const credential = { ok: true as const, token: "fake-token-never-real" };
+  const credential = { ok: true as const, token: "fake-token-never-real", basis: { kind: "env" as const } };
   const captured: { value: DeployFile[] | null } = { value: null };
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve(input) { resolveCallCount += 1; resolveInputs.push(input); return credential; },
-      async isConfigured() { return { configured: true }; },
+      async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; },
     },
     buildTarget: (config, resolved) => { targetInputs.push({ config, credential: resolved }); return fakeDeployTarget(captured); },
   });
@@ -1022,8 +1022,8 @@ test("execute: exported bytes reach publishStaticSite and the same call reports 
 test("provider rejection: an actionable message is returned, never a raw response body or the credential", async () => {
   const { deps } = fakeDeps({
     credentialSource: {
-      async resolve() { return { ok: true, token: "fake-token-never-real" }; },
-      async isConfigured() { return { configured: true }; },
+      async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; },
+      async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; },
     },
     buildTarget: () => failingDeployTarget("Vercel API responded 403: insufficient scope for this token"),
   });
@@ -1043,10 +1043,10 @@ test("confirm: a target that reports a non-'ready' terminal status returns a gen
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() {
-        return { ok: true, token: "s3cr3t", accessKeyId: "AKIA", bucket: "b", region: "us-east-1", publicUrl: "https://example.test/site" };
+        return { ok: true, basis: { kind: "env" as const }, token: "s3cr3t", accessKeyId: "AKIA", bucket: "b", region: "us-east-1", publicUrl: "https://example.test/site" };
       },
       async isConfigured() {
-        return { configured: true };
+        return { configured: true, basis: { kind: "env" as const } };
       },
     },
     buildTarget: () => ({
@@ -1074,7 +1074,7 @@ test("confirm: a target that reports a non-'ready' terminal status returns a gen
 test("confirm: a full 'ready' success explicitly reports reachable:true, not merely the absence of reachable:false", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => fakeDeployTarget(captured),
   });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -1104,7 +1104,7 @@ test("confirm: a full 'ready' success explicitly reports reachable:true, not mer
 test("confirm: a full success ALSO emits a succeeded outcome surface, same uri as the confirmation, with the live URL as an open-link action", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => fakeDeployTarget(captured),
   });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -1131,7 +1131,7 @@ test("confirm: a full success ALSO emits a succeeded outcome surface, same uri a
 
 test("confirm: a partial (uploaded, not yet reachable) outcome ALSO emits its OWN partial-state surface — never rendered as success or failure", async () => {
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: "s3cr3t", accessKeyId: "AKIA", bucket: "b", region: "us-east-1", publicUrl: "https://example.test/site" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "s3cr3t", accessKeyId: "AKIA", bucket: "b", region: "us-east-1", publicUrl: "https://example.test/site" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => ({
       id: "fake",
       async publish() { return { targetId: "fake", url: "https://example.test/site", status: "link-delayed" as const, statusMessage: "not reachable yet" }; },
@@ -1151,7 +1151,7 @@ test("confirm: a partial (uploaded, not yet reachable) outcome ALSO emits its OW
 
 test("provider rejection ALSO emits a failed-state outcome surface carrying the SAME actionable message the model got, never the credential", async () => {
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => failingDeployTarget("Vercel API responded 403: insufficient scope for this token"),
   });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -1669,7 +1669,7 @@ test("a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about 
 // ---------------------------------------------------------------------------
 
 test("deployment_preview_static_publish: a github-pages preview with an explicit branch is accepted and does not throw", async () => {
-  const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, token: "x" }; }, async isConfigured() { return { configured: true }; } } });
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "x" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } } });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
@@ -1678,7 +1678,7 @@ test("deployment_preview_static_publish: a github-pages preview with an explicit
 });
 
 test("deployment_preview_static_publish: a vercel preview with a teamId is accepted and does not throw", async () => {
-  const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, token: "x" }; }, async isConfigured() { return { configured: true }; } } });
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "x" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } } });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
@@ -1768,7 +1768,7 @@ test("deployment_execute_static_publish: an invalid config is a ToolInputError (
 
 test("confirm: a partial outcome's deploymentId and basePath are both forwarded through to the tool result when the target reports them", async () => {
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => ({
       id: "fake",
       async publish() {
@@ -1791,7 +1791,7 @@ test("confirm: a partial outcome's deploymentId and basePath are both forwarded 
 
 test("confirm: a full success's deploymentId is forwarded through to the tool result when the target reports one", async () => {
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => ({
       id: "fake",
       async publish() {
@@ -1820,10 +1820,10 @@ test("confirm: with no buildTarget override injected, the REAL default buildJini
     // this stays hermetic despite going through the real `buildJiniTarget` dispatch.
     credentialSource: {
       async resolve() {
-        return { ok: true, token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", region: "us-east-1" };
+        return { ok: true, basis: { kind: "env" as const }, token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", region: "us-east-1" };
       },
       async isConfigured() {
-        return { configured: true };
+        return { configured: true, basis: { kind: "env" as const } };
       },
     },
   });
@@ -1914,7 +1914,7 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
 
  test("n06: repository write runs after human approval and never before it", async (t) => {
   const captured: {value: DeployFile[] | null} = {value: null};
-  const {deps} = fakeDeps({credentialSource: {async resolve() {return {ok: true, token: "fake"};}, async isConfigured() {return {configured: true};}}, buildTarget: () => fakeDeployTarget(captured)});
+  const {deps} = fakeDeps({credentialSource: {async resolve() {return {ok: true, basis: { kind: "env" as const }, token: "fake"};}, async isConfigured() {return {configured: true, basis: { kind: "env" as const }};}}, buildTarget: () => fakeDeployTarget(captured)});
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   // Approval moved from the assembly wrapper to this prepared domain handler. Keep the full
   // publication assertions and answer through its real channel instead of calling it headless.
@@ -2025,8 +2025,8 @@ async function inspectingRegistry(preview: NonNullable<LoadedDeployTarget["modul
 }
 
 const selectedConnection: PublishCredentialSource = {
-  async resolve() { return { ok: true, token: "synthetic-cloudflare-token", accountId: "account", credentialId: "chosen" }; },
-  async isConfigured() { return { configured: true }; },
+  async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "synthetic-cloudflare-token", accountId: "account", credentialId: "chosen" }; },
+  async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; },
 };
 
 test("deployment_preview_static_publish returns the provider inspection for the person's selected connection, never the credential", async () => {
@@ -2152,7 +2152,7 @@ test("deployment_execute_static_publish: a call cancelled while readiness is che
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { resolves += 1; return { ok: false, reason: "must not be reached" }; },
-      async isConfigured() { controller.abort(); return { configured: true }; },
+      async isConfigured() { controller.abort(); return { configured: true, basis: { kind: "env" as const } }; },
     },
     buildTarget: () => assert.fail("a cancelled call must not build a target"),
   });
@@ -2263,8 +2263,8 @@ test('static publish returns a job before export finishes, survives call abort, 
   let release!: () => void;
   const blocked = new Promise<void>(resolve => { release = resolve; });
   const { deps, setAllow } = fakeDeps({ credentialSource: {
-    resolve: async () => ({ ok: true, token: 'secret-canary' }),
-    isConfigured: async () => ({ configured: true }),
+    resolve: async () => ({ ok: true, basis: { kind: "env" as const }, token: 'secret-canary' }),
+    isConfigured: async () => ({ configured: true, basis: { kind: "env" as const } }),
   }, buildTarget: () => ({ id: 'vercel', publish: async (_input, options) => {
     options?.onProgress?.({ phase: 'uploading', totalFiles: 1, uploadedFiles: 1, deploymentCreated: true, deploymentId: 'dpl_new', url: 'https://new.test', providerStatus: 'READY' });
     return { targetId: 'vercel', url: 'https://new.test', status: 'ready', deploymentId: 'dpl_new' };
@@ -2334,7 +2334,7 @@ test('static publish returns a job before export finishes, survives call abort, 
 
 for (const status of ['ready', 'link-delayed'] as const) test(`public publish status retains the cookie preferences warning for ${status}`, async () => {
   const { deps } = fakeDeps({
-    credentialSource: { async resolve() { return { ok: true, token: 'fixture-token' }; }, async isConfigured() { return { configured: true }; } },
+    credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: 'fixture-token' }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     buildTarget: () => ({ id: 'fixture', async publish() { return { targetId: 'fixture', url: 'https://example.test/published', status }; }, async checkReachability() { return { reachable: status === 'ready' }; } }),
   });
   const consentWarning = 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
