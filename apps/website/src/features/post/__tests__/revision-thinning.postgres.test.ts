@@ -50,7 +50,7 @@ function revision(seq: number, restoredFrom?: string, ws = WS): PostRevisionInpu
 }
 
 test("two connections: thinning apply waits for an open restore append and keeps its target", async () => {
-  const repoA = postRepoFor(first, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repoA = postRepoFor({ kernel: first, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   const ids: string[] = [];
   for (let seq = 1; seq <= 4; seq++) ids.push((await repoA.appendRevision(revision(seq))).id);
   const never = async () => false;
@@ -85,7 +85,7 @@ test("two connections: thinning apply waits for an open restore append and keeps
 test("undo reference written during apply keeps its target", async () => {
   const ws = "ws-thin-pg-undo";
   const scope = { workspaceId: ws, postId: "p1", kind: "post" } as const;
-  const repoA = postRepoFor(first, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repoA = postRepoFor({ kernel: first, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   const ids: string[] = [];
   for (let seq = 1; seq <= 4; seq++) ids.push((await repoA.appendRevision(revision(seq, undefined, ws))).id);
   const never = async () => false;

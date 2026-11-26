@@ -6,7 +6,7 @@ import { collectProcessTreePids } from '@jini-ai/core/contracts/runtime';
 import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 import type { ResourcesRequest, ResourceMetrics, ResourcesSnapshot } from './contracts/resources.ts';
 import type { ResourceProcess } from "@jini-ai/core/contracts/site/contracts-resources";
-import { groupMemoryMetric, readDesktopMemory, type MemoryUsage, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
+import { groupMemoryMetric, readDesktopMemory, type MemoryUsage, type PrivateMemorySampler } from '@jini-ai/desktop-host/electron/memory-sampler';
 
 type ResourceGroup = ResourcesSnapshot['app'];
 

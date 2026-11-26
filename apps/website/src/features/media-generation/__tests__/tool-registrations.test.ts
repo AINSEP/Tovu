@@ -1,3 +1,4 @@
+import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
@@ -31,7 +32,7 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { persistImportedMedia, type MediaImportToolDeps } from "../../media-import/tool-registrations.js";
+import { persistImportedMedia } from "../../media-import/tool-registrations.js";
 import { buildMediaGenerationRegistrations, contributeMediaGenerationTools, type MediaGenerationToolDeps } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";

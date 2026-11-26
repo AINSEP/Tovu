@@ -53,7 +53,7 @@ const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegis
  */
 
 contributions.contributors.clear({});
-contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
+contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls }, {}) });
 
 const WORKSPACE_ID = "ws-media-import-tools";
 const PRINCIPAL_ID = "principal-under-test";

@@ -8,7 +8,8 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { protectThemeFileTools } from './file-mutation-tools.js';
 
-import { isImportShapeRejection, resolveLocalImportRequest, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
+import { isImportShapeRejection, resolveLocalImportRequest, withCallerSafeEgressRefusal } from "../media-import/tool-registrations.js";
+import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
 import { THEME_WRITE_PERMISSION, THEME_FILE_REPLACEMENT_GUIDANCE } from "./agent-tools.js";

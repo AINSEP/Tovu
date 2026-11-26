@@ -15,4 +15,6 @@
 ^apps/website/src/features/post/repo\.memory\.ts$
 ^apps/website/src/features/source-control/tool-registrations\.ts$
 ^apps/website/src/features/recovery/tool-registrations\.ts$
+^apps/website/src/features/media-import/tool-registrations\.ts$
+^apps/website/src/features/post/repo\.ts$
 ```

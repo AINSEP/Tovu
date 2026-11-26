@@ -15,7 +15,8 @@ import { resolvePickedFolder } from "../fs-files/tool-registrations.js";
 import type { AssetTheme } from '@jini-ai/core/contracts/site/asset-transfer-tool-ports';
 import type { DocumentArchiveReaderPort } from '@jini-ai/cms/media';
 import type { FsFilesToolDeps } from '../fs-files/tool-registrations.js';
-import type { MediaImportToolDeps, persistImportedMedia } from '../media-import/tool-registrations.js';
+import type { MediaImportToolDeps } from '@jini-ai/cms/media/site-import/bindings';
+import type { persistImportedMedia } from '../media-import/tool-registrations.js';
 import type { fetchImage } from '../media-import/fetch-image.js';
 
 /** The host's theme policy and Library saver for asset tools, bound once at the tool composition root.

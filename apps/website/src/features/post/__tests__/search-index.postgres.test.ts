@@ -27,7 +27,7 @@ for (const [query, bug] of [
   // The ASCII control proves the post is indexed and visible before challenging the query folding.
   test(`${bug ? "BUG: " : ""}Postgres search finds stored accented prose for ${JSON.stringify(query)}`, async () => {
     const kernel = emptiedPgContentKernel(["posts", "post_revisions", "post_search_document"]);
-    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+    const repo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
     await repo.save(post);
     await repo.save({ ...post, id: "unrelated", title: "Unrelated", slug: "unrelated", bodyJson: { type: "doc", content: [] } });
     assert.deepEqual(await repo.findById({ workspaceId: "search-ws", id: "cafe-guide" }), {

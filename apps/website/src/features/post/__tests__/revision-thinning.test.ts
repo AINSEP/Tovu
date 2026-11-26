@@ -37,7 +37,7 @@ function state(seq: number): PostRecord {
 
 async function fixture({ published = new Set<string>(), restore = new Set<string>(), undo = new Set<string>() } = {}) {
   const kernel = freshSqliteContentKernel();
-  const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   const ids: string[] = [];
   for (let seq = 1; seq <= DATES.length; seq++) {
     const s = state(seq);

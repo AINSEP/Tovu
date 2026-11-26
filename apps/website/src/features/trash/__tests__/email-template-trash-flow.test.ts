@@ -34,7 +34,7 @@ function harness(_required = {}, _options = {}) {
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
   const kernel = contentKernel({ store: db });
   const clock = createFakeClock({ startIso: AT });
-  const postRepo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const postRepo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   let sequence = 0;
   const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
     workspaceId: WS, clock, postRepo, idGen: { newId: () => `template-${++sequence}` },

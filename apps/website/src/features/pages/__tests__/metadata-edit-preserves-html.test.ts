@@ -147,7 +147,7 @@ test("updatePost: a doc-format Page is unaffected — the fix must not widen the
 describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revisions"], make: (kernel) => kernel }, (makeKernel) => {
   test("SQL metadata edit ignores the supplied document and keeps body_json NULL", async () => {
     const kernel = makeKernel();
-    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+    const repo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
     await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
     const html = "<section>Original HTML</section>";
     const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: "ws-1", postId: "page-sql" }, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });

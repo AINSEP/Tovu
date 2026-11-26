@@ -100,7 +100,7 @@ function saveContract(makeRepo: () => PostRepoPort): void {
 
 describe("no-op saves: memory", () => saveContract(() => new InMemoryPostRepo({})));
 describeEachDialect("no-op saves: SQL", {
-  tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }),
+  tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}),
 }, (repo) => saveContract(repo));
 
 test("no-op saves skip both write ports and revision append, with or without expectedVersion", async () => {

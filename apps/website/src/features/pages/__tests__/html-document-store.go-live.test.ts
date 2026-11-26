@@ -8,7 +8,8 @@ import { test } from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
+import { postRepoFor } from "#src/features/post/repo";
+import type { SqlPostRepo } from "@jini-ai/cms/posts/sql/repo";
 import { announceDueGoLives } from "@jini-ai/cms/entries";
 import { SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 
@@ -81,7 +82,7 @@ async function bodyHtml(db: ContentKernel): Promise<string | null | undefined> {
 
 describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
   tables: ["posts", "post_revisions"],
-  make: (kernel): { db: ContentKernel; repo: SqlPostRepo } => ({ db: kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }),
+  make: (kernel): { db: ContentKernel; repo: SqlPostRepo } => ({ db: kernel, repo: postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}) }),
 }, (harness) => {
   const sweep = (repo: SqlPostRepo, outbox: OutboxPort, nowIso: string) => announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: WS, nowIso } });
 

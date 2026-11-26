@@ -35,7 +35,7 @@ describeEachDialect<PostRepoPort>(
   "post repo",
   {
     tables: ["posts", "post_revisions"],
-    make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }),
+    make: (kernel) => postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}),
   },
   (makeRepo) => {
     test("a transaction's save + appendRevision roll back together; a nested one joins", async () => {

@@ -9,7 +9,8 @@ import { test } from "node:test";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
-import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
+import { postRepoFor } from "#src/features/post/repo";
+import type { SqlPostRepo } from "@jini-ai/cms/posts/sql/repo";
 import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -58,7 +59,7 @@ async function insertPage(db: ContentKernel, spec: { id: string; html?: string }
 
 describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
   tables: ["posts", "post_revisions"],
-  make: (kernel): { db: ContentKernel; repo: SqlPostRepo } => ({ db: kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }),
+  make: (kernel): { db: ContentKernel; repo: SqlPostRepo } => ({ db: kernel, repo: postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}) }),
 }, (harness) => {
 
   test("ensureHtmlFormat() + write() append pre-conversion, post-conversion, and post-write snapshots to post_revisions", async () => {

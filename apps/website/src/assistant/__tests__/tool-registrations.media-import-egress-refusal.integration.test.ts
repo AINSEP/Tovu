@@ -1,3 +1,4 @@
+import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -15,7 +16,7 @@ import {
   InMemoryTransformDefinitionRepo,
 } from "../../features/media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
-import { buildMediaImportRegistrations, type MediaImportToolDeps } from "../../features/media-import/tool-registrations.js";
+import { buildMediaImportRegistrations } from "../../features/media-import/tool-registrations.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
@@ -77,7 +78,7 @@ function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void 
   });
 
   const registry = createToolRegistry({});
-  for (const registration of buildMediaImportRegistrations(routeDeps, { resolvePublicUrls: resolveMediaPublicUrls })) registry.register(registration);
+  for (const registration of buildMediaImportRegistrations({ deps: routeDeps, resolvePublicUrls: resolveMediaPublicUrls }, {})) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
 

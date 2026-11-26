@@ -1,3 +1,4 @@
+import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -10,7 +11,7 @@ import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, I
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { HttpResponse } from "#src/platform/http/index";
-import { buildMediaImportRegistrations, type MediaImportToolDeps } from "../tool-registrations.js";
+import { buildMediaImportRegistrations } from "../tool-registrations.js";
 import type { VideoImportOptions } from "../../media/import-video-conversion.js";
 
 /**
@@ -50,7 +51,7 @@ function setup(t: test.TestContext, optional: { fail?: Error } = {}) {
     thresholdBytes: 10,
   };
   async function run(toolId: string, input: Record<string, unknown>) {
-    const found = buildMediaImportRegistrations(deps, { videoImport, resolvePublicUrls: resolveMediaPublicUrls }).find((r) => r.descriptor.id === toolId);
+    const found = buildMediaImportRegistrations({ deps, videoImport, resolvePublicUrls: resolveMediaPublicUrls }, {}).find((r) => r.descriptor.id === toolId);
     assert.ok(found, `${toolId} must be wired`);
     const ctx: ToolExecutionContext = { input, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal };
     return await found.handler(ctx) as { media: { id: string } };

@@ -6,7 +6,7 @@ import type { ProcessUsage } from '@jini-ai/core/contracts/site/platform-process
 import { orFallback } from '@jini-ai/core/errors/idioms';
 import { createDesktopResources, type DesktopResourcesPorts } from './desktop-resources.ts';
 import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
-import type { PrivateMemorySampler } from './desktop-memory-sampler.ts';
+import type { PrivateMemorySampler } from '@jini-ai/desktop-host/electron/memory-sampler';
 
 // Legacy RSS fixtures exercise the fallback without launching a host process.
 const unavailablePrivateMemory: PrivateMemorySampler = async (_input) => ({ metric: 'unavailable', readings: [] });

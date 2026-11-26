@@ -31,7 +31,7 @@ function post(version: number, extra: Partial<PostRecord> = {}): PostRecord {
 
 async function fixture() {
   const kernel = freshSqliteContentKernel();
-  const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   const ids: string[] = [];
   for (let seq = 1; seq <= 6; seq++) {
     const state = post(seq);

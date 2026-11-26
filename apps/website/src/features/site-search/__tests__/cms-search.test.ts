@@ -46,7 +46,7 @@ function setup(kernel: ContentKernel) {
   const counted: ContentKernel = { ...kernel, run: (fn) => { runs += 1; return kernel.run(fn); } };
   const [posts, pages] = createCmsSearchDocumentSources({ kernel, now: clock.now, ...cmsSearchRules }) as [SearchDocumentSource, SearchDocumentSource];
   return {
-    kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), posts, pages, clock,
+    kernel, repo: postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}), posts, pages, clock,
     access: createCmsSearchAccessPort({ kernel: counted, now: clock.now, ...cmsSearchRules }),
     runs: () => runs,
     load: (source: SearchDocumentSource, documentId: string, occurredAtMs = T0, workspaceId = WS) => source.load({ siteId: SITE, workspaceId, documentId, occurredAtMs }),
