@@ -1,6 +1,7 @@
 import { AttachmentRejectedError } from "@jini-ai/daemon/http";
 import { refuseUnexpectedKeys } from "@jini-ai/core";
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { buildMediaRegistrations, MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { buildLibrarySaveAttachmentTool } from '@jini-ai/cms/media/site/library-save-attachment';
@@ -11,17 +12,18 @@ import { libraryContext, libraryFixture } from './library.fixture.js';
 import { buildToolCatalogQuery } from '#src/assistant/tool-catalog-query';
 import { buildFilesCopyAgentToolCatalog } from '@jini-ai/cms/asset-transfer/copy-tool';
 import { ASSET_SOURCE_SCHEMA } from '#src/features/asset-transfer/asset-sources';
-import { FS_FILES_READ_PERMISSION } from '#src/features/fs-files/agent-tools';
+import { FS_FILES_READ_PERMISSION } from '@jini-ai/cms/fs-files/agent-tools';
 const filesCopyAgentToolCatalog = buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION });
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
 const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 /** Generated documents must never consult attachments, even before the attachment store is ready. */
 function harness() {
-  const fixture = libraryFixture();
+  const { deps: routeDeps, deny } = libraryFixture();
+  const deps = { ...routeDeps, createHash };
   const unexpected = () => { throw new Error('generated text must not access attachments'); };
-  const tool = buildLibrarySaveAttachmentTool({ deps: { ...fixture.deps, refuseUnexpectedKeys: (input, allowed) => refuseUnexpectedKeys({ input, allowed }) }, getStore: unexpected, getMessageAttachmentRefs: unexpected, readFile: unexpected, archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
-  return { ...fixture, save: (input: Record<string, unknown>) => tool.handler(libraryContext(input)), tool };
+  const tool = buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys: (input, allowed) => refuseUnexpectedKeys({ input, allowed }) }, getStore: unexpected, getMessageAttachmentRefs: unexpected, readFile: unexpected, archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
+  return { deps, deny, save: (input: Record<string, unknown>) => tool.handler(libraryContext(input)), tool };
 }
 
 test('Library saves generated Markdown and plain text as private documents readable in a later chat', async () => {

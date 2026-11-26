@@ -28,6 +28,8 @@ const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-gro
 const WORKSPACE = "workspace-1";
 const ENVELOPE = { keyId: "k1", ciphertext: "c1", nonce: "n1", alg: "aes-256-gcm" };
 const DEFAULT_ID = `vault:${JSON.stringify(["media-provider", "openai"])}`;
+const NEW_ID = "generated-vault-1";
+const idGen = { newId: () => NEW_ID };
 
 function vaultRow(overrides: Partial<VaultRecord> = {}): VaultRecord {
   return { workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, binding: null,
@@ -74,8 +76,13 @@ class NoBatchVault implements VaultRepoPort {
 
 async function putRowFor(input: { record: MediaProviderCredentialRecord; existing?: VaultRecord }) {
   const vault = new RecordingVault(input.existing ? [input.existing] : []);
-  await new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).upsert(input.record);
-  return vault.puts[0]!;
+  await new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).upsert(input.record);
+  assert.deepEqual(vault.listQueries, [{ workspaceId: input.record.workspaceId, kind: "media-provider", ownerKey: "tovu",
+    principalId: null, binding: null, provider: input.record.providerId }]);
+  assert.equal(vault.puts.length, 1);
+  const [put] = vault.puts;
+  assert.ok(put);
+  return put;
 }
 
 function assertVaultCode(code: VaultError["code"]) {
@@ -175,16 +182,17 @@ test("mediaVaultRecord yields an empty tail for a long sealed token with no stor
 
 test("listByWorkspaceId reads the workspace's nonpersonal media group and maps each row", async () => {
   const vault = new RecordingVault([vaultRow({ provider: "openai" }), vaultRow({ id: "g", provider: "grok" })]);
-  const rows = await new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).listByWorkspaceId({ workspaceId: WORKSPACE });
+  const rows = await new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).listByWorkspaceId({ workspaceId: WORKSPACE });
   assert.deepEqual(rows.map(row => row.providerId), ["openai", "grok"]);
   assert.deepEqual(vault.listQueries, [mediaVaultScope({ workspaceId: WORKSPACE, policy: MEDIA_CREDENTIAL_POLICY })]);
 });
 
-test("upsert of a new provider creates revision 1 under the deterministic id with CAS null", async () => {
+test("upsert of a new provider creates revision 1 under the injected id with CAS null", async () => {
   const record = dto({ baseUrl: "https://api.example.com", model: "m1" });
   const put = await putRowFor({ record });
   assert.equal(put.expectedRevision, null);
-  assert.deepEqual(put.record, { ...mediaVaultScope({ ...record, policy: MEDIA_CREDENTIAL_POLICY }), id: DEFAULT_ID, provider: "openai", label: "openai",
+  assert.deepEqual(put.record, { workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, binding: null,
+    id: NEW_ID, provider: "openai", label: "openai",
     meta: { baseUrl: "https://api.example.com", model: "m1" }, sealed: null, last4: null, tokenLength: null,
     isDefault: false, revision: 1, createdAt: record.createdAt, updatedAt: record.updatedAt });
 });
@@ -205,7 +213,7 @@ test("upsert uses the prepared row's id when no row exists yet", async () => {
 
 test("upsert refuses a prepared row whose id differs from the stored row's id as a conflict", async () => {
   const vault = new RecordingVault([vaultRow({ id: "stored-id" })]);
-  await assert.rejects(new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).upsert(preparedDto(vaultRow({ id: "prepared-id" }))),
+  await assert.rejects(new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).upsert(preparedDto(vaultRow({ id: "prepared-id" }))),
     assertVaultCode("conflict"));
   assert.deepEqual(vault.puts, []);
 });
@@ -249,18 +257,18 @@ test("upsert drops hints for a new envelope with no stored or prepared row", asy
 
 test("deleteByProviderIds with no ids touches nothing at all", async () => {
   const vault = new RecordingVault([vaultRow()]);
-  await new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: [] });
+  await new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: [] });
   assert.deepEqual(vault.calls, []);
 });
 
 test("deleteByProviderIds batches one CAS delete per distinct stored provider, skipping unknown ids", async () => {
   const vault = new RecordingVault([vaultRow({ id: "o", revision: 3 })], [true]);
-  await new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai", "openai", "missing"] });
+  await new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai", "openai", "missing"] });
   assert.deepEqual(vault.batches, [[{ delete: { workspaceId: WORKSPACE, id: "o", expectedRevision: 3 } }]]);
 });
 
 test("replaceWorkspace refuses a port without batch support as invalid-record before reading", async () => {
-  const repo = new MediaProviderCredentialVaultRepo({ vault: new NoBatchVault(), policy: MEDIA_CREDENTIAL_POLICY });
+  const repo = new MediaProviderCredentialVaultRepo({ vault: new NoBatchVault(), idGen, policy: MEDIA_CREDENTIAL_POLICY });
   await assert.rejects(repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => ({ upserts: [], tombstoneProviderIds: [] }) }),
     assertVaultCode("invalid-record"));
 });
@@ -268,25 +276,25 @@ test("replaceWorkspace refuses a port without batch support as invalid-record be
 test("replaceWorkspace hands the planner the current DTOs and puts each upsert against its stored revision", async () => {
   const vault = new RecordingVault([vaultRow({ id: "o", revision: 2 })], []);
   let seen: string[] = [];
-  await new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).replaceWorkspace({ workspaceId: WORKSPACE, plan: ({ existing: current }) => {
+  await new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).replaceWorkspace({ workspaceId: WORKSPACE, plan: ({ existing: current }) => {
     seen = current.map(row => row.providerId);
     return { upserts: [dto(), dto({ providerId: "grok" })], tombstoneProviderIds: [] };
   } });
   assert.deepEqual(seen, ["openai"]);
   const puts = vault.batches[0]!.map(op => "put" in op ? [op.put.record.id, op.put.expectedRevision] : null);
-  assert.deepEqual(puts, [["o", 2], [`vault:${JSON.stringify(["media-provider", "grok"])}`, null]]);
+  assert.deepEqual(puts, [["o", 2], [NEW_ID, null]]);
 });
 
 test("replaceWorkspace refuses an upsert for another workspace as a context error without batching", async () => {
   const vault = new RecordingVault([], []);
-  await assert.rejects(new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).replaceWorkspace({ workspaceId: WORKSPACE,
+  await assert.rejects(new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).replaceWorkspace({ workspaceId: WORKSPACE,
     plan: () => ({ upserts: [dto({ workspaceId: "workspace-2" })], tombstoneProviderIds: [] }) }), assertVaultCode("context"));
   assert.deepEqual(vault.batches, []);
 });
 
 test("replaceWorkspace returns only written rows as DTOs, dropping delete booleans", async () => {
-  const vault = new RecordingVault([vaultRow({ id: "g", provider: "grok" })], [vaultRow(), true]);
-  const written = await new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }).replaceWorkspace({ workspaceId: WORKSPACE,
+  const vault = new RecordingVault([vaultRow({ id: "g", provider: "grok" })], [vaultRow({ id: NEW_ID }), true]);
+  const written = await new MediaProviderCredentialVaultRepo({ vault, idGen, policy: MEDIA_CREDENTIAL_POLICY }).replaceWorkspace({ workspaceId: WORKSPACE,
     plan: () => ({ upserts: [dto()], tombstoneProviderIds: ["grok"] }) });
   assert.deepEqual(written.map(row => row.providerId), ["openai"]);
   assert.deepEqual(vault.batches[0]!.map(op => Object.keys(op)[0]), ["put", "delete"]);

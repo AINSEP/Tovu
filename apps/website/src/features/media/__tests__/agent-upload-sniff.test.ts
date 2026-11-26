@@ -1,6 +1,8 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributions } from "@jini-ai/core";
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -14,6 +16,7 @@ import {
 } from "../index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMediaTools } from "../tool-registrations.js";
@@ -57,8 +60,10 @@ function fakeRouteDeps() {
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   let counter = 0;
   const deps = {
+    ...createRouteDeps(),
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
+    createHash,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
@@ -68,7 +73,7 @@ function fakeRouteDeps() {
     mediaContentTypeStore,
     transformDefinitionRepo,
   };
-  return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaRepo };
+  return { deps, mediaRepo };
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {

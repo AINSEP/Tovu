@@ -220,7 +220,7 @@ function storageProgram(binding?: StorageCompactionBinding) {
   const out = capture();
   const exits: number[] = [];
   const program = new Command("tovu").exitOverride().configureOutput({ writeErr: () => {} });
-  registerStorageCommands({ program, stdout: out.stdout, setExitCode: code => { exits.push(code); } }, binding ? { compaction: binding } : {});
+  registerStorageCommands({ program, stdout: out.stdout, env: {}, setExitCode: code => { exits.push(code); } }, binding ? { compaction: binding } : {});
   const storage = program.commands.find(command => command.name() === "storage");
   return { program, out, exits, subcommands: () => storage?.commands.map(command => command.name()) ?? [] };
 }

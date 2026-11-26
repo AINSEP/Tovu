@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
@@ -142,6 +143,7 @@ test("thumb boot: registers one 640-wide WebP transform, and an asset uploaded B
   const realTransformer = new InMemoryImageTransformer();
   const renditionDeps = {
     ...deps,
+    createHash,
     mediaRepo: new InMemoryMediaRepo({}),
     blobRepo: new InMemoryAssetBlobRepo({}),
     renditionRepo: new InMemoryAssetRenditionRepo({}),
@@ -179,5 +181,7 @@ test("thumb boot: registers one 640-wide WebP transform, and an asset uploaded B
     input: { workspaceId: WORKSPACE_ID, assetId: media.id, transformName: "thumb", version: 1 },
   });
   assert.equal(result.outcome, "ok");
+  assert.deepEqual(result, { outcome: "ok", contentType: "image/webp",
+    bytes: new TextEncoder().encode('TEST_TRANSFORM:{"format":"webp","width":640}:raster bytes') });
   assert.deepEqual(transformCalls, [{ format: "webp", width: 640 }]);
 });

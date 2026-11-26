@@ -1,6 +1,7 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import test from "node:test";
@@ -66,6 +67,7 @@ function fakeRouteDeps() {
   const deps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
+    createHash,
     tracker: { ...createNoopTracker({}), capture: (...args: Parameters<Tracker["capture"]>) => { captures.push(args); } },
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
@@ -188,7 +190,7 @@ test("media_upload_asset's published schema offers image/avif as a selectable co
  * `maxUploadBytes`.
  */
 test("media_upload_asset accepts a file over the 10 MiB @jini-ai/cms default, up to Tovu's own TOVU_MAX_UPLOAD_BYTES cap", async () => {
-  const { deps } = fakeRouteDeps();
+  const { deps, mediaRepo } = fakeRouteDeps();
   const overTenMib = Buffer.alloc(11 * 1024 * 1024, 0xab);
   // A real PNG signature up front so this fixture sniffs as `image/png` (the S11 fix rejects
   // uploads whose bytes sniff outside the allowlist) — this test is about the SIZE cap, not sniffing.
@@ -200,6 +202,8 @@ test("media_upload_asset accepts a file over the 10 MiB @jini-ai/cms default, up
   )) as { media: { id: string } };
 
   assert.ok(result.media.id, "an 11 MiB upload must succeed under Tovu's 50 MiB cap");
+  const stored = await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
+  assert.equal(stored?.source.sha256, createHash("sha256").update(overTenMib).digest("hex"));
 });
 
 test("media_upload_asset still rejects a file over Tovu's own TOVU_MAX_UPLOAD_BYTES cap", async () => {

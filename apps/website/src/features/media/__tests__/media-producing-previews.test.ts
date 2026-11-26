@@ -2,6 +2,7 @@ import { AttachmentRejectedError } from "@jini-ai/daemon/http";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -42,6 +43,7 @@ test("every registered media-producing tool returns the same inline image previe
   let ids = 0;
   const idGen = { newId: () => `preview-${++ids}` };
   const deps = {
+    createHash,
     workspaceId: "workspace-local", siteBinding: { dir: root },
     clock: { nowMs: () => Date.parse("2026-10-31T00:00:00Z") }, idGen,
     authorize: async () => ({ allowed: true, reason: "matched" as const }),
@@ -76,7 +78,10 @@ test("every registered media-producing tool returns the same inline image previe
     attachmentRef: "attachment:11111111-1111-4111-8111-111111111111",
   };
   const producers = registrations.filter(tool => /^media_(upload|generate|import|replace|promote)_/.test(tool.descriptor.id));
-  assert.ok(producers.length >= 6, "cover upload, generation, both imports, replacement and attachment promotion");
+  assert.deepEqual(producers.map(tool => tool.descriptor.id).sort(), [
+    "media_generate_asset", "media_import_from_url", "media_import_local_file",
+    "media_promote_chat_attachment", "media_replace_file", "media_upload_asset",
+  ]);
   const expected = await deps.imageCodec.encode({ source: bytes, autoOrient: true, format: "webp", quality: 70,
     resize: { width: 320, height: 320, fit: "inside", withoutEnlargement: true } });
   for (const tool of producers) await t.test(tool.descriptor.id, async () => {

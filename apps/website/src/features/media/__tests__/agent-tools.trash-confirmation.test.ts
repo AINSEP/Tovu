@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -39,6 +40,7 @@ function makeDeps(options: { allow?: boolean; allowedPermissions?: string[]; med
   const { removeMedia, removed } = makeRemoveMediaDouble(mediaRepo);
   return {
     workspaceId: WORKSPACE_ID,
+    createHash,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
@@ -132,6 +134,7 @@ test("n06: reversible removal runs without a confirmation channel", async () => 
   assert.equal(deps.removed.length, 1);
   assert.equal(deps.removed[0].id, asset.id);
   assert.equal(store.size(), 0);
+  assert.equal((await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id }))?.status, "trashed");
 });
 
 test("an asset that disappears before the versioned read, or a removal that reports not-found/conflict, trashes nothing", async () => {
@@ -142,14 +145,15 @@ test("an asset that disappears before the versioned read, or a removal that repo
   const vanishing = makeDeps({ mediaRepo });
   let reads = 0;
   const findById = mediaRepo.findById.bind(mediaRepo);
-  vanishing.mediaRepo = Object.assign(Object.create(mediaRepo) as InMemoryMediaRepo, { findById: async (input: Parameters<InMemoryMediaRepo["findById"]>[0]) => (++reads === 2 ? null : findById(input)) });
+  mediaRepo.findById = async input => (++reads === 2 ? null : findById(input));
   await assert.rejects(call(tool(buildRegistrations(vanishing, surfaces()), TRASH_TOOL_ID), { input: { mediaId: asset.id } }), { message: `media asset '${asset.id}' was not found` });
   assert.equal(reads, 2);
   assert.deepEqual(vanishing.removed, []);
+  mediaRepo.findById = findById;
 
-  for (const [reason, message] of [["not-found", `media asset '${asset.id}' was not found`], ["conflict", `media asset '${asset.id}' changed during removal — nothing was trashed`]] as const) {
+  for (const [reason, message] of [["not-found", `media asset '${asset.id}' was not found`], ["version-changed", `media asset '${asset.id}' changed during removal — nothing was trashed`]] as const) {
     const refused = makeDeps({ mediaRepo });
-    refused.removeMedia = (async () => ({ ok: false, reason })) as unknown as typeof refused.removeMedia;
+    refused.removeMedia = async () => ({ ok: false, reason });
     await assert.rejects(call(tool(buildRegistrations(refused, surfaces()), TRASH_TOOL_ID), { input: { mediaId: asset.id } }), { message });
   }
   assert.equal((await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id }))?.status, "active");

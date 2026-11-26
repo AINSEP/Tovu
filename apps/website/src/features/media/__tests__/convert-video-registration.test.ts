@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { VIDEO_CONVERSION_MESSAGES, VIDEO_TRANSCODE_MAX_INPUT_BYTES, VIDEO_TRANSCODE_THRESHOLD_BYTES, sniffContentType, type MediaTranscoderPort } from "@jini-ai/cms/media";
@@ -8,6 +9,8 @@ import { contributeMediaTools } from "../tool-registrations.js";
 import { withVideoConversionOnImport } from "@jini-ai/cms/media/site/import-video-conversion";
 import { createMediaConversionPorts } from "#src/server/runtime/composition/media-video-ports";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const WORKSPACE_ID = "ws-convert";
 const PRINCIPAL_ID = "owner-1";
@@ -22,24 +25,28 @@ function harness() {
   const deps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
+    createHash,
     clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo: new InMemoryMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}),
     assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(),
+    removeMedia: async () => { throw new Error("unexpected removal"); },
   };
   return deps;
 }
 type Deps = ReturnType<typeof harness>;
 
 function registrations(deps: Deps, ports: Parameters<typeof contributeMediaTools>[0] = {}): ToolRegistration[] {
-  return contributeMediaTools(ports).build(deps as never, {} as never);
+  return contributeMediaTools(ports).build(deps, { surfaceExchanges: createSurfaceExchangeStore({
+    scheduler: createTimeoutScheduler({}), clock: deps.clock, idGenerator: deps.idGen, defaultChannel: "mcp-ui",
+  }) });
 }
 
 async function seedVideo(deps: Deps) {
   const { clock, idGen, mediaRepo, assetBlobRepo: blobRepo, assetRenditionRepo: renditionRepo, blobStore } = deps;
-  const { media } = await uploadMedia({ deps: { clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore }, input: { workspaceId: WORKSPACE_ID, bytes: MOV_AS_MP4, filename: "Pitch.mp4", contentType: "video/mp4", createdByPrincipal: PRINCIPAL_ID } });
+  const { media } = await uploadMedia({ deps: { createHash, clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore }, input: { workspaceId: WORKSPACE_ID, bytes: MOV_AS_MP4, filename: "Pitch.mp4", contentType: "video/mp4", createdByPrincipal: PRINCIPAL_ID } });
   return media;
 }
 
@@ -122,11 +129,11 @@ test("exactly 50 MiB is kept unchanged and the next byte reaches the injected co
   for (const size of sizes) {
     const deps = harness();
     const { clock, idGen, mediaRepo, assetBlobRepo: blobRepo, assetRenditionRepo: renditionRepo, blobStore } = deps;
-    const storeUpload = (input: Parameters<typeof uploadMedia>[0]["input"]) => uploadMedia({ deps: { clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore }, input }, { maxUploadBytes: size, maxVideoUploadBytes: size });
+    const storeUpload = (input: Parameters<typeof uploadMedia>[0]["input"]) => uploadMedia({ deps: { createHash, clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore }, input }, { maxUploadBytes: size, maxVideoUploadBytes: size });
     const calls: number[] = [];
     const transcoder: MediaTranscoderPort = { transcode: async ({ input }) => { calls.push(input.byteLength); return { ok: true, bytes: CONVERTED }; } };
     const store = withVideoConversionOnImport({ storeUpload, conversion: {
-      deps: { clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore, transcoder, linkDerivedMedia: async () => undefined },
+      deps: { createHash, clock, idGen, mediaRepo, blobRepo, renditionRepo, blobStore, transcoder, linkDerivedMedia: async () => undefined },
       reportNote: () => undefined,
     } });
     const bytes = new Uint8Array(size);

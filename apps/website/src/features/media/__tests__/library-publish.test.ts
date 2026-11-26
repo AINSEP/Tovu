@@ -1,5 +1,6 @@
 /** Library L1 step 3: RED originally: pack/apply accepted documents as ordinary public media. */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { uploadMedia } from '@jini-ai/cms/media';
 import { InMemoryChangeSetRepo } from '@jini-ai/cms/core/commands';
@@ -11,12 +12,13 @@ import { deriveDuplicateName } from '#src/features/content-duplication/copy-nami
 import { libraryFixture } from './library.fixture.js';
 
 test('Library documents and their blobs are absent from publish output; forged apply and public duplication fail', async () => {
-  const { deps } = libraryFixture();
+  const { deps: routeDeps } = libraryFixture();
+  const deps = { ...routeDeps, createHash };
   const { media: doc } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, kind: 'document', filename: 'private.md', bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), contentType: 'text/markdown', createdByPrincipal: 'owner' } });
   const outbox = new InMemoryOutbox();
   const handler = contributeMediaPublish().build({ workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
-    authorize: deps.authorize, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    authorize: deps.authorize, mutationActor: { id: "owner", kind: "user" }, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
     ports: { media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore } } });
   const packed = []; for await (const row of handler.pack()) packed.push(row);
   assert.deepEqual(packed, []);
@@ -26,19 +28,19 @@ test('Library documents and their blobs are absent from publish output; forged a
   const documentRefusal = await handler.precheck({ entity });
   assert.ok(typeof documentRefusal === "string");
   assert.match(documentRefusal, /documents cannot be published/i);
-  await assert.rejects(handler.apply({ entity, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-apply' }));
+  await assert.rejects(handler.apply({ entity, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-apply' }), /documents cannot be published/i);
   // Removing the discriminant cannot turn a destination document into public media either.
   const forged = { ...entity, state: { ...entity.state, kind: 'media' } };
   const forgedRefusal = await handler.precheck({ entity: forged });
   assert.ok(typeof forgedRefusal === "string");
   assert.match(forgedRefusal, /documents cannot be published/i);
-  await assert.rejects(handler.apply({ entity: forged, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-downgrade' }));
+  await assert.rejects(handler.apply({ entity: forged, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-downgrade' }), /documents cannot be published/i);
   const disguised = { ...forged, id: 'new-public-id', state: { ...forged.state, id: 'new-public-id', slug: 'new-public-id' } };
   const disguisedRefusal = await handler.precheck({ entity: disguised });
   assert.ok(typeof disguisedRefusal === "string");
   assert.match(disguisedRefusal, /documents cannot be published/i);
-  await assert.rejects(handler.apply({ entity: disguised, expectedVersion: undefined, principalId: 'owner', idempotencyKey: 'private-new-id' }));
-  await assert.rejects(duplicateMediaAsset({ routeDeps: deps, deriveDuplicateName, principalId: 'owner', id: doc.id, overrides: {} }));
+  await assert.rejects(handler.apply({ entity: disguised, expectedVersion: undefined, principalId: 'owner', idempotencyKey: 'private-new-id' }), /documents cannot be published/i);
+  await assert.rejects(duplicateMediaAsset({ routeDeps: deps, deriveDuplicateName, principalId: 'owner', id: doc.id, overrides: {} }), { name: 'ToolInputError', message: 'Library document duplication is unavailable' });
   assert.equal(reads, 0);
   const remaining = await deps.mediaRepo.list({ workspaceId: deps.workspaceId });
   assert.equal(remaining.length, 1); assert.equal(remaining[0]!.kind, 'document');

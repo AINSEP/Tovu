@@ -1,5 +1,6 @@
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import sharp from "sharp";
@@ -80,6 +81,7 @@ async function seed(
 ): Promise<{ id: string; slug: string; title: string }> {
   const { media } = await uploadMedia({
     deps: {
+      createHash,
       clock: { nowMs: () => Date.parse(NOW) },
       idGen: { newId: () => `seed-${++idCounter}` },
       mediaRepo: harness.mediaRepo,
@@ -420,24 +422,21 @@ test("view image gives the authorized metadata follow-up and performs no write",
   assert.deepEqual(after, before, "viewing leaves the stored record, its version and its human alt text untouched");
 });
 
-test("viewing an image does not overwrite a human description", async () => {
+test("viewing an image does not overwrite a human description", async t => {
   // A read can supply evidence without changing human-authored metadata.
   const harness = makeHarness();
   const seeded = await seed(harness, { bytes: await splitColorPng(120, 40), filename: "barn.png", contentType: "image/png" });
   const stored = await harness.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
-  await harness.mediaRepo.save({ ...stored!, description: "Our red barn, painted by Ana in 1998." });
+  assert.ok(stored);
+  await harness.mediaRepo.save({ ...stored, description: "Our red barn, painted by Ana in 1998." });
   const before = await harness.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
   const registration = withContentTargets({ registrations: buildMediaViewImageRegistrations({ deps: harness.deps, mediaAssetReadToolId: "host_read.asset", mediaMetadataWriteToolId: "host_write.asset_metadata" }), deps: harness.deps })
     .find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID)!;
-  const writes: string[] = [];
-  const repo = harness.mediaRepo as unknown as Record<string, unknown>;
-  for (const method of ["save", "saveIfVersion", "insertIfAbsent"]) {
-    const original = repo[method];
-    if (typeof original !== "function") continue;
-    repo[method] = async (...args: unknown[]) => { writes.push(method); return original.apply(harness.mediaRepo, args); };
-  }
+  const save = t.mock.method(harness.mediaRepo, "save");
+  const remove = t.mock.method(harness.mediaRepo, "remove");
   await call(registration, { mediaId: seeded.id });
-  assert.deepEqual(writes, [], "viewing calls no media write path");
+  assert.equal(save.mock.callCount(), 0, "viewing never saves the asset");
+  assert.equal(remove.mock.callCount(), 0, "viewing never removes the asset");
   const after = await harness.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
   assert.equal(after?.description, "Our red barn, painted by Ana in 1998.");
   assert.deepEqual(after, before, "the human description, version and every other field are untouched");

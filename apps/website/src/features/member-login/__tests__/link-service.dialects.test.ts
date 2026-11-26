@@ -1,5 +1,6 @@
 import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 /** Real transaction boundaries: a failed session mint must roll back link and activation. */
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -21,6 +22,7 @@ function depsFor(kernel: ContentKernel): MemberLoginLinkDeps {
     identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })), principals: new SqlPrincipalRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'principals' }),
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     transaction: run => kernel.transaction(run), lockKey: key => kernel.lockKey(key), reportFailure: () => undefined,
+    orFallbackSync,
     mailTransport: membersMailTransport,
     mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async () => { throw new Error("no mail in authoritative login"); }, sendBatch: async () => [] } };
@@ -36,10 +38,11 @@ for (const adapter of adapters) {
     const member = { id: "member", workspaceId: "ws", email: "person@gmail.com", status: "pending" as const, version: 1, createdAt: now, updatedAt: now };
     await deps.members.save(member);
     await deps.sessions.save({ id: "old", workspaceId: "ws", memberId: member.id, tokenHash: "old-hash", createdAt: now, expiresAt: "2026-11-24T12:00:00.000Z" });
-    const failingSessions = Object.create(deps.sessions) as MemberLoginLinkDeps["sessions"];
-    failingSessions.save = async () => { throw new Error("mint-failure-canary"); };
+    const failingSessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
+    const save = t.mock.method(failingSessions, "save", async () => { throw new Error("mint-failure-canary"); });
     await assert.rejects(resolveFederatedIdentity({ deps: { ...deps, sessions: failingSessions }, input: { workspaceId: "ws", startedAt: now,
       identity: { providerId: provider.id, issuer: provider.issuer, subject: "subject", email: member.email, emailAuthoritative: true } } }), MemberLoginError);
+    assert.equal(save.mock.callCount(), 1);
     assert.deepEqual(await deps.identities.listByMember({ workspaceId: "ws", memberId: member.id }), []);
     assert.equal((await deps.members.findById({ workspaceId: "ws", id: member.id }))?.status, "pending");
     assert.equal((await deps.sessions.findByTokenHash({ workspaceId: "ws", tokenHash: "old-hash" }))?.revokedAt, undefined);

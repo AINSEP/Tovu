@@ -20,6 +20,7 @@
  * DIFFERENT, freshly-minted id.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
@@ -30,6 +31,7 @@ import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-medi
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
 import { importMediaEntity, type ImportMediaEntityDeps } from "@jini-ai/cms/media/site/import-media-entity";
+import { createHostBlobWriteBindings } from "@jini-ai/cms/media/site/blob-write-bindings";
 import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
@@ -39,10 +41,13 @@ const SOURCE_SHA256 = "86d9075d85c1cce55da0605a557dceaea6c27f18df8702ce86accccce
 
 function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMediaRepo } {
   const mediaRepo = new InMemoryVersionedMediaRepo({});
+  const blobStore = new InMemoryBlobStore();
   return {
+    createHash,
+    ...createHostBlobWriteBindings({ blobStore, bytesMatchSha256 }),
     mediaRepo,
     assetBlobRepo: new InMemoryAssetBlobRepo({}),
-    blobStore: new InMemoryBlobStore(),
+    blobStore,
     clock: { nowIso: () => "2026-09-18T00:00:00.000Z" },
     idGen: (() => {
       let n = 0;
@@ -90,8 +95,8 @@ test("importMediaEntity + renderDocNode: an image node authored against the SOUR
   // source id survives the import, not which key the public URL prefers.
   const mediaAssetMetadata = new Map<string, MediaAssetRenderMeta>([
     [
-      imported!.id,
-      { width: imported!.width, height: imported!.height, cssClass: imported!.cssClass, htmlAttributes: imported!.htmlAttributes, contentType: null, slug: null },
+      imported.id,
+      { width: imported.width, height: imported.height, cssClass: imported.cssClass, htmlAttributes: imported.htmlAttributes, contentType: null, slug: null },
     ],
   ]);
   const mediaTransformVersions = new Map<string, number>([["public", 1]]);

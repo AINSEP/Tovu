@@ -91,6 +91,7 @@ function fakeRouteDeps() {
   const deps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
+    createHash,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
@@ -182,7 +183,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       await writeFile(filePath, AVIF_BYTES, { mode: 0o600 });
       const registered = await store.register({ input: { batchId: "batch-e2e-1", path: filePath, name: "ai-caps.avif", kind: "file", size: AVIF_BYTES.length } });
 
-      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
+      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
 
       assert.match(registered.path, /^attachment:/, "the real store returns an opaque reference");
       const out = (await tool.handler(executionContext({ attachmentRef: registered.path, filename: "editorial-cover.avif", alt: "A mountain at sunrise", caption: "Summer cover", credit: "Jane Photographer" }))) as { media: { id: string; sha256: string } };
@@ -212,7 +213,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       await writeFile(filePath, MP4_BYTES, { mode: 0o600 });
       const registered = await store.register({ input: { batchId: "batch-e2e-video", path: filePath, name: "clip.mp4", kind: "file", size: MP4_BYTES.length } });
 
-      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
+      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
 
       const out = (await tool.handler(executionContext({ attachmentRef: registered.path }))) as { media: { sha256: string; title: string } };
 
@@ -234,7 +235,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       await writeFile(filePath, AVIF_BYTES, { mode: 0o600 });
       await store.register({ input: { batchId: "batch-e2e-2", path: filePath, name: "photo.avif", kind: "file", size: AVIF_BYTES.length } });
 
-      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
+      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
 
       // The model was told the real PATH (image-prompt-delivery.ts narrates paths, never ids) — this
       // is the identifier it actually has in the common same-turn case.
@@ -253,7 +254,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       // A different chat session's run claims it first.
       await store.claim({ attachments: [registered], runId: "run-owner" });
 
-      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
+      const tool = buildPromoteChatAttachmentTool({ getStore: () => store, mediaUploadHandler: wiredMediaUploadAsset(deps).handler, readFile: ({ path: p }) => readFile(p), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") });
 
       await assert.rejects(
         tool.handler(executionContext({ attachmentRef: registered.path }, "run-stranger")),

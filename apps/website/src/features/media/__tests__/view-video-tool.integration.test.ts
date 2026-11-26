@@ -1,5 +1,6 @@
 import { prepareMessageAttachments } from '@jini-ai/daemon';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -23,6 +24,7 @@ test('real tiny MP4 reaches the tool as N decodable bounded JPEGs with source me
   const fixture = fileURLToPath(new URL('../../../../../../development/e2e/fixtures/video/iris-ai-motion.mp4', import.meta.url));
   const bytes = await readFile(fixture);
   const { media } = await uploadMedia({ deps: {
+    createHash,
     clock: { nowMs: () => 0 }, idGen: { newId: () => 'real-video' }, mediaRepo, blobRepo,
     renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore,
   }, input: { workspaceId, bytes, filename: 'iris-ai-motion.mp4', contentType: 'video/mp4', createdByPrincipal: principalId } });

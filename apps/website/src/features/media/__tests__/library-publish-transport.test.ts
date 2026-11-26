@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /** L1 isolation includes peer blob reads and manual raw-row publishing, not just typed pack(). */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -25,19 +26,19 @@ import { createFileBlobIndex } from '@jini-ai/cms/publish/transfer';
 import { contributeRawRowPublish } from '#src/features/publish-content/raw-row-contributor';
 import type { RawRowSnapshot } from '@jini-ai/cms/publish/transfer';
 import { registerPublishContentBlobGetRoute, registerPublishContentBlobPutRoute } from '#src/server/runtime/composition/modules/publish-content-blobs';
-import type { PublishContentRouteDeps } from '#src/server/inbound/admin-http/routes/publish-content/deps';
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { contributeMediaPublish } from '../publish-content.js';
 import { libraryFixture } from './library.fixture.js';
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test('Library document-only blob hashes cannot be downloaded through publish peer transport', async t => {
   const { deps } = libraryFixture();
-  const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
+  const { media } = await uploadMedia({ deps: { ...deps, createHash, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, kind: 'document', filename: 'private.txt', bytes: Buffer.from('secret document'), contentType: 'text/plain', createdByPrincipal: 'owner' } });
   let reads = 0; const get = deps.blobStore.get.bind(deps.blobStore);
   deps.blobStore.get = async input => { reads++; return get(input); };
   const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  const routeDeps = { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps;
+  const routeDeps = { ...createRouteDeps(), ...deps, fileBlobIndex: createFileBlobIndex() };
   registerPublishContentBlobGetRoute({ errors: createRouteIncidentReporter().errors, app, deps: routeDeps }); registerPublishContentBlobPutRoute({ errors: createRouteIncidentReporter().errors, app, deps: routeDeps });
   const base = await startTestServer(app, t);
   const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
@@ -77,7 +78,7 @@ test('Library forged raw-file/theme apply refuses private hashes before blob I/O
   const themesDir = join(siteDir, 'themes'); await mkdir(themesDir);
   for (const size of [32, MAX_SECRET_SCAN_BYTES + 1]) {
     const { deps } = libraryFixture(); const bytes = Buffer.alloc(size, 65);
-    const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
+    const sharedDeps = { ...deps, createHash, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
       referenceCheck: { findReferences: async () => [] } };
     const { media } = await uploadMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId, kind: 'document',
       filename: 'private.txt', bytes, contentType: 'text/plain', createdByPrincipal: 'owner' } });
@@ -129,7 +130,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
   t.after(() => rm(siteDir, { recursive: true, force: true }));
   const themesDir = join(siteDir, 'themes'); await mkdir(themesDir);
   const { deps } = libraryFixture();
-  const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
+  const sharedDeps = { ...deps, createHash, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
     referenceCheck: { findReferences: async () => [] } };
   const bytes = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>');
   const { media } = await uploadMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId,
@@ -146,7 +147,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
       'theme-files': { themesDir } },
     backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir }), blobs: deps.blobStore } };
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerPublishContentBlobGetRoute({ errors: createRouteIncidentReporter().errors, app, deps: { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps });
+  registerPublishContentBlobGetRoute({ errors: createRouteIncidentReporter().errors, app, deps: { ...createRouteDeps(), ...deps, fileBlobIndex: createFileBlobIndex() } });
   const base = await startTestServer(app, t);
   for (const status of ['tombstoned', 'active'] as const) {
     await deps.assetBlobRepo.save({ ...retained, status });
