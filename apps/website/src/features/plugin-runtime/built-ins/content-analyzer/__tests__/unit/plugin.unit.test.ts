@@ -30,7 +30,9 @@ function entry(extra: Record<string, unknown> = {}): Readonly<ContentEntryDraft>
 const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `
   const { registerPluginSdkResolver } = await import(${JSON.stringify(new URL("../../../../sdk-resolver.ts", import.meta.url).href)});
   registerPluginSdkResolver();
-  const { default: plugin, buildContentAnalyzerPatch, readMetaDescription } = await import("@jini-ai/cms/seo/content-analyzer-plugin/plugin");
+  // The worker entry is Tovu's own file: Jini's subpath is a factory with no default export.
+  const { default: plugin } = await import(${JSON.stringify(new URL("../../plugin.ts", import.meta.url).href)});
+  const { buildContentAnalyzerPatch, readMetaDescription } = await import("@jini-ai/cms/seo/content-analyzer-plugin/plugin");
   const analysis = await import("@jini-ai/cms/seo/content-analysis");
   const base = ${JSON.stringify(entry())};
   const hooks = [];

@@ -166,8 +166,9 @@ test("a malformed entry file URL is a structured import-stage reply, not a crash
 
 test("installed built-in entry loads the neutral SDK and the same analysis when enabled, without granting analysis imports to a different entry", async () => {
   assert.deepEqual(await runner(probe(CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, CONTENT_ANALYZER_RUNTIME_SOURCE.sourceDir)), { ok: true, kind: "probe", hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] });
-  await withPluginPackage('import { analyzeContentWithSiteSlug } from "@jini-ai/cms/seo/content-analysis";\n' + PLUGIN_BODY,
-    async (entryUrl, packageRoot) => assertRefused(await runner(probe(entryUrl, packageRoot)), "@jini-ai/cms/seo/content-analysis"));
+  // The one specifier trusted for content-analyzer's entry stays closed to every other entry.
+  await withPluginPackage('import { createContentAnalyzerPlugin } from "@jini-ai/cms/seo/content-analyzer-plugin/plugin";\n' + PLUGIN_BODY,
+    async (entryUrl, packageRoot) => assertRefused(await runner(probe(entryUrl, packageRoot)), "@jini-ai/cms/seo/content-analyzer-plugin/plugin"));
 });
 
 test("host registrar resolves the installed path without evaluating the worker executable", () => {

@@ -33,13 +33,14 @@ export interface Tier2WorkerMainOptional {
 /**
  * C043: what a Tier-2 plugin's own modules may import by name — the SDK specifiers only, for every
  * plugin. Owner-approved exception (coordinator decision, may be revisited): the compiled-in
- * content-analyzer's registered entry also gets the EXACT two specifiers its own files import
- * (`analyze-content.ts`, `plugin.ts`). No directory is trusted, so another built-in, or a site
- * plugin, that imports either one is refused.
+ * content-analyzer's registered entry also gets the EXACT one specifier its own file imports
+ * (`built-ins/content-analyzer/plugin.ts` -> Jini's cms analyzer factory; the factory's own imports
+ * live outside the entry's package root, so they are not the entry's to declare). No directory is
+ * trusted, so another built-in, or a site plugin, that imports it is refused.
  */
 export const TIER2_IMPORT_POLICY: Tier2ImportPolicy = {
   sdkSpecifiers: TOVU_SITE_PLUGIN_SDK_SPECIFIERS,
-  trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analysis", "@jini-ai/cms/html/site/slug"] }],
+  trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analyzer-plugin/plugin"] }],
 };
 
 /** Real `import()` of the plugin entry, used once `main()` has registered the SDK resolver.

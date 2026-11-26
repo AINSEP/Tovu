@@ -111,10 +111,10 @@ for (const imported of [null, "a string module"] as const) {
   });
 }
 
-test("the C043 import policy is SDK-only, plus exactly the two specifiers content-analyzer's entry imports", () => {
+test("the C043 import policy is SDK-only, plus exactly the one specifier content-analyzer's entry imports", () => {
   assert.deepEqual(TIER2_IMPORT_POLICY, {
     sdkSpecifiers: TOVU_SITE_PLUGIN_SDK_SPECIFIERS,
-    trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analysis", "@jini-ai/cms/html/site/slug"] }],
+    trustedImports: [{ entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, specifiers: ["@jini-ai/cms/seo/content-analyzer-plugin/plugin"] }],
   });
 });
 
