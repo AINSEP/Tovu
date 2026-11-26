@@ -19,6 +19,7 @@
     "test": "node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import ./scripts/one-react.ts --import tsx --test \"src/renderer/**/*.test.ts\" \"src/renderer/**/*.test.tsx\" \"src/contracts/**/*.test.ts\"",
     "gates": "node scripts/check-gates.ts",
     "smoke:packaged-chat": "node scripts/smoke-packaged-chat.ts",
+    "probe:partition-cache:package": "electron-builder --mac dir --config scripts/measure-partition-cache/electron-builder.probe.yml",
     "release:inputs": "node ../../development/scripts/check-no-linked-jini.mjs && cd ../.. && node development/scripts/check-no-linked-jini.mjs",
     "prestage": "npm run release:inputs",
     "prepackage": "npm run release:inputs",
