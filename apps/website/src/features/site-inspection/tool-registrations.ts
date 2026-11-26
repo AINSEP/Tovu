@@ -7,14 +7,14 @@ import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveOri
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "#src/features/site-inspection/catalog-host";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
-import { fetchPublishedPage, type FetchPublishedPageDeps } from "@jini-ai/diagnostics/web-evidence/published-page";
+import { fetchPublishedPage } from "@jini-ai/diagnostics/web-evidence/published-page";
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 
 type HostLiveUrlDeps = Omit<FetchLiveUrlDeps, "reservedSegments" | "isEgressRefusal">;
 
 export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps, liveDeps?: HostLiveUrlDeps) {
   return build({ workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize, catalog: siteInspectionAgentToolCatalog, readPermission: SITE_INSPECTION_READ_PERMISSION,
-    reservedSegments: RESERVED_SEGMENTS, trackFetch, publishedPageDeps: () => routeDeps as FetchPublishedPageDeps,
+    reservedSegments: RESERVED_SEGMENTS, trackFetch, publishedPageDeps: () => routeDeps,
     toSiteProfileDeps: () => toSiteProfileDeps(routeDeps), toSiteCapabilitiesDeps: () => toSiteCapabilitiesDeps(routeDeps),
     readPageBodyOptions, fetchLiveUrl, fetchPublishedPage, isEgressRefusal: (error): error is EgressRefusedError => error instanceof EgressRefusedError,
     isPublishedPagePathError: error => error instanceof PublishedPagePathError,

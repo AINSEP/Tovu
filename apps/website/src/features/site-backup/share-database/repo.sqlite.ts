@@ -31,7 +31,7 @@ const host: ShareProjectionHost = {
   computeBlobStorageKey, documentContentType, redactSecretShapes,
   tempRoot: siteTempRoot({ prefix: SITE_TEMP_PREFIXES.shareProjection }),
   statfs, writeFile,
-  openSqliteFileKernel, openContentDb, backfillPostSearchIndex, sql,
+  openSqliteFileKernel: (required, optional) => openSqliteFileKernel<Record<string, Record<string, unknown>>>(required, optional), openContentDb, backfillPostSearchIndex, sql,
   schemaErasedKernel: ({ store }) => schemaErasedKernel({ store: store as Parameters<typeof schemaErasedKernel>[0]["store"] }),
 };
 
