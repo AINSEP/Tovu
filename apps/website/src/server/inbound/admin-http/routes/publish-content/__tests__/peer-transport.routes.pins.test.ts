@@ -1,3 +1,4 @@
+import { knownPeerActionRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -182,4 +183,11 @@ test("live restriction wins over workspace mismatch and credential opening follo
   calls.length = 0;
   assert.equal((await dispatchJsonRequest(app, "POST", `${PEER}/push/confirm`, { planId: "plan", planHash: "hash" })).status, 404);
   assert.deepEqual(calls, ["authorize", "open"]);
+});
+
+
+test('peer transport refusal retains the typed code and leaves unknown errors to the incident writer', () => {
+  const err = new PublishContentPeerTransportError({ message: 'peer answered 401', code: 'PEER_REJECTED', redact: ({ text }) => ({ text }) }, { peerStatus: 401 });
+  assert.deepEqual(knownPeerActionRefusal({ err }), { status: 502, body: { error: 'peer answered 401', code: 'PEER_REJECTED' } });
+  assert.equal(knownPeerActionRefusal({ err: new Error('private network detail') }), undefined);
 });

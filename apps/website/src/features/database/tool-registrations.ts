@@ -32,7 +32,8 @@ import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPl
 import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { acquireOperationLock, releaseOperationLock } from "../../contracts/core/operation-lock.js";
-import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { humanConfirmedToolHandler } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
@@ -176,7 +177,7 @@ const migrateHooks = createMigrateHooks(routeDeps, mutationActor);
   return humanConfirmedToolHandler(surfaces, {
       flag: "migrated",
       prepare: async ({ ctx }) => {
-        refuseUnexpectedKeys(ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input }), []);
+        refuseUnexpectedKeys({ input: ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input }), allowed: [] });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "database.migrate" }, { entityType: "database" });
         const hooks = migrateHooks({ actorId: ctx.principal.id });
         const plan = await gatewayPlan({

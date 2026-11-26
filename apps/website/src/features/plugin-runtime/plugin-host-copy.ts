@@ -12,7 +12,7 @@ import { createPluginSourceAgentToolCatalog } from "@jini-ai/plugins/runtime/sou
 import { createInstallToolCatalog } from "@jini-ai/plugins/runtime/install-tool-catalog";
 import { createPluginInstallMessages, createPluginToolMessages } from "@jini-ai/plugins/runtime/plugin-tool-messages";
 import { createCapabilityCard } from "@jini-ai/plugins/runtime/capability-card";
-import { PLUGIN_INSTALL_SOURCE_SCHEMA } from "#src/contracts/headless/index";
+import { PLUGIN_INSTALL_SOURCE_SCHEMA } from "#src/contracts/headless/plugin-install-source";
 
 export const PLUGIN_HOST_COPY: PluginHostCopy = {
   productName: "Tovu",

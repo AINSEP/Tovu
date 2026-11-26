@@ -10,7 +10,7 @@ import { createRouteDeps } from '../../../../../runtime/composition/app.js';
 import { registerAuthRoutes } from '../../../../admin-http/dev-auth.js';
 import { parsePublicJsonBody } from '../../../../shared/json-body-parsers.js';
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from '../../../../../__tests__/helpers/http-test-server.js';
-import { MEMBER_SESSION_COOKIE } from '../../members/complete-sign-in.js';
+import { MEMBER_SESSION_COOKIE } from "#src/server/inbound/public-http/http/members";
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from '../../plugin-contributions.js';
 test('host authenticates real member and operator cookies independently, including revocation and disabled members', async t => {
   const deps = createRouteDeps();

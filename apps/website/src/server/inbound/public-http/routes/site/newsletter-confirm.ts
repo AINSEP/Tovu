@@ -6,7 +6,6 @@ import { consumeConfirmationToken } from "@jini-ai/user-management/newsletter/co
 import { newsletterConfirmRoute } from "@jini-ai/user-management/public-http/routes/newsletter/confirm";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
-import { currentNewsletterRequest, newsletterPublicApp } from "./newsletter-public-scope.js";
 
 /**
  * `GET /newsletter/confirm?token=...` — the Jini spec (`@jini-ai/user-management/public-http/routes/newsletter/confirm`)
@@ -16,16 +15,21 @@ import { currentNewsletterRequest, newsletterPublicApp } from "./newsletter-publ
  */
 export function registerPublicNewsletterConfirmRoute({ app, deps }: { app: Express; deps: NewsletterPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   mountPublicRawRoute({
-    app: newsletterPublicApp({ app }),
+    app, handlerName: "forwardRejection",
     spec: newsletterConfirmRoute,
     deps: {
       ready: () => deps.newsletterReady,
       consume: ({ rawToken }) => consumeConfirmationToken({ deps: toPublicConfirmationDeps(deps), input: { workspaceId: deps.workspaceId, rawToken } }),
-      onSubscribed: ({ listId, eventId }) => {
-        void captureVisitorEvent({ deps, request: currentNewsletterRequest().req, name: "newsletter_subscribed", properties: { listId, method: "double_opt_in", eventId } });
-      },
-      reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-confirm" }, { tracker: currentNewsletterRequest().res.locals.adminFailureTracker, reporter: currentNewsletterRequest().res.locals.failureReporter }),
+      onSubscribed: (_required: { listId: string; eventId: string }): void => { throw new Error("bound per request by requestDeps"); },
+      reportFailure: (_required: { error: unknown }): { errorId: string } => { throw new Error("bound per request by requestDeps"); },
     },
     failure: { operation: "public:newsletter-confirm", visitorError: "The site couldn’t complete subscription confirmation." },
+  }, {
+    requestDeps: ({ req, res, deps: base }) => ({ ...base,
+      onSubscribed: ({ listId, eventId }) => {
+        void captureVisitorEvent({ deps, request: req, name: "newsletter_subscribed", properties: { listId, method: "double_opt_in", eventId } });
+      },
+      reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-confirm" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+    }),
   });
 }

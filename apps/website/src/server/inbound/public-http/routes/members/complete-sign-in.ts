@@ -23,7 +23,6 @@ import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
  * (`routes/site/pages.ts`) reads the SAME literal this route sets, rather than a second
  * hand-copied string that could silently drift from it.
  */
-export { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 const MEMBER_COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax", secure: true } as const;
 
 /** The sole member cookie setter, shared by password and challenge completion. O(1). */

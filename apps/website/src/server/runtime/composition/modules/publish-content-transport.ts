@@ -19,7 +19,8 @@ import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake
 import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/publish-content/deps";
-import { knownPeerActionRefusal, registerPublishContentPeerPushRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
+import { registerPublishContentPeerPushRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
+import { knownPeerActionRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 
 /**
  * @file K1 (RT-K1-adm-publish-content, transport half): the publish-content peer CRUD and

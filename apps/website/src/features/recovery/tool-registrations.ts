@@ -29,7 +29,8 @@ import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.j
 import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
-import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { humanConfirmedToolHandler } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
@@ -354,7 +355,7 @@ function createRecoveryRestoreHandler(routeDeps: RecoveryToolDeps, surfaces: Ass
       flag: "restored",
       prepare: async ({ ctx }) => {
         const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys(input, ["restorePointId"]);
+        refuseUnexpectedKeys({ input: input, allowed: ["restorePointId"] });
         const restorePointId = requireString({ input: input, key: "restorePointId" });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.restore" }, { entityType: RESTORE_POINT_ENTITY });
         const { plan } = await planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });

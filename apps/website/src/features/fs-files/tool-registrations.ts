@@ -9,7 +9,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 import type { ToolContributor } from "@jini-ai/core";
-import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import { approvalToolHandler } from '#src/contracts/core/human-confirm';
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 
 import {
@@ -199,7 +200,7 @@ export function buildFsFilesRegistrations(
     [FS_WRITE_FILES_TOOL_ID]: approvalToolHandler<PreparedWriteBatch>({ surfaces,
       prepare: async ({ ctx }) => {
         const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys(input, ["files"]);
+        refuseUnexpectedKeys({ input: input, allowed: ["files"] });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId,
           principalId: ctx.principal.id, permission: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION }, { entityType: "fs-root", entityId: "custom" });
         return preparePickedFolderBatch({ routeDeps, files: input.files });

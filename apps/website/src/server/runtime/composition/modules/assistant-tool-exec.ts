@@ -36,7 +36,7 @@ import { TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/da
 import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import { createNativeApprovalMemory } from "@jini-ai/core/native-approval-memory";
-import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { AttachmentRejectedError } from "@jini-ai/daemon/http";
 import { buildLibrarySaveAttachmentTool } from "@jini-ai/cms/media/site/library-save-attachment";
 import { buildPromoteChatAttachmentTool } from "@jini-ai/cms/media/site/promote-chat-attachment";
@@ -326,7 +326,7 @@ export function buildDaemonAttachmentTools(
   const readAttachmentFile = ({ path }: { path: string }, _optional = {}): Promise<Uint8Array> =>
     openFsFileForRead({ rootPath: dirname(path), relativePath: basename(path), maxBytes: MAX_DOCUMENT_BYTES });
   const tools: ToolRegistration[] = [
-    buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys }, getStore, getMessageAttachmentRefs: messageAttachmentRefs, archiveReader: createDocumentArchiveReader(documentArchiveDeps), readFile: readAttachmentFile, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' }),
+    buildLibrarySaveAttachmentTool({ deps: { ...deps, refuseUnexpectedKeys: (input, allowed) => refuseUnexpectedKeys({ input, allowed }) }, getStore, getMessageAttachmentRefs: messageAttachmentRefs, archiveReader: createDocumentArchiveReader(documentArchiveDeps), readFile: readAttachmentFile, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' }),
     buildListPendingChatAttachmentsTool({ getStore, getMessageAttachmentRefs: messageAttachmentRefs }),
   ];
   const mediaUpload = registrations.find((registration) => registration.descriptor.id === "media_upload_asset");

@@ -6,7 +6,7 @@ import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import { CONVERT_VIDEO_TOOL_ID, type ImageCodecPort, type MediaTranscoderPort, type VideoCodecProbePort } from "@jini-ai/cms/media";
 import { createDerivedMediaLink } from "./derived-media-link.js";
 import { toolMetadata as jiniMediaMetadata } from '@jini-ai/core/tool-metadata/media';
-import { toolMetadata as videoConversionMetadata } from '../../contracts/core/tool-metadata/media-video-conversion.js';
+import { toolMetadata as videoConversionMetadata } from "@jini-ai/core/tool-metadata/media-video-conversion";
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
 

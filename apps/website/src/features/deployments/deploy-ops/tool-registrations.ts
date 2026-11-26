@@ -2,7 +2,8 @@ import type { ChatDeleteSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-
 import { deployOpsToolMetadata as toolMetadata } from '../../../contracts/core/tool-metadata/index.js';
 import { bindDeploySecretCards } from './typed-secret-card.js';
 import { adaptLegacyAuthorize, requireToolPermission, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolContributor, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
-import { notConfirmedResult, approvalToolHandler } from '#src/contracts/core/human-confirm';
+import { approvalToolHandler } from '#src/contracts/core/human-confirm';
+import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { SITE_KEY_MANAGE_PERMISSION } from "@jini-ai/user-management/identity/site-key-permission";
 import type { SecretConfirmRequest, SecretConfirm } from '@jini-ai/devops/deploy';
 import { getDeployOpsAgentToolCatalog } from './agent-tools.js';

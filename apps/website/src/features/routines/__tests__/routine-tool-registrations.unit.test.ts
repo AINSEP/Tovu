@@ -6,7 +6,7 @@ import type { RoutineActor, RoutineAvailability } from "@tovu/contracts/routines
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../../../assistant/mcp-ui-tool-calls.js";
 import { nativeToolMetadata } from "../../../contracts/core/tool-metadata/index.js";
-import { ROUTINE_TOOL_IDS } from "../../../contracts/core/tool-metadata/routines.js";
+import { ROUTINE_TOOL_IDS } from "@jini-ai/core/tool-metadata/routines";
 import type { HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
 import { routineIdsHiddenFrom, withoutHiddenTools } from "../../../assistant/byok-tool-surface.js";

@@ -8,7 +8,7 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-wire-policy.js";
-import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "#src/server/inbound/public-http/http/members";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../../inbound/public-http/routes/site/products.js";
 import { createSeoModule } from "../../runtime/composition/modules/seo.js";

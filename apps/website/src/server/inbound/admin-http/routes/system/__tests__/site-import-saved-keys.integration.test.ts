@@ -16,7 +16,7 @@ test("owner setup accepts the optional password without echoing or caching it", 
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
   registerAdminSiteImportRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteImportBackend: {
     get: () => pending,
-    completeOwner: async (input: unknown) => { calls.push(input); return { ...pending, status: "ready", state: "ready" }; },
+    completeOwner: async (input: unknown, options: { signal: AbortSignal }) => { assert.ok(options.signal instanceof AbortSignal); assert.equal(options.signal.aborted, false); calls.push(input); return { ...pending, status: "ready", state: "ready" }; },
   } } as unknown as RouteDeps });
   const socket = new PassThrough(), req = new IncomingMessage(socket as unknown as Socket);
   req.method = "POST"; req.url = "/api/admin/v1/workspaces/ws/site-imports/import/owner";
@@ -35,3 +35,30 @@ test("owner setup accepts the optional password without echoing or caching it", 
     assert.equal(Buffer.concat(chunks).toString().includes("separate-saved-keys-password"), false);
   } finally { clearTimeout(timer); socket.destroy(); }
 });
+
+
+for (const [kind, origin] of [['api_key', 'http://localhost'], ['session', 'http://sibling.test']] as const) {
+  test(`owner setup refuses ${kind} / ${origin} before parsing the form`, async () => {
+    let completions = 0;
+    const app = express();
+    app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; res.locals.authCredentialKind = kind; next(); });
+    registerAdminSiteImportRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: 'ws', authorize: async () => ({ allowed: true }), siteImportBackend: {
+      get: () => ({ importId: 'import', state: 'needs-owner' }),
+      completeOwner: async () => { completions++; throw new Error('must not complete'); },
+    } } as unknown as RouteDeps });
+    const socket = new PassThrough(), req = new IncomingMessage(socket as unknown as Socket);
+    req.method = 'POST'; req.url = '/api/admin/v1/workspaces/ws/site-imports/import/owner';
+    req.headers = { host: 'localhost', origin, 'content-type': 'application/x-www-form-urlencoded' };
+    Object.defineProperty(req, 'body', { get: () => { throw new Error('form read before admission'); } });
+    req.push(null);
+    const res = new ServerResponse(req); res.assignSocket(socket as unknown as Socket);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('request timed out')), 2000);
+        res.on('finish', resolve); app(req, res);
+      });
+      assert.equal(res.statusCode, 403); assert.equal(completions, 0);
+    } finally { clearTimeout(timer); socket.destroy(); }
+  });
+}

@@ -2,7 +2,8 @@ import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
 import { pluginManagementToolIds, pluginSourceToolIds } from "@jini-ai/plugins/runtime/plugin-tool-ids";
 /** Host catalogs, canonical command/fingerprint owners, approval transport and telemetry. */
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
+import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import { federatedToolApprovalFingerprint } from "@jini-ai/mcp/federation";
 import { executeCommand } from "@jini-ai/cms/core/commands";

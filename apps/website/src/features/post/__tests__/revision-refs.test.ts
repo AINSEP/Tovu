@@ -9,7 +9,7 @@ import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dial
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { postRepoFor } from "../repo.js";
 import { postRevisionRefProbes } from "../revision-refs.js";
-import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
+import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
 import type { ThinnedRevision } from "../revision-thinning.js";
 
 /**

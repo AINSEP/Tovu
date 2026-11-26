@@ -1,6 +1,8 @@
+import { matchConsentPluginHttp, collectorDecision as neutralCollectorDecision, readVisitorConsent, receiptAllowsAnalytics } from '@jini-ai/cookie-consent/site/http';
+import { documentPolicy as readDocumentPolicy, briefPendingRead, refreshDocumentState as refreshState, type DocumentState } from '@jini-ai/cookie-consent/site/document-state';
+import { siteConsentDocumentAssets as documentAssets, siteConsentExportAssets as exportAssets, staticConsentLoaderScript } from '@jini-ai/cookie-consent/site/document-assets';
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
-import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent';
 import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import { formatErrorForLog } from '@jini-ai/core';
@@ -14,18 +16,17 @@ import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import express, { type Express, type Request, type Response } from 'express';
-import { CONSENT_COOKIE, OPTIONAL, REGION_COOKIE, type Optional } from '@jini-ai/cookie-consent';
+import { CONSENT_COOKIE, REGION_COOKIE } from '@jini-ai/cookie-consent';
 import type { ConsentState, RawContribution, RegionResolver } from '@jini-ai/core/contracts/site/cookie-consent';
-import { DEFAULT_MAX_AGE_MS, parseStored } from '@jini-ai/cookie-consent/policy';
-import { renderBanner } from '@jini-ai/cookie-consent/render';
-import { handleReceipt, readConsent, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
+import { parseStored } from '@jini-ai/cookie-consent/policy';
+import { handleReceipt, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles } from '@jini-ai/cookie-consent/node';
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platform/fs';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/active-theme';
-import { siteBannerMode, toSiteCookieConsent } from '@jini-ai/cookie-consent/site/cookie-consent';
+import { siteBannerMode } from '@jini-ai/cookie-consent/site/cookie-consent';
 import type { RouteDeps } from '#src/server/routes/types';
 import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
@@ -36,8 +37,6 @@ import { TELEMETRY_CONSENT } from '../../../runtime/composition/telemetry-consen
 
 export const CONSENT_ENDPOINT = '/_consent';
 const PLUGIN_BASE = `${CONSENT_ENDPOINT}/p`;
-/** A dot segment or an encoded separator never reaches a plugin handler, whatever the plugin does with paths. */
-const UNSAFE_PLUGIN_PATH = /(?:^|\/)\.\.?(?:\/|$)|%2e|%2f|%5c|\\/i;
 
 /** Read the client bundle once; the hash makes its URL immutable (and lets static exports copy it). */
 function loadClient(_required = {}, { resolve = createRequire(import.meta.url).resolve }: { resolve?: (id: string) => string } = {}) {
@@ -142,8 +141,7 @@ function pluginRequest({ req, full, plugin }: { req: Request; full: string; plug
 
 /** The active plugin mounted over this path; none for a path with a dot segment or encoded separator. */
 function pluginFor({ deps, full }: { deps: RouteDeps; full: string }, _optional = {}): (ConsentPluginContribution & { http: ConsentPluginHttp }) | undefined {
-  if (UNSAFE_PLUGIN_PATH.test(full)) return undefined;
-  return siteConsentPlugins({ deps }).find((item): item is ConsentPluginContribution & { http: ConsentPluginHttp } => Boolean(item.http && full.startsWith(item.http.path + '/')));
+  return matchConsentPluginHttp({ plugins: () => siteConsentPlugins({ deps }), full });
 }
 
 /** Same-origin/category/rate decision plus the server-owned analytics level. Anonymous delivery needs
@@ -153,32 +151,20 @@ async function collectorDecision(
   { req, deps, adapter, limiter }: { req: Request; deps: RouteDeps; adapter: RawContribution; limiter: ReturnType<typeof createRateLimiter> },
   _optional = {},
 ): Promise<{ status: 403 | 429 | null; analyticsLevel: ConsentState['analyticsLevel'] }> {
-  const denied = { status: 403, analyticsLevel: 'none' } as const;
-  if (req.get('origin') !== resolveSiteConsentOrigin({ request: req })) return denied;
-  const category: Optional = (OPTIONAL as readonly unknown[]).includes(adapter.category) ? adapter.category as Optional : 'marketing';
-  const state = await readSiteVisitorConsent({ deps, req });
-  const allowed = category === 'analytics' && state.analyticsLevel === 'anonymous' ? adapter.supportsAnonymous === true : state.allowed[category];
-  if (!allowed) return denied;
-  // The receipts' key (an IPv6 /64), so rotating addresses inside one network shares one budget.
-  return { status: (await limiter.check({ key: consentRateLimitKey({ address: resolveClientIp(req) }) })).allowed ? null : 429, analyticsLevel: state.analyticsLevel };
+  return neutralCollectorDecision({ origin: req.get('origin'), siteOrigin: () => resolveSiteConsentOrigin({ request: req }), adapter,
+    readState: () => readSiteVisitorConsent({ deps, req }),
+    // The receipts' key (an IPv6 /64), so rotating addresses inside one network shares one budget.
+    rateAllowed: async () => (await limiter.check({ key: consentRateLimitKey({ address: resolveClientIp(req) }) })).allowed,
+  });
 }
 
 /** The server gate: what this visitor may run right now (GPC/DNT applied, durable rule: an
  * unconfirmed grant is not allowed). A failed policy read allows nothing. @complexity O(cookie header). */
 export async function readSiteVisitorConsent({ deps, req }: { deps: RouteDeps; req: Request }, _optional = {}) {
-  try {
-    const snapshot = await documentPolicy({ consent: deps.cookieConsent });
-    if (unavailableDocumentPolicy({ consent: deps.cookieConsent, config: snapshot })) return readConsent({ cookieHeader: '', policy: '', regionMode: 'opt-in' });
-    if (snapshot && siteBannerMode({ config: snapshot }) === 'off') return readConsent({ cookieHeader: '', policy: snapshot.policyVersion, regionMode: 'opt-in' }, {
-      ...requestPrivacy({ deps, req }), anonymous: true,
-    });
-    const config = snapshot ?? await readSiteConsentPolicy({ deps });
-    return readConsent({ cookieHeader: req.get('cookie'), policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' }, {
-      ...requestPrivacy({ deps, req }), anonymous: siteBannerMode({ config }) === 'off',
-    });
-  } catch {
-    return readConsent({ cookieHeader: '', policy: '', regionMode: 'opt-in' });
-  }
+  return readVisitorConsent({ readSnapshot: () => documentPolicy({ consent: deps.cookieConsent }),
+    snapshotUnavailable: ({ config }) => unavailableDocumentPolicy({ consent: deps.cookieConsent, config }),
+    readPolicy: () => readSiteConsentPolicy({ deps }), facts: () => requestPrivacy({ deps, req }),
+  });
 }
 
 /** The published policy id visitors are asked under now. @complexity O(1) reads. */
@@ -190,18 +176,12 @@ async function readSiteConsentPolicyVersion({ deps }: { deps: RouteDeps }, _opti
  * it), names the current policy, grants analytics without GPC and is within the choice lifetime. A forged
  * or withdrawn receipt id never delivers. @complexity O(1): one policy read and one receipt read. */
 export async function siteReceiptAllowsAnalytics({ deps, proof }: { deps: RouteDeps; proof: { receiptId: string; policyVersion: string } }, _optional = {}): Promise<boolean> {
-  const snapshot = await documentPolicy({ consent: deps.cookieConsent });
-  if (unavailableDocumentPolicy({ consent: deps.cookieConsent, config: snapshot })) return false;
-  if (snapshot && siteBannerMode({ config: snapshot }) === 'off') return false;
-  const policy = snapshot?.policyVersion ?? await readSiteConsentPolicyVersion({ deps });
-  if (proof.policyVersion !== policy) return false;
-  const record = (await siteReceiptStore({ deps }).read?.({ id: proof.receiptId }) ?? null) as Partial<ConsentRecord> | null;
-  return activeAnalyticsRecord({ record, policy, nowMs: deps.clock.nowMs() });
-}
-
-function activeAnalyticsRecord({ record, policy, nowMs }: { record: Partial<ConsentRecord> | null; policy: string; nowMs: number }, _optional = {}): boolean {
-  if (!record || record.policyVersion !== policy || record.gpc !== false) return false;
-  return record.choices?.analytics === true && nowMs - Date.parse(String(record.timestamp)) <= DEFAULT_MAX_AGE_MS;
+  return receiptAllowsAnalytics({ proof, readSnapshot: () => documentPolicy({ consent: deps.cookieConsent }),
+    snapshotUnavailable: ({ config }) => unavailableDocumentPolicy({ consent: deps.cookieConsent, config }),
+    readPolicyVersion: () => readSiteConsentPolicyVersion({ deps }),
+    readReceipt: async ({ id }) => (await siteReceiptStore({ deps }).read?.({ id }) ?? null) as Partial<ConsentRecord> | null,
+    nowMs: () => deps.clock.nowMs(),
+  });
 }
 
 /** The old engine's analytics proof shape (receipt id + policy), from the new cookie. Undefined unless
@@ -218,15 +198,6 @@ export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; r
 /** One published construction snapshot per site (per consent deps), shared by every app built over
  * them: an export, an inspection or a theme override never resets what live visitors are served.
  * Refreshed by publication. No per-page reads. */
-type DocumentState = {
-  policy?: ConsentConfig;
-  pending?: Promise<void>;
-  scripts: Promise<readonly DeclaredScript[]>;
-  client?: { body: Buffer; src: string };
-  nextReadAt: number;
-  now: () => number;
-  refresh?: () => Promise<void>;
-};
 const documentStates = new WeakMap<SiteCookieConsentDeps, DocumentState>();
 const EXTENSION_SRC = '/_consent/extensions.min.js';
 export const CONSENT_LOADER_SRC = '/_consent/load.js';
@@ -244,75 +215,26 @@ async function documentDeclarations({ consent }: { consent?: SiteCookieConsentDe
 
 /** One read per minute per mounted site, including a retry after an unavailable publication. */
 async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }): Promise<ConsentConfig | null> {
-  const state = consent && documentStates.get(consent);
-  if (!state) return null;
-  if (state.now() >= state.nextReadAt) {
-    // The refresh logs its own failure; visitors keep the last good policy.
-    void state.refresh?.().catch(() => undefined);
-  }
-  if (state.policy) return state.policy;
-  await briefPendingRead({ state });
-  return state.policy ?? null;
-}
-
-/** Wait at most 250 ms for a read in flight; with none, resolve at once. A late success still lands. */
-async function briefPendingRead({ state }: { state: DocumentState }): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  // The refresh logs its own failure; a failed or slow read leaves the last good policy in use.
-  try { await Promise.race([state.pending?.catch(() => undefined), new Promise(resolve => { timer = setTimeout(resolve, 250); })]); }
-  finally { clearTimeout(timer); }
+  return readDocumentPolicy({ state: consent ? documentStates.get(consent) : undefined });
 }
 
 /** Document construction consumes data, never a completed response body. */
 export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
-  const config = await documentPolicy({ consent });
-  if (staticDocument) return staticDocumentAssets({ config, request, scripts, consent });
-  const allScripts = [...scripts, ...await documentDeclarations({ consent })];
-  if (hasRequestRenderTheme({ response: request.res })) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
-  if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
-  if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
-  return renderDocumentConsent({ deps, request, consent, config, scripts: allScripts });
-}
-
-/** Static documents share managed shells' cached publication; off-mode declarations need no consent runtime.
- * @complexity O(declared scripts) time/space when off; reuses the cached declaration Promise without I/O. */
-async function staticDocumentAssets({ config, request, scripts, consent }: {
-  config: ConsentConfig | null; request: Request; scripts: readonly DeclaredScript[]; consent?: SiteCookieConsentDeps;
-}): Promise<DocumentAssets> {
-  if (!config || hasRequestRenderTheme({ response: request.res })) return { head: '', body: '' };
-  if (siteBannerMode({ config }) === 'off') {
-    const allScripts = [...scripts, ...await documentDeclarations({ consent })];
-    return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
-  }
-  return { head: `<script src="${CONSENT_LOADER_SRC}" defer data-jini-consent-loader></script>`, body: '' };
-}
-
-/** Render the shared banner and client assets once a usable snapshot has been selected. */
-async function renderDocumentConsent({ deps, request, consent, config, scripts }: {
-  deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; request: Request; consent: SiteCookieConsentDeps;
-  config: ConsentConfig; scripts: readonly DeclaredScript[];
-}): Promise<DocumentAssets> {
-  const live = !isStaticExportRequest(request);
-  const plugins = await documentPlugins({ deps, live });
-  const { banner, options } = toSiteCookieConsent({ config, policy: config.policyVersion }, { plugins });
-  const rendered = renderBanner({ ...banner, client: { ...banner.client, scripts, ...(live ? { context: `${CONSENT_ENDPOINT}/context` } : {}) } }, {
-    ...options, clientSrc: documentStates.get(consent)?.client?.src, extensionSrc: EXTENSION_SRC,
-    evidence: live ? { mode: 'durable', endpoint: CONSENT_ENDPOINT } : { mode: 'local' },
+  return documentAssets({ readPolicy: () => documentPolicy({ consent }), readDeclarations: () => documentDeclarations({ consent }),
+    hasConsent: Boolean(consent), preview: () => hasRequestRenderTheme({ response: request.res }),
+    exporting: () => isStaticExportRequest(request), plugins: ({ live }) => documentPlugins({ deps, live }),
+    scripts, static: staticDocument, clientSrc: consent ? documentStates.get(consent)?.client?.src : undefined,
+    extensionSrc: EXTENSION_SRC, loaderSrc: CONSENT_LOADER_SRC, endpoint: CONSENT_ENDPOINT,
   });
-  return { head: rendered.head, body: rendered.body + '<a class="jini-consent-settings" href="#privacy-choices" data-consent-open>Cookie settings</a>' };
 }
 
 /** JSON declaration URLs are invisible to an HTML crawler. No live collectors enter an export. */
 export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 'cookieConsent'> }, _optional = {}): Promise<readonly string[]> {
-  const config = await documentPolicy({ consent: deps.cookieConsent });
-  const declared = await documentDeclarations({ consent: deps.cookieConsent });
-  const local = declared.filter(script => script.src.startsWith('/') && (config || script.consent === undefined)).map(script => script.src);
-  if (!config || siteBannerMode({ config }) === 'off') return local;
-  const consent = deps.cookieConsent;
-  if (!consent) throw new Error('cookie consent export has no consent configuration');
-  const client = documentStates.get(consent)?.client;
-  return [...(client ? [client.src] : []), EXTENSION_SRC, ...local];
+  return exportAssets({ readPolicy: () => documentPolicy({ consent: deps.cookieConsent }),
+    readDeclarations: () => documentDeclarations({ consent: deps.cookieConsent }), hasConsent: () => Boolean(deps.cookieConsent),
+    client: () => deps.cookieConsent ? documentStates.get(deps.cookieConsent)?.client : undefined, extensionSrc: EXTENSION_SRC,
+  });
 }
 
 /** Public context shares the site's publication retry window and keeps visitor state out of HTML caches. */
@@ -347,26 +269,7 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
     const theme = deps.resolveActiveThemeId ? resolveActiveTheme({ deps, activeThemeId: await deps.resolveActiveThemeId() }) : null;
     const scripts = theme && theme !== NO_THEME_ID ? theme.manifest.scripts ?? [] : [];
     const assets = await siteConsentDocumentAssets({ deps, request: req, scripts });
-    const markup = JSON.stringify(assets.head + assets.body);
-    res.type('text/javascript').set('Cache-Control', 'public, max-age=60').set('Vary', 'X-Tovu-Static-Export').send(`(()=>{
-      if(document.getElementById('jini-consent-config'))return;
-      const template=document.createElement('template');template.innerHTML=${markup};
-      ${isStaticExportRequest(req) ? String.raw`// Only this server-owned contribution is rebased, never the authored document.
-      const base=document.currentScript?new URL('..',document.currentScript.src).pathname.replace(/\/$/,''):'';
-      const prefix=value=>typeof value==='string'&&/^\/(?!\/)/.test(value)?base+value:value;
-      for(const node of template.content.querySelectorAll('[src],[href]')){
-        for(const attr of ['src','href'])if(node.hasAttribute(attr))node.setAttribute(attr,prefix(node.getAttribute(attr)));}
-      const config=template.content.querySelector('#jini-consent-config');
-      if(config)config.textContent=JSON.stringify(JSON.parse(config.textContent),(key,value)=>key==='src'?prefix(value):value);` : ''}
-      const scripts=[];
-      for(const node of [...template.content.childNodes]){
-        if(node.nodeName==='SCRIPT'&&node.getAttribute('src'))scripts.push(node);
-        else document.body.append(node);
-      }
-      for(const node of scripts){const script=document.createElement('script');
-        for(const attr of node.attributes)script.setAttribute(attr.name,attr.value);
-        script.async=false;document.body.append(script);}
-    })();`);
+    res.type('text/javascript').set('Cache-Control', 'public, max-age=60').set('Vary', 'X-Tovu-Static-Export').send(staticConsentLoaderScript({ ...assets, exporting: isStaticExportRequest(req) }));
     } catch (error) {
       let errorId: string | undefined;
       try { ({ errorId } = reportServerFailure({ error, operation: 'consent:static-loader' }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter })); } catch { /* Keep the original failure path if diagnostics fail. */
@@ -380,29 +283,24 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
 /** Read the policy and plugin declarations together. Each keeps its last good value on failure.
  * @complexity O(1): one policy read and one declaration load at a time. */
 function refreshDocumentState({ state, deps, consent }: { state: DocumentState; deps: RouteDeps; consent: SiteCookieConsentDeps }): Promise<void> {
-  if (state.pending) return state.pending;
-  state.nextReadAt = state.now() + 60_000;
-  const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
-    console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again:',
-      describeErrorForLog({ err: error }));
-    throw error;
+  return refreshState({ state, readPolicy: () => readSiteConsentPolicy({ deps }),
+    readDeclarations: () => consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [] }),
+    policyFailure: error => {
+      console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again:',
+        describeErrorForLog({ err: error }));
+    },
+    declarationFailure: () => {
+      console.warn('[consent] Plugin scripts could not refresh. The last loaded scripts remain in use; a later request will try again.');
+    },
   });
-  const lastGoodScripts = state.scripts;
-  state.scripts = (consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [] })).then(loaded => loaded.scripts, () => {
-    console.warn('[consent] Plugin scripts could not refresh. The last loaded scripts remain in use; a later request will try again.');
-    return lastGoodScripts;
-  });
-  state.pending = Promise.allSettled([policy, state.scripts]).then(([read]) => {
-    if (read.status === 'rejected') throw read.reason;
-  }).finally(() => { state.pending = undefined; });
-  return state.pending;
 }
 
 /** The site's snapshot, created by its first app build; later builds add routes and read nothing. */
 function siteDocumentState({ deps, consent, client }: { deps: RouteDeps; consent: SiteCookieConsentDeps; client: () => DocumentState['client'] }): DocumentState {
   const existing = documentStates.get(consent);
   if (existing) return existing;
-  const state: DocumentState = { client: client(), scripts: Promise.resolve([]), nextReadAt: Infinity, now: () => deps.clock.nowMs() };
+  const state: DocumentState = { client: client(), scripts: Promise.resolve([]), nextReadAt: Infinity, now: () => deps.clock.nowMs(),
+    schedule: (run, delayMs) => { const timer = setTimeout(run, delayMs); return () => clearTimeout(timer); } };
   documentStates.set(consent, state);
   const refresh = () => refreshDocumentState({ state, deps, consent });
   consent.refresh = refresh;
@@ -458,5 +356,6 @@ async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieCo
 }
 
 function requestPrivacy({ deps, req }: { deps: RouteDeps; req: Request }) {
-  return { secGpc: req.get('sec-gpc') ?? null, dnt: req.get('dnt') ?? null, nowMs: deps.clock.nowMs() };
+  return { get cookieHeader() { return req.get('cookie'); }, get secGpc() { return req.get('sec-gpc') ?? null; },
+    get dnt() { return req.get('dnt') ?? null; }, get nowMs() { return deps.clock.nowMs(); } };
 }

@@ -1,3 +1,4 @@
+import { makeMemberPagePost, memberPageRoute } from "@jini-ai/cms/public-http/routes/site/member-pages";
 import type { Express } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 
@@ -161,13 +162,7 @@ export const MEMBER_PAGES: Readonly<Record<string, { id: string; title: string; 
 
 /** The in-memory Page {@link serveVirtualPage} renders for one member path. @complexity O(1). */
 export function memberPagePost(required: { path: string; workspaceId: string }, _optional: Record<string, never> = {}): PostRecord | undefined {
-  const entry = MEMBER_PAGES[required.path];
-  if (!entry) return undefined;
-  return {
-    id: entry.id, workspaceId: required.workspaceId, title: entry.title, slug: required.path.slice(1),
-    bodyJson: {}, status: "published", kind: "page", bodyFormat: "html", bodyHtml: entry.body,
-    updatedAt: new Date(0).toISOString(), version: 1, templateChoice: null,
-  };
+  return makeMemberPagePost({ ...required, pages: MEMBER_PAGES });
 }
 
 /** Register member pages before `registerSiteRoutes`; /account requires a live member session.
@@ -177,20 +172,15 @@ export function memberPagePost(required: { path: string; workspaceId: string }, 
 export function registerMemberPageRoutes(app: Pick<Express, "get">, deps: RouteDeps): void {
   app.get(Object.keys(MEMBER_PAGES), async (req, res) => {
     try {
-      const post = memberPagePost({ path: req.path.replace(/\/$/, ""), workspaceId: deps.workspaceId });
-      if (!post) { res.status(404).end(); return; }
-      if (post.slug === "account") {
-        // The response depends on a cookie: never share either the page or redirect through a cache.
-        res.set("Cache-Control", "private, no-store");
-        const session = await resolveMemberSession({ sessions: deps.memberSessionRepo, workspaceId: deps.workspaceId,
-          sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }), nowIso: nowIso({ clock: deps.clock }) });
-        if (!session) {
-          // Use sign-in's validated fragment contract; a fixed local path cannot inherit an attacker return URL.
-          res.redirect(303, "/signin#redirect=%2Faccount");
-          return;
-        }
-      }
-      await serveVirtualPage({ req, res, deps, post });
+      const reply = await memberPageRoute.handle({ path: req.path, deps: {
+        workspaceId: deps.workspaceId, pages: MEMBER_PAGES, accountPath: "/account", signInLocation: "/signin#redirect=%2Faccount",
+        markPrivate: () => { res.set("Cache-Control", "private, no-store"); },
+        hasLiveSession: async () => Boolean(await resolveMemberSession({ sessions: deps.memberSessionRepo, workspaceId: deps.workspaceId,
+          sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }), nowIso: nowIso({ clock: deps.clock }) })),
+      } });
+      if (reply.kind === "missing") { res.status(404).end(); return; }
+      if (reply.kind === "redirect") { res.redirect(reply.status, reply.location); return; }
+      await serveVirtualPage({ req, res, deps, post: reply.post });
     } catch (error) {
       // Express 4 does not catch a rejected async handler; answer instead of hanging the visitor.
       console.error("[member-pages] render failed:", error);

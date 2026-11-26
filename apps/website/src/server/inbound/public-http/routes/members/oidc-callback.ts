@@ -4,13 +4,9 @@ import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express, Request, Response } from "express";
 import { memberOidcCallbackRoute, type MemberOidcCallbackOutcome, type MemberOidcCallbackRouteDeps } from "@jini-ai/cms/public-http/routes/members/oidc-callback";
 import {
-  completeOidcLogin,
   memberLoginCallbackUrl,
-  sealLoginEmailContinuation,
-  type CompletedOidcLogin,
-  type LoginContext,
 } from "@jini-ai/user-management/member-login/oidc-login";
-import { requestLoginEmailProof, resolveFederatedIdentity } from "@jini-ai/user-management/member-login/link-service";
+import { completeMemberOidcCallback } from "@jini-ai/user-management/member-login/oidc-request";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
@@ -27,18 +23,6 @@ import { MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, memberOidcCookieHeader, 
  * `/account` and `/signin` locations, the shared counters and the visitor analytics.
  */
 
-/** Query parser rejects repeated/object values before OAuth can receive ambiguous credentials.
- * Provider denial takes the same fixed error path, after clearing the browser cookie; Cancel
- * (`access_denied`) only picks a kinder message. O(k) keys.
- */
-export function callbackParams({ req }: { req: Request }, _options = {}) {
-  const { code, state, error } = req.query;
-  if (error === "access_denied") throw new MemberOidcCancelled();
-  if (error !== undefined || typeof code !== "string" || typeof state !== "string") throw new MemberLoginError({ code: "LOGIN_INVALID" });
-  if (!code || code.length > 4096 || !state || state.length > 16384) throw new MemberLoginError({ code: "LOGIN_INVALID" });
-  return { code, state };
-}
-
 /** The shared member delivery limits for this top-level browser page. The API routes answer a
  * refusal with 429 JSON; here the one-time code is already spent, so a refusal becomes the fixed
  * sign-in error redirect instead (the route's catch), and the limiter's own response is discarded.
@@ -54,23 +38,6 @@ async function assertEmailContinuationLimits(required: {
   if (!allowed) throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" });
 }
 
-/** Keep validated identity sealed and browser-bound while the existing challenge owner proves
- * a non-authoritative mailbox. Fragment data is removed by U1 before rendering; no OAuth tokens.
- * @returns The browser binding the spec sets as the proof cookie, and the `/signin#…` continuation location.
- * @complexity O(1) seal/challenge issuance, with shared IP/email delivery limits before mail.
- */
-async function continueByEmail(required: {
-  req: Request; deps: MemberOidcRouteDeps; input: LoginContext;
-  login: CompletedOidcLogin; browserBinding: string; email: string;
-}, _options = {}): Promise<{ browserBinding: string; location: string }> {
-  const { req, deps, input, login, browserBinding, email } = required;
-  await assertEmailContinuationLimits({ req, deps, email });
-  const continuation = await sealLoginEmailContinuation({ deps: deps.protocol, input: { ...input, browserBinding }, login });
-  const proof = await requestLoginEmailProof({ deps: deps.links, input: { workspaceId: input.workspaceId, email } });
-  const fragment = new URLSearchParams({ oidc: input.providerId, challengeId: proof.challengeId, continuation });
-  return { browserBinding, location: `/signin#${fragment}` };
-}
-
 /** The protocol leg of the callback for this request: live member intent, the unique binding cookie, the
  * strict query parser, the one-time code exchange (S2) and the federated-identity link — then either the
  * signed-in session (cookie + event, written by the spec after it clears the proof cookie) or the email proof.
@@ -79,13 +46,15 @@ async function continueByEmail(required: {
 async function completeCallback({ req, deps }: { req: Request; deps: MemberOidcRouteDeps }, _options = {}): Promise<MemberOidcCallbackOutcome> {
   const input = await memberOidcContext({ req, deps: deps.members });
   const browserBinding = uniqueMemberCookie({ req, name: MEMBER_OIDC_BINDING_COOKIE }) ?? "";
-  const login = await completeOidcLogin({ deps: deps.protocol, input: { ...input, browserBinding, params: callbackParams({ req }) } });
-  const linked = await resolveFederatedIdentity({ deps: { ...deps.links, onMemberCreated: toPublicMembersWriteServiceDeps(deps.members, { request: req }).onMemberCreated }, input: { workspaceId: input.workspaceId,
-    identity: login.identity, startedAt: login.startedAt, connectMemberId: login.connectMemberId,
-    userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
-  if (linked.kind === "email_verification_required") {
-    return { kind: "email_verification_required", continueByEmail: () => continueByEmail({ req, deps, input, login, browserBinding, email: linked.email }) };
-  }
+  const linked = await completeMemberOidcCallback({ context: input, protocol: deps.protocol,
+    browserBinding: () => browserBinding,
+    query: () => req.query, cancelled: () => new MemberOidcCancelled(),
+    get links() { return { ...deps.links, onMemberCreated: toPublicMembersWriteServiceDeps(deps.members, { request: req }).onMemberCreated }; },
+    get userAgent() { return req.get("user-agent"); }, get ip() { return resolveClientIp(req); },
+    deliveryAllowed: ({ email }) => assertEmailContinuationLimits({ req, deps, email }),
+    continuationLocation: ({ providerId, challengeId, continuation }) => `/signin#${new URLSearchParams({ oidc: providerId, challengeId, continuation })}`,
+  });
+  if (linked.kind === "email_verification_required") return linked;
   return {
     kind: "signed_in",
     sessionCookie: () => memberSessionCookie({ rawToken: linked.result.rawSessionToken, expiresAtIso: linked.result.session.expiresAt }),

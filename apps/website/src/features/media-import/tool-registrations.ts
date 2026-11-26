@@ -27,7 +27,7 @@ import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/me
 import { fetchImage, validateImageBytes } from "./fetch-image.js";
 import { replaceMediaFile, MediaValidationError, type MediaFileReplacementRepoPort, type MediaRecord } from "@jini-ai/cms/media";
 import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
-import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 
 /**
  * @file Wires URL and local-file imports onto the same upload pipeline: fetch URLs through the
@@ -304,7 +304,7 @@ async function requireMediaPermission(
 function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps, videoImport: VideoImportOptions | undefined, resolvePublicUrls: ResolvePublicUrls): ToolHandler {
   return async (ctx) => {
   const input = requireInputRecord({ input: ctx.input });
-  refuseUnexpectedKeys(input, ["mediaId", "url", "root", "path"]);
+  refuseUnexpectedKeys({ input: input, allowed: ["mediaId", "url", "root", "path"] });
   const mediaId = requireString({ input, key: "mediaId" });
   await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.update" }, { entityId: mediaId });
   return withSchemaOnRejection({

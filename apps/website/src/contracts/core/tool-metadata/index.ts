@@ -29,7 +29,7 @@ import { toolMetadata as email_templates } from '@jini-ai/core/tool-metadata/ema
 import { toolMetadata as mail_status } from '@jini-ai/core/tool-metadata/mail-status';
 import { toolMetadata as media } from '@jini-ai/core/tool-metadata/media';
 import { toolMetadata as media_generation } from '@jini-ai/core/tool-metadata/media-generation';
-import { toolMetadata as media_video_conversion } from './media-video-conversion.js';
+import { toolMetadata as media_video_conversion } from "@jini-ai/core/tool-metadata/media-video-conversion";
 import { toolMetadata as media_import } from '@jini-ai/core/tool-metadata/media-import';
 import { toolMetadata as members } from '@jini-ai/core/tool-metadata/members';
 import { toolMetadata as navigation } from '@jini-ai/core/tool-metadata/navigation';
@@ -41,7 +41,7 @@ import { toolMetadata as post } from '@jini-ai/core/tool-metadata/post';
 import { toolMetadata as publish_content } from '@jini-ai/cms/publish/content/tool-metadata';
 import { toolMetadata as recovery } from '@jini-ai/core/tool-metadata/recovery';
 import { toolMetadata as redirects } from '@jini-ai/core/tool-metadata/redirects';
-import { toolMetadata as routines } from './routines.js';
+import { toolMetadata as routines } from "@jini-ai/core/tool-metadata/routines";
 import { toolMetadata as search } from '@jini-ai/core/tool-metadata/search';
 import { toolMetadata as seo } from '@jini-ai/core/tool-metadata/seo';
 import { toolMetadata as server_logs } from '@jini-ai/core/tool-metadata/server-logs';

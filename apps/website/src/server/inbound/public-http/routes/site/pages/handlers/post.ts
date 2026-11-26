@@ -1,3 +1,4 @@
+import { renderTemplateBranchIfEligible as renderTemplateBranch } from "@jini-ai/cms/public-http/routes/site/pages/handlers/post";
 import { renderCommentsMarkers } from "@jini-ai/cms/comments/site/public-markers";
 import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.js";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
@@ -95,31 +96,12 @@ async function renderBarePage(deps: RouteDeps, post: PostRecord): Promise<string
  * exactly like every other Page, never bypassed.
  */
 export async function renderTemplateBranchIfEligible({ deps, theme, post, staticMenus, siteAssistantEnabled }: { deps: RouteDeps; /* `null` when the operator turned the theme off — see the early return at the top of the body. */ theme: DiscoveredTheme | null; post: PostRecord; staticMenus: StaticMenuMap | undefined; siteAssistantEnabled: SiteChatSelection }, { postPreviewsAccess }: { /* Post-previews marker (2026-09-03) — threaded straight through to `renderViaTemplate`'s own identically-shaped parameter; see that function's doc for the full rationale. */ postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext } } = {}): Promise<string | undefined> {
-  // Checked before the theme-off early return below: a bare Page renders identically with or
-  // without an active theme, so this must not be gated on one being present. See this function's
-  // own doc, "Bare page" paragraph.
-  if (isBarePageChoice(post)) return renderBarePage(deps, post);
-
-  // The template branch renders a THEME's template file, so with no theme it cannot run and the
-  // caller falls through to the generic render. `post.templateChoice` is IGNORED here, never
-  // cleared — which is what makes "turn the theme off, then back on" fully reversible rather than
-  // approximately so: the stored choice takes effect again the moment a theme is reactivated.
-  if (theme === null) return undefined;
-
-  // One shared decision, never the two underlying functions in sequence — see
-  // `resolveTemplateBranchChoice`'s own doc (`features/theme/static-render.ts`) for the 2026-09-16
-  // preview divergence that extraction closed. Behavior here is unchanged by it.
-  const branch = resolveTemplateBranchChoice({ theme, post });
-  if (branch.kind === "ineligible") return undefined;
-
-  // SPEC-008 T045 gap fix, part 3 (2026-08-19) — `renderViaTemplate` has the same
-  // pageShell-bypassing `renderStaticPage` shape as the marketing-page branch above; unlike
-  // that branch this one DOES have a real backing `post`, so it folds through the same
-  // entry-bearing `"post"` shape the generic (non-template) render below already uses. Same ADR-054
-  // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
-  const extraHead = await buildExtraHead({ deps, route: "post", siteTitle: await resolveSiteTitleForRender(deps), post });
-  const renderedPost = branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post;
-  return renderViaTemplate({ deps, theme, post: renderedPost, staticMenus }, { pendingBodyJson: undefined, pendingBodyHtml: undefined, extraHead, siteAssistantEnabled, postPreviewsAccess });
+  return renderTemplateBranch({ post, theme, isBarePageChoice,
+    renderBarePostPage: ({ post }) => renderBarePage(deps, post),
+    resolveTemplateBranchChoice: ({ post }) => resolveTemplateBranchChoice({ theme: theme!, post }),
+    buildExtraHead: async ({ post }) => buildExtraHead({ deps, route: "post", siteTitle: await resolveSiteTitleForRender(deps), post }),
+    renderViaTemplate: ({ post }, optional) => renderViaTemplate({ deps, theme: theme!, post, staticMenus }, { ...optional, siteAssistantEnabled, postPreviewsAccess }),
+  });
 }
 
 /** The generic (non-template) dynamic post render: resolves every widget/embed/media input

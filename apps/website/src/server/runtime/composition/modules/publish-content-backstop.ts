@@ -20,7 +20,7 @@ import { contributeRawRowPublish, undoRawRow } from "#src/features/publish-conte
 import type { PackedEntity, PublishContentDeps, SkippedPackEntity } from "#src/features/publish-content/type-registry";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/publish-content/deps";
-import { knownPeerActionRefusal } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
+import { knownPeerActionRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 
 /**
  * @file K1 (w3 C3d): send by hand (`backstop/status`, `runs/:runId/backstop`, `backstop`,

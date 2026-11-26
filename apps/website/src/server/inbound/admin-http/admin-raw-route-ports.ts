@@ -79,7 +79,7 @@ export type PublicRawFailureWriter = (required: { res: Response; error: unknown 
  * @example mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site:sitemap", visitorError } });
  */
 export function mountPublicRawRoute<Deps extends object>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure | PublicRawFailureWriter; workspaceId?: string; origin?: OriginContext; errors?: RouteErrorPorts },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure | PublicRawFailureWriter; workspaceId?: string; origin?: OriginContext; errors?: RouteErrorPorts; handlerName?: string },
   optional: PublicRouteMountOptions<Deps> = {},
 ): void {
   const errors = required.errors;
@@ -94,5 +94,6 @@ export function mountPublicRawRoute<Deps extends object>(
       else failure({ res, error });
     },
   };
-  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor(optional), ...(errors ? { preserveHostErrorRouting: true as const } : {}) });
+  const app = required.handlerName === undefined ? required.app : registeringUnderName({ app: required.app, method: required.spec.method, name: required.handlerName });
+  mountRawRoute<Deps>({ app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor(optional), ...(errors ? { preserveHostErrorRouting: true as const } : {}) });
 }

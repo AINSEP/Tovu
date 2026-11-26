@@ -12,7 +12,7 @@ import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { formatByteSize } from "@jini-ai/devops/backup/site/sources";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
-  siteImportListRouteSpec, importIncident, importStep as neutralImportStep, importUnavailableReply, mapImportFailure, ownerSetupBody, parseOwnerSetupBody,
+  siteImportListRouteSpec, importIncident, importStep as neutralImportStep, importUnavailableReply, mapImportFailure, importSiteBackup, readSiteImportOwner, completeSiteImportOwner,
   uploadBusyReply, workspaceUnavailableReply,
   type SiteImportFailureCollaborators, type SiteImportReply,
 } from "@jini-ai/cms/admin-http/routes/system/site-imports";
@@ -121,9 +121,8 @@ function registerListAndImportRoutes({ app, deps, root, fail, gate, errors }: Im
     try {
       const backend = await gate(req, res, "system.write");
       if (!backend) return;
-      const input = parseSiteImportInput({ input: req.body });
-      const principalId = getAuthedPrincipal(res).id;
-      const imported = await backend.importBackup({ ...input, principalId }, { signal: requestSignal(req, res) });
+      const imported = await importSiteBackup({ backend, body: () => req.body, parseInput: parseSiteImportInput,
+        principalId: () => getAuthedPrincipal(res).id, signal: () => requestSignal(req, res) });
       res.json(imported);
     } catch (error) { fail(res, error, req); }
   });
@@ -159,8 +158,7 @@ function registerOwnerRoutes({ app, deps, root, fail, ownerGate }: ImportRouteCo
     try {
       const backend = await ownerGate(req, res);
       if (!backend) return;
-      const imported = backend.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
-      res.json(ownerSetupBody({ imported }));
+      res.json(readSiteImportOwner({ backend, principalId: () => getAuthedPrincipal(res).id, importId: () => String(req.params.importId) }));
     } catch (error) { fail(res, error, req); }
   });
   app.post(root + "/:importId/owner", async (req, res, next) => {
@@ -177,11 +175,9 @@ function registerOwnerRoutes({ app, deps, root, fail, ownerGate }: ImportRouteCo
     });
   }, async (req, res) => {
     try {
-      const parsed = parseOwnerSetupBody({ body: req.body });
-      if ("refusal" in parsed) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: parsed.refusal });
-      const backend = deps.siteImportBackend;
-      if (!backend) throw new Error("site import owner setup has no import backend");
-      res.json(await backend.completeOwner({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId), ...parsed.input }, { signal: requestSignal(req, res) }));
+      res.json(await completeSiteImportOwner({ body: () => req.body, backend: () => deps.siteImportBackend,
+        principalId: () => getAuthedPrincipal(res).id, importId: () => String(req.params.importId),
+        signal: () => requestSignal(req, res), refusal: required => new SiteShareRefusal(required) }));
     } catch (error) { fail(res, error, req); }
   });
 }

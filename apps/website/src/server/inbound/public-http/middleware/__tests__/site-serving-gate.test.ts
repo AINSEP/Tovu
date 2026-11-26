@@ -103,3 +103,13 @@ test("a rejected status read completes with 500 through the app's error handler"
   assert.deepEqual(await res.json(), { error: "internal error" });
   assert.deepEqual(errors, [failure]);
 });
+
+
+test('an exempt admin path skips status while an ordinary public slug reads it once', async t => {
+  const seen: string[] = [];
+  const base = await boot(t, statusPort('BLOCKED_PENDING_RECOVERY', seen));
+  assert.equal((await fetch(`${base}/admin/settings`)).status, 200);
+  assert.deepEqual(seen, []);
+  assert.equal((await fetch(`${base}/admin-news`)).status, 503);
+  assert.deepEqual(seen, ['ws-gate-1']);
+});

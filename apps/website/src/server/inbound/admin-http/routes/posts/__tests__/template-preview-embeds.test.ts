@@ -14,7 +14,7 @@ import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "#src/server
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
-import { projectPreviewYoutubeIds } from "../template-preview-youtube.js";
+import { projectPreviewYoutubeIds } from "@jini-ai/cms/admin-http/routes/posts/template-preview-embeds";
 import { barePost, bareDeps } from "./preview-fixtures.js";
 
 const TEMPLATE_ID = "tmplVideo01";

@@ -212,3 +212,21 @@ test("POST pay returns only buyer fields and the continuation and intent outcome
     intent: { ok: true },
   });
 });
+
+
+test('invalid input precedes buyer admission, foreign origin precedes activation, and only a write allocates one snapshot', async t => {
+  const f = await fixture(t);
+  let snapshots = 0, activations = 0;
+  const commerce = f.deps.commerce!;
+  commerce.forRequest = () => { snapshots++; return commerce; };
+  commerce.activate = async () => { activations++; return { active: true, ready: true, reason: null }; };
+  const buyers = t.mock.method(f.memberSessionRepo, 'findByTokenHash');
+  assert.equal((await f.request(orders, { priceId: '' })).status, 400);
+  assert.equal(buyers.mock.callCount(), 0); assert.equal(snapshots, 0);
+  assert.equal((await f.request(orders, { priceId: 'p' }, undefined, 'https://foreign.test')).status, 403);
+  assert.equal(activations, 0); assert.equal(snapshots, 1);
+  assert.equal((await f.request(orders, { priceId: 'p' })).status, 201);
+  assert.equal(snapshots, 2); assert.equal(activations, 1);
+  for (const page of ['return', 'cancel']) assert.equal((await f.request(`/commerce/${page}?orderId=order-one`)).status, 200);
+  assert.equal(snapshots, 2); assert.equal(activations, 1);
+});

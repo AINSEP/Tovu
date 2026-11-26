@@ -13,7 +13,8 @@ import { ToolInputError } from "@jini-ai/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 
-import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
+import { humanConfirmedToolHandler } from "../../contracts/core/human-confirm.js";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute, ForbiddenError, PlanStaleError, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "@jini-ai/cms/publish/content/gated-hooks";
@@ -217,7 +218,7 @@ async function connectWithTrust(
     async function planPublishContentPull(routeDeps: PublishContentToolDeps, ctx: Parameters<ToolHandler>[0]) {
   return pullToolBoundary({ run: async () => {
       const input = requireInputRecord({ input: ctx.input });
-      refuseUnexpectedKeys(input, ["peerId"]);
+      refuseUnexpectedKeys({ input: input, allowed: ["peerId"] });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
       const peerId = await selectPullPeer({ deps: routeDeps, supplied: input.peerId });
       const staged = await pullAndStageFromPeer({ deps: routeDeps, input: { peerId, principalId: ctx.principal.id } });
@@ -243,7 +244,7 @@ async function connectWithTrust(
       flag: "executed",
       prepare: ({ ctx }) => pullToolBoundary({ run: async () => {
         const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys(input, ["bundleId", "overwriteEntityKeys"]);
+        refuseUnexpectedKeys({ input: input, allowed: ["bundleId", "overwriteEntityKeys"] });
         const bundleId = requiredPullBundleId({ value: input.bundleId });
         const overwriteKeys = pullOverwriteKeys({ value: input.overwriteEntityKeys });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
@@ -306,14 +307,14 @@ export function buildPublishContentRegistrations(
   const handlers: Record<string, ToolHandler> = {
     [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: ctx => pullToolBoundary({ run: async () => {
       const input = requireInputRecord({ input: ctx.input ?? {} });
-      refuseUnexpectedKeys(input, ["peerId", "types", "items", "excludeItems", "overwrite"]);
+      refuseUnexpectedKeys({ input: input, allowed: ["peerId", "types", "items", "excludeItems", "overwrite"] });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
         workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
       ctx.signal.throwIfAborted();
       return publishContentFromTool({ deps: routeDeps, principalId: ctx.principal.id }, input);
     } }),
     [PUBLISH_BACKSTOP_GAPS_TOOL_ID]: async (ctx) => {
-      refuseUnexpectedKeys(requireInputRecord({ input: ctx.input ?? {} }), []);
+      refuseUnexpectedKeys({ input: requireInputRecord({ input: ctx.input ?? {} }), allowed: [] });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
         workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "publish_content.read" });
       const audit = routeDeps.makePublishContentDeps?.().backstop?.audit;

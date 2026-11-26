@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 
-import { ROUTINE_TOOL_IDS } from "#src/contracts/core/tool-metadata/routines";
+import { ROUTINE_TOOL_IDS } from "@jini-ai/core/tool-metadata/routines";
 import type { AssistantRoutinesHandle } from "../modules/assistant-routines.js";
 import { servingRoutineToolOptions } from "../modules/serving-routine-tools.js";
 

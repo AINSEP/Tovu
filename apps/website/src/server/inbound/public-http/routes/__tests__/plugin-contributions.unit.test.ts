@@ -16,7 +16,7 @@ import type { RouteDeps } from '../../../../routes/types.js';
 import { loginAsOwner, startTestServer } from '../../../../__tests__/helpers/http-test-server.js';
 import { registerAuthRoutes } from '../../../admin-http/dev-auth.js';
 import { parsePublicJsonBody } from '../../../shared/json-body-parsers.js';
-import { MEMBER_SESSION_COOKIE } from '../members/complete-sign-in.js';
+import { MEMBER_SESSION_COOKIE } from "#src/server/inbound/public-http/http/members";
 import { createPluginRouteAuthPorts, registerPluginContributionRoutes, type PluginRouteAuthPorts } from '../plugin-contributions.js';
 
 const workspaceId = 'site';

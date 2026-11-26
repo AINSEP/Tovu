@@ -426,3 +426,20 @@ test('detail resolves a product outside the bounded grid with a point lookup', a
   assert.equal(response.status, 200); assert.match(await response.text(), /Beyond the grid/);
   assert.equal(lookups, 1); assert.equal(lists, 0);
 });
+
+
+test('missing product does one point lookup and no theme render or checkout decoration', async () => {
+  const handlers = new Map<string, (req: unknown, res: unknown) => Promise<void>>();
+  const app = { get: (route: string, handler: (req: unknown, res: unknown) => Promise<void>) => { handlers.set(route, handler); } } as unknown as IRouter;
+  let lookups = 0;
+  const catalog = { listProducts: async () => { throw new Error('must not list'); },
+    findProduct: async function () { assert.equal(this, catalog); lookups++; return null; } };
+  registerProductRoutes({ app, deps: { commerceCatalog: catalog,
+    get themes() { throw new Error('must not render'); }, get commerce() { throw new Error('must not decorate checkout'); },
+    resolveActiveThemeId: async () => { throw new Error('must not resolve theme'); },
+  } as unknown as CommerceSiteAdapterDeps });
+  let status = 0, body = '';
+  const res = { locals: {}, status(code: number) { status = code; return res; }, type() { return res; }, send(html: string) { body = html; return res; } };
+  await handlers.get('/products/:id')!({ params: { id: 'missing' } }, res);
+  assert.equal(lookups, 1); assert.equal(status, 404); assert.match(body, /product not found/);
+});

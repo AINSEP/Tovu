@@ -5,7 +5,7 @@ import { createRevisionThinning } from "@jini-ai/cms/posts/revision-thinning";
 
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
+import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
 
 /**
  * @file Host adapter for Jini's revision-thinning engine over `post_revisions`: a date-only

@@ -13,7 +13,7 @@ import { trashAwareEntryRepo } from '#src/features/entries/__tests__/support/tra
 import { buildWidgetInstanceFieldsJson } from '@jini-ai/cms/widgets';
 import type { MediaRenditionRouteDeps } from '#src/server/inbound/admin-http/routes/media/deps';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
-import { registerMediaRenditionRoute } from '../../media-rendition.js';
+import { registerMediaRenditionRoute, registerMediaOriginalVideoRoute } from '../../media-rendition.js';
 
 async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memory') {
   const db = storage === 'sqlite' ? openContentDb(':memory:') : null;
@@ -35,8 +35,9 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
   const app = express();
   // No authorization/member adapters are needed for this unreferenced public asset.
   registerMediaRenditionRoute({ app, deps: deps as unknown as MediaRenditionRouteDeps });
+  registerMediaOriginalVideoRoute({ app, deps: deps as unknown as MediaRenditionRouteDeps });
   const baseUrl = await startTestServer(app, t);
-  return { deps, media, url: `${baseUrl}/m/${media.id}/public.v1/cached.webp`, advance: () => { now += 60_000; } };
+  return { deps, media, baseUrl, url: `${baseUrl}/m/${media.id}/public.v1/cached.webp`, advance: () => { now += 60_000; } };
 }
 
 test('public image validation reuses bounded access evidence and skips unchanged blob bytes', async t => {
@@ -150,4 +151,29 @@ test('an old failed access scan does not erase evidence collected after a save',
   const validated = await fetch(url, { headers: { 'if-none-match': current.headers.get('etag')! } });
   assert.equal(validated.status, 304);
   assert.equal(calls, 2, 'the late failure must retain the fresh access evidence');
+});
+
+
+test('denied media and missing media have identical replies; both original aliases honor retired-slug evidence before validators or bytes', async t => {
+  const { deps, media, baseUrl, url } = await fixture(t);
+  t.mock.method(deps.mediaRepo, 'listRetiredSlugs', async () => ['retired-cover']);
+  await deps.postRepo.save({ id: 'members', workspaceId: deps.workspaceId, slug: 'members', title: 'Members',
+    status: 'published', kind: 'post', bodyFormat: 'doc', bodyHtml: null, updatedAt: media.updatedAt, version: 1,
+    bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { assetId: 'retired-cover', transformName: 'public' } }] },
+    memberAccessJson: JSON.stringify({ visibility: 'members' }) });
+  const validators = t.mock.method(deps.transformDefinitionRepo, 'findByNameVersion');
+  const bytes = t.mock.method(deps.blobStore, 'get');
+  for (const [present, missing] of [[url, `${baseUrl}/m/missing/public.v1/cached.webp`],
+    [`${baseUrl}/m/${media.id}/original`, `${baseUrl}/m/missing/original`],
+    [`${baseUrl}/m/${media.id}/original.svg`, `${baseUrl}/m/missing/original.svg`]]) {
+    const denied = await fetch(present, { headers: { 'if-none-match': '"claimed"' } });
+    const absent = await fetch(missing, { headers: { 'if-none-match': '"claimed"' } });
+    assert.equal(denied.status, 404); assert.equal(absent.status, 404);
+    assert.equal(denied.headers.get('cache-control'), 'private, no-store');
+    assert.equal(absent.headers.get('cache-control'), denied.headers.get('cache-control'));
+    assert.equal(denied.headers.get('etag'), absent.headers.get('etag'));
+    assert.deepEqual(await denied.json(), await absent.json());
+  }
+  assert.equal(validators.mock.callCount(), 0);
+  assert.equal(bytes.mock.callCount(), 0);
 });

@@ -15,7 +15,9 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
 import type { ToolContributor } from "@jini-ai/core";
-import { approvalToolHandler, notConfirmedResult, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
+import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { createPermanentDeleteAgentToolCatalog, createPermanentDeleteSpecs, type PermanentDeleteToolId } from "@jini-ai/cms/trash/permanent/agent-tools";
 import type { ForgetRemovedEntity } from "@jini-ai/cms/trash";
 import type { StaticPublishToolDeps } from "../deployments/publish-agent-tools.js";
@@ -82,7 +84,7 @@ export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps,
   for (const spec of PERMANENT_DELETE_SPECS) {
     handlers[spec.name] = approvalToolHandler({ surfaces, prepare: async ({ ctx }) => {
       const input = requireInputRecord({ input: ctx.input });
-      refuseUnexpectedKeys(input, spec.key === null ? [] : [spec.key]);
+      refuseUnexpectedKeys({ input: input, allowed: spec.key === null ? [] : [spec.key] });
       const id = spec.key === null ? null : requireString({ input: input, key: spec.key }).trim();
       if (id === "") throw new ToolInputError({ message: `${spec.name}: '${spec.key}' must be a non-empty id.` });
       const authorize = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: spec.permission }, { entityType: spec.entityType, ...(id === null ? {} : { entityId: id }) });

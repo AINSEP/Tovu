@@ -3,7 +3,7 @@ import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidenc
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
-import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
+import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
 
 import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { PostAutosaveSnapshot, PostRecord, PostRepoPort, PostRevisionAppendResult, PostRevisionInput, PostRevisionRecord } from "@jini-ai/cms/posts/post";

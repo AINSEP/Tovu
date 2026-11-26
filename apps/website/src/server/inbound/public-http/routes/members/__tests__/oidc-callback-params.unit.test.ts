@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { MemberLoginError } from "@jini-ai/user-management/server";
-import { callbackParams } from "../oidc-callback.js";
+import { readOidcCallbackParams } from "@jini-ai/user-management/member-login/oidc-request";
 import { MemberOidcCancelled } from "../oidc-deps.js";
 
 /**
@@ -11,7 +11,7 @@ import { MemberOidcCancelled } from "../oidc-deps.js";
  * error is refused, and only `access_denied` is the kinder "cancelled" outcome.
  */
 
-const read = (query: Record<string, unknown>) => callbackParams({ req: { query } as never });
+const read = (query: Record<string, unknown>) => readOidcCallbackParams({ query, cancelled: () => new MemberOidcCancelled() });
 const invalidLogin = (error: unknown) => error instanceof MemberLoginError && error.code === "LOGIN_INVALID";
 
 test("a code and state exactly at their caps are accepted", () => {

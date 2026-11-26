@@ -9,7 +9,7 @@ import { zipLocalFolder } from "@jini-ai/agent-plugins/folder-zip/node";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { InstallAttachmentReader, PluginInstallSourcePort } from "@jini-ai/core/contracts/headless/plugin-install-source";
-import { PLUGIN_INSTALL_SOURCE_SCHEMA } from "../../contracts/headless/index.js";
+import { PLUGIN_INSTALL_SOURCE_SCHEMA } from "../../contracts/headless/plugin-install-source.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, preferBundledAgentPluginDigests, readBundledAgentPluginDigests, seedBundledAgentPlugins } from "./lifecycle.js";
 import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";

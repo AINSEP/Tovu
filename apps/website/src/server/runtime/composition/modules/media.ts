@@ -16,7 +16,7 @@ import { MEDIA_PROVIDERS_REVISION_REQUEST_HEADER } from "@jini-ai/cms/admin-http
 import { mediaPutProvidersRoute, type MediaProvidersSaveOutcome } from "@jini-ai/cms/admin-http/routes/media/put-providers";
 import { mediaPatchProviderRoute } from "@jini-ai/cms/admin-http/routes/media/patch-provider";
 import { mediaDeleteProviderRoute } from "@jini-ai/cms/admin-http/routes/media/delete-provider";
-import { mediaProviderCatalogRoute } from "#src/server/inbound/admin-http/routes/media/provider-catalog";
+import { mediaProviderCatalogRoute } from "@jini-ai/cms/admin-http/routes/media/provider-catalog";
 import { projectMediaProviderCatalog } from "#src/features/media-generation/media-provider-catalog";
 import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-http/routes/media/shared";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";

@@ -5,7 +5,6 @@ import { processUnsubscribe } from "@jini-ai/user-management/newsletter/unsubscr
 import { newsletterUnsubscribeGetRoute, newsletterUnsubscribePostRoute } from "@jini-ai/user-management/public-http/routes/newsletter/unsubscribe";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
-import { currentNewsletterRequest, newsletterPublicApp } from "./newsletter-public-scope.js";
 
 /**
  * `GET|POST /newsletter/unsubscribe?token=...` — the Jini specs (`@jini-ai/user-management/public-http/routes/newsletter/unsubscribe`)
@@ -17,10 +16,14 @@ export function registerPublicNewsletterUnsubscribeRoute({ app, deps }: { app: E
   const routeDeps = {
     ready: () => deps.newsletterReady,
     unsubscribe: ({ rawToken }: { rawToken: string }) => processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken } }),
-    reportFailure: ({ error }: { error: unknown }) => reportServerFailure({ error, operation: "public:newsletter-unsubscribe" }, { tracker: currentNewsletterRequest().res.locals.adminFailureTracker, reporter: currentNewsletterRequest().res.locals.failureReporter }),
+    reportFailure: (_required: { error: unknown }): { errorId: string } => { throw new Error("bound per request by requestDeps"); },
   };
   const failure = { operation: "public:newsletter-unsubscribe", visitorError: "The site couldn’t complete unsubscription." };
-  const scoped = newsletterPublicApp({ app });
-  mountPublicRawRoute({ app: scoped, spec: newsletterUnsubscribeGetRoute, deps: routeDeps, failure });
-  mountPublicRawRoute({ app: scoped, spec: newsletterUnsubscribePostRoute, deps: routeDeps, failure });
+  for (const spec of [newsletterUnsubscribeGetRoute, newsletterUnsubscribePostRoute]) {
+    mountPublicRawRoute({ app, handlerName: "forwardRejection", spec, deps: routeDeps, failure }, {
+      requestDeps: ({ res, deps: base }) => ({ ...base,
+        reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-unsubscribe" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+      }),
+    });
+  }
 }

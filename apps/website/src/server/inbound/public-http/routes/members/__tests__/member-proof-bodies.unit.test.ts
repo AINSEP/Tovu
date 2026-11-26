@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { memberCompletionCredential } from "@jini-ai/cms/public-http/routes/members/complete-sign-in";
-import { proofBody } from "../oidc-verify-email.js";
+import { readOidcEmailProof } from "@jini-ai/user-management/member-login/oidc-request";
 
 /**
  * @file F6 fix wave (L12 Stryker top-5): the emailed six-digit code and the strict proof DTO, one
@@ -22,8 +22,8 @@ const VALID = { continuation: "c", challengeId: "ch-1", code: "123456" };
 
 for (const [label, code, accepted] of CODES) {
   test(`verify-email proof: code ${label} is ${accepted ? "accepted" : "refused"}`, () => {
-    if (accepted) assert.deepEqual(proofBody({ body: { ...VALID, code } }), { ...VALID, code });
-    else assert.throws(() => proofBody({ body: { ...VALID, code } }), invalidLogin);
+    if (accepted) assert.deepEqual(readOidcEmailProof({ body: { ...VALID, code } }), { ...VALID, code });
+    else assert.throws(() => readOidcEmailProof({ body: { ...VALID, code } }), invalidLogin);
   });
   test(`sign-in completion: code ${label} is ${accepted ? "accepted" : "refused"}`, () => {
     const credential = memberCompletionCredential({ body: { challengeId: "ch-1", code } });
@@ -38,13 +38,13 @@ for (const [label, body] of [
   ["a numeric challengeId", { ...VALID, challengeId: 7 }], ["a 256-char challengeId", { ...VALID, challengeId: "h".repeat(256) }],
 ] as const) {
   test(`verify-email proof refuses ${label}`, () => {
-    assert.throws(() => proofBody({ body }), invalidLogin);
+    assert.throws(() => readOidcEmailProof({ body }), invalidLogin);
   });
 }
 
 test("verify-email proof accepts handles exactly at their caps", () => {
   const body = { continuation: "c".repeat(8192), challengeId: "h".repeat(255), code: "654321" };
-  assert.deepEqual(proofBody({ body }), body);
+  assert.deepEqual(readOidcEmailProof({ body }), body);
 });
 
 test("sign-in completion prefers a link token, and refuses a code without a challenge id", () => {

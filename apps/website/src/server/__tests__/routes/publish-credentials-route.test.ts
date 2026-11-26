@@ -9,6 +9,7 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { createPublishCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
+import { registerAdminPublishCredentialsListRoute } from "../../inbound/admin-http/routes/system/publish-credentials.js";
 import { registerAdminPublishCredentialsRoutes } from "#src/server/runtime/composition/modules/system-credentials";
 import {
   bootAuthenticated,
@@ -853,4 +854,21 @@ test("publish: worksFor round trips, omission preserves and metadata-only clear 
   assert.deepEqual((await cleared.json()).credential.worksFor, []);
   const otherPath = path.replace("/system/publish/", "/system/custom/");
   assert.equal((await fetch(`${otherPath}/${saved.id}`, { method: "PUT", headers, body: JSON.stringify({ worksFor: ["netlify"] }) })).status, 404);
+});
+
+
+test('publish-credentials list writes JSON before triggering account-label healing', async () => {
+  const deps = createRouteDeps();
+  const app = express();
+  const order: string[] = [];
+  registerAdminPublishCredentialsListRoute({ app, deps: { ...deps, authorize: async () => ({ allowed: true, reason: 'fixture' }) },
+    readDeps: { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deps.loadDeployTargets },
+    triggerAccountLabelHeal: async () => { order.push('heal'); },
+  });
+  const handler = extractRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/system/publish/credentials');
+  const { res } = createCapturingResponse();
+  res.locals.principal = { id: 'owner' };
+  res.json = () => { order.push('json'); return res; };
+  await handler({ params: { workspaceId: deps.workspaceId } }, res);
+  assert.deepEqual(order, ['json', 'heal']);
 });

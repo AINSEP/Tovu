@@ -241,6 +241,8 @@ test("S3 custom domain requires one browser-bound emailed code; retries spend bu
   assert.equal(challenge?.failedAttempts, 1);
   const success = await post(base, `${OIDC}/verify-email`, proof.body, proof.binding);
   assert.equal(success.status, 200); assert.ok(cookie(success, "tovu_member_session"));
+  assert.ok(success.headers.getSetCookie()[0].startsWith(`${MEMBER_OIDC_PROOF_COOKIE}=`));
+  assert.ok(success.headers.getSetCookie()[1].startsWith('tovu_member_session='));
   assert.ok(success.headers.getSetCookie().some(value => value.startsWith(`${MEMBER_OIDC_PROOF_COOKIE}=`) && value.includes("Expires=Thu, 01 Jan 1970")));
   assert.equal((await post(base, `${OIDC}/verify-email`, proof.body, proof.binding)).status, 401);
   const again = await f.start(base), login = await callback(base, again.params, again.binding);
@@ -464,4 +466,36 @@ test("S3 /me still lists linked identities (labelled by provider id) when the pr
   f.deps.listProviders = async () => { throw new Error("plugin registry down"); };
   const me = await fetch(`${base}${BASE}/me`, { headers: { cookie: sessionCookie } });
   assert.deepEqual((await me.json() as { identities: unknown }).identities, [{ providerId: "google", label: "google" }]);
+});
+
+
+test('S3 a session lost after the unlink lock refuses without a replacement cookie or identity change', async t => {
+  const f = fixture(), member = await f.seed(), base = await startTestServer(f.app, t);
+  const start = await f.start(base), login = await callback(base, start.params, start.binding);
+  const currentCookie = cookie(login, 'tovu_member_session');
+  const lock = f.deps.links.lockKey;
+  f.deps.links.lockKey = async value => {
+    await lock(value);
+    if (value.startsWith('trash:member:')) await f.members.memberSessionRepo.revokeAllForMember({ workspaceId: 'ws', memberId: member.id, revokedAt: f.clock.nowIso() });
+  };
+  const response = await post(base, `${BASE}/identities/google/unlink`, {}, currentCookie);
+  assert.equal(response.status, 401);
+  assert.ok(!cookie(response, 'tovu_member_session'));
+  assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: 'ws', memberId: member.id, providerId: 'google' }))?.unlinkedAt);
+});
+
+test('S3 failed callback and continuation protocols never read the identity-link binding', async t => {
+  const f = fixture({ email: 'person@custom.example' }), base = await startTestServer(f.app, t);
+  const proof = await emailContinuation(f, base);
+  const started = await f.start(base);
+  let linkReads = 0;
+  const links = f.deps.links;
+  Object.defineProperty(f.deps, 'links', { get: () => { linkReads++; return links; } });
+  f.badSignature();
+  refusedTo(await callback(base, started.params, started.binding));
+  assert.equal(linkReads, 0);
+  const response = await post(base, `${OIDC}/verify-email`, { ...proof.body, continuation: 'invalid-sealed-continuation' }, proof.binding);
+  assert.equal(response.status, 401);
+  assert.equal(linkReads, 0);
+  assert.ok(!cookie(response, 'tovu_member_session'));
 });
