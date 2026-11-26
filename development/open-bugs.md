@@ -2352,3 +2352,22 @@ Fixed unless marked OPEN.
 - OPEN `m24c-duplicate-pages-restore` — `features/pages/__tests__/html-undo.integration.test.ts:194` calls `.restore` on `DuplicatePagesHtmlStore`, which no longer has it. Confirm whether duplicate-page restore was dropped on purpose before retyping the test (possible removed capability).
 - OPEN `m24c-vendor-credential-port-vault` — host `VendorCredentialSetRepoPort` (`features/vendor-credentials/types.ts:44`) lacks `credentialVault`, while the publish-credentials store port (`store.ts:123-126`) requires it and the real repo provides it (`vault-adapter.ts:34`).
 - Status updates: `m24-typecheck-tests` now 600 total, 37 in changed files (was 780 / 207). `m24-agent-plugins-identity-tests` and `m24-guard-si-domain` fixed on Jini (`34eb182f`, `d0d8f392`). `m24-r01-chat-um-missing` still open (no `jini-chat-*`, no `UserManagementClasses` on Jini `4e5de358`).
+
+## MERGE-25 (2026-11-26, `integ/merge-25-2026-11-25`) — x4 slices merged untested
+
+- **FIXED (runtime):** Jini cms publish-content (`publish/content/tool-registrations.ts`) called core's gateway
+  `plan/confirm/execute` with the host's legacy gateway deps (Tovu's `GatewayDeps` has no `generateToken`/`ttlSeconds`):
+  every agent publish-content pull would have thrown. Now the host gateway is injected (`gateway: HostGatewayPort`);
+  Tovu binds `contracts/core/gated-mutations/gateway`. Same opaque-deps fix in devops `publish-tool-deps.ts`; db database
+  tools are generic over the host gateway deps.
+- **FIXED (runtime):** cms widgets site publish did not pass `policy` to `swapFormRef`.
+- **FIXED (build):** pnpm workspace cycles cms->user-management and cms->devops (test-only devDeps from the slices).
+- **OPEN:** website tsc 33 errors from slice type drift (share-database `sql` tag binding, static menus shape, kernel
+  views for revision thinning/keep-off/forms/project-store, wal `StaticPublishToolDeps`, commerce `JsonRouteSpec`) —
+  list in `cloud-results/merge-25.md`.
+- **OPEN:** Jini guard 181 rows (merge-24: 6) — SI-domain 101, HW3 24, R14 13, N1/N2 13, L* 17, N3 5.
+- **OPEN:** `devops/deploy/site/static-publish/publish-history.ts` hard-codes the persisted kind `"tovu-peer"` (G2: inject
+  the exact bytes from the Tovu binding).
+- **OPEN (tests):** user-management `package-entries` / `user-management-rename` contract tests predate the slices' new
+  entries; identity owner-enable, members magic-link, newsletter delivery launch-gate tests red (slice-authored, untested);
+  cms publish/content tool-registration tests need the new `gateway` dep.
