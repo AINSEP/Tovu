@@ -22,6 +22,10 @@ import { useWiredTermPicker } from "../taxonomy/taxonomy-wired.hooks";
 import { postPublicPath as pagePublicPath } from "@jini-ai/cms/routing/public-path";
 import { pagePickerValue } from "./rules";
 import { pageEditorSurface } from "@jini-ai/cms/react/pages/page-editor-rules";
+import { pickerValueToChoice, THEME_DEFAULT_SENTINEL, pageAutosaveStaleBasisMessage, pageVersionConflictMessage, PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
+import { DEVICE_PREVIEW_WIDTHS } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
+import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placeholder";
+import { pagePreviewYoutubeIds } from "@jini-ai/admin/pages/lib/page-preview-youtube";
 
 export const PageEditor = bindPageEditor({
   hooks: {
@@ -53,6 +57,14 @@ export const PageEditor = bindPageEditor({
     standingDraftRecoveryMessage,
     pageExternalChangeBindings,
     pageEditorSurface,
+    pickerValueToChoice,
+    THEME_DEFAULT_SENTINEL,
+    pageAutosaveStaleBasisMessage,
+    pageVersionConflictMessage,
+    devicePreviewWidths: DEVICE_PREVIEW_WIDTHS,
+    isProtectedEmbedElement,
+    pagePreviewYoutubeIds,
+    previewIframeSandbox: PAGE_PREVIEW_IFRAME_SANDBOX,
     videoLink: ({ id }) => `https://www.youtube.com/watch?v=${id}`,
     isDevMode: import.meta.env.DEV,
   },

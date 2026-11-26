@@ -18,6 +18,12 @@ import { applySavedPage, applySaveFailure, PageBodyWriteError, writePage } from 
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
 import { resolveCanvasTemplateChoice, useThemeCanvasStyling } from "./use-theme-canvas-styling.hooks";
+import { prettifyHtml } from "@jini-ai/admin/pages/lib/prettify-html";
+import { unchangedSaveHandlers } from "@jini-ai/admin/shell/lib/unchanged-save-warning";
+import { pageDirtyGuardBaseline, pageRefreshMayHaveUnsavedEdits, pageEditableHtml, pageAcceptsHtmlBody, pagePreviewFormTarget, buildPageAutosaveDraft, buildPageSavePlan, pagePartialSaveMessage, pageSaveSuccessMessage, pageUnchangedSaveMessage } from "@jini-ai/admin/pages/page-editor-rules";
+import { createEmbedPlaceholderDescriber } from "@jini-ai/admin/pages/lib/embed-placeholder";
+import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
+import { editorTemplateOptions } from "@jini-ai/admin/shell/lib/editor-template-options.rules";
 
 export const { usePageEditor, useWiredPageEditor } = bindPageEditorHooks({
   hooks: {
@@ -55,6 +61,21 @@ export const { usePageEditor, useWiredPageEditor } = bindPageEditorHooks({
     isUnexpectedServerFailure,
     embedMarkerTarget,
     parseEmbedMarkerConfig,
+    prettifyHtml,
+    unchangedSaveHandlers,
+    pageDirtyGuardBaseline,
+    pageRefreshMayHaveUnsavedEdits,
+    pageEditableHtml,
+    pageAcceptsHtmlBody,
+    createEmbedPlaceholderDescriber,
+    slugRedirectPath,
+    editorTemplateOptions,
+    pagePreviewFormTarget,
+    buildPageAutosaveDraft,
+    buildPageSavePlan,
+    pagePartialSaveMessage,
+    pageSaveSuccessMessage,
+    pageUnchangedSaveMessage,
     setTimeout,
     clearTimeout,
     document,
