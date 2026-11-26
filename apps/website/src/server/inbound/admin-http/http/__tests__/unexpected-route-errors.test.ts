@@ -1,5 +1,6 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
+import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { registerSkillsListRoute } from "#src/server/runtime/composition/modules/skills";
 import assert from "node:assert/strict";
@@ -14,11 +15,11 @@ import { registerAdminRecoveryRestoreRoutes } from "#src/server/runtime/composit
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
-import { createMappedErrorResponse } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
+import { respondWithError } from "../../routes/publish-content/peer-transport.js";
 import { installErrorResponse } from "../../routes/agent-plugins/install-response.js";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { createTovuErrorReporter } from "#src/server/runtime/composition/error-reporter";
-import { adminFailureResponse, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 function fixture(error: unknown, tracked: unknown[], { recorded = recordingComposedReporter() } = {}) {
   const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
@@ -149,10 +150,12 @@ for (const broken of ["logger", "tracker"]) {
 for (const [name, map] of Object.entries({
   widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
-  peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => createMappedErrorResponse({
-    incident: (error, facts) => adminFailureResponse({ error, reporter: options.reporter }, facts),
-    operation: "routes/publish-content/route-helpers",
-  })({ err, table: [] }),
+  peers: ({ err }: { err: unknown }, { reporter }: Parameters<typeof importErrorResponse>[1]) => {
+    const { res, capture } = createCapturingResponse();
+    res.locals.failureReporter = reporter;
+    respondWithError({ res, err });
+    return { status: capture.statusCode, body: capture.jsonBody };
+  },
   installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => installErrorResponse({ error: err }, options),
 })) {
   test(`${name}: the mapping fallback reports Error and non-Error exceptions without leaking details`, t => {

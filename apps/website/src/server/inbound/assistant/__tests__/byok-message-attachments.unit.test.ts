@@ -1,15 +1,23 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import express from "express";
 import ts from "typescript";
 import { AttachmentUnavailableError, prepareByokMessageAttachments } from "../byok-message-attachments.js";
-import { readPickedFolders } from "#src/assistant/run-page-context";
+import { createByokToolSurface } from "#src/assistant/index";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
 import { createDiskAttachmentStore } from "@jini-ai/daemon/http";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { BYOK_TURN_PATH, createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
 import { readOwnerChatAttachment } from "#src/features/media/chat-attachment-reader-host";
 
 test("BYOK sniffs a video prefix without hydrating it and delivers full PNG pixels", async t => {
@@ -77,35 +85,47 @@ test("BYOK attachment refusals stay 400 while preparation faults become redacted
   assert.doesNotMatch(JSON.stringify({ body: failure.body, records, reports }), /SECRETSECRETSECRETSECRET|PRIVATE_BODY/);
 });
 
-test("the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory", async () => {
-  const source = ts.createSourceFile("assistant-byok-preflight.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok-preflight.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
-  const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "resolveTurnInputsOrRespond");
-  assert.ok(declaration);
-  // why: 540014db (complexity <=10) moved the attachment step into attachTurnMessagesOrRespond(),
-  // which resolveTurnInputsOrRespond() awaits; both real declarations are evaluated together.
-  const attach = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "attachTurnMessagesOrRespond");
-  assert.ok(attach);
-  const reader = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "readAttachmentRefs");
-  assert.ok(reader);
-  const code = ts.transpileModule(`${reader.getText(source)}\n${attach.getText(source)}\nreturn (${declaration.getText(source)});`, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
-  }).outputText;
-  const calls: unknown[] = [];
-  const images = [{ mimeType: "image/png", data: "iVBORw0KGgoB" }, { mimeType: "image/png", data: "iVBORw0KGgoC" }];
-  // why: 40ea6e547 made the turn validate picked folders first; the real reader is injected, so an
-  // absent `folders` still resolves to none rather than the harness failing on an unbound name.
-  const resolve = new Function("resolveMessages", "withPageContextBlock", "readRunPageContext", "getAuthedPrincipal", "prepareByokMessageAttachments", "readPickedFolders", code)(
-    // why: the (required, optional) argument rule made the real call `resolveMessages({ raw })`.
-    ({ raw }: { raw: unknown }) => raw, ({ messages }: { messages: unknown }) => messages, () => undefined,
-    () => ({ id: "alice" }), async (required: unknown) => { calls.push(required); return { images, notice: "" }; }, readPickedFolders,
-  );
-  const messages = [{ role: "user", content: "old question" }, { role: "assistant", content: "old answer" }, { role: "user", content: "colours?" }];
+test("the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory", async t => {
+  const chatAttachmentsDir = await realpath(await mkdtemp(path.join(tmpdir(), "byok-route-attachments-")));
+  t.after(() => rm(chatAttachmentsDir, { recursive: true, force: true }));
+  const base = createRouteDeps();
   // The directory comes from the booted `RouteDeps.siteStoragePaths`, never from env/`siteDir()`
   // (hardwiring audit #19): the old code passed no directory and resolved one from env per request.
-  const routeDeps = { workspaceId: "ws", siteStoragePaths: { chatAttachmentsDir: "/booted-site/uploads/chat-attachments" } };
-  const result = await resolve({ body: { messages, attachmentIds: ["green", "yellow"] } }, {}, { resolve: async () => ({ model: "vision" }) }, routeDeps, new AbortController().signal, recordingComposedReporter().reporter);
-  assert.deepEqual(calls, [{ refs: ["green", "yellow"], principalId: "alice", uploadDirectory: "/booted-site/uploads/chat-attachments" }]);
-  assert.deepEqual(result.messages, [...messages.slice(0, -1), { role: "user", content: "colours?", images }]);
+  const deps = { ...base, siteStoragePaths: { ...base.siteStoragePaths, chatAttachmentsDir } };
+  const { errors } = createRouteIncidentReporter();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps, errors });
+  const toolSurface = createByokToolSurface({ ...deps, reporter: errors.reporter }, { installExtensions: false });
+  createAssistantByokModule({ routeDeps: deps, reporter: errors.reporter }, { toolSurface }).registerRoutes?.({ app });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const ownerId = await deps.ownerPrincipalId;
+  const store = await createDiskAttachmentStore({ uploadDirectory: deps.siteStoragePaths.chatAttachmentsDir }, { retainAcrossRestarts: true });
+  const batchId = "batch-colours";
+  const directory = await store.createBatchDirectory({ batchId }, {});
+  const attachmentIds: string[] = [];
+  for (const [name, data] of [["green.png", "iVBORw0KGgoB"], ["yellow.png", "iVBORw0KGgoC"]] as const) {
+    const bytes = Buffer.from(data, "base64"), filePath = path.join(directory, name);
+    await writeFile(filePath, bytes);
+    const stored = await store.register({ input: { batchId, path: filePath, name, kind: "image", size: bytes.length, ownerId } }, {});
+    attachmentIds.push(stored.path);
+  }
+  const calls: unknown[] = [];
+  const providerUrl = await startStubProviderServer(t, (_count, body, { method, url }) => {
+    calls.push({ method, url, messages: body.messages });
+    return { status: 200, body: 'event: message_start\ndata: {"type":"message_start","message":{"id":"reply","role":"assistant","content":[],"model":"fixture","usage":{"input_tokens":1,"output_tokens":0}}}\n\nevent: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":0}}\n\nevent: message_stop\ndata: {"type":"message_stop"}\n\n' };
+  });
+  const messages = [{ role: "user", content: "old question" }, { role: "assistant", content: "old answer" }, { role: "user", content: "colours?" }];
+  const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({
+    messages, attachmentIds, byok: { protocol: "anthropic", apiKey: "fixture-key", model: "fixture", baseUrl: providerUrl },
+  }) });
+  assert.equal(response.status, 200);
+  await response.text();
+  assert.deepEqual(calls, [{ method: "POST", url: "/v1/messages", messages: [...messages.slice(0, -1), { role: "user", content: [
+    { type: "text", text: "colours?" },
+    { type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgoB" } },
+    { type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgoC" } },
+  ] }] }]);
 });
 
 test("BYOK reads only this message's refs as the authenticated owner and delivers exact pixels", async () => {

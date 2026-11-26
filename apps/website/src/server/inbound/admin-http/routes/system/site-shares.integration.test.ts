@@ -98,7 +98,11 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
       render: input => { renders++; return deps.exportSiteBound({ ...input, includeThemePreviews: false }); } } });
   const base = await startTestServer(createApp(deps), t), cookie = await loginAsOwner(base);
   const root = `${base}/api/admin/v1/workspaces/${deps.workspaceId}/site-shares`;
-  const options = await (await fetch(root + "/static/options", { headers: { cookie } })).json() as { themes: { themeId: string; name: string }[] };
+  const optionsResponse = await fetch(root + "/static/options", { headers: { cookie } });
+  assert.equal(optionsResponse.status, 200);
+  const options = await optionsResponse.json() as { themes: { themeId: string; name: string }[] };
+  const themeIds = ["inactive-picker", activeThemeId];
+  assert.deepEqual(options.themes.map(theme => theme.themeId).sort(), [...themeIds].sort());
   const post = async (input: unknown) => {
     const response = await fetch(root + "/static", { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(input) });
     assert.equal(response.status, 200); return response.json() as Promise<Record<string, unknown>>;
@@ -108,7 +112,7 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
   assert.ok(tool);
   const invoke = (input: unknown) => Promise.resolve(tool.handler({ executionId: "picker-export", principal: { id: ownerPrincipalId }, run: { id: "picker-run" }, input, signal: new AbortController().signal })) as Promise<Record<string, unknown>>;
   for (const start of [post, invoke]) {
-    let result = await start({ themeIds: ["inactive-picker", activeThemeId] });
+    let result = await start({ themeIds });
     for (let poll = 0; "jobId" in result && poll < 50; poll++) result = await start({ jobId: result.jobId });
     assert.ok(result.shareId, JSON.stringify(result));
     const response = await fetch(base + result.downloadUrl, { headers: { cookie } });
@@ -120,9 +124,10 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
       files.set(entry.entryPath, Buffer.concat(chunks));
     }
     const folder = String(result.file).replace(/\.zip$/, "") + "/";
-    for (const theme of options.themes) {
-      assert.match(files.get(`${folder}sites/${theme.name}/index.html`)!.toString(), new RegExp(`${theme.themeId} HOME`));
-      assert.match(files.get(`${folder}sites/${theme.name}/theme-only/index.html`)!.toString(), new RegExp(`${theme.themeId} ONLY`));
+    for (const themeId of themeIds) {
+      const theme = options.themes.find(option => option.themeId === themeId)!;
+      assert.match(files.get(`${folder}sites/${theme.name}/index.html`)!.toString(), new RegExp(`${themeId} HOME`));
+      assert.match(files.get(`${folder}sites/${theme.name}/theme-only/index.html`)!.toString(), new RegExp(`${themeId} ONLY`));
     }
     assert.equal([...files.keys()].filter(name => name.startsWith(folder + "media/")).length, 1);
     const active = options.themes.find(theme => theme.themeId === activeThemeId)!;

@@ -37,8 +37,15 @@ test("Tovu API keys never reach either diagnostic sink or export copy text", t =
     message: "The export stopped while building the ZIP.",
     failure: { action: "Copy details and report this problem.", step: "archive", cause: error },
   });
-  for (const output of [JSON.stringify(logs), JSON.stringify(reports), response.body.details!.failure.copyText]) {
+  assert.equal(reports.length, 1);
+  const { message, stack } = reports[0]![0].error;
+  assert.ok(stack);
+  for (const output of [JSON.stringify(logs), message, response.body.details!.failure.copyText]) {
     assert.ok(output.includes("[REDACTED:tovu_api_key]"));
+    assert.ok(!output.includes(secret));
+    assert.ok(!output.includes(key));
+  }
+  for (const output of [stack, JSON.stringify(reports)]) {
     assert.ok(!output.includes(secret));
     assert.ok(!output.includes(key));
   }

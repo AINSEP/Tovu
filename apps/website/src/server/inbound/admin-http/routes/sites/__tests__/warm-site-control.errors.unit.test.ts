@@ -20,6 +20,8 @@ test('warm site control reports one redacted incident without forwarding request
   assert.ok(handler, 'the control route is registered');
   let status = 0; let body: unknown;
   const res = { locals: { principal: { id: 'owner' }, failureReporter: reporter }, status(code: number) { status = code; return res; }, json(value: unknown) { body = value; return res; } };
+  const errors = t.mock.method(console, 'error', () => {});
+  const warnings = t.mock.method(console, 'warn', () => {});
   await handler({ originalUrl: prefix, method: 'POST', headers: { cookie: 'COOKIE_SHOULD_NEVER_LEAK' }, body: { secret: 'BODY_SHOULD_NEVER_LEAK' } }, res);
   assert.equal(status, 500);
   assert.ok(body && typeof body === 'object' && 'error' in body && 'errorId' in body);
@@ -27,6 +29,8 @@ test('warm site control reports one redacted incident without forwarding request
   assert.doesNotMatch(JSON.stringify(body), /SECRETSECRETSECRETSECRET|COOKIE_SHOULD_NEVER_LEAK|BODY_SHOULD_NEVER_LEAK/);
   assert.equal(records.length, 1);
   assert.equal(reports.length, 1);
+  assert.equal(errors.mock.callCount(), 0);
+  assert.equal(warnings.mock.callCount(), 0);
   const detail = (records[0]![1] as { meta: { errorId: string; diagnostic: string } }).meta;
   assert.equal(detail.errorId, body.errorId);
   assert.match(detail.diagnostic, /boom/);
