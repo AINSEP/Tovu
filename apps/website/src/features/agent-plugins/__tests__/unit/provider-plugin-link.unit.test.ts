@@ -10,6 +10,7 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 
 import { bindProviderFacePorts, followProviderActivations, linkedProviderOf, type ProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { AgentPluginLinkedError, providerFaceLifecycle, warnProviderFace } from "../../provider-plugin-link.js";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "../../identity-read-policy.js";
 
 /** @file The provider plugin's switch is the one switch; its linked agent plugin face follows it. */
 
@@ -121,7 +122,7 @@ test("link discovery selects the bundled revision, honors removed links, and ref
       reads.push(plugin.packageRoot);
       return JSON.stringify({ extensions: { tovu: removed ? {} : { providerPlugin: plugin.packageRoot === "/current" ? "current-provider" : "stale-provider" } } });
     },
-  } });
+  } }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
   assert.deepEqual([...(await ports.links({}))], [["face", "current-provider"]]);
   removed = true;
   assert.deepEqual([...(await ports.links({}))], []);
