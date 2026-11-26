@@ -61,7 +61,7 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => makeStores(k
     if (adapter.dialect === 'sqlite') t.after(() => (stores.kernel as unknown as { close(): Promise<void> }).close());
     const actor = actorForMutation({ principalId: 'owner-1', origin: 'assistant' });
     const event: AttributedDomainEvent = { id: 'event-1', name: 'change-set.applied', occurredAt: '2026-11-25T00:00:00.000Z', workspaceId: 'workspace-1',
-      actorId: actor.id, actor, changeSetId: 'set-1' };
+      actorId: actor.id, actor, changeSetId: 'set-1', payload: {} };
     // Occupy the event id so the outbox row is the write that fails, after the header and items.
     await stores.outbox.enqueue(event);
     const record = { id: 'set-1', workspaceId: 'workspace-1', actorId: actor.id, actor, status: 'applied' as const, summary: 'assistant edit', createdAt: '2026-11-25T00:00:00.000Z' };
