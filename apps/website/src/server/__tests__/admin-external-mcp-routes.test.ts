@@ -404,7 +404,7 @@ test("a write-authorized tool round-trips over the wire and its attribution name
   const second = await secondMe.json() as { user: { id: string } };
   assert.notEqual(second.user.id, owner.user.id);
   const policyId = "second-mcp-integrations-policy";
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({ id: "second-mcp-integrations-permission", workspaceId: deps.workspaceId, policyId,
     permission: "admin.integrations.manage", resourceType: null, constraintJson: null });
   await deps.principalPolicyRepo.save({ id: "second-mcp-integrations-link", workspaceId: deps.workspaceId, principalId: second.user.id, policyId });

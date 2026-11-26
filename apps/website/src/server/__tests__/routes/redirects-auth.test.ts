@@ -57,6 +57,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string, suffix: st
   });
   const username = `bare-redirects-${suffix}`;
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username,

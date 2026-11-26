@@ -101,12 +101,13 @@ async function loginAsPrincipal(
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: deps.workspaceId,
     username,
     passwordHash: await deps.passwordHasher.hash({ password: "provenance-pw" }),
   });
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `provenance-${suffix}`, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: `provenance-${suffix}`, isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({
     id: `provenance-pp-${suffix}`,
     workspaceId: deps.workspaceId,

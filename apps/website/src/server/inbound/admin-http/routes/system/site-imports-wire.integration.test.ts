@@ -71,7 +71,7 @@ test("site import paging preserves gate precedence and private response headers"
   const calls: unknown[] = [];
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; if (publishTrust) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: [], entityTypes: [], generation: 1 }; next(); });
-  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), get siteImportBackend() { return available ? { ...backend, listPage: async input => { calls.push(input); return { imports: [], nextCursor: "next" }; } } : undefined; } } });
+  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed, reason: "test" }), get siteImportBackend() { return available ? { ...backend, listPage: async (input: unknown) => { calls.push(input); return { imports: [], nextCursor: "next" }; } } : undefined; } } });
   const origin = await startTestServer(app, t);
   const root = origin + "/api/admin/v1/workspaces/ws/site-imports";
   for (const [url, status] of [[root.replace("/ws/", "/foreign/") + "?extra=1", 404], [root + "?extra=1", 403]] as const) {

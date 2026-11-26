@@ -248,7 +248,7 @@ test("DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.man
   assert.ok(ownerRole);
   await assignRole({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, principalId: caller.id, roleId: adminRole.id } });
   const policyId = "delegated-trash-user-manage";
-  await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.policyPermissionRepo.save({ id: "trash-user-manage-permission", workspaceId: WORKSPACE_ID, policyId, permission: "user.manage", resourceType: null, constraintJson: null });
   await deps.principalPolicyRepo.save({ id: "trash-user-manage-link", workspaceId: WORKSPACE_ID, principalId: caller.id, policyId });
   const permissions = await resolveEffectivePermissions({ deps: authorizeDepsFrom(svcDeps.repos), workspaceId: WORKSPACE_ID, principalId: caller.id });

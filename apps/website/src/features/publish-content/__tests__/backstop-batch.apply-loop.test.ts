@@ -54,7 +54,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const report = await planImport({ bundle, deps: { catalog: { build: buildPublishContentCatalog }, publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true } });
   assert.deepEqual(report.rows.map((r) => r.outcome), ["created", "created"]);
   const apply = createPublishContentApplyPort({ workspaceId: "ws", bundleRepo, baselineRepo, runRepo, publishContentDeps: deps, clock, idGen });
-  await assert.rejects(apply.applyReport({ report, principalId: "admin", bundleId: staged.bundleId, restorePointId: "restore" }), /Foreign key check failed/);
+  await assert.rejects(apply.applyReport({ report, principalId: "admin", actor: { id: "admin", kind: "user" }, bundleId: staged.bundleId, restorePointId: "restore" }), /Foreign key check failed/);
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM p_widgets").get() as { n: number }).n, 0);
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM p_links").get() as { n: number }).n, 0);
   const event = [...events.values()][0]!;

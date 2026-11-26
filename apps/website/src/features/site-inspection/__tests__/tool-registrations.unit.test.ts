@@ -312,7 +312,7 @@ test("fetch_published_page: preserves the collector path error and surfaces the 
   await assert.rejects(
     async () => {
       const { fetchPublishedPage } = await import("@jini-ai/diagnostics/web-evidence/published-page");
-      const { RESERVED_SEGMENTS } = await import("#src/platform/routing/index");
+      const { RESERVED_SEGMENTS } = await import("@jini-ai/cms/routing/site/reserved-paths");
       const { trackFetch } = await import("@jini-ai/diagnostics/observability");
       await fetchPublishedPage({ deps: Object.assign(Object.create(deps), { reservedSegments: RESERVED_SEGMENTS, trackFetch }), input: { path: "//evil.example" } });
     },

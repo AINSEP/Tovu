@@ -482,7 +482,7 @@ test("entries routes: updating with an un-enveloped fieldsJson is rejected 400 V
 /** Seeds the `widget`/`widget_area` content types exactly the way the widgets feature does on its first write. */
 async function seedWidgetTypes(deps: RouteDeps): Promise<void> {
   await ensureWidgetContentTypesRegistered({
-    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, outbox: deps.outbox },
+    deps: { host: buildWidgetHostPorts({ postWrites: deps.widgetPostWrites }, {}), contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, outbox: deps.outbox },
     workspaceId: deps.workspaceId,
   });
 }

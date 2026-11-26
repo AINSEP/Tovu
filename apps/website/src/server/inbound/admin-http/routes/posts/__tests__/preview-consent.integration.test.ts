@@ -34,7 +34,7 @@ test("authenticated preview leaves authored HTML intact; public flags cannot dis
   await deps.identityReady;
   // This fixture uses workspace w; the default dev owner belongs to workspace-local.
   await deps.principalRepo.save({ id: "preview-owner", workspaceId: "w", kind: "user", displayName: "Preview owner", status: "active", createdAt: deps.clock.nowIso() });
-  await deps.userRepo.save({ principalId: "preview-owner", workspaceId: "w", username: "preview-owner", passwordHash: await deps.passwordHasher.hash({ password: "preview-test" }) });
+  await deps.userRepo.save({ version: 1, principalId: "preview-owner", workspaceId: "w", username: "preview-owner", passwordHash: await deps.passwordHasher.hash({ password: "preview-test" }) });
   const app = express();
   // Preserve the real auth mount and consent placement; only transport is replaced.
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });

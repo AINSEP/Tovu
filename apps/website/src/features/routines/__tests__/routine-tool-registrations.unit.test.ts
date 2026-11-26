@@ -47,7 +47,7 @@ function rig(overrides: Overrides = {}) {
   };
   const host = {
     commands: commands as never,
-    validateSchedule: ({ schedule }) => { if ((schedule as { kind?: string }).kind === "daily" && !(schedule as { timezone?: string }).timezone) throw new Error("timezone is required"); },
+    validateSchedule: ({ schedule }: { schedule: unknown }) => { if ((schedule as { kind?: string }).kind === "daily" && !(schedule as { timezone?: string }).timezone) throw new Error("timezone is required"); },
     resolveOwnerActor: async () => owners.length > 0 ? owners.shift()! : null,
     availability: () => overrides.availability ?? "ready",
     copy: ROUTINE_TOOL_COPY,

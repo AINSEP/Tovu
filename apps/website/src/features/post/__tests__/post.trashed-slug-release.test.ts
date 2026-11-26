@@ -1,3 +1,4 @@
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -21,6 +22,11 @@ import { SqlitePostRepo } from "../repo.sqlite.js";
 import { removeVia } from "./remove-post-double.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
+
+/** Production wiring (site-deps/trash-adapters.ts): the post adapter's table probe runs on the same kernel it stores through. */
+function postTrashAdapterOn(store: ContentKernel) {
+  return createPostTrashAdapter({ store, tableExists: ({ table }) => tableExists({ kernel: store, table }) });
+}
 
 /**
  * @file Owner order 2026-10-08: an item in the Trash never blocks a slug for new content.
@@ -178,7 +184,7 @@ function openRealTrash() {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const repo = new SqlitePostRepo({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, postTrashAdapterOn(contentKernel({ store: client }))]]);
   let seq = 0;
   const trash = createTrashService({
     repo: new SqliteTrashRepo({ store: client }),

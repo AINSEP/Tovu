@@ -87,6 +87,7 @@ async function loginAsSecondAdmin(deps: RouteDeps, baseUrl: string): Promise<{ c
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: deps.workspaceId,
     username,

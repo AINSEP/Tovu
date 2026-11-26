@@ -18,7 +18,7 @@ async function rig(answer: HumanConfirmOutcome) {
   await store.hold({ workspaceId: WS, sinceIso: "2026-11-21T00:00:00.000Z" });
   const gate = createAgentPauseGate({ store, workspaceId: WS, assistantEnabled: () => true, clock: { nowIso: () => "2026-11-22T00:00:00.000Z" } });
   const asked: string[] = [];
-  const deps = { workspaceId: WS, agentPauseGate: gate, authorize: async () => ({ allowed: true }) };
+  const deps = { workspaceId: WS, agentPauseGate: gate, authorize: async () => ({ allowed: true, reason: "test" }) };
   const [registration] = buildAgentPauseRegistrations({ deps, surfaces: {} as never }, {
     askHuman: async ({ spec }) => { asked.push(spec.toolId); return answer; },
   });

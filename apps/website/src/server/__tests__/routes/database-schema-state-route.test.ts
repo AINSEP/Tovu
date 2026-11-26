@@ -77,6 +77,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string) {
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-database-schema-state",

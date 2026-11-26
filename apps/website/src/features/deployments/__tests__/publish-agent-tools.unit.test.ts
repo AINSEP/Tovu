@@ -236,7 +236,7 @@ function vendorRow(fields: Pick<VendorCredentialSetRecord, "workspaceId" | "id" 
 /** Seed through the existing adapter; only vault.list and the historical listByWorkspace read
  *  model are exposed. Every other method throws, so capabilities still prove they never reach
  *  beyond the read model (`describeCredential`/`listPublishCredentials`'s own contract). */
-async function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[]): Promise<VendorCredentialSetRepoPort> {
+async function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[]): Promise<VendorCredentialSetRepoPort & Pick<InMemoryVendorCredentialSetRepo, "credentialVault">> {
   const repo = new InMemoryVendorCredentialSetRepo({});
   for (const record of records) await repo.insert(record);
   return {

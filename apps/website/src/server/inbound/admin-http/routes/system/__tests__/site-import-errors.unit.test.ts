@@ -47,7 +47,7 @@ for (const [code, status, message] of [
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   const error = new ImportHistoryUnavailable({ code, status, message }, { cause: new Error("PRIVATE_HISTORY_PATH password=CANARY") });
-  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true }), tracker: { error: (...args: unknown[]) => tracked.push(args) }, siteImportBackend: { listPage: async () => { throw error; } } }) });
+  registerAdminSiteImportRoutes({ errors: routeErrors, app, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), tracker: { error: (...args: unknown[]) => tracked.push(args) }, siteImportBackend: { listPage: async () => { throw error; } } }) });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/ws/site-imports");
   const body = response.body as { code: string; message: string; errorId: string };
   assert.equal(response.status, status);

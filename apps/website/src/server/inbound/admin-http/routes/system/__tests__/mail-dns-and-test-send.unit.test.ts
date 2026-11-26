@@ -98,7 +98,7 @@ function sendDeps(overrides: Partial<AdminMailTestSendDeps> = {}, result: Mailer
   const deps: AdminMailTestSendDeps = {
     workspaceId: WS, mailer,
     authorize: async ({ permission }) => ({ allowed: permission === "admin.forms.manage", reason: "fixture" }),
-    userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: WS, username: "owner", email: "owner@example.com", passwordHash: "x" }) },
+    userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: WS, username: "owner", email: "owner@example.com", passwordHash: "x", version: 1 }) },
     mailSenderIdentity: { resolve: async () => ({ email: "site@example.com", name: "Site" }) },
     ...overrides,
   };

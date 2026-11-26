@@ -69,7 +69,7 @@ function buildApp(options: { allowed?: (permission: string) => boolean; activeTh
     themesDir: site.themesDir,
     siteBinding: { dir: site.siteDir },
     explainThemeTree: options.explain ?? explainThemeTree,
-    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: { nowMs: () => Date.parse("2026-11-24T00:00:00Z"), nowIso: () => "2026-11-24T00:00:00.000Z" }, idGen: { newId: () => `plan-${++serial}` }, authorize: authorizeStub }) },
+    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: { nowMs: () => Date.parse("2026-11-24T00:00:00Z") }, idGen: { newId: () => `plan-${++serial}` }, authorize: authorizeStub }) },
     presentationRepo: {
       findByWorkspaceId: async () => ({ workspaceId: WORKSPACE_ID, activeThemeId: presentation.activeThemeId, updatedAt: "" }),
       save: async () => { presentation.saved += 1; },
