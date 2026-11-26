@@ -4,18 +4,41 @@ import type { VerifiedSiteImport } from "@jini-ai/devops/backup/site/import-veri
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { readTemplate } from "#src/platform/site-dir/index";
 import { archiveCodeUnit, editedArchiveWarnings, keptOffArchiveWarnings, OVERRIDES_UNIT } from "./archive-paths.js";
-import { keepImportedCodeOff } from "./import-keep-off.js";
+import { keepImportedCodeOff, type KeepOffHost } from "@jini-ai/devops/backup/site/import-keep-off";
+import { contentStore } from "@jini-ai/cms/site/keep-off-content-store";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { sanitizePageHtml } from "@jini-ai/cms/widgets/html";
 import { restoreImportedPluginState, type FindSoonAgentPlugin } from "./import-plugin-state.js";
 import { inspectThemeManifests, writeExclusive, type ThemePlacementChecks } from "./import-restore-placement.js";
 
 /**
  * @file Host binding for `@jini-ai/devops`'s staged-import restore: supplies this app's archive path
  * rules (`archive-paths.ts`), its share path policy (`import-restore-placement.ts`), its agent-plugin
- * lifecycle (`import-plugin-state.ts`), its content-database keep-off step (`import-keep-off.ts`)
+ * lifecycle (`import-plugin-state.ts`), its content-database keep-off step
  * and the starter template's fallback theme id. The theme owner's placement checks and the Soon
  * policy are injected per call by the host composition root. What is staged, quarantined, kept off
  * and set aside is decided in the package.
  */
+/** Tovu's page sanitizer, no-theme id and plain-word notices for the keep-off step. */
+const KEEP_OFF_HOST: KeepOffHost = {
+  sanitizePageHtml,
+  noThemeId: NO_THEME_ID,
+  notices: {
+    setAside: ({ fallback }) => `The imported file's copy of '${fallback}' differs from this site's own, so the site kept its own and the imported copy was set aside.`,
+    themeKeptOff: ({ themeId }) => `Theme '${themeId}' came from the imported file, so it was kept switched off. Turn it on from Themes if you trust this file.`,
+    pageDrafted: ({ title }) => `Page '${title}' holds its own code, so it was imported as a draft. Publish it if you trust this file.`,
+    morePagesDrafted: {
+      singular: ({ count }) => `${count} more page holds its own code and was imported as a draft.`,
+      plural: ({ count }) => `${count} more pages hold their own code and were imported as drafts.`,
+    },
+    menuKeptOff: ({ title, id }) => `Menu '${title}' (ID ${id}) holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.`,
+    moreMenusKeptOff: ({ count }) => `${count} more menus hold their own code and their HTML was kept switched off.`,
+    formDisabled: ({ name, id }) => `Form '${name}' (ID ${id}) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`,
+    moreFormsDisabled: ({ count }) => `${count} more forms hold their own code and were imported disabled.`,
+  },
+};
+
 type ContentKernel = KyselyKernel<ContentDatabase>;
 type HostDeps = { themeChecks: ThemePlacementChecks; findSoonAgentPlugin: FindSoonAgentPlugin };
 
@@ -33,7 +56,7 @@ function bindImportRestore(required: HostDeps): ImportRestore<ContentKernel> {
     inspectThemeManifests: (input) => inspectThemeManifests({ ...input, themeChecks: required.themeChecks }),
     writeExclusive,
     restoreImportedPluginState: (input, optional) => restoreImportedPluginState({ ...input, findSoonAgentPlugin: required.findSoonAgentPlugin }, optional?.sourceRoot === undefined ? {} : { sourceRoot: optional.sourceRoot }),
-    keepImportedCodeOff,
+    keepImportedCodeOff: ({ openContent, ...input }) => keepImportedCodeOff({ ...input, host: KEEP_OFF_HOST, openStore: ({ filePath }) => contentStore({ db: schemaErasedKernel({ store: openContent({ filePath }) }) }) }),
   };
   return createImportRestore<ContentKernel>({ host });
 }

@@ -71,7 +71,6 @@ const HAND_BUILT_FLAG_SITES: Readonly<Record<string, string>> = {
 
 /** Sites that match the scan but are not tool flags: SQLite open options and the open function itself. */
 const NOT_A_TOOL_FLAG_SITES: readonly string[] = [
-  "features/site-backup/share-database/repo.sqlite.ts",
   "platform/site-dir/read-applied-schema-identity.ts",
   "platform/site-dir/duplicate-content-db.ts",
   "platform/db/key-dependent-data.ts",

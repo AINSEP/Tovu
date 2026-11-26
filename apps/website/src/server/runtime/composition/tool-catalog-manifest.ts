@@ -667,7 +667,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
-  contributions.contributors.register({ contribution: contributeSiteBackupTools() });
+  contributions.contributors.register({ contribution: contributeSiteBackupTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }) });
   contributions.contributors.register({ contribution: contributeSiteInspectionTools({ httpClient: createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability }), selectConnectedDestination }) });
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });

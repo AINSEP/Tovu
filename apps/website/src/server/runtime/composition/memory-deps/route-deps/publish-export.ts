@@ -13,7 +13,7 @@ import { resolvePublishContentPeerHttpClient } from "../../publish-content-http.
 import { resolveExportOutputRootDir, resolvePublishOutputRootDir, bundledAgentPluginsDir, resolveSourceControlExportRootDir } from "../../site-paths.js";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
 import { isAdminAssistantEnabled } from "../../admin-assistant-enabled.js";
-import { resolveStorefrontProducts } from "../../../../inbound/public-http/routes/site/products.js";
+import { resolveStorefrontProducts } from "@jini-ai/cms/public-http/routes/site/products";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { listPublishedPosts } from "#src/features/post/index";
 import { InMemoryPublishHistoryStore } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
@@ -144,7 +144,7 @@ export function memoryPublishExportDeps(required: MemoryRootContext, _optional =
     //
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion as `createSiteApp`
     // immediately above, same reasoning, same TEST GOTCHA.
-    resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps()),
+    resolveStorefrontProducts: () => ((deps) => resolveStorefrontProducts({ list: deps.commerceCatalog?.listProducts.bind(deps.commerceCatalog) }))(routeDeps()),
     // 2026-09-03 — see `routes/types.ts`'s `resolveActiveThemeId`/`listPublishedPosts` docs: closes
     // the `platform <-> features/presentation`/`platform <-> features/post` module cycles
     // `check:architecture` flagged (`features/site-export/route-manifest.ts` no longer imports either

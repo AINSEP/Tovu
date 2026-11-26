@@ -1,4 +1,4 @@
-import { siteServingDecision } from "@jini-ai/core/contracts/site/site-serving-gate";
+import { dispatchSiteServingGate } from "@jini-ai/core/contracts/site/site-serving-gate";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
@@ -45,23 +45,14 @@ const ALWAYS_ALLOWED_PREFIXES = [
 /** Mounts the recovery gate; status-store failures go to Express's error handler via `next`.
  * @complexity O(1) per request, with at most one status-store read.
  */
-export function applySiteServingGate({ app, deps }: { app: Express; deps: { siteStatusRepo: SiteStatusPort; workspaceId: string } }, _optional: Record<string, never> = {}): void {
-  app.use(async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const decision = await siteServingDecision({ path: req.path, exactPaths: ALWAYS_ALLOWED_EXACT_PATHS,
-        prefixes: ALWAYS_ALLOWED_PREFIXES, readStatus: () => deps.siteStatusRepo.get(deps.workspaceId) });
-      if (decision === "serve") {
-        next();
-        return;
-      }
-
-      res.status(503).json({
-        error: "this site is blocked pending recovery from an interrupted migration — see /api/admin/v1/recovery/status",
-        code: "SITE_BLOCKED_PENDING_RECOVERY",
-      });
-    } catch (error) {
-      // Express 4 does not observe rejected promises from async middleware.
-      next(error);
-    }
-  });
-}
+export const applySiteServingGate = ({ app, deps }: { app: Express; deps: { siteStatusRepo: SiteStatusPort; workspaceId: string } }, _optional: Record<string, never> = {}): void =>
+  void app.use((req: Request, res: Response, next: NextFunction) => dispatchSiteServingGate({
+    path: req.path, exactPaths: ALWAYS_ALLOWED_EXACT_PATHS, prefixes: ALWAYS_ALLOWED_PREFIXES,
+    readStatus: () => deps.siteStatusRepo.get(deps.workspaceId), serve: next,
+    blocked: () => void res.status(503).json({
+      error: "this site is blocked pending recovery from an interrupted migration — see /api/admin/v1/recovery/status",
+      code: "SITE_BLOCKED_PENDING_RECOVERY",
+    }),
+    // Express 4 does not observe rejected promises from async middleware.
+    failure: next,
+  }));

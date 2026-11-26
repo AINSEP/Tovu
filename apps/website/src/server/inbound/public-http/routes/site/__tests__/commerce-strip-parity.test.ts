@@ -26,7 +26,7 @@ import { createMemberTrashAdapter } from "#src/features/trash/member-credential-
 import { createUserTrashAdapter } from "#src/features/trash/adapters/user";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { resolveStorefrontProducts } from "../products.js";
+import { resolveStorefrontProducts } from "@jini-ai/cms/public-http/routes/site/products";
 import { createCommerceSiteTestApp, type CommerceSiteTestDeps } from "./commerce-site-app.js";
 
 /**
@@ -120,7 +120,7 @@ describe("storefront under the production composition", () => {
   test("/products renders exactly the store plugin's products, the pre-strip fallback", async (t) => {
     const deps = createRouteDeps();
     assert.equal("commerceProductRepo" in deps || "commercePriceRepo" in deps, false, "the core catalog was never wired");
-    assert.deepEqual(await resolveStorefrontProducts({ ...deps, commerceCatalog }), products);
+    assert.deepEqual(await resolveStorefrontProducts({ list: commerceCatalog.listProducts.bind(commerceCatalog) }), products);
     const { server, baseUrl } = await startServer();
     t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
     const res = await fetch(`${baseUrl}/products`);

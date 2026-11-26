@@ -12,7 +12,8 @@ import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-port
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
-import { planSiteBackup, pushSiteBackup, type PushResult, type SiteBackupToolDeps } from "../../site-backup/backup-service.js";
+import { planSiteBackup, pushSiteBackup, type SiteBackupToolDeps } from "../../site-backup/backup-service.js";
+import type { PushResult } from "@jini-ai/devops/backup/site/backup-service";
 import { FakeGitHub } from "../../site-backup/__tests__/fixtures/fake-github.js";
 import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
 import type { SiteBackupPlanContent } from "../../site-backup/plan-content.js";

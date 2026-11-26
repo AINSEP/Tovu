@@ -22,7 +22,10 @@ import type { SiteBackupPlanContent } from "../plan-content.js";
 import type { SiteBackupSources } from "../sources.js";
 import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog, siteBackupDerivedRisk, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
+import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog } from "../tool-registrations.js";
+import { siteBackupDerivedRisk } from "@jini-ai/devops/backup/site/tool-registrations";
+import type { PushResult } from "@jini-ai/devops/backup/site/backup-service";
+import type { SiteBackupToolDeps } from "../backup-service.js";
 import type { SourceControlProviderDescriptor } from "../../source-control/provider-registry.js";
 import type { SourceControlProviderOperations } from "@jini-ai/devops/source-control/site/provider-module";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
@@ -223,7 +226,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
       return { newId: () => `cred-${++n}` };
     })(),
   };
-  const tools = new Map(buildSiteBackupRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  const tools = new Map(buildSiteBackupRegistrations({ deps, surfaces: { surfaceExchanges } }, {}).map((r) => [r.descriptor.id, r]));
   const planTool = tools.get("site_backup_plan");
   const pushTool = tools.get("site_backup_push");
   assert.ok(planTool && pushTool, "both site-backup tools must be registered");
@@ -341,7 +344,7 @@ test("share tools use the site-bound backend and authorize before every effect",
   const calls: string[] = [];
   const row = { shareId: "export-id", site: WORKSPACE_ID, file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null, status: "active" as const, createdAt: NOW, revokedAt: null, downloadUrl: "/private/download", credentialWarnings: [{ path: "themes/site/SKILL.md", kind: "labeled secret" }], needsAcknowledgement: true };
   const staticRow = { ...row, file: "site-static-2026-10-30-1015.zip" };
-  const registrations = buildSiteBackupRegistrations({ ...h.deps, siteShareBackend: {
+  const registrations = buildSiteBackupRegistrations({ deps: { ...h.deps, siteShareBackend: {
     registry: {} as import("../share-registry.js").SiteShareRegistry,
     staticOptions: async () => ({ activeThemeId: "a", themes: [] }),
     create: async ({ principalId, format }) => { calls.push(`create:${principalId}`); return format === "static" ? staticRow : row; },
@@ -349,7 +352,7 @@ test("share tools use the site-bound backend and authorize before every effect",
     revoke: async ({ shareId }) => { calls.push(`revoke:${shareId}`); return { ...row, status: "revoked" as const }; },
     acknowledge: async () => assert.fail("tools must leave acknowledgement to the user"),
     revealPassword: async () => assert.fail("these share tools must not reveal passwords"),
-  } }, { surfaceExchanges: h.surfaceExchanges });
+  } }, surfaces: { surfaceExchanges: h.surfaceExchanges } }, {});
   const tools = new Map(registrations.map(r => [r.descriptor.id, r]));
   assert.deepEqual(await call(tools.get("site_share_create")!, {}), row);
   assert.deepEqual(await call(tools.get("site_export_static")!, {}), staticRow);
@@ -1068,7 +1071,7 @@ function providerWith(
 }
 
 function overriddenTool(h: ReturnType<typeof harness>, id: string, overrides: Partial<SiteBackupToolDeps>): ToolRegistration {
-  const registration = buildSiteBackupRegistrations({ ...h.deps, ...overrides }, { surfaceExchanges: h.surfaceExchanges }).find(r => r.descriptor.id === id);
+  const registration = buildSiteBackupRegistrations({ deps: { ...h.deps, ...overrides }, surfaces: { surfaceExchanges: h.surfaceExchanges } }, {}).find(r => r.descriptor.id === id);
   assert.ok(registration);
   return registration;
 }
@@ -1255,7 +1258,7 @@ test("a push without site sources still diagnoses unreadable credentials using a
 
 test("the contributor exposes the backup registrations and their independent risk classification", t => {
   const h = harness(t);
-  const contributor = contributeSiteBackupTools();
+  const contributor = contributeSiteBackupTools({}, {});
   assert.equal(contributor.domain, "site-backup");
   assert.equal(contributor.risk, siteBackupDerivedRisk);
   assert.deepEqual(contributor.build(h.deps as never, { surfaceExchanges: h.surfaceExchanges }).map(registration => registration.descriptor.id), ["site_import_backup", "site_import_list", "site_backup_plan", "site_backup_push", "site_share_create", "site_export_static", "site_share_list", "site_share_revoke"]);
@@ -1340,7 +1343,7 @@ test("the default plan store and job registry carry a backup from planning throu
   const h = harness(t);
   await h.seed();
   const deps = { ...h.deps, siteBackupPlanStore: undefined, siteBackupPushJobs: undefined, siteBackupNow: undefined, siteBackupPushWaitMs: undefined };
-  const registrations = buildSiteBackupRegistrations(deps, { surfaceExchanges: h.surfaceExchanges });
+  const registrations = buildSiteBackupRegistrations({ deps, surfaces: { surfaceExchanges: h.surfaceExchanges } }, {});
   const planner = registrations.find(registration => registration.descriptor.id === "site_backup_plan")!;
   const pusher = registrations.find(registration => registration.descriptor.id === "site_backup_push")!;
   const planned = await call(planner, PLAN_INPUT) as Result;

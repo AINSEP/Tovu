@@ -42,7 +42,7 @@ test("an unexpected host-connection lookup failure propagates unchanged and take
   t.after(() => rmSync(siteDir, { recursive: true, force: true }));
   const dbOps = new UntouchedDbOps();
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = buildSiteBackupRegistrations({
+  const registrations = buildSiteBackupRegistrations({ deps: {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: "ws-site-backup",
     customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
@@ -55,7 +55,7 @@ test("an unexpected host-connection lookup failure propagates unchanged and take
     siteBackupSources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), tovuVersion: "0.1.0",
       agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(siteDir, "agent-plugins") } }) },
     siteBackupFailureLog: () => {},
-  }, { surfaceExchanges });
+  }, surfaces: { surfaceExchanges } }, {});
   const planTool = registrations.find(registration => registration.descriptor.id === "site_backup_plan");
   assert.ok(planTool);
   const outcome = await Promise.resolve(planTool.handler({ executionId: "exec-1", principal: { id: "principal-owner" }, run: { id: "run-1" }, input: { owner: "octo", repo: "backups" }, signal: new AbortController().signal }))

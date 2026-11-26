@@ -94,7 +94,7 @@ export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision
   registerFormsSubmit({ app, routeDeps });
 
   // Member sign-in pages (/signin, /account, ...) must precede the /:slug catch-all below.
-  registerMemberPageRoutes(app, routeDeps);
+  registerMemberPageRoutes({ app, deps: routeDeps });
   // Public dummy site — registered last (GET /:slug is a catch-all).
   registerSiteRoutes({ app, deps: routeDeps });
 }

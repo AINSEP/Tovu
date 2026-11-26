@@ -54,7 +54,7 @@ import type { StaticPublishToolDeps } from "#src/features/deployments/publish-to
 import type { EntriesToolDeps } from "@jini-ai/cms/entries/site/tool-registrations";
 import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
-import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";
+import type { SiteBackupToolDeps } from "../features/site-backup/backup-service.js";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";
 import type { AgentPluginSearchToolDeps } from "../features/agent-plugins/tool-registrations.js";
 import type { PostToolDeps } from "../features/post/tool-registrations.js";

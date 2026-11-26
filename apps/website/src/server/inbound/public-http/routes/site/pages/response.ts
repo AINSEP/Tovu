@@ -7,7 +7,7 @@ import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import { addPluginExportHostsToResponse, resolveVisitorPagePolicy, publicPageCache, finalizePublicPageHtml as finalizePage, type PerVisitorResponse } from "@jini-ai/cms/public-http/routes/site/pages/response";
+import { addPluginExportHostsToResponse, resolveVisitorPagePolicy, sendPublicPage as sendPage, type PerVisitorResponse } from "@jini-ai/cms/public-http/routes/site/pages/response";
 import { CONFIG_ID } from "@jini-ai/cookie-consent";
 import { hasConsentGatedScripts } from "@jini-ai/cookie-consent/site/pre-consent-cache";
 import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
@@ -15,9 +15,7 @@ import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-ht
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../../../http/site/form-feedback-policy.js";
 import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
 import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS, MEMBER_AUTH_NAMES, MEMBER_AUTH_SCRIPT_MARKER } from "../../../http/site/form-wire-policy.js";
-import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
 import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
-import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import { injectMemberAuthScript } from "@jini-ai/cms/public-http/http/site/member-auth-script";
 import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
@@ -25,15 +23,6 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
 import { preConsentCacheControl } from "./pre-consent-cache.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE } from "./request-policy.js";
-
-/** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
- *  GET has read it, a later plain reload of the same page must NOT resurrect the same stale values.
- *  Attributes mirror what `forms-submit.ts`'s `setFormFlashCookie` set it with; matching them isn't
- *  required for the browser to recognize this as the same cookie (only name+Path are), but keeps the
- *  set/clear pair symmetric, same as `dev-auth.ts`'s own `setSessionCookie`/`clearSessionCookie`. */
-function clearFormFlashCookie(req: Request, res: Response): void {
-  res.clearCookie(FORM_FLASH_COOKIE_NAME, { httpOnly: true, path: "/", sameSite: "lax", secure: isHttpsRequest(req) });
-}
 
 /**
  * Resolves everything about this request that makes its response PER-VISITOR rather than shared:
@@ -59,16 +48,20 @@ function clearFormFlashCookie(req: Request, res: Response): void {
  *
  * @complexity O(1) plus the bounded cost already documented on the functions it calls.
  */
-export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Response }, _optional: Record<string, never> = {}): PerVisitorResponse {
-  const queryResult = decodeFormSubmissionResultFromQuery({ query: req.query, keys: FORM_RESULT_QUERY_KEYS });
-  const flash = decodeFormFlashCookieValue({ raw: readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }) });
-  return resolveVisitorPagePolicy({ queryResult, flash,
-    clearFlash: () => clearFormFlashCookie(req, res),
+export const resolvePerVisitorResponse = ({ req, res }: { req: Request; res: Response }, _optional: Record<string, never> = {}): PerVisitorResponse =>
+  resolveVisitorPagePolicy({
+    queryResult: decodeFormSubmissionResultFromQuery({ query: req.query, keys: FORM_RESULT_QUERY_KEYS }),
+    flash: decodeFormFlashCookieValue({ raw: readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }) }),
+/** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
+ *  GET has read it, a later plain reload of the same page must NOT resurrect the same stale values.
+ *  Attributes mirror what `forms-submit.ts`'s `setFormFlashCookie` set it with; matching them isn't
+ *  required for the browser to recognize this as the same cookie (only name+Path are), but keeps the
+ *  set/clear pair symmetric, same as `dev-auth.ts`'s own `setSessionCookie`/`clearSessionCookie`. */
+    clearFlash: () => void res.clearCookie(FORM_FLASH_COOKIE_NAME, { httpOnly: true, path: "/", sameSite: "lax", secure: isHttpsRequest(req) }),
     memberCookiePresent: () => readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }) !== undefined,
     staticExport: () => isStaticExportRequest(req),
     cache: { form: CACHE_CONTROL_PRIVATE_FORM_RESULT, member: CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE, staticExport: CACHE_CONTROL_PRIVATE_STATIC_EXPORT, public: CACHE_CONTROL_PUBLIC_PAGE },
   });
-}
 
 /**
  * The one place every page/post response in this file finalizes its assembled HTML before it reaches
@@ -90,42 +83,29 @@ export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Res
  *
  * @complexity O(html length) — one pass for each of the three transforms it composes.
  */
-async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Request; html: string; formResult: FormSubmissionRedirectResult | undefined; deps: RouteDeps }, _optional = {}): Promise<string> {
-  const result = await finalizePage({ html, formResult, ports: {
+/** Sends a finished public page: this request's `Cache-Control`, the HTML type, and the finalized
+ *  body (a see-more batch request gets just its batch). */
+export const sendPublicPage = ({ req, res, deps, html, perVisitor }: {
+  req: Request; res: Response; deps: RouteDeps; html: string; perVisitor: PerVisitorResponse;
+}): Promise<void> => sendPage({
+  html, perVisitor,
+  preConsentCacheControl: ({ html, cacheControl }) => preConsentCacheControl({ html, request: req, cacheControl }),
+  hasConsentGatedScripts: ({ html }) => hasConsentGatedScripts({ html, configId: CONFIG_ID }),
+  writer: { vary: name => void res.vary(name), set: (name, value) => void res.set(name, value), type: value => void res.type(value), send: html => void res.send(html) },
+  ports: {
     listingBatchBody: ({ html }) => listingState.listingBatchBody({ req, html }),
     assertListingPageServed: ({ html }) => listingState.assertListingPageServed({ req, html }),
     pluginHead: () => deps.pluginExportRender?.headHtml({}),
     addPluginHosts: () => addPluginExportHostsToResponse({ response: req.res, hosts: deps.pluginExportRender?.declaredHosts({}) }),
-    widgetPartials: async ({ html }) => deps.pluginContributions ? renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo, render: {
+    hasWidgetPartials: () => Boolean(deps.pluginContributions),
+    widgetPartials: ({ html }) => renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions!, activationRepo: deps.pluginActivationRepo, render: {
       readNames: ({ html }) => markersOfType({ html, type: PARTIAL_MARKER_TYPE }).flatMap(marker => marker.id ? [marker.id] : []),
       validateHtml: validateServerWidgetFragment,
       expand: ({ html, partials, slots }) => expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html, theme: { partials: { ...partials }, manifest: { slots } } }),
-    } }) : html,
+    } }),
     finishFormResult: ({ html, formResult }) => injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }),
     staticExport: () => isStaticExportRequest(req),
-    formAttemptTokens: ({ html }) => injectFormAttemptTokens({ html, newToken: ({ slug }) => {
-      const attemptToken = randomUUID();
-      // The composition supplies this same process-lifetime owner to submission. Static exports
-      // returned above never issue tokens; rendering observes time without claiming a submission.
-      deps.formSubmissionAttempts?.issue({ workspaceId: deps.workspaceId, slug, attemptToken, issuedAtMs: deps.clock.nowMs() }, {});
-      return attemptToken;
-    } }, {}),
+    workspaceId: deps.workspaceId, randomUUID, nowMs: () => deps.clock.nowMs(), formSubmissionAttempts: () => deps.formSubmissionAttempts,
     memberAuthScript: ({ html }) => injectMemberAuthScript({ html, workspaceId: deps.workspaceId, marker: MEMBER_AUTH_SCRIPT_MARKER, names: MEMBER_AUTH_NAMES }),
-  } });
-  // Every caller has already typed the response as html; the JSON form answers as JSON.
-  if (result.contentType === "json") req.res?.type("json");
-  return result.html;
-}
-
-/** Sends a finished public page: this request's `Cache-Control`, the HTML type, and the finalized
- *  body (a see-more batch request gets just its batch). */
-export async function sendPublicPage({ req, res, deps, html, perVisitor }: {
-  req: Request; res: Response; deps: RouteDeps; html: string; perVisitor: PerVisitorResponse;
-}): Promise<void> {
-  const { cacheControl, varyCookie } = publicPageCache({ html, cacheControl: perVisitor.cacheControl,
-    preConsentCacheControl: ({ html, cacheControl }) => preConsentCacheControl({ html, request: req, cacheControl }),
-    hasConsentGatedScripts: ({ html }) => hasConsentGatedScripts({ html, configId: CONFIG_ID }),
-  });
-  if (varyCookie) res.vary("Cookie");
-  res.set("Cache-Control", cacheControl).type("html").send(await finalizePublicPageHtml({ req, html, formResult: perVisitor.result, deps }));
-}
+  },
+});

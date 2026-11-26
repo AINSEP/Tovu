@@ -37,7 +37,7 @@ import { resolveExportOutputRootDir } from "../site-paths.js";
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
-import { resolveStorefrontProducts } from "../../../inbound/public-http/routes/site/products.js";
+import { resolveStorefrontProducts } from "@jini-ai/cms/public-http/routes/site/products";
 import { withToolUseEvents } from "../tool-use-events.js";
 // Historical cycle context; shared resolvers now live in site-paths.ts.
 // Kept LAST on purpose. `app.ts` imports this file back (`builtInThemesDir` and the three
@@ -260,7 +260,7 @@ export function routeDepsPluginsSiteApp(required: RouteDepsPluginsSiteAppRequire
     siteAppBootWork,
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion, same reasoning, same
     // TEST GOTCHA.
-    resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps()),
+    resolveStorefrontProducts: () => ((deps) => resolveStorefrontProducts({ list: deps.commerceCatalog?.listProducts.bind(deps.commerceCatalog) }))(routeDeps()),
     // 2026-09-03 — see `routes/types.ts`'s `resolveActiveThemeId`/`listPublishedPosts` docs and
     // `apps/website/src/server/runtime/composition/app.ts`'s identical binding. Same nullary-closure-over-`routeDeps` shape as
     // `resolveStorefrontProducts` immediately above.
