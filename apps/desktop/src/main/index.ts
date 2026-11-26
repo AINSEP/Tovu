@@ -154,7 +154,11 @@ import { totalmem, hostname as osHostname } from "node:os";
 import { randomBytes } from "node:crypto";
 import { withFileLock } from "@jini-ai/platform/fs";
 import { readBootIdentity } from "@jini-ai/platform/fs/file-lock";
-import { presenceClaimSource, runPartitionPass, type PartitionMaintenance } from "@jini-ai/desktop-host/electron/partitions";
+import { presenceClaimSource, removeAmbiguousPartition, runPartitionPass, type PartitionMaintenance } from "@jini-ai/desktop-host/electron/partitions";
+import { STORAGE_SHEET_ENABLED } from "../contracts/storage-sheet.ts";
+import { registerStorageSheetIpc, type StorageSheetRequired, type StorageTarget } from "../storage/storage-sheet-ipc.ts";
+import { createStorageItemIds } from "../storage/storage-item-ids.ts";
+import { bindStorageSignInRemoval, isSitesHomeMainFrame, mountStorageSheet, storageConfirmDialog } from "./boot/storage-sheet-binding.ts";
 import { nodePartitionPassFs, runDesktopPartitionPass, type DesktopPartitionPassRun } from "./boot/desktop-partition-pass.ts";
 import { bindDesktopPartitions, nodePartitionFs } from "../desktop-partition-lock.ts";
 import { bindDesktopCachePolicy, bindDesktopCodeCache, desktopCacheMaintenance, desktopMaintenanceMarker, evidenceForElectron, measureTreeBytes, nodeCacheFs, PACKAGED_CACHE_EVIDENCE } from "./boot/desktop-cache-policy.ts";
@@ -955,6 +959,36 @@ function registerAppWideIpc(): void {
   registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
     allowed: ({ sender }) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
   });
+  // P11 ST-18a.T desktop Storage sheet — DARK: STORAGE_SHEET_ENABLED is false, so nothing is built or registered.
+  mountStorageSheet({ enabled: STORAGE_SHEET_ENABLED, buildDeps: desktopStorageSheetDeps, register: registerStorageSheetIpc });
+}
+
+/**
+ * The Storage sheet's main-process ports. Bound for real: the exact sites-home sender, the owner
+ * confirm dialog, main-held IDs and sign-in removal through the boot pass's own interlock, ledger and fs.
+ * NOT YET BOUND, and so failing closed (no item, no action is offered): the strict tracked/dismissed
+ * list, the J3 partition inventory, the CLI report, tree measuring, labels, OS Trash and T7 tidy
+ * capabilities. Each must be bound to its real source before STORAGE_SHEET_ENABLED may flip.
+ */
+function desktopStorageSheetDeps(): StorageSheetRequired {
+  const shellUrl = pathToFileURL(SITES_RENDERER_PATH).href;
+  return {
+    ipcMain,
+    allowedSender: ({ sender }) => isSitesHomeMainFrame({ sender: sender as unknown as WebContents, shellUrl }),
+    removePartition: bindStorageSignInRemoval({ removeAmbiguousPartition, interlock: desktopPartitions, ledger: desktopRetirement.ledger,
+      fs: nodePartitionPassFs({ fs }), root: { isManaged: desktopPartitions.isManaged }, newToken: () => randomBytes(16).toString("hex") }),
+    confirmDialog: async (input) => (await dialog.showMessageBox(storageConfirmDialog(input))).response === 1,
+    itemIds: createStorageItemIds<StorageTarget>({ randomId: () => randomBytes(16).toString("hex"), now: () => Date.now() }),
+    reportError: ({ where, error }) => console.error(`[storage-sheet] ${where}: ${error instanceof Error ? error.message : String(error)}`),
+    now: () => new Date(),
+    listStrict: async () => ({ state: "unknown" }),
+    partitionInventory: async () => ({ state: "unknown" }),
+    runReport: async () => ({ state: "unknown" }),
+    measureTree: async () => null,
+    labelForPartition: () => undefined,
+    trashFolder: async () => ({ state: "kept", reason: "unknown" }),
+    tidyActions: async () => [],
+  };
 }
 
 /** The open sites home windows, matched by page the way the other sites-home-only channels are. */
