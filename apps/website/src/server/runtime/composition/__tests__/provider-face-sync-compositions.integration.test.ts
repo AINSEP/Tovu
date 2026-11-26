@@ -10,6 +10,7 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { seedBundledAgentPlugins } from "#src/features/agent-plugins/lifecycle";
 import { bindProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { providerFaceLifecycle } from "#src/features/agent-plugins/provider-plugin-link";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { seededWorkspace } from "../../configuration/seed.js";
@@ -50,7 +51,7 @@ async function seedLinkedFace({ root, workspaceId }: { root: string; workspaceId
   const layout = resolveAgentPluginLayout({ siteDir: root });
   const seeded = await seedBundledAgentPlugins({ layout, workspaceId, sourceRoot });
   assert.deepEqual(seeded.outcomes.filter((outcome) => outcome.status === "failed"), []);
-  return bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace({ workspaceId }).root, ...providerFaceLifecycle });
+  return bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace({ workspaceId }).root, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
 }
 
 const providerRow = ({ workspaceId, enabled }: { workspaceId: string; enabled: boolean }) =>

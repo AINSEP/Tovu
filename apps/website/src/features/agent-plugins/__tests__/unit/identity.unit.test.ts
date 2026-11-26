@@ -4,37 +4,41 @@ import test from "node:test";
 
 import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "../../identity-read-policy.js";
+
 const plugin = { pluginId: "github", packageRoot: path.join("/plugins", "github") };
 
 test("host maturity accepts both flags and leaves absent metadata normal", async () => {
   for (const maturity of ['untested', 'soon'] as const) {
     const identity = await readInstalledAgentPluginIdentity({ plugin }, {
+      ...TOVU_AGENT_PLUGIN_IDENTITY_READ,
       readText: async () => JSON.stringify({ name: 'github', extensions: { tovu: { id: 'tovu/github', maturity } } }),
     });
     assert.equal(identity.maturity, maturity);
   }
   for (const manifest of [null, [], {}, { extensions: null }, { extensions: [] }, { extensions: { tovu: null } }, { extensions: { tovu: [] } }, { extensions: { tovu: {} } }]) {
-    assert.equal(readPluginMaturity({ manifest }, { warn: () => assert.fail('absent maturity must not warn') }), undefined);
+    assert.equal(readPluginMaturity({ manifest }, { ...TOVU_AGENT_PLUGIN_IDENTITY_READ, warn: () => assert.fail('absent maturity must not warn') }), undefined);
   }
 });
 
 test("unknown host maturity is ignored with a warning, without reflecting arbitrary manifest values", () => {
   for (const maturity of ['beta', '', null, 42, {}, ['untested']]) {
     const warnings: string[] = [];
-    assert.equal(readPluginMaturity({ manifest: { extensions: { tovu: { maturity } } } }, { warn: message => warnings.push(message) }), undefined);
+    assert.equal(readPluginMaturity({ manifest: { extensions: { tovu: { maturity } } } }, { ...TOVU_AGENT_PLUGIN_IDENTITY_READ, warn: message => warnings.push(message) }), undefined);
     assert.deepEqual(warnings, ['[agent-plugins] Unknown extensions.jini.maturity ignored; expected "untested" or "soon".']);
   }
 });
 
 test("the provider plugin link is read from Tovu's extension; a malformed one warns and links nothing", async () => {
   const identity = await readInstalledAgentPluginIdentity({ plugin }, {
+    ...TOVU_AGENT_PLUGIN_IDENTITY_READ,
     readText: async () => JSON.stringify({ name: 'github', extensions: { tovu: { id: 'tovu/github', providerPlugin: 'analytics-github' } } }),
   });
   assert.equal(identity.providerPlugin, 'analytics-github');
-  assert.equal(readProviderPluginLink({ manifest: { extensions: { tovu: {} } } }, { warn: () => assert.fail('absent link must not warn') }), undefined);
+  assert.equal(readProviderPluginLink({ manifest: { extensions: { tovu: {} } } }, { ...TOVU_AGENT_PLUGIN_IDENTITY_READ, warn: () => assert.fail('absent link must not warn') }), undefined);
   for (const providerPlugin of ['', 'Bad Id', '../x', 7, ['a']]) {
     const warnings: string[] = [];
-    assert.equal(readProviderPluginLink({ manifest: { extensions: { tovu: { providerPlugin } } } }, { warn: message => warnings.push(message) }), undefined);
+    assert.equal(readProviderPluginLink({ manifest: { extensions: { tovu: { providerPlugin } } } }, { ...TOVU_AGENT_PLUGIN_IDENTITY_READ, warn: message => warnings.push(message) }), undefined);
     assert.equal(warnings.length, 1);
   }
 });
@@ -43,6 +47,7 @@ test("reads plugin.json from the package root and projects its publisher identit
   const reads: string[] = [];
   const manifest = { name: "github", version: "1.0.0", keywords: ["repository"], extensions: { tovu: { id: "tovu/github", provides: ["source-control"] } } };
   const identity = await readInstalledAgentPluginIdentity({ plugin }, {
+    ...TOVU_AGENT_PLUGIN_IDENTITY_READ,
     readText: async (filePath) => { reads.push(filePath); return JSON.stringify(manifest); },
   });
   assert.deepEqual(reads, [path.join("/plugins", "github", "plugin.json")]);
@@ -75,6 +80,6 @@ test("the default reader reads the real file from disk", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "identity-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(path.join(root, "plugin.json"), JSON.stringify({ name: "github", extensions: { tovu: { id: "tovu/github" } } }));
-  const identity = await readInstalledAgentPluginIdentity({ plugin: { pluginId: "github", packageRoot: root } });
+  const identity = await readInstalledAgentPluginIdentity({ plugin: { pluginId: "github", packageRoot: root } }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
   assert.equal(identity.id, "tovu/github");
 });
