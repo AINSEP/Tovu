@@ -14,6 +14,8 @@ export const MAX_UPLOAD_BYTES = MEDIA_MAX_UPLOAD_BYTES;
 /** The largest single VIDEO file the media store accepts: 500 MiB (owner 2026-11-24). Images and every other file stay at {@link MAX_UPLOAD_BYTES}. */
 export const VIDEO_UPLOAD_LIMIT_BYTES = 500 * 1024 * 1024;
 
+export const MEDIA_JSON_UPLOAD_MAX_BYTES = 192 * 1024 * 1024;
+
 /** The two caps in the shape Jini's `uploadMedia`/`replaceMediaFile` take, so every call site passes both with one spread. */
 export const UPLOAD_CAPS = { maxUploadBytes: MAX_UPLOAD_BYTES, maxVideoUploadBytes: VIDEO_UPLOAD_LIMIT_BYTES } as const;
 

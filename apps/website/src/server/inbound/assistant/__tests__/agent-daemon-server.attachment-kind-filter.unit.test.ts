@@ -1,7 +1,7 @@
 import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { readFile } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { describe } from "node:test";
@@ -133,7 +133,7 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
       getAttachmentStore: () => store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: uploadDirectory } }, stagedAttachmentCleanupByRunId: new Map(),
       // Source evaluation does not inherit imports. Use the exact production dependencies rather
       // than replacing preparation or MIME detection, so this covers the real binary delivery path.
-      defaultAgentId: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, agentReceivesImageAttachments,
+      defaultAgentId: "claude", getAgentDef, prepareMessageAttachments, openFile: open, sniffContentType, agentReceivesImageAttachments,
       // Let the resolver report its original caught error instead of masking it with a fixture error.
       failRunBeforeStart: async () => {},
       console: { error: (...args: unknown[]) => assert.fail(args.map(String).join(" ")) },

@@ -3,7 +3,7 @@ import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/feat
 import ts from "typescript";
 import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -73,7 +73,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     assert.equal("contextRef" in (await lifecycle.get({ runId: run.id }))!, false);
     const registration = discoveryRegistration({ attachmentStore: store, messageAttachmentRefsByRunId, liveRunTracker });
     const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
-    const resolveAttachmentRunFields = createAttachmentRunFieldsResolver({ getAttachmentStore: () => store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: root } }, stagedAttachmentCleanupByRunId, defaultAgentId: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
+    const resolveAttachmentRunFields = createAttachmentRunFieldsResolver({ getAttachmentStore: () => store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: root } }, stagedAttachmentCleanupByRunId, defaultAgentId: "claude", getAgentDef, prepareMessageAttachments, openFile: open, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
     );
     const launched = await captureDaemonRun(context, {
       lifecycle, request: { agentId: "claude" }, bindings: {

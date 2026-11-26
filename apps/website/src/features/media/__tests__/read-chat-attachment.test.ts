@@ -367,6 +367,7 @@ test("read-chat-attachment: changed descriptor identity is refused before readin
         calls.push("open");
         return {
           stat: async () => { calls.push("stat"); return { ...validated, isFile: () => true, ...replacement }; },
+          read: async () => assert.fail("unverified descriptor must not be read"),
           readFile: async () => { calls.push("read"); return Buffer.from("private bytes"); },
           close: async () => { calls.push("close"); },
         };
@@ -393,6 +394,7 @@ test("read-chat-attachment: a path swap after fstat cannot redirect the descript
           await symlink(secretPath, filePath);
           return info;
         },
+        read: options => handle.read(options),
         readFile: async () => { calls.push("read"); return handle.readFile(); },
         close: async () => { calls.push("close"); await handle.close(); },
       };
@@ -414,6 +416,7 @@ test("read-chat-attachment: descriptor stat and read failures still close the ha
           if (failAt === "stat") throw failure;
           return info;
         },
+        read: async () => assert.fail("preview mode does not read a prefix"),
         readFile: async () => { throw failure; },
         close: async () => { closed = true; },
       }) }), failure);
@@ -428,6 +431,7 @@ test("read-chat-attachment: a size change during the descriptor read is refused"
   let closed = false;
   const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async () => ({
       stat: async () => info,
+      read: async () => assert.fail("preview mode does not read a prefix"),
       readFile: async () => Buffer.from([...BYTES, 9]),
       close: async () => { closed = true; },
     }) });
@@ -581,7 +585,7 @@ test("production binding requests no-follow and closes the checked descriptor", 
   const result = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory, ref: REF, ownerId: OWNER }, { openFile: async (filePath, flags) => {
       flagsSeen = flags;
       const handle = await open(filePath, flags);
-      return { stat: () => handle.stat(), readFile: () => handle.readFile(), close: async () => { closed = true; await handle.close(); } };
+      return { stat: () => handle.stat(), read: options => handle.read(options), readFile: () => handle.readFile(), close: async () => { closed = true; await handle.close(); } };
     } });
   assert.equal(flagsSeen, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   assert.ok(result.ok);
