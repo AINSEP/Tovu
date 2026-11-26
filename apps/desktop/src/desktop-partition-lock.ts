@@ -18,7 +18,7 @@
 import fsModule from "node:fs";
 import path from "node:path";
 import {
-  createPartitionInterlock, partitionDirName, PartitionBusyError, PartitionNotHeldError, PartitionOpenRefusedError,
+  createPartitionInterlock, partitionDirName, PartitionBusyError, readClaimsStrict, PartitionNotHeldError, PartitionOpenRefusedError,
   type InstanceClaimSource, type PartitionClaimSource, type PartitionFsPort, type PartitionInterlockLogEvent,
   type PartitionProcessPort, type PartitionSchedulerPort, type PartitionWriterContext, type PartitionWriterLockPort,
   type SiteSessionAcquired, type WriterLockOwner,
@@ -190,11 +190,13 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
   const userData = app.getPath("userData"), sessionDataDir = app.getPath("sessionData");
   const automaticMaintenance = sharesNoForeignRoot({ userData, sessionData: sessionDataDir });
   if (!automaticMaintenance) log({ event: "maintenance-blocked", detail: sessionDataDir });
+  // ONE claim-source set: the writer fence (boot pass, manual removal) and the read-only listing below share it.
+  const claimSources = { partitions: [trackedClaimSource({ projectsPath }), catalogClaimSource({ catalog })], instances };
   const interlock = createPartitionInterlock<S>({
     paths: { interlockDir: path.join(userData, "partition-interlock"), sessionDataDir },
     fs, lock: partitionWriterLock({ fileLock, fs, process: proc }), process: proc, clock, scheduler,
     fromPartition: ({ partition }) => session.fromPartition(partition), isManaged,
-    claimSources: { partitions: [trackedClaimSource({ projectsPath }), catalogClaimSource({ catalog })], instances },
+    claimSources,
     invalidateRetirement: ({ partition, subjectDir, reason }) => retirement.invalidate({ partition, subjectDir, reason }),
     openMaintenance: (input) => automaticMaintenance
       ? openMaintenance({ ...input, session: session.fromPartition(`persist:${input.partition}`) }) : Promise.resolve(),
@@ -245,6 +247,12 @@ export function bindDesktopPartitions<S>(required: DesktopPartitionsRequired<S>,
      * tokens from this same interlock; the pass rechecks holders under the writer fence.
      */
     readHoldersStrict: () => interlock.readHoldersStrict(),
+    /**
+     * ST-18a desktop Storage listing: the SAME claim sources and holder registry the fenced pass reads,
+     * but read-only — no writer lock, no session (no `fromPartition`), no ledger write. Unknown stays
+     * unknown. A listing is never deletion authority: removal re-reads claims under the fence.
+     */
+    readClaims: () => readClaimsStrict({ selfPid: proc.pid, holders: () => interlock.readHoldersStrict(), sources: claimSources }),
     newToken: () => proc.newToken(),
     withPartitionWriter: <T>({ run }: { run: (context: PartitionWriterContext) => Promise<T> }) => interlock.withPartitionWriter({ run }),
   };
