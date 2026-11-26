@@ -15,6 +15,7 @@ import { MAX_PUBLISH_HISTORY_LIST_LIMIT, resolvePublishHistoryListLimit } from "
 
 const WORKSPACE_A = "ws-a";
 const WORKSPACE_B = "ws-b";
+const PEER_KIND = "tovu-peer";
 
 function entry(overrides: Partial<PublishHistoryEntry> = {}): PublishHistoryEntry {
   return {
@@ -36,7 +37,7 @@ function entry(overrides: Partial<PublishHistoryEntry> = {}): PublishHistoryEntr
 }
 
 test("InMemoryPublishHistoryStore: getLast is null until a record exists, then returns exactly what was recorded", async () => {
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   assert.equal(await store.getLast({ workspaceId: WORKSPACE_A, target: "github-pages" }), null);
 
   const recorded = entry();
@@ -45,7 +46,7 @@ test("InMemoryPublishHistoryStore: getLast is null until a record exists, then r
 });
 
 test("InMemoryPublishHistoryStore: isolates by BOTH workspace and target", async () => {
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "github-pages", url: "https://a.github.io/x/" }) });
   await store.recordSuccess({
     workspaceId: WORKSPACE_A,
@@ -60,7 +61,7 @@ test("InMemoryPublishHistoryStore: isolates by BOTH workspace and target", async
 });
 
 test("InMemoryPublishHistoryStore: a second recordSuccess for the SAME (workspace, target) is APPENDED, not replaced — getLast still returns the newest", async () => {
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "https://old.example.test", publishedAt: "2026-08-15T00:00:00.000Z" }) });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "https://new.example.test", publishedAt: "2026-08-16T00:00:00.000Z" }) });
 
@@ -79,7 +80,7 @@ test("InMemoryPublishHistoryStore: a second recordSuccess for the SAME (workspac
 });
 
 test("InMemoryPublishHistoryStore.list: newest first, across mixed targets, optionally narrowed to one target", async () => {
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "github-pages", url: "u1", publishedAt: "2026-08-14T00:00:00.000Z" }) });
   await store.recordSuccess({
     workspaceId: WORKSPACE_A,
@@ -98,7 +99,7 @@ test("InMemoryPublishHistoryStore.list: newest first, across mixed targets, opti
 });
 
 test("InMemoryPublishHistoryStore.list: respects a caller-supplied limit smaller than the full history", async () => {
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   for (let i = 0; i < 5; i += 1) {
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: `u${i}`, publishedAt: `2026-08-1${i}T00:00:00.000Z` }) });
   }
@@ -119,7 +120,7 @@ test("both publish-history adapters return newest recorded first, even when publ
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-08-16T00:00:00.000Z" }).run();
-  for (const store of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const store of [new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u1", publishedAt: "2026-08-16T00:00:00.000Z" }) });
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u2", publishedAt: "2026-08-14T00:00:00.000Z" }) });
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "vercel", url: "u3", publishedAt: "2026-08-15T00:00:00.000Z" }) });
@@ -137,7 +138,7 @@ test("Publish destinations: both adapters retain latest successful project acros
     db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
   }
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     const list = () => listStaticPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry });
     assert.deepEqual(await list(), []);
     const saved = entry({ target: "vercel", projectName: "first", credentialId: "connection-a", configFields: { teamId: "team-a", token: "NEVER_RETURN", unknown: "NEVER_RETURN" } });
@@ -163,7 +164,7 @@ test("Publish destinations: both adapters retain latest successful project acros
 });
 
 test("Publish destinations: sorts by publication time rather than insertion order", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   const registry = await loadBundledDeployTargets();
   const newer = entry({ projectName: "newer", configFields: {}, publishedAt: "2026-10-18T02:00:00Z" });
   const older = entry({ projectName: "older", configFields: {}, publishedAt: "2026-10-18T01:00:00Z" });
@@ -189,7 +190,7 @@ test("Publish destinations: descriptor secrets and credential/config name collis
 });
 
 test("Publish destinations: over 200 distinct destinations refuses instead of silently truncating", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   for (let i = 0; i < 201; i++) {
     await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "vercel", projectName: `site-${i}`, configFields: {} }) });
   }
@@ -202,7 +203,7 @@ test("mixed destination kinds group independently, retain latest successes, and 
   t.after(() => db.$client.close());
   for (const id of [WORKSPACE_A, WORKSPACE_B]) db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     const staticRow = entry({ target: "vercel", projectName: "site", configFields: {}, publishedAt: "2026-10-18T01:00:00Z" });
     const peerRow = entry({ kind: "tovu-peer", target: "saved", projectName: "", configFields: undefined, url: "https://live.test", publishedAt: "2026-10-18T03:00:00Z" });
     const deployRow = entry({ kind: "deploy", target: "vercel", projectName: "site", configFields: undefined, url: "https://live.test/", publishedAt: "2026-10-18T02:00:00Z" });
@@ -214,12 +215,14 @@ test("mixed destination kinds group independently, retain latest successes, and 
     const peers = [{ id: "saved", label: "Live", baseUrl: "https://live.test" },
       { id: "never-pushed", label: "Unused", baseUrl: "https://unused.test" },
       { id: "foreign", label: "Foreign", baseUrl: "https://foreign.test" }];
-    const rows = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers });
+    const rows = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers, peerKind: PEER_KIND });
     assert.deepEqual(rows.map(row => [row.kind, row.lastPublishedAt]), [["tovu-peer", "2026-10-18T04:00:00Z"], ["deploy", deployRow.publishedAt], ["static", staticRow.publishedAt]]);
-    assert.equal(rows[1]!.kind === "deploy" && rows[1]!.linkedPeerId, "saved");
+    const deploy = rows[1];
+    assert.ok(deploy && deploy.kind === "deploy" && "target" in deploy);
+    assert.equal(deploy.linkedPeerId, "saved");
     assert.equal((await historyStore.getLast({ workspaceId: WORKSPACE_A, target: "vercel" }))?.kind, undefined,
       "server deploys must not replace static capabilities even when target/project collide");
-    assert.deepEqual((await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers: [] })).map(row => row.kind), ["deploy", "static"]);
+    assert.deepEqual((await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers: [], peerKind: PEER_KIND })).map(row => row.kind), ["deploy", "static"]);
   }
 });
 
@@ -228,16 +231,15 @@ test("both adapters expose accepted deploys only as pending, including legacy re
   t.after(() => db.$client.close());
   db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-10-18T00:00:00Z" }).run();
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     for (const reachable of [false, true]) {
       await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ kind: "deploy", target: "server",
         projectName: String(reachable), url: "https://live.test", reachable, status: "started" }) });
     }
-    const destinations = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers: [] });
+    const destinations = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers: [], peerKind: PEER_KIND });
     assert.equal(destinations.length, 2);
     for (const destination of destinations) {
-      assert.equal(destination.kind, "deploy");
-      if (destination.kind !== "deploy") assert.fail("expected deploy destination");
+      assert.ok(destination.kind === "deploy" && "target" in destination, "expected deploy destination");
       assert.equal(destination.status, "started");
       assert.equal(destination.statusMessage, "Deploy started, not confirmed");
     }
@@ -246,7 +248,7 @@ test("both adapters expose accepted deploys only as pending, including legacy re
 });
 
 test("destination selection pins replay eligibility, kind grouping, latest eligible row and the 201-row sentinel", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   assert.deepEqual(await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_A }), []);
   const rows = [
     entry({ projectName: "legacy" }),
@@ -269,11 +271,11 @@ test("destination selection pins replay eligibility, kind grouping, latest eligi
   assert.equal(capped.length, 201);
   assert.equal(capped[0]!.projectName, "site-201");
   assert.equal(capped[200]!.projectName, "site-1");
-  await assert.rejects(listPublishDestinations({ workspaceId: WORKSPACE_B, historyStore, registry: await loadBundledDeployTargets(), peers: [] }), /limit exceeded/);
+  await assert.rejects(listPublishDestinations({ workspaceId: WORKSPACE_B, historyStore, registry: await loadBundledDeployTargets(), peers: [], peerKind: PEER_KIND }), /limit exceeded/);
 });
 
 test("mixed projection pins empty deploy URLs, exact peer paths, pending status and saved peer identity", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   const registry = await loadBundledDeployTargets();
   const rows = [
     entry({ kind: "tovu-peer", target: "saved", projectName: "peer", url: "https://stale.test" }),
@@ -285,7 +287,7 @@ test("mixed projection pins empty deploy URLs, exact peer paths, pending status 
   ];
   for (const row of rows) await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: row });
   const destinations = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry,
-    peers: [{ id: "saved", label: "Current label", baseUrl: "https://live.test" }] });
+    peers: [{ id: "saved", label: "Current label", baseUrl: "https://live.test" }], peerKind: PEER_KIND });
   assert.deepEqual(destinations, [
     { id: "deploy:github-pages:pending", kind: "deploy", target: "github-pages", label: "pending", url: "https://pending.test", status: "started", statusMessage: "Deploy started, not confirmed", lastPublishedAt: rows[5]!.publishedAt },
     { id: "deploy:github-pages:path", kind: "deploy", target: "github-pages", label: "path", url: "https://live.test/other", status: "confirmed", lastPublishedAt: rows[4]!.publishedAt },
@@ -298,14 +300,16 @@ test("a deploy that neither reached its host nor was accepted is not a destinati
   const registry = await loadBundledDeployTargets();
   // Both shipped stores pre-filter; the listing still refuses a port that hands back an unconfirmed row.
   const failed = entry({ kind: "deploy", target: "vercel", projectName: "site", configFields: undefined, reachable: false, status: "failed", url: "https://failed.test/" });
-  const unfiltered = { listDestinationHistory: async () => [failed] } as unknown as InMemoryPublishHistoryStore;
-  assert.deepEqual(await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore: unfiltered, registry, peers: [] }), []);
-  const crowded = { listDestinationHistory: async () => Array.from({ length: 201 }, (_, i) => entry({ projectName: `p-${i}` })) } as unknown as InMemoryPublishHistoryStore;
-  await assert.rejects(listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore: crowded, registry, peers: [] }), { message: "publish destination limit exceeded (200)" });
+  const unfiltered = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
+  unfiltered.listDestinationHistory = async () => [failed];
+  assert.deepEqual(await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore: unfiltered, registry, peers: [], peerKind: PEER_KIND }), []);
+  const crowded = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
+  crowded.listDestinationHistory = async () => Array.from({ length: 201 }, (_, i) => entry({ projectName: `p-${i}` }));
+  await assert.rejects(listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore: crowded, registry, peers: [], peerKind: PEER_KIND }), { message: "publish destination limit exceeded (200)" });
 });
 
 test("in-memory listLiveUrls returns the workspace's distinct URLs sorted, stopping after 201", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: PEER_KIND, resolvePublishHistoryListLimit });
   assert.deepEqual(await historyStore.listLiveUrls({ workspaceId: WORKSPACE_A }), []);
   for (const url of ["https://b.example", "https://a.example", "https://b.example"]) await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url }) });
   await historyStore.recordSuccess({ workspaceId: WORKSPACE_B, entry: entry({ url: "https://foreign.example" }) });
