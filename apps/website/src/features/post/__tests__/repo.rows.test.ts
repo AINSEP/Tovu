@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { toRecord, toRevisionRow, toRow, type PostRow } from "../repo.rows.js";
+import { toRecord, toRevisionRow, toRow, type PostRow } from "@jini-ai/cms/posts/sql/repo.rows";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 
 const state: PostRecord = { id: "p1", workspaceId: "ws", title: "Café", slug: "cafe", bodyJson: { type: "doc", content: [] },
@@ -10,33 +11,33 @@ const text = '{"id":"p1","workspaceId":"ws","title":"Café","slug":"cafe","bodyJ
 test("revision hash is SHA-256 of the exact compact UTF-8 JSON persisted, with delegation and restore attribution", () => {
   // F1.2/F4.1: literal oracle computed independently from the documented bytes, not a nonempty hash.
   assert.deepEqual(toRevisionRow({ input: { postId: "p1", workspaceId: "ws", seq: 8, op: "restore", stateJson: state,
-    actorId: "agent", delegatedByWorkspaceId: "delegator-ws", delegatedById: "human", restoredFrom: "revision-3", recordedAt: "2026-10-01T13:00:00.000Z" }, id: "revision-8" }), {
+    actorId: "agent", delegatedByWorkspaceId: "delegator-ws", delegatedById: "human", restoredFrom: "revision-3", recordedAt: "2026-10-01T13:00:00.000Z" }, id: "revision-8", hashJsonText: text => createHash("sha256").update(text).digest("hex") }), {
     id: "revision-8", post_id: "p1", workspace_id: "ws", seq: 8, op: "restore", state_json: text,
     content_hash: "7cba7e85e6ced31f0687826260dd572d4749ed3386d7765f3c380011d41d2ba1", actor_id: "agent",
     delegated_by_workspace_id: "delegator-ws", delegated_by_id: "human", restored_from: "revision-3", recorded_at: "2026-10-01T13:00:00.000Z",
   });
 });
 test("ordinary revision writes NULL for every omitted delegation and restore marker", () => {
-  const row = toRevisionRow({ input: { postId: "p1", workspaceId: "ws", seq: 1, op: "create", stateJson: state, actorId: "human", recordedAt: "2026-10-01T13:00:00.000Z" }, id: "revision-1" });
+  const row = toRevisionRow({ input: { postId: "p1", workspaceId: "ws", seq: 1, op: "create", stateJson: state, actorId: "human", recordedAt: "2026-10-01T13:00:00.000Z" }, id: "revision-1", hashJsonText: text => createHash("sha256").update(text).digest("hex") });
   assert.deepEqual([row.delegated_by_workspace_id, row.delegated_by_id, row.restored_from], [null, null, null]);
 });
 
 test("a typed actor kind is persisted as actor_kind beside the untouched actor_id; without one no kind is written", () => {
   const input = { postId: "p1", workspaceId: "ws", seq: 2, op: "update" as const, stateJson: state, actorId: "owner-1", recordedAt: "2026-10-01T13:00:00.000Z" };
-  const typed = toRevisionRow({ input: { ...input, actorKind: "agent" }, id: "revision-2" });
+  const typed = toRevisionRow({ input: { ...input, actorKind: "agent" }, id: "revision-2", hashJsonText: text => createHash("sha256").update(text).digest("hex") });
   assert.deepEqual([typed.actor_id, typed.actor_kind], ["owner-1", "agent"]);
-  assert.equal("actor_kind" in toRevisionRow({ input, id: "revision-2" }), false, "a writer without a typed actor leaves the column NULL");
+  assert.equal("actor_kind" in toRevisionRow({ input, id: "revision-2", hashJsonText: text => createHash("sha256").update(text).digest("hex") }), false, "a writer without a typed actor leaves the column NULL");
 });
 
 test("a row whose show_author column is NULL (written before the column existed) reads as showAuthor false", () => {
-  const stored = { ...toRow({ ...state, showAuthor: true }), ext: "{}", publish_at: null, featured_media_id: null } as PostRow;
-  assert.equal(toRecord(stored).showAuthor, true);
-  assert.equal(toRecord({ ...stored, show_author: 0 }).showAuthor, false);
-  assert.equal(toRecord({ ...stored, show_author: null } as unknown as PostRow).showAuthor, false);
+  const stored = { ...toRow({ record: { ...state, showAuthor: true } }), ext: "{}", publish_at: null, featured_media_id: null } as PostRow;
+  assert.equal(toRecord({ row: stored }).showAuthor, true);
+  assert.equal(toRecord({ row: { ...stored, show_author: 0 } }).showAuthor, false);
+  assert.equal(toRecord({ row: { ...stored, show_author: null } as unknown as PostRow }).showAuthor, false);
 });
 
 test("a non-empty ext column reads back as ext; the empty-object default reads back as no ext key at all", () => {
-  const stored = { ...toRow(state), ext: "{}", publish_at: null, featured_media_id: null } as PostRow;
-  assert.equal("ext" in toRecord(stored), false);
-  assert.deepEqual(toRecord({ ...stored, ext: '{"seo":{"title":"Custom"}}' }).ext, { seo: { title: "Custom" } });
+  const stored = { ...toRow({ record: state }), ext: "{}", publish_at: null, featured_media_id: null } as PostRow;
+  assert.equal("ext" in toRecord({ row: stored }), false);
+  assert.deepEqual(toRecord({ row: { ...stored, ext: '{"seo":{"title":"Custom"}}' } }).ext, { seo: { title: "Custom" } });
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { contributeCollectionEntryPublish } from "#src/features/entries/publish-content";
+import { contributeCollectionEntryPublish } from "@jini-ai/cms/entries/site/publish-content";
 import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
 import { contributePagePublish, contributePostPublish } from "@jini-ai/cms/posts/publish-content";
 import { contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
@@ -44,7 +44,7 @@ test("a page or post carries its images, its embedded widgets (node or html mark
 
 test("a collection entry carries its collection and what its body embeds", () => {
   const state = { type: "recipe", bodyJson: { type: "doc", content: [{ type: "widgetEmbed", attrs: { widgetEntryId: "w1" } }] } };
-  assert.deepEqual(referencesOf(contributeCollectionEntryPublish(), "collection-entry", state), ["content-type:recipe", "widget:w1"]);
+  assert.deepEqual(referencesOf(contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }), "collection-entry", state), ["content-type:recipe", "widget:w1"]);
 });
 
 test("a widget carries the form, menu or term its config names", () => {

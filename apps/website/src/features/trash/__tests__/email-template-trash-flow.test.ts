@@ -67,10 +67,10 @@ test("template moves out of Email, appears in Trash, and restores its HTML, titl
   assert.equal(page.items.length, 1);
   assert.equal(page.items[0]!.entityType, "email-template");
   assert.equal(page.items[0]!.displayTitle, template.name);
-  assert.equal((await filterVisibleTrashItems(h.routeDeps, { principalId: ACTOR.principalId, items: page.items })).length, 1);
+  assert.equal((await filterVisibleTrashItems({ deps: h.routeDeps, principalId: ACTOR.principalId, items: page.items })).length, 1);
   h.granted.clear();
-  assert.deepEqual(await filterVisibleTrashItems(h.routeDeps, { principalId: ACTOR.principalId, items: page.items }), []);
-  assert.equal((await mayActOnEntityType(h.routeDeps, { principalId: ACTOR.principalId, entityType: "email-template" })).allowed, false);
+  assert.deepEqual(await filterVisibleTrashItems({ deps: h.routeDeps, principalId: ACTOR.principalId, items: page.items }), []);
+  assert.equal((await mayActOnEntityType({ deps: h.routeDeps, principalId: ACTOR.principalId, entityType: "email-template" })).allowed, false);
   h.granted.add("pages.edit_html");
   assert.equal(await h.trash.restore({ workspaceId: WS, entityType: "email-template", entityId: template.id, at: AT }), "restored");
   const restored = await getEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), id: template.id });

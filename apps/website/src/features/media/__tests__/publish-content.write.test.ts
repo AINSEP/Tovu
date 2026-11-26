@@ -12,7 +12,8 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
-import { MediaApplyBlockedError, MediaApplyConflictError, contributeMediaPublish } from "../publish-content.js";
+import { contributeMediaPublish } from "../publish-content.js";
+import { MediaApplyBlockedError, MediaApplyConflictError } from "@jini-ai/cms/media/site/publish-content";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

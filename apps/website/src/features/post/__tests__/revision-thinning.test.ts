@@ -1,3 +1,6 @@
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
+import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 
@@ -12,7 +15,7 @@ import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor } from "../repo.js";
 import { type RevisionRefProbe } from "@jini-ai/cms/posts/sql/revision-thinning";
-import { bindRevisionThinning, revisionThinningApprovalHandler } from "../revision-thinning.js";
+import { bindRevisionThinning, revisionThinningApprovalHandler, thinningCard } from "@jini-ai/cms/posts/sql/revision-thinning";
 
 /**
  * @file The host revision-thinning adapter over a real migrated SQLite content kernel: date-only
@@ -44,7 +47,7 @@ async function fixture({ published = new Set<string>(), restore = new Set<string
   let i = 0;
   const previewStore = createCleanupPreviewStore({ randomToken: () => `token-${++i}`, mono: () => 0 });
   const binding = bindRevisionThinning({
-    kernel, publishedRefs: probe(published), restoreRefs: probe(restore), undoRefs: probe(undo), previewStore, clock: () => NOW,
+    kernel: schemaErasedKernel({ store: kernel }), postRevisionLockKey, publishedRefs: probe(published), restoreRefs: probe(restore), undoRefs: probe(undo), previewStore, clock: () => NOW,
     authorize: async ({ principal }) => { if (principal !== OWNER) throw new Error("Only the site owner can thin revisions."); },
   }, {});
   const history = () => repo.listRevisions({ workspaceId: WS, postId: "p1" });
@@ -140,7 +143,7 @@ function surfaces(t: TestContext) {
 test("approval card raised before any revision delete; decline deletes nothing", async (t) => {
   const f = await fixture();
   const h = surfaces(t);
-  const handler = revisionThinningApprovalHandler({ binding: f.binding, surfaces: { surfaceExchanges: h.store }, workspaceId: WS }, {});
+  const handler = revisionThinningApprovalHandler({ approvalToolHandler, thinningCard, binding: f.binding, surfaces: { surfaceExchanges: h.store }, workspaceId: WS }, {});
   const pending = handler(h.ctx, { emitSurface: h.emitSurface });
   await cardRaised(h.emitted);
   assert.equal(h.emitted.length, 1, "the owner card is raised first");
@@ -150,7 +153,7 @@ test("approval card raised before any revision delete; decline deletes nothing",
   assert.equal((await f.history()).length, 5);
 
   const confirmed = surfaces(t);
-  const approve = revisionThinningApprovalHandler({ binding: f.binding, surfaces: { surfaceExchanges: confirmed.store }, workspaceId: WS }, {});
+  const approve = revisionThinningApprovalHandler({ approvalToolHandler, thinningCard, binding: f.binding, surfaces: { surfaceExchanges: confirmed.store }, workspaceId: WS }, {});
   const approved = approve(confirmed.ctx, { emitSurface: confirmed.emitSurface });
   await cardRaised(confirmed.emitted);
   assert.deepEqual(confirmed.answer("confirm"), { ok: true });

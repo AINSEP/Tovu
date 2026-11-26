@@ -50,7 +50,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const nextTrashId = counter("trash-id");
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
   const trash: TrashPort = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),

@@ -77,7 +77,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   };
 
   const registry = buildTrashRegistry();
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({
     repo: new SqliteTrashRepo({ store: db.$client }),
@@ -294,7 +294,7 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: f.db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: f.db }) }), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: contentKernel({ store: f.db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: f.db }) }), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo({ store: f.db.$client }),
     adapters,
@@ -374,14 +374,14 @@ test("mayActOnEntityType('user'): a principal holding only 'user.manage' is refu
   await grantDirectPermission(f, editorId, "user.manage", "editor");
 
   const editorDecision = await mayActOnEntityType(
-    { authorize: f.wiring.authorize, workspaceId: WS, registry: f.registry },
-    { principalId: editorId, entityType: USER_ENTITY_TYPE }
+    { deps: { authorize: f.wiring.authorize, workspaceId: WS, registry: f.registry },
+      principalId: editorId, entityType: USER_ENTITY_TYPE }
   );
   assert.equal(editorDecision.allowed, false);
 
   const ownerDecision = await mayActOnEntityType(
-    { authorize: f.wiring.authorize, workspaceId: WS, registry: f.registry },
-    { principalId: f.ownerPrincipalId, entityType: USER_ENTITY_TYPE }
+    { deps: { authorize: f.wiring.authorize, workspaceId: WS, registry: f.registry },
+      principalId: f.ownerPrincipalId, entityType: USER_ENTITY_TYPE }
   );
   assert.equal(ownerDecision.allowed, true);
 });
@@ -409,7 +409,7 @@ function kernelWithWriterAfterFirstRead(db: ContentDb, sneak: () => void) {
 test("hide: a status change committed between the read and the write reports version-changed — no stale priorMarker, no event", async () => {
   const f = await setup(WS);
   const targetId = await createBareUser(f, "racing");
-  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues,
+  const adapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues,
     db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)) }),
     purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: f.db }) }), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
@@ -426,7 +426,7 @@ test("unhide: a re-enable committed between the read and the write is not overwr
   const f = await setup(WS);
   const targetId = await createBareUser(f, "racing");
   f.db.$client.prepare(`UPDATE principals SET status = 'disabled', disabled_at = ? WHERE id = ?`).run(AT, targetId);
-  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues,
+  const adapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues,
     db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () =>
       f.db.$client.prepare(`UPDATE principals SET status = 'active', disabled_at = NULL WHERE id = ?`).run(targetId)
     ) }),

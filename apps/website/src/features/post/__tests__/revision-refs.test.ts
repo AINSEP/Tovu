@@ -1,3 +1,4 @@
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -10,7 +11,7 @@ import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sql
 import { postRepoFor } from "../repo.js";
 import { postRevisionRefProbes } from "@jini-ai/cms/posts/sql/revision-refs";
 import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
-import type { ThinnedRevision } from "../revision-thinning.js";
+import type { ThinnedRevision } from "@jini-ai/cms/posts/sql/revision-thinning";
 
 /**
  * @file The three production reference probes revision thinning asks before it deletes a revision,
@@ -47,7 +48,7 @@ async function fixture() {
       items: [{ id: `csi-${n}`, changeSetId: id, entityType: "post", entityId: "p1", operation: "update", position: 0, ...item }],
     });
   };
-  const probes = postRevisionRefProbes({ kernel }, {});
+  const probes = postRevisionRefProbes({ kernel: schemaErasedKernel({ store: kernel }) }, {});
   const ask = (probe: keyof typeof probes, at: number) => probes[probe]({ scope: SCOPE, revision: revisions[at]! }, {});
   return { kernel, repo, revisions, changeSet, ask };
 }

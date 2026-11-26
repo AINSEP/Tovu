@@ -11,7 +11,7 @@ import {
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { credentialHint } from "@jini-ai/integrations/vendor-credentials/vault-adapter";
-import { credentialScope, credentialVault, TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "../vault-adapter.js";
+import { credentialScope, credentialVault, SourceControlCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "../vault-adapter.js";
 import type { VendorCredentialSetRecord } from "@jini-ai/core/contracts/site/vendor-credentials";
 import type { SourceControlCredentialSetRecord } from "@jini-ai/core/contracts/site/source-control-credentials";
 
@@ -66,7 +66,7 @@ for (const [length, last4, tail, hint] of [
 
 test("source-control DTOs retain providerId and never acquire vendor-only fields", async () => {
   const vault = new InMemoryVaultRepo({});
-  const repo = new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" }, {});
+  const repo = new SourceControlCredentialSetVaultAdapter({ vault, kind: "source-control" }, {});
   const record: SourceControlCredentialSetRecord = { workspaceId: "ws", id: "source", providerId: "github", label: "Source", sealed: envelope, isDefault: true, accountLabel: "owner", createdAt: NOW, updatedAt: NOW };
   await repo.insert(record, {});
   assert.deepEqual(await repo.findById(record, {}), record);
@@ -283,7 +283,7 @@ test("an explicit compatibility list replaces existing compatibility without dro
 test("source-control updates retain metadata and hints while replacing accountLabel", async () => {
   const vault = new InMemoryVaultRepo({});
   const saved = await vault.put({ record: row({ kind: "source-control", meta: { accountLabel: "old", migration: { originalLabel: "Original" } } }), expectedRevision: null });
-  const repo = new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" });
+  const repo = new SourceControlCredentialSetVaultAdapter({ vault, kind: "source-control" });
   const found = await repo.findById(saved);
   assert.ok(found);
   await repo.update({ ...found, accountLabel: null });

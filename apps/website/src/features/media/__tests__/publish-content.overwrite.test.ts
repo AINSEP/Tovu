@@ -9,7 +9,8 @@ import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteM
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryBlobStore, replaceMediaFile, type MediaRecord } from "../index.js";
 import { mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
-import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
+import { contributeMediaPublish } from "../publish-content.js";
+import { MediaApplyBlockedError, MediaApplyConflictError } from "@jini-ai/cms/media/site/publish-content";
 import { planImport } from "@jini-ai/cms/publish/content/planner";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";

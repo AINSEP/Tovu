@@ -1,4 +1,4 @@
-import { exportHostSite as runExport } from "@jini-ai/devops/static-export/site/site-exporter";
+import { exportHostSite as runExport, selectDeclaredThemeScripts } from "@jini-ai/devops/static-export/site/site-exporter";
 import type { ExportSiteRouteDeps as EngineRouteDeps } from "@jini-ai/devops/static-export/site/site-exporter";
 import type { ExportReport } from "@tovu/contracts/export-report";
 import type { SiteCookieConsentDeps } from "@jini-ai/core/contracts/headless/site-cookie-consent";
@@ -62,13 +62,8 @@ export function exportSite({ routeDeps, ...options }: ExportSiteOptions, _option
     bindExportMediaUrls: () => bindExportMediaUrls({ deps: routeDeps }),
     themeLayout: { resolve: ({ theme }) => ({ pagesDir: resolveThemeLayout({}, { apiVersion: theme.apiVersion as 2 | undefined }).pagesDir, assetUrlPrefix: `/theme-assets/${theme.id}/` }) },
     assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/", "/_consent/"],
-    declaredThemeAssets: ({ activeThemeId }) => declaredThemeAssets({ routeDeps, activeThemeId }),
+    declaredThemeAssets: ({ activeThemeId }) => selectDeclaredThemeScripts({ themes: routeDeps.themes, activeThemeId }),
     requestHeaders: { "x-tovu-static-export": "1" }, exportHtml, withoutNativeFormTools, publicPageSecurityHeaders,
     extractListingMoreHrefs, extractListingPageHrefs, listingJsonNextPath, themePreviewExportSize, reportInfo: message => console.info(message),
   } });
-}
-
-function declaredThemeAssets({ routeDeps, activeThemeId }: { routeDeps: Pick<RouteManifestDeps, 'themes'>; activeThemeId: string | undefined }, _optional = {}): string[] {
-  const theme = routeDeps.themes.find(item => item.manifest.id === activeThemeId);
-  return (theme?.manifest.scripts ?? []).map(script => script.src).filter(src => src.startsWith('/') && !src.startsWith('//'));
 }

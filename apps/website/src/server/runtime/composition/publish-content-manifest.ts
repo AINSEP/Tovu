@@ -7,7 +7,7 @@ import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/feature
 import { findWidgetTypeRegistration } from "@jini-ai/cms/widgets";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { contributeContentTypePublish } from "@jini-ai/cms/content-types/site/publish-content";
-import { contributeCollectionEntryPublish } from "#src/features/entries/publish-content";
+import { contributeCollectionEntryPublish } from "@jini-ai/cms/entries/site/publish-content";
 import { contributeFormPublish } from "@jini-ai/cms/forms/site/publish-content";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
@@ -89,7 +89,7 @@ export function installFirstPartyPublishContentTypes(): void {
     permission: 'admin.collections.manage', registerContentType }) });
   registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
   registerPublishContentContributor({ contributor: contributeTermPublish() });
-  registerPublishContentContributor({ contributor: contributeCollectionEntryPublish() });
+  registerPublishContentContributor({ contributor: contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }) });
   registerPublishContentContributor({ contributor: contributeWidgetPublish(widgetPublishPolicy) });
   registerPublishContentContributor({ contributor: contributeWidgetAreaPublish(widgetPublishPolicy) });
   registerPublishContentContributor({ contributor: contributeSiteSettingPublish({ createRepoPublishHandler, gatewayDeps: gatewayDeps<TovuPublishPorts>, publishableSettings: PUBLISHABLE_SETTINGS, writePolicies: SETTINGS_WRITE_POLICIES, principalLookup: createSettingsPrincipalLookup }) });

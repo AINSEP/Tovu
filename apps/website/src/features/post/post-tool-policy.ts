@@ -1,3 +1,4 @@
+import { createPostFeaturedImageRefusals } from "@jini-ai/cms/posts/post-tool-policy";
 import { isDeepStrictEqual } from "node:util";
 import { indexCatalogById } from "@jini-ai/core";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
@@ -60,9 +61,5 @@ export const POST_TOOL_HOST = {
   contentReadPermission: "content.read", contentWritePermission: "content.write", assistantActorPluginId: "assistant",
   catalog: indexCatalogById({ catalog: postAgentToolCatalog }), executeCommand, processOutbox, withPluginHookRefusals,
   postToolViewDeps, headerNavigationView, readPostTemplateOptions, findMediaByIdOrSlug,
-  featuredImageRefusals: {
-    missing: ({ ref }: { ref: string }, _optional = {}) => `featuredImage: no media asset has the id or slug '${ref}'. Find one with content_read.media_asset, or upload one first.`,
-    trashed: ({ ref }: { ref: string }, _optional = {}) => `featuredImage: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
-    "not-image": ({ ref }: { ref: string }, { contentType }: { contentType?: string } = {}) => `featuredImage: media asset '${ref}' is ${contentType ?? "not an image"}, not an image. A featured image must be an image.`,
-  },
+  featuredImageRefusals: createPostFeaturedImageRefusals({ mediaAssetReadToolId: "content_read.media_asset" }),
 };

@@ -7,7 +7,7 @@ import { trashListRoute, type TrashPostDisplayKindsFn } from "@jini-ai/cms/admin
 import { trashPurgeRoute } from "@jini-ai/cms/admin-http/routes/trash/purge";
 import { trashRestoreRoute } from "@jini-ai/cms/admin-http/routes/trash/restore";
 import type { TrashEntryGateFn, TrashKindGateFn } from "@jini-ai/cms/admin-http/routes/trash/shared";
-import type { TrashPort, TrashRegistry } from "@jini-ai/cms/trash";
+import type { TrashItem, TrashPort, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/user-management";
 import { type TrashAuthorizeFn } from "@jini-ai/core/contracts/site/cms-trash";
 import { filterVisibleTrashItems, mayActOnEntityType, TRASH_READ_PERMISSION, type TrashDb } from "#src/features/trash/index";
@@ -97,7 +97,7 @@ function trashEntryGate({ deps }: { deps: TrashRouteDeps }, _optional: Record<st
 
 /** The per-kind gate the restore/purge specs ask per row. */
 function trashKindGate({ deps }: { deps: TrashRouteDeps }, _optional: Record<string, never> = {}): TrashKindGateFn {
-  return (input) => mayActOnEntityType(deps, input);
+  return (input) => mayActOnEntityType({ deps, ...input });
 }
 
 /**
@@ -125,7 +125,7 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ errors, app, 
     authorizeEntry: trashEntryGate({ deps }), loadPostDisplayKinds: postDisplayKinds({ deps }),
     // The same host value `createTrashService` stamps with, echoed so the admin header states it.
     retentionDays: TRASH_RETENTION_DAYS,
-    filterVisible: ({ principalId, items }: Parameters<typeof filterVisibleTrashItems>[1]) => filterVisibleTrashItems(deps, { principalId, items }),
+    filterVisible: ({ principalId, items }: { principalId: string; items: readonly TrashItem[] }) => filterVisibleTrashItems({ deps, principalId, items }),
     userRepo: { list: (required: { workspaceId: string }) => deps.userRepo.list(required) },
   } }) }, mountOptions("routes/trash/list"));
 };
