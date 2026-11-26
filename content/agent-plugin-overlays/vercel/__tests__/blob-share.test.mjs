@@ -15,7 +15,7 @@ import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
 import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts";
 import { selectArtifactStoreProvider } from "@jini-ai/platform/object-store/site/artifact-provider";
 import { resolveShareDelivery } from "../../../../apps/website/src/features/site-backup/share-hosting.ts";
-import { SiteShareRegistry } from "../../../../apps/website/src/features/site-backup/share-registry.ts";
+import { isShareArtifactKey, SiteShareRegistry } from "../../../../apps/website/src/features/site-backup/share-registry.ts";
 import { createSiteShare, revokeSiteShare } from "../../../../apps/website/src/features/site-backup/share-service.ts";
 import { SHARE_DOWNLOAD_HEADERS } from "@jini-ai/devops/backup/site/share-service";
 import { pathToFileURL } from 'node:url';
@@ -62,7 +62,9 @@ function blobFake(options = {}) {
     }
     return new Response(null, { status: 418 });
   };
-  const kit = createDeployHostKit({ fetchFn });
+  // The plugin no longer owns the share-key rule: it asks the host's kit (`isShareArtifactKey`),
+  // which production site-deps/site-sharing.ts injects. Inject the same Tovu rule here.
+  const kit = { ...createDeployHostKit({ fetchFn }), isShareArtifactKey };
   const store = (credential = { token: "vercel-api-token-unused", blobToken }) => provider.createArtifactStore({ credential, config: {}, kit });
   return { blobs, calls, kit, store };
 }

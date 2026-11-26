@@ -23,8 +23,8 @@ import { realpathSync } from "node:fs";
  * renderer's slug rule (`analyzeContentWithSiteSlug`), the TipTap adapter and the summary writer are
  * `@jini-ai/cms/seo/content-analysis`.
  */
+import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import type { BuiltInPluginSource } from "@jini-ai/plugins/host/node";
 import type { PluginManifest } from "@jini-ai/plugins/host";
@@ -89,7 +89,10 @@ export const CONTENT_ANALYZER_MANIFEST: PluginManifest = {
 
 export const CONTENT_ANALYZER_BUILT_IN: BuiltInPluginSource = { manifest: CONTENT_ANALYZER_MANIFEST };
 
-const ENTRY = realpathSync(fileURLToPath(import.meta.resolve("@jini-ai/cms/seo/content-analyzer-plugin/plugin")));
+// `createRequire(...).resolve`, not `import.meta.resolve`: the tier-2 worker loads this module through
+// tsx's CJS register and esbuild-style bundles, both of which shim `import.meta` with only `url`, so
+// `import.meta.resolve` is undefined there. The subpath's `default` export condition names the same file.
+const ENTRY = realpathSync(createRequire(import.meta.url).resolve("@jini-ai/cms/seo/content-analyzer-plugin/plugin"));
 
 /** Load metadata consumed by the server composition root. `entryPath` is the worker entry module
  * next to this file — `plugin.ts` under `tsx`, `plugin.js` in the compiled `dist/` twin — taken from

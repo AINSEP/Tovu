@@ -431,6 +431,10 @@ test("the registered theme-files contributor's apply() is a real write path, not
       outbox,
       changeSets: new InMemoryChangeSetRepo([], [], outbox),
       authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+      // An apply run's handler deps carry the ceremony's trusted actor: production's apply port
+      // (`features/publish-content/apply-port.ts` -> Jini `applyPublishContentReport`) merges it in, and
+      // a handler refuses a write without one (`applyRunActor`). This test calls the handler directly.
+      mutationActor: { id: "operator-principal-1", kind: "user" },
       ports: {
         // Use the real ownership guard introduced by f6de81431, not undefined policy ports.
         media: { repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
@@ -446,6 +450,8 @@ test("the registered theme-files contributor's apply() is a real write path, not
     });
 
     assert.ok(changeSetId);
+    const recorded = await deps.changeSets.findById({ workspaceId, id: changeSetId });
+    assert.deepEqual(recorded?.changeSet.actor, { id: "operator-principal-1", kind: "user" }, "the write records the run's trusted actor");
     assert.equal(await readFile(path.join(destThemes, "static/basic/theme.json"), "utf8"), '{"id":"basic"}');
   } finally {
     await rm(root, { recursive: true, force: true });

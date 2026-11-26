@@ -110,9 +110,13 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
 // `@jini-ai/cms/public-http/http/site/render/*` behind injected ports; each host file stays as the real
 // binding of host renderers/copy/money, so each now loads as host binding + one Jini leaf. No new
 // rendering behaviour and no non-rendering package (the database/blob/agent pins above still hold).
+// +2 (merge-24 CRP sheets, 7ae6ddb4a1): `render/content-html.ts` and `render/page-body.ts` became host
+// bindings over `@jini-ai/cms/public-http/http/site/render/{content-html,page-body}` (one Jini leaf each),
+// the same host-binding + leaf shape as the +4 above. `render/components/marketing.ts` moved to the Jini
+// `render/components/marketing` leaf at the same time (net 0). Diffed against merge-23: no other module changed.
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 183,
-  "liquid-worker.ts": 140,
+  "handlebars-worker.ts": 185,
+  "liquid-worker.ts": 142,
 } as const;
 
 /** Loads one entry in a bounded child, preserving errors so incomplete graphs cannot pass.

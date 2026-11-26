@@ -86,6 +86,9 @@ test("actorId round-trips as undefined (not null) when the change set has no act
       intentRef: undefined,
       revertedAt: undefined,
       ...historicalHeader(),
+      // The read maps a NULL actor_id to an own `actorId: undefined` (the branch this test pins), while a
+      // NULL actor kind stays absent: a historical row reads with no invented actor (w3b sheet 32, P10-H2).
+      actorId: undefined,
     });
     assert.deepEqual(found.items, [{
       beforeRevisionId: undefined,
