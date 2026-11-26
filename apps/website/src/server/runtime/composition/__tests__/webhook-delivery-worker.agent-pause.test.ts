@@ -49,8 +49,9 @@ async function rig(adminAssistantEnabled: boolean) {
     adminAssistantEnabled,
   };
   // Reads the live deps flag, so a test can flip the switch the way a restart would.
-  deps.agentPauseGate = createAgentPauseGate({ store: createMemoryAgentPauseHoldStore(), workspaceId: "workspace-1",
+  const agentPauseGate = createAgentPauseGate({ store: createMemoryAgentPauseHoldStore(), workspaceId: "workspace-1",
     assistantEnabled: () => deps.adminAssistantEnabled !== false, clock: { nowIso: () => now } });
+  deps.agentPauseGate = agentPauseGate;
   for (const { id, createdByKind } of SUBSCRIPTIONS) {
     await deps.webhookSubscriptionRepo.save({
       id, workspaceId: "workspace-1", ownerPrincipalId: "principal-1", label: id,
@@ -67,7 +68,7 @@ async function rig(adminAssistantEnabled: boolean) {
   const posted: string[] = [];
   const httpClient: HttpClientPort = { send: async (request) => { posted.push(request.url); return { status: 200, headers: {}, bodyText: "ok" }; } };
   const row = (subscriptionId: string) => deps.webhookDeliveryRepo.findById({ workspaceId: "workspace-1", id: `d-${subscriptionId}` });
-  return { deps, posted, httpClient, row, setNow: (iso: string) => { now = iso; } };
+  return { deps, agentPauseGate, posted, httpClient, row, setNow: (iso: string) => { now = iso; } };
 }
 
 test("assistant off: agent-created webhook deliveries are held, person-created and unattributed ones still go out", async () => {
@@ -101,12 +102,12 @@ test("adversarial: pausing deletes and disables nothing; back on holds until the
   site.setNow(LATER);
   await worker.tick();
   assert.equal((await site.row("sub-agent"))?.status, "pending", "switch back on alone resumes nothing");
-  assert.deepEqual(await site.deps.agentPauseGate!.resume({ confirm: async () => ({ confirmed: false, reason: "declined" }) }), { resumed: false, reason: "declined" });
+  assert.deepEqual(await site.agentPauseGate.resume({ confirm: async () => ({ confirmed: false, reason: "declined" }) }), { resumed: false, reason: "declined" });
   // Each tick runs later, so the delivery is due again and only the hold can keep it pending.
   site.setNow("2026-11-24T01:00:00.000Z");
   await worker.tick();
   assert.equal((await site.row("sub-agent"))?.status, "pending", "a declined card keeps it held");
-  assert.deepEqual(await site.deps.agentPauseGate!.resume({ confirm: async () => ({ confirmed: true }) }), { resumed: true });
+  assert.deepEqual(await site.agentPauseGate.resume({ confirm: async () => ({ confirmed: true }) }), { resumed: true });
   site.setNow("2026-11-24T02:00:00.000Z");
   await worker.tick();
   await worker.stop();

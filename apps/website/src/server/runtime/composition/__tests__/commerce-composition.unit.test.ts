@@ -7,10 +7,18 @@ import { test } from 'node:test';
 import { sql } from 'kysely';
 import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
-import { composeCommerce } from '../commerce.js';
-import type { ProviderConfigSource } from '../provider-config-source.js';
+import { composeCommerce, type ComposeCommerceRequired } from '../commerce.js';
+import type { ProviderConfigSource } from '@jini-ai/core/contracts/site/composition-provider-config-source';
 import { ensureCommerceSetting } from '@jini-ai/commerce';
 import { runMigrations } from '@jini-ai/db/migrate';
+
+const unusedConfig: ProviderConfigSource = {
+  scope: 'site',
+  read: async () => null,
+  readSettings: async () => assert.fail('commerce must not read the settings summary'),
+  usage: async () => assert.fail('commerce must not read credential usage'),
+  write: async () => assert.fail('commerce must not write credentials'),
+};
 
 /** Dormant host integration uses the real SQL kernel and settings ledger, with no vendor or network. */
 test('commerce-off composes without catalog/payment SQL, merchant configuration, credentials or workers', async t => {
@@ -25,7 +33,7 @@ test('commerce-off composes without catalog/payment SQL, merchant configuration,
   const runtime = composeCommerce({ kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
     workerOwner: true, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
     providers: { paymentProviders: () => { providerReads++; return []; } },
-    providerConfig: { read: async () => { credentialReads++; throw new Error('credentials must remain untouched'); } } as unknown as ProviderConfigSource,
+    providerConfig: { ...unusedConfig, read: async () => { credentialReads++; throw new Error('credentials must remain untouched'); } },
     httpClient: { send: async () => { httpCalls++; throw new Error('no network'); } },
   });
   assert.deepEqual(await runtime.commerceCatalog.listProducts({}), []);
@@ -54,7 +62,7 @@ test('disabled restart drains an outbox-only backlog even after merchant configu
   let httpCalls = 0;
   const runtime = composeCommerce({ kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
     workerOwner: true, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
-    providers: { paymentProviders: () => [] }, providerConfig: { read: async () => null } as unknown as ProviderConfigSource,
+    providers: { paymentProviders: () => [] }, providerConfig: unusedConfig,
     httpClient: { send: async () => { httpCalls++; throw new Error('no network'); } },
   }, { warn: () => {} });
   await runtime.close();
@@ -78,7 +86,7 @@ test('disabled payment-only restart preserves absent catalog and queued projecti
   let httpCalls = 0;
   const runtime = composeCommerce({ kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
     workerOwner: true, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
-    providers: { paymentProviders: () => [] }, providerConfig: { read: async () => null } as unknown as ProviderConfigSource,
+    providers: { paymentProviders: () => [] }, providerConfig: unusedConfig,
     httpClient: { send: async () => { httpCalls++; throw new Error('no network'); } },
   }, { warn: () => {} });
   await runtime.close();
@@ -110,10 +118,14 @@ test('activated SQL checkout binds original merchant scope, blocks foreign membe
   const provider = { ...fake.provider, createIntent: async (...args: Parameters<typeof fake.provider.createIntent>) => {
     creates++; returnUrl = args[0].ctx.returnUrl; webhookUrl = args[0].ctx.webhookUrl; return fake.provider.createIntent(...args);
   } };
-  const ports = { kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
+  const ports: ComposeCommerceRequired = { kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
     workerOwner: false, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
     providers: { paymentProviders: () => [{ pluginId: 'payments-fake', module: provider }] },
-    providerConfig: { read: async () => { credentialReads++; return { settings: { accountId: 'merchant-original' }, secrets: { test_webhookSecret: LIPAY_FAKE_SECRET } }; } } as unknown as ProviderConfigSource,
+    providerConfig: { ...unusedConfig, read: async ({ pluginId }) => {
+      assert.equal(pluginId, 'payments-fake');
+      credentialReads++;
+      return { settings: { accountId: 'merchant-original' }, secrets: { test_webhookSecret: LIPAY_FAKE_SECRET } };
+    } },
     httpClient: { send: async () => { throw new Error('no network'); } },
   };
   runtime = composeCommerce(ports);

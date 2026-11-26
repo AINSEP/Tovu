@@ -1,4 +1,4 @@
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -112,6 +112,7 @@ test("entries chokepoint: createEntry through toEntryOutbox persists workspace_i
     },
     input: {
       actorId: "user-1",
+      actor: { id: "user-1", kind: "user" },
       workspaceId,
       type: "post",
       slug: "hello-world",
@@ -341,7 +342,7 @@ test("widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter
   let counter = 0;
 
   const workspaceId = "ws-widgets-1";
-  const deps: WidgetWriteServiceDeps = { host: buildWidgetHostPorts({}, {}),
+  const deps: WidgetWriteServiceDeps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
     entryRepo: new InMemoryEntryRepo(),
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
@@ -359,7 +360,7 @@ test("widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter
     deps: deps,
     input: {
       workspaceId,
-      actor: { principalId: "user-1" },
+      actor: { principalId: "user-1", kind: "user" },
       widgetType: "text",
       title: "Footer notice",
       config: { body: "hello" },
@@ -404,7 +405,7 @@ test("cross-tenant (dossier C6): two workspaces writing through the same adapter
       authorize: async () => ({ allowed: true, reason: "test: always allow" }),
       outbox: toEntryOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId: wsA }),
     },
-    input: { actorId: "user-1", workspaceId: wsA, type: "post", slug: "a", title: "A", fieldsJson: { ext: { site: {} } } },
+    input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: wsA, type: "post", slug: "a", title: "A", fieldsJson: { ext: { site: {} } } },
   });
   assert.equal(resultA.ok, true);
 
@@ -417,7 +418,7 @@ test("cross-tenant (dossier C6): two workspaces writing through the same adapter
       authorize: async () => ({ allowed: true, reason: "test: always allow" }),
       outbox: toEntryOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId: wsB }),
     },
-    input: { actorId: "user-1", workspaceId: wsB, type: "post", slug: "b", title: "B", fieldsJson: { ext: { site: {} } } },
+    input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: wsB, type: "post", slug: "b", title: "B", fieldsJson: { ext: { site: {} } } },
   });
   assert.equal(resultB.ok, true);
 

@@ -48,7 +48,7 @@ async function fixture() {
 test("composed binding keeps an undo-referenced revision through the real probes", async () => {
   const f = await fixture();
   await new SqliteChangeSetRepo({ store: f.kernel }).insert({
-    record: { id: "cs-1", workspaceId: WS, actorId: "a", status: "applied", summary: "edit", createdAt: "2026-06-01T00:00:00.000Z" },
+    record: { id: "cs-1", workspaceId: WS, actorId: "a", actor: { id: "a", kind: "user" }, status: "applied", summary: "edit", createdAt: "2026-06-01T00:00:00.000Z" },
     items: [{ id: "csi-1", changeSetId: "cs-1", entityType: "post", entityId: "p1", operation: "update", position: 0, beforeRevisionId: f.ids[1] }],
   });
   const preview = await f.binding.preview({ principal: OWNER, scope: SCOPE, before: "2026-11-01" }, {});

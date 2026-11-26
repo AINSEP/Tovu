@@ -6,7 +6,8 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createPublishCredential, describeCredential, hasDefaultForPublish, invalidatePublishCredentialCompatibility, listPublishCredentials, publishHostsForCredential, resolveDefaultForPublish, resolveForPublish, updatePublishCredential, type PublishCredentialWriteDeps } from "../store.js";
-import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store-validation";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialScope } from "#src/features/vendor-credentials/vault-adapter";
@@ -768,7 +769,7 @@ test("a row written by the vendor-credentials store (the custom-provider form) r
   const deps = makeDeps();
   const sealed = await deps.sealer.seal({
     plaintext: JSON.stringify({ vendorId: "s3-compatible", region: "auto", bucket: "b", accessKeyId: "AK", secretAccessKey: "SK12", publicUrl: "https://x" }),
-    key: await deps.keyring.activeKey(),
+    key: await deps.keyring.activeKey({}),
     aad: buildVaultAad({ ...credentialScope({ workspaceId: WORKSPACE, kind: "vendor" }), id: "v-1" }),
   });
   await deps.repo.insert({ workspaceId: WORKSPACE, id: "v-1", vendorId: "s3-compatible", label: "custom", sealed, tokenTail: "SK12", isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW });
@@ -780,7 +781,7 @@ test("a row written by the vendor-credentials store (the custom-provider form) r
 
 test("a vendor row no deploy host declares (a source-control-only vendor) is not a publish credential", async () => {
   const deps = makeDeps();
-  const sealed = await deps.sealer.seal({ plaintext: JSON.stringify({ vendorId: "gitlab", token: "t" }), key: await deps.keyring.activeKey(), aad: "unused" });
+  const sealed = await deps.sealer.seal({ plaintext: JSON.stringify({ vendorId: "gitlab", token: "t" }), key: await deps.keyring.activeKey({}), aad: "unused" });
   await deps.repo.insert({ workspaceId: WORKSPACE, id: "gl", vendorId: "gitlab", label: "gl", sealed, tokenTail: "t", isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW });
 
   assert.deepEqual(await listPublishCredentials(deps, { workspaceId: WORKSPACE }), []);

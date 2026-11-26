@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { createChatBulkDeletion } from "@jini-ai/chat/store/sqlite";
+import { createChatBulkDeletionFor } from "#src/assistant/persistence/store-factory";
 import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
 import type { ChatOwnerScope } from "@jini-ai/chat/store";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
@@ -18,15 +18,17 @@ const BASE = "/api/assistant/chats";
 /** A real `chat.db`, the real Jini routes behind the real admin ports, and a stand-in for
  * `requireAdminSession` that sets the session principal from a header. */
 async function harness() {
-  const kernel = chatKernel({ store: openChatDb({ filePath: ":memory:" }) });
+  const store = openChatDb({ filePath: ":memory:" });
   let clock = 1_000;
+  const kernel = chatKernel({ store });
+  const bulkDeletionFor = createChatBulkDeletionFor({ store, now: () => clock });
   const storeOf = (scope: ChatOwnerScope) => createChatHistoryStore({ kernel, scope }, { now: () => clock });
   const app = express();
   app.use(express.json());
   app.use(BASE, (req, res, next) => { res.locals.principal = { id: String(req.headers["x-test-principal"] ?? "alice") }; next(); });
   mountChatCleanup({
     app,
-    ownerStoreFor: ({ scope, openConversations }) => ({ store: storeOf(scope), bulkDeletion: createChatBulkDeletion({ kernel, scope, now: () => clock, openConversations }) }),
+    ownerStoreFor: ({ scope, openConversations }) => ({ store: storeOf(scope), bulkDeletion: bulkDeletionFor({ scope, openConversations }) }),
     ownerCheck: ({ context }) => ownerFromSession({ context, workspaceId: WS }),
     openConversations: async () => new Set<string>(),
     previewStore: createCleanupPreviewStore({ randomToken: () => crypto.randomUUID(), mono: () => clock }),
@@ -40,7 +42,7 @@ async function harness() {
     return { status: res.status, body: await res.json().catch(() => null) as Record<string, any> | null };
   };
   const own = (ownerId: string) => storeOf({ scopeId: WS, ownerKind: "user", ownerId });
-  return { call, own, advance: (ms: number) => { clock += ms; }, close: () => new Promise<void>(resolve => server.close(() => resolve())) };
+  return { call, own, advance: (ms: number) => { clock += ms; }, close: () => new Promise<void>(resolve => server.close(() => { store.close(); resolve(); })) };
 }
 
 test("rename still works with no pinned field", async () => {

@@ -235,10 +235,10 @@ test("a submitted rotation reads metadata before owner lookup, seals afterward, 
   const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
   await seedNameCom(writeDeps);
   const events: string[] = [];
-  const findByLabel = repo.findByLabel.bind(repo);
-  t.mock.method(repo, "findByLabel", async input => { events.push("metadata"); return findByLabel(input); });
+  const listByWorkspace = repo.listByWorkspace.bind(repo);
+  t.mock.method(repo, "listByWorkspace", (input: Parameters<typeof listByWorkspace>[0]) => { events.push("metadata"); return listByWorkspace(input); });
   const seal = sealer.seal.bind(sealer);
-  t.mock.method(sealer, "seal", input => { events.push("seal"); return seal(input); });
+  t.mock.method(sealer, "seal", (input: Parameters<typeof seal>[0]) => { events.push("seal"); return seal(input); });
   const routeDeps: CustomCredentialsToolDeps = { ...deps,
     get ownerPrincipalId() { events.push("owner"); return Promise.resolve(PRINCIPAL_ID); },
     publishCompatibility: { prepareInvalidation: async () => () => { events.push("invalidate"); } },

@@ -15,7 +15,8 @@ import { rebuildImportDatabase } from "#src/features/site-backup/import-database
 import { rewriteArchiveMedia, sanitizeShareDatabase } from "#src/features/site-backup/share-database/repo.sqlite";
 import { captureStaticSite } from "#src/features/site-backup/static-download-host";
 import { captureDatabaseSnapshot } from "#src/features/site-backup/sources";
-import type { DbOpsPort } from "@tovu/contracts/db-ops";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { createSiteTempRootPolicy } from "./temp-roots.js";
 
 const source = (file: string) => fs.readFileSync(new URL(file, import.meta.url), "utf8");
@@ -62,10 +63,11 @@ function assertLockFirst(events: readonly string[], parent: string, prefix: stri
   assert.deepEqual(fs.readdirSync(parent), [], "the writer leaves no root, lock or marker behind");
 }
 
-const snapshotDbOps = { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => { throw new Error("capture refused"); } } as unknown as DbOpsPort;
+const snapshotDbOps: DbOpsPort = { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }),
+  captureRestorePoint: async () => { throw new Error("capture refused"); }, restoreFromArtifact: async () => assert.fail("snapshot capture must not restore") };
 const writers: Array<{ name: string; prefix: SiteTempPrefix; run: (scope: ReturnType<typeof recordingScope>["scope"]) => Promise<unknown> }> = [
   { name: "import database", prefix: SITE_TEMP_PREFIXES.importDatabase, run: tempRoot => rebuildImportDatabase({ snapshot: Buffer.from("x"), moduleUrl: import.meta.url }, { tempRoot, statfs: noSpace }).catch(() => undefined) },
-  { name: "share projection", prefix: SITE_TEMP_PREFIXES.shareProjection, run: tempRoot => sanitizeShareDatabase({ snapshot: Buffer.from("x"), modules: [] }, { tempRoot, statfs: noSpace }).catch(() => undefined) },
+  { name: "share projection", prefix: SITE_TEMP_PREFIXES.shareProjection, run: tempRoot => sanitizeShareDatabase({ snapshot: Buffer.from("x"), modules: [], searchHost: POST_SEARCH_HOST }, { tempRoot, statfs: noSpace }).catch(() => undefined) },
   { name: "archive media", prefix: SITE_TEMP_PREFIXES.archiveMedia, run: tempRoot => rewriteArchiveMedia({ bytes: Buffer.from("not a database"), copies: [] }, { tempRoot }).catch(() => undefined) },
   { name: "static copy", prefix: SITE_TEMP_PREFIXES.staticCopy, run: tempRoot => captureStaticSite({ render: async () => { throw new Error("no render"); }, context: async () => { throw new Error("no context"); }, now: () => new Date() }, { tempRoot }) },
   { name: "database snapshot", prefix: SITE_TEMP_PREFIXES.snapshot, run: tempRoot => captureDatabaseSnapshot({ dbOps: snapshotDbOps, scopeId: "site-share" }, { tempRoot }) },

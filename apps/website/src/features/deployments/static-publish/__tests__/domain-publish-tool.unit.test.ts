@@ -35,7 +35,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
   headers?: Readonly<Record<string, string>>; anonymous?: boolean; exportGate?: Promise<void>; onSettled?: () => void; noPreview?: boolean } = {}) {
   const base = createRouteDeps();
   const root = await mkdtemp(path.join(tmpdir(), 'domain-publish-test-'));
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   let changed = false;
   let exports = 0;
   let publishes = 0;
@@ -99,7 +99,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
     return { published: true, reachable: result.ok === true, target: result.targetId, url: result.url, status: result.status,
       ...(result.ok === 'partial' ? { message: result.message } : {}), providerMetadata: result.providerMetadata };
   };
-  return { deny: () => { allowed = false; }, publishedHeaders: () => publishedHeaders, start: handler, handler: followJob, ctx, surfaceExchanges, deps, credentialSource, historyStore, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
+  return { deny: () => { allowed = false; }, publishedHeaders: () => publishedHeaders, start: handler, handler: followJob, ctx, surfaceExchanges, deps, credentialSource, historyStore, tokens, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
 }
 
 function exchangeId(surface: SurfaceEmission): string {
@@ -406,6 +406,6 @@ test('domain publish rechecks consent before minting approval or starting a job'
     },
   });
   assert.deepEqual(result, { published: false, cancelled: false, ...refusal });
-  assert.equal(await deps.gatedMutations!.gatewayDeps.tokens.count(), 0, 'stale readiness must refuse before confirm creates a token');
+  assert.equal(await f.tokens.count(), 0, 'stale readiness must refuse before confirm creates a token');
   assert.deepEqual(f.counts(), { exports: 0, publishes: 0 });
 });

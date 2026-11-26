@@ -737,7 +737,7 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   await history.recordSuccess({
     workspaceId: WORKSPACE_ID_FALLBACK,
     entry: { target: "github-pages", url: "https://leonaburime-ucla.github.io/tovu-demo/", reachable: true, status: "ready", projectName: "tovu-demo", publishedAt: NOW, owner: "leonaburime-ucla", repo: "tovu-demo", basePath: "/tovu-demo", triggeredBy: "agent_tool" },
@@ -759,7 +759,7 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
 
 test("confirm: a real publish records history in the injected historyStore, readable back through deployment_get_static_publish_capabilities", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { return { ok: true, basis: { kind: "env" as const }, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true, basis: { kind: "env" as const } }; } },
     // History's owner/repo are the host's own facts (`providerMetadata`), as the github-pages module reports them.

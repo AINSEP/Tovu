@@ -13,7 +13,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { publishStaticSite } from "../adapter.js";
-import { publishOutputDir, publishOutputDir as computePublishOutputDir } from "@jini-ai/devops/deploy/site/static-publish/adapter";
+import { publishOutputDir as computePublishOutputDir } from "@jini-ai/devops/deploy/site/static-publish/adapter";
 import { readStaticPublishConfig, toDeployFile } from "@jini-ai/devops/deploy/site/static-publish/adapter";
 import type { HostDeployPublishInput } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { PublishCredentialSource, StaticPublishConfig } from "@jini-ai/devops/deploy/site/static-publish/types";

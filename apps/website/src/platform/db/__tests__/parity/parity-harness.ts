@@ -275,7 +275,7 @@ export async function memoryParityDeps(mods: ParityModules, ctx: ParityContext):
   return { ...parityDeps(mods, ctx),
     site: { ...base, repo: new InMemorySiteAssistantCredentialRepo({ vault }) },
     exec: { ...base, repo: new InMemoryAdminExecutionCredentialRepo({ vault }) },
-    media: { ...base, repo: new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY }) },
+    media: { ...base, repo: new MediaProviderCredentialVaultRepo({ vault, policy: MEDIA_CREDENTIAL_POLICY, idGen: base.idGen }) },
     custom: { ...base, repo: new CustomCredentialVaultRepo({ vault }) },
     vendor: { ...base, repo: new InMemoryVendorCredentialSetRepo({ vault }) },
     source: { ...base, loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["github"] }), repo: new InMemorySourceControlCredentialSetRepo({ vault }) },

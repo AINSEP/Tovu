@@ -73,14 +73,16 @@ test("boot pass waits for ready", async () => {
       setInterval: (callback, ms) => { timers.push({ callback, ms }); return timers.length; }, clearInterval: () => {},
     }, reportError: () => {}, log: () => {},
   });
-  assert.deepEqual(timers, []);
+  assert.equal(timers.length, 0);
   assert.equal(measures, 0);
   lifecycle.listenerReady();
-  assert.equal(timers[0]!.ms, 300000);
+  const [initial] = timers;
+  assert.ok(initial);
+  assert.equal(initial.ms, 300000);
   assert.equal(measures, 0);
-  timers[0]!.callback();
+  initial.callback();
   assert.equal(measures, 1);
-  assert.equal(timers[1]!.ms, 86400000);
+  assert.equal(timers[1]?.ms, 86400000);
   await lifecycle.stop();
 });
 

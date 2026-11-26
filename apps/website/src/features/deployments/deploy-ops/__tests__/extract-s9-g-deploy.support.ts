@@ -42,7 +42,7 @@ async function harness(scenario: Scenario, ledgerFails = false) {
   const permissions: string[] = [];
   const cards: SurfaceEmission[] = [];
   const history: { workspaceId: string; entry: PublishHistoryEntry }[] = [];
-  const ledger = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const ledger = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const originalRecord = ledger.recordSuccess.bind(ledger);
   ledger.recordSuccess = async input => {
     counts.history++;

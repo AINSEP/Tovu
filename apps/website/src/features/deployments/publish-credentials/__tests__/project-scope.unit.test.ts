@@ -25,7 +25,8 @@ import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled
 import { createDbPublishCredentialSource } from "../../static-publish/credentials.js";
 import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
 import { createPublishCredential, listPublishCredentials, resolveDefaultForPublish, updatePublishCredential, type PublishCredentialWriteDeps } from "../store.js";
-import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store-validation";
 import { findPublishCredentialRecord } from "@jini-ai/devops/deploy/site/publish-credentials/store-resolution";
 
 /**

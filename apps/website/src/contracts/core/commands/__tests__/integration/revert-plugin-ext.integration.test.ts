@@ -107,7 +107,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
       clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
       idGen: { newId: () => "id-1" },
     },
-    input: { workspaceId: WORKSPACE, changeSetId: "cs-1" },
+    input: { workspaceId: WORKSPACE, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } },
   });
 
   assert.deepEqual(otherReadCalls, [], "restoring an update must not perform any other save-path read");
@@ -155,7 +155,7 @@ for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "h
         clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
         idGen: { newId: () => "id-1" },
       },
-      input: { workspaceId: WORKSPACE, changeSetId: "cs-1" },
+      input: { workspaceId: WORKSPACE, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } },
     });
 
     const restored = await postRepo.findById({ workspaceId: WORKSPACE, id: "post-1" });

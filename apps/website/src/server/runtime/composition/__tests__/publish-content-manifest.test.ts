@@ -426,13 +426,14 @@ test("the registered theme-files contributor's apply() is a real write path, not
     await blobStore.putIfAbsent({ workspaceId, sha256: entity.requiredBlobs[0], bytes });
 
     const outbox = new InMemoryOutbox();
+    const changeSets = new InMemoryChangeSetRepo([], [], outbox);
     let n = 0;
     const deps: PublishContentDeps = {
       workspaceId,
       clock: createFakeClock({ startIso: "2026-09-24T12:00:00.000Z" }),
       idGen: { newId: () => `generated-id-${++n}` },
       outbox,
-      changeSets: new InMemoryChangeSetRepo([], [], outbox),
+      changeSets,
       authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
       // An apply run's handler deps carry the ceremony's trusted actor: production's apply port
       // (`features/publish-content/apply-port.ts` -> Jini `applyPublishContentReport`) merges it in, and
@@ -453,7 +454,7 @@ test("the registered theme-files contributor's apply() is a real write path, not
     });
 
     assert.ok(changeSetId);
-    const recorded = await deps.changeSets.findById({ workspaceId, id: changeSetId });
+    const recorded = await changeSets.findById({ workspaceId, id: changeSetId });
     assert.deepEqual(recorded?.changeSet.actor, { id: "operator-principal-1", kind: "user" }, "the write records the run's trusted actor");
     assert.equal(await readFile(path.join(destThemes, "static/basic/theme.json"), "utf8"), '{"id":"basic"}');
   } finally {

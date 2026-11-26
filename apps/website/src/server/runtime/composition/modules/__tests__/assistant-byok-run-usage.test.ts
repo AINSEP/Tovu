@@ -55,7 +55,7 @@ test("the run span sums provider usage deltas and does not invent cost", async (
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ errors: routeErrors, app, deps });
-  createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
+  createAssistantByokModule({ routeDeps: deps, reporter: routeErrors.reporter }, { toolSurface: createByokToolSurface({ ...deps, reporter: routeErrors.reporter }, { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const providerUrl = await startStubProviderServer(t, (callCount) => ({ status: 200, body: callCount === 1 ? TOOL_REQUEST : TEXT_REQUEST }));
   const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({
