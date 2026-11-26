@@ -28,45 +28,45 @@ TAP version 13
 # Subtest: the preload, the contract and the handler all agree on the button's channel
 ok 1 - the preload, the contract and the handler all agree on the button's channel
   ---
-  duration_ms: 2.423488
+  duration_ms: 1.947449
   type: 'test'
   ...
 # Subtest: CLICKING the button adds a pointer for an existing site folder
 ok 2 - CLICKING the button adds a pointer for an existing site folder
   ---
-  duration_ms: 29.810537
+  duration_ms: 11.26187
   type: 'test'
   ...
 # Subtest: CLICKING the button REFUSES an empty folder and creates nothing in it
 ok 3 - CLICKING the button REFUSES an empty folder and creates nothing in it
   ---
-  duration_ms: 1.381547
+  duration_ms: 1.472041
   type: 'test'
   ...
 # Subtest: CLICKING the button REFUSES a folder of unrelated files and an incomplete site
 ok 4 - CLICKING the button REFUSES a folder of unrelated files and an incomplete site
   ---
-  duration_ms: 5.546858
+  duration_ms: 1.327003
   type: 'test'
   ...
 # Subtest: the button's dialog cannot create the folder it is about to refuse
 ok 5 - the button's dialog cannot create the folder it is about to refuse
   ---
-  duration_ms: 4.770891
+  duration_ms: 4.581457
   type: 'test'
   ...
 # Subtest: a cancelled dialog returns null and writes nothing
 ok 6 - a cancelled dialog returns null and writes nothing
   ---
-  duration_ms: 0.473166
+  duration_ms: 0.456863
   type: 'test'
   ...
 # Subtest: adding a copied folder gives it a fresh identity and leaves the original unchanged
-ok 7 - adding a copied folder gives it a fresh identity and… [truncated]
+ok 7 - adding a copied folder gives it a fresh identity and … [truncated]
 
   dist/speech/preload-speech.cjs  8.9kb
 
-⚡ Done in 5ms
+⚡ Done in 29ms
 
 
 ==================================================================

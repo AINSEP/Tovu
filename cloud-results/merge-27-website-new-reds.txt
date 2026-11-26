@@ -1,0 +1,415 @@
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > a trashed asset's publicUrl is null, never a link a visitor would 404 on
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > content_read.media_asset: a denied principal is rejected and NOTHING is written
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > content_read.media_asset: calls authorize() with the catalog's declared permission and the run's principal
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_list_assets' publicUrl is the byte-passthrough /original URL for a video asset, keyed by its slug, resolved from the content-type store
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_trash_asset is a status flip, and is the ONLY delete-adjacent tool
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_trash_asset: a denied principal is rejected and NOTHING is written
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_update_metadata persists each remaining metadata field and rejects an unknown id
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_update_metadata: a denied principal is rejected and NOTHING is written
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_update_metadata: calls authorize() with the catalog's declared permission and the run's principal
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for an image asset, keyed by its slug (readable-slugs S4)
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_upload_asset: a denied principal is rejected and NOTHING is written
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > media_upload_asset: calls authorize() with the catalog's declared permission and the run's principal
+apps/website/src/assistant/__tests__/tool-registrations.media.test.ts > workflow: upload, update its metadata, then trash it — list reflects the whole chain consistently under the SAME id
+apps/website/src/features/agent-plugins/__tests__/unit/a10-card-seam.unit.test.ts > no portable A10 body imports Tovu code (value or type) or a non-core Jini package
+apps/website/src/features/agent-plugins/__tests__/unit/install-tool-update.unit.test.ts > agent_plugins_update: without a human confirmation an enabled plugin is not updated
+apps/website/src/features/content-types/__tests__/publish-content.test.ts > content-type publishing updates fields when the label and lifecycle status stay the same
+apps/website/src/features/content-types/__tests__/publish-content.test.ts > content-type publishing: scoped grants survive create, field update and lifecycle re-checks
+apps/website/src/features/content-types/__tests__/publish-content.test.ts > content-type round trip: created, then unchanged; seeded widget keys and tombstones never pack
+apps/website/src/features/content-types/__tests__/publish-content.test.ts > content-type: a changed label and fields update in place (forced past the no-baseline conflict)
+apps/website/src/features/content-types/__tests__/publish-content.test.ts > content-type: a tombstoned destination type refuses; a key registered after the plan is a conflict
+apps/website/src/features/content-types/__tests__/publish-content.test.ts > content-type: an inbound entity for a seeded widget key is refused at precheck and apply, and changes nothing
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > GET runs immediately with no confirmation, no emitSurface required, and the credential decrypts exactly once
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > POST runs immediately with no confirmation and sends the given body
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > PUT and PATCH also run immediately with no confirmation
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > a cancelled run abandons the dialog and reports {executed:false, cancelled:false, reason:'abandoned'} — never decrypts, never sends
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > a denied principal never even sees a dialog, and the credential is never decrypted
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > a grant revoked while DELETE approval is open refuses the approved request without decrypting
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > a run cancelled before the DELETE dialog opens returns {executed:false, cancelled:false, reason:'abandoned'} at once — no dialog, no decrypt, no send
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > an abort during approved DELETE reauthorization prevents decryption and sending
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > an off-allowlist url is refused with the exact validation message before any dialog is raised, and never decrypts
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — never decrypts, never sends
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > an unknown label is refused as not-found before any dialog is raised
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > the tool reads its token scheme rules through the injected loadAuthSchemes, for this workspace
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts > with no emitSurface, a DELETE is refused outright with the exact fail-closed message — no exchange, no decrypt, no send
+apps/website/src/features/deployments/static-publish/__tests__/publish-history.unit.test.ts > destination selection pins replay eligibility, kind grouping, latest eligible row and the 201-row sentinel
+apps/website/src/features/deployments/static-publish/__tests__/publish-history.unit.test.ts > mixed destination kinds group independently, retain latest successes, and omit removed/never-pushed peers in both adapters
+apps/website/src/features/deployments/static-publish/__tests__/publish-history.unit.test.ts > mixed projection pins empty deploy URLs, exact peer paths, pending status and saved peer identity
+apps/website/src/features/email-templates/__tests__/operations.test.ts > edit maps a concurrent write to a version conflict and lets any other failure through
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry publishing: scoped grants survive the entry import re-check
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry references include its owning collection and assigned terms
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry round trip: ids, status and publishedAt kept; widgets and trashed rows never pack; then unchanged
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry termIds: packed sorted, synced exactly on the destination, then unchanged; none = omitted
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: a missing owning type may arrive after precheck, and omitted publishedAt imports as null
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: a tombstoned owning type blocks planning and no entry is applied
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: a trashed destination row holding the same (type, slug) under another id is refused at precheck
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: a trashed destination row with the same id is refused at precheck, not planned as created
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: an edit on the source updates the destination row in place (forced)
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: an entity of a widget type is refused at apply and writes nothing
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: an entity of a widget type is refused at precheck
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: the same (type, slug) under another id is refused and names the holder
+apps/website/src/features/entries/__tests__/unit/publish-content.test.ts > collection-entry: the same id created at the destination after the plan is a conflict
+apps/website/src/features/forms/__tests__/common-fields.test.ts > form discard keeps a referenced upload trashed rather than bypassing the reference check
+apps/website/src/features/forms/__tests__/common-fields.test.ts > form upload removes its asset when recording the content type fails and preserves the original error
+apps/website/src/features/forms/__tests__/common-fields.test.ts > form upload storage delegates to real media/blob/rendition ports and supports compensating cleanup
+apps/website/src/features/forms/__tests__/form-file-purge.test.ts > filename-only legacy evidence keeps files unchanged and warns, including submissions in Trash
+apps/website/src/features/forms/__tests__/form-file-purge.test.ts > private source metadata survives the durable media adapter
+apps/website/src/features/forms/__tests__/form-file-purge.test.ts > protection keeps known-private files, warns for unknown legacy ownership and records the attempted pass
+apps/website/src/features/forms/__tests__/form-file-purge.test.ts > transient legacy stamp failures keep the marker absent and retry automatically on the next owner start
+apps/website/src/features/forms/__tests__/form-file-purge.test.ts > unavailable protection storage warns and leaves completion absent for an automatic next-owner-start retry
+apps/website/src/features/forms/__tests__/form-file-renditions.test.ts > SQLite compensation commits before a same-hash upload waiting for its database turn
+apps/website/src/features/forms/__tests__/form-file-renditions.test.ts > rendition journal and row removal roll back together and survive a database reopen
+apps/website/src/features/forms/__tests__/form-file-storage.test.ts > failed upload metadata writes and discarded submissions retain their rendition cleanup jobs
+apps/website/src/features/forms/__tests__/form-file-storage.test.ts > form photos are private before store resolves and failed submission compensation removes their asset
+apps/website/src/features/forms/__tests__/publish-content.test.ts > HTML form transfers markup and hashes HTML-only changes while recipients stay local
+apps/website/src/features/forms/__tests__/publish-content.test.ts > a form update keeps destination notification recipients and recipients do not affect transfer hashes
+apps/website/src/features/forms/__tests__/publish-content.test.ts > a legacy Builder source replaces HTML and external collection at the destination
+apps/website/src/features/forms/__tests__/publish-content.test.ts > an inbound notification payload cannot replace destination recipients
+apps/website/src/features/forms/__tests__/publish-content.test.ts > form round trip: created on an empty destination, then unchanged, keyed by slug
+apps/website/src/features/forms/__tests__/publish-content.test.ts > form: a changed source form updates the destination row in place (forced past the no-baseline conflict)
+apps/website/src/features/forms/__tests__/publish-content.test.ts > form: a destination edit after the plan is a conflict, not an overwrite
+apps/website/src/features/forms/__tests__/publish-content.test.ts > form: a slug held only by a trashed destination form is refused at precheck
+apps/website/src/features/forms/__tests__/publish-content.test.ts > form: submissions never pack, and packed state carries no instance-local fields
+apps/website/src/features/fs-files/__tests__/copy-library.test.ts > Library copies enforce the 50 MiB document cap and combined transfer cap before persistence
+apps/website/src/features/fs-files/__tests__/copy-library.test.ts > Library copies retain PDF and Office bytes through the existing archive validator
+apps/website/src/features/fs-files/__tests__/copy-library.test.ts > Library glob copies flatten folder paths and validate the whole batch before any save
+apps/website/src/features/fs-files/__tests__/copy-library.test.ts > picked, site and theme files copy into the private Library through document ingestion
+apps/website/src/features/fs-files/__tests__/copy-tool.test.ts > media destination uses the importer and media sources read original bytes
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > a failed chat preview never loses the generated media result or its placeholder flag
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > a non-OpenAI model (nanobanana) with no saved credential falls back to the injected env credential
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > a placeholder says so: the result names what was asked for, and the library never credits the model with the stand-in
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > a plugin vendor generates end to end through the composition-built registry with its saved credential
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > a punctuation-only prompt uses a safe fallback title
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > a saved credential wins over the env fallback even when both are present
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > a saved key without a base URL reaches the generator without inventing one
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > allowStubFallback:true is forwarded and a non-stub generator result preserves its bytes and placeholder:false
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > an explicit model is passed through instead of the default
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > an explicit stub opt-in lets the generator decide what to do without credentials
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > an omitted model uses the image model saved with the provider credential
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > calls authorize() with media.upload and the run's principal
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > generated assets stamp the acting principal independently of the model and credit
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > import and generation preserve the same saved-media no-transform URL
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > import and generation preserve the same saved-media original URL
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > import and generation preserve the same saved-media rendition URL
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > import and generation propagate public-URL lookup failure after saving
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > media generation enforces host egress policy for a provider-returned public asset
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > no model specified, no OpenAI credential anywhere, but a different vendor's env credential IS set: the default resolves to a model that vendor can actually generate with, not a hardcoded OpenAI id that always fails here
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > the generated asset's content type is recorded (image/png) so it appears correctly typed in media_list_assets
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > the production credential environment is used when the optional environment port is omitted
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > the result and the stored asset name an explicitly chosen model and its vendor
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > the result and the stored asset name the default-resolved model and its vendor
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > the vendor reported is the one the engine actually used, not only the catalog's guess
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > usedStubFallback:true from generateMedia is surfaced as media.placeholder:true on the tool's return
+apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts > with a saved credential: generates through the injected seam, uploads the bytes, and returns the same view shape media_upload_asset returns
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > a 60 MiB .mp4 passes the pre-read gate (video cap picked from the extension) and imports
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > an omitted root resolver reads the booted site through the existing filesystem root owner
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > imports image/png by bytes, preserves metadata and blob bytes, and dedupes repeated imports
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > imports video/mp4 by bytes, preserves metadata and blob bytes, and dedupes repeated imports
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > local content-type storage failures propagate without claiming a successful import
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > local import batches eleven images, preserves per-item errors and keeps the shared cap
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > local import batches fifty images with distinct titles in input order
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > local imports stamp the authenticated owner, ignoring caller attribution
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > s5: local import reads the owner-picked external folder through the normal upload pipeline
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > the assistant imports a local SVG logo, persists sanitized bytes and returns its original URL
+apps/website/src/features/media-import/__tests__/import-local-file.test.ts > the production cap accepts a binary import above the old 10 MiB upload cap
+apps/website/src/features/media-import/__tests__/import-video-conversion-wiring.test.ts > assistant URL import: a video over the import threshold is converted and the original is kept
+apps/website/src/features/media-import/__tests__/import-video-conversion-wiring.test.ts > assistant import: a failed conversion keeps the original, hands the raw cause only to the operator note, and the tool result carries no raw error text
+apps/website/src/features/media-import/__tests__/import-video-conversion-wiring.test.ts > assistant local import: a video over the import threshold is converted and the original is kept
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > a traversal path or a file that is not valid media is refused as input, and the media is unchanged
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > concurrent metadata edits survive a replacement conflict
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > egress refusals expose only the guarded client's caller-safe reason
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > explicit undefined URL selects local bytes; undefined local fields allow a URL
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > invalid replacement source is refused without mutation: {"root":"site","path":"../escape.png"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > invalid replacement source is refused without mutation: {"root":"site","path":".env"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > invalid replacement source is refused without mutation: {"url":"http://example.com/new.png"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > invalid replacement source is refused without mutation: {"url":"https://example.com/new.png","root":"site","path":"new.png"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > invalid replacement source is refused without mutation: {}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > local replacement restamps JPEG type and provenance, preserves identity and metadata and invalidates old renditions
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > metadata and Trash writes cannot overwrite current MIME or provenance from a stale draft
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > null URL counts as a supplied remote source before URL string validation
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > oversized and unsupported local replacement bytes leave the media unchanged
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > permission denial precedes source reads and writes
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > replacing identical bytes still restamps the replacement origin
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > site replacement refuses repo and unpicked paths without reading or changing the asset
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > source exclusivity is checked before looking up media: {"path":"new.png"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > source exclusivity is checked before looking up media: {"root":"site"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > source exclusivity is checked before looking up media: {"url":"https://cdn.example.com/new.png","path":"new.png"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > source exclusivity is checked before looking up media: {"url":"https://cdn.example.com/new.png","root":"site","path":"new.png"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > source exclusivity is checked before looking up media: {"url":"https://cdn.example.com/new.png","root":"site"}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > source exclusivity is checked before looking up media: {}
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > trashed media and adapters without atomic replacement refuse before any fetch
+apps/website/src/features/media-import/__tests__/replace-file.test.ts > url replacement restamps JPEG type and provenance, preserves identity and metadata and invalidates old renditions
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > URL batches keep the shared cap and report an invalid URL between successful imports
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > URL imports attribute each new row to its actor even when the source bytes are shared
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > a preview the codec cannot make never fails the import: the plain media result comes back
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > an import with no redirect still records the requested URL — splitting the field's meaning must not blank the ordinary case
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > calls authorize() with media.upload and the run's principal
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > importing the same URL twice de-duplicates to ONE stored blob while creating a second library entry
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > optional alt/caption/credit and the filename override are threaded onto the created asset
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > sourceUrl records the hop that served the bytes after a redirect, which is what its contract has always claimed
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > the SNIFFED content type is recorded against the blob's sha256, so the media library types it correctly
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > the assistant URL tool sanitizes SVG, hashes stored bytes, and returns an original URL
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > the bytes are readable back out of the store under the reported hash — the stored object is not empty
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > the exact bytes the HTTP client returned reach the blob store, byte for byte, with a matching sha256
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > the returned view is the same shape media_upload_asset/media_generate_asset return, plus the resolved sourceUrl
+apps/website/src/features/media-import/__tests__/tool-registrations.test.ts > with the image codec wired, a URL import also returns a small titled WebP preview linked to the file, so the chat shows it inline
+apps/website/src/features/media/__tests__/agent-tools.trash-confirmation.test.ts > an asset that disappears before the versioned read, or a removal that reports not-found/conflict, trashes nothing
+apps/website/src/features/media/__tests__/agent-tools.trash-confirmation.test.ts > media.delete is checked before any dialog is raised, and a denied principal never sees one
+apps/website/src/features/media/__tests__/agent-tools.trash-confirmation.test.ts > n06: reversible removal runs without a confirmation channel
+apps/website/src/features/media/__tests__/agent-upload-sniff.test.ts > media_upload_asset rejects bytes that sniff outside the allowlist even when the declared contentType is an allowed type
+apps/website/src/features/media/__tests__/bootstrap.test.ts > thumb boot: registers one 640-wide WebP transform, and an asset uploaded BEFORE it generates on its first request
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > T10: a colliding slug override leaves no half-made media copy
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > a TRASHED source is refused — a copy would be a live entry for content already deleted
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > a caller holding content.write but NOT media.upload cannot copy an asset
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > a source can be named by its slug, not only its id — media's own identity model
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > a source whose blob row is gone fails loudly and writes NOTHING — no half-formed library entry
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > an explicit title and slug are honored
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > copying the same asset twice increments the suffix: '... 2', then '... 3'
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > every editorial field is carried onto the copy, with the title defaulting to the source's own title with a numeric suffix
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > the copy REFERENCES the source's bytes: same sha256, ONE blob row, ONE stored object
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > the copy is nonetheless an independent row: editing its metadata does not touch the source
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > the copy preserves a recorded content type instead of replacing it with the fresh sniff
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > the copy's content type is recorded against its hash, so it keeps its Images/Videos classification
+apps/website/src/features/media/__tests__/content-duplicate.media.test.ts > the draft/published status override is REJECTED for media rather than silently dropped
+apps/website/src/features/media/__tests__/convert-video-registration.test.ts > exactly 50 MiB is kept unchanged and the next byte reaches the injected converter
+apps/website/src/features/media/__tests__/convert-video-registration.test.ts > media_convert_video saves a web copy, keeps the original and links the copy back to it in plain words
+apps/website/src/features/media/__tests__/convert-video-registration.test.ts > no local converter binary gives the existing plain refusal and creates no row
+apps/website/src/features/media/__tests__/convert-video-registration.test.ts > with no ffmpeg on the host the tool says so in plain words and saves nothing
+apps/website/src/features/media/__tests__/created-by.test.ts > canonical upload attributes separate assets sharing bytes to their own actors
+apps/website/src/features/media/__tests__/created-by.test.ts > media copies attribute the new library entry to the copier while retaining one shared blob
+apps/website/src/features/media/__tests__/created-by.test.ts > one registered upload handler isolates attribution between concurrent actor calls
+apps/website/src/features/media/__tests__/import-video-conversion.test.ts > a big file that is not a video is never sent to the converter
+apps/website/src/features/media/__tests__/import-video-conversion.test.ts > a converted, untouched, or non-video upload carries no conversion notice
+apps/website/src/features/media/__tests__/import-video-conversion.test.ts > a failed video conversion returns the original and never serializes its cause
+apps/website/src/features/media/__tests__/import-video-conversion.test.ts > a video exactly at the threshold is kept as it came (the rule is strictly over)
+apps/website/src/features/media/__tests__/import-video-conversion.test.ts > a video over the import threshold is converted: the original is kept and the copy points back at it
+apps/website/src/features/media/__tests__/import-video-conversion.test.ts > an unexpected converter crash never fails the upload and the note carries no technical text
+apps/website/src/features/media/__tests__/import-video-conversion.test.ts > with no ffmpeg the upload still succeeds, keeps only the original, and records a plain-words note
+apps/website/src/features/media/__tests__/library-persistence.test.ts > Library: document metadata and original bytes survive a real SQLite and filesystem restart
+apps/website/src/features/media/__tests__/library-persistence.test.ts > [pglite] document round trip, immutable name/kind, rename and actual Trash adapter restore/purge
+apps/website/src/features/media/__tests__/library-persistence.test.ts > [sqlite] document round trip, immutable name/kind, rename and actual Trash adapter restore/purge
+apps/website/src/features/media/__tests__/library-publish-transport.test.ts > Library document-only blob hashes cannot be downloaded through publish peer transport
+apps/website/src/features/media/__tests__/library-publish-transport.test.ts > Library forged raw-file/theme apply refuses private hashes before blob I/O or file writes, including after purge
+apps/website/src/features/media/__tests__/library-publish-transport.test.ts > ordinary retained blobs allow peer download, raw-file/theme apply and media publish
+apps/website/src/features/media/__tests__/library-publish.test.ts > Library documents and their blobs are absent from publish output; forged apply and public duplication fail
+apps/website/src/features/media/__tests__/library-tools.test.ts > Library read/list enforce site binding and permissions without a blob read on refusal
+apps/website/src/features/media/__tests__/library-tools.test.ts > Library save allows by policy, refuses before the store is ready, reports upload-policy refusals as input errors and rethrows storage faults
+apps/website/src/features/media/__tests__/library-tools.test.ts > Library save survives cleanupRun; ordinary attachments remain temporary; later chat list/read sees saved bytes
+apps/website/src/features/media/__tests__/library-tools.test.ts > cross-message promotion stays unavailable while the accepted same-message save stays private
+apps/website/src/features/media/__tests__/library-tools.test.ts > library_read explains download-only formats without loading their blob bytes
+apps/website/src/features/media/__tests__/library-tools.test.ts > library_read returns at most 64 KiB, explicit continuation, and lossless untrusted source
+apps/website/src/features/media/__tests__/media-producing-previews.test.ts > every registered media-producing tool returns the same inline image preview as imports
+apps/website/src/features/media/__tests__/promote-chat-attachment.test.ts > media_promote_chat_attachment (end to end)
+apps/website/src/features/media/__tests__/provenance.integration.test.ts > [pglite] provenance survives repository recreation and metadata edits and reaches Library list
+apps/website/src/features/media/__tests__/provenance.integration.test.ts > [sqlite] provenance survives repository recreation and metadata edits and reaches Library list
+apps/website/src/features/media/__tests__/tool-registrations.test.ts > media_upload_asset accepts a file over the 10 MiB @jini-ai/cms default, up to Tovu's own TOVU_MAX_UPLOAD_BYTES cap
+apps/website/src/features/media/__tests__/tool-registrations.test.ts > media_upload_asset accepts a real AVIF from the assistant chat and records image/avif, not video/mp4
+apps/website/src/features/media/__tests__/tool-registrations.test.ts > media_upload_asset attributes analytics to each caller even when bytes are shared
+apps/website/src/features/media/__tests__/tool-registrations.test.ts > media_upload_asset records the SNIFFED content type (not the caller's declared string) so the asset is correctly typed afterward
+apps/website/src/features/media/__tests__/tool-registrations.test.ts > two uploads of different bytes each get their own recorded content type
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > PASS-THROUGH: through the real ToolExecutor and the daemon's read-only delegated-tool route, the image block survives intact (not stringified)
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > a large image comes back as a real WebP image block, downscaled to a 1568px long edge, and it is THIS picture
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > a small image is never upscaled
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > a tall image is bounded by its long edge (height), not its width
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > a video asset is refused with a pointer to media_view_video, not a broken image
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > an EXIF orientation below the quarter turns (orientation 1) keeps the stored width and height
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > an EXIF quarter-turn photo (orientation 6) is returned upright, and its original dimensions are reported as the viewer sees them
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > an asset whose stored blob row is missing is refused with a clear message
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > an image whose bytes are corrupt is refused with a clear message, not a raw codec stack
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > it requires media.read, and a denied principal gets ForbiddenError before any bytes are read
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > media view uses the injected codec for oriented dimensions and model bytes
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > stored bytes that are not an image at all are refused by what the bytes ARE, not by the declared type
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > the asset can be looked up by slug instead of id
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > view image gives the authorized metadata follow-up and performs no write
+apps/website/src/features/media/__tests__/view-image-tool.test.ts > viewing an image does not overwrite a human description
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > a caller with an empty principal id never matches media with an empty creator
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > a media row from another workspace is refused even when the repo returns it
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > media created by another principal is refused
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media exactly at the size limit is downloaded and previewed
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media with a NaN size is refused before download
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media with a negative size is refused before download
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media with a null size is refused before download
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media with a size one byte over the limit is refused before download
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media with a store that cannot report sizes is refused before download
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media with a zero size is refused before download
+apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts > owned media with no stored blob row is refused
+apps/website/src/features/media/__tests__/view-video-tool.integration.test.ts > real tiny MP4 reaches the tool as N decodable bounded JPEGs with source metadata
+apps/website/src/features/media/__tests__/view-video-tool.test.ts > checks source size before blob download and surfaces unavailable host as a text result
+apps/website/src/features/media/__tests__/view-video-tool.test.ts > delegated HTTP video single calls accept slug selectors and retain frames
+apps/website/src/features/media/__tests__/view-video-tool.test.ts > foreign and unattributed media fail before blob access; shared blob owner never grants access
+apps/website/src/features/media/__tests__/view-video-tool.test.ts > owned media and chat refs return identical actual JPEG images and metadata
+apps/website/src/features/media/__tests__/view-video-tool.test.ts > video selector conflicts and missing slugs fail before extraction; equal selectors work
+apps/website/src/features/media/__tests__/view-video-tool.test.ts > video slug calls retain ownership checks and refuse batches before source reads
+apps/website/src/features/media/__tests__/view-video-tool.test.ts > video slugs are offered only as single calls and all eight calls retain frames
+apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts > apply(): create keeps the source id, update bumps the version; changeSetId is the menu id
+apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts > apply(): exact blocked text, stale version is a conflict, unwired throws naming the port
+apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts > inspect(): the destination's hash equals the pinned pack hash
+apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts > pack(): pinned contentHash and packed state per menu; trashed rows skipped
+apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts > precheck(): exact reason strings
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > apply defaults omitted locations to an empty list
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > apply refuses a missing outbox before writing a menu
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > apply() accepts a doc item whose entryRef target does not exist at the destination — no precheck on refs
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > apply() creates a new menu under the SOURCE id (never mints its own, unlike createMenu)
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > apply() rebinds a location away from whatever destination menu previously held it (displacement)
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > apply() round-trip (simulated rollback): publishing the prior record back restores the prior binding owner
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > apply() updates an existing destination row under OCC, re-resolved by its own id
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > pack() keeps both the page reference and last-known URL for a destination without that page
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > pack() skips a trashed menu and packs a live one, keyed by the menu's own id
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > pack() yields nothing when menuRepo is absent
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > precheck reports a non-Error thrown while reading the doc as its string form
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > precheck() rejects a slug already held by a different menu
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > precheck() reports the tree validator's own message for an invalid doc
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > referencesTo returns no holders without a menu port
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > referencesTo() finds a menu whose nested entryRef targets one of the given ids
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > referencesTo() finds nothing for a menu whose only item is a url target
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences continues after a denied menu and repairs the next menu
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences gives a menu exactly two attempts when every write conflicts
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences refuses a missing authorize dependency before changing menus
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences refuses a missing changeSets dependency before changing menus
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences refuses a missing menu dependency before changing menus
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences refuses a missing outbox dependency before changing menus
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences reports the grant line when the retry after a conflict is denied
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences retries a single conflict from fresh state, preserving the concurrent edit
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences skips a menu already-repaired after its list snapshot
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences skips a menu removed after its list snapshot
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences() attributes the menu repoint to the apply run's actor, not an invented user
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences() called a second time finds nothing left to repoint — no new change set
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences() leaves a menu named in skipIds untouched
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences() puts the prior tree back when the change-set record fails after the write landed
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences() reports a denied authorization without writing
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences() rewrites a live menu's entryRef and records one revertible change set
+apps/website/src/features/navigation/__tests__/publish-content.test.ts > repointReferences() skips a menu that keeps conflicting after one retry, with the exact operator-facing line
+apps/website/src/features/navigation/__tests__/reverters.test.ts > revertChangeSet refuses a repoint change set whose menu changed since — the standard conflict
+apps/website/src/features/navigation/__tests__/reverters.test.ts > revertChangeSet undoes a repoint change set, restoring the prior entryRef
+apps/website/src/features/post/__tests__/L156-characterization.test.ts > L156 publish import uses source provenance only on create and keeps destination ext on update
+apps/website/src/features/post/__tests__/featured-image.test.ts > a media slug resolves to the canonical asset id that is stored
+apps/website/src/features/post/__tests__/featured-image.test.ts > a trashed asset is refused with how to fix it
+apps/website/src/features/post/__tests__/featured-image.test.ts > an asset whose sniffed type is known and not an image is refused, naming that type
+apps/website/src/features/post/__tests__/featured-image.test.ts > an unknown reference is a PostValidationError naming the trimmed reference
+apps/website/src/features/post/__tests__/featured-image.test.ts > omitted, null and blank featuredMediaId values pass through untouched
+apps/website/src/features/post/__tests__/featured-image.test.ts > the lookup is the host-injected findMediaByIdOrSlug, called with the repo and the trimmed reference
+apps/website/src/features/post/__tests__/publish-content.characterization.test.ts > a published byline round trips and an absent source byline clears the destination
+apps/website/src/features/post/__tests__/publish-content.characterization.test.ts > apply(): a stale version is a conflict row; create and update land with terms synced
+apps/website/src/features/post/__tests__/publish-content.characterization.test.ts > inspect(): the destination's hash equals the pinned pack hash; the other kind is invisible
+apps/website/src/features/post/__tests__/publish-content.characterization.test.ts > pack(): pinned contentHash per post and page (untagged, tagged), schemaVersion 2, trashed skipped
+apps/website/src/features/post/__tests__/publish-content.characterization.test.ts > precheck(): exact reason strings
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > D2: publishing replaces an existing doc-format destination row with the source's html format
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > D2: publishing replaces an existing html-format destination row with the source's doc format
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > a members-only post does NOT publish to the destination as publicly readable
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > a trashed source row is not packed at all, so publish can never resurrect it as live content
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > an html-format Page keeps its bodyHtml and its format through a publish
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > create preserves the SOURCE author and never re-stamps it with the importing operator
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > page: a fully populated entity survives pack -> apply -> pack onto an EMPTY destination
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > page: a fully populated entity survives pack -> apply -> pack onto an EXISTING destination row
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > page: plugin extension data is excluded from transport and preserves destination-local namespaces
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > post: a fully populated entity survives pack -> apply -> pack onto an EMPTY destination
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > post: a fully populated entity survives pack -> apply -> pack onto an EXISTING destination row
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > post: plugin extension data is excluded from transport and preserves destination-local namespaces
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > publishing over a TRASHED destination row is refused rather than silently resurrecting it
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > publishing over an existing PUBLIC destination row still applies the source's member gating
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > seoExtJson survives publish onto an empty destination
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > templateChoice and overridesThemePage survive publish onto an empty destination
+apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts > update never overwrites the destination row's write-once authorship
+apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts > a featured image lands at the destination
+apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts > a row without a schedule or featured image packs without either key
+apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts > a scheduled post lands at the destination with its publishAt, so it does not go live early
+apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts > a source without a schedule clears the destination's schedule and featured image
+apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts > scheduling a post changes its content hash, so a newly scheduled post is offered for publish
+apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts > the featured image is a reference, so a scoped publish carries the media along
+apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts > toPublishableState agrees with the packed hash for a scheduled row (planRetire/retire hash it)
+apps/website/src/features/post/__tests__/publish-content.terms.test.ts > T31: a term write failure after importing a post removes the unrecorded post
+apps/website/src/features/post/__tests__/publish-content.terms.test.ts > an instance still on post schemaVersion 1 refuses the whole bundle, writing nothing
+apps/website/src/features/post/__tests__/publish-content.terms.test.ts > an untagged post keeps its schemaVersion-1 hash byte-for-byte, with or without taxonomy ports
+apps/website/src/features/post/__tests__/publish-content.terms.test.ts > post termIds: a changed set syncs exactly — added assigned, removed unassigned; none left clears all
+apps/website/src/features/post/__tests__/publish-content.terms.test.ts > post termIds: a term missing at the destination blocks the row before the post is written
+apps/website/src/features/post/__tests__/publish-content.terms.test.ts > post termIds: packed sorted, applied after taxonomy and term, then everything unchanged
+apps/website/src/features/post/__tests__/publish-content.terms.test.ts > post termIds: without admin.taxonomy.manage a tag change is blocked and nothing is written
+apps/website/src/features/post/__tests__/publish-content.test.ts > T32: reverting a retirement from history restores the holder's original free slug
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() 'applied' path: a stale expectedVersion rejects with a typed apply conflict, never overwrites
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() 'applied' path: writes through updatePost with expectedVersion, actor is the OPERATOR
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() 'created' path: a change-set failure removes the row outright — an undone create must leave nothing behind
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() 'created' path: a null source author imports as null, not the operator's id (Task 15)
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() 'created' path: writes through createPost and copies the SOURCE author, never the operator's id (Task 15)
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() refuses a page entity whose packed kind is 'post' and writes nothing
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() refuses a post entity whose packed kind is 'page'
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() restores an existing destination forward when change-set recording fails (byline=Hidden credit, visible=false)
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() restores an existing destination forward when change-set recording fails (byline=Visible credit, visible=true)
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() restores an existing destination forward when change-set recording fails (byline=null, visible=false)
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() throws when changeSets/authorize/outbox are not wired — never silently no-ops
+apps/website/src/features/post/__tests__/publish-content.test.ts > apply() throws when ports.post.forgetRemoved is not wired even though the gateway deps are
+apps/website/src/features/post/__tests__/publish-content.test.ts > both built handlers declare the resource's own content.write permission
+apps/website/src/features/post/__tests__/publish-content.test.ts > contributePagePublish returns data only, distinguished from post only by entityType
+apps/website/src/features/post/__tests__/publish-content.test.ts > contributePostPublish returns data only — entityType/dependsOn are plain values, build is deferred
+apps/website/src/features/post/__tests__/publish-content.test.ts > inspect() returns null for a row that does not exist
+apps/website/src/features/post/__tests__/publish-content.test.ts > inspect() returns null for a row that exists but is the WRONG kind — a page's id must not resolve through the post handler
+apps/website/src/features/post/__tests__/publish-content.test.ts > inspect() returns {version, hash} for an existing row of the matching kind
+apps/website/src/features/post/__tests__/publish-content.test.ts > isApplyConflict() treats the post domain's conflict and not-found errors as apply conflicts, and nothing else
+apps/website/src/features/post/__tests__/publish-content.test.ts > pack()'s contentHash is stable across two rows with identical content but different id/version/updatedAt
+apps/website/src/features/post/__tests__/publish-content.test.ts > page.pack() yields only kind:'page' rows
+apps/website/src/features/post/__tests__/publish-content.test.ts > planRetire() returns null for a free slug, a slug the entity itself holds, a missing slug, and a handler with no post repo
+apps/website/src/features/post/__tests__/publish-content.test.ts > planRetire() returns null for the home page slug — there is no other address to move it to
+apps/website/src/features/post/__tests__/publish-content.test.ts > planRetire() returns null when the incoming id already exists at the destination — a same-id collision is not an address clash
+apps/website/src/features/post/__tests__/publish-content.test.ts > planRetire() returns the live holder with the exact hash inspect() gives
+apps/website/src/features/post/__tests__/publish-content.test.ts > post.pack() yields only kind:'post' rows, each hashed with contentHash({ entityType: 'post', state: ... })
+apps/website/src/features/post/__tests__/publish-content.test.ts > precheck() allows an entity claiming ITS OWN current slug (updating in place is not a collision)
+apps/website/src/features/post/__tests__/publish-content.test.ts > precheck() allows an entity whose slug is free
+apps/website/src/features/post/__tests__/publish-content.test.ts > precheck() blocks a page entity whose packed kind is 'post'
+apps/website/src/features/post/__tests__/publish-content.test.ts > precheck() blocks an entity whose slug is held by a DIFFERENT id — never auto-renames (plan §5 risk \#4)
+apps/website/src/features/post/__tests__/publish-content.test.ts > precheck() blocks an entity with no usable slug rather than throwing
+apps/website/src/features/post/__tests__/publish-content.test.ts > precheck() blocks publishing over a destination row that is in the Trash, even when that row is the other kind
+apps/website/src/features/post/__tests__/publish-content.test.ts > precheck() no longer blocks a body-format difference — D2 (2026-09-24 owner decision) lets publishing replace it instead of refusing
+apps/website/src/features/post/__tests__/publish-content.test.ts > references() adds the featured image once, and adds nothing for a missing or empty featuredMediaId
+apps/website/src/features/post/__tests__/publish-content.test.ts > retire of an already-trashed holder: revert leaves it in the Trash
+apps/website/src/features/post/__tests__/publish-content.test.ts > retire() of a target that no longer exists refuses with not-found and records nothing
+apps/website/src/features/post/__tests__/publish-content.test.ts > retire() records a change set whose revert un-trashes the row
+apps/website/src/features/post/__tests__/publish-content.test.ts > retire() refuses a target whose live content no longer matches the planned hash, and leaves the holder live
+apps/website/src/features/post/__tests__/publish-content.test.ts > retire() throws when removePost is not wired — never silently no-ops
+apps/website/src/features/post/__tests__/publish-content.test.ts > retire()'s undo() restores the holder live, at its original slug — the address-clash rollback, not the standard revert
+apps/website/src/features/post/__tests__/publish-content.test.ts > security cleanup pins source provenance defaults and destination local fields
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > D1: a row still matching the seed with NO baseline plans 'applied' AND is actually written at apply time
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > D1: a seed-matched row edited on the destination AFTER plan still downgrades to 'conflict' at apply
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > R5: a menu written by the same bundle keeps its own incoming tree — it is skipped, not repointed
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > R5: a repoint pass never runs when the create half of a retire+create pair fails and is undone
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and never fails the run
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > R5: after apply, a live menu's entryRef is repointed to the address-clash overwrite's new id, and routing resolves it
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > R6: a run that aborts after one landed overwrite still repoints references to that replacement
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > T-D11c: a type with item idempotency scope gets the run-independent command key
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > T-D11c: a type with run idempotency scope gets a per-run command key
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > TW2 pins a missing packed entity as blocked without a write
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a baseline failure AFTER the create landed must not undo the retire — the new row already holds the address
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a baseline failure after the content command durably records the landed item and exact retry key
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a baseline is keyed on the bundle's sourcePrincipalId, never on the executing operator's principalId
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a destination edit landing AFTER plan but BEFORE apply downgrades 'applied' to 'conflict' and never overwrites it
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a destination removed after planning applied stays removed and retains its prior baseline
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a destination removed after planning forced stays removed and retains its prior baseline
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a destination row created by someone else between plan and apply downgrades 'created' to 'conflict' and never overwrites it
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a media row blocked at apply time downgrades that ONE row and the rest of the run still applies
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a refused report is persisted as an 'abandoned' run and produces no writes
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a retry after an undone retire uses a fresh retire idempotency key, so the command gateway never refuses it as already executed
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a row without `retires` behaves exactly as before S5 — the generic created/removed guards still apply
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > a write refused permission blocks that ONE row with the refusal as its reason; the rest of the run applies
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > address-clash overwrite: the live holder is retired to Trash and the incoming row is created under its own id, with the create's changeSetId and the retire's tracked separately
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > apply-loop: a 'created' row with a NULL source author imports as null, never the operator's id
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > apply-loop: a 'created' row with a non-null source author imports with that author, never the operator's id
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > applyReport returns the retire change sets beside changeSetIds, never mixed into them
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > baselines are upserted for created/unchanged/applied/forced and NEVER for conflict/blocked
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > media replacement context reaches apply only from its verified overwrite row: confirmed
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > media replacement context reaches apply only from its verified overwrite row: no-source
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > media replacement context reaches apply only from its verified overwrite row: not-forced
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > media replacement context reaches apply only from its verified overwrite row: writes-only
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > reviewed file reverts use the destination version in both command and durable retry keys
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > the create failing after a successful retire puts the holder back live — the retire is never left stranded
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > the live holder changing between plan and apply downgrades the retire-forced row to 'conflict' — nothing is retired, nothing is created
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts > the run row's changeSetIdsJson records every changeSetId the run produced
+apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts > a plugin refusing item 2 of 3 says PLUGIN_HOOK_FAILED with the plugin id and item; item 1 stays saved
+apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts > a save hook failing with anything other than a plugin refusal stays a redacted internal error
+apps/website/src/features/publish-content/__tests__/plan-pull-tool.test.ts > L163 pull boundary translates each known refusal and preserves unknown rejection identity
+apps/website/src/features/publish-content/__tests__/planner.test.ts > real post contributor: blocked on a genuine slug collision against a DIFFERENT existing post
+apps/website/src/features/publish-content/__tests__/planner.test.ts > real post contributor: created + byte-identical destination
+apps/website/src/features/publish-content/__tests__/references.test.ts > a collection entry carries its collection and what its body embeds
+apps/website/src/features/publish-content/__tests__/references.test.ts > a menu carries nothing: its links point at other content rather than being part of it
+apps/website/src/features/publish-content/__tests__/references.test.ts > a page or post carries its images, its embedded widgets (node or html marker, by id or slug) and its terms
+apps/website/src/features/publish-content/__tests__/references.test.ts > a term carries its taxonomy and its parent
+apps/website/src/features/publish-content/ui/__tests__/ui-stays-client-safe.boundary.test.ts > features/publish-content/ui/ contains no .tsx file
+apps/website/src/features/publish-content/ui/__tests__/ui-stays-client-safe.boundary.test.ts > no file under features/publish-content/ui/ takes a VALUE import on server code
