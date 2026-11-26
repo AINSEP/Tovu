@@ -1,4 +1,4 @@
-PARTIAL T @TSHA@ J @JSHA@ | FILES LEFT 882/97 | left: website tsc 33 (NEW, slice type mismatches listed below); Jini guard 181 rows (NEW from the x4 slices, mostly SI-domain 101 / HW3 24 / R14 13); desktop `npm run gates` not run; Tovu changed tests + typecheck:tests not run; Jini tests partial (see table); 97 true-left files
+PARTIAL T 48f6802924 J 948f772f | FILES LEFT 882/97 | left: website tsc 31 (NEW, slice type mismatches listed below); Jini guard 181 rows (NEW from the x4 slices, mostly SI-domain 101 / HW3 24 / R14 13); desktop `npm run gates` not run; Tovu changed tests + typecheck:tests not run; Jini tests partial (see table); 97 true-left files
 
 # MERGE-25 — last Tovu->Jini extraction round (Codex Sol x4, untested) onto merge-24 (2026-11-26)
 
@@ -27,11 +27,28 @@ Environment: Node 22.23.5 (repo pins 24; engine warnings only). Tovu installed w
 | Jini `pnpm -r build` | green | **green** | 191 slice errors fixed (devops 86, cms 75+, plugins 30, mcp 22, agent-plugins 18, admin 14, user-management 12, chat 3, daemon 2, search 1, integrations 1, cookie-consent 1) |
 | Jini guard | 6 (R13 ×6) | **181** (peak 208) | NEW, all from the slices: SI-domain 101, HW3-module-state 24, R14-runtime-module-cycle 13, N1/N2 13 (was 46; 33 files' comments neutralized), L1/L3/L5 17, N3 5, R5 1, HW4 1 |
 | Tovu admin tsc | 0 | **0** | 33 NEW fixed |
-| Tovu website tsc | 0 | **33** | 61 NEW -> 33; list below |
+| Tovu website tsc | 0 | **31** | 61 NEW -> 31; list below (share-database binding fixed after the list was written) |
 | Tovu `typecheck:tests`, `typecheck:e2e`, desktop `npm run gates`, Tovu changed tests | 600 / 0 / flaky | **not run** | cap reached on the build/tsc repair |
 | Jini changed-package tests | — | see table | |
 
-@JTESTS@
+### Jini package tests (vitest per package, Node 22; merge-24 baseline not re-run — every red file below is slice-authored or a contract test that pins the pre-slice entry/boundary set)
+
+| package | files failed / total | tests failed / total | red files |
+|---|---|---|---|
+| user-management | 7/226 | 8/2059 | package-entries, public-args, user-management-rename (contract pins), identity owner-enable authorization, user-trash-adapter blocked purge, members magic-link, newsletter delivery ×2 |
+| daemon | 0/271 | 0/4895 | — |
+| chat | 0/352 | 0/4781 | — |
+| db | 3/134 | 6/1125 | loads-without-driver ×2, recovery tool-registrations, site database-recovery ×3 |
+| search | 0/20 | 0/417 | — |
+| integrations | 1/145 | 1/2347 | vendor-credentials vault-adapter sealed fixture |
+| cookie-consent | 0/39 | 0/291 | — |
+| plugins | 0/96 | 0/1116 | — |
+| agent-plugins | 1/185 | 1/2520 | connect relative-imports |
+| mcp | 1/127 | 1/1984 | external tool-registrations changed-connection approval |
+| admin | 3/630 | 3/6501 | theme-boundaries (`screens/email/email.css` hard-coded colours), AlwaysAllowPanel, page-lifecycle node import |
+| devops | 1/200 -> **0** | 1/2018 -> **0** | no-hosting-vendor fixed (vendor names in moved comments) |
+| cms | 16/999 | 23/9073 | forms result-html ×6, publish/content tool-registrations ×3 (need the new `gateway` dep), subpath-isolation + integration-package contracts, forms create-tables reference, widgets/taxonomy/forms site publish, seo, site-inspection, html-recording-revert, content-duplicate post-page, provider-credential-vault, content-types universal entries boundary |
+
 
 ### Website tsc — 33 left (exact blockers)
 - `site-backup/share-database/repo.sqlite.ts` ×2, `memory-deps/route-deps/trash-and-content.ts`, `site-deps/route-deps-content-chat.ts`, `site-deps/site-sharing.ts`: Jini share-database projection now takes a structural `sql` tag and its own `ShareDatabaseProjection`; the Tovu binding must pass kysely's `sql` and use the Jini projection type (devops consumer change made this run).
@@ -48,7 +65,7 @@ Environment: Node 22.23.5 (repo pins 24; engine warnings only). Tovu installed w
 - **Extracted / deleted:** `features/identity/user-purge.ts` deleted -> Jini `@jini-ai/user-management/identity/sql/kernel-user-purge` (`KernelUserPurge`, 2 SQLite tests incl. rollback); 9 importers repointed through `schemaErasedKernel`. `admin/src/lib/durable-run-subscription.ts` and `admin/src/features/routines/use-conversation-deep-link.ts` reduced to pure bindings (scheduler -> `@jini-ai/chat` `browserTimeoutSchedule`, query replace -> `@jini-ai/admin` `replaceBrowserQuery`, both tested).
 
 ## FILES LEFT (excl. themes; planner / true)
-**882 / 97** at Tovu `@TSHA@` / Jini `@JSHA@` (merge-24: 975 / 447). Without the new keep files: 882 / 354.
+**882 / 97** at Tovu `48f6802924` / Jini `948f772f` (merge-24: 975 / 447). Without the new keep files: 882 / 354.
 Method: `cloud-results/count-25/count-files-left.sh <tovu> <jini> keep plans/count-1125/{k0-keeps,x4-keeps,merge25-g3-keeps}.md`
 (scan + combine-18 planner + 507 count-1124 rules, calibrated exactly 975/447 on merge-24's tips; 796 rules now).
 Top true-left areas: public-http 13, adm-other 12, admin-http 12, agent-plugins 7, post 6, adm-shell-components 5, adm-security 5, webhooks 5.
