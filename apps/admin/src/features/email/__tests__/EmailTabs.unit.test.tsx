@@ -263,7 +263,7 @@ describe("adding provider segments", () => {
     const controller = createTabHooks().provider({});
     controller.choices = [{ ...MAIL_PLUGIN, displayName }];
     render(<EmailProviderTab controller={controller} status={null} locale="en" selectedId={ADD_PROVIDER_PART} />);
-    expect(screen.getByText(expected)).toHaveClass("email-provider-name");
+    expect(screen.getByText(expected)).toHaveClass("jini-admin-email-provider-name");
     expect(screen.queryByText(MAIL_PLUGIN.pluginId)).toBeNull();
     expect(screen.getByRole("button", { name: "Add" })).toHaveAttribute("data-agent-element", `email-add-provider-${MAIL_PLUGIN.pluginId}`);
   });

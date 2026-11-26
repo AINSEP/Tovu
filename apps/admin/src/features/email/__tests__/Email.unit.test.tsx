@@ -165,7 +165,8 @@ it("spreads the boundary attributes returned by the injected useAdminThemeBounda
 function unpaintedClasses(required: { root: Element; cssModule: string; family: RegExp }, _optional = {}): { found: readonly string[]; missing: readonly string[] } {
   const css = readFileSync(createRequire(import.meta.url).resolve(required.cssModule), "utf8");
   const found = [...new Set([...required.root.querySelectorAll("[class]")].flatMap((node) => [...node.classList]).filter((name) => required.family.test(name)))];
-  return { found, missing: found.filter((name) => !new RegExp(`\\.${name}(?![\\w-])`).test(css)) };
+  // `jini-admin-email-section` is Jini's structural Section marker, deliberately unpainted (Jini's own EmailParts witness exempts it too).
+  return { found, missing: found.filter((name) => name !== "jini-admin-email-section" && !new RegExp(`\\.${name}(?![\\w-])`).test(css)) };
 }
 
 it("the exported stylesheet still paints the mounted host view", () => {
