@@ -2,13 +2,8 @@ import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByS
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
-import {
-  pageAdminPath,
-  pageEditorSurface,
-  pagePickerValue,
-  pagePublicPath,
-  themePageRowMenuItems,
-} from "../rules";
+import { pageAdminPath, pagePickerValue, pagePublicPath, themePageRowMenuItems } from "../rules";
+import { pageEditorSurface } from "@jini-ai/cms/react/pages/page-editor-rules";
 import { pageVersionConflictMessage, THEME_DEFAULT_SENTINEL } from "@jini-ai/admin/pages/page-editor-rules";
 import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 

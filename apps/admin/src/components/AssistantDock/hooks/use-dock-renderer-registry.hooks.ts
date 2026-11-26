@@ -15,7 +15,7 @@ import {
 } from "@jini-ai/chat/react";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createA2uiActionPoster } from "../../../lib/shell-collaborators";
-import { routeApprovalToolCall, type AgUiApprovalPoster } from "../../../lib/ag-ui-approval-relay";
+import { routeApprovalToolCall, type AgUiApprovalPoster } from "@jini-ai/chat/core/assistant-client/ag-ui-approval-relay";
 import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard";
 import { hasAgentFailureNotice, useAgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
@@ -99,7 +99,7 @@ export const routedA2uiCardBindings = {
 function registerDockRenderers({ registry, agUiApprovals }: { registry: ExtEventRendererRegistry; agUiApprovals: AgUiApprovalPoster }): () => void {
   // The card's decision resumes a live AG-UI interrupt only when that interrupt named its exchange;
   // otherwise it keeps the existing redemption route (see `routeApprovalToolCall`).
-  const cardToolCall = routeApprovalToolCall({ approvals: agUiApprovals, fallback: mcpUiToolCaller }, {});
+  const cardToolCall = routeApprovalToolCall({ approvals: agUiApprovals, fallback: mcpUiToolCaller, copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {});
   const unregister = [
     /**
      * Registered via the low-level `register` (not Jini's own `registerMcpUiSurfaceRenderer`

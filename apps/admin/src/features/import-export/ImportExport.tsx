@@ -1,14 +1,9 @@
+import { ImportExport as ImportExportScreen } from "@jini-ai/admin/screens/import-export/ImportExport";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-
-import { TabBar } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "../sites";
-import { IMPORT_EXPORT_LINKS, type ImportExportLink } from "@jini-ai/admin/screens/import-export/import-export-links";
-import { resolveImportExportTabId, resolveImportExportTabs, type ImportExportTabId } from "./import-export-tabs";
 import { useWiredImportExportTranslate, useWiredSitesSectionAvailable, useSiteTransferTranslate } from "./hooks/import-export-dependencies.hooks";
 import { useWiredGitBackup } from "./hooks/git-backup-dependencies.hooks";
-import { GitBackupCard } from "@jini-ai/admin/screens/import-export/GitBackupCard";
-
 import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Operations → Import & Export (`/admin/import-export`). Three tabs (owner, 2026-10-25,
@@ -32,62 +27,6 @@ export interface ImportExportProps {
   tabId?: string | null;
 }
 
-function ImportExportCard({ link, t }: { link: ImportExportLink; t: Translate }) {
-  return (
-    <section className="card import-export-card" aria-labelledby={`import-export-${link.id}-title`}>
-      <h2 id={`import-export-${link.id}-title`} className="card-title">{t(link.title)}</h2>
-      <p className="card-lead">{t(link.lead)}</p>
-      {/* Named "Open <title>" by its own text plus the heading, so each "Open" link stays distinct. */}
-      <a
-        id={`import-export-${link.id}-link`}
-        className="btn-secondary"
-        href={link.href}
-        aria-labelledby={`import-export-${link.id}-link import-export-${link.id}-title`}
-        {...agentHandle({ handle: `import-export-${link.id}-link` }, { role: "link", label: `Open ${link.title}` })}
-      >
-        {t("Open")}
-      </a>
-    </section>
-  );
-}
-
-/** The Other tab: the cards for screens elsewhere, then Git backup. Its own component so the Git
- *  backup read runs only while this tab is open. */
-function OtherTab({ t, useGitBackup = useWiredGitBackup }: { t: Translate; useGitBackup?: typeof useWiredGitBackup }) {
-  const gitBackup = useGitBackup({ t });
-  return (
-    <>
-      <div className="import-export-grid">
-        {IMPORT_EXPORT_LINKS.map((link) => <ImportExportCard key={link.id} link={link} t={t} />)}
-      </div>
-      <GitBackupCard controller={gitBackup} t={t} agentHandle={agentHandle} />
-    </>
-  );
-}
-
-/** The Export and Import tabs, each with the translator it was written against. Hooks run here, not
- *  in `ImportExport`, so the Other tab never reads the sites list. */
-function TransferTab({ tab, useTransferTranslate = useSiteTransferTranslate, useSitesAvailable = useWiredSitesSectionAvailable }: {
-  tab: "export" | "import";
-  useTransferTranslate?: typeof useSiteTransferTranslate;
-  useSitesAvailable?: typeof useWiredSitesSectionAvailable;
-}) {
-  const t = useTransferTranslate();
-  const sitesAvailable = useSitesAvailable();
-  // No Publish button beside "Export this site" any more. It sat here from 2026-10-18 and was kept
-  // on every host earlier on 2026-10-25 ("i should be able to publish media, posts, pages, etc"),
-  // then removed the same day (owner: "lets remove it") because it republishes the WHOLE site and
-  // read as publishing the zip. Publishing stays on the dashboard's "Publish All" and Deployment,
-  // both present on desktop too.
-  if (tab === "export") return <SiteExportTab t={t} />;
-  return <SiteImportTab t={t} canMakeSites={sitesAvailable} />;
-}
-
-/** `replace: true` so switching tabs does not grow the back stack, as Sites and Deployment do. */
-function goToImportExportTab(id: string) {
-  navigate({ routePath: `/import-export?tab=${id}` }, { replace: true });
-}
-
 export function ImportExport({
   useTranslate = useWiredImportExportTranslate,
   useGitBackup = useWiredGitBackup,
@@ -95,27 +34,6 @@ export function ImportExport({
   useSitesAvailable = useWiredSitesSectionAvailable,
   tabId,
 }: ImportExportProps = {}) {
-  const t = useTranslate();
-  const tab: ImportExportTabId = resolveImportExportTabId({ tabId: tabId });
-  return (
-    // No "Operations" kicker above the title (owner, 2026-10-25); the other Operations pages keep theirs.
-    <div className="page import-export-page">
-      <div className="page-header">
-        <div className="page-header-text">
-          <h1 className="page-title">{t("Import & Export")}</h1>
-          <p className="page-description">{t("Move a site in or out.")}</p>
-        </div>
-      </div>
-      <TabBar
-        tabs={resolveImportExportTabs({ t })}
-        activeId={tab}
-        onChange={goToImportExportTab}
-        ariaLabel={t("Import & Export")}
-        containerHandle="import-export-tabs"
-      />
-      {tab === "other"
-        ? <OtherTab t={t} useGitBackup={useGitBackup} />
-        : <TransferTab key={tab} tab={tab} useTransferTranslate={useTransferTranslate} useSitesAvailable={useSitesAvailable} />}
-    </div>
-  );
+  return <ImportExportScreen {...(tabId === undefined ? {} : { tabId })} useTranslate={useTranslate} useGitBackup={useGitBackup} useTransferTranslate={useTransferTranslate} useSitesAvailable={useSitesAvailable} SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} agentHandle={agentHandle} navigate={navigate}
+    handleLabels={{ export: "Switch to the Export tab — make a .tovu.zip of this site and manage its share links", import: "Switch to the Import tab — import a share link, a .tovu.zip or a live website" }} />;
 }

@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
+import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import { defaultAgentPluginMemoryPort } from "../hooks/agent-plugin-memory-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
-import { createFakePluginInstallPort, defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
+import { defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
+import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 

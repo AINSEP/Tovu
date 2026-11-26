@@ -1,12 +1,32 @@
-import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
+import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 import type { SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
-import { useExternalMcpAdmissions, type ExternalMcpAdmissionsPort } from "../hooks/use-external-mcp-admissions.hooks";
+import { useExternalMcpAdmissions } from "../hooks/use-external-mcp-admissions.hooks";
+import { type ExternalMcpAdmissionsPort } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
 import { t } from '@jini-ai/admin/screens/settings/external-mcp-i18n';
+import { ApiError } from "@/lib/admin-http/request";
+
+it("stops retrying after the existing admission wait bound", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const getAdmissions = vi.fn().mockRejectedValue(new ApiError({ message: "starting", status: 503 }, { code: "AGENT_DAEMON_UNAVAILABLE" }));
+  const port: ExternalMcpAdmissionsPort = { getAdmissions, me: async () => ({ effectivePermissions: [] }), restartAssistantDaemon: async () => ({ ok: true }) };
+  const { result, unmount } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: {} }));
+  try {
+    await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
+    for (let attempt = 0; attempt < 65; attempt += 1) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    }
+    expect(getAdmissions).toHaveBeenCalledTimes(61);
+    expect(result.current.waitingForAssistant).toBe(false);
+  } finally {
+    unmount();
+    vi.useRealTimers();
+  }
+});
 
 /** Scratch-QA incident recovery, through the real rules, banner, confirmation and list hook.
  * Only the persistence and daemon ports are fakes; no module mocks or network calls. */

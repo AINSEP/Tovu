@@ -5,7 +5,6 @@ import type { ResolveComposerDiscoveryOutcomeDeps } from "@jini-ai/admin/screens
 import { createInstalledSkillsComposerCapabilitySource } from "@jini-ai/agent-plugins/react/installed-skills-composer-source";
 import { SKILLS_CHANGED_EVENT, loadSkillDraft } from "@/features/skills/api";
 import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
-import { useCallback } from "react";
 import { type ComposerDiscoveryOutcome, type ComposerDiscoverySelection } from "@jini-ai/chat/react";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";
@@ -26,39 +25,9 @@ function createInstalledSource() {
   }, {}) satisfies ComposerCapabilitySource;
 }
 
-function watchComposerCapabilities(
-  { refreshVisible: reload, forceReload }: Parameters<Parameters<typeof useAdminComposerCapabilities>[0]["watch"]>[0],
-  _options: Record<string, never> = {},
-): () => void {
-  let stopPolling = () => {};
-  const refreshVisible = () => {
-    if (document.visibilityState !== "hidden") void reload();
-  };
-  // Polling belongs to the dock's visible lifetime, including an unfocused visible window.
-  const syncPolling = (_required = {}, _options = {}) => {
-    stopPolling();
-    if (getAssistantDockOpen() && document.visibilityState !== "hidden") {
-      stopPolling = startVisibleInterval({ tick: () => { void reload(); }, periodMs: 60_000 });
-    }
-  };
-  const visibilityChanged = () => { syncPolling(); refreshVisible(); };
-  const skillsChanged = () => { forceReload(); };
-  const stopDockSubscription = subscribeToAssistantDock(() => {
-    syncPolling();
-    if (getAssistantDockOpen()) refreshVisible();
-  });
-  syncPolling();
-  window.addEventListener(SKILLS_CHANGED_EVENT, skillsChanged);
-  window.addEventListener("focus", refreshVisible);
-  document.addEventListener("visibilitychange", visibilityChanged);
-  return () => {
-    stopPolling();
-    stopDockSubscription();
-    window.removeEventListener(SKILLS_CHANGED_EVENT, skillsChanged);
-    window.removeEventListener("focus", refreshVisible);
-    document.removeEventListener("visibilitychange", visibilityChanged);
-  };
-}
+const COMPOSER_DEPS = { startVisibleInterval };
+
+const navigateRoute = (routePath: string) => navigate({ routePath });
 
 const reportFailure = (error: unknown) => console.error("[AssistantDock] composer capability projection failed", error);
 
@@ -93,7 +62,8 @@ export function useComposerCapabilities(
   return useAdminComposerCapabilities({
     useBootScopeHook: useBootScope, createInstalledSource,
     createBundledSource: createBundledComposerCapabilitySource,
-    watch: watchComposerCapabilities, reportFailure,
+    reportFailure, deps: COMPOSER_DEPS, window, document, skillsChangedEvent: SKILLS_CHANGED_EVENT,
+    getAssistantDockOpen, subscribeToAssistantDock,
   });
 }
 
@@ -127,7 +97,6 @@ export function useComposerDiscoverySelect(
     readDraft?: ResolveComposerDiscoveryOutcomeDeps["readDraft"];
   },
 ): (selection: ComposerDiscoverySelection) => Promise<ComposerDiscoveryOutcome | void> {
-  const navigateRoute = useCallback((routePath: string) => navigate({ routePath }), []);
   return useAdminComposerDiscoverySelect({
     composerCapabilities, callAllowlistedTool,
     ...(addPluginRef === undefined ? {} : { addPluginRef }),

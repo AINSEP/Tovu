@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { useMergedSecretsOrder } from "../AccessTokensTab.hooks";
 import { accessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
-import { otherCredentialStoreInfo } from "../other-credential-stores";
+import { OTHER_CREDENTIAL_STORES } from "../other-credential-stores";
+import { otherCredentialStoreInfo } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokenKind } from "@jini-ai/admin/security/access-token-rows";
 import type { AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
@@ -92,7 +93,7 @@ function providerGroup(kind: AccessTokenKind, providerId: string, rows: AccessTo
 }
 
 function otherRow(storeId: OtherCredentialGroupState["store"]["id"], overrides: Partial<OtherCredentialRowState> = {}): OtherCredentialRowState {
-  const store = otherCredentialStoreInfo({ id: storeId });
+  const store = otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: storeId });
   return {
     key: `${store.id}:${overrides.itemId ?? store.id}`,
     store,
@@ -109,7 +110,7 @@ function otherRow(storeId: OtherCredentialGroupState["store"]["id"], overrides: 
 
 /** One Tier-2 store group — `rows` empty means "Not configured". */
 function otherGroup(storeId: OtherCredentialGroupState["store"]["id"], rows: OtherCredentialRowState[] = []): OtherCredentialGroupState {
-  return { store: otherCredentialStoreInfo({ id: storeId }), rows };
+  return { store: otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: storeId }), rows };
 }
 
 describe("useMergedSecretsOrder — the owner's literal regression case", () => {

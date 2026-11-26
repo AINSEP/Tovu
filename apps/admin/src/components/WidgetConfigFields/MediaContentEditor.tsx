@@ -11,7 +11,10 @@ import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/Doc
 import "../../styles/native-domain-dialogs.css";
 import "../../styles/media-content-editor.css";
 import { HtmlAttributeRows } from "./HtmlAttributeRows";
-import { useMediaContentEditor, type MediaContentEditorController, type MediaItemRow } from "./MediaContentEditor.hooks";
+import { useMediaContentEditor as jiniUseMediaContentEditor, type MediaContentEditorController, type MediaItemRow } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor.hooks";
+import { useWiredMediaPickerItems, defaultMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
+import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
+import { acceptsMedia } from "@jini-ai/admin/media";
 import type { MediaContentMode, MediaLayout, MediaSlugProblem } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
 import { useWidgetPreview } from "./WidgetPreview.hooks";
@@ -376,4 +379,11 @@ function LibraryPicker({ vm, t, base }: { vm: MediaContentEditorController; t: T
 /** Empty item overrides fall back to the asset text before the translated field hint. */
 function mediaTextPlaceholder({ row, field, t }: { row: MediaItemRow; field: "alt" | "caption"; t: Translate }): string {
   return row.asset?.[field] || t(field === "alt" ? "Alt text" : "Caption");
+}
+
+export function useMediaContentEditor(
+  required: Pick<Parameters<typeof jiniUseMediaContentEditor>[0], "config" | "onChange" | "widgetType">,
+  optional: { port?: MediaPickerPort; locale?: string } = {},
+): MediaContentEditorController {
+  return jiniUseMediaContentEditor({ ...required, port: optional.port ?? defaultMediaPickerPort, locale: optional.locale ?? DEFAULT_LOCALE, useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia });
 }

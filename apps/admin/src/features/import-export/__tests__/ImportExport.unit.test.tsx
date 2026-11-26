@@ -25,6 +25,13 @@ function renderPanel(tabId: string | null, { sitesAvailable = false }: { sitesAv
 }
 
 describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
+  it("mounts Git backup on Other without reading Sites", async () => {
+    const useSitesAvailable = vi.fn(() => true);
+    render(<ImportExport tabId="other" useTranslate={identity} useGitBackup={useFakeGitBackup} useTransferTranslate={identity} useSitesAvailable={useSitesAvailable} />);
+    expect(await screen.findByRole("heading", { name: "Git backup" })).toBeTruthy();
+    expect(useSitesAvailable).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
   it("opens Export by default, with Export Tovu site and no Publish button beside it", async () => {
     renderPanel(null);
     expect(screen.getByRole("heading", { level: 1, name: "Import & Export" })).toBeTruthy();
@@ -77,7 +84,7 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
 
   it("shows Export and Import without a Soon tag (both work), and every tab navigates", () => {
     renderPanel("other");
-    expect(document.querySelector(".page.import-export-page")).toBeTruthy();
+    expect(document.querySelector(".jini-page.jini-import-export-page")).toBeTruthy();
     for (const [name, search] of [[/Export/, "?tab=export"], [/Import/, "?tab=import"], [/Other/, "?tab=other"]] as const) {
       const tab = screen.getByRole("tab", { name: name });
       expect(tab.hasAttribute("disabled")).toBe(false);

@@ -9,7 +9,7 @@ import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "@jini-ai/cms/react/posts/hooks/use-post-featured-image.hooks";
 import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { isScheduledPost, isoToLocalDateTimeInput, localDateTimeInputToIso } from "../rules";
+import { isScheduledPost, isoToLocalDateTimeInput, localDateTimeInputToIso } from "@jini-ai/cms/react/posts/post-editor-rules";
 
 /**
  * @file Scheduled publishing + featured image in the post editor (2026-10-05): the local-time

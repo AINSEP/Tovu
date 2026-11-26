@@ -483,6 +483,18 @@ describe("useExternalMcp — removeSource", () => {
 });
 
 describe("useExternalMcp — updateSource", () => {
+  it("keeps stored credential fields out of a write-allowlist-only patch", async () => {
+    listExternalMcpServers.mockResolvedValue({ servers: [server({ serverId: "configured", envNames: ["SERVICE_KEY"], hasAccessToken: true })] });
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "configured" }), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+    await result.current.dependencies.port.fetchSources();
+    await act(async () => { await result.current.dependencies.port.updateSource!("configured", { fields: { writeAllowedToolNames: "write_file" } }); });
+    const [{ body }] = saveExternalMcpServer.mock.calls[0]!;
+    expect(body).toMatchObject({ writeAllowedToolNames: "write_file", allowedToolNames: "read_file", command: "npx" });
+    expect(body).not.toHaveProperty("env");
+    expect(body).not.toHaveProperty("accessToken");
+    expect(body).not.toHaveProperty("oauth.clientSecret");
+  });
   it("merges the patch against the last-known fields from fetchSources, then writes the merged body", async () => {
     listExternalMcpServers.mockResolvedValue({ servers: [server({ serverId: "existing", command: "npx", args: ["-y", "x"], allowedToolNames: ["tool_a"] })] });
     saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "existing" }), restartRequired: true });

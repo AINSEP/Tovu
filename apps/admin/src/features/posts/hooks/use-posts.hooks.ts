@@ -6,7 +6,7 @@ import { t as translate } from "../posts-i18n";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { navigate as defaultNavigate } from "@jini-ai/admin/shell/lib/router";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
-import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "../rules";
+import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "@jini-ai/cms/react/posts/posts-list-rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "@jini-ai/admin/posts/hooks/posts-list-port.hooks";
 

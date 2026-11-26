@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useRuntimeAccess as jiniUseRuntimeAccess, useAgentsPlaceholder as jiniUseAgentsPlaceholder } from "@jini-ai/admin/shell/components/AssistantDock/hooks/runtime-access.hooks";
 import { type ChatPaneAgent, type ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
 
 import { readAgentsSnapshot } from "@/lib/shell-collaborators";
@@ -30,24 +30,7 @@ export function useRuntimeAccess(
   _required: Record<string, never> = {},
   { useLoader = useAgentsLoader }: { useLoader?: typeof useAgentsLoader } = {},
 ): ChatPaneRuntimeAccess {
-  const loader = useLoader({});
-  const pendingHealth = useRef<Promise<boolean> | null>(null);
-  const daemonOnline = useCallback(() => {
-    if (pendingHealth.current) return pendingHealth.current;
-    const pending = readDaemonOnline().finally(() => { pendingHealth.current = null; });
-    pendingHealth.current = pending;
-    return pending;
-  }, []);
-  return useMemo(
-    () => ({
-      listAgents: () => loader.load().then(agents => recordAgents({ agents })),
-      getAgentsRefreshAt: loader.refreshAt,
-      rescanAgents: () => rescanAgentsInto({ loader }),
-      // A health probe must reach loopback even when the browser reports no internet connection.
-      daemonOnline,
-    }),
-    [loader, daemonOnline],
-  );
+  return jiniUseRuntimeAccess({ useLoader, readDaemonOnline, recordAgents, rescanAgentsInto });
 }
 
 /**
@@ -65,23 +48,6 @@ export function useAgentsPlaceholder(
   _required: Record<string, never> = {},
   { useLoader = useAgentsLoader }: { useLoader?: typeof useAgentsLoader } = {},
 ): readonly ChatPaneAgent[] | undefined {
-  const loader = useLoader({});
-  const [snapshot] = useState(readAgentsSnapshot);
-  return loader.peek() ?? snapshot;
-}
-
-export function useRuntimeAccessSeam({ override }: { override: typeof useRuntimeAccess | undefined }, _options: Record<string, never> = {}): ChatPaneRuntimeAccess {
-  return (override ?? useRuntimeAccess)();
-}
-
-function useNoAgentsPlaceholder(): undefined {
-  return undefined;
-}
-
-/** {@link useAgentsPlaceholder} reads the REAL runtime access's cache, so it only applies when that
- *  real access is in use: an injected `useRuntimeAccess` fake has no cache to seed from. */
-export function useAgentsPlaceholderSeam({ runtimeAccessOverride }: { runtimeAccessOverride: typeof useRuntimeAccess | undefined }, { usePlaceholder = useAgentsPlaceholder }: { usePlaceholder?: typeof useAgentsPlaceholder } = {}
-): readonly ChatPaneAgent[] | undefined {
-  return (runtimeAccessOverride ? useNoAgentsPlaceholder : usePlaceholder)();
+  return jiniUseAgentsPlaceholder({ useLoader, readAgentsSnapshot });
 }
 

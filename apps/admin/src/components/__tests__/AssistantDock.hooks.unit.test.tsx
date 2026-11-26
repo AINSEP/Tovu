@@ -1,3 +1,5 @@
+import { isTerminalRunStatus } from "@jini-ai/chat/core";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { act, waitFor } from "@testing-library/react";
 import { renderHook } from "@/__tests__/chat-surfaces-render";
 import { StrictMode, type ReactNode, type SetStateAction } from "react";
@@ -97,7 +99,7 @@ vi.mock("@jini-ai/admin/screens/fs-files/use-folder-drop.hooks", () => ({
   useFolderDrop: mockUseFolderDrop,
 }));
 
-import { shouldPublishContentOnToolProgress, shouldPublishOnMessagesChange, useMessagesChangeHandler } from "../AssistantDock/hooks/messages-change.hooks";
+import { shouldPublishContentOnToolProgress, shouldPublishOnMessagesChange, useMessagesChangeHandler } from "@jini-ai/admin/shell/components/AssistantDock/hooks/messages-change.hooks";
 import { useAssistantDockChrome, useChatI18n, useChatsSeam } from "../AssistantDock/hooks/dock-chrome.hooks";
 import { useAttachmentUploader, useWorkingDirectoryAccess, useWorkingDirectoryAccessSeam, useFolderDropBridge } from "../AssistantDock/hooks/composer-files.hooks";
 import { useComposerDiscoverySelect } from "../AssistantDock/hooks/composer-discovery.hooks";
@@ -105,7 +107,7 @@ import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/
 import { useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
 import { useTovuAssistantTransport as useAssistantTransport } from "../AssistantDock/hooks/assistant-transport.binding";
 import { useAgentsPlaceholder, useRuntimeAccess } from "../AssistantDock/hooks/runtime-access.hooks";
-import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventory.hooks";
+import { getResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
 import { useByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
 import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
 import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
@@ -201,6 +203,29 @@ afterEach(() => {
 });
 
 describe("useExecutionConfig", () => {
+  it("revalidates execution config when the document becomes visible and removes the listener", async () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    const current = byokConfig();
+    const { result, unmount } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    try {
+      await waitFor(() => expect(result.current.configLoaded).toBe(true));
+      expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(1);
+      mockLoadExecutionConfig.mockResolvedValue(current);
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(1);
+      visibility.mockReturnValue("visible");
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      await waitFor(() => expect(result.current.executionConfig).toEqual(current));
+      expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(2);
+      unmount();
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(2);
+    } finally {
+      unmount();
+      visibility.mockRestore();
+    }
+  });
+
   it("adopts a deferred initial read after a same-value mode pick", async () => {
     let resolveLoad!: (config: ExecutionConfig) => void;
     mockLoadExecutionConfig.mockReturnValue(new Promise((resolve) => { resolveLoad = resolve; }));
@@ -1037,7 +1062,7 @@ describe("useLocalCliSelection", () => {
 
 describe("shouldPublishOnMessagesChange", () => {
   it("does not publish on an empty transcript", () => {
-    expect(shouldPublishOnMessagesChange({ messages: [], settledRunMessageId: null })).toEqual({
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages: [], settledRunMessageId: null })).toEqual({
       publish: false,
       nextSettledRunMessageId: null,
     });
@@ -1045,7 +1070,7 @@ describe("shouldPublishOnMessagesChange", () => {
 
   it("does not publish while the last message is a user turn", () => {
     const messages = [assistantMessage({ role: "user", runStatus: "succeeded" })];
-    expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: null })).toEqual({
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages, settledRunMessageId: null })).toEqual({
       publish: false,
       nextSettledRunMessageId: null,
     });
@@ -1053,7 +1078,7 @@ describe("shouldPublishOnMessagesChange", () => {
 
   it("does not publish while the run is still streaming (non-terminal status)", () => {
     const messages = [assistantMessage({ runStatus: "running" })];
-    expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: null })).toEqual({
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages, settledRunMessageId: null })).toEqual({
       publish: false,
       nextSettledRunMessageId: null,
     });
@@ -1061,7 +1086,7 @@ describe("shouldPublishOnMessagesChange", () => {
 
   it("publishes once a run reaches a terminal status, and reports that message id as settled", () => {
     const messages = [assistantMessage({ id: "run-1", runStatus: "succeeded" })];
-    expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: null })).toEqual({
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages, settledRunMessageId: null })).toEqual({
       publish: true,
       nextSettledRunMessageId: "run-1",
     });
@@ -1069,7 +1094,7 @@ describe("shouldPublishOnMessagesChange", () => {
 
   it("does not re-publish for a terminal message already recorded as settled", () => {
     const messages = [assistantMessage({ id: "run-1", runStatus: "succeeded" })];
-    expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: "run-1" })).toEqual({
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages, settledRunMessageId: "run-1" })).toEqual({
       publish: false,
       nextSettledRunMessageId: "run-1",
     });
@@ -1078,7 +1103,7 @@ describe("shouldPublishOnMessagesChange", () => {
   it("treats failed and canceled as terminal too", () => {
     for (const runStatus of ["failed", "canceled"] as const) {
       const messages = [assistantMessage({ id: `run-${runStatus}`, runStatus })];
-      expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: null }).publish).toBe(true);
+      expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages, settledRunMessageId: null }).publish).toBe(true);
     }
   });
 });
@@ -1945,7 +1970,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("mirrors every messages-change delta onto window.__tovuAssistantMessages", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ deps: { isTerminalRunStatus }, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [{ id: "m1", role: "user", content: [] }] as unknown as ChatMessage[];
 
     act(() => result.current(messages));
@@ -1955,7 +1980,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("forwards every delta to chats.onMessagesChange", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ deps: { isTerminalRunStatus }, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [{ id: "m1", role: "user", content: [] }] as unknown as ChatMessage[];
 
     act(() => result.current(messages));
@@ -1965,7 +1990,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("publishes a settings refresh once a run reaches a terminal status", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ deps: { isTerminalRunStatus }, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [
       { id: "run-1", role: "assistant", runStatus: "succeeded", content: [] },
     ] as unknown as ChatMessage[];
@@ -1977,7 +2002,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("does not publish while a run is still streaming (non-terminal status)", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ deps: { isTerminalRunStatus }, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [
       { id: "run-1", role: "assistant", runStatus: "running", content: [] },
     ] as unknown as ChatMessage[];
@@ -1989,7 +2014,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("does not re-publish for the same settled run across repeated deltas", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ deps: { isTerminalRunStatus }, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [
       { id: "run-1", role: "assistant", runStatus: "succeeded", content: [] },
     ] as unknown as ChatMessage[];

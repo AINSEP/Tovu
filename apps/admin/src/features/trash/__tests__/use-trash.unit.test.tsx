@@ -6,7 +6,8 @@ import type { AdminTrashItemDto, AdminTrashPageDto, AdminTrashRestoreReportDto }
 import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
+import { createFakeTrashPort, defaultTrashPort } from "../hooks/trash-dependencies.hooks";
+import { trashApi } from "../api/trash-api";
 import { useTrash } from "@jini-ai/admin/screens/trash/hooks/use-trash.hooks";
 import { trashHostDeps, useWiredTrash } from "../hooks/use-trash.hooks";
 import type { TrashPort } from "@jini-ai/admin/screens/trash/hooks/trash-port.hooks";
@@ -64,6 +65,24 @@ afterEach(() => {
 });
 
 describe("useTrash", () => {
+  it("restores through the bound client and retains its refusal projection", async () => {
+    vi.spyOn(defaultTrashPort, "listTrash").mockResolvedValue({ items: [item()], nextCursor: null, retentionDays: 30 });
+    vi.spyOn(defaultTrashPort, "listUsers").mockResolvedValue({ users: [] });
+    const restore = vi.spyOn(trashApi, "restoreTrashItems").mockRejectedValue("offline");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: [] })));
+    const { result, unmount } = renderHook(() => useWiredTrash(), { wrapper });
+    try {
+      await waitFor(() => expect(result.current.items).toEqual([item()]));
+      act(() => result.current.toggle("trash-1"));
+      await act(async () => { await result.current.onRestoreSelected(); });
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect(result.current.error).toBe("failed to restore");
+      expect([...result.current.selected]).toEqual(["trash-1"]);
+    } finally {
+      unmount();
+      vi.restoreAllMocks();
+    }
+  });
   it("ignores selection and batch actions before the first page arrives", async () => {
     const port = createFakeTrashPort();
     let resolvePage!: (page: AdminTrashPageDto) => void;

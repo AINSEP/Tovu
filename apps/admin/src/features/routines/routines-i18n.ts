@@ -324,3 +324,10 @@ const ROUTINES_DICT: Record<string, Record<string, string>> = Object.fromEntries
 
 export const t = createDictionaryTranslator({ featureDictionary: ROUTINES_DICT }, { commonDictionary: COMMON_I18N });
 export type RoutinesT = typeof t;
+
+export const UNAVAILABLE_KEY: Record<string, string> = {
+  ROUTINES_UNAVAILABLE: "Routines run only while the desktop app is open.",
+  ROUTINES_ASSISTANT_OFF: "Turn on the AI assistant to run routines.",
+  ROUTINES_LEASE_HELD: "Routines for this site are running in another Tovu window.",
+  ROUTINES_STORE_OPEN_FAILED: "Routines are unavailable because their data file could not be opened.",
+};

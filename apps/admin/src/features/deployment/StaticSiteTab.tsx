@@ -36,7 +36,7 @@ import {
 import { CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "@jini-ai/devops/deploy/react/deployment-visuals";
 import { PublishRunResult } from "@jini-ai/devops/deploy/react";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
-import type { StaticExportController } from "./hooks/use-static-export.hooks";
+import type { StaticExportController } from "@jini-ai/devops/deploy/react/hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
 import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
 import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hooks";

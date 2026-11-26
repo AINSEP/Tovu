@@ -1,3 +1,4 @@
+import { isTerminalRunStatus } from "@jini-ai/chat/core";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { renderHook, act, cleanup } from "@/__tests__/fetch-query-render";
 
@@ -7,7 +8,7 @@ import { useConversation } from "@jini-ai/chat/react";
 
 import { createTovuAssistantTransport, terminalFailureError } from "../assistant-transport";
 import { persistableMessages } from "@jini-ai/chat/transports/http";
-import { shouldPublishOnMessagesChange } from "../../components/AssistantDock/hooks/messages-change.hooks";
+import { shouldPublishOnMessagesChange } from "@jini-ai/admin/shell/components/AssistantDock/hooks/messages-change.hooks";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
 import { durableRunBindings } from "../durable-run-subscription";
 import { translateRunFrame } from "@tovu/assistant-run-events";
@@ -298,11 +299,11 @@ describe("what the server's saved outcome displays (real useConversation, no moc
 
     // `AssistantDock.hooks.tsx`'s real settlement gate — the settings/content refresh buses fire
     // exactly once per finished run, and a run that never counts as finished never releases them.
-    expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: null })).toEqual({
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages, settledRunMessageId: null })).toEqual({
       publish: true,
       nextSettledRunMessageId: assistant.id,
     });
-    expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: assistant.id }).publish).toBe(false);
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages, settledRunMessageId: assistant.id }).publish).toBe(false);
   });
 
   test("an attempt failure leaves the pane active until a later saved terminal checkpoint arrives", async () => {
@@ -320,7 +321,7 @@ describe("what the server's saved outcome displays (real useConversation, no moc
     expect(result.current.isStreaming).toBe(true);
     expect(result.current.error).toBeNull();
     expect(result.current.messages.at(-1)?.content).toBe("Saved partial answer");
-    expect(shouldPublishOnMessagesChange({ messages: result.current.messages, settledRunMessageId: null }).publish).toBe(false);
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages: result.current.messages, settledRunMessageId: null }).publish).toBe(false);
 
     // When the server later exhausts recovery, even with no second SSE end, polling must settle
     // the same bubble, retain its work and one diagnostic, and release the composer.
@@ -334,6 +335,6 @@ describe("what the server's saved outcome displays (real useConversation, no moc
     expect(assistant.content).toBe("Saved partial answer");
     expect(assistant.events).toEqual(savedMessage.events);
     expect(result.current.isStreaming).toBe(false);
-    expect(shouldPublishOnMessagesChange({ messages: result.current.messages, settledRunMessageId: null }).publish).toBe(true);
+    expect(shouldPublishOnMessagesChange({ deps: { isTerminalRunStatus }, messages: result.current.messages, settledRunMessageId: null }).publish).toBe(true);
   });
 });

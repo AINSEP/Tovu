@@ -182,6 +182,24 @@ import type { ReactNode } from "react";
 import { createElement } from "react";
 
 describe("useAdminLocale — boot scope", () => {
+  it("keeps the refreshed scoped locale when its older read settles late", async () => {
+    const loads: Array<(locale: string) => void> = [];
+    let refresh = () => {};
+    const port: AdminLocalePort = {
+      loadLanguage: () => new Promise<string>((resolve) => loads.push(resolve)),
+      subscribeToSettingsRefresh: ({ listener }) => { refresh = listener; return () => {}; },
+    };
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(AdminBootScopeContext.Provider, { value: { principalId: "scoped", checking: false } }, children);
+    const { result } = renderHook(() => useAdminLocale(port), { wrapper });
+    await waitFor(() => expect(loads).toHaveLength(1));
+    act(() => refresh());
+    await waitFor(() => expect(loads).toHaveLength(2));
+    await act(async () => { loads[1]!("fr"); });
+    await waitFor(() => expect(result.current).toBe("fr"));
+    await act(async () => { loads[0]!("en"); });
+    expect(result.current).toBe("fr");
+  });
+
   it("does not read while the session is still being checked, then reads once it settles", async () => {
     const fake = createFakeAdminLocalePort({ initialLocale: "fr" });
     const read = vi.fn(() => fake.loadLanguage({}));

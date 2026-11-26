@@ -1,3 +1,4 @@
+import { downloadDockerfile as jiniDownloadDockerfile } from "@jini-ai/devops/deploy/react/download-dockerfile";
 import { Deployment as DeploymentScreen } from "@jini-ai/devops/deploy/react/Deployment";
 import { HISTORY_TAB_CLASSES } from "./deployment-classes";
 import { HistoryTab } from "@jini-ai/devops/deploy/react";
@@ -22,13 +23,7 @@ import { STATIC_SITE_CAPABILITIES, FULL_SITE_CAPABILITIES, envVarNotes, unsafeOw
  *  `URL.revokeObjectURL` after the click so the blob URL doesn't leak for the rest of the page's
  *  lifetime — the anchor never needs to be appended to the document for `.click()` to fire it. */
 export function downloadDockerfile({ contents }: { contents: string }, _options = {}): void {
-  const blob = new Blob([contents], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "Dockerfile";
-  anchor.click();
-  URL.revokeObjectURL(url);
+  jiniDownloadDockerfile({ contents, Blob, URL, document });
 }
 
 function DeploymentHistoryTab() {

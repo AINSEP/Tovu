@@ -1,11 +1,15 @@
+import { MAX_UPLOAD_BYTES } from "@tovu/contracts/upload-limits";
+import { mediaProvidersPort } from "./media-providers-port";
+import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
+import { PINNED_MEDIA_PROVIDER_IDS } from "@jini-ai/admin/screens/media/pinned-media-providers";
 import type { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import { ChromePlaybackNote } from "./chrome-playback-note";
-import { EyeIcon, ExpandIcon, PlaceholderIcon, PlayIcon, UploadIcon } from "./media-icons";
+import { ChromePlaybackNote } from "@jini-ai/cms/react/media/chrome-playback-note";
+import { EyeIcon, ExpandIcon, PlaceholderIcon, PlayIcon, UploadIcon } from "@jini-ai/cms/react/media/media-icons";
 import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { Icon } from "@jini-ai/ui";
+import { Icon, I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
@@ -21,7 +25,7 @@ import {
   type MediaOrderBy,
 } from "@jini-ai/admin/screens/media/rules";
 import type { useWiredMedia, MediaController } from "./hooks/use-media.hooks";
-import { MediaLoadMore } from "./MediaLoadMore";
+import { MediaLoadMore } from "@jini-ai/cms/react/media/MediaLoadMore";
 import { t as mediaTranslate, VIDEO_CONVERSION_NOTICE_KEY } from "./media-i18n";
 import type { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
@@ -36,8 +40,8 @@ import type { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-me
 import type { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
 import type { useMediaTabs, MediaContentTabId, MediaTabId, MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { mediaProviderCatalogPort } from "./media-providers-port";
-import type { useMediaProviderCatalog } from "./use-media-provider-catalog.hooks";
-import { ExternalProvidersPanel } from "./ExternalProvidersPanel";
+import type { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
+import { ExternalProvidersPanel } from "@jini-ai/cms/react/media/ExternalProvidersPanel";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
@@ -1065,7 +1069,7 @@ function MediaCard({ item, handle, onExpand, menu, t, useMediaPreviewHook, useMe
           />
         </div>
         <MediaCardMetadata useMediaCardMetadataHook={useMediaCardMetadataHook} item={item} locale={menu.locale} viewerTimeZone={menu.viewerTimeZone} shape={preview.shape} t={t} />
-        <ChromePlaybackNote item={item} t={t} />
+        <ChromePlaybackNote maxUploadBytes={MAX_UPLOAD_BYTES} item={item} t={t} />
       </div>
     </div>
   );
@@ -1489,7 +1493,7 @@ export function Media(props: MediaProps) {
   if (activeTab === "external-providers") {
     return (
       <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab} tabCounts={tabCounts}>
-        <ExternalProvidersPanel locale={controller.locale} catalog={providerCatalog} useAdminThemeBoundaryHook={props.useAdminThemeBoundaryHook} />
+        <ExternalProvidersPanel kit={{ I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES }} mediaProvidersPort={mediaProvidersPort} mediaProviderCatalogPolicy={mediaProviderCatalogPolicy} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} locale={controller.locale} catalog={providerCatalog} useAdminThemeBoundaryHook={props.useAdminThemeBoundaryHook} />
       </MediaPageShell>
     );
   }

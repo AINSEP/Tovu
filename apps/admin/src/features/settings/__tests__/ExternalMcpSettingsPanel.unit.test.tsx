@@ -7,7 +7,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
-import type { ExternalMcpAdmissionsController } from "../hooks/use-external-mcp-admissions.hooks";
+import type { ExternalMcpAdmissionsController } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
 
 /**
  * @file Component-level coverage for `ExternalMcpSettingsPanel` — specifically the property

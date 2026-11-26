@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 import { Button } from "@jini-ai/ui-kit/react";
 
-import type { ChatCleanupKit } from "./hooks/chat-cleanup.hooks";
+import type { ChatCleanupKit } from "@jini-ai/chat/react/chat-cleanup/chat-cleanup.hooks";
 
 /**
  * The cleanup controls' button: `@jini-ai/ui-kit`'s `Button` behind the native-button shape that

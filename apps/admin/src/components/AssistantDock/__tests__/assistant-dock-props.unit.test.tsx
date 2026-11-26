@@ -1,3 +1,5 @@
+import { useT } from "@jini-ai/chat/react";
+import { isDesktopAdmin } from "../../../features/settings/ai-agent-presentation";
 import { screen } from "@testing-library/react";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { isValidElement } from "react";
@@ -5,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "../assistant-dock-props";
+import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-props";
 import { FolderPathButton } from "@jini-ai/admin/shell/components/AssistantDock/FolderPathButton";
 
 /**
@@ -52,13 +54,13 @@ describe("executionChatPaneProps", () => {
 describe("voiceFooterAccessory", () => {
   it("mounts the push-to-talk button, wired to the transcript sink, when voice input is on", () => {
     const onTranscript = vi.fn();
-    const slot = voiceFooterAccessory({ enabled: true, onTranscript });
+    const slot = voiceFooterAccessory({ kit: { PushToTalkMicButton }, enabled: true, onTranscript });
     expect(isValidElement(slot) && slot.type).toBe(PushToTalkMicButton);
     expect(isValidElement<{ onTranscript: unknown }>(slot) && slot.props.onTranscript).toBe(onTranscript);
   });
 
   it("shows no mic at all when voice input is off (owner 2026-10-30: hidden, not deleted)", () => {
-    expect(voiceFooterAccessory({ enabled: false, onTranscript: vi.fn() })).toBeUndefined();
+    expect(voiceFooterAccessory({ kit: { PushToTalkMicButton }, enabled: false, onTranscript: vi.fn() })).toBeUndefined();
   });
 });
 
@@ -67,12 +69,12 @@ describe("composerFooterLeading", () => {
   const mic = <span>mic</span>;
 
   it("passes only the mic (or nothing) through while the folder dialog is unavailable here", () => {
-    expect(composerFooterLeading({ folderPicker: { ...picker, available: false }, voice: mic })).toBe(mic);
-    expect(composerFooterLeading({ folderPicker: { ...picker, available: false }, voice: undefined })).toBeUndefined();
+    expect(composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, available: false }, voice: mic })).toBe(mic);
+    expect(composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, available: false }, voice: undefined })).toBeUndefined();
   });
 
   it("puts the folder button first, right after +, wired to the picker, then the mic", () => {
-    const slot = composerFooterLeading({ folderPicker: { ...picker, picking: true }, voice: mic });
+    const slot = composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, picking: true }, voice: mic });
     const children = isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : [];
     const [button, voice] = children as [unknown, unknown];
     expect(isValidElement(button) && button.type).toBe(FolderPathButton);
@@ -83,13 +85,13 @@ describe("composerFooterLeading", () => {
   // Owner bug 11-01 (ui-look-4): the note floated over the composer's text area from the footer row.
   // The footer only carries the button now; the note is DockLeadingAccessory's in-flow row.
   it("puts no folder-window note in the footer row, even while a browser tab's dialog is open", () => {
-    render(<>{composerFooterLeading({ folderPicker: { ...picker, picking: true }, voice: mic })}</>);
+    render(<>{composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, picking: true }, voice: mic })}</>);
     expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("says the folder window opened elsewhere only in a browser tab while the dialog is open", () => {
-    expect(folderWindowOpenElsewhere({ picking: true }, { desktop: false })).toBe(true);
-    expect(folderWindowOpenElsewhere({ picking: true }, { desktop: true })).toBe(false);
-    expect(folderWindowOpenElsewhere({ picking: false }, { desktop: false })).toBe(false);
+    expect(folderWindowOpenElsewhere({ deps: { isDesktopAdmin }, picking: true }, { desktop: false })).toBe(true);
+    expect(folderWindowOpenElsewhere({ deps: { isDesktopAdmin }, picking: true }, { desktop: true })).toBe(false);
+    expect(folderWindowOpenElsewhere({ deps: { isDesktopAdmin }, picking: false }, { desktop: false })).toBe(false);
   });
 });

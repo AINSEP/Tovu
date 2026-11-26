@@ -19,7 +19,7 @@ import { Media } from "../Media";
 import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
 import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
+import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,
@@ -171,6 +171,16 @@ afterEach(() => {
 function openUploadDialog() {
   fireEvent.click(screen.getByRole("button", { name: "Upload image or video" }));
 }
+
+it("uses the returned provider catalog for both rows and count", async () => {
+  routeFetch([{ match: "/media/providers", handler: async () => jsonResponse({}) }]);
+  const catalog = [{ id: "openai", label: "OpenAI" }];
+  renderScreen({ tabId: "external-providers", useMediaProviderCatalogHook: () => catalog });
+  expect(await screen.findByLabelText("OpenAI API key")).toBeTruthy();
+  expect(screen.queryByLabelText("Nano Banana API key")).toBeNull();
+  const tab = screen.getByRole("tab", { name: /External Providers/ });
+  expect(tab.querySelector(".tab-bar-count")?.textContent).toBe("1");
+});
 
 function cardFor(container: HTMLElement, title: string): HTMLElement {
   const titleEl = Array.from(container.querySelectorAll(".media-card-title")).find((el) => el.textContent === title);

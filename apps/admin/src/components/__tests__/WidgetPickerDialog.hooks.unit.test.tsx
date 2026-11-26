@@ -90,6 +90,28 @@ describe("useWidgetPickerDialog", () => {
     };
   }
 
+  it("canceling an existing selection creates nothing and reopening restores the draft", async () => {
+    const props = dialogProps();
+    const first = renderHook(() => useWidgetPickerDialog(props));
+    await waitFor(() => expect(first.result.current.instances).toHaveLength(1));
+    const baseline = first.result.current.newConfig;
+    act(() => {
+      first.result.current.setSelectedExistingId("w1");
+      first.result.current.setNewTitle("Unsubmitted");
+      first.result.current.setNewConfig({ body: "Unsubmitted" });
+    });
+    act(() => props.onCancel());
+    expect(props.onCreateNew).not.toHaveBeenCalled();
+    expect(props.onUseExisting).not.toHaveBeenCalled();
+    first.unmount();
+    const reopened = renderHook(() => useWidgetPickerDialog(props));
+    await waitFor(() => expect(reopened.result.current.instances).toHaveLength(1));
+    expect(reopened.result.current.selectedExistingId).toBe("");
+    expect(reopened.result.current.newTitle).toBe("");
+    expect(reopened.result.current.newConfig).toEqual(baseline);
+    expect(props.onCreateNew).not.toHaveBeenCalled();
+  });
+
   it("submitUseExisting rejects an empty selection and does not call onUseExisting", async () => {
     const props = dialogProps();
     const { result } = renderHook(() => useWidgetPickerDialog(props));

@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
+import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,

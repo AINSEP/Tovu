@@ -4,7 +4,7 @@ import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { isAgUiTransportEnabled } from "@/lib/assistant-transport-ag-ui";
 import { selectedLocalCliReasoning } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
 import { localCliSelectionFromConfig } from "../execution-config-write";
-import { getResumeCapableAgentIds } from "./agents-inventory.hooks";
+import { getResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
 
 /** The host collaborators the shell's `useAssistantTransport` requires: Tovu's transport factory, its two
  *  flag reads (the AG-UI canary and the resume-capable agent set) and the saved Local CLI selection readers. */

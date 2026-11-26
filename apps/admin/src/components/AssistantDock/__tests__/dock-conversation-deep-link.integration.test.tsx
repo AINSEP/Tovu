@@ -1,10 +1,10 @@
-import { render, waitFor } from "@/__tests__/fetch-query-render";
+import { act, render, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ChatTransport } from "@jini-ai/chat/core";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { AssistantDock } from "../AssistantDock";
-import { useApplyConversationDeepLink } from "../../../features/routines/use-conversation-deep-link";
+import { useApplyConversationDeepLink } from "@jini-ai/admin/shell/hooks/use-conversation-deep-link";
 
 /**
  * Through the real dock and its real `useAssistantDockState`: a `?conversation=` link reaches the SAME
@@ -33,6 +33,21 @@ function mountDock({ query, found }: { query: string | null; found: boolean }) {
 }
 
 afterEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
+
+it("does not consume the conversation query after a transient lookup failure", async () => {
+  const query = new URLSearchParams("conversation=c-9&tab=x");
+  const lookupConversation = vi.fn().mockRejectedValue(new Error("offline"));
+  const replaceQuery = vi.fn();
+  const select = vi.fn();
+  const openDock = vi.fn();
+  renderHook(() => useApplyConversationDeepLink({ query, chats: { select }, principalId: "owner", lookupConversation, replaceQuery, notify: vi.fn(), openDock }));
+  await act(async () => { await Promise.resolve(); });
+  expect(lookupConversation).toHaveBeenCalledWith({ id: "c-9" });
+  expect(replaceQuery).not.toHaveBeenCalled();
+  expect(query.get("conversation")).toBe("c-9");
+  expect(select).not.toHaveBeenCalled();
+  expect(openDock).not.toHaveBeenCalled();
+});
 
 it("dock applies an authorized conversation link by selecting it, without starting a run", async () => {
   const { chats, ports, startRun } = mountDock({ query: "conversation=c-9&tab=x", found: true });

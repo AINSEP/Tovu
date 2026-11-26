@@ -10,9 +10,7 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import {
-  postRowMenuItems,
-} from "./rules";
+import { postRowMenuItems } from "@jini-ai/cms/react/posts/posts-list-rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -180,8 +178,7 @@ export function Posts({ usePostsHook = useWiredPosts, hooks = { useWiredAdminLoc
               <RowMenu
                 triggerLabel={t('Actions for "{title}"').replace("{title}", () => post.title)}
                 agentHandle={`${rowMenuHandleById.get(post.id)}-menu`}
-                items={postRowMenuItems(
-                  { post: post,
+                items={postRowMenuItems({ translate: translateForPosts, post: post,
                   handlers: {
                     onEdit: ({ post }, _optional = {}) => navigate({ routePath: `/posts/${post.slug}` }),
                     onTogglePublish: togglePostPublish,

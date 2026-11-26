@@ -16,7 +16,8 @@ import { Library } from "../Library";
 import { documentMenuItems, markdownFrameDocument } from "@jini-ai/admin/screens/library/Library";
 import { resolveLibraryTabId } from "@jini-ai/admin/screens/library/Library.hooks";
 import { createApiLibraryPort, type LibraryApiClient, type LibraryFetch } from "@jini-ai/admin/screens/library/hooks/library-api-port.hooks";
-import { createFakeLibraryPort, defaultLibraryPort, fakeDocument } from "../hooks/library-dependencies.hooks";
+import { defaultLibraryPort } from "../hooks/library-dependencies.hooks";
+import { createFakeLibraryPort, fakeDocument } from "./library-port.fixture";
 import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import { useLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
@@ -525,6 +526,13 @@ describe("Library production port (createApiLibraryPort)", () => {
     const [url, init] = fetchFake.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(mediaApi.mediaOriginalUrl({ id: "doc 1" }));
     expect(init).toEqual({ credentials: "same-origin" });
+  });
+
+  it("the existing live port looks up a replaced media client method at call time", async () => {
+    const replacement = vi.spyOn(mediaApi, "listDocuments").mockResolvedValue({ media: [] });
+    await expect(defaultLibraryPort.listDocuments()).resolves.toEqual({ media: [] });
+    expect(replacement).toHaveBeenCalledTimes(1);
+    replacement.mockRestore();
   });
 });
 

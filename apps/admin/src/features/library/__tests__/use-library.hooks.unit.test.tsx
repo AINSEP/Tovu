@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { createFakeLibraryPort, fakeDocument } from "../hooks/library-dependencies.hooks";
+import { createFakeLibraryPort, fakeDocument } from "./library-port.fixture";
 import type { LibraryPort } from "@jini-ai/admin/screens/library/hooks/library-port.hooks";
 import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import { useLibrary } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";

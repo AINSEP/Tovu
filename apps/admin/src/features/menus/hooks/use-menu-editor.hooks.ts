@@ -1,3 +1,5 @@
+import { useRouteGuardedMenuEditor as jiniUseRouteGuardedMenuEditor } from "@jini-ai/admin/screens/menus/hooks/use-route-guarded-menu-editor.hooks";
+import { BEFORE_LINK_NAVIGATION_EVENT } from "@jini-ai/admin/browser";
 import { useCallback } from "react";
 import { useMenuEditor, type MenuEditorController } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
@@ -24,4 +26,13 @@ export function useWiredMenuEditor({ menuId }: { menuId: string | null }, _optio
   const t = (key: string): string => translate({ locale: locale, key: key });
   const navigate = useCallback((routePath: string, options?: { replace?: boolean }) => options === undefined ? realNavigate({ routePath }) : realNavigate({ routePath }, options), []);
   return useMenuEditor({ menuId, dependencies: { port: defaultMenusPort, navigate, t, kit: menusHostKit } });
+}
+
+// The sidebar never calls the header; bind the dirty check while mounted and let the router own Back too.
+export function useRouteGuardedMenuEditor({ menuId }: { menuId: string | null }, _optional = {}): MenuEditorController {
+  const subscribeBeforeNavigation = useCallback((listener: (event: Event) => void) => {
+    window.addEventListener(BEFORE_LINK_NAVIGATION_EVENT, listener);
+    return () => window.removeEventListener(BEFORE_LINK_NAVIGATION_EVENT, listener);
+  }, []);
+  return jiniUseRouteGuardedMenuEditor({ menuId, useMenuEditorHook: useWiredMenuEditor, subscribeBeforeNavigation });
 }

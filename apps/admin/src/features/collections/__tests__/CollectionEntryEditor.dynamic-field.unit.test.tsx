@@ -465,6 +465,14 @@ describe("DynamicField — one control per ContentTypeFieldDef.kind", () => {
     expect(updater({})).toEqual({ meta: { tags: ["x"], count: 1 } });
   });
 
+  it("uses the injected JSON field key and preserves an unrelated field", () => {
+    const setExtFields = vi.fn();
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [{ ...FIELD_JSON, name: "details" }] }, setExtFields });
+    fireEvent.change(screen.getByLabelText("details"), { target: { value: '{"count":1}' } });
+    const updater = setExtFields.mock.calls.at(-1)![0] as (current: Record<string, unknown>) => Record<string, unknown>;
+    expect(updater({ unrelated: "kept" })).toEqual({ unrelated: "kept", details: { count: 1 } });
+  });
+
   it("editing a json field to INVALID JSON does not call setExtFields — the last valid value is never overwritten by a parse failure", () => {
     const setExtFields = vi.fn();
     renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: { meta: { count: 1 } }, setExtFields });

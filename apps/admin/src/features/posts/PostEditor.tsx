@@ -1,3 +1,9 @@
+import { PostAutosaveRecoveryBanner } from "@jini-ai/admin/posts/editor/notices/PostAutosaveRecoveryBanner";
+import { PostAutosaveStaleBanner } from "@jini-ai/admin/posts/editor/notices/PostAutosaveStaleBanner";
+import { PostVersionConflictBanner } from "@jini-ai/admin/posts/editor/notices/PostVersionConflictBanner";
+import { PageExternalChangeBanner } from "@jini-ai/cms/react/pages/PageExternalChangeBanner";
+import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
+import { pageExternalChangeBindings } from "../pages/page-external-change-bindings";
 import { Icon } from "@jini-ai/ui";
 import { siteUrl } from "../../lib/site-url";
 import { VIEW_TABS } from "@jini-ai/admin/posts/view-tabs";
@@ -9,7 +15,7 @@ import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-ru
 import { usePostPreviewIframeEscape } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { PostEditorToolbarEnd } from "./editor/header/PostEditorToolbarEnd";
-import { resolvePostPreviewBranches } from "./rules";
+import { resolvePostPreviewBranches } from "@jini-ai/cms/react/posts/post-editor-rules";
 import { useCallback } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import type { PostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
@@ -17,7 +23,7 @@ import type { PostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-r
 import { PostEditorActions } from "@jini-ai/cms/react/posts/editor/header/PostEditorActions";
 import { PostEditorHeader } from "@jini-ai/cms/react/posts/editor/header/PostEditorHeader";
 import { PostEditorSlugCollisionWarning } from "@jini-ai/cms/react/posts/editor/notices/PostEditorSlugCollisionWarning";
-import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
+import { PostEditorNotices } from "@jini-ai/cms/react/posts/editor/notices/PostEditorNotices";
 import { PostPreview } from "@jini-ai/cms/react/posts/editor/preview/PostPreview";
 import { PostEditorTemplateModalGate } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
 import { PostEditorViewBar } from "@jini-ai/cms/react/posts/editor/view-bar/PostEditorViewBar";
@@ -104,7 +110,7 @@ export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPost
     <div className="page content-editor-page">
       <PostEditorHeader {...screen.header} Icon={Icon} siteUrl={siteUrl} />
 
-      <PostEditorNotices {...screen.notices} />
+      <PostEditorNotices {...screen.notices} PostAutosaveRecoveryBanner={PostAutosaveRecoveryBanner} PostAutosaveStaleBanner={PostAutosaveStaleBanner} PostVersionConflictBanner={PostVersionConflictBanner} PageExternalChangeBanner={PageExternalChangeBanner} standingDraftRecoveryMessage={standingDraftRecoveryMessage} pageExternalChangeBindings={pageExternalChangeBindings} />
       {/* Edit/Preview toolbar and the template picker — see `PostEditorViewBar`. */}
       <PostEditorViewBar {...screen.viewBar} DevicePreviewToggle={DevicePreviewToggle} viewTabs={VIEW_TABS} resolveTabBarTabIndex={resolveViewTabIndex} PostEditorToolbarEnd={PostEditorToolbarEnd} />
 

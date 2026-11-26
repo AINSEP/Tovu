@@ -17,7 +17,7 @@ import type { ReactElement } from "react";
 import { Media } from "../Media";
 import { renderMediaPanel } from "../../../media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
+import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,

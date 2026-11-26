@@ -234,9 +234,12 @@ describe("PostEditor DOM — states", () => {
 
   it("outside-change banner suppresses the stale-basis banner", async () => {
     const stale = { baseVersion: 3, draft: { bodyFormat: "doc" as const, bodyJson: { type: "doc", content: [] }, title: "x", slug: "hello-world", baseVersion: 3 } };
-    const { container } = await renderScreen(harness({ post: SAVED_POST, overrides: { autosaveStaleBasis: stale, pendingExternalVersion: 2 } }));
+    const { container, unmount } = await renderScreen(harness({ post: SAVED_POST, overrides: { autosaveStaleBasis: stale, pendingExternalVersion: 2 } }));
     expect(container.querySelector('[data-agent-element="post-autosave-stale"]')).toBeNull();
     expect(normalizedHtml(container)).toMatchSnapshot();
+    unmount();
+    const next = await renderScreen(harness({ post: SAVED_POST, overrides: { autosaveStaleBasis: stale, pendingExternalVersion: null } }));
+    expect(next.container.querySelector('[data-agent-element="post-autosave-stale"]')).not.toBeNull();
   });
 
   it("slug collision warning", async () => {

@@ -2,7 +2,7 @@ import { useMemo, type ForwardedRef, type RefObject } from "react";
 
 import { accessTokenProviderMatchesQuery, type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import { customCredentialReadyToSave, isValidHttpUrl } from "@jini-ai/admin/security/custom-credential-forms";
-import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./other-credential-stores";
+import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 import { sortAccessTokenGroups, type AccessTokenGroupSortInput } from "@jini-ai/admin/security/access-token-categories";
 import { ACCESS_TOKEN_CATEGORIES } from "./rules";
 import type { AccessTokensController, AccessTokenProviderGroupState } from "./hooks/use-access-tokens.hooks";

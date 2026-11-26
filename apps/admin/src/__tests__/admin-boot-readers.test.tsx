@@ -1,3 +1,6 @@
+import { isTerminalRunStatus } from "@jini-ai/chat/core";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { act, cleanup, render, renderHook, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
@@ -8,7 +11,7 @@ import type { AdminLocalePort } from "@jini-ai/admin/shell/hooks/admin-locale-po
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { createFakeAdminLocalePort } from "../hooks/admin-locale-dependencies.hooks";
-import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/messages-change.hooks";
+import { useMessagesChangeHandler } from "@jini-ai/admin/shell/components/AssistantDock/hooks/messages-change.hooks";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
@@ -90,7 +93,7 @@ it("ignores restored history and conversation switches, but announces live runs 
   ] }];
   const onMessagesChange = vi.fn();
   try {
-    const { result, rerender } = renderHook(({ paneKey, initialMessages }) => useMessagesChangeHandler({ chats: {
+    const { result, rerender } = renderHook(({ paneKey, initialMessages }) => useMessagesChangeHandler({ deps: { isTerminalRunStatus }, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: {
       paneKey, initialMessages, onMessagesChange,
     } }), { initialProps: { paneKey: "saved", initialMessages: history } });
     act(() => result.current(history));

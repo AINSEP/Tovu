@@ -1,14 +1,17 @@
 import type { ButtonHTMLAttributes } from "react";
 import { Button } from "@jini-ai/ui-kit/react";
-import { StoragePanel } from "@jini-ai/admin/screens/storage/StoragePanel";
+import { StorageScreen as JiniStorageScreen } from "@jini-ai/admin/screens/storage/StorageScreen";
+import type { RetentionPolicyKind } from "@jini-ai/platform/retention";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { describeApiError } from "@/lib/admin-http/request";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 
-import { storageClient, type StorageClient } from "./api/storage-api";
-import { screenshotCleanupClient, type ScreenshotCleanupClient } from "./api/screenshot-cleanup-api";
-import { useWiredStorage, formatBytes, type StorageLink } from "./hooks/use-storage.hooks";
-import { useScreenshotCleanup } from "./hooks/use-screenshot-cleanup.hooks";
+import { storageClient } from "./api/storage-api";
+import type { StorageClient } from "@jini-ai/admin/screens/storage/api/storage-api";
+import { screenshotCleanupClient } from "./api/screenshot-cleanup-api";
+import type { ScreenshotCleanupClient } from "@jini-ai/admin/screens/storage/api/screenshot-cleanup-api";
+import { useWiredStorage, type StorageLink } from "@jini-ai/admin/screens/storage/hooks/use-storage.hooks";
+import { useScreenshotCleanup } from "@jini-ai/admin/screens/storage/hooks/use-screenshot-cleanup.hooks";
 import { t } from "./storage-i18n";
 
 /**
@@ -18,7 +21,15 @@ import { t } from "./storage-i18n";
  * capability exists yet, and this screen never offers a writable shortcut against the running site.
  */
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const CATEGORY_LABELS: Record<string, string> = {
+  "content-database": "Content database", "chat-database": "Chat database", "database-wal": "Database working files",
+  "database-shm": "Database working files", uploads: "Uploads", themes: "Themes", plugins: "Plugins",
+  "agent-plugins": "Agent plugins", "theme-rollbacks": "Theme rollbacks", screenshots: "Screenshots", shares: "Shared files",
+  "pre-migration-copies": "Pre-migration copies", "restore-points": "Restore points", logs: "Logs", exports: "Exports",
+  temporary: "Temporary files", other: "Other",
+};
+const KIND_LABELS: Record<RetentionPolicyKind, string> = { cache: "Cache", derived: "Rebuildable files", "old-copy": "Old copies" };
+
 const SCREENSHOT_AGE_DAYS = 90;
 const SCREENSHOTS_ANCHOR = "storage-screenshots";
 
@@ -50,23 +61,6 @@ function storageCopy({ locale }: { locale: string }) {
   };
 }
 
-function ScreenshotCleanupSection({ client, reportErrors, now, locale, useScreenshotCleanupHook }: { useScreenshotCleanupHook: typeof useScreenshotCleanup; client: ScreenshotCleanupClient; reportErrors: (required: { error: unknown }) => string; now: () => number; locale: string }) {
-  const screenshots = useScreenshotCleanupHook({ client, describeError: reportErrors }, {});
-  const { state } = screenshots;
-  return <section id={SCREENSHOTS_ANCHOR} className="jini-card">
-    <h2 className="jini-card-title">{t({ locale, key: "Delete screenshots older than 90 days" })}</h2>
-    {state.status === "idle" || state.status === "error" || state.status === "done"
-      ? <KitButton type="button" onClick={() => { void screenshots.preview({ before: now() - SCREENSHOT_AGE_DAYS * DAY_MS }); }}>{t({ locale, key: "Show what would be deleted" })}</KitButton> : null}
-    {state.status === "shown" ? <>
-      <p>{state.preview.count} · {formatBytes({ bytes: state.preview.bytes, locale })}</p>
-      <ul>{state.preview.items.map(item => <li key={item}>{item}</li>)}</ul>
-      <KitButton type="button" onClick={() => { void screenshots.confirm(); }}>{t({ locale, key: "Delete these screenshots" })}</KitButton>
-    </> : null}
-    {state.status === "done" ? <p role="status">{t({ locale, key: "Deleted" })}: {state.result.deleted.length} · {t({ locale, key: "Kept" })}: {state.result.kept.length}</p> : null}
-    {state.status === "error" ? <p role="alert">{state.message}</p> : null}
-  </section>;
-}
-
 export interface StorageScreenProps {
   client: StorageClient;
   screenshotClient: ScreenshotCleanupClient;
@@ -81,19 +75,7 @@ export interface StorageScreenProps {
 
 /** The Storage screen over injected clients, clock and locale; {@link Storage} binds the live ones. */
 export function StorageScreen({ client, screenshotClient, reportErrors, now, locale, useWiredStorageHook, useScreenshotCleanupHook }: StorageScreenProps, _optional: Record<string, never> = {}) {
-  const links = storageLinks({ locale });
-  const useStorage = () => useWiredStorageHook({ client, reportErrors, locale, links }, {});
-  // The same `.jini-page` / `.jini-page-header` / `.jini-page-title` frame as Trash and Media: without it the
-  // page opened on bare section headings with no title (live-found 2026-11-25).
-  return <div className="jini-page">
-    <div className="jini-page-header">
-      <div className="jini-page-header-text">
-        <h1 className="jini-page-title">{t({ locale, key: "Storage" })}</h1>
-      </div>
-    </div>
-    <StoragePanel useStorage={useStorage} kit={{ Button: KitButton }} copy={storageCopy({ locale })} links={links} />
-    <ScreenshotCleanupSection client={screenshotClient} reportErrors={reportErrors} now={now} locale={locale} useScreenshotCleanupHook={useScreenshotCleanupHook} />
-  </div>;
+  return <JiniStorageScreen client={client} screenshotClient={screenshotClient} reportErrors={reportErrors} now={now} locale={locale} useWiredStorageHook={useWiredStorageHook} useScreenshotCleanupHook={useScreenshotCleanupHook} kit={{ Button: KitButton }} links={storageLinks({ locale })} copy={storageCopy({ locale })} t={t} categoryLabels={CATEGORY_LABELS} kindLabels={KIND_LABELS} screenshotAgeDays={SCREENSHOT_AGE_DAYS} screenshotsAnchor={SCREENSHOTS_ANCHOR} screenshotHeading="Delete screenshots older than 90 days" />;
 }
 
 function reportStorageError({ error }: { error: unknown }): string {

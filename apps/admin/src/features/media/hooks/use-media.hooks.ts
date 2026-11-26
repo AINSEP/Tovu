@@ -11,8 +11,8 @@ import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-co
 import { t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
-import { useGridPages, type MediaGridPort } from "./use-grid-pages.hooks";
-import { useMediaWrites } from "./use-media-writes.hooks";
+import { useGridPages, type MediaGridPort } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
+import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
 
 /**
  * @file Everything the top-level Media grid screen does, so `Media()` in `Media.tsx` is only
@@ -172,7 +172,7 @@ export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPa
   // Newest-first, matching `SqliteMediaRepo.list()`'s own default — an operator who never touches
   // the new control sees exactly today's order, unchanged. The SERVER orders; see `use-grid-pages.hooks.ts`.
   const [orderBy, setOrderBy] = useState<MediaOrderBy>("created");
-  const list = useGridPagesHook({ port, tab, orderBy, useFetchQuery }, { itemId });
+  const list = useGridPagesHook({ port, tab, orderBy, useFetchQuery, listKey: KEYS.list }, { itemId });
   const invalidate = useInvalidate();
   // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
   // unsubscribe/resubscribe on every render — `KEYS.list` is a module-level constant, so the only
@@ -196,7 +196,7 @@ export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPa
   }, []);
 
   const { uploadMutation, trashMutation, purgeMutation, restoreMutation, restoreFallback, clearOtherWriteErrors, trash, restore, pendingPurge, setPendingPurge, rowSavingId, purge } =
-    useMediaWritesHook({ port, locale, useFetchMutation });
+    useMediaWritesHook({ port, locale, useFetchMutation, deps: { KEYS, translate } });
 
   async function upload(event?: Pick<React.FormEvent, "preventDefault">) {
     event?.preventDefault();

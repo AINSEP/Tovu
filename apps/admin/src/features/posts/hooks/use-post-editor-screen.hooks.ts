@@ -9,7 +9,7 @@ import type { PostEditorBody } from "../editor/PostEditorBody";
 import type { PostSavedPanels } from "../editor/PostSavedPanels";
 import type { PostEditorActions } from "@jini-ai/cms/react/posts/editor/header/PostEditorActions";
 import type { PostEditorHeader } from "@jini-ai/cms/react/posts/editor/header/PostEditorHeader";
-import type { PostEditorNotices } from "../editor/notices/PostEditorNotices";
+import type { PostEditorNotices } from "@jini-ai/cms/react/posts/editor/notices/PostEditorNotices";
 import type { PostEditorSlugCollisionWarning } from "@jini-ai/cms/react/posts/editor/notices/PostEditorSlugCollisionWarning";
 import type { PostPreview } from "@jini-ai/cms/react/posts/editor/preview/PostPreview";
 import type { PostEditorTemplateModalGateProps } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
@@ -40,7 +40,7 @@ export interface PostEditorReadyScreen {
   view: PostEditorView;
   t: Translate;
   header: Omit<ComponentProps<typeof PostEditorHeader>, "Icon" | "siteUrl">;
-  notices: ComponentProps<typeof PostEditorNotices>;
+  notices: Omit<ComponentProps<typeof PostEditorNotices>, "PostAutosaveRecoveryBanner" | "PostAutosaveStaleBanner" | "PostVersionConflictBanner" | "PageExternalChangeBanner" | "standingDraftRecoveryMessage" | "pageExternalChangeBindings">;
   viewBar: Omit<ComponentProps<typeof PostEditorViewBar>, "DevicePreviewToggle" | "viewTabs" | "resolveTabBarTabIndex" | "PostEditorToolbarEnd">;
   actions: Omit<ComponentProps<typeof PostEditorActions>, "Icon">;
   settings: ComponentProps<typeof PostSettingsDialog>;

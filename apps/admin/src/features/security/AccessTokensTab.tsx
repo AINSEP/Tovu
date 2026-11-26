@@ -1,3 +1,5 @@
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
+import { fieldNameHandleSegment } from "@jini-ai/devops/deploy/react/rules";
 import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { forwardRef, useRef } from "react";
@@ -10,14 +12,14 @@ import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { fieldHelpText } from "@jini-ai/devops/deploy/react/rules";
-import { removeDialogBody, removeDialogTitle } from "@/lib/i18n-common";
+import { removeDialogBody, removeDialogTitle, otherCredentialRemoveDialogBody } from "@/lib/i18n-common";
 import { removeDialogLastRowNote, sharedKeyReplaceWarning } from "@jini-ai/admin/security/security-i18n";
 import { ACCESS_TOKEN_CATEGORIES } from "./rules";
 import type { AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
 import type { AccessTokenRowCategoryId } from "@jini-ai/admin/security/access-token-rows";
-import { accessTokenExtraFieldIdSuffix } from "./access-token-forms";
+import { accessTokenExtraFieldIdSuffix } from "@jini-ai/integrations/react/credentials/access-token-forms";
 import { invalidAdditionalHostsEntries } from "@jini-ai/admin/security/custom-credential-forms";
-import { accessTokensCountText } from "./other-credential-stores";
+import { accessTokensCountText } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 import { extraFieldsAroundToken, providerGroupSubtitleKeys, type AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { providerGroupHandleLabel, tokenRowHandleLabel, ACCESS_TOKEN_PROVIDER_COPY } from "./access-token-copy";
 import type { AccessTokenProviderRef, AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
@@ -31,7 +33,8 @@ import type {
 } from "./hooks/use-access-tokens.hooks";
 import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
-import { OtherCredentialEntry } from "./OtherCredentialsSection";
+import { OtherCredentialEntry } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection";
+import { useOtherCredentialRemoveDialog } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection.hooks";
 import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsOrder } from "./AccessTokensTab.hooks";
 import { CopyKeysDialog } from "@jini-ai/admin/security/host/CopyKeysDialog";
 import { useWiredCopyKeys } from "./hooks/copy-keys-dependencies.hooks";
@@ -183,7 +186,7 @@ function AccessTokensBody({ controller, otherController,
           entry.kind === "provider" ? (
             <ProviderGroup key={entry.key} group={entry.group} controller={controller} />
           ) : (
-            <OtherCredentialEntry key={entry.key} store={entry.store} row={entry.row} controller={otherController} />
+            <OtherCredentialEntry key={entry.key} store={entry.store} row={entry.row} controller={otherController} deps={{ useAdminLocaleHook: useAdminLocale, useOtherCredentialRemoveDialogHook: useOtherCredentialRemoveDialog, removeDialogTitle, otherCredentialRemoveDialogBody, VIEWER_TIME_ZONE, REMOVE_FROM_TOVU, removeHandleLabel: ({ name }) => `Remove ${name} from Tovu` }} />
           )
         )}
       </div>
@@ -625,7 +628,7 @@ function ExtraFieldInputs({
       {fields.map((field) => (
         <ExtraFieldInput
           key={field.name}
-          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix({ fieldName: field.name })}`}
+          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix({ deps: { asciiSlug, fieldNameHandleSegment }, fieldName: field.name })}`}
           field={field}
           value={values[field.name] ?? ""}
           onChange={(value) => onFieldChange(field.name, value)}

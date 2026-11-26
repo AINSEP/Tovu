@@ -1,3 +1,4 @@
+import { paintAdminAccent } from "@jini-ai/admin/shell/lib/paint-admin-accent";
 import { readableTextColor } from "@jini-ai/ui";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { createAppearanceDraftStore, useAdminAppearance as useJiniAdminAppearance, useSettingsAppearance as useJiniSettingsAppearance } from "@jini-ai/admin/react/shell/appearance";
@@ -20,36 +21,7 @@ const defaultPort: AdminAppearancePort = {
 
 const previewAccents = createAppearanceDraftStore({}, {});
 
-/**
- * The host inputs feed Jini's derived accent tokens, including descendants with their own theme.
- * The ledger's registered default (Jini's neutral blue, which Jini expects hosts to brand over) is
- * not an operator choice, so it clears the inline inputs and Classic's `var(--primary)` mapping
- * keeps Classic's Jini accent brand orange. Glass without a saved choice likewise keeps its own
- * palette. Writing the ledger default inline turned selected chips, toggles and
- * primary buttons blue on any site that never picked an accent (owner, 2026-10-08: "selected tabs
- * and navs should be orange").
- * The ink input follows the fill via Jini's `readableTextColor`: a light accent such as Tovu gold
- * otherwise kept the themes' white ink, unreadable on primary buttons and badges.
- */
-function applyAccent({ accentColor, root }: { accentColor: string | undefined; root: HTMLElement }, _optional: object) {
-  if (accentColor === undefined) {
-    root.style.removeProperty("--jini-theme-light-primary");
-    root.style.removeProperty("--jini-theme-dark-primary");
-    root.style.removeProperty("--jini-theme-light-primary-ink");
-    root.style.removeProperty("--jini-theme-dark-primary-ink");
-    root.removeAttribute("data-admin-accent");
-    return;
-  }
-  root.style.setProperty("--jini-theme-light-primary", accentColor);
-  root.style.setProperty("--jini-theme-dark-primary", accentColor);
-  const ink = readableTextColor({ hex: accentColor });
-  root.style.setProperty("--jini-theme-light-primary-ink", ink);
-  root.style.setProperty("--jini-theme-dark-primary-ink", ink);
-  // Classic's default inputs point at --primary. Only bridge back to Jini's roles while
-  // these literal overrides exist, avoiding a cycle and preserving the default palette.
-  // "light" marks an accent that took dark ink, so Classic also darkens its text uses.
-  root.setAttribute("data-admin-accent", ink === "#ffffff" ? "" : "light");
-}
+const applyAccent = ({ accentColor, root }: { accentColor: string | undefined; root: HTMLElement }, _optional: object) => paintAdminAccent({ accent: accentColor, root, deps: { readableTextColor } }, {});
 
 /** Follow the appearance ledger, protecting each theme's drafts newer than the accepted read.
  * @complexity O(n) per accepted read/theme switch for n cached drafts; root state is weakly held. */

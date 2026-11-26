@@ -4,7 +4,8 @@ import { act, cleanup, render, renderHook, screen } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { usePluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-install.hooks";
-import { createFakePluginInstallPort, defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
+import { defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
+import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
 import { tPlugins as t } from "../../../lib/i18n-common";
 

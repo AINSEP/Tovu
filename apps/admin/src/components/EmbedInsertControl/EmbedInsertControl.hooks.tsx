@@ -5,7 +5,7 @@ import {
   useEmbedInsertControl as useJiniEmbedInsertControl,
   type EmbedEditor,
 } from "@jini-ai/cms/react/widgets/EmbedInsertControl/EmbedInsertControl.hooks";
-import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";
+import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog.hooks";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 
 /**

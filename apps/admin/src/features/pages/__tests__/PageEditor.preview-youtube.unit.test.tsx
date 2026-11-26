@@ -13,7 +13,7 @@ import { PageEditor } from "../PageEditor";
 import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
-import { createPreviewEmbedIdsLoader, usePreviewEmbedIds, type LoadPreviewEmbedIds, type PreviewEmbedIdsArgs } from "../hooks/use-preview-embed-ids.hooks";
+import { createPreviewEmbedIdsLoader, previewEmbedIdsPath, usePreviewEmbedIds, type LoadPreviewEmbedIds, type PreviewEmbedIdsArgs } from "@jini-ai/cms/react/pages/hooks/use-preview-embed-ids.hooks";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
@@ -99,7 +99,7 @@ describe("usePreviewEmbedIds", () => {
 
   it("the authenticated port sends clean and pending HTML requests on the workspace-relative path", async () => {
     const request = vi.fn(async () => ({ youtubeIds: [] })) as unknown as Parameters<typeof createPreviewEmbedIdsLoader>[0]["request"];
-    const load = createPreviewEmbedIdsLoader({ workspaceId: "w1", request });
+    const load = createPreviewEmbedIdsLoader({ path: previewEmbedIdsPath, workspaceId: "w1", request });
     const signal = new AbortController().signal;
     await load({ id: "a/b", templateChoice: null, pendingHtml: null });
     await load({ id: "pg1", templateChoice: "", pendingHtml: "<p>draft</p>" }, { signal });

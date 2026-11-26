@@ -1,3 +1,6 @@
+import { isTerminalRunStatus } from "@jini-ai/chat/core";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { isAbortError } from '@jini-ai/core/text';
 import { useConfirmRequest } from "@jini-ai/admin/react";
 import { useNativeFolderPicker } from "@jini-ai/admin/screens/fs-files/use-native-folder-picker.hooks";
@@ -9,6 +12,7 @@ import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport 
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "@jini-ai/admin/shell/components/AssistantDock/hooks/conversation-refresh.hooks";
 import { lookupOwnedConversation, replaceBrowserQuery } from "../../features/routines/use-conversation-deep-link";
+
 import { defaultAssistantChatsPort } from "../../hooks/assistant-chats-dependencies.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
 import { agUiApprovalPoster } from "../../lib/assistant-transport-ag-ui";
@@ -33,7 +37,7 @@ import { selectedLocalCliReasoning } from "@jini-ai/admin/shell/lib/execution-se
 // Every call below goes through the `useXSeam` wrappers rather than the bare hooks — see
 // `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
 import { useAssistantDockChrome, resolveAssistantConversationTitle, useChatsSeam } from "./hooks/dock-chrome.hooks";
-import { useMessagesChangeHandler } from "./hooks/messages-change.hooks";
+import { useMessagesChangeHandler } from "@jini-ai/admin/shell/components/AssistantDock/hooks/messages-change.hooks";
 import { useRunContext } from "@jini-ai/admin/shell/components/AssistantDock/hooks/run-context.hooks";
 import { useSkillAwareAttachmentUploader, resolveSkillsAvailable } from "@jini-ai/admin/shell/components/AssistantDock/hooks/composer-files.hooks";
 import { useAttachmentUploaderSeam, useAttachmentValidatorSeam, useFolderDropBridge, TOVU_LEGACY_MANIFEST_NAMES } from "./hooks/composer-files.hooks";
@@ -41,7 +45,8 @@ import { useComposerCapabilitiesSeam, useComposerDiscoverySelect } from "./hooks
 import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/shell/components/AssistantDock/hooks/selected-agent-plugins.hooks";
 import { useAssistantTransportSeam, useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
 import { useTovuAssistantTransport } from "./hooks/assistant-transport.binding";
-import { useAgentsPlaceholderSeam, useRuntimeAccessSeam } from "./hooks/runtime-access.hooks";
+import { useAgentsPlaceholderSeam, useRuntimeAccessSeam } from "@jini-ai/admin/shell/components/AssistantDock/hooks/runtime-access.hooks";
+import { useAgentsPlaceholder, useRuntimeAccess } from "./hooks/runtime-access.hooks";
 import { useByokRuntimeSeam } from "./hooks/byok-runtime.hooks";
 import { useExecutionConfigSeam } from "./hooks/execution-config.hooks";
 import { useLocalCliSelectionSeam } from "./hooks/local-cli-selection.hooks";
@@ -172,11 +177,11 @@ function useDockAgent({ props, execution, locale, runtimePreferences }: { props:
   const { executionConfig, executionPolicy, localCliSelection } = execution;
   // D-21(b): the picker's inventory has no auth status, so the sign-in warning reads Settings'
   // detection; its wrapped runtimeAccess re-probes auth on the picker's own Rescan.
-  const pickerRuntimeAccess = useRuntimeAccessSeam({ override: useRuntimeAccessOverride });
+  const pickerRuntimeAccess = useRuntimeAccessSeam({ override: useRuntimeAccessOverride, useRuntimeAccessHook: useRuntimeAccess });
   const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess, createPort: createExecutionPort, selectWarning: selectedAgentWarning });
   const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
-  const agentsPlaceholder = executionPolicy.agents({ agents: useAgentsPlaceholderSeam({ runtimeAccessOverride: useRuntimeAccessOverride }) });
+  const agentsPlaceholder = executionPolicy.agents({ agents: useAgentsPlaceholderSeam({ runtimeAccessOverride: useRuntimeAccessOverride, usePlaceholder: useAgentsPlaceholder }) });
   const selectedAgent = selectedDockAgent({ mode: executionConfig.mode, agents: agentsPlaceholder, agentId: localCliSelection.agentId });
   const runtime = { ...runtimePreferences, visible: visibleAssistantRuntimePreferences({ agent: selectedAgent }) };
   return { selectedAgentAuth, runtimeAccess, agentsPlaceholder, runtime };
@@ -247,6 +252,8 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
 
 type DockComposer = ReturnType<typeof useDockComposer>;
 
+const MESSAGE_CHANGE_DEPS = { isTerminalRunStatus };
+
 /** Per-run wiring: message persistence, run context, the failure surface, the empty state and the refresh signal. */
 function useDockRun({ props, t, execution, agent, transportState, composer }: { props: DockProps; t: DockTranslate; execution: DockExecution; agent: DockAgent; transportState: DockTransport; composer: DockComposer }, { useMessages = useMessagesChangeHandler, useContext = useRunContext }: { useMessages?: typeof useMessagesChangeHandler; useContext?: typeof useRunContext } = {}) {
   const { agentBridge = null } = props;
@@ -254,7 +261,7 @@ function useDockRun({ props, t, execution, agent, transportState, composer }: { 
   const { runtimeAccess } = agent;
   const { chats, transport } = transportState;
   const { selectedPluginRefIds, selectedSkills } = composer;
-  const handleMessagesChange = useMessages({ chats });
+  const handleMessagesChange = useMessages({ deps: MESSAGE_CHANGE_DEPS, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats });
   const runContext = useContext({
     agentBridge,
     model: localCliSelection.model,

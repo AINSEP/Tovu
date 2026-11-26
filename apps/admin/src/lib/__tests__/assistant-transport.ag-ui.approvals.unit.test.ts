@@ -5,7 +5,8 @@ import type { RunHandlers } from "@jini-ai/chat/core";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 import { AG_UI_RUN_PATH, createAdminAgUiRunClient, type AdminAgUiDurablePorts } from "../assistant-transport-ag-ui";
-import { EXPIRED_APPROVAL_MESSAGE, routeApprovalToolCall } from "../ag-ui-approval-relay";
+import { routeApprovalToolCall } from "@jini-ai/chat/core/assistant-client/ag-ui-approval-relay";
+const EXPIRED_APPROVAL_MESSAGE = "This request expired. Ask again.";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
 import golden from "./fixtures/admin-ag-ui-approval-wire.golden.json";
 
@@ -97,7 +98,7 @@ async function replayedTurn(responses: Array<() => Response>) {
     signal: new AbortController().signal }, handlers }, {});
   await flush();
   const fallback = vi.fn(async () => ({ routed: "mcp-ui" }));
-  return { posts, rec, fallback, route: routeApprovalToolCall({ approvals: client.approvals, fallback }, {}) };
+  return { posts, rec, fallback, route: routeApprovalToolCall({ approvals: client.approvals, fallback, copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {}) };
 }
 const cardUris = (events: AgentEvent[]) => events.flatMap((event) => (event.kind === "ext" && event.name === "mcp-ui"
   ? [(event.data as { resource: { uri: string } }).resource.uri] : []));
@@ -107,11 +108,12 @@ describe("admin AG-UI approvals (P6-T2.T step 4, P6-T4.T Approvals gate)", () =>
   test("the existing approval card answers a live AG-UI interrupt with one resume", async () => {
     const { client, posts, rec } = await parkedDurableTurn([resumed, resumed]);
     const fallback = vi.fn(async () => ({ routed: "mcp-ui" }));
-    const card = routeApprovalToolCall({ approvals: client.approvals, fallback }, {});
+    const card = routeApprovalToolCall({ approvals: client.approvals, fallback, copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {});
     const click = () => card({ name: "posts.delete", arguments: { __exchangeId: "ex-1", decision: "confirm" } });
     const results = await Promise.all([click(), click()]);
     await flush();
 
+    expect(posts).toHaveLength(2);
     expect(fallback, "the decision must not go to the MCP-UI tool-calls route").not.toHaveBeenCalled();
     expect(posts.map((post) => post.url)).toEqual([AG_UI_RUN_PATH, AG_UI_RUN_PATH]);
     const body = posts[1]!.body;
@@ -153,7 +155,7 @@ describe("admin AG-UI approvals (P6-T2.T step 4, P6-T4.T Approvals gate)", () =>
   test("ordinary cards still use their own route during an AG-UI run", async () => {
     const { client, posts } = await parkedDurableTurn([]);
     const fallback = vi.fn(async () => ({ routed: "mcp-ui" }));
-    const card = routeApprovalToolCall({ approvals: client.approvals, fallback }, {});
+    const card = routeApprovalToolCall({ approvals: client.approvals, fallback, copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {});
     const otherCard = { name: "posts.publish", arguments: { __exchangeId: "ex-other", decision: "confirm" } };
     const typedAnswer = { name: "ask_choice", arguments: { choice: "blue" } };
     await expect(card(otherCard)).resolves.toEqual({ routed: "mcp-ui" });
@@ -165,7 +167,7 @@ describe("admin AG-UI approvals (P6-T2.T step 4, P6-T4.T Approvals gate)", () =>
   test("an expired resume shows the plain refusal once", async () => {
     const refusal = () => new Response(JSON.stringify({ error: EXPIRED_APPROVAL_MESSAGE, detail: "RAW-DAEMON-CANARY parked call gone" }), { status: 400, headers: { "Content-Type": "application/json" } });
     const { client, rec } = await parkedDurableTurn([refusal, refusal]);
-    const card = routeApprovalToolCall({ approvals: client.approvals, fallback: vi.fn() }, {});
+    const card = routeApprovalToolCall({ approvals: client.approvals, fallback: vi.fn(), copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {});
     const result = await card({ name: "posts.delete", arguments: { __exchangeId: "ex-1", decision: "cancel" } });
     await card({ name: "posts.delete", arguments: { __exchangeId: "ex-1", decision: "cancel" } });
     await flush();

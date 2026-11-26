@@ -4,7 +4,7 @@ import type { ChangeEvent } from "react";
 import { describe, expect, it } from "vitest";
 import { usePluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-install.hooks";
 import { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";
-import { createFakeAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
+import { createFakeAgentPluginInstallPort } from "./agent-plugin-install-port.fixture";
 
 // Assert both consumers: changing a formatter alone must not leave one add tab on 0.0 MiB.
 describe("plugin add archive size", () => {

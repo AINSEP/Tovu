@@ -56,6 +56,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it("creates the download URL, clicks the anchor, then revokes that URL", () => {
+  const order: string[] = [];
+  const anchor = document.createElement("a");
+  vi.spyOn(anchor, "click").mockImplementation(() => { order.push("click"); });
+  const createElement = vi.spyOn(document, "createElement").mockReturnValue(anchor);
+  vi.stubGlobal("URL", {
+    createObjectURL: vi.fn(() => { order.push("create"); return "blob:dockerfile"; }),
+    revokeObjectURL: vi.fn((url: string) => { expect(url).toBe("blob:dockerfile"); order.push("revoke"); }),
+  });
+  downloadDockerfile({ contents: "FROM node:22\n" });
+  expect(order).toEqual(["create", "click", "revoke"]);
+  expect(anchor.download).toBe("Dockerfile");
+  createElement.mockRestore();
+});
+
 describe("loading and error states", () => {
   it("shows a loading notice while snapshot is undefined", () => {
     render(<DockerfileTab download={downloadDockerfile} dockerfileLineCountLabel={dockerfileLineCountLabel} agentHandle={agentHandle} lineIcon={LINE_ICON} useDockerfileSourceHook={() => controllerFixture({ snapshot: undefined })} />);

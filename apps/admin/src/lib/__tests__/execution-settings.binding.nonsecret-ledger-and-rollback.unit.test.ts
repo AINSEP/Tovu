@@ -6,6 +6,13 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+it("does not write a typed secret-only change to the ledger", async () => {
+  const setSetting = vi.spyOn(settingsApi, "setSetting");
+  const next = { ...DEFAULT_EXECUTION_CONFIG, byok: { ...DEFAULT_EXECUTION_CONFIG.byok, apiKey: "sk-TYPED-ONLY" } };
+  await expect(saveExecutionConfig(next, DEFAULT_EXECUTION_CONFIG)).resolves.toEqual([]);
+  expect(setSetting).not.toHaveBeenCalled();
+});
+
 it("keeps the provider form save on the non-secret ledger", async () => {
   const setSetting = vi.spyOn(settingsApi, "setSetting").mockResolvedValue({ key: "byok.baseUrl", scope: "workspace", value: "https://new.example/v1", revisionSeq: 1 });
   const credentialWrite = vi.spyOn(aiAssistantApi, "setAdminExecutionCredential");

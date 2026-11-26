@@ -1,3 +1,9 @@
+import { defaultAgentPluginSurfacesPort } from "../hooks/agent-plugin-surfaces-dependencies.hooks";
+import { useHostAdminSurfaceFrame } from "../hooks/use-host-admin-surface-frame.hooks";
+import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
+import { PackageFilesModal } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
+import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
+import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
 import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
 import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
@@ -6,11 +12,14 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
+import { AgentPluginDetailsModal } from "@jini-ai/agent-plugins/react/AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
-import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
+import type { InspectedAgentPlugin } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 
 const requiredAgentPluginDetailsModalHooks = {
+  kit: { AgentPluginMemoryPanel, AgentPluginMaturity, PackageFilesModal, AgentPluginSurfaceFrame },
+  useHostAdminSurfaceFrame,
+  surfacesPort: defaultAgentPluginSurfacesPort,
   useAgentPluginMemoryHook: useWiredAgentPluginMemory,
   useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
   useAgentPluginSurfacesHook: useAgentPluginSurfaces,
