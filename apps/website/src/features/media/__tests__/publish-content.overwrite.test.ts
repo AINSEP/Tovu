@@ -48,6 +48,7 @@ async function fixture(t: TestContext, { privateSource = false }: { privateSourc
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
   let ids = 0;
   const deps: PublishContentDeps = { workspaceId, clock: createFakeClock({ startIso: "2026-11-04T00:00:00.000Z" }),
+    mutationActor: { id: "operator", kind: "user" },
     idGen: { newId: () => `generated-${++ids}` }, authorize: async () => ({ allowed: true, reason: "test" }),
     changeSets, outbox, ports: { media: { repo, assetBlobRepo, contentTypeStore, blobStore } } };
   const handler = contributeMediaPublish().build(deps);

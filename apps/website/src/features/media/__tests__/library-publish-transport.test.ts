@@ -43,7 +43,7 @@ test('Library document-only blob hashes cannot be downloaded through publish pee
   const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
     referenceCheck: { findReferences: async () => [] } };
   const outbox = new InMemoryOutbox();
-  const handler = contributeMediaPublish().build({ ...deps, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox), ports: {
+  const handler = contributeMediaPublish().build({ ...deps, mutationActor: OWNER_ACTOR, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox), ports: {
     media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore },
   } });
   const id = 'forged-public-id';

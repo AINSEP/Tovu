@@ -123,6 +123,7 @@ test("L156 publish import uses source provenance only on create and keeps destin
   const outbox = new InMemoryOutbox();
   let id = 0;
   const handler = contributePostPublish().build({ workspaceId: existing.workspaceId, clock,
+    mutationActor: { id: "operator", kind: "user" },
     idGen: { newId: () => `generated-${++id}` }, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test" }),
     ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo, forgetRemoved: async () => {} } },

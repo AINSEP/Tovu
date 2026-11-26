@@ -121,7 +121,7 @@ test("post termIds: a changed set syncs exactly — added assigned, removed unas
 
 test("post termIds: a term missing at the destination blocks the row before the post is written", async () => {
   const { dst, source, dest } = await sites();
-  const handler = contributePostPublish().build(dest);
+  const handler = contributePostPublish().build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
   const entity = (await packAll(source)).find((e) => e.id === "p-tagged")!;
 
   await assert.rejects(
@@ -149,7 +149,7 @@ test("T31: a term write failure after importing a post removes the unrecorded po
     };
 
     await assert.rejects(
-      contributePostPublish().build(dest).apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "T31" }),
+      contributePostPublish().build({ ...dest, mutationActor: { id: "owner", kind: "user" } }).apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "T31" }),
       (error: unknown) => error === failure,
     );
 
@@ -170,7 +170,7 @@ test("post termIds: without admin.taxonomy.manage a tag change is blocked and no
   const entity = (await packAll(source)).find((e) => e.id === "p-tagged")!;
 
   await assert.rejects(
-    contributePostPublish().build(dest).apply({ entity, expectedVersion: undefined, principalId: "editor", idempotencyKey: "idem-perm" }),
+    contributePostPublish().build({ ...dest, mutationActor: { id: "editor", kind: "user" } }).apply({ entity, expectedVersion: undefined, principalId: "editor", idempotencyKey: "idem-perm" }),
     (err: Error & { rowOutcome?: string }) => err.rowOutcome === "blocked" && /admin\.taxonomy\.manage/.test(err.message)
   );
   assert.equal(await dst.posts.findById({ workspaceId: WORKSPACE_ID, id: "p-tagged" }), null);

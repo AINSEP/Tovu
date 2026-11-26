@@ -175,6 +175,7 @@ test("the registered raw-row contributor creates a row readable through an indep
   try {
     site.db.$client.exec("CREATE TABLE p_registry_article (id TEXT PRIMARY KEY, title TEXT)");
     const deps: PublishContentDeps = { ...makeSite({}, "raw-row-registry"),
+      mutationActor: { id: "registry-operator", kind: "user" },
       backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: site.db }) }), coveredTables: [], coveredRoots: [] } };
     const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-row");
     assert.ok(handler);
@@ -205,6 +206,7 @@ test("the registered raw-file contributor creates the exact bytes on disk", asyn
       repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}),
       blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
     } }, "raw-file-registry"),
+      mutationActor: { id: "registry-operator", kind: "user" },
       backstop: { files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: root }), blobs, fileBlobIndex: createFileBlobIndex(),
         fileRollbacks: [], coveredTables: [], coveredRoots: [] } };
     const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-file");
@@ -255,6 +257,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
   let n = 0;
   const deps: PublishContentDeps = {
     workspaceId,
+    mutationActor: { id: "operator-principal-1", kind: "user" },
     clock: createFakeClock({ startIso: "2026-09-18T12:00:00.000Z" }),
     idGen: { newId: () => `generated-id-${++n}` },
     outbox,

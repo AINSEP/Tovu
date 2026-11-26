@@ -44,6 +44,7 @@ async function fixture(input: { rows?: MediaRecord[]; staged?: boolean; sha256?:
   let n = 0;
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
   const deps: PublishContentDeps = { workspaceId: WORKSPACE_ID, clock: createFakeClock({ startIso: "2026-09-18T12:00:00.000Z" }),
+    mutationActor: { id: "op", kind: "user" },
     idGen: { newId: () => `generated-${++n}` }, outbox, changeSets,
     authorize: async () => ({ allowed: true, reason: "test" }), ports: { media: { repo, assetBlobRepo, blobStore, contentTypeStore } } };
   return { handler: contributeMediaPublish().build(deps), repo, assetBlobRepo, blobStore, contentTypeStore, changeSets };

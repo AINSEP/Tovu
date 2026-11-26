@@ -49,7 +49,7 @@ async function site() {
   await s.entryTerms.upsert({ contentType: "post", contentId: "p-tagged", termId: "t-a", addedAt: at });
   await s.posts.save(row({ id: "pg-about", slug: "about", kind: "page", title: "About", bodyFormat: "html", bodyJson: null as never, bodyHtml: "<p>About</p>" }));
   await s.posts.save(row({ id: "p-trashed", slug: "old", deletedAt: at }));
-  return { s, deps: makeSite(s.ports) };
+  return { s, deps: { ...makeSite(s.ports), mutationActor: { id: "op", kind: "user" as const } } };
 }
 
 const PINNED: Record<string, string> = {

@@ -29,6 +29,7 @@ function makeDeps(rows: PostRecord[]) {
   const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   return {
     workspaceId: WORKSPACE_ID,
+    mutationActor: { id: IMPORTING_OPERATOR, kind: "user" as const },
     postRepo,
     clock: { nowMs: () => Date.parse("2026-10-05T12:00:00.000Z") },
     idGen: (() => {

@@ -129,6 +129,7 @@ async function makeFixture(
   let n = 0;
   const deps: PublishContentDeps = {
     workspaceId: WORKSPACE_ID,
+    mutationActor: { id: OPERATOR_ID, kind: "user" },
     clock: createFakeClock({ startIso: "2026-09-18T12:00:00.000Z" }),
     idGen: { newId: () => `generated-id-${++n}` },
     outbox,
