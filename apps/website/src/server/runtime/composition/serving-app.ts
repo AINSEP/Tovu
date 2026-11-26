@@ -3,7 +3,7 @@ import { createCleanupPreviewStore, createRetentionRunner } from "@jini-ai/platf
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { claimSiteRunning } from "#src/platform/site-dir/site-running";
-import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention } from "./retention.js";
+import { servingDatabaseCopies, siteRetentionPolicies, startSiteRetention, type FreePagesWork } from "./retention.js";
 import { createMediaBytesPolicy } from "./retention-policies/media-bytes.js";
 import { mediaBytesDeps, servingRecoveryArtifacts } from "./retention-policies/media-bytes-deps.js";
 import { servingStoragePaths, type SiteStoragePort } from "./modules/storage-routes.js";
@@ -102,6 +102,7 @@ function outboxQueueMetrics({ routeDeps }: { routeDeps: Pick<NonNullable<Paramet
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
  * @param optional.webhookDeliveryIntervalMs idle wait between webhook delivery ticks (default: the worker's own 15 s).
  * @param optional.domainBindingSweepIntervalMs idle wait between due-bindings DNS sweeps (default: the sweeper's own minute).
+ * @param optional.dbFreePages binds the P11 ST-7c.T free-page reclaim (absent by default: nothing is scheduled).
  * @returns the Express app, background handles (stop all at shutdown; `formPullTrigger.stop` and
  *   `siteSearchMaintenance.stop` wait for a running pass), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
@@ -112,7 +113,7 @@ function outboxQueueMetrics({ routeDeps }: { routeDeps: Pick<NonNullable<Paramet
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
-  optional: { runningLease?: ReturnType<typeof claimSiteRunning>; stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number; routines?: { desktopEligible: boolean; releaseEnabled: boolean; runStarter?: RoutineRunHandler } } = {}
+  optional: { runningLease?: ReturnType<typeof claimSiteRunning>; stopForIdle?: CreateAppOptions["stopForIdle"]; outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number; dbFreePages?: (signal: AbortSignal) => FreePagesWork | undefined; routines?: { desktopEligible: boolean; releaseEnabled: boolean; runStarter?: RoutineRunHandler } } = {}
 ): { routines: ServingRoutines; siteRetention?: ReturnType<typeof startSiteRetention>; app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[]; releaseOnShutdown: () => void } {
   const reportRetentionError = ({ error }: { error: Error }, _optional: Record<string, never>) => console.warn(formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
   // Exporter, daemon, attached serve and memory-only roots do not own this runner.
@@ -122,6 +123,9 @@ export function createServingApp(
       policiesForSignal: signal => siteRetentionPolicies({ registry: routeDeps.siteShareBackend?.registry, fs: { stat, unlink }, clock: { now: () => routeDeps.clock.nowMs() }, signal, reportError: reportRetentionError, databaseCopies: servingDatabaseCopies({ contentDbPath: routeDeps.siteStoragePaths.contentDbPath }) }),
       // Report-only (P11 ST-11b.T): the media-bytes policy measures on every pass and has no sweep.
       reportOnlyForSignal: signal => routeDeps.contentKernel === undefined ? [] : [createMediaBytesPolicy(mediaBytesDeps({ workspaceId: routeDeps.workspaceId, kernel: routeDeps.contentKernel as KyselyKernel<unknown>, mediaRepo: routeDeps.mediaRepo, blobStore: routeDeps.blobStore, clock: routeDeps.clock, signal, shareTransfers: routeDeps.siteShareBackend, recoveryArtifacts: servingRecoveryArtifacts({ restorePoints: routeDeps.restorePointsRepo, contentDbPath: routeDeps.siteStoragePaths.contentDbPath }, {}) }, {}), {})],
+      // P11 ST-7c.T, staged dark: the free-page reclaim runs only when the host binds `dbFreePages`, which no
+      // entrant does until G1–G3 clear. It gets its own schedule; the general runner stays measure-only.
+      freePagesForSignal: optional.dbFreePages,
       reportError: reportRetentionError,
       log: line => console.log(line),
     }, {})

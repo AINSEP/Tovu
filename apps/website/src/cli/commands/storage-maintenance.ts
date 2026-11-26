@@ -9,6 +9,7 @@ import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { claimSiteRunning } from "#src/platform/site-dir/site-running";
 import { siteRetentionPolicies } from "#src/server/runtime/composition/retention";
+import type { CompactionDatabaseName, RestoreConfirmation, RestoreOutcome } from "#src/features/storage/compaction-recovery.types";
 import type { StorageReportPaths } from "./storage-report.js";
 
 /**
@@ -33,6 +34,15 @@ export type StorageMaintenanceClaim = (required: { dir: string }) => StorageMain
 export interface StoppedSiteHandles { close(): Promise<void> }
 /** The ST-7b.T compactor. `undefined` until it ships; `capabilities` then omits `compact`. */
 export type CompactStoppedSite = (required: { siteDir: string }, optional?: Record<string, never>) => Promise<{ status: "done" | "partial" }>;
+/**
+ * The bound ST-7b.T capability: the stopped-site compactor plus the owner's attention decisions. One object, so
+ * `compact` is registered and advertised from the same binding that runs it. Absent (the default) until G1–G3 clear.
+ */
+export interface StorageCompactionBinding {
+  readonly compact: CompactStoppedSite;
+  readonly resolve: (required: { siteDir: string; confirmation: RestoreConfirmation }) => Promise<RestoreOutcome>;
+  readonly resume: (required: { siteDir: string }) => Promise<RestoreOutcome | { readonly status: "nothing-pending" }>;
+}
 export type StorageCleanReportError = (required: { error: Error; policyId?: string }, optional: Record<string, never>) => { errorId: string };
 
 export interface StorageCleanRequired<H extends StoppedSiteHandles> {
@@ -148,6 +158,65 @@ export function runStorageCapabilitiesCommand(
   const operations = storageOperations({ compactStoppedSite });
   stdout.write(json ? `${JSON.stringify({ operations })}\n` : `Storage operations: ${operations.join(", ")}\n`);
   return operations;
+}
+
+/** What `storage compact` was asked to do: convert, finish an interrupted restore, or apply one confirmed decision. */
+export interface StorageCompactOptions { readonly resume?: boolean; readonly resolve?: string; readonly database?: string; readonly confirm?: string; readonly json?: boolean }
+type CompactReply = { readonly exitCode: 0 | 1 | 2 | 3; readonly body: { readonly status: string; readonly message?: string } };
+
+const CONFIRM_REQUIRED = "A decision needs --database content|chat and --confirm with the marker the storage panel showed; nothing was changed.";
+
+/**
+ * `tovu storage compact <dir> [--resume | --resolve restore-copy|keep-current --database <name> --confirm <json>]`.
+ * A decision reaches the binding only when it names a known action and database and carries the full confirmation
+ * the owner saw (`markerAt`, `recoveryCopyPath`, `mainIdentity`); anything else is refused before any work.
+ * @returns the exit code: 0 done, 2 partial, 3 refused because running or busy, 1 refused or failed.
+ * @complexity O(1) here; the binding owns the work.
+ */
+export async function runStorageCompactCommand(
+  { dir, binding, stdout }: { dir: string; binding: StorageCompactionBinding; stdout: Stdout },
+  options: StorageCompactOptions = {},
+): Promise<0 | 1 | 2 | 3> {
+  let reply: CompactReply;
+  try {
+    reply = await compactReply({ siteDir: resolveDirectoryTarget({ dirArg: dir }), binding, options });
+  } catch (error) {
+    reply = { exitCode: 1, body: { status: "error", message: `Could not compact this website (${error instanceof Error ? error.name : "Error"}).` } };
+  }
+  stdout.write(options.json === true ? `${JSON.stringify(reply.body)}\n` : `${reply.body.message ?? `Compact ${reply.body.status}.`}\n`);
+  return reply.exitCode;
+}
+
+async function compactReply({ siteDir, binding, options }: { siteDir: string; binding: StorageCompactionBinding; options: StorageCompactOptions }): Promise<CompactReply> {
+  if (options.resolve !== undefined) {
+    const confirmation = parseConfirmation({ action: options.resolve, database: options.database, confirm: options.confirm });
+    if (confirmation === undefined) return { exitCode: 1, body: { status: "refused", message: CONFIRM_REQUIRED } };
+    return restoreReply({ outcome: await binding.resolve({ siteDir, confirmation }) });
+  }
+  if (options.resume === true) {
+    const outcome = await binding.resume({ siteDir });
+    return outcome.status === "nothing-pending" ? { exitCode: 0, body: { status: "nothing-pending", message: "No interrupted restore to finish." } } : restoreReply({ outcome });
+  }
+  const result = await binding.compact({ siteDir });
+  return { exitCode: result.status === "done" ? 0 : 2, body: result };
+}
+
+function restoreReply({ outcome }: { outcome: RestoreOutcome }): CompactReply {
+  if (outcome.status !== "refused") return { exitCode: 0, body: outcome };
+  return { exitCode: outcome.reason === "running" || outcome.reason === "busy" ? 3 : 1, body: outcome };
+}
+
+const isDatabase = (value: unknown): value is CompactionDatabaseName => value === "content" || value === "chat";
+
+/** The owner's confirmation, rebuilt field by field; `undefined` unless every field is present and well typed. */
+function parseConfirmation({ action, database, confirm }: { action: string; database: string | undefined; confirm: string | undefined }): RestoreConfirmation | undefined {
+  if ((action !== "restore-copy" && action !== "keep-current") || !isDatabase(database) || confirm === undefined) return undefined;
+  let shown: unknown;
+  try { shown = JSON.parse(confirm); } catch { return undefined; }
+  if (typeof shown !== "object" || shown === null) return undefined;
+  const { markerAt, recoveryCopyPath, mainIdentity } = shown as Record<string, unknown>;
+  if (typeof markerAt !== "number" || !Number.isFinite(markerAt) || typeof recoveryCopyPath !== "string" || typeof mainIdentity !== "string") return undefined;
+  return { action, database, markerAt, recoveryCopyPath, mainIdentity };
 }
 
 /** Today's stopped-site handle is the share catalog folder, if this site ever made one; it is never created here. */
