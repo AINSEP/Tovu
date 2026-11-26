@@ -103,7 +103,7 @@ test("undo reference written during apply keeps its target", async () => {
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const writer = first.transaction(async () => {
     await changeSets.insert({
-      record: { id: "cs-undo", workspaceId: ws, actorId: "a", status: "applied", summary: "edit", createdAt: "2026-05-01T00:00:00.000Z" },
+      record: { id: "cs-undo", workspaceId: ws, actorId: "a", actor: { id: "a", kind: "user" }, status: "applied", summary: "edit", createdAt: "2026-05-01T00:00:00.000Z" },
       items: [{ id: "csi-undo", changeSetId: "cs-undo", entityType: "post", entityId: "p1", operation: "update", position: 0, beforeRevisionId: ids[1] }],
     });
     holding();

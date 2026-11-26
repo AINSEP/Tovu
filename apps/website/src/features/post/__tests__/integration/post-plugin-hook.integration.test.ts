@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createPost } from "@jini-ai/cms/posts/post-create";
-import { InMemoryPostRepo, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
@@ -24,33 +25,6 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
  *
  * Exercises the implemented hook call sites and persistence in the post domain.
  */
-
-function makeCounterRepo(inner: PostRepoPort) {
-  const counter = { saveCalls: 0 };
-  const repo: PostRepoPort = {
-    findById: (r) => inner.findById(r),
-    findBySlug: (r) => inner.findBySlug(r),
-    list: (r) => inner.list(r),
-    listPublishedPreviews: (r) => inner.listPublishedPreviews(r),
-    save: async (record) => {
-      counter.saveCalls += 1;
-      await inner.save(record);
-    },
-    saveIfVersion: (r) => inner.saveIfVersion(r),
-    softDelete: (r) => inner.softDelete(r),
-    hardDelete: (r) => inner.hardDelete(r),
-    readAutosave: (r) => inner.readAutosave(r),
-    writeAutosave: (r) => inner.writeAutosave(r),
-    clearAutosave: (r) => inner.clearAutosave(r),
-    // `updatePost` now wraps its save in `deps.repo.transaction(...)` and always calls
-    // `appendRevision` after — both delegate untouched so this fixture keeps testing only what it
-    // names (the beforeSaveHook throw-before-save guarantee), not the revision ledger.
-    appendRevision: (r) => inner.appendRevision(r),
-    listRevisions: (r) => inner.listRevisions(r),
-    transaction: ({ fn }) => inner.transaction({ fn }),
-  };
-  return { repo, counter };
-}
 
 const clock = { nowMs: () => Date.parse("2026-07-28T00:00:00.000Z") };
 const outbox = new InMemoryOutbox();
@@ -103,10 +77,10 @@ test("AC-01/REQ-05/REQ-06: updatePost merges the injected beforeSaveHook's retur
   assert.deepEqual(await memoryRepo.findById({ workspaceId: "ws-1", id: "post-1" }), post.post);
 });
 
-test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must prevent repo.save() from ever being called — no partial write", async () => {
-  const memoryRepo = new InMemoryPostRepo({});
-  await seedPost(memoryRepo);
-  const { repo, counter } = makeCounterRepo(memoryRepo);
+test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must prevent repo.save() from ever being called — no partial write", async (t) => {
+  const repo = new InMemoryPostRepo({});
+  const original = structuredClone(await seedPost(repo));
+  const save = t.mock.method(repo, "save");
 
   await assert.rejects(() =>
     updatePost({
@@ -117,13 +91,15 @@ test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must
         beforeSaveHook: async () => {
           throw new Error("plugin hook failed");
         },
-      } as never,
-      input: { workspaceId: "ws-1", id: "post-1", title: "Hello", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "draft" },
+      },
+      input: { workspaceId: "ws-1", id: "post-1", title: "Attempted edit", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "draft" },
     }),
     { message: "plugin hook failed" }
   );
 
-  assert.equal(counter.saveCalls, 0, "repo.save() must never be called when the hook throws (BR-06/BR-07/EC-10, CIC U-004)");
+  assert.equal(save.mock.callCount(), 0, "repo.save() must never be called when the hook throws (BR-06/BR-07/EC-10, CIC U-004)");
+  assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: "post-1" }), original);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: "ws-1", postId: "post-1" }), []);
 });
 
 test("behavior.spec.md §10 / regression seam: updatePost with NO beforeSaveHook supplied behaves exactly as it does today (no-op default) — this must ALREADY pass, proving the optional dependency does not regress the zero-plugin path", async () => {

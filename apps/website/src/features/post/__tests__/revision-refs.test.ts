@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import type { ChangeSetItemRecord, ChangeSetStatus } from "@jini-ai/core/contracts/events/change-set";
+import type { ChangeSetItemRecord, ChangeSetStatus } from "@jini-ai/core/contracts/events";
 
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
@@ -44,7 +44,7 @@ async function fixture() {
   const changeSet = async (item: Partial<ChangeSetItemRecord>, { status = "applied", workspaceId = WS }: { status?: ChangeSetStatus; workspaceId?: string } = {}) => {
     const id = `cs-${++n}`;
     await changeSets.insert({
-      record: { id, workspaceId, actorId: "a", status, summary: "edit", createdAt: "2026-05-01T00:00:00.000Z" },
+      record: { id, workspaceId, actorId: "a", actor: { id: "a", kind: "user" }, status, summary: "edit", createdAt: "2026-05-01T00:00:00.000Z" },
       items: [{ id: `csi-${n}`, changeSetId: id, entityType: "post", entityId: "p1", operation: "update", position: 0, ...item }],
     });
   };

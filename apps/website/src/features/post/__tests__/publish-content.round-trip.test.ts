@@ -31,6 +31,11 @@ import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePagePublish, contributePostPublish } from "@jini-ai/cms/posts/publish-content";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const IMPORTING_OPERATOR = "operator-running-the-import";
@@ -89,7 +94,7 @@ function fullyPopulatedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 
 /** Packs every entity the handler for `kind` yields out of a repo seeded with `rows`. */
 async function packAll(kind: PostKind, rows: PostRecord[]): Promise<PackedEntity[]> {
-  const contributor = kind === "post" ? contributePostPublish() : contributePagePublish();
+  const contributor = kind === "post" ? contributePostPublish(postBindings) : contributePagePublish(postBindings);
   const handler = contributor.build(makeDeps(rows));
   const packed: PackedEntity[] = [];
   for await (const entity of handler.pack()) packed.push(entity);
@@ -110,7 +115,7 @@ async function roundTrip(
   const [sourceEntity] = await packAll(kind, [source]);
   assert.ok(sourceEntity, "the source row must pack — nothing to round-trip otherwise");
 
-  const contributor = kind === "post" ? contributePostPublish() : contributePagePublish();
+  const contributor = kind === "post" ? contributePostPublish(postBindings) : contributePagePublish(postBindings);
   const destinationDeps = { ...makeDeps(destinationRows), ...(destinationClock ? { clock: destinationClock } : {}) };
   const destinationHandler = contributor.build(destinationDeps);
   const existing = destinationRows.find((row) => row.id === source.id);
@@ -152,6 +157,7 @@ for (const kind of ["post", "page"] as const) {
     const destinationRow: PostRecord = {
       ...source,
       title: "Stale destination title",
+      slug: "stale-destination-slug",
       bodyJson: { type: "doc", content: [] },
       status: "draft",
       version: 3,
@@ -182,7 +188,7 @@ for (const kind of ["post", "page"] as const) {
 test("a members-only post does NOT publish to the destination as publicly readable", async () => {
   const source = fullyPopulatedPost({ memberAccessJson: JSON.stringify({ visibility: "members_only" }) });
   const destinationDeps = makeDeps([]);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
@@ -201,7 +207,7 @@ test("publishing over an existing PUBLIC destination row still applies the sourc
   const source = fullyPopulatedPost({ memberAccessJson: JSON.stringify({ visibility: "members_only" }) });
   const publicDestinationRow: PostRecord = { ...source, memberAccessJson: null, version: 2 };
   const destinationDeps = makeDeps([publicDestinationRow]);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
@@ -222,7 +228,7 @@ test("publishing over an existing PUBLIC destination row still applies the sourc
 test("seoExtJson survives publish onto an empty destination", async () => {
   const source = fullyPopulatedPost();
   const destinationDeps = makeDeps([]);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
@@ -235,7 +241,7 @@ test("seoExtJson survives publish onto an empty destination", async () => {
 test("templateChoice and overridesThemePage survive publish onto an empty destination", async () => {
   const source = fullyPopulatedPost();
   const destinationDeps = makeDeps([]);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
@@ -254,7 +260,7 @@ test("an html-format Page keeps its bodyHtml and its format through a publish", 
     bodyHtml: "<section><h1>Generated</h1></section>",
   });
   const destinationDeps = makeDeps([]);
-  const handler = contributePagePublish().build(destinationDeps);
+  const handler = contributePagePublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("page", [source]);
   assert.ok(sourceEntity);
 
@@ -276,7 +282,7 @@ test("D2: publishing replaces an existing doc-format destination row with the so
   const source = fullyPopulatedPost({ kind: "page", slug: "doc-to-html", bodyFormat: "html", bodyHtml: "<section>New bespoke HTML</section>" });
   const destinationRow: PostRecord = { ...source, bodyFormat: "doc", bodyHtml: null, version: 3 };
   const destinationDeps = makeDeps([destinationRow]);
-  const handler = contributePagePublish().build(destinationDeps);
+  const handler = contributePagePublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("page", [source]);
   assert.ok(sourceEntity);
 
@@ -291,7 +297,7 @@ test("D2: publishing replaces an existing html-format destination row with the s
   const source = fullyPopulatedPost({ kind: "page", slug: "html-to-doc", bodyFormat: "doc", bodyHtml: null });
   const destinationRow: PostRecord = { ...source, bodyFormat: "html", bodyHtml: "<section>Stale generated HTML</section>", version: 3 };
   const destinationDeps = makeDeps([destinationRow]);
-  const handler = contributePagePublish().build(destinationDeps);
+  const handler = contributePagePublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("page", [source]);
   assert.ok(sourceEntity);
 
@@ -310,7 +316,7 @@ test("D2: publishing replaces an existing html-format destination row with the s
 test("create preserves the SOURCE author and never re-stamps it with the importing operator", async () => {
   const source = fullyPopulatedPost();
   const destinationDeps = makeDeps([]);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
@@ -329,7 +335,7 @@ test("update never overwrites the destination row's write-once authorship", asyn
     createdAt: "2026-05-01T00:00:00.000Z",
   };
   const destinationDeps = makeDeps([destinationRow]);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
@@ -360,8 +366,9 @@ test("a trashed source row is not packed at all, so publish can never resurrect 
 test("publishing over a TRASHED destination row is refused rather than silently resurrecting it", async () => {
   const source = fullyPopulatedPost();
   const trashedAtDestination: PostRecord = { ...source, version: 2, deletedAt: "2026-09-10T00:00:00.000Z" };
+  const original = structuredClone(trashedAtDestination);
   const destinationDeps = makeDeps([trashedAtDestination]);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
@@ -371,6 +378,7 @@ test("publishing over a TRASHED destination row is refused rather than silently 
     /trash/i,
     "precheck accepted an entity whose destination row is in the trash — applying it would resurrect it"
   );
+  assert.deepEqual(await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id }), original);
 });
 
 for (const kind of ["post", "page"] as const) {

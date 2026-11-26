@@ -11,6 +11,11 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 import { buildPostRecord } from "./post-record.fixture.js";
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
 
 const clock = { nowMs: () => Date.parse("2026-10-10T00:00:00Z") };
 
@@ -120,9 +125,10 @@ test("L156 publish import uses source provenance only on create and keeps destin
     savedProvenance.push({ id: record.id, createdAt: record.createdAt, createdByPrincipalId: record.createdByPrincipalId });
     return save(record);
   });
+  const updateWrite = t.mock.method(repo, "saveIfVersion");
   const outbox = new InMemoryOutbox();
   let id = 0;
-  const handler = contributePostPublish().build({ workspaceId: existing.workspaceId, clock,
+  const handler = contributePostPublish(postBindings).build({ workspaceId: existing.workspaceId, clock,
     mutationActor: { id: "operator", kind: "user" },
     idGen: { newId: () => `generated-${++id}` }, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test" }),
@@ -131,7 +137,9 @@ test("L156 publish import uses source provenance only on create and keeps destin
   const source = toPublishableState(buildPostRecord({ createdAt: "source-created", createdByPrincipalId: "source-author" }));
   const entity = { entityType: "post", id: existing.id, schemaVersion: 2, state: source, contentHash: contentHash({ entityType: "post", state: source }), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [] };
   await handler.apply({ entity, expectedVersion: 1, principalId: "operator", idempotencyKey: "update" });
-  const updated = (await repo.findById({ workspaceId: existing.workspaceId, id: existing.id }))!;
+  const updated = await repo.findById({ workspaceId: existing.workspaceId, id: existing.id });
+  assert.ok(updated);
+  assert.deepEqual(updateWrite.mock.calls.map((call) => call.arguments), [[{ record: updated, ifVersion: existing.version }]]);
   assert.deepEqual([updated.createdAt, updated.createdByPrincipalId, updated.ext, updated.author, updated.showAuthor],
     ["local-created", "local-author", { local: { flag: true } }, null, false]);
   assert.equal(Object.hasOwn(updated, "publishAt"), false);
@@ -140,7 +148,8 @@ test("L156 publish import uses source provenance only on create and keeps destin
     await handler.apply({ entity: { ...entity, id: newId, state: { ...provenance, slug: newId,
       author: "Source", showAuthor: true, publishAt: "2027-01-01T00:00:00.000Z", featuredMediaId: "source-media" } },
     expectedVersion: undefined, principalId: "operator", idempotencyKey: newId });
-    const created = (await repo.findById({ workspaceId: existing.workspaceId, id: newId }))!;
+    const created = await repo.findById({ workspaceId: existing.workspaceId, id: newId });
+    assert.ok(created);
     assert.deepEqual(savedProvenance.at(-1), { id: newId,
       createdAt: newId === "copy" ? "source-created" : null,
       createdByPrincipalId: newId === "copy" ? "source-author" : null });

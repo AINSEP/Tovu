@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { isLiveAt } from "@jini-ai/core/scheduled-publish";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
@@ -18,6 +19,11 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const IMPORTING_OPERATOR = "operator-running-the-import";
@@ -68,7 +74,7 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 async function packAll(rows: PostRecord[]): Promise<PackedEntity[]> {
-  const handler = contributePostPublish().build(makeDeps(rows));
+  const handler = contributePostPublish(postBindings).build(makeDeps(rows));
   const packed: PackedEntity[] = [];
   for await (const entity of handler.pack()) packed.push(entity);
   return packed;
@@ -79,7 +85,7 @@ async function roundTrip(source: PostRecord, destinationRows: PostRecord[] = [])
   const [sourceEntity] = await packAll([source]);
   assert.ok(sourceEntity, "the source row must pack");
   const destinationDeps = makeDeps(destinationRows);
-  const handler = contributePostPublish().build(destinationDeps);
+  const handler = contributePostPublish(postBindings).build(destinationDeps);
   const existing = destinationRows.find((row) => row.id === source.id);
   await handler.apply({
     entity: sourceEntity,
@@ -99,7 +105,10 @@ async function roundTrip(source: PostRecord, destinationRows: PostRecord[] = [])
 test("a scheduled post lands at the destination with its publishAt, so it does not go live early", async () => {
   const { sourceEntity, repacked, landed } = await roundTrip(post({ publishAt: PUBLISH_AT }));
   assert.equal(sourceEntity.state.publishAt, PUBLISH_AT);
-  assert.equal(landed?.publishAt, PUBLISH_AT);
+  assert.ok(landed);
+  assert.equal(landed.publishAt, PUBLISH_AT);
+  assert.equal(isLiveAt({ record: landed, nowIso: "2099-01-01T08:59:59.999Z" }), false);
+  assert.equal(isLiveAt({ record: landed, nowIso: PUBLISH_AT }), true);
   assert.equal(repacked?.contentHash, sourceEntity.contentHash);
 });
 
@@ -113,7 +122,9 @@ test("a featured image lands at the destination", async () => {
 test("scheduling a post changes its content hash, so a newly scheduled post is offered for publish", async () => {
   const [plain] = await packAll([post()]);
   const [scheduled] = await packAll([post({ publishAt: PUBLISH_AT })]);
-  assert.notEqual(scheduled?.contentHash, plain?.contentHash);
+  assert.ok(plain);
+  assert.ok(scheduled);
+  assert.notEqual(scheduled.contentHash, plain.contentHash);
 });
 
 test("a source without a schedule clears the destination's schedule and featured image", async () => {
@@ -142,7 +153,7 @@ test("toPublishableState agrees with the packed hash for a scheduled row (planRe
 test("the featured image is a reference, so a scoped publish carries the media along", async () => {
   const [entity] = await packAll([post({ featuredMediaId: FEATURED_MEDIA_ID })]);
   assert.ok(entity);
-  const handler = contributePostPublish().build(makeDeps([]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([]));
   const refs = handler.references?.({ entity }) ?? [];
   assert.deepEqual(
     refs.filter((ref) => ref.entityType === "media"),

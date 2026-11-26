@@ -13,8 +13,8 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
-import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePostDuplicateHandlers } from "@jini-ai/cms/posts/post-tool-duplicate";
 import { type PostToolDeps } from "../tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
@@ -47,14 +47,14 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-07T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
-function fakeRouteDeps(overrides: Record<string, unknown> = {}) {
+function fakeRouteDeps(overrides: Partial<PostToolDeps> = {}) {
   const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
 
   let counter = 0;
-  const deps = {
+  const deps: PostToolDeps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
@@ -63,8 +63,14 @@ function fakeRouteDeps(overrides: Record<string, unknown> = {}) {
     bus,
     postRepo,
     authorize: async () => ({ allowed: true, reason: "matched" }),
+    pluginBeforeSaveHook: async () => ({}),
+    postSearch: { search: async () => { throw new Error("unexpected post search"); } },
+    slugChangeCapture: () => undefined,
+    removePost: async () => { throw new Error("unexpected post removal"); },
+    forgetRemovedPost: async () => { throw new Error("unexpected Trash cleanup"); },
+    runtimeMode: () => "production",
     ...overrides,
-  } as unknown as PostToolDeps;
+  };
 
   return { deps, postRepo };
 }
@@ -86,8 +92,8 @@ function call(registration: ToolRegistration, input: unknown) {
   return registration.handler(ctx);
 }
 
-async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, unknown> = {}) {
-  const row = {
+async function seedPost(postRepo: InMemoryPostRepo, overrides: Partial<PostRecord> = {}) {
+  const row: PostRecord = {
     id: "source-1",
     workspaceId: WORKSPACE_ID,
     title: "Landing sample — xai",
@@ -101,13 +107,13 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
     version: 1,
     ...overrides,
   };
-  await postRepo.save(row as never);
+  await postRepo.save(row);
   return row;
 }
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
-  const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })),
+  const registrations = buildContentDuplicationRegistrations({ ...deps, ...POST_TOOL_HOST }, {
+    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
   });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
@@ -117,7 +123,7 @@ test("content_duplicate is wired, and this domain contributes both 'post' and 'p
   const registrations = registrationsFor(deps);
   assert.ok(registrations.has("content_duplicate"));
   assert.deepEqual(
-    contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })).map((c) => c.resource).sort(),
+    contributePostDuplicateHandlers({ deriveDuplicateName }).map((c) => c.resource).sort(),
     ["page", "post"],
   );
 });
@@ -259,6 +265,7 @@ test("a widgetEmbed in the source body gets a FRESH placementId on the copy, kee
     type: "doc",
     content: [{ type: "widgetEmbed", attrs: { placementId: "source-placement-1", widgetEntryId: "widget-shared-footer" } }],
   };
+  const originalBody = structuredClone(sourceBodyJson);
   await seedPost(postRepo, { bodyJson: sourceBodyJson });
   const registrations = registrationsFor(deps);
 
@@ -266,25 +273,27 @@ test("a widgetEmbed in the source body gets a FRESH placementId on the copy, kee
     post: { id: string; bodyJson: { content: Array<{ attrs: { placementId: string; widgetEntryId: string } }> } };
   };
 
-  const copiedEmbed = result.post.bodyJson.content[0]!;
+  const [copiedEmbed] = result.post.bodyJson.content;
+  assert.ok(copiedEmbed);
+  assert.match(copiedEmbed.attrs.placementId, /^id-\d+$/);
   assert.notEqual(copiedEmbed.attrs.placementId, "source-placement-1", "the copy must never carry the source's own placementId");
   assert.equal(copiedEmbed.attrs.widgetEntryId, "widget-shared-footer", "the copy legitimately references the same live widget instance");
+  assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: result.post.id }))?.bodyJson, result.post.bodyJson);
 
   const sourceRow = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-1" });
-  const sourceEmbed = (sourceRow!.bodyJson as typeof sourceBodyJson).content[0]!;
-  assert.equal(sourceEmbed.attrs.placementId, "source-placement-1", "the SOURCE row's own bodyJson must be completely untouched by duplicating it");
+  assert.deepEqual(sourceRow?.bodyJson, originalBody, "the SOURCE row's own bodyJson must be completely untouched by duplicating it");
 });
 
 // ---------------------------------------------------------------------------------------------
 // bespoke-HTML pages
 // ---------------------------------------------------------------------------------------------
 
-function withPagesHtmlStore(deps: PostToolDeps, postRepo: InMemoryPostRepo): PostToolDeps {
+function withPagesHtmlStore(deps: PostToolDeps, postRepo: InMemoryPostRepo) {
   return {
     ...deps,
     pagesHtmlStore: (scope: { workspaceId: string; postId: string }) =>
       new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: { nowMs: () => Date.parse(NOW) }, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
-  } as PostToolDeps;
+  };
 }
 
 test("an HTML-format source page's body_html is copied onto the new row when a pagesHtmlStore is wired", async () => {
@@ -325,10 +334,15 @@ test("HTML conversion failure leaves no copy, slug, revision or change set", asy
   await seedPost(postRepo, { bodyFormat: "html", bodyHtml: "<p>Keep source</p>" });
   const before = await postRepo.list({ workspaceId: WORKSPACE_ID });
   const failure = new Error("conversion failed");
+  const { pagesHtmlStore } = withPagesHtmlStore(deps, postRepo);
   const registrations = registrationsFor({ ...deps, pagesHtmlStore: (scope) => {
-    if (scope.postId === "source-1") return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
-    return { read: async () => "", ensureHtmlFormat: async () => { throw failure; } };
-  } } as PostToolDeps);
+    const store = pagesHtmlStore(scope);
+    if (scope.postId !== "source-1") store.ensureHtmlFormat = async (required) => {
+      assert.deepEqual(required, { seedHtml: "<p>Keep source</p>" });
+      throw failure;
+    };
+    return store;
+  } });
   await assert.rejects(call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1", overrides: { slug: "failed-copy" } }), (error) => error === failure);
   assert.deepEqual(await postRepo.list({ workspaceId: WORKSPACE_ID }), before);
   assert.equal(await postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "failed-copy" }), null);
