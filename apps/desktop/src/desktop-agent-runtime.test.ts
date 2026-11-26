@@ -207,7 +207,7 @@ test("desktop chat detection and executor receive the same app runtime across li
     },
   });
   t.after(() => chat.close());
-  const event = { sender: { send: () => {}, isDestroyed: () => false } };
+  const event = { sender: { send: () => {}, isDestroyed: () => false }, senderFrame: { parent: null } };
   const list = handlers.get(AGENT_INVENTORY_IPC.list)!;
   const rescan = handlers.get(AGENT_INVENTORY_IPC.rescan)!;
   const first = await list(event) as { id: string; available: boolean; models: unknown }[];

@@ -85,7 +85,7 @@ export interface MediaGenerationToolDeps {
   env?: NodeJS.ProcessEnv;
 }
 
-export const { buildMediaGenerationRegistrations, contributeMediaGenerationTools } = bindMediaGenerationTools({
+export const { buildMediaGenerationRegistrations, contributeMediaGenerationTools } = bindMediaGenerationTools<MediaProviderRegistry>({
   imageModelIds: IMAGE_MODEL_IDS, imageModelIdsFrom, defaultModelId: "gpt-image-2", mediaAssetReadToolId: "content_read.media_asset",
   findModel: ({ registry, id }: { registry: MediaProviderRegistry; id: string }) => registry.findModel({ id }) ?? undefined,
   uploadMedia, uploadCaps: UPLOAD_CAPS, credentialBindings: MEDIA_CREDENTIAL_BINDINGS,

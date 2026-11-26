@@ -322,7 +322,7 @@ function initStdinPayload(
  */
 function deliverTokens({ stdin, payload }: { stdin: Writable | null | undefined; payload: string | null }, _options: Record<string, never> = {}): Promise<Error | null> {
   if (payload === null || !stdin) return Promise.resolve(null);
-  const delivered = new Promise<Error | null>((resolve) => finished(stdin, (error) => resolve(error ?? null)));
+  const delivered = new Promise<Error | null>((resolve) => finished(stdin, { readable: false }, (error) => resolve(error ?? null)));
   stdin.end(payload);
   return delivered;
 }

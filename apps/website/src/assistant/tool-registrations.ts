@@ -182,6 +182,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
   MediaTrashToolDeps &
   MediaGenerationToolDeps &
   MediaImportToolDeps &
+  { mediaImportHttpClient: import("#src/platform/http/index").HttpClientPort } &
   MembersToolDeps &
   MenusToolDeps &
   NewsletterToolDeps &
