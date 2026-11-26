@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { shouldTranscodeOnImport, uploadMedia, type MediaTranscoderPort } from "@jini-ai/cms/media";
 import { MAX_UPLOAD_BYTES, VIDEO_UPLOAD_LIMIT_BYTES, uploadLimitFor } from "@tovu/contracts/upload-limits";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo } from "../index.js";
+import { createDerivedMediaLink } from "@jini-ai/cms/media/site/derived-media-link";
 import { withVideoConversionOnImport, type ImportVideoConversion } from "@jini-ai/cms/media/site/import-video-conversion";
 
 /**
@@ -25,6 +27,7 @@ const PNG_BYTES = Buffer.from(
 function harness() {
   let counter = 0;
   const deps = {
+    createHash,
     clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo: new InMemoryMediaRepo({}),
@@ -55,14 +58,9 @@ function wired(h: Harness, transcoder: MediaTranscoderPort, optional: { threshol
     deps: {
       ...h.deps,
       transcoder,
-      // The same link convention `createDerivedMediaLink` uses, kept inline so this test needs no repo wiring.
-      linkDerivedMedia: async ({ workspaceId, originalId, derivedId }) => {
-        const [original, derived] = await Promise.all([
-          h.deps.mediaRepo.findById({ workspaceId, id: originalId }),
-          h.deps.mediaRepo.findById({ workspaceId, id: derivedId }),
-        ]);
-        await h.deps.mediaRepo.save({ ...derived!, description: `Web-playable copy of "${original!.title}".` });
-      },
+      linkDerivedMedia: createDerivedMediaLink({ mediaRepo: h.deps.mediaRepo, clock: h.deps.clock,
+        description: ({ title }) => `Web-playable copy of "${title}".`,
+        refusal: "The converted video could not be linked to its original, so it was not kept." }),
     },
     reportNote: (entry) => { notes.push(entry); },
     ...optional,

@@ -1,5 +1,6 @@
 import { prepareMessageAttachments } from '@jini-ai/daemon';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import sharp from 'sharp';
 import { ToolInputError, isReadOnlyTool, createToolRegistry, type ToolExecutionContext } from '@jini-ai/core';
@@ -47,6 +48,7 @@ async function harness() {
   const tool = registrations[0]!;
   const call = (input: unknown, principalId = owner) => tool.handler({ executionId: 'video-exec', principal: { id: principalId }, run: { id: 'video-run' }, input, signal: new AbortController().signal } satisfies ToolExecutionContext);
   const seed = async (principal = owner) => (await uploadMedia({ deps: {
+    createHash,
     clock: { nowMs: () => 0 }, idGen: { newId: () => 'video-1' }, mediaRepo, blobRepo: assetBlobRepo,
     renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore,
   }, input: { workspaceId, bytes: mp4, filename: 'clip.mp4', contentType: 'video/mp4', createdByPrincipal: principal } })).media;
@@ -251,7 +253,8 @@ test('foreign attachment, denied permission and arbitrary paths are refused befo
   }
   assert.equal(h.reads, reads);
   h.deps.authorize = async () => ({ allowed: false, reason: 'insufficient_permission' });
-  const denied = buildMediaViewVideoRegistrations(h.deps, {})[0]!;
+  const denied = buildMediaViewVideoRegistrations({ deps: h.deps, catalog }, {}).find(tool => tool.descriptor.id === MEDIA_VIEW_VIDEO_TOOL_ID);
+  assert.ok(denied);
   await assert.rejects(denied.handler({ executionId: 'x', principal: { id: owner }, run: { id: 'r' }, input: { attachmentRef }, signal: new AbortController().signal }), ForbiddenError);
   assert.equal(h.reads, reads);
 });

@@ -1,5 +1,6 @@
 import { prepareMessageAttachments } from '@jini-ai/daemon';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import sharp from 'sharp';
 import { ToolInputError, type ToolExecutionContext } from '@jini-ai/core';
@@ -32,10 +33,11 @@ function harness(input: { attachment?: Uint8Array; result?: VideoFrameResult } =
   const extractor: VideoFrameExtractor = { extract: async () => input.result ?? { ok: true, metadata, frames: [{ at: 0.5, bytes: jpeg, mimeType: 'image/jpeg' }] } };
   const deps: MediaViewVideoToolDeps = { prepareImages: prepareMessageAttachments, workspaceId, mediaRepo, assetBlobRepo, blobStore, extractor,
     authorize: async () => ({ allowed: true, reason: 'matched' }),
-    readAttachment: async ({ ownerId }) => ownerId === owner ? { ok: true, bytes: input.attachment ?? mp4 } : { ok: false, refusal: 'not-owner' } };
+    readAttachment: async ({ ownerId, ref }) => ownerId === owner && ref === attachmentRef
+      ? { ok: true, bytes: input.attachment ?? mp4 } : { ok: false, refusal: 'not-owner' } };
   const call = (toolInput: unknown, principalId = owner) => buildMediaViewVideoRegistrations({ deps, catalog }, {})[0]!.handler({ executionId: 'e', principal: { id: principalId },
     run: { id: 'r' }, input: toolInput, signal: new AbortController().signal } satisfies ToolExecutionContext);
-  const seed = async (createdByPrincipal = owner) => (await uploadMedia({ deps: { clock: { nowMs: () => 0 }, idGen: { newId: () => 'video-1' }, mediaRepo,
+  const seed = async (createdByPrincipal = owner) => (await uploadMedia({ deps: { createHash, clock: { nowMs: () => 0 }, idGen: { newId: () => 'video-1' }, mediaRepo,
     blobRepo: assetBlobRepo, renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore },
   input: { workspaceId, bytes: mp4, filename: 'clip.mp4', contentType: 'video/mp4', createdByPrincipal } })).media;
   return { deps, call, seed, mediaRepo, assetBlobRepo, blobStore };
@@ -133,7 +135,7 @@ test('owned media exactly at the size limit is downloaded and previewed', async 
   const asset = await h.seed();
   h.blobStore.sizeOf = async () => VIDEO_MAX_INPUT_BYTES;
   const result = await h.call({ mediaId: asset.id }) as Envelope;
-  assert.equal(result.content.filter(block => block.type === 'image').length, 1);
+  assert.deepEqual(result.content.filter(block => block.type === 'image').map(block => block.data), [jpeg.toString('base64')]);
 });
 
 // --- source gates --------------------------------------------------------------------------------

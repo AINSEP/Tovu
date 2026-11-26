@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
-import { sql } from "kysely";
+import { sql, type RawBuilder } from "kysely";
 import { sqliteKernel } from "../../../platform/db/kernel/drivers/sqlite.js";
 import { createKeyAttachments } from "@jini-ai/user-management/project-keys/sql/attachments";
 import { jsonText } from "@jini-ai/db/kernel";
@@ -11,8 +11,12 @@ test("SQL attachment identity, retry, renaming and cleanup preserve other sites 
   const db = new Database(":memory:"); t.after(() => db.close());
   const kernel = sqliteKernel<unknown>({ source: db });
   await siteKeyAttachments({ checksum: "new-step" }).up(kernel, { note() {} });
-  const attachments = createKeyAttachments({ sql: kernel, tables: { attachments: "site_key_attachments", vault: "secrets_vault" },
-    nowIso: () => new Date().toISOString(), credentialTypeText: ({ column }) => jsonText({ dialect: kernel.dialect, column, path: ["credentialType"] }),
+  const attachments = createKeyAttachments({ sql: {
+    dialect: kernel.dialect,
+    query: <Row>(statement: RawBuilder<unknown>) => kernel.query(statement.$castTo<Row>()),
+    execute: statement => kernel.execute(statement),
+  }, tables: { attachments: "site_key_attachments", vault: "secrets_vault" },
+    nowIso: () => "2026-11-26T00:00:00.000Z", credentialTypeText: ({ column }) => jsonText({ dialect: kernel.dialect, column, path: ["credentialType"] }),
     policy: { ownerWorkspaceId: "project", customKind: "custom", vendorKind: "vendor", vendorCredentialType: "custom", maxGrants: 100,
       tooManyKeys: "This site uses more than 100 saved keys. Remove unused site grants in Shared Keys before continuing.",
       ambiguousLabel: "More than one granted key has this label. Revoke the extra site grant in Shared Keys and choose one key.",
@@ -21,7 +25,7 @@ test("SQL attachment identity, retry, renaming and cleanup preserve other sites 
   await attachments.attach(a); await attachments.attach(a);
   await attachments.attach({ siteId: "uuid-b", keyId: "key-a", siteName: "B" });
   await attachments.attach({ ...a, keyId: "key-b" });
-  assert.equal((await attachments.usersOf({ keyId: "key-a" })).length, 2);
+  assert.deepEqual(await attachments.usersOf({ keyId: "key-a" }), [{ siteId: "uuid-a", siteName: "A" }, { siteId: "uuid-b", siteName: "B" }]);
   await attachments.renameSite({ siteId: "uuid-a", siteName: "Renamed" });
   assert.deepEqual(await attachments.usersOf({ keyId: "key-b" }), [{ siteId: "uuid-a", siteName: "Renamed" }]);
   await attachments.detach(a);

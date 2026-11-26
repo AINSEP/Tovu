@@ -1,6 +1,7 @@
 import { MediaStillReferencedError } from "@jini-ai/cms/media";
 /** Library L1 step 2: actual adapters, Trash marker and restart. RED: kind/name never persisted. */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -18,7 +19,7 @@ for (const adapter of eachDialect({ tables: ['media_slug_history', 'asset_rendit
   test(`[${adapter.name}] document round trip, immutable name/kind, rename and actual Trash adapter restore/purge`, async () => {
     const kernel = adapter.make(); const { deps: memory } = libraryFixture();
     const mediaRepo = new SqlMediaRepo(kernel); const blobRepo = new SqlAssetBlobRepo(kernel);
-    const deps = { ...memory, mediaRepo, blobRepo, renditionRepo: new SqlAssetRenditionRepo(kernel),
+    const deps = { ...memory, createHash, mediaRepo, blobRepo, renditionRepo: new SqlAssetRenditionRepo(kernel),
       journalRepo: new InMemoryBlobGcJournalRepo({}) };
     try {
       const { media } = await uploadMedia({ deps, input: { workspaceId: 'site-a', kind: 'document', filename: 'plan.md',
@@ -57,7 +58,7 @@ test('Library: document metadata and original bytes survive a real SQLite and fi
   const dir = await mkdtemp(join(tmpdir(), 'library-restart-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const { deps: memory } = libraryFixture();
   const filename = join(dir, 'content.db'); let db = openContentDb(filename);
-  const makeDeps = () => ({ ...memory, mediaRepo: new SqliteMediaRepo({ store: db }), blobRepo: new SqliteAssetBlobRepo({ store: db }),
+  const makeDeps = () => ({ ...memory, createHash, mediaRepo: new SqliteMediaRepo({ store: db }), blobRepo: new SqliteAssetBlobRepo({ store: db }),
     renditionRepo: new SqliteAssetRenditionRepo({ store: db }), blobStore: new LocalFsBlobStore({ rootDir: join(dir, 'uploads') }) });
   const first = makeDeps();
   const { media } = await uploadMedia({ deps: first, input: { workspaceId: 'site-a', kind: 'document', filename: 'restart.md',

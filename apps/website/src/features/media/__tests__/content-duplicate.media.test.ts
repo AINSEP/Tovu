@@ -1,6 +1,7 @@
 import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
 import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -17,7 +18,6 @@ import {
   type MediaRecord,
 } from "@jini-ai/cms/media";
 
-import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
@@ -88,6 +88,7 @@ function fakeRouteDeps(allowedPermissions: string[] = ["media.upload"]) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
+    createHash,
     clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } },
     idGen: { newId: () => `media-${++counter}` },
     mediaRepo,
@@ -113,7 +114,7 @@ function fakeRouteDeps(allowedPermissions: string[] = ["media.upload"]) {
 type FakeDeps = ReturnType<typeof fakeRouteDeps>["deps"];
 
 function duplicateTool(deps: FakeDeps): ToolRegistration {
-  const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
+  const registrations = buildContentDuplicationRegistrations(deps, {
     catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributeMediaDuplicateHandlers({ deriveDuplicateName }),
   });
   const found = registrations.find((r) => r.descriptor.id === "content_duplicate");
@@ -136,6 +137,7 @@ function call(registration: ToolRegistration, input: unknown) {
 async function seedAsset(deps: FakeDeps, overrides: Partial<MediaRecord> = {}): Promise<MediaRecord> {
   const { media } = await uploadMedia({
     deps: {
+      createHash: deps.createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,
@@ -163,7 +165,9 @@ async function seedAsset(deps: FakeDeps, overrides: Partial<MediaRecord> = {}): 
 test("'media' is a supported resource of content_duplicate, gated on media.upload", async () => {
   const contributors = contributeMediaDuplicateHandlers({ deriveDuplicateName });
   assert.deepEqual(contributors.map((c) => c.resource), ["media"]);
-  assert.equal(contributors[0]!.build({} as unknown as AssistantToolRegistryDeps).permission, "media.upload");
+  const [contributor] = contributors;
+  assert.ok(contributor);
+  assert.equal(contributor.build(fakeRouteDeps().deps).permission, "media.upload");
 });
 
 // ---------------------------------------------------------------------------------------------

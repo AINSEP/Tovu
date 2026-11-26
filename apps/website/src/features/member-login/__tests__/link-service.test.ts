@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -27,6 +28,7 @@ function fixture() {
     magicLinks: new InMemoryMagicLinkTokenRepo(), tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     principals: new InMemoryPrincipalRepo({}), identities: new InMemoryMemberExternalIdentityRepo({}), origin: originFixture(),
     passwordHasher: { hash: async ({ password }) => `hash:${hash(password)}`, verify: async ({ password, hash: saved }) => saved === `hash:${hash(password)}` },
+    orFallbackSync,
     mailTransport: membersMailTransport,
     mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async message => { sent.push(message); return { ok: true, providerMessageId: "sent", acceptedAt: clock.nowIso() }; }, sendBatch: async () => [] },

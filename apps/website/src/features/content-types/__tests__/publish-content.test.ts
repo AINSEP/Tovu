@@ -6,6 +6,8 @@ import test from "node:test";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, type ContentTypeRecord } from "@jini-ai/cms/content-types";
 import { contributeContentTypePublish } from "@jini-ai/cms/content-types/site/publish-content";
+import { okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
+import { repoPublishBindings } from "#src/server/runtime/composition/publish-content-manifest";
 
 function contentType(overrides: Partial<ContentTypeRecord> = {}): ContentTypeRecord {
   return {
@@ -21,7 +23,7 @@ function contentType(overrides: Partial<ContentTypeRecord> = {}): ContentTypeRec
 }
 
 async function sites(sourceRows: ContentTypeRecord[]) {
-  registerOnly([contributeContentTypePublish({ seededKeys: new Set(['widget', 'widget_area']),
+  registerOnly([contributeContentTypePublish({ ...repoPublishBindings, okOrThrow, seededKeys: new Set(['widget', 'widget_area']),
     seededKeyRefusal: ({ key }) => ['widget', 'widget_area'].includes(key) ? `content-type '${key}' is seeded on every instance and is never published` : null,
     permission: 'admin.collections.manage', registerContentType })]);
   const sourceRepo = new InMemoryContentTypeRepo();
@@ -90,7 +92,7 @@ test("content-type: a changed label and fields update in place (forced past the 
 
   const landed = await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" });
   assert.equal(landed?.label, "Dishes");
-  assert.equal(landed?.fields.length, 2);
+  assert.deepEqual(landed?.fields, fields);
   assert.equal(landed?.status, "deprecated");
   assert.deepEqual((await plan(await packAll(source), dest)).rows.map((r) => r.outcome), ["unchanged"]);
 });
@@ -114,9 +116,9 @@ test("content-type: a tombstoned destination type refuses; a key registered afte
 test("content-type: an inbound entity for a seeded widget key is refused at precheck and apply, and changes nothing", async () => {
   const { dest, destRepo } = await sites([]);
   await destRepo.save(contentType({ key: "widget", label: "Widget", fields: [] }));
-  const handler = contributeContentTypePublish({ seededKeys: new Set(['widget', 'widget_area']),
+  const handler = contributeContentTypePublish({ ...repoPublishBindings, okOrThrow, seededKeys: new Set(['widget', 'widget_area']),
     seededKeyRefusal: ({ key }) => ['widget', 'widget_area'].includes(key) ? `content-type '${key}' is seeded on every instance and is never published` : null,
-    permission: 'admin.collections.manage', registerContentType }).build(dest);
+    permission: 'admin.collections.manage', registerContentType }).build({ ...dest, mutationActor: { id: "operator-1", kind: "user" } });
   const state = { key: "widget", label: "Widget", fields: [], status: "deprecated" };
   const entity = { entityType: "content-type", id: "widget", schemaVersion: 1, contentHash: "x", hashVersion: 1, requiredBlobs: [], state };
   const reason = "content-type 'widget' is seeded on every instance and is never published";

@@ -13,7 +13,7 @@ import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { InMemoryTransformDefinitionRepo, type MediaRecord } from "#src/features/media/index";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { resolveMediaAssetMetadataForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/media-metadata";
@@ -55,7 +55,7 @@ async function renderEmbed(slug: string): Promise<string> {
   const { mediaRepo, mediaContentTypeStore } = await site();
   const html = `<div data-embed-config='{"type":"media","slug":"${slug}"}'></div>`;
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo: new InMemoryEntryRepo(), mediaRepo, transformRepo: new InMemoryTransformDefinitionRepo({}), mediaContentTypeStore },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo: new InMemoryEntryRepo(), mediaRepo, transformRepo: new InMemoryTransformDefinitionRepo({}), mediaContentTypeStore },
     input: { workspaceId: WORKSPACE_ID, html },
   });
   return renderHtmlPageBody({ html, resolved });
@@ -64,7 +64,8 @@ async function renderEmbed(slug: string): Promise<string> {
 test("a published page's captioned video renders a same-origin WebVTT <track> inside the <video>", async () => {
   const rendered = await renderEmbed("promo-cc");
   assert.match(rendered, /<video\b[^>]*\bsrc="\/m\/promo-cc\/original\.mp4/);
-  assert.ok(rendered.includes(TRACK), rendered);
+  const video = rendered.match(/<video\b[^>]*>[\s\S]*?<\/video>/)?.[0];
+  assert.ok(video?.includes(TRACK), rendered);
 });
 
 test("captions naming a missing or non-WebVTT asset render the plain player, never a <track>", async () => {
