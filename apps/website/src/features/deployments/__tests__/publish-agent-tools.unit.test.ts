@@ -1,3 +1,4 @@
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
 import { delegatedToolErrorDisclosure } from "../../../assistant/tool-recovery-preset.js";
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -16,7 +17,8 @@ import { ToolInputError, type SurfaceEmitter, type SurfaceEmission, type ToolExe
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
-import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "../static-publish/index.js";
+import { InMemoryPublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
+import { InMemoryPublishHistoryStore } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
@@ -34,7 +36,9 @@ import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
-import { buildPublishHostCredentialHandler, buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
+import { buildPublishHostCredentialHandler, buildStaticPublishRegistrations, staticPublishAgentToolCatalog } from "../publish-agent-tools.js";
+import { staticPublishDerivedRisk } from "@jini-ai/devops/deploy/site/publish-agent-tools";
+import { type StaticPublishToolDeps } from "#src/features/deployments/publish-tool-deps";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
@@ -733,7 +737,7 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  const history = new InMemoryPublishHistoryStore();
+  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   await history.recordSuccess({
     workspaceId: WORKSPACE_ID_FALLBACK,
     entry: { target: "github-pages", url: "https://leonaburime-ucla.github.io/tovu-demo/", reachable: true, status: "ready", projectName: "tovu-demo", publishedAt: NOW, owner: "leonaburime-ucla", repo: "tovu-demo", basePath: "/tovu-demo", triggeredBy: "agent_tool" },
@@ -755,7 +759,7 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
 
 test("confirm: a real publish records history in the injected historyStore, readable back through deployment_get_static_publish_capabilities", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
-  const history = new InMemoryPublishHistoryStore();
+  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
     // History's owner/repo are the host's own facts (`providerMetadata`), as the github-pages module reports them.

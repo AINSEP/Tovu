@@ -1,10 +1,11 @@
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 /** Real transaction boundaries: a failed session mint must roll back link and activation. */
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { eachDialect } from "../../../platform/db/kernel/__tests__/dialect-matrix.js";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
-import { SqlPrincipalRepo } from "../../identity/repo.js";
+import { SqlPrincipalRepo } from "@jini-ai/user-management/identity/repo";
 import { SqlMemberRepo, SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
 import { SqlMemberSessionRepo, SqlMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.sessions";
 import { memberSqlDeps } from "../../members/repo.sqlite.js";
@@ -17,7 +18,7 @@ function depsFor(kernel: ContentKernel): MemberLoginLinkDeps {
   let seq = 0;
   return { clock: cryptoFixture().clock, ids: { newId: () => { seq++; return `id-${seq}`; } },
     members: new SqlMemberRepo(memberSqlDeps({ store: kernel })), sessions: new SqlMemberSessionRepo(memberSqlDeps({ store: kernel })), magicLinks: new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel })),
-    identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })), principals: new SqlPrincipalRepo(kernel),
+    identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })), principals: new SqlPrincipalRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'principals' }),
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     transaction: run => kernel.transaction(run), lockKey: key => kernel.lockKey(key), reportFailure: () => undefined,
     mailTransport: membersMailTransport,
@@ -51,7 +52,7 @@ for (const adapter of adapters) {
       identity: { providerId: provider.id, issuer: provider.issuer, subject: "subject", email: "person@gmail.com", emailAuthoritative: true } } });
     assert.equal(outcome.kind, "signed_in");
     if (outcome.kind !== "signed_in") return;
-    const principal = await new SqlPrincipalRepo(kernel).findById({ workspaceId: "ws", id: outcome.result.member.id });
+    const principal = await new SqlPrincipalRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'principals' }).findById({ workspaceId: "ws", id: outcome.result.member.id });
     assert.equal(principal?.kind, "member");
     assert.equal((await deps.identities.findBySubject({ workspaceId: "ws", issuer: provider.issuer, subject: "subject" }))?.memberId, principal?.id);
     assert.equal((await deps.sessions.listByMember({ workspaceId: "ws", memberId: outcome.result.member.id })).length, 1);

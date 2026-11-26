@@ -14,7 +14,7 @@ import { externalMcpVaultPorts } from "./external-mcp-vault.js";
 // blob 23042de1). This path binds Tovu's credential policy, vault ports and settings path ONCE and keeps
 // the existing export names.
 
-const externalMcpStorePorts: HostedMcpStorePorts = {
+export const externalMcpStorePorts: HostedMcpStorePorts = {
   ...externalMcpVaultPorts,
   assertFreeField: assertCredentialFreeField,
   credential: { normalize: normalizeCredentialToken, assert: assertCredentialToken, hint: credentialTokenHint,
@@ -22,10 +22,6 @@ const externalMcpStorePorts: HostedMcpStorePorts = {
   settingsLink: "Settings → External MCP",
   reauthRequiredCode: "EXTERNAL_MCP_REAUTH_REQUIRED",
 };
-
-export function parseEnvBlock({ text }: { text: string }, _optional = {}): Record<string, string> {
-  return hosted.parseEnvBlock({ text, ports: externalMcpStorePorts });
-}
 
 export async function listExternalMcpServerViews(
   { deps, workspaceId }: { deps: Pick<ExternalMcpStoreDeps, "repo"> & Partial<Pick<ExternalMcpStoreDeps, "sealer">>; workspaceId: UUID },

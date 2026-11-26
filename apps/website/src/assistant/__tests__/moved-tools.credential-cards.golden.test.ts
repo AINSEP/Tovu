@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 /** Corrected session-2 G-card: six real credential_save paths, without production changes. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -15,7 +16,8 @@ import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from '
 import { InMemoryCustomCredentialSetRepo } from '../../features/custom-credentials/repo.memory.js';
 import { createCustomCredential } from '../../features/custom-credentials/store.js';
 import { loadFixtureAuthSchemes } from '../../features/custom-credentials/__tests__/fixture-auth-schemes.fixture.js';
-import { buildPublishHostCredentialHandler, type StaticPublishToolDeps } from '../../features/deployments/publish-agent-tools.js';
+import { buildPublishHostCredentialHandler } from '../../features/deployments/publish-agent-tools.js';
+import { type StaticPublishToolDeps } from '#src/features/deployments/publish-tool-deps';
 import { InMemoryVendorCredentialSetRepo } from '../../features/vendor-credentials/repo.memory.js';
 import { buildSourceControlCredentialHandler } from '../../features/source-control/tool-registrations.js';
 import { InMemorySourceControlCredentialSetRepo } from '../../features/source-control/repo.memory.js';
@@ -28,7 +30,7 @@ import { InMemoryKeyring } from '../../features/webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import type { HttpRequest } from '../../platform/http/index.js';
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 
 const GOLDEN = new URL('./fixtures/moved-tools.credential-cards.golden.json', import.meta.url);
 const SECRET = 'gcard_secret_never_echoed_1234';
@@ -84,7 +86,7 @@ async function setup(path: Path) {
     const repo = new InMemoryCustomCredentialSetRepo();
     if (path === 'rotation') await createCustomCredential({ repo, sealer, keyring, clock, idGen }, { workspaceId: WORKSPACE, label: card.label, category: 'ops', baseUrl: card.baseUrl, connection: { token: 'previous_gcard_key_5678' } });
     const deps: CustomCredentialsToolDeps = { ...common, customCredentialSetRepo: repo, customCredentialsHttpClient: http,
-      loadAuthSchemes: loadFixtureAuthSchemes, loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }), sourceControlWrite: unusedSourceControlWrite(), publishCompatibility: bindPublishCompatibility({ source: {} }) };
+      loadAuthSchemes: loadFixtureAuthSchemes, loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }), sourceControlWrite: unusedSourceControlWrite(), publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }) };
     const handlers = buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges } });
     handler = path === 'rotation' ? handlers.rotate : path === 'pluginProvider' ? handlers.pluginProvider : handlers.create;
     input = path === 'rotation' ? { kind: 'api', target: card.label } : path === 'pluginProvider' ? { kind: 'plugin-provider', target: 'acme' } : { kind: 'api', label: 'Generic API', baseUrl: card.baseUrl, category: 'ops' };

@@ -36,26 +36,12 @@ import {
   updateCustomCredential,
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
-import {
-  createPublishCredential,
-  invalidatePublishCredentialCompatibility,
-  deletePublishCredential,
-  describeCredential as describePublishCredential,
-  healAccountLabel,
-  PublishCredentialDuplicateLabelError,
-  PublishCredentialNotFoundError,
-  PublishCredentialSecretStoreUnconfiguredError,
-  PublishCredentialValidationError,
-  updatePublishCredential,
-  type UpdatePublishCredentialInput,
-} from "#src/features/deployments/publish-credentials/index";
+import { createPublishCredential, invalidatePublishCredentialCompatibility, describeCredential as describePublishCredential, updatePublishCredential } from "#src/features/deployments/publish-credentials/store";
+import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, PublishCredentialValidationError, type UpdatePublishCredentialInput } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "@jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler";
-import {
-  canYieldAccountLabel,
-  verifyPublishCredentialById,
-  type PublishCredentialVerificationResult,
-} from "#src/features/deployments/static-publish/index";
+import { canYieldAccountLabel, type PublishCredentialVerificationResult } from "@jini-ai/devops/deploy/site/static-publish/verify";
+import { verifyPublishCredentialById } from "#src/features/deployments/static-publish/verify";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { getAuthedCredentialKind } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";

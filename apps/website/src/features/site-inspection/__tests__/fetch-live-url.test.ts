@@ -1,3 +1,4 @@
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
 /** t08 host wiring: the publish-peer rule, permission gate, real guarded client and publish-history adapters
  * bound into the engine's live-url fetch. The engine's own unit contracts live beside it in the engine. No sockets or real DNS. */
 import assert from "node:assert/strict";
@@ -70,8 +71,8 @@ test("the production publish-history adapter retains old live URLs beyond the li
   assert.deepEqual(await listKnownLiveOrigins({ selectConnectedDestination, workspaceId: 'w', publishHistoryStore: history }), ['https://old.example', origin]);
 });
 test("old distinct publish URLs survive more than 200 later publishes and stay workspace-scoped", async () => {
-  const { InMemoryPublishHistoryStore } = await import('#src/features/deployments/static-publish/index');
-  const history = new InMemoryPublishHistoryStore();
+  const { InMemoryPublishHistoryStore } = await import('@jini-ai/devops/deploy/site/static-publish/publish-history');
+  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const entry = { target: 'test', url: 'https://old.example', reachable: true, status: 'published', projectName: 'test', publishedAt: '2026-10-01', triggeredBy: 'agent_tool' as const };
   await history.recordSuccess({ workspaceId: 'w', entry });
   for (let i = 0; i < 205; i++) await history.recordSuccess({ workspaceId: 'w', entry: { ...entry, url: origin } });

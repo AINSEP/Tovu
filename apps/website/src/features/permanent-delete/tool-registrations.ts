@@ -20,7 +20,7 @@ import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { createPermanentDeleteAgentToolCatalog, createPermanentDeleteSpecs, type PermanentDeleteToolId } from "@jini-ai/cms/trash/permanent/agent-tools";
 import type { ForgetRemovedEntity } from "@jini-ai/cms/trash";
-import type { StaticPublishToolDeps } from "../deployments/publish-agent-tools.js";
+import type { StaticPublishToolDeps } from "#src/features/deployments/publish-tool-deps";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 

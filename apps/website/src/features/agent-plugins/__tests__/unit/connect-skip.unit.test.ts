@@ -52,8 +52,8 @@ test('Skip also releases a plugin API-connection wait and aborts only that wait'
   const clock = createSystemClock();
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   let waitSignal: AbortSignal | undefined;
-  const apiConnections: AgentPluginApiConnectionsPort<import('../../../api-connections/contribution.js').DeclaredApiConnection> = {
-    listConnections: async () => [{ pluginId: 'example', descriptor: { connectionId: 'account' } } as Awaited<ReturnType<AgentPluginApiConnectionsPort<import('../../../api-connections/contribution.js').DeclaredApiConnection>['listConnections']>>[number]],
+  const apiConnections: AgentPluginApiConnectionsPort<import('@jini-ai/integrations/api-connections').DeclaredApiConnection> = {
+    listConnections: async () => [{ pluginId: 'example', descriptor: { connectionId: 'account' } } as Awaited<ReturnType<AgentPluginApiConnectionsPort<import('@jini-ai/integrations/api-connections').DeclaredApiConnection>['listConnections']>>[number]],
     connect: async ({ signal, showSignIn }) => {
       waitSignal = signal;
       await showSignIn({ signInUrl: 'https://example.test/sign-in' });

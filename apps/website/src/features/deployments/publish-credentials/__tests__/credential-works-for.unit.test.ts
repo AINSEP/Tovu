@@ -10,7 +10,8 @@ import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { type VaultMeta } from "@jini-ai/core/contracts/vault";
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { createDbPublishCredentialSource } from "../../static-publish/credentials.js";
-import { invalidatePublishCredentialCompatibility, createPublishCredential, listPublishCredentials, resolveForPublish, PublishCredentialSecretStoreUnconfiguredError } from "../store.js";
+import { invalidatePublishCredentialCompatibility, createPublishCredential, listPublishCredentials, resolveForPublish } from "../store.js";
+import { PublishCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 
 function fixture() {
   const keyring = new InMemoryKeyring();

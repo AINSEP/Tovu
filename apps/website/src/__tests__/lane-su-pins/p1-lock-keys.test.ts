@@ -14,7 +14,7 @@ import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-r
 import { webhookDeliveriesOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
-import { createIdentityTransactions } from "#src/features/identity/repo";
+import { createIdentityTransactions } from "@jini-ai/user-management/identity/repo";
 import { SqliteWorkspaceRepo } from "@jini-ai/cms/workspace/site/repo.sqlite";
 import { recordingKernel } from "./support/recording-kernel.js";
 

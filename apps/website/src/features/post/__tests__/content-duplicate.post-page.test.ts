@@ -1,3 +1,5 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import { restoredEntryRefs } from "#src/features/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
@@ -9,7 +11,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
@@ -104,7 +106,7 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
+    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
   });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }

@@ -1,3 +1,7 @@
+import { externalMcpVaultPorts } from '#src/features/external-mcp/external-mcp-vault';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secrets-vault';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import assert from "node:assert/strict";
 import { createTovuOAuthGuard } from "../../../../platform/oauth/endpoint-safety.js";
 import type { ContentKernel } from "../../../../platform/db/content-kernel.js";
@@ -5,7 +9,7 @@ import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp
 import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
 import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
-import { SqlExternalMcpServerRepo } from "../../external-mcp-repo.js";
+import { SqlExternalMcpServerRepo } from "@jini-ai/mcp/federation/hosted/external-mcp-repo";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../external-mcp-store.js";
 import { FROZEN_PLAINTEXT, FROZEN_PROVIDER, FROZEN_SERVERS, FROZEN_WORKSPACE, type FakeTokenReply, type FakeTokenRequest,
   fakeOAuthServer, frozenClock, frozenKeyring, frozenSealer } from "./mcp-credentials-frozen.fixture.js";
@@ -51,7 +55,8 @@ export function resetCounts(...all: Counts[]): void {
 export function wire({ kernel, clockIso, reply }: { kernel: ContentKernel; clockIso: string; reply?: (request: FakeTokenRequest) => FakeTokenReply }) {
   const io = { kernel: {} as Counts, repo: {} as Counts, sealer: {} as Counts, keyring: {} as Counts };
   const openedAad: string[] = [];
-  const repo = counted(new SqlExternalMcpServerRepo(counted(kernel, io.kernel)), io.repo);
+  const externalMcpKernel1 = counted(kernel, io.kernel);
+  const repo = counted(new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel1 }), query: statement => externalMcpKernel1.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel1 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors }), io.repo);
   const keyring = counted(frozenKeyring(), io.keyring);
   const sealer = counted(frozenSealer(frozenKeyring()), io.sealer, (method, args) => {
     if (method === "open") openedAad.push(String((args[1] as { aad?: unknown } | undefined)?.aad ?? ""));

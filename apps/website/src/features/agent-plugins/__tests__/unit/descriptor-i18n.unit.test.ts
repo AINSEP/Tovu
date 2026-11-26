@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { parseDeployTargetsFile } from "#src/features/deployments/deploy-targets/registry";
+import { parseDeployTargetsFile } from '@jini-ai/devops/deploy';
 import { parseSourceControlProvidersFile } from "#src/features/source-control/provider-registry";
 
 import { parseDescriptorI18n } from "@jini-ai/core/text";

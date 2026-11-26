@@ -1,6 +1,7 @@
 import { agentPluginInstallZipRoute, agentPluginUpdateZipRoute, type AgentPluginInstallRouteDeps, type AgentPluginUpdateTarget } from "@jini-ai/cms/admin-http/routes/agent-plugins/install";
 import { isAgentPluginName } from "@jini-ai/agent-plugins/lifecycle";
-import { createAgentPluginUpdateEffects, requireUpdateMcpDeps } from "#src/features/agent-plugins/update-effects";
+import { createAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
+import { requireUpdateMcpDeps } from '@jini-ai/agent-plugins/site/update-effects';
 import { maxAgentPluginInstallArchiveBytes } from "#src/features/agent-plugins/lifecycle";
 import { installUploadedAgentPlugin } from "#src/features/agent-plugins/install-upload";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";

@@ -1,4 +1,5 @@
-import { InMemoryPublishHistoryStore, listPublishDestinations } from "#src/features/deployments/static-publish/publish-history";
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
+import { InMemoryPublishHistoryStore, listPublishDestinations } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -691,7 +692,7 @@ test("executePeerImport refuses overwriteEntityKeys when the peer does not adver
 
 
 test("outbound successful and partial peer applies append saved-peer history and list only that workspace's saved destinations", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const at = "2026-10-18T10:00:00.000Z";
   for (const report of [{ refused: false, rows: [] }, { refused: false, rows: [{ outcome: "conflict" }] }]) {
     const result = { runId: "remote-run", report };
@@ -721,7 +722,7 @@ test("a completed peer apply records one tovu-peer history row with the caller's
   const at = "2026-10-18T10:00:00.000Z";
   const result = { runId: "remote-run", report: { refused: false, rows: [] } };
   for (const [triggeredBy, expected] of [[undefined, "admin_ui"], ["agent_tool", "agent_tool"]] as const) {
-    const store = new InMemoryPublishHistoryStore();
+    const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
     const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
     await executePeerImport({
       deps: { httpClient: http, credential: CREDENTIAL,
@@ -736,7 +737,7 @@ test("a completed peer apply records one tovu-peer history row with the caller's
 });
 
 test("type pin: a history store without recordSuccess cannot be a PeerCallDeps recorder", () => {
-  const recorder: PublishHistoryRecorder = new InMemoryPublishHistoryStore();
+  const recorder: PublishHistoryRecorder = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   // @ts-expect-error a store that cannot record is not a recorder
   const missing: PublishHistoryRecorder = {};
   assert.ok(recorder && missing);
@@ -745,7 +746,7 @@ test("type pin: a history store without recordSuccess cannot be a PeerCallDeps r
 test("a throwing history store preserves the successful remote apply and logs no error payload", async (t) => {
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   store.recordSuccess = async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); };
   const result = { runId: "remote-run", report: { refused: false, rows: [] } };
   const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
@@ -763,7 +764,7 @@ test("a throwing history store preserves the successful remote apply and logs no
 });
 
 test("outbound failures, refusals and malformed success bodies never establish destinations", async () => {
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   for (const json of [{ ok: false, runId: "failed" }, { runId: "refused", report: { refused: true } }, {}]) {
     await executePeerImport({
                               deps: { httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, json }]), credential: CREDENTIAL,

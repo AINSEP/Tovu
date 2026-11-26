@@ -1,3 +1,4 @@
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -20,11 +21,11 @@ import { bindSiteConsentService } from '#src/server/runtime/composition/site-con
 import { buildGatewayDeps } from '#src/contracts/core/gated-mutations/composition';
 import { InMemoryTokenStore, type TokenStorePort } from '#src/contracts/core/gated-mutations/token';
 import { domainPublishTool } from '../domain-publish-tool.js';
-import { InMemoryPublishHistoryStore } from '../publish-history.js';
+import { InMemoryPublishHistoryStore } from '@jini-ai/devops/deploy/site/static-publish/publish-history';
 import { getPublishJobSnapshot, getPublishRunSnapshot, startPublishRun } from '../publish-run.js';
 import type { PublishCredentialSource } from '@jini-ai/devops/deploy/site/static-publish/types';
-import type { StaticPublishInput } from '../adapter.js';
-import type { StaticPublishToolDeps } from '../../publish-agent-tools.js';
+import type { StaticPublishInput } from '@jini-ai/devops/deploy/site/static-publish/adapter';
+import type { StaticPublishToolDeps } from '#src/features/deployments/publish-tool-deps';
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
@@ -34,7 +35,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
   headers?: Readonly<Record<string, string>>; anonymous?: boolean; exportGate?: Promise<void>; onSettled?: () => void; noPreview?: boolean } = {}) {
   const base = createRouteDeps();
   const root = await mkdtemp(path.join(tmpdir(), 'domain-publish-test-'));
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   let changed = false;
   let exports = 0;
   let publishes = 0;

@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import { credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 /**
@@ -44,7 +45,7 @@ import type { CustomCredentialSetRepoPort } from "../types.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
@@ -109,7 +110,7 @@ async function buildHarness(options: HarnessOptions = {}) {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
-    publishCompatibility: bindPublishCompatibility({ source: {} }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: options.repo ? options.repo(repo) : repo,

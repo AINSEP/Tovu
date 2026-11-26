@@ -33,7 +33,7 @@ import {
 } from "./repo.sqlite.js";
 import { seedIdentity } from "@jini-ai/user-management/server";
 import { createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
-import { createIdentityTransactions } from "./repo.js";
+import { createIdentityTransactions } from "@jini-ai/user-management/identity/repo";
 
 /**
  * @file Shared identity wiring for the composition roots (`apps/website/src/server/runtime/composition/app.ts` /

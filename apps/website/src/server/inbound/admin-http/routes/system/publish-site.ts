@@ -1,12 +1,17 @@
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { readTargetConfig as jiniReadTargetConfig, publishPreviewFor as jiniPublishPreviewFor, describePublishTargets, credentialChoice } from "@jini-ai/devops/deploy/site/static-publish/admin-publish-read";
+import { staticPublishPorts } from '#src/features/deployments/static-publish/adapter';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import { listPublishContentPeers } from "@jini-ai/cms/publish/content/peer-registry";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { Express } from "express";
 
-import { inspectStaticPublish, composePublishCredentialSource, getPublishRunSnapshot, listPublishDestinations, missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, startPublishRun, unknownTargetMessage } from "#src/features/deployments/static-publish/index";
+import { inspectStaticPublish } from "@jini-ai/devops/deploy/site/static-publish/inspection";
+import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
+import { getPublishRunSnapshot, startPublishRun } from "#src/features/deployments/static-publish/publish-run";
+import { listPublishDestinations } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
+import { missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, unknownTargetMessage } from "@jini-ai/devops/deploy/site/static-publish/adapter";
 import { type StaticPublishConfig, type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 import type {
   DeployTargetRegistry,
@@ -97,7 +102,7 @@ async function readTargetConfig({ context, targetId, raw, blankAsAbsent }: { con
     refusal: refusal => console.warn(`[publish-site] ${refusal}`), unknownTargetMessage, readStaticPublishConfig,
     missingRequiredFieldMessage, planStaticPublish,
     inspectStaticPublish: ({ input }) => inspectStaticPublish({
-      deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination }, input,
+      deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, ...staticPublishPorts }, input,
     }),
   }, targetId, raw, blankAsAbsent });
 }
@@ -142,7 +147,7 @@ export function publishPreviewFor({ context }: { context: PublishSiteContext }, 
     refusal: refusal => console.warn(`[publish-site] ${refusal}`), unknownTargetMessage, readStaticPublishConfig,
     missingRequiredFieldMessage, planStaticPublish,
     inspectStaticPublish: ({ input }) => inspectStaticPublish({
-      deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination }, input,
+      deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, ...staticPublishPorts }, input,
     }),
   } } });
 }

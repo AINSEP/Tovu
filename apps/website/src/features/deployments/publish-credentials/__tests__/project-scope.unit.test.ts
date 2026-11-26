@@ -4,7 +4,7 @@ import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
+import { InMemoryPublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
@@ -24,18 +24,9 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { createDbPublishCredentialSource } from "../../static-publish/credentials.js";
 import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
-import {
-  createPublishCredential,
-  deletePublishCredential,
-  findPublishCredentialRecord,
-  healAccountLabel,
-  listPublishCredentials,
-  PublishCredentialDuplicateLabelError,
-  PublishCredentialValidationError,
-  resolveDefaultForPublish,
-  updatePublishCredential,
-  type PublishCredentialWriteDeps,
-} from "../store.js";
+import { createPublishCredential, listPublishCredentials, resolveDefaultForPublish, updatePublishCredential, type PublishCredentialWriteDeps } from "../store.js";
+import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { findPublishCredentialRecord } from "@jini-ai/devops/deploy/site/publish-credentials/store-resolution";
 
 /**
  * @file Publish (deploy) credentials are project-first (owner 2026-10-25), the same rule as custom

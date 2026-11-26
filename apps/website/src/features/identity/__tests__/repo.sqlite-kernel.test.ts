@@ -5,7 +5,7 @@ import test from "node:test";
 import { authorize } from "@jini-ai/user-management/server";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createIdentityTransactions } from "../repo.js";
+import { createIdentityTransactions } from "@jini-ai/user-management/identity/repo";
 import { SqlitePrincipalRepo, SqliteUserRepo, SqliteSessionRepo, SqliteRoleRepo, SqlitePolicyRepo, SqlitePolicyPermissionRepo, SqlitePrincipalPolicyRepo, SqlitePrincipalRoleRepo, SqliteRolePolicyRepo } from "../repo.sqlite.js";
 
 for (const mode of ["handle", "kernel"] as const) {

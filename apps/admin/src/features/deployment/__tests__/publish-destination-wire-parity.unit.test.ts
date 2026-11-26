@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { deploymentApi } from "../deployment-host-ports";
-import type { PublishDestination } from "../../../../../website/src/features/deployments/static-publish/publish-history";
+import type { PublishDestination } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 
 afterEach(() => vi.unstubAllGlobals());
 

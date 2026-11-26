@@ -1,4 +1,5 @@
-import { createAgentPluginUpdateEffects, requireUpdateMcpDeps, type UpdateMcpDeps } from "./update-effects.js";
+import { createAgentPluginUpdateEffects } from "./update-effects.js";
+import { requireUpdateMcpDeps, type UpdateMcpDeps } from '@jini-ai/agent-plugins/site/update-effects';
 import { AgentPluginUpdateError, AgentPluginHostIncompatibleError, isAgentPluginName, type UpdateAgentPluginRequired } from "@jini-ai/agent-plugins/lifecycle";
 import { agentPluginsToolMetadata as toolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import { createHash } from "node:crypto";

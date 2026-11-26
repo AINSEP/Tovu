@@ -12,7 +12,7 @@ import { mediaUploadsDir } from "../site-paths.js";
 import { getEffective } from "@jini-ai/core/settings";
 import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { storeBoundServicesFor } from "../store-bound-services.js";
-import { toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
+import { toDeployTargetCredential } from "@jini-ai/devops/deploy/site/static-publish/credentials";
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 import type { CreateSiteRouteDepsOverrides, resolveSiteBindingOverride } from "./overrides.js";
 import type { providerPluginBoot } from "./provider-identity.js";

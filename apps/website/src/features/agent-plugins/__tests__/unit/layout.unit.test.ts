@@ -155,7 +155,7 @@ test("forWorkspace rejects every shape that could escape or split the path segme
 
 test("pluginRootDir, pluginPackagesDir and pluginMemoryDir refuse an id that could escape the workspace tree", () => {
   const ws = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ cwd: "/srv/tovu-site", env: {} }) }, { env: {} }).forWorkspace({ workspaceId: WORKSPACE_ID });
-  for (const pluginId of ["../escape", "a".repeat(200), "Upper"]) {
+  for (const pluginId of ["../escape", "..", "a".repeat(200), "Upper"]) {
     const message = `'${pluginId}' is not a valid Agent Plugin id`;
     assert.throws(() => ws.pluginRootDir({ pluginId }), { message }, pluginId);
     assert.throws(() => ws.pluginPackagesDir({ pluginId }), { message }, pluginId);

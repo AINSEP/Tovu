@@ -1,23 +1,13 @@
+import { keepStoredRevocation } from '../../platform/db/keep-stored-revocation.js';
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
 import type { AssertVersionedWritePort } from "@jini-ai/core/optimistic-concurrency";
 import { createSqlMfaStore, createSqlPasskeyStore, createSqlRecoveryCodeStore } from "@jini-ai/user-management/server/sql";
 import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 
-import {
-  SqlPrincipalRepo,
-  SqlUserRepo,
-  createIdentityTransactions,
-} from "./repo.js";
-import {
-  SqlApiKeyRepo,
-  SqlSessionRepo,
-} from "./repo.authentication.js";
-import {
-  SqlPolicyPermissionRepo,
-  SqlPolicyRepo,
-  SqlRoleRepo,
-} from "./repo.authorization.js";
+import { SqlPrincipalRepo, SqlUserRepo, createIdentityTransactions } from "@jini-ai/user-management/identity/repo";
+import { SqlApiKeyRepo, SqlSessionRepo } from "@jini-ai/user-management/identity/repo.authentication";
+import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "@jini-ai/user-management/identity/repo.authorization";
 import {
   SqlPrincipalPolicyRepo,
   SqlPrincipalRoleRepo,
@@ -35,37 +25,37 @@ type Store = ContentKernel | ContentDb;
 
 export class SqlitePrincipalRepo extends SqlPrincipalRepo {
   constructor(store: Store) {
-    super(contentKernel({ store }));
+    super({ kernel: schemaErasedKernel({ store }), table: "principals" });
   }
 }
 
 export class SqliteUserRepo extends SqlUserRepo {
   constructor({ store, assertVersionedWrite }: { store: Store; assertVersionedWrite: AssertVersionedWritePort }, _optional: Record<string, never> = {}) {
-    super({ kernel: contentKernel({ store }), assertVersionedWrite });
+    super({ kernel: schemaErasedKernel({ store }), table: "identity_users", assertVersionedWrite });
   }
 }
 
 export class SqliteSessionRepo extends SqlSessionRepo {
   constructor(store: Store) {
-    super(contentKernel({ store }));
+    super({ kernel: schemaErasedKernel({ store }), table: "sessions", keepStoredRevocation: () => keepStoredRevocation({ table: "sessions" }) });
   }
 }
 
 export class SqliteRoleRepo extends SqlRoleRepo {
   constructor({ store, assertVersionedWrite }: { store: Store; assertVersionedWrite: AssertVersionedWritePort }, _optional: Record<string, never> = {}) {
-    super({ kernel: contentKernel({ store }), assertVersionedWrite });
+    super({ kernel: schemaErasedKernel({ store }), table: "roles", assertVersionedWrite });
   }
 }
 
 export class SqlitePolicyRepo extends SqlPolicyRepo {
   constructor({ store, assertVersionedWrite }: { store: Store; assertVersionedWrite: AssertVersionedWritePort }, _optional: Record<string, never> = {}) {
-    super({ kernel: contentKernel({ store }), assertVersionedWrite });
+    super({ kernel: schemaErasedKernel({ store }), table: "policies", assertVersionedWrite });
   }
 }
 
 export class SqlitePolicyPermissionRepo extends SqlPolicyPermissionRepo {
   constructor(store: Store) {
-    super(contentKernel({ store }));
+    super({ kernel: schemaErasedKernel({ store }), table: "policy_permissions" });
   }
 }
 
@@ -92,7 +82,7 @@ export class SqlitePrincipalPolicyRepo extends SqlPrincipalPolicyRepo {
 
 export class SqliteApiKeyRepo extends SqlApiKeyRepo {
   constructor(store: Store) {
-    super(contentKernel({ store }));
+    super({ kernel: schemaErasedKernel({ store }), table: "api_keys" });
   }
 }
 

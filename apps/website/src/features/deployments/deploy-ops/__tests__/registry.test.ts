@@ -12,7 +12,8 @@ import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-rem
 import { bundledContributionSources } from "../../../agent-plugins/bundled-contribution-sources.js";
 import { composedBundledSourceRoot } from "../../../agent-plugins/__tests__/fixtures/bundled-source-root.js";
 import { fileURLToPath } from "node:url";
-import { loadDeployOpsRegistryFromSource, loadBundledDeployOpsRegistry, readBundledDeployOpsDescriptors, parseDeployOpsFile, requirePlatform } from "../registry.js";
+import { loadDeployOpsRegistryFromSource, loadBundledDeployOpsRegistry, readBundledDeployOpsDescriptors } from "../registry.js";
+import { parseDeployOpsFile, requireDeployPlatform as requirePlatform } from "@jini-ai/devops/deploy";
 const FIXTURE_SOURCE_ROOT = fileURLToPath(new URL("./fixtures/", import.meta.url));
 // The shipped tree as the build composes it (Tovu content plus selected packages): fly, render and
 // railway ship from @jini-ai/agent-plugins/<id> since D-W4. Top-level so the per-package cases below

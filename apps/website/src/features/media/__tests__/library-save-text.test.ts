@@ -9,7 +9,10 @@ import * as yauzl from 'yauzl';
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
 import { libraryContext, libraryFixture } from './library.fixture.js';
 import { buildToolCatalogQuery } from '#src/assistant/tool-catalog-query';
-import { filesCopyAgentToolCatalog } from '../../asset-transfer/copy-tool.js';
+import { buildFilesCopyAgentToolCatalog } from '@jini-ai/cms/asset-transfer/copy-tool';
+import { ASSET_SOURCE_SCHEMA } from '#src/features/asset-transfer/asset-sources';
+import { FS_FILES_READ_PERMISSION } from '#src/features/fs-files/agent-tools';
+const filesCopyAgentToolCatalog = buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION });
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
 const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 

@@ -13,7 +13,7 @@ import { publishStatusRoute } from "@jini-ai/cms/admin-http/routes/system/publis
 import { publishTargetsRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/targets";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/export-run-binding";
-import { getPublishRunSnapshot } from "#src/features/deployments/static-publish/index";
+import { getPublishRunSnapshot } from "#src/features/deployments/static-publish/publish-run";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
 import { siteKeySources } from "#src/features/webhooks/site-key-sources";

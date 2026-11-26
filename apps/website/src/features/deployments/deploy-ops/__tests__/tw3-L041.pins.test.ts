@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseDeployOpsFile } from "../registry.js";
-import { boundContext, runDeploy, waitForDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
+import { parseDeployOpsFile } from "@jini-ai/devops/deploy";
+import { boundContext, runDeploy } from "../run-ops.js";
+import { waitForDeployOps, MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
 import { runSetSecret, runUnsetSecret } from "../secrets.js";
 import type { SecretConfirm } from "@jini-ai/devops/deploy";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";

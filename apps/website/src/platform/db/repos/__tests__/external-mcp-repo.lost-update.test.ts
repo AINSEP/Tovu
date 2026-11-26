@@ -1,3 +1,7 @@
+import { externalMcpVaultPorts } from '#src/features/external-mcp/external-mcp-vault';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secrets-vault';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -7,7 +11,7 @@ import { externalMcpAccessSnapshot, externalMcpVaultEnvelope } from "@jini-ai/mc
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-repo.js";
+import { SqlExternalMcpServerRepo } from "@jini-ai/mcp/federation/hosted/external-mcp-repo";
 
 /**
  * @file The edit / runtime / access writes of `SqlExternalMcpServerRepo` on every dialect (lost-update
@@ -37,7 +41,8 @@ function record(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalMcpSe
 
 function seeded(kernel: ContentKernel): SqlExternalMcpServerRepo {
   const done = kernel.run(db => db.insertInto("workspaces").values([{ id: WS, name: WS, slug: WS, created_at: NOW }]).onConflict(oc => oc.column("id").doNothing()).execute());
-  return new SqlExternalMcpServerRepo(heldUntil(kernel, done.then(() => ensureVaultRepoFixture({ kernel }))));
+  const externalMcpKernel1 = heldUntil(kernel, done.then(() => ensureVaultRepoFixture({ kernel })));
+  return new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel1 }), query: statement => externalMcpKernel1.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel1 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
 }
 
 const replaces = (r: ExternalMcpServerRecord) => ({ sealedEnv: r.sealedEnv, sealedOAuth: r.sealedOAuth });

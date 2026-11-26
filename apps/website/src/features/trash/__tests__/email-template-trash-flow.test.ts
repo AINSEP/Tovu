@@ -13,7 +13,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
 import { SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError } from "@jini-ai/platform/mail/email-template-operations";
-import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/operations";
+import { emailTemplateStore, type EmailTemplateDeps } from "@jini-ai/cms/posts/email-template-store";
 import { buildTrashRegistry } from "../registry.js";
 
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
@@ -36,7 +36,7 @@ function harness(_required = {}, _options = {}) {
   const clock = createFakeClock({ startIso: AT });
   const postRepo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
   let sequence = 0;
-  const deps: EmailTemplateDeps = {
+  const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
     workspaceId: WS, clock, postRepo, idGen: { newId: () => `template-${++sequence}` },
     pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock, revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
   };

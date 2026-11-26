@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
-import { loadDeployTargetRegistry, loadInstalledDeployTargets } from "../registry.js";
+import { loadDeployTargetRegistry } from "../registry.js";
+import { loadInstalledDeployTargets } from "@jini-ai/devops/deploy/site/deploy-targets/registry";
 
 function fixture(_required: Record<string, never>, _optional: Record<string, never> = {}) {
   const enabled = new Set(["host-a", "host-b", "host-c"]);

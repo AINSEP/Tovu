@@ -1,9 +1,11 @@
+import { keepStoredRevocation } from '#src/platform/db/keep-stored-revocation';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlPrincipalRepo } from "../repo.js";
-import { SqlSessionRepo } from "../repo.authentication.js";
+import { SqlPrincipalRepo } from "@jini-ai/user-management/identity/repo";
+import { SqlSessionRepo } from "@jini-ai/user-management/identity/repo.authentication";
 
 /**
  * @file A session save must never undo a revocation (security: lost update on a session row).
@@ -18,7 +20,7 @@ const T0 = "2026-11-17T00:00:00.000Z";
 const REVOKED = "2026-11-17T01:00:00.000Z";
 const session = (overrides = {}) => ({ id: "s1", workspaceId: WS, principalId: "p1", tokenHash: "hash-s1", createdAt: T0, expiresAt: "2026-12-17T00:00:00.000Z", ...overrides });
 
-describeEachDialect("identity session revocation", { tables: ["workspaces", "principals", "sessions"], make: (kernel: ContentKernel) => ({ kernel, principals: new SqlPrincipalRepo(kernel), sessions: new SqlSessionRepo(kernel) }) }, (makeRepos) => {
+describeEachDialect("identity session revocation", { tables: ["workspaces", "principals", "sessions"], make: (kernel: ContentKernel) => ({ kernel, principals: new SqlPrincipalRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'principals' }), sessions: new SqlSessionRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'sessions', keepStoredRevocation: () => keepStoredRevocation({ table: "sessions" }) }) }) }, (makeRepos) => {
   async function seeded() {
     const repos = makeRepos();
     await repos.kernel.run(db => db.insertInto("workspaces").values({ id: WS, name: WS, slug: WS, created_at: T0 }).onConflict(oc => oc.column("id").doNothing()).execute());
@@ -35,6 +37,8 @@ describeEachDialect("identity session revocation", { tables: ["workspaces", "pri
     const stored = await sessions.findById({ workspaceId: WS, id: "s1" });
     assert.equal(stored?.revokedAt, REVOKED, "a stale whole-row save un-revoked the session");
     assert.equal(stored?.ip, "203.0.113.7", "the other columns are still saved");
+    await sessions.save({ ...loaded, revokedAt: "2026-11-17T02:00:00.000Z" });
+    assert.equal((await sessions.findById({ workspaceId: WS, id: "s1" }))?.revokedAt, REVOKED);
   });
 
   test("a save that carries its own revokedAt still revokes", async () => {

@@ -1,3 +1,7 @@
+import { externalMcpVaultPorts } from '#src/features/external-mcp/external-mcp-vault';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secrets-vault';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import { randomUUID } from "node:crypto";
 import { heldUntil } from "../../kernel/__tests__/dialect-matrix.js";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
@@ -14,7 +18,7 @@ import { openContentDb, openSqliteContentConnection } from "../../sqlite/content
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-repo.js";
+import { SqlExternalMcpServerRepo } from "@jini-ai/mcp/federation/hosted/external-mcp-repo";
 
 /**
  * @file `SqlExternalMcpServerRepo` against a real, migrated content database on every dialect
@@ -115,7 +119,8 @@ function seededRepo(kernel: ContentKernel): SqlExternalMcpServerRepo {
       .onConflict((oc) => oc.column("id").doNothing())
       .execute()
   );
-  return new SqlExternalMcpServerRepo(heldUntil(kernel, seeded.then(() => prepareVault(kernel))));
+  const externalMcpKernel1 = heldUntil(kernel, seeded.then(() => prepareVault(kernel)));
+  return new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel1 }), query: statement => externalMcpKernel1.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel1 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
 }
 
 test("independent SQLite connections race for one OAuth lease and persist exactly the winner", async () => {
@@ -128,7 +133,9 @@ test("independent SQLite connections race for one OAuth lease and persist exactl
     first.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WORKSPACE, WORKSPACE, WORKSPACE, NOW);
     await prepareVault(contentKernel({ store: first }));
     second = openSqliteContentConnection({ filePath: file });
-    const repos = [new SqlExternalMcpServerRepo(contentKernel({ store: first })), new SqlExternalMcpServerRepo(contentKernel({ store: second }))];
+    const externalMcpKernel3 = contentKernel({ store: second });
+    const externalMcpKernel2 = contentKernel({ store: first });
+    const repos = [new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel2 }), query: statement => externalMcpKernel2.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel2 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors }), new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel3 }), query: statement => externalMcpKernel3.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel3 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors })];
     await repos[0].upsert(makeOAuthRecord());
     const claims = [
       { workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: LATER },
@@ -383,7 +390,8 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     for (let n = 0; n < 8; n++) await repo.upsert(makeOAuthRecord({ serverId: `batch-${n}`, sealedEnv: makeRecord().sealedEnv }));
     const kernel = (repo as unknown as { kernel: ContentKernel }).kernel;
     let queries = 0;
-    const observed = new SqlExternalMcpServerRepo({ ...kernel, query: async statement => { queries++; return kernel.query(statement); } });
+    const externalMcpKernel4 = { ...kernel, query: async statement => { queries++; return kernel.query(statement); } };
+    const observed = new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel4 }), query: statement => externalMcpKernel4.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel4 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
     const rows = await observed.listByWorkspaceId(WORKSPACE);
     assert.equal(queries, 1);
     assert.equal(rows.length, 8);
@@ -400,11 +408,12 @@ async function readTampered(patch: Record<string, unknown>): Promise<ExternalMcp
   await kernel.run((db) => db.insertInto("workspaces").values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, created_at: NOW }).execute());
   await prepareVault(kernel);
   const record = makeOAuthRecord({ sealedEnv: makeRecord().sealedEnv });
-  await new SqlExternalMcpServerRepo(kernel).upsert(record);
-  const tampered = new SqlExternalMcpServerRepo({
+  await new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: kernel }), query: statement => kernel.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors }).upsert(record);
+  const externalMcpKernel5 = {
     ...kernel,
     query: async (statement) => (await kernel.query(statement)).map((row) => ({ ...row, ...patch })),
-  });
+  };
+  const tampered = new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel5 }), query: statement => externalMcpKernel5.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel5 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
   return tampered.findByServerId(record);
 }
 

@@ -1,3 +1,5 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /**
@@ -26,7 +28,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
@@ -75,7 +77,7 @@ let toolUseCounter = 0;
 
 async function duplicate(deps: AssistantToolRegistryDeps, input: unknown) {
   const registry = createToolRegistry({});
-  for (const registration of buildContentDuplicationRegistrations(deps, { listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }) })) {
+  for (const registration of buildContentDuplicationRegistrations(deps, { catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }) })) {
     registry.register(registration);
   }
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });

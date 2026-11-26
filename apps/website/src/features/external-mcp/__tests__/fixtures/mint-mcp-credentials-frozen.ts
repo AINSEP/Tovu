@@ -1,3 +1,7 @@
+import { externalMcpVaultPorts } from '#src/features/external-mcp/external-mcp-vault';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secrets-vault';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -5,7 +9,7 @@ import { createTovuOAuthGuard } from "../../../../platform/oauth/endpoint-safety
 import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
 import { hostedMcpSignInLink } from "../../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
-import { SqlExternalMcpServerRepo } from "../../external-mcp-repo.js";
+import { SqlExternalMcpServerRepo } from "@jini-ai/mcp/federation/hosted/external-mcp-repo";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
 import { FROZEN_PLAINTEXT, FROZEN_PROVIDER, FROZEN_REDIRECT_URI, FROZEN_SERVERS, FROZEN_SQL_PATH, FROZEN_WORKSPACE,
   closeFrozenDb, dumpFrozenRows, insertFrozenWorkspace, fakeOAuthServer, frozenClock, frozenKeyring, frozenSealer, openFrozenDb } from "./mcp-credentials-frozen.fixture.js";
@@ -28,7 +32,7 @@ async function mint(): Promise<void> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-frozen-mint-"));
   const { db, kernel } = await openFrozenDb(path.join(dir, "content.db"));
   insertFrozenWorkspace({ db });
-  const repo = new SqlExternalMcpServerRepo(kernel);
+  const repo = new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: kernel }), query: statement => kernel.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
   const keyring = frozenKeyring();
   const sealer = frozenSealer(keyring);
   const clock = frozenClock();

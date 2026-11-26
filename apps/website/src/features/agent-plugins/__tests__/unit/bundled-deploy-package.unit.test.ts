@@ -20,7 +20,8 @@ import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } from "../../bundled-catalog.js";
-import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
+import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
+import { DEPLOY_TARGETS_FILENAME } from '@jini-ai/devops/deploy/site/deploy-targets/registry';
 
 /**
  * @file The bundled `deploy` Agent Plugin's package and the hosting plugins split out of it

@@ -1,8 +1,11 @@
+import { FORMS_TABLES } from '#src/platform/db/content-tables';
+import { createFormDefinition, updateFormDefinition, setFormDefinitionStatus } from '#src/features/forms/index';
+import { executeCommand } from '@jini-ai/cms/core/commands';
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { makeSite, registerOnly, roundTrip, packAll, plan, applyReport, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { contributeFormPublish } from "../publish-content.js";
+import { contributeFormPublish } from "@jini-ai/cms/forms/site/publish-content";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import type { FormDefinitionRecord, HtmlFormDefinitionRecord } from "@jini-ai/cms/forms";
 
@@ -23,7 +26,7 @@ function form(overrides: Partial<FormDefinitionRecord> = {}): FormDefinitionReco
 }
 
 async function sites(sourceRows: FormDefinitionRecord[]) {
-  registerOnly([contributeFormPublish()]);
+  registerOnly([contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus })]);
   const sourceRepo = new InMemoryFormDefinitionRepo();
   for (const row of sourceRows) await sourceRepo.create(row);
   const destRepo = new InMemoryFormDefinitionRepo();
@@ -132,4 +135,14 @@ test('a legacy Builder source replaces HTML and external collection at the desti
   assert.deepEqual(landed.provider, { id: 'builtin', config: {} });
   const [after] = await packAll(dest);
   assert.equal(after!.contentHash, entities[0]!.contentHash);
+});
+
+
+test('an inbound notification payload cannot replace destination recipients', async () => {
+  const { source, dest, destRepo } = await sites([form()]);
+  await destRepo.create(form({ id: 'dest', notify: { enabled: true, recipients: ['destination@example.com'] } }));
+  const [packed] = await packAll(source);
+  const entity = { ...packed!, state: { ...packed!.state, notify: { enabled: true, recipients: ['source@example.com'] } } };
+  await contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }).build(dest).apply({ entity, expectedVersion: 1, principalId: 'operator-1', idempotencyKey: 'notify-local' });
+  assert.deepEqual((await destRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'contact' }))!.notify.recipients, ['destination@example.com']);
 });

@@ -13,7 +13,7 @@ import { requireDeployPlatform } from '@jini-ai/devops/deploy';
 import { runListSecrets, runSetSecret, runUnsetSecret } from '@jini-ai/devops/deploy';
 import { collectTypedDeploySecret } from '@jini-ai/devops/deploy';
 import { buildDeployOpsRegistrations } from '@jini-ai/devops/deploy';
-import { DeployCredentialSetupRequired as HostSetupRequired } from '../run-ops.js';
+import { DeployCredentialSetupRequired as HostSetupRequired } from '@jini-ai/devops/deploy';
 
 const ids = { status:'library_state',logs:'library_output',wait:'library_watch',listTargets:'library_targets',deploy:'library_launch',listSecrets:'library_names',setSecret:'library_write',unsetSecret:'library_remove',credentialVerify:'library_check' };
 const input = { platform:'library',target:'catalog',name:'BOOK_KEY',source:{kind:'site-key' as const} };

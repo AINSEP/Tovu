@@ -1,3 +1,5 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -7,7 +9,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { contributeFormsDuplicateHandlers, type FormsToolDeps } from "../tool-registrations.js";
 import { SLUG_PATTERN } from "@jini-ai/cms/forms";
@@ -50,7 +52,7 @@ function fakeRouteDeps(allowedPermissions: string[] = ["admin.forms.manage"]) {
 
 function duplicateTool(deps: FormsToolDeps): ToolRegistration {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    listResourceHandlers: () => contributeFormsDuplicateHandlers({ deriveDuplicateName }),
+    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributeFormsDuplicateHandlers({ deriveDuplicateName }),
   });
   const found = registrations.find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(found, "expected 'content_duplicate' to be wired");

@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../credential-save-tool.js";
@@ -26,7 +27,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 
 
 /**
@@ -84,7 +85,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
-    publishCompatibility: bindPublishCompatibility({ source: {} }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }),
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,
@@ -228,6 +229,29 @@ test("the tool's own result never echoes the submitted token, on success or fail
 
   assert.deepEqual(result, { saved: true });
   assert.ok(!JSON.stringify(result).includes("brand-new-secret-token"), "the result must never contain the submitted token");
+});
+
+test("a submitted rotation reads metadata before owner lookup, seals afterward, then invalidates", async t => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  await seedNameCom(writeDeps);
+  const events: string[] = [];
+  const findByLabel = repo.findByLabel.bind(repo);
+  t.mock.method(repo, "findByLabel", async input => { events.push("metadata"); return findByLabel(input); });
+  const seal = sealer.seal.bind(sealer);
+  t.mock.method(sealer, "seal", input => { events.push("seal"); return seal(input); });
+  const routeDeps: CustomCredentialsToolDeps = { ...deps,
+    get ownerPrincipalId() { events.push("owner"); return Promise.resolve(PRINCIPAL_ID); },
+    publishCompatibility: { prepareInvalidation: async () => () => { events.push("invalidate"); } },
+  };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const { pending, exchangeId } = await raiseForm(tool(buildRegistrations(routeDeps, surfaceExchanges), TOOL_ID));
+  events.length = 0;
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: "rotated-token-after-owner" } }, { toolId: TOOL_ID });
+  assert.deepEqual(await pending, { saved: true });
+  assert.equal(events[0], "metadata");
+  assert.ok(events.indexOf("owner") > events.indexOf("metadata"));
+  assert.ok(events.indexOf("seal") > events.indexOf("owner"));
+  assert.ok(events.indexOf("invalidate") > events.indexOf("seal"));
 });
 
 test("a rotated token is trimmed of paste junk; an interior space is refused in plain words", async () => {

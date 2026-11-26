@@ -1,7 +1,11 @@
+import { FORMS_TABLES } from '#src/platform/db/content-tables';
+import { createFormDefinition, updateFormDefinition, setFormDefinitionStatus } from '#src/features/forms/index';
+import { executeCommand } from '@jini-ai/cms/core/commands';
+import { registerContentType } from '#src/features/content-types/write-service';
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
-import { contributeContentTypePublish } from "#src/features/content-types/publish-content";
+import { contributeContentTypePublish } from "@jini-ai/cms/content-types/site/publish-content";
 import { contributeCollectionEntryPublish } from "#src/features/entries/publish-content";
-import { contributeFormPublish } from "#src/features/forms/publish-content";
+import { contributeFormPublish } from "@jini-ai/cms/forms/site/publish-content";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeMenusPublish } from "#src/features/navigation/publish-content";
 import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
@@ -55,6 +59,13 @@ import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/featu
  * same rule (S-F4): registered only once its stage/verify/swap `apply()` was real AND the apply bag
  * (`apply-loop.ts`'s `PublishContentApplyDeps`) required `themesDir`.
  */
+const SEEDED_KEYS = new Set(["widget", "widget_area"]);
+
+/** Refuses a seeded key inbound too: `widget`/`widget-area` own those schemas, and a grant limited to
+ *  `content-type` must not reach them. */
+const seededKeyRefusal = ({ key }: { key: string }, _optional = {}): string | null =>
+  SEEDED_KEYS.has(key) ? `content-type '${key}' is seeded on every instance and is never published` : null;
+
 export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor({ contributor: contributePostPublish() });
   registerPublishContentContributor({ contributor: contributePagePublish() });
@@ -62,8 +73,9 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor({ contributor: contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }) });
   registerPublishContentContributor({ contributor: contributeMenusPublish() });
   registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
-  registerPublishContentContributor({ contributor: contributeFormPublish() });
-  registerPublishContentContributor({ contributor: contributeContentTypePublish() });
+  registerPublishContentContributor({ contributor: contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }) });
+  registerPublishContentContributor({ contributor: contributeContentTypePublish({ seededKeys: SEEDED_KEYS, seededKeyRefusal,
+    permission: 'admin.collections.manage', registerContentType }) });
   registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
   registerPublishContentContributor({ contributor: contributeTermPublish() });
   registerPublishContentContributor({ contributor: contributeCollectionEntryPublish() });

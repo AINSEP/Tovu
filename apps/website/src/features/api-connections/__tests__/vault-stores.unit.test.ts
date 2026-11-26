@@ -51,6 +51,14 @@ test("vault: every other workspace, kind, owner, principal or binding is refused
   assert.equal(scope.kind, API_CONNECTION_VAULT_KIND);
 });
 
+test("vault: binding-less lists stay confined to the workspace", async () => {
+  const { vault, scope } = stores();
+  const query = { workspaceId: scope.workspaceId, kind: scope.kind, ownerKey: scope.ownerKey, principalId: null };
+  assert.deepEqual(await vault.list(query), []);
+  await assert.rejects(vault.list({ ...query, workspaceId: "ws-2" }),
+    (error: unknown) => error instanceof VaultError && error.code === "context");
+});
+
 test("vault: scope is checked before metadata parsing", async () => {
   const { vault, scope } = stores();
   for (const other of [{ workspaceId: "ws-2" }, { kind: "custom" as const }, { ownerKey: "someone" }]) {

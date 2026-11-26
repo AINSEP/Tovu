@@ -1,3 +1,4 @@
+import { buildRegistrations as buildIdentityPolicyPermissionsRegistrations } from "@jini-ai/user-management/identity/permission-list-tool";
 import { nowIso } from "@jini-ai/core/primitives";
 /**
  * n07: admin-equivalent tool contracts, permission refusals, risk metadata and durable outcomes.
@@ -18,7 +19,7 @@ const ws = "n07-workspace";
 const clock = { nowMs: () => Date.parse("2026-10-01T00:00:00Z") };
 const idGen = { newId: () => "connected-peer" };
 const modules = {
-  identity_policy_list_permissions: () => import("../../identity/permission-list-tool.js"),
+  identity_policy_list_permissions: async () => ({ buildRegistrations: (deps: never) => buildIdentityPolicyPermissionsRegistrations({ deps, policy: { permission: "role.manage", policyReadToolId: "content_read.identity_policy" } }) }),
   sites_list: () => import("../../sites/list-tool.js"),
   publish_content_disconnect: () => import("../../publish-content/disconnect-tool.js"),
   theme_set_page_published: async () => ({ buildRegistrations: (await import("../../theme/index.js")).buildThemePagePublishedRegistrations }),

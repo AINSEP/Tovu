@@ -1,13 +1,8 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { knownPublishCredentialListRefusal, listPublishCredentialsReply } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/list";
 import type { Express } from "express";
-import {
-  listPublishCredentials,
-  PublishCredentialDuplicateLabelError,
-  PublishCredentialNotFoundError,
-  PublishCredentialSecretStoreUnconfiguredError,
-  PublishCredentialValidationError,
-} from "#src/features/deployments/publish-credentials/index";
+import { listPublishCredentials } from "#src/features/deployments/publish-credentials/store";
+import { PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";

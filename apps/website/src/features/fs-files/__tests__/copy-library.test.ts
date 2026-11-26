@@ -1,9 +1,14 @@
+import { bindFilesCopyToolDeps } from '#src/server/runtime/composition/asset-tool-host';
+import { approvalToolHandler } from '#src/contracts/core/human-confirm';
+import { describeWriteBatch } from '@jini-ai/cms/fs-files/tool-registrations';
+import { ASSET_SOURCE_SCHEMA } from '#src/features/asset-transfer/asset-sources';
+import { buildFilesCopyAgentToolCatalog } from '@jini-ai/cms/asset-transfer/copy-tool';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { buildMediaRegistrations, MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
-import { buildFilesCopyRegistrations } from '../../asset-transfer/copy-tool.js';
+import { buildFilesCopyRegistrations } from '@jini-ai/cms/asset-transfer/copy-tool';
 import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
 import * as yauzl from 'yauzl';
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
@@ -17,7 +22,9 @@ const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiv
 const destination = { kind: 'library' };
 interface Result { applied: boolean; documents: { id: string; filename: string; publicUrl: null; byteSize: number }[] }
 const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options,
-  build: (deps: Parameters<typeof buildFilesCopyRegistrations>[0], surfaces: Parameters<typeof buildFilesCopyRegistrations>[1]) => buildFilesCopyRegistrations({ ...deps, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) }, surfaces), toolId: 'files_copy' });
+  build: (deps, surfaces) => buildFilesCopyRegistrations({ deps: bindFilesCopyToolDeps({ deps: { ...deps, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) } }), surfaces,
+    catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION }),
+    approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) } }), toolId: 'files_copy' });
 
 test('picked, site and theme files copy into the private Library through document ingestion', async t => {
   const h = await harness(t);
@@ -67,10 +74,11 @@ test('Library glob copies flatten folder paths and validate the whole batch befo
   fs.writeFileSync(path.join(h.site, 'brand/deep/notes.md'), '# Notes');
   const result = await h.call({ sources: [{ root: 'site', path: 'brand', glob: '**/*.md' }], destination }) as Result;
   assert.equal(result.documents[0]!.filename, 'notes.md');
+  const before = await h.deps.mediaRepo.list({ workspaceId: 'ws' });
   fs.writeFileSync(path.join(h.picked, 'valid.md'), '# Brand');
   fs.writeFileSync(path.join(h.picked, 'invalid.pdf'), 'this is not a PDF');
   await assert.rejects(h.call({ sources: ['valid.md', 'invalid.pdf'].map(p => ({ root: 'picked', path: p })), destination }));
-  assert.equal((await h.deps.mediaRepo.list({ workspaceId: 'ws' })).length, 1, 'no valid prefix of an invalid batch is saved');
+  assert.deepEqual(await h.deps.mediaRepo.list({ workspaceId: 'ws' }), before, 'no valid prefix of an invalid batch is saved');
 });
 
 test('Library copies refuse denied files, escapes, symlinks, invalid types and destination paths', async t => {

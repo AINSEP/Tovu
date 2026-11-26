@@ -17,7 +17,8 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import { publishStaticSite } from "../adapter.js";
 import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
-import { InMemoryPublishCredentialVerificationCache, verifyPublishCredential } from "../verify.js";
+import { InMemoryPublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
+import { verifyPublishCredential } from "../verify.js";
 
 /**
  * @file The two static-publish entry points hand `deps.observability` to the kit they build by

@@ -22,7 +22,7 @@ import {
   previewEmailTemplate,
   renderEmailTemplateForSend,
 } from "@jini-ai/platform/mail/email-template-operations";
-import { emailTemplateStore, type EmailTemplateDeps } from "../operations.js";
+import { emailTemplateStore, type EmailTemplateDeps } from "@jini-ai/cms/posts/email-template-store";
 
 const WS = "ws-1";
 const HTML = '<html><head><meta name="email-fields" content="name=Ada"><title>Hi {{name}}</title></head><body><p>Hello {{name}} {{code}}</p><script>x()</script></body></html>';
@@ -32,7 +32,7 @@ function harness(options: { storeFactory?: (repo: InMemoryPostRepo, clock: { now
   let ms = Date.parse("2026-10-22T00:00:00.000Z");
   const clock = { nowMs: () => ms };
   let n = 0;
-  const deps: EmailTemplateDeps = {
+  const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
     workspaceId: WS,
     postRepo: repo,
     clock,

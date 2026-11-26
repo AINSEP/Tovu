@@ -14,7 +14,14 @@ import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-r
 import { createContributionRegistry, createToolRegistry, resolveHostReadRefs, type ToolExecutionContext, type ToolRegistration, type AgentToolDefinition as AgentToolDefinition } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import { postPreviewAgentToolCatalog } from "../../features/post/preview-tool.js";
-import { catalog as identityPolicyPermissionsCatalog } from "../../features/identity/permission-list-tool.js";
+const identityPolicyPermissionsCatalog: AgentToolDefinition[] = [{
+  name: "identity_policy_list_permissions",
+  description: "Reads the permissions and resource constraints granted by one policy. Call to explain what a role can do after finding its policy id with content_read.identity_policy. Returns {policyPermissions}, an empty array when nothing is granted. Read-only: no grants or revocations. Unknown policies are refused with lookup guidance.",
+  sideEffects: "none",
+  authorization: { permission: "role.manage" },
+  inputSchema: { type: "object", additionalProperties: false, required: ["policyId"], properties: { policyId: { type: "string", minLength: 1 } } },
+}];
+
 import { catalog as sitesListCatalog } from "../../features/sites/list-tool.js";
 import { catalog as publishDisconnectCatalog } from "@jini-ai/cms/publish/content/disconnect-tool";
 import { catalog as themePagePublishedCatalog } from "../../features/theme/page-publish-tool.js";
@@ -34,7 +41,8 @@ import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
-import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/tool-registrations.js";
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+const contentDuplicationAgentToolCatalog = buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' });
 import { publishContentAgentToolCatalog } from "@jini-ai/cms/publish/content/agent-tools";
 import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
@@ -89,15 +97,19 @@ import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js
 import { getWorkspaceAgentToolCatalog } from "@jini-ai/cms/workspace";
 import { formsAgentToolCatalog } from "@jini-ai/cms/forms";
 import { identityAgentToolCatalog } from "@jini-ai/user-management/server";
-import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/identity/tool-registrations.js";
+import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "@jini-ai/user-management/identity/tool-registrations";
 import { getWebhooksAgentToolCatalog } from "@jini-ai/integrations/webhooks/tools";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-theme-tool.js";
 import { previewSwitcherAgentToolCatalog } from "../../features/theme/preview-switcher-tools.js";
 import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-theme-tool.js";
 import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
-import { filesCopyAgentToolCatalog } from "../../features/asset-transfer/copy-tool.js";
-import { imageTransformAgentToolCatalog } from "../../features/image-transform/tool.js";
+import { buildFilesCopyAgentToolCatalog } from '@jini-ai/cms/asset-transfer/copy-tool';
+import { ASSET_SOURCE_SCHEMA } from '#src/features/asset-transfer/asset-sources';
+import { FS_FILES_READ_PERMISSION } from '#src/features/fs-files/agent-tools';
+const filesCopyAgentToolCatalog = buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION });
+import { buildImageTransformAgentToolCatalog } from '@jini-ai/cms/media/site-transform/tool';
+const imageTransformAgentToolCatalog = buildImageTransformAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION });
 import { getChangeSetsAgentToolCatalog } from "@jini-ai/cms/change-sets/agent-tools";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";

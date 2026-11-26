@@ -610,6 +610,15 @@ test("the ToolPolicy layer is a pass-through 'allow' for every identity registra
   }
 });
 
+test("the user-create model schema never exposes the password collected on the human card", async () => {
+  const { deps } = await buildHarness();
+  const create = identityRegistrations(deps).get("identity_user_create");
+  assert.ok(create);
+  const schema = create.descriptor.inputSchema as { properties: Record<string, unknown>; required?: string[] };
+  assert.equal(Object.hasOwn(schema.properties, "password"), false);
+  assert.equal(schema.required?.includes("password") ?? false, false);
+});
+
 test("no password-reset tool is wired — the one identity transition with no INV-07 clamp stays human-UI-only", async () => {
   const { deps } = await buildHarness();
   const wiredIds = [...identityRegistrations(deps).keys()];
@@ -668,4 +677,19 @@ test("chat delete policy defaults off; checked identity deletes retain a plan co
     assert.ok(on);
     assert.equal(on.descriptor.metadata?.approval?.confirmation, "plan");
   }
+});
+
+
+test("identity_role_delete rechecks authority lost during human approval", async () => {
+  const { deps, repos, ownerPrincipalId } = await buildHarness();
+  const role = { id: "post-confirm-role", workspaceId: WORKSPACE_ID, name: "Temporary", isBuiltin: false, version: 1 };
+  await repos.roles.save(role);
+  const [ctx] = executionContext(ownerPrincipalId, { roleId: role.id });
+  await assert.rejects(wired(deps, "identity_role_delete").handler(ctx, { emitSurface: async emission => {
+    const principal = await repos.principals.findById({ workspaceId: WORKSPACE_ID, id: ownerPrincipalId });
+    assert.ok(principal);
+    await repos.principals.save({ ...principal, status: "disabled" });
+    await autoAnswer(emission);
+  } }), IdentityForbiddenError);
+  assert.deepEqual(await repos.roles.findById({ workspaceId: WORKSPACE_ID, id: role.id }), role);
 });

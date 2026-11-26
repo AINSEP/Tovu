@@ -1,3 +1,4 @@
+import { EmailTemplateNotFoundError } from '@jini-ai/platform/mail/email-template-operations';
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
 import { restoredEntryRefs } from "#src/features/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
@@ -11,7 +12,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
 import { SqlPagesHtmlDocumentStore, PageNotFoundError, PageKindMismatchError } from "@jini-ai/cms/pages/html-document-store";
 import { createEmailTemplate, editEmailTemplate, getEmailTemplate, listEmailTemplates } from "@jini-ai/platform/mail/email-template-operations";
-import { emailTemplateStore, type EmailTemplateDeps } from "../operations.js";
+import { emailTemplateStore, type EmailTemplateDeps } from "@jini-ai/cms/posts/email-template-store";
 
 /**
  * @file The shared operations over the REAL Pages storage: `SqlPostRepo` + `SqlPagesHtmlDocumentStore`
@@ -28,7 +29,7 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
     const clock = createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" });
     const postRepo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
     let n = 0;
-    const deps: EmailTemplateDeps = {
+    const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
       workspaceId: WS,
       postRepo,
       clock,
@@ -49,4 +50,24 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
     const revisions = await postRepo.listRevisions({ workspaceId: WS, postId: a.id });
     assert.ok(revisions.length >= 2, "the store's revision ledger records the template's history");
   });
+  test('HTML conversion failure rolls back the draft row', async () => {
+    const kernel = makeKernel();
+    const clock = createFakeClock({ startIso: '2026-10-22T00:00:00.000Z' });
+    const postRepo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+    const fault = new Error('conversion failed');
+    const deps: EmailTemplateDeps = { EmailTemplateNotFoundError, workspaceId: WS, postRepo, clock, idGen: { newId: () => 'failed-template' },
+      pagesHtmlStore: (scope, options = {}) => {
+        const store = new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock,
+          revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+        store.ensureHtmlFormat = async () => {
+          assert.ok(await postRepo.findById({ workspaceId: WS, id: 'failed-template' }));
+          throw fault;
+        };
+        return store;
+      },
+    };
+    await assert.rejects(createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: 'Failed', html: HTML }, actorId: 'u1' }), error => error === fault);
+    assert.equal(await postRepo.findById({ workspaceId: WS, id: 'failed-template' }), null);
+  });
+
 });

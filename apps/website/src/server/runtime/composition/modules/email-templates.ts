@@ -19,7 +19,7 @@ import {
   renameEmailTemplate,
   renderEmailTemplateForSend,
 } from "@jini-ai/platform/mail/email-template-operations";
-import { emailTemplateStore } from "#src/features/email-templates/operations";
+import { emailTemplateStore } from "@jini-ai/cms/posts/email-template-store";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
@@ -61,7 +61,7 @@ export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = ({ errors
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
   const base = { ...emailTemplatePortDeps({ deps }), ...templateErrorDeps };
   // The store is built per call from `deps`, as the hand-written handlers did, so a test that swaps a repo method after boot is honoured.
-  const store = () => emailTemplateStore({ deps });
+  const store = () => emailTemplateStore({ deps: { ...deps, EmailTemplateNotFoundError } });
   const editHtmlPermission = PAGES_EDIT_HTML_PERMISSION;
   mountAdminJsonRoute({ errors, app, spec: emailTemplateListRoute, deps: { ...base, listTemplates: ({ input }) => listEmailTemplates({ store: store(), input }) } }, MOUNT_OPTIONS);
   mountAdminJsonRoute({ errors, app: capped, spec: emailTemplateCreateRoute, deps: { ...base, editHtmlPermission, createTemplate: ({ input, actorId }) => createEmailTemplate({ store: store(), input, actorId }) } }, MOUNT_OPTIONS);

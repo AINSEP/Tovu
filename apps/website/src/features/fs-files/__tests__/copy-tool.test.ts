@@ -1,17 +1,22 @@
-import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
+import { bindFilesCopyToolDeps } from '#src/server/runtime/composition/asset-tool-host';
+import { approvalToolHandler } from '#src/contracts/core/human-confirm';
+import { describeWriteBatch } from '@jini-ai/cms/fs-files/tool-registrations';
+import { ASSET_SOURCE_SCHEMA, type AssetToolDeps } from '#src/features/asset-transfer/asset-sources';
+import { buildFilesCopyAgentToolCatalog } from '@jini-ai/cms/asset-transfer/copy-tool';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { EgressRefusedError } from "#src/platform/http/index";
-import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerivedRisk, FILES_COPY_LIMITS } from "../../asset-transfer/copy-tool.js";
+import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerivedRisk, FILES_COPY_LIMITS } from "@jini-ai/cms/asset-transfer/copy-tool";
 import { assetToolHarness, until } from "./asset-tool-fixture.js";
-import { bindAssetHost } from "#src/server/runtime/composition/asset-tool-host";
 import { THEME_IMPORT_ACCEPT, THEME_IMPORT_MAX_BYTES, THEME_IMPORT_POLICY } from "#src/features/theme/asset-operations";
 
 /** Owner 2026-10-27: copy tool through actual source guards, existing destination writers and cards. */
-const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: buildFilesCopyRegistrations, toolId: "files_copy" });
+const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: (deps, surfaces) => buildFilesCopyRegistrations({ deps: bindFilesCopyToolDeps({ deps }), surfaces,
+    catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: 'content.read' }),
+    approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) } }), toolId: "files_copy" });
 const source = { root: "picked", path: "logo.png" };
 const theme = { kind: "theme", themeId: "match", path: "assets" };
 interface Result { applied: boolean; written: string[]; skipped: string[]; media: { id: string; slug: string; publicUrl: string }[] }
@@ -23,7 +28,9 @@ function folder(dir: string, count: number, bytes: Buffer = Buffer.from("asset")
 }
 
 test("copy catalog, metadata and risk declarations register one generic recipe surface", () => {
-  assert.equal(contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost }).domain, "files-copy");
+  assert.equal(contributeFilesCopyTools({ catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: 'content.read' }),
+    approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) },
+    bindDeps: ({ deps }: { deps: AssetToolDeps }) => bindFilesCopyToolDeps({ deps }) }).domain, "files-copy");
   assert.equal(filesCopyDerivedRisk.get("files_copy"), "mutates-durable-state");
   assert.deepEqual(nativeToolMetadata.byId.files_copy?.approval, { class: "edit", confirmation: "policy" });
 });
@@ -117,7 +124,9 @@ test("skip, overwrite and rename handle disk collisions and repeated paths withi
   assert.deepEqual(skipped.skipped, ["assets/logo.png"]);
   assert.equal(fs.readFileSync(path.join(h.theme, "assets/logo.png"), "utf8"), "old");
   const renamed = await h.call({ sources: [source, source], destination: theme, overwrite: "rename" }) as Result;
-  assert.deepEqual(renamed.written, ["assets/logo-1.png", "assets/logo-2.png"]);
+  assert.deepEqual(renamed, { applied: true, written: ["assets/logo-1.png", "assets/logo-2.png"], skipped: [],
+    status: h.deps.assetHost.findTheme({ themeId: "match" }).status,
+    errors: h.deps.assetHost.findTheme({ themeId: "match" }).errors });
   const overwritten = await h.call({ sources: [source], destination: theme, overwrite: "overwrite" }) as Result;
   assert.deepEqual(overwritten.written, ["assets/logo.png"]);
   assert.deepEqual(fs.readFileSync(path.join(h.theme, "assets/logo.png")), h.png);

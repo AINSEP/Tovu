@@ -5,16 +5,12 @@ import { createHash, createHmac } from "node:crypto";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
-import { createPublishCredential, PublishCredentialSecretStoreUnconfiguredError, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
+import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
+import { PublishCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
-import {
-  canYieldAccountLabel,
-  InMemoryPublishCredentialVerificationCache,
-  verifyPublishCredential,
-  verifyPublishCredentialById,
-  type PublishCredentialVerificationCache,
-} from "../verify.js";
+import { canYieldAccountLabel, InMemoryPublishCredentialVerificationCache, type PublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
+import { verifyPublishCredential, verifyPublishCredentialById } from "../verify.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 

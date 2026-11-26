@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 /**
@@ -47,7 +48,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
 import { validateRepositoryTarget } from "../repository-target.js";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
@@ -98,7 +99,7 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
     sourceControlWrite: bindSourceControlWritePort({ validateRepositoryTarget, load: githubFromSource, httpClient }),
-    publishCompatibility: bindPublishCompatibility({ source: {} }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }),
     // The example-host fixture plugin's scheme rules from source, shaped as a bundled plugin ships them.
     loadAuthSchemes: loadFixtureAuthSchemes,
     customCredentialsAudit: new InMemoryCredentialedRequestAuditLog(),

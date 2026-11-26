@@ -1,3 +1,4 @@
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
 // `type`-only, so it is erased and adds no runtime edge — used only to annotate
 // {@link runExportSite} below.
 import type { ExportEngine } from "@jini-ai/devops/deploy/site/export-run";
@@ -15,7 +16,8 @@ import { isAdminAssistantEnabled } from "../../admin-assistant-enabled.js";
 import { resolveStorefrontProducts } from "../../../../inbound/public-http/routes/site/products.js";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { listPublishedPosts } from "#src/features/post/index";
-import { InMemoryPublishHistoryStore, InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
+import { InMemoryPublishHistoryStore } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
+import { InMemoryPublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
 import { executionModeFromEnv } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { deployConfigGenerators } from "#src/features/deployments/index";
@@ -159,7 +161,7 @@ export function memoryDeployRegistryDeps(_required: MemoryRootContext, _optional
   return {
     // 2026-08-16 rework — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqlitePublishHistoryStore`;
     // see `routes/types.ts`'s `publishHistoryStore` doc.
-    publishHistoryStore: new InMemoryPublishHistoryStore(),
+    publishHistoryStore: new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
     // `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so a test can still exercise
     // `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.

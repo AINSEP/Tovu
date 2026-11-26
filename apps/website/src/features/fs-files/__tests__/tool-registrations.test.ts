@@ -1,3 +1,6 @@
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,7 +12,8 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID, FS_WRITE_FILES_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
 import { MAX_FS_FILE_BYTES } from "../fs-files.js";
 import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS, type FsRootId } from "../layout.js";
-import { buildFsFilesRegistrations, fsFilesDerivedRisk, getHostFsFilesAgentToolCatalog, type FsFilesToolDeps, contributeFsFilesTools } from "../tool-registrations.js";
+import { buildFsFilesRegistrations, getHostFsFilesAgentToolCatalog, type FsFilesToolDeps, contributeFsFilesTools, preparePickedFolderBatch } from "../tool-registrations.js";
+import { fsFilesDerivedRisk } from "@jini-ai/cms/fs-files/tool-registrations";
 
 /**
  * @file The `fs_list_files`/`fs_read_file` registrations — their catalog shape, their permission
@@ -309,6 +313,7 @@ test("fs_list_files pages a directory exceeding the former 2000-file cap", async
     const result = await handler(toolContext({ root: "site", path: "capped" }, FS_LIST_FILES_TOOL_ID)) as { files: string[]; truncated: boolean; remaining: number; nextCursor: string };
     assert.equal(result.files.length, 100);
     assert.equal(result.truncated, true);
+    assert.equal(Object.hasOwn(result, "truncated"), true);
     assert.equal(result.remaining, 1901);
     assert.equal(result.nextCursor, "100");
     const last = await handler(toolContext({ root: "site", path: "capped", cursor: "2000" }, FS_LIST_FILES_TOOL_ID)) as { files: string[]; truncated: boolean };
@@ -402,4 +407,42 @@ test("the exported raw handler reaches requireCurrentSite before root resolution
       return true;
     });
   }
+});
+
+
+test("a declined prepared write leaves the picked folder unchanged", async t => {
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fs-decline-")));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const site = path.join(base, "site");
+  const custom = path.join(base, "picked");
+  fs.mkdirSync(site);
+  fs.mkdirSync(custom);
+  fs.writeFileSync(path.join(custom, "existing.txt"), "original");
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "declined-write" }, defaultChannel: "mcp-ui" });
+  const registrations = buildFsFilesRegistrations(toolDeps({ siteBinding: { dir: site }, resolveRoots: () => ({ repo: site, site, custom }) }), { surfaceExchanges: store });
+  const handler = handlerFor(registrations, FS_WRITE_FILES_TOOL_ID);
+  const result = await handler({ executionId: "decline", principal: { id: PRINCIPAL_ID }, run: { id: "run" }, input: { files: [{ path: "existing.txt", content: "changed" }, { path: "new.txt", content: "new" }] }, signal: new AbortController().signal }, {
+    emitSurface: async () => { store.deliver({ exchangeId: "declined-write", principalId: PRINCIPAL_ID, params: { decision: "cancel" } }, { toolId: FS_WRITE_FILES_TOOL_ID }); },
+  }) as { applied: boolean; cancelled: boolean };
+  assert.equal(result.applied, false);
+  assert.equal(result.cancelled, true);
+  assert.equal(fs.readFileSync(path.join(custom, "existing.txt"), "utf8"), "original");
+  assert.deepEqual(fs.readdirSync(custom), ["existing.txt"]);
+});
+
+test("picked-folder-escapes-root is refused before reading any file", t => {
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fs-escape-")));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const site = path.join(base, "site");
+  const custom = path.join(base, "picked");
+  fs.mkdirSync(site);
+  fs.mkdirSync(custom);
+  const deps = toolDeps({ siteBinding: { dir: site }, resolveRoots: () => ({ repo: site, site, custom }) });
+  let reads = 0;
+  t.mock.method(fs, "readFileSync", () => { reads++; assert.fail("an escaping path must be refused before a read"); });
+  for (const filePath of ["../outside.txt", path.join(base, "outside.txt")]) {
+    assert.throws(() => preparePickedFolderBatch({ routeDeps: deps, files: [{ path: filePath, content: "changed" }] }), /relative|outside|\.\./i);
+  }
+  assert.equal(reads, 0);
+  assert.deepEqual(fs.readdirSync(custom), []);
 });

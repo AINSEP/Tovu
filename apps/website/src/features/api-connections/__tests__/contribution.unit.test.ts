@@ -10,7 +10,8 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
-import { API_CONNECTIONS_FILENAME, loadDeclaredApiConnections, parseApiConnectionsFile } from "../contribution.js";
+import { loadDeclaredApiConnections, parseApiConnectionsFile } from "../contribution.js";
+import { API_CONNECTIONS_FILENAME } from "@jini-ai/integrations/api-connections/contribution";
 import { ACME_PLUGIN, acmeFixtureCopy } from "./support/acme-harness.js";
 
 const descriptorFields = { label: "Acme", authorizationEndpoint: "https://auth.acme.test/authorize", tokenEndpoint: "https://auth.acme.test/token" };
@@ -207,4 +208,13 @@ test("security (T5): own exact runtime client names are admitted; a foreign clie
     declaration.clients = { web: { clientIdEnv: "TOVU_OTHER_OAUTH_WEB_CLIENT_ID" } };
   });
   assert.equal((await loadDeclaredApiConnections({ workspaceId: "ws-1", loadContributions: loaderFor(root) })).connections.length, 0);
+});
+
+
+test("load: shape-valid manifest namespace still requires that plugin's authorization", async t => {
+  const root = acmeFixtureCopy(t, declaration => { declaration.clients = vendorClients; });
+  const loaded = await loadDeclaredApiConnections({ workspaceId: "ws-1", loadContributions: loaderFor(root) },
+    { clientNamespaceFor: async () => "OTHER_" });
+  assert.deepEqual(loaded.connections, []);
+  assert.deepEqual(loaded.refusals, ["API connection 'account' from 'acme-office' was not loaded: Client settings must belong to this plugin's OTHER_ACME_OFFICE_ namespace."]);
 });

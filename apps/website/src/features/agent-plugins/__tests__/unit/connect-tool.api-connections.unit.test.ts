@@ -41,7 +41,7 @@ function ctxFor(signal: AbortSignal = new AbortController().signal): ToolExecuti
  *  external-MCP store is real but stays empty: this branch never provisions an MCP row. */
 function depsFor(apiConnections: ApiConnectionConnectDeps | undefined, waitTimeoutMs: number | null = 5_000): AgentPluginConnectToolDeps {
   const keyring = new InMemoryKeyring();
-  const apiPort: AgentPluginApiConnectionsPort<import("../../../api-connections/contribution.js").DeclaredApiConnection> | undefined = apiConnections && {
+  const apiPort: AgentPluginApiConnectionsPort<import('@jini-ai/integrations/api-connections').DeclaredApiConnection> | undefined = apiConnections && {
     listConnections: (input, _options = {}) => apiConnections.host.listConnections(input),
     connect: (input, _options = {}) => runApiConnectionConnect({ ...input, deps: apiConnections }),
   };

@@ -10,7 +10,8 @@ import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
-import { applyAgentPluginToolRenames, renameToolNames } from "../../apply-tool-renames.js";
+import { applyAgentPluginToolRenames } from "../../apply-tool-renames.js";
+import { renameToolNames } from "@jini-ai/agent-plugins/connect";
 import type { InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

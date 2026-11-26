@@ -1,7 +1,8 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildExternalMcpRegistrations, externalMcpDerivedRisk } from "../../tool-registrations.js";
+import { buildExternalMcpRegistrations } from "../../tool-registrations.js";
+import { externalMcpDerivedRisk } from "@jini-ai/mcp/external/tool-registrations";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildExternalMcpOperationsRegistrations, contributeExternalMcpOperationsTools, externalMcpOperationsDerivedRisk } from "@jini-ai/mcp/external/operations-tools";
 import { externalMcpOperationsHost } from "../../external-mcp-host-copy.js";

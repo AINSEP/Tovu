@@ -8,7 +8,6 @@ import { withAgentPluginMcpPorts } from "./mcp-host-bindings.js";
 import { createApplyConnectDefaults, isPluginOffByOperator as defaultIsPluginOffByOperator, switchPluginOnUnlessOperatorOff } from "./apply-connect-defaults.js";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "@jini-ai/agent-plugins/site/service-ports";
-export type { SavedTokenSwitchOutcome } from "@jini-ai/agent-plugins/connect";
 
 /** Where each "off" is switched back on in the admin (`apps/admin/src/panels.tsx` nav labels). */
 export const AGENT_PLUGINS_SCREEN = "Add-Ons → Agent Plugins";

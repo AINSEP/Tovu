@@ -4,7 +4,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
-import { InMemoryPublishHistoryStore, listPublishDestinations, listStaticPublishDestinations, publicPublishConfigFields, type PublishHistoryEntry } from "../publish-history.js";
+import { InMemoryPublishHistoryStore, listPublishDestinations, listStaticPublishDestinations, publicPublishConfigFields, type PublishHistoryEntry } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { MAX_PUBLISH_HISTORY_LIST_LIMIT, resolvePublishHistoryListLimit } from "@tovu/contracts/publish-history-list-limit";
 
@@ -36,7 +36,7 @@ function entry(overrides: Partial<PublishHistoryEntry> = {}): PublishHistoryEntr
 }
 
 test("InMemoryPublishHistoryStore: getLast is null until a record exists, then returns exactly what was recorded", async () => {
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   assert.equal(await store.getLast({ workspaceId: WORKSPACE_A, target: "github-pages" }), null);
 
   const recorded = entry();
@@ -45,7 +45,7 @@ test("InMemoryPublishHistoryStore: getLast is null until a record exists, then r
 });
 
 test("InMemoryPublishHistoryStore: isolates by BOTH workspace and target", async () => {
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "github-pages", url: "https://a.github.io/x/" }) });
   await store.recordSuccess({
     workspaceId: WORKSPACE_A,
@@ -60,7 +60,7 @@ test("InMemoryPublishHistoryStore: isolates by BOTH workspace and target", async
 });
 
 test("InMemoryPublishHistoryStore: a second recordSuccess for the SAME (workspace, target) is APPENDED, not replaced — getLast still returns the newest", async () => {
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "https://old.example.test", publishedAt: "2026-08-15T00:00:00.000Z" }) });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "https://new.example.test", publishedAt: "2026-08-16T00:00:00.000Z" }) });
 
@@ -79,7 +79,7 @@ test("InMemoryPublishHistoryStore: a second recordSuccess for the SAME (workspac
 });
 
 test("InMemoryPublishHistoryStore.list: newest first, across mixed targets, optionally narrowed to one target", async () => {
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "github-pages", url: "u1", publishedAt: "2026-08-14T00:00:00.000Z" }) });
   await store.recordSuccess({
     workspaceId: WORKSPACE_A,
@@ -98,7 +98,7 @@ test("InMemoryPublishHistoryStore.list: newest first, across mixed targets, opti
 });
 
 test("InMemoryPublishHistoryStore.list: respects a caller-supplied limit smaller than the full history", async () => {
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   for (let i = 0; i < 5; i += 1) {
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: `u${i}`, publishedAt: `2026-08-1${i}T00:00:00.000Z` }) });
   }
@@ -119,7 +119,7 @@ test("both publish-history adapters return newest recorded first, even when publ
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-08-16T00:00:00.000Z" }).run();
-  for (const store of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const store of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u1", publishedAt: "2026-08-16T00:00:00.000Z" }) });
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u2", publishedAt: "2026-08-14T00:00:00.000Z" }) });
     await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "vercel", url: "u3", publishedAt: "2026-08-15T00:00:00.000Z" }) });
@@ -137,7 +137,7 @@ test("Publish destinations: both adapters retain latest successful project acros
     db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
   }
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     const list = () => listStaticPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry });
     assert.deepEqual(await list(), []);
     const saved = entry({ target: "vercel", projectName: "first", credentialId: "connection-a", configFields: { teamId: "team-a", token: "NEVER_RETURN", unknown: "NEVER_RETURN" } });
@@ -163,7 +163,7 @@ test("Publish destinations: both adapters retain latest successful project acros
 });
 
 test("Publish destinations: sorts by publication time rather than insertion order", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const registry = await loadBundledDeployTargets();
   const newer = entry({ projectName: "newer", configFields: {}, publishedAt: "2026-10-18T02:00:00Z" });
   const older = entry({ projectName: "older", configFields: {}, publishedAt: "2026-10-18T01:00:00Z" });
@@ -189,7 +189,7 @@ test("Publish destinations: descriptor secrets and credential/config name collis
 });
 
 test("Publish destinations: over 200 distinct destinations refuses instead of silently truncating", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   for (let i = 0; i < 201; i++) {
     await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "vercel", projectName: `site-${i}`, configFields: {} }) });
   }
@@ -202,7 +202,7 @@ test("mixed destination kinds group independently, retain latest successes, and 
   t.after(() => db.$client.close());
   for (const id of [WORKSPACE_A, WORKSPACE_B]) db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     const staticRow = entry({ target: "vercel", projectName: "site", configFields: {}, publishedAt: "2026-10-18T01:00:00Z" });
     const peerRow = entry({ kind: "tovu-peer", target: "saved", projectName: "", configFields: undefined, url: "https://live.test", publishedAt: "2026-10-18T03:00:00Z" });
     const deployRow = entry({ kind: "deploy", target: "vercel", projectName: "site", configFields: undefined, url: "https://live.test/", publishedAt: "2026-10-18T02:00:00Z" });
@@ -228,7 +228,7 @@ test("both adapters expose accepted deploys only as pending, including legacy re
   t.after(() => db.$client.close());
   db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-10-18T00:00:00Z" }).run();
   const registry = await loadBundledDeployTargets();
-  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore({ store: db })]) {
+  for (const historyStore of [new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }), new SqlitePublishHistoryStore({ store: db })]) {
     for (const reachable of [false, true]) {
       await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ kind: "deploy", target: "server",
         projectName: String(reachable), url: "https://live.test", reachable, status: "started" }) });
@@ -246,7 +246,7 @@ test("both adapters expose accepted deploys only as pending, including legacy re
 });
 
 test("destination selection pins replay eligibility, kind grouping, latest eligible row and the 201-row sentinel", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   assert.deepEqual(await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_A }), []);
   const rows = [
     entry({ projectName: "legacy" }),
@@ -273,7 +273,7 @@ test("destination selection pins replay eligibility, kind grouping, latest eligi
 });
 
 test("mixed projection pins empty deploy URLs, exact peer paths, pending status and saved peer identity", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const registry = await loadBundledDeployTargets();
   const rows = [
     entry({ kind: "tovu-peer", target: "saved", projectName: "peer", url: "https://stale.test" }),
@@ -305,7 +305,7 @@ test("a deploy that neither reached its host nor was accepted is not a destinati
 });
 
 test("in-memory listLiveUrls returns the workspace's distinct URLs sorted, stopping after 201", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   assert.deepEqual(await historyStore.listLiveUrls({ workspaceId: WORKSPACE_A }), []);
   for (const url of ["https://b.example", "https://a.example", "https://b.example"]) await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url }) });
   await historyStore.recordSuccess({ workspaceId: WORKSPACE_B, entry: entry({ url: "https://foreign.example" }) });

@@ -9,7 +9,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildExternalMcpRegistrations } from "#src/features/external-mcp/tool-registrations";
-import { readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
+import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
@@ -192,4 +192,33 @@ test("a hosted token delivered by the human MCP-UI form is stored without echoin
   const resolved = await readEnabledExternalMcpConfigs({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
   assert.deepEqual(resolved.configs.find(config => config.serverId === "hosted-token")!.target,
     { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: `Bearer ${secret}` } });
+});
+
+
+test('a connection created after the card requires new approval and the old submission writes nothing', async t => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const { toolExecutor, deps } = buildRealExternalMcpToolExecutor(surfaceExchanges);
+  const emitted: SurfaceEmission[] = [];
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: 'changed-basis' }, toolId: 'external_mcp_save',
+    input: { id: 'changed-basis', transport: 'streamable_http', authMode: 'none' } }, { emitSurface: async emission => { emitted.push(emission); } });
+  await new Promise(resolve => setImmediate(resolve));
+  const exchangeId = exchangeIdFromEmission(emitted[0]!);
+  await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, { workspaceId: WORKSPACE_ID, serverId: 'changed-basis',
+    transport: 'streamable_http', url: 'https://current.example/mcp', authMode: 'none', enabled: true, principalId: PRINCIPAL });
+  const before = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'changed-basis' });
+  const writes = t.mock.method(deps.externalMcpServerRepo, 'updateIfVersion');
+  const app = express(); app.use(express.json());
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges }, errors: createRouteIncidentReporter().errors });
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, { method: 'POST',
+    headers: { 'content-type': 'application/json', [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+    body: JSON.stringify({ toolName: 'external_mcp_save', params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId,
+      id: 'changed-basis', transport: 'streamable_http', authMode: 'none', url: 'https://stale.example/mcp' } }) });
+  assert.equal(response.status, 202);
+  const executed = await pending;
+  assert.equal((executed.output as { saved: boolean }).saved, false);
+  assert.match((executed.output as { message: string }).message, /request the card again/);
+  assert.equal(writes.mock.callCount(), 0);
+  assert.deepEqual(await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'changed-basis' }), before);
 });

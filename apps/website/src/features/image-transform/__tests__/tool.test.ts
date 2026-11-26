@@ -1,4 +1,12 @@
-import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
+import { bindAssetDestinationDeps } from '#src/server/runtime/composition/asset-tool-host';
+import { requireAssetDestination, prepareAssetWrites, writeAssetFiles } from '@jini-ai/cms/asset-transfer/asset-destinations';
+import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import { describeWriteBatch } from '@jini-ai/cms/fs-files/tool-registrations';
+import { ASSET_SOURCE_SCHEMA, readAssetSource, type AssetToolDeps } from '#src/features/asset-transfer/asset-sources';
+import { buildImageTransformAgentToolCatalog } from '@jini-ai/cms/media/site-transform/tool';
+import { FsFilePathError } from '@jini-ai/platform/fs/guarded-reader';
+import { FsWriteInputError } from '@jini-ai/cms/fs-files/write-files';
+import { isImportShapeRejection } from '#src/features/media-import/tool-registrations';
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -8,7 +16,7 @@ import sharp from "sharp";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
-import { IMAGE_TRANSFORM_TOOL_ID, buildImageTransformRegistrations, contributeImageTransformTools, imageTransformDerivedRisk } from "../tool.js";
+import { IMAGE_TRANSFORM_TOOL_ID, buildImageTransformRegistrations, contributeImageTransformTools, imageTransformDerivedRisk } from "@jini-ai/cms/media/site-transform/tool";
 
 /**
  * @file `image_transform` as the agent calls it: source resolution through the fs-files roots,
@@ -17,7 +25,14 @@ import { IMAGE_TRANSFORM_TOOL_ID, buildImageTransformRegistrations, contributeIm
  */
 
 import { assetToolHarness, until } from "../../fs-files/__tests__/asset-tool-fixture.js";
-const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: (deps, surfaces) => buildImageTransformRegistrations({ ...deps, imageCodec: new SharpImageTransformer() }, surfaces), toolId: IMAGE_TRANSFORM_TOOL_ID });
+const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: (deps, surfaces) => buildImageTransformRegistrations({ deps: {
+  destination: bindAssetDestinationDeps({ deps }), source: { readAsset: input => readAssetSource({ deps, ...input }) },
+  imageCodec: new SharpImageTransformer(), refuseUnexpectedKeys,
+  isFsShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof FsWriteInputError,
+  isThemeShapeRejection: input => deps.assetHost.isThemeShapeRejection(input), isImportShapeRejection,
+}, surfaces, catalog: buildImageTransformAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: 'content.read' }),
+  approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) },
+  destinationKit: { requireAssetDestination, prepareAssetWrites, writeAssetFiles } }), toolId: IMAGE_TRANSFORM_TOOL_ID });
 
 const SOURCE = { root: "site", path: "logo.png" };
 const FAVICONS = [{ path: "favicon.ico", format: "ico", icoSizes: [16, 32, 48] }, { path: "apple-touch-icon.png", format: "png", resize: { width: 180, height: 180, fit: "contain" } }];
@@ -26,13 +41,23 @@ const listing = (dir: string) => fs.readdirSync(dir, { recursive: true }).map(St
 test("catalog, risk, metadata and contributor agree", () => {
   assert.equal(imageTransformDerivedRisk.get(IMAGE_TRANSFORM_TOOL_ID), "mutates-durable-state");
   assert.deepEqual(nativeToolMetadata.byId[IMAGE_TRANSFORM_TOOL_ID]?.approval, { class: "edit", confirmation: "policy" });
-  assert.equal(contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls }).domain, "image-transform");
+  assert.equal(contributeImageTransformTools({ catalog: buildImageTransformAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: 'content.read' }),
+    approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) },
+    destinationKit: { requireAssetDestination, prepareAssetWrites, writeAssetFiles },
+    bindDeps: ({ deps }: { deps: AssetToolDeps & { imageCodec: SharpImageTransformer } }) => ({ destination: bindAssetDestinationDeps({ deps }),
+      source: { readAsset: input => readAssetSource({ deps, ...input }) }, imageCodec: deps.imageCodec, refuseUnexpectedKeys,
+      isFsShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof FsWriteInputError,
+      isThemeShapeRejection: input => deps.assetHost.isThemeShapeRejection(input), isImportShapeRejection }),
+  }).domain, "image-transform");
 });
 
 test("inspect (no outputs) reads the source, reports sizes, and writes nothing anywhere", async (t) => {
   const h = await harness(t, { custom: "picked" });
   const before = listing(h.base);
-  assert.deepEqual((await h.call({ source: SOURCE }) as { source: unknown }).source, { format: "png", width: 200, height: 100, hasAlpha: true, bytes: fs.statSync(path.join(h.site, "logo.png")).size });
+  const inspected = await h.call({ source: SOURCE }) as { source: unknown; applied: boolean; outputs: unknown[] };
+  assert.equal(inspected.applied, false);
+  assert.deepEqual(inspected.outputs, []);
+  assert.deepEqual(inspected.source, { format: "png", width: 200, height: 100, hasAlpha: true, bytes: fs.statSync(path.join(h.site, "logo.png")).size });
   assert.equal(h.emitted.length, 0, "an inspect asks nothing");
   assert.deepEqual(listing(h.base), before);
 });
@@ -128,7 +153,10 @@ test("site destinations use the existing batch approval and guarded writer", asy
   const pending = h.call(input); await until(() => h.emitted.length > 0);
   assert.equal(fs.existsSync(path.join(h.site, "public/social.png")), false);
   h.answer("confirm");
-  assert.deepEqual((await pending as { written: string[] }).written, ["public/social.png"]);
+  const result = await pending as { applied: boolean; written: string[] };
+  assert.equal(result.applied, true);
+  assert.equal(Object.hasOwn(result, 'failed'), false);
+  assert.deepEqual(result.written, ["public/social.png"]);
   assert.equal((await sharp(path.join(h.site, "public/social.png")).metadata()).width, 200);
 });
 
@@ -147,4 +175,18 @@ test("media source cap is checked before the blob payload is fetched", async t =
   const get = t.mock.method(h.deps.blobStore, "get");
   await assert.rejects(() => h.call({ source: { root: "media", path: imported.media[0]!.id } }), /exceeds/);
   assert.equal(get.mock.callCount(), 0);
+});
+
+
+test('site prepared writer reports a named partial failure after confirmation', async t => {
+  const h = await harness(t);
+  const pending = h.call({ source: SOURCE, outputs: [{ path: 'a.png', format: 'png' }, { path: 'b.png', format: 'png' }], destination: { kind: 'site' } });
+  await until(() => h.emitted.length > 0);
+  fs.mkdirSync(path.join(h.site, 'b.png'));
+  h.answer('confirm');
+  const result = await pending as { applied: boolean; written: string[]; failed: { path: string }; notWritten: string[] };
+  assert.equal(result.applied, false);
+  assert.deepEqual(result.written, ['a.png']);
+  assert.equal(result.failed.path, 'b.png');
+  assert.deepEqual(result.notWritten, []);
 });

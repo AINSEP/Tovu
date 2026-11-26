@@ -1,3 +1,5 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -16,7 +18,7 @@ import {
 } from "@jini-ai/cms/media";
 
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 
@@ -112,7 +114,7 @@ type FakeDeps = ReturnType<typeof fakeRouteDeps>["deps"];
 
 function duplicateTool(deps: FakeDeps): ToolRegistration {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    listResourceHandlers: () => contributeMediaDuplicateHandlers({ deriveDuplicateName }),
+    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributeMediaDuplicateHandlers({ deriveDuplicateName }),
   });
   const found = registrations.find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(found, "expected 'content_duplicate' to be wired");

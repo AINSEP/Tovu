@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { sql } from 'kysely';
 import { eachDialect } from '#src/platform/db/kernel/__tests__/dialect-matrix';
-import { createIdentityTransactions } from '../repo.js';
+import { createIdentityTransactions } from '@jini-ai/user-management/identity/repo';
 import { createMfaStore } from '../repo.sqlite.js';
 
 for (const adapter of eachDialect({ tables: ['owner_mfa_factors', 'owner_mfa_pending'], make: kernel => kernel })) {

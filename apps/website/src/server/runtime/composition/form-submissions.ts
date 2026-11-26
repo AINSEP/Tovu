@@ -6,7 +6,7 @@ import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import { listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit-binding";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
-import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
+import type { StaticPublishFormDestinationPort } from "@jini-ai/devops/deploy/site/static-publish/adapter";
 import { formReceiverKey, listFormDestinations } from "#src/features/form-destinations/key-store";
 import { createFormDestinationPort } from "@jini-ai/cms/forms/destinations/port";
 import { FORM_PULL_LEASE_MS, formDestinationKey, pullFromFormDestination } from "@jini-ai/cms/forms/destinations/pull";

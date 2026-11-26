@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 /** @file EXTRACT-S8-X: an independent host supplies every remaining credential-tool operation. */
 import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
@@ -18,7 +19,7 @@ import type { DeployTargetRegistry, LoadedDeployTarget } from '@jini-ai/devops/d
 import { CustomCredentialDuplicateLabelError, CustomCredentialValidationError, CustomCredentialSecretStoreUnconfiguredError } from '../store.js';
 import type { CustomCredentialToolHost, CredentialToolActorDeps, CredentialToolOperations } from '@jini-ai/integrations/credentialed-http/tools';
 import { credentialToolDeps, ctx, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 
 const ids = { list: 'acme_inventory', verify: 'acme_check', setUsername: 'acme_username', makeRequest: 'acme_request', writeFiles: 'acme_files', save: 'acme_save' };
 const oldNames = ['custom_credential_list', 'custom_credential_verify', 'custom_credential_set_username', 'custom_credential_make_request', 'custom_credential_write_files'];
@@ -309,7 +310,7 @@ test('real Tovu bindings retain the current registry/cache/repo and guard, with 
   const deleted: { workspaceId: string; target: string }[] = [];
   const cache = { delete(input: { workspaceId: string; target: string }) { assert.equal(this, cache); deleted.push(input); } };
   const loadDeployTargets = async ({ workspaceId }: { workspaceId: string }) => { assert.equal(workspaceId, base.workspaceId); loads++; return registry; };
-  const deps = { ...base, loadDeployTargets, publishCompatibility: bindPublishCompatibility({ source: { loadDeployTargets, publishCredentialVerificationCache: cache } }) };
+  const deps = { ...base, loadDeployTargets, publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: { loadDeployTargets, publishCredentialVerificationCache: cache } }) };
   const operations = bindTovuCredentialToolOperations({ routeDeps: deps, surfaces: { surfaceExchanges: fixedExchanges('tovu-real') } });
   assert.deepEqual(await operations.publish.loadProviders({}), [{ id: 'acme-target', vendorId: 'acme-vendor' }]);
   const invalidate = await operations.publish.prepareInvalidation({});
@@ -325,11 +326,22 @@ test('real Tovu bindings retain the current registry/cache/repo and guard, with 
   assert.equal((await operations.sets.list({})).length, 1);
 });
 
+test('real Tovu provider enrichment retains source-control choices when hosting is unavailable', async () => {
+  const base = credentialToolDeps({ authorizeCalls: [] });
+  const events: string[] = [];
+  const operations = bindTovuCredentialToolOperations({ routeDeps: { ...base,
+    loadDeployTargets: async () => { events.push('hosting'); throw new Error('unavailable'); },
+    loadSourceControlProviders: async () => { events.push('source'); return { list: () => [{ descriptor: { id: 'source-host' } }] } as never; },
+  }, surfaces: { surfaceExchanges: fixedExchanges('tovu-source-only') } });
+  assert.deepEqual(await operations.publish.loadProviders({}), [{ id: 'source-host', vendorId: 'source-host' }]);
+  assert.deepEqual(events, ['hosting', 'source']);
+});
+
 test('real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup', async () => {
   const base = credentialToolDeps({ authorizeCalls: [] });
   let deployLoads = 0; let sourceLoads = 0;
   const loadDeployTargets = async (): Promise<DeployTargetRegistry> => { deployLoads++; throw new Error('optional deployment unavailable'); };
-  const deps = { ...base, loadDeployTargets, publishCompatibility: bindPublishCompatibility({ source: { loadDeployTargets } }),
+  const deps = { ...base, loadDeployTargets, publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: { loadDeployTargets } }),
     loadSourceControlProviders: async () => { sourceLoads++; throw new Error('optional source-control unavailable'); },
   };
   const operations = bindTovuCredentialToolOperations({ routeDeps: deps, surfaces: { surfaceExchanges: fixedExchanges('tovu-optional') } });

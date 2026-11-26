@@ -1,3 +1,5 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -16,7 +18,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import { createPost } from "../post-create.js";
 import { updatePost } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -105,7 +107,7 @@ test("agent tools record created_by_kind 'agent': content_post_create and conten
   const { post } = (await callTool(create, { kind: "post", title: "From the agent" })) as { post: { id: string } };
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id }))?.createdByKind, "agent");
 
-  const duplicate = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, { listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }) }).find((r) => r.descriptor.id === "content_duplicate");
+  const duplicate = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, { catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }) }).find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(duplicate);
   const copy = (await callTool(duplicate, { resource: "post", id: post.id })) as { post: { id: string } };
   assert.notEqual(copy.post.id, post.id);

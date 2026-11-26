@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
+import type { PublishHistoryEntry } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { openContentDb } from "../content-db.js";
 import { SqlitePublishHistoryStore } from "../publish-history-repo.sqlite.js";
 import { workspaces } from "../../schema.sqlite.js";

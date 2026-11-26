@@ -7,7 +7,8 @@ import path from "node:path";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/repo.memory.js";
 import { loadDeployOpsRegistryFromSource } from "../registry.js";
-import { MAX_MODULE_SLEEP_MS, runDeploy, runDeployOps, waitForDeployOps } from "../run-ops.js";
+import { runDeploy, runDeployOps } from "../run-ops.js";
+import { MAX_MODULE_SLEEP_MS, waitForDeployOps } from '@jini-ai/devops/deploy';
 import type { DeployOpsContext, DeployOpsStatus } from "@jini-ai/devops/deploy";
 import { fixture } from "./example-ops-fixture.js";
 
