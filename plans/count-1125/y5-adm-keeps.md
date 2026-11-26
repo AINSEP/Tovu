@@ -19,6 +19,9 @@
 ^apps/admin/src/features/deployment/hooks/use-static-publish\.hooks\.ts$
 ^apps/admin/src/features/posts/Posts\.tsx$
 ^apps/admin/src/features/publish-content/PublishContentDialog\.tsx$
+^apps/admin/src/features/security/AccessTokensTab\.tsx$
+^apps/admin/src/features/security/Security\.tsx$
+^apps/admin/src/features/security/hooks/use-access-tokens\.hooks\.ts$
 ```
 
 ## Round 2 status

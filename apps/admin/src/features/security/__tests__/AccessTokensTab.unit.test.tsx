@@ -1,3 +1,15 @@
+import { buildCredentialConnectionInput, requiredFieldsFilled, withPromotedDefault, PUBLISH_CREDENTIAL_ROW_LABEL } from "@jini-ai/devops/deploy/react/rules";
+import { buildSourceControlConnectionInput, sourceControlProviderInfoFromDescriptor, SOURCE_CONTROL_CREDENTIAL_ROW_LABEL } from "@jini-ai/devops/source-control/react/rules";
+import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
+import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
+import { localizePublishTargets, localizeSourceControlProviders } from "@jini-ai/admin/shell/lib/descriptor-i18n";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
+import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError } from "@jini-ai/integrations/react/credentials/access-token-forms";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { ACCESS_TOKENS_RESOURCE, ACCESS_TOKEN_CATEGORIES } from "../rules";
 import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -7,14 +19,25 @@ import { CLOUDFLARE_PAGES_TARGET } from "../../deployment/__tests__/publish-targ
 import { AccessTokensTab } from "../AccessTokensTab";
 import { createFakeAccessTokensPort } from "../hooks/access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
-import { useAccessTokens } from "../hooks/use-access-tokens.hooks";
-import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
+import { useAccessTokens } from "@jini-ai/admin/security/host/hooks/use-access-tokens.hooks";
+import type { AccessTokensController } from "@jini-ai/admin/security/host/hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { useCopyKeys } from "@jini-ai/admin/security/host/hooks/use-copy-keys.hooks";
 import { copyKeysHostPolicy } from "../hooks/copy-keys-dependencies.hooks";
 import { accessTokenProviderInfo, accessTokenProviders } from "@jini-ai/admin/security/access-token-providers";
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
-import { sourceControlProviderInfoFromDescriptor } from "@jini-ai/devops/source-control/react/rules";
+
+const HOOKS = { useFetchQuery, useSettlementGeneration, useContentRefreshSubscription };
+const DEPS: Parameters<typeof useAccessTokens>[0]["deps"] = {
+  ACCESS_TOKENS_RESOURCE, ACCESS_TOKEN_CATEGORIES, ACCESS_TOKEN_PROVIDER_COPY,
+  LEGACY_SENTINEL_LABELS: { publish: PUBLISH_CREDENTIAL_ROW_LABEL, "source-control": SOURCE_CONTROL_CREDENTIAL_ROW_LABEL },
+  localizePublishTargets, localizeSourceControlProviders, credentialDraftError, describeApiError,
+  isApiError: (error): error is ApiError => error instanceof ApiError,
+  translateCredentialMessage, requiredFieldsFilled, suggestCredentialWorksFor, sourceControlProviderInfoFromDescriptor,
+  buildCredentialConnectionInput, buildSourceControlConnectionInput, accessTokenRowReadyToSave,
+  accessTokenExistingRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch,
+  classifyAccessTokenSubmitError, withPromotedDefault,
+};
 
 /**
  * @file Regression coverage for the owner-reported bug: this page's search box was filling itself
@@ -108,7 +131,7 @@ describe("AccessTokensTab search box", () => {
       publishTargets: { list: async () => [CLOUDFLARE_PAGES_TARGET] },
       publish: { list: async () => ({ credentials: [saved], executionMode: "self-hosted-cli" }), update },
     });
-    render(<AccessTokensTab useAccessTokensHook={() => useAccessTokens({ port, t: key => key, locale: "en" })} useOtherCredentialsHook={() => makeOtherCredentials()} />);
+    render(<AccessTokensTab useAccessTokensHook={() => useAccessTokens({ hooks: HOOKS, deps: DEPS, port, t: key => key, locale: "en" })} useOtherCredentialsHook={() => makeOtherCredentials()} />);
     await user.click(await screen.findByText("Replace token", { exact: true }));
     await user.click(screen.getByRole("button", { name: "plugin-off", pressed: true }));
     await user.click(screen.getByRole("button", { name: "Save — Production" }));
@@ -176,7 +199,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
       publish: { list: async () => ({ credentials: [saved], executionMode: "self-hosted-cli" }), update },
     });
     render(<AccessTokensTab
-      useAccessTokensHook={() => useAccessTokens({ port, t: (key: string) => key, locale: "en" })}
+      useAccessTokensHook={() => useAccessTokens({ hooks: HOOKS, deps: DEPS, port, t: (key: string) => key, locale: "en" })}
       useOtherCredentialsHook={() => makeOtherCredentials()}
     />);
 

@@ -58,7 +58,7 @@ const WIRED_HOOKS: readonly string[] = [
   "../node_modules/@jini-ai/admin/src/screens/media/hooks/use-media.hooks.ts",
   // Jini owns Forms list invalidation; the host port retains its filtered bus subscription.
   "integrations/jini-admin/forms-ports.ts",
-  "features/security/hooks/use-access-tokens.hooks.ts",
+  "../node_modules/@jini-ai/admin/src/security/host/hooks/access-token-refresh.hooks.ts",
   // Coverage-extension pass (see this file's own header "Extending coverage" note): Comments,
   // Database, Deployments, Redirects, Members, Widgets, Webhooks (admin's "integrations" feature),
   // and Recovery. Comments Settings, Deployment's Dockerfile tab, SEO (both screens), Themes (the

@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { Security as JiniSecurity } from "@jini-ai/admin/security/react/live/Security";
+import { bindSecurity } from "@jini-ai/admin/security/react/live/Security";
 import { useWiredSiteKeyRecovery } from "./hooks/site-key-dependencies.hooks";
 import { useRevealedKeyCopy } from "@jini-ai/admin/security/host/SiteKeyTab.hooks";
 import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
@@ -102,39 +101,30 @@ import { useWiredSecurityPermissions } from "./hooks/security-permissions-depend
  * empty/absent permissions), so the tab never flashes into view before disappearing.
  */
 
-export interface SecurityProps {
-  /** The `?tab=` query value from `panels.tsx`'s `security` route. See {@link resolveSecurityTabId}. */
-  tabId?: string | null;
-  /** DI seam for tests, threaded through to {@link AccessTokensTab} — same convention
-   *  `SourceControlProps.useSourceControlCredentialsHook` follows. */
-  useAccessTokensHook?: typeof useWiredAccessTokens;
-  /** DI seam for tests, threaded through to {@link SiteKeyTab} — same convention. */
-  useSiteKeyHook?: typeof useWiredSiteKey;
-  /** DI seam for tests — decides whether the site key tab is even offered. See this file's
-   *  header ("The site key tab is affordance-hidden"). */
-  useSecurityPermissionsHook?: typeof useWiredSecurityPermissions;
-  useAdminLocaleHook?: typeof useAdminLocale;
-}
-
-
-
-export function Security({ useAdminLocaleHook = useAdminLocale,
-  useSecurityPermissionsHook = useWiredSecurityPermissions, ...props }: SecurityProps) {
-  const panels = useMemo(() => ({
-    AccessTokens: () => <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} />,
-    SiteKey: () => <SiteKeyTab useSiteKeyHook={props.useSiteKeyHook ?? useWiredSiteKey} useSiteKeyRecoveryHook={useWiredSiteKeyRecovery} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocaleHook} kit={{ SecretInput }} copy={{
-      siteKeyEnvVarName: "TOVU_SITE_KEY",
-      scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",
-      invalidEnv: "A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.",
-      invalidFileSuffix: "isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.",
-      siteKeyStatusBadgeLabel,
-      siteKeyGenerateErrorMessage,
-    }} />,
-    Totp: ({ translate }: { translate: (key: string) => string }) => <TotpSettings port={ownerMfaPort} translate={translate} />,
-    RecoveryCodes: RecoveryCodesCard,
-    Passkeys: ({ translate }: { translate: (key: string) => string }) => <PasskeySettings port={ownerPasskeySettingsPort} translate={translate} />,
-  }), [props.useAccessTokensHook, props.useSiteKeyHook, useAdminLocaleHook]);
-  return <JiniSecurity {...(props.tabId === undefined ? {} : { tabId: props.tabId })} useAdminLocaleHook={useAdminLocaleHook} useSecurityPermissionsHook={useSecurityPermissionsHook} kit={{ TabBar, AccessTokensIcon, SiteKeyIcon }} panels={panels}
-    copy={{ t, headerHandleLabel: "Secrets panel header — every saved access token and the site key that protects them, in one place", accessTokensHandleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place" }}
-    onTabChange={({ nextTabId }) => navigateSecurityTab({ nextTabId })} />;
-}
+export const Security = bindSecurity({
+  hooks: {
+    useAdminLocaleHook: useAdminLocale,
+    useSecurityPermissionsHook: useWiredSecurityPermissions,
+    useAccessTokensHook: useWiredAccessTokens,
+    useSiteKeyHook: useWiredSiteKey,
+  },
+  kit: { TabBar, AccessTokensIcon, SiteKeyIcon },
+  deps: {
+    createPanels: ({ useAccessTokensHook, useSiteKeyHook, useAdminLocaleHook }) => ({
+      AccessTokens: () => <AccessTokensTab useAccessTokensHook={useAccessTokensHook} />,
+      SiteKey: () => <SiteKeyTab useSiteKeyHook={useSiteKeyHook} useSiteKeyRecoveryHook={useWiredSiteKeyRecovery} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocaleHook} kit={{ SecretInput }} copy={{
+        siteKeyEnvVarName: "TOVU_SITE_KEY",
+        scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",
+        invalidEnv: "A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.",
+        invalidFileSuffix: "isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.",
+        siteKeyStatusBadgeLabel,
+        siteKeyGenerateErrorMessage,
+      }} />,
+      Totp: ({ translate }) => <TotpSettings port={ownerMfaPort} translate={translate} />,
+      RecoveryCodes: RecoveryCodesCard,
+      Passkeys: ({ translate }) => <PasskeySettings port={ownerPasskeySettingsPort} translate={translate} />,
+    }),
+    copy: { t, headerHandleLabel: "Secrets panel header — every saved access token and the site key that protects them, in one place", accessTokensHandleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place" },
+    onTabChange: ({ nextTabId }) => navigateSecurityTab({ nextTabId }),
+  },
+});
