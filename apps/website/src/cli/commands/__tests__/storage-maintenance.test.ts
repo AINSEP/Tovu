@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
+import { Command } from "commander";
 import type { DirectoryRunningRecord } from "@jini-ai/platform/fs";
 import type { RetentionPolicy } from "@jini-ai/platform/retention";
 
@@ -18,8 +19,9 @@ import { claimSiteRunning, readSiteRunning } from "#src/platform/site-dir/site-r
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import {
   runStorageCapabilitiesCommand, runStorageCleanCommand, storageCleanPorts,
-  type StorageCleanRequired, type StoppedSiteHandles,
+  type StorageCleanRequired, type StorageCompactionBinding, type StoppedSiteHandles,
 } from "../storage-maintenance.js";
+import { registerStorageCommands } from "../storage-program.js";
 
 async function site(t: TestContext): Promise<string> {
   const dir = await realpath(await mkdtemp(path.join(tmpdir(), "storage-clean-")));
@@ -209,4 +211,66 @@ test("storage-clean error log carries the incident id and no raw error message",
   assert.ok(text.includes(errorId), text);
   assert.ok(text.includes("EACCES"), text);
   assert.ok(!text.includes("sk-ant-api03") && !text.includes("/home/owner"), text);
+});
+
+// ST-7b.T (T4c): `compact` exists only when the compaction binding is supplied. The binding is withheld from the
+// real program until G1–G3 clear, so an unbound build must not register, advertise or run compaction.
+// Mutation `M7b-register-compact-unbound` (registering `compact` without a binding) must fail the first test.
+function storageProgram(binding?: StorageCompactionBinding) {
+  const out = capture();
+  const exits: number[] = [];
+  const program = new Command("tovu").exitOverride().configureOutput({ writeErr: () => {} });
+  registerStorageCommands({ program, stdout: out.stdout, setExitCode: code => { exits.push(code); } }, binding ? { compaction: binding } : {});
+  const storage = program.commands.find(command => command.name() === "storage");
+  return { program, out, exits, subcommands: () => storage?.commands.map(command => command.name()) ?? [] };
+}
+
+function fakeBinding() {
+  const calls: string[] = [];
+  const confirmations: unknown[] = [];
+  const binding: StorageCompactionBinding = {
+    compact: async ({ siteDir }) => { calls.push(`compact:${siteDir}`); return { status: "done" }; },
+    resolve: async ({ siteDir, confirmation }) => { calls.push(`resolve:${siteDir}`); confirmations.push(confirmation); return { status: "kept-current", message: "Kept." }; },
+    resume: async ({ siteDir }) => { calls.push(`resume:${siteDir}`); return { status: "nothing-pending" }; },
+  };
+  return { binding, calls, confirmations };
+}
+
+test("compact is absent when the binding is unavailable", async () => {
+  const unbound = storageProgram();
+  assert.deepEqual(unbound.subcommands(), ["report", "move", "clean", "capabilities"]);
+  await unbound.program.parseAsync(["storage", "capabilities", "--json"], { from: "user" });
+  assert.deepEqual(JSON.parse(unbound.out.text()), { operations: ["report", "move", "clean"] });
+  await assert.rejects(unbound.program.parseAsync(["storage", "compact", "/nowhere"], { from: "user" }));
+});
+
+test("compact listed in operations when bound", async t => {
+  const dir = await site(t);
+  const { binding, calls } = fakeBinding();
+  const bound = storageProgram(binding);
+  assert.ok(bound.subcommands().includes("compact"));
+  await bound.program.parseAsync(["storage", "capabilities", "--json"], { from: "user" });
+  assert.deepEqual(JSON.parse(bound.out.text()), { operations: ["report", "move", "clean", "compact"] });
+  await bound.program.parseAsync(["storage", "compact", dir, "--json"], { from: "user" });
+  await bound.program.parseAsync(["storage", "compact", dir, "--resume", "--json"], { from: "user" });
+  assert.deepEqual(calls, [`compact:${dir}`, `resume:${dir}`]);
+  assert.deepEqual(bound.exits, [0, 0]);
+});
+
+test("resolve requires a confirmed action", async t => {
+  const dir = await site(t);
+  const { binding, calls, confirmations } = fakeBinding();
+  const bound = storageProgram(binding);
+  const confirm = JSON.stringify({ markerAt: 17, recoveryCopyPath: "/site/pre-compact-content-17.db", mainIdentity: "dev:ino" });
+  const run = (args: string[]) => bound.program.parseAsync(["storage", "compact", dir, ...args, "--json"], { from: "user" });
+  await run(["--resolve", "restore-copy", "--database", "content"]);
+  await run(["--resolve", "delete-everything", "--database", "content", "--confirm", confirm]);
+  await run(["--resolve", "keep-current", "--database", "content", "--confirm", "{\"markerAt\":17}"]);
+  await run(["--resolve", "keep-current", "--database", "pages", "--confirm", confirm]);
+  assert.deepEqual(calls, [], "no unconfirmed or malformed decision reaches the binding");
+  assert.deepEqual(bound.exits, [1, 1, 1, 1]);
+  await run(["--resolve", "keep-current", "--database", "chat", "--confirm", confirm]);
+  assert.deepEqual(calls, [`resolve:${dir}`]);
+  assert.deepEqual(confirmations, [{ action: "keep-current", database: "chat", markerAt: 17, recoveryCopyPath: "/site/pre-compact-content-17.db", mainIdentity: "dev:ino" }]);
+  assert.equal(bound.exits.at(-1), 0);
 });
