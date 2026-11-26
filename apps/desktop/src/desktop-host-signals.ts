@@ -4,6 +4,7 @@ import { resolveBundledHostSignals } from "@jini-ai/agent-plugins/site/host-sign
 import { bundledContributionSources } from "../../website/src/features/agent-plugins/bundled-contribution-sources.ts";
 import { bundledAgentPluginsDir } from "../../website/src/server/runtime/composition/site-paths.ts";
 import { evaluateHostSignals, selectCoreHostSignalDeclaration, type HostSignals } from "@tovu/contracts/host-signals";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "../../website/src/features/agent-plugins/identity-read-policy.ts";
 
 /**
  * Bind shipped host data to Electron's payload, or normal product-root discovery in development.
@@ -26,5 +27,5 @@ export function resolveDesktopHostSignals(
   }
   return resolveSignals({ ...required, sources: bundledContributionSources, evaluateHostSignals, selectCoreHostSignalDeclaration,
     get bundledSourceRoot() { return sourceRoot ?? bundledAgentPluginsDir({}, { env: required.env }); },
-  });
+  }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
 }

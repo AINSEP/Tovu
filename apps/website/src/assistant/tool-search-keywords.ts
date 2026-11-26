@@ -6,6 +6,7 @@ import { DOC2QUERY } from "./tool-search-doc2query.js";
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { bundledAgentPluginsDir } from '../platform/site-dir/product-root.js';
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 /** Product-owned source enumeration; installed packages cannot contribute search authority. */
 export type BundledToolKeywordSources = (required: { sourceRoot: string; filename: string }, optional?: Record<string, never>) => readonly { pluginId: string; packageRoot: string }[];
@@ -30,7 +31,7 @@ export function readBundledToolKeywords(required: { sourceRoot: string }, option
     readDeclaration: ({ source }) => {
       const readText = optional.readText ?? ((file: string) => readFileSync(file, 'utf8'));
       const manifest = JSON.parse(readText(path.join(source.packageRoot, 'plugin.json')));
-      return readAgentPluginMetadata({ value: manifest }).metadata.toolKeywords;
+      return readAgentPluginMetadata({ value: manifest }, TOVU_AGENT_PLUGIN_IDENTITY_READ).metadata.toolKeywords;
     },
     // Metadata can enrich only existing native tools.
     isKnownTool: ({ id }) => Object.hasOwn(nativeToolMetadata.byId, id),

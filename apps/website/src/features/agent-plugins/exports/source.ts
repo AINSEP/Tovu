@@ -5,6 +5,7 @@ import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/manifest";
 import type { TrustedPluginPackage, TovuAgentPluginLifecycle } from "../lifecycle.js";
 import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 import type { AgentPluginExportMetadata } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "../identity-read-policy.js";
 
 export const PLUGIN_EXPORT_FILES_PREFIX = "/api/agent-plugin-exports/v1";
 export interface PluginExportPackage extends AgentPluginExportMetadata {
@@ -32,7 +33,7 @@ async function readPackage(required: { lifecycle: TovuAgentPluginLifecycle; plug
   return orFallback({
     work: async () => {
       const raw = await required.lifecycle.readTrustedPluginFile({ plugin: required.plugin, filename: "plugin.json" });
-      const result = parseAgentPluginManifest({ value: JSON.parse(raw) });
+      const result = parseAgentPluginManifest({ value: JSON.parse(raw) }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
       if (!result.ok || !result.manifest.id) return undefined;
       const displayName = result.manifest.displayName;
       return { ...result.manifest, ...(typeof displayName === "string" ? { displayName } : {}),

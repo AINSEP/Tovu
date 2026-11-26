@@ -18,6 +18,7 @@ import { bundledAgentPluginsDir } from "../composition/site-paths.js";
 import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";
 import { startPluginActivationPolling } from "@jini-ai/plugins/host";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
@@ -46,7 +47,7 @@ const bootLog = { info: (message: string) => consoleLogger.info({ message }), wa
 async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void> {
   try {
     await syncProviderFaces({
-      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, ...providerFaceLifecycle }),
+      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ),
       providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
     });
   } catch (error) {
@@ -60,7 +61,7 @@ async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void>
 async function lockSoonAgentPluginsAtBoot(deps: NewsletterRouteDeps): Promise<void> {
   try {
     const switched = await lockSoonAgentPlugins({ catalog: explicitRootSoonCatalog, activations: explicitRootAgentPluginActivations,
-      workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
+      workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
     if (switched.length === 0) return;
     bootLog.info(`[bundled-agent-plugins] switched off plugins that aren't ready yet: ${switched.join(", ")}`);
     await notifyExternalMcpRosterChanged({ lowered: { pluginIds: switched } });

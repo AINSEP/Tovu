@@ -10,6 +10,7 @@ import { classifyAddress } from "#src/platform/http/client";
 import { toolInputPublicNames, type DomainDnsToolDeps } from "@jini-ai/devops/dns/site/tools";
 import { createDomainDnsChecks, readPublicDomain as readDiagnosticDomain, readPublicDnsName as readDiagnosticDnsName, type PublicDnsResolver, type DnsQuery, type DnsRecordType, type TlsStatus } from "@jini-ai/diagnostics/domain-dns";
 import type { RouteDeps } from "../../routes/types.js";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 /** Host binding (K5): the domain/DNS tools validate hostnames with the DNS diagnostics' own validators. */
 export const DOMAIN_DNS_PUBLIC_NAMES: DomainDnsToolDeps["publicNames"] = { readPublicDomain: readDiagnosticDomain, readPublicDnsName: readDiagnosticDnsName };
@@ -170,7 +171,7 @@ export function readBundledPublicDnsResolverUrl(required: { readonly sourceRoot:
 
 /** Validate endpoint data while leaving request bounds, parsing and egress in the resolver. */
 function publicDnsDeclarationUrl({ manifest }: { readonly manifest: unknown }, _optional = {}): string | undefined {
-  const declaration = readAgentPluginPortableExtension({ value: manifest })?.publicDnsResolver;
+  const declaration = readAgentPluginPortableExtension({ value: manifest }, TOVU_AGENT_PLUGIN_IDENTITY_READ)?.publicDnsResolver;
   if (declaration === undefined) return undefined;
   return dnsJsonEndpointUrl({ declaration: declaration as { format?: unknown; url?: unknown } | null });
 }

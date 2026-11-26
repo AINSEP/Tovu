@@ -78,6 +78,7 @@ import { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/setting
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import { bindProviderFacePorts, followProviderActivations } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 import { providerFaceLifecycle, warnProviderFace } from "#src/features/agent-plugins/provider-plugin-link";
 import { BUILT_IN_RUNTIME_SOURCES } from "./built-in-plugin-sources.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
@@ -224,7 +225,7 @@ function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
   // face follows every write of its activation row. `agentPluginLayout` is declared further down;
   // the thunk only runs on a write, after composition finishes.
   const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id, reportFollowFailure: warnProviderFace,
-    ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root, ...providerFaceLifecycle }) });
+    ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ) });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => references.routeDeps().pluginHost,
     workspaceId: seededWorkspace.id,

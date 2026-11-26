@@ -16,6 +16,7 @@ import {
 } from "./lifecycle.js";
 import { appendPluginNotes, pluginMemory } from "./memory.js";
 import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
 
 /** The permission names the moved tools declare and check. */
 export const AGENT_PLUGIN_HOST_TOOL_PERMISSIONS = { use: "admin.assistant.use", enable: "admin.plugins.enable" } as const;
@@ -56,6 +57,7 @@ export function agentPluginHostToolPorts(required: { readonly agentPluginLayout:
   const layout = required.agentPluginLayout;
   return {
     lifecycle,
+    legacyIdentity: TOVU_AGENT_PLUGIN_IDENTITY_READ.legacyIdentity,
     activations: agentPluginActivations,
     layout: { forWorkspace: ({ workspaceId }) => layout.forWorkspace({ workspaceId }) },
     memory: {

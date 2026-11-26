@@ -3,13 +3,14 @@ import { bundledAgentPluginsDir } from "./site-paths.js";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from "#src/features/agent-plugins/lifecycle";
-import { credentialCardsContribution, mergePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
+import { createCredentialCardsContribution, mergePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { parseDeployTargetsFile } from "#src/features/deployments/deploy-targets/registry";
 import { parseSourceControlProvidersFile } from "#src/features/source-control/provider-registry";
 import { parseMailAdaptersFile } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { readProviderPluginLink } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 
 type ReadFile = (required: { plugin: TrustedPluginPackage; filename: string }, optional?: Record<string, never>) => Promise<string>;
@@ -41,7 +42,8 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
   // Tool catalogs can be built before a site is bound; only a lookup needs the fixed layout.
   const owner = () => lifecycle ??= createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   const readFile: ReadFile = options.readFile ?? (({ plugin, filename }) => owner().readTrustedPluginFile({ plugin, filename }));
-  const definition = { ...credentialCardsContribution, load: async ({ plugin, descriptor }: Parameters<typeof credentialCardsContribution.load>[0]) =>
+  const credentialCards = createCredentialCardsContribution(TOVU_AGENT_PLUGIN_IDENTITY_READ);
+  const definition = { ...credentialCards, load: async ({ plugin, descriptor }: Parameters<typeof credentialCards.load>[0]) =>
     await ownsDestination({ plugin, card: descriptor, readFile }) ? { ...descriptor, pluginId: plugin.pluginId }
       : `credential card '${descriptor.providerId}' from '${plugin.pluginId}' was refused: destination is not owned by this plugin` };
   return async workspaceId => {
@@ -61,7 +63,7 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
 /** The provider plugin this agent plugin declares itself the face of (`identity.ts`), or undefined.
  *  An unreadable manifest grants nothing. */
 async function linkedProviderOf({ plugin, readFile }: { plugin: TrustedPluginPackage; readFile: ReadFile }, _options = {}): Promise<string | undefined> {
-  try { return readProviderPluginLink({ manifest: JSON.parse(await readFile({ plugin, filename: 'plugin.json' })) }); }
+  try { return readProviderPluginLink({ manifest: JSON.parse(await readFile({ plugin, filename: 'plugin.json' })) }, TOVU_AGENT_PLUGIN_IDENTITY_READ); }
   catch { return undefined; }
 }
 

@@ -7,6 +7,7 @@ import { createPluginMemory, migratePluginLayout, assertPluginStatePath, withPlu
 import { withFileLock } from "@jini-ai/platform/fs/file-lock";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
 
 const effects = {
   filesystem,
@@ -23,7 +24,7 @@ export function pluginMemory(required: Pick<PluginStateEffects, "contain"> & { w
 export async function migrateAgentPluginLayout(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, optional: { ownership?: WorkspaceMigrationOwnership } = {}) {
   return migratePluginLayout({ ...effects, contain: required.contain, workspaceRoot: required.layout.forWorkspace({ workspaceId: required.workspaceId }).root,
     parsePluginId: ({ value }) => {
-      const result = parseAgentPluginManifest({ value });
+      const result = parseAgentPluginManifest({ value }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
       if (!result.ok) throw new Error(result.errors.join("; "));
       return result.manifest.name;
     },

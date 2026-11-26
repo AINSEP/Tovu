@@ -40,6 +40,7 @@ import { createSurfaceForms } from "@jini-ai/agent-plugins/site/admin-surfaces/f
 import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 /**
  * @file One site's binding of the three plugin-facing host seams that share a connection port:
@@ -144,7 +145,7 @@ function bundledClientNamespaceFor(_required: Record<string, never> = {}, _optio
     readManifest: ({ pluginId }) => {
       try { return JSON.parse(readFileSync(resolveFrom.resolve(`${SELECTED_AGENT_PLUGIN_PACKAGES.get(pluginId)}/plugin.json`), "utf8")); } catch { return null; }
     },
-    readClientNamespace: ({ value }) => readAgentPluginMetadata({ value }).metadata.clientNamespace,
+    readClientNamespace: ({ value }) => readAgentPluginMetadata({ value }, TOVU_AGENT_PLUGIN_IDENTITY_READ).metadata.clientNamespace,
   });
 }
 

@@ -14,8 +14,9 @@ import type { FindSoonAgentPlugin } from "#src/features/site-backup/import-plugi
 import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createSiteSavedKeys } from "@jini-ai/devops/backup/site/saved-keys";
 import { recordHeldBackChoice } from "#src/features/theme/held-back-choice";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 /** This build's Soon policy: the host's locked plugin ids over the restored install's catalog. */
-const findHostSoonAgentPlugin: FindSoonAgentPlugin = (required) => findSoonAgentPlugin({ ...required, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
+const findHostSoonAgentPlugin: FindSoonAgentPlugin = (required) => findSoonAgentPlugin({ ...required, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
 
 /**
  * Bind the newly allocated destination, never the requesting site's layout or ambient overrides,

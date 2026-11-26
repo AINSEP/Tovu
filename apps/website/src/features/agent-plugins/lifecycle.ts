@@ -51,6 +51,7 @@ export type {
   AgentPluginSearchCandidate, AgentPluginSearchMatch, TrustedPluginPackage, TrustedPluginVerdict,
   AgentPluginDeliveryMode, ResolveAgentPluginRefsResult, PluginContributionDefinition,
 } from "@jini-ai/agent-plugins/lifecycle";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
 export { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS } from "./bundled-catalog.js";
 
 /** The host exposes zero-argument entry streams while the owner receives object arguments. */
@@ -157,7 +158,7 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
   const notices = await Promise.all(installed.filter(plugin => selected.has(plugin.pluginId)).map(async plugin => {
     const manifest = JSON.parse(await owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }));
     // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
-    return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
+    return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
   }));
   const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
   return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix }) };
@@ -167,12 +168,12 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
 function buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, optional }: { owner: LifecycleOwner; soonCatalog: SoonCatalogPort<JiniInstalledAgentPlugin>; manifests: SupersessionManifestsPort; required: { layout: AgentPluginLayout }; optional: TovuLifecycleOptional }) {
   return {
     setAgentPluginEnabled: async (input: Parameters<typeof owner.setAgentPluginEnabled>[0], options: Parameters<typeof owner.setAgentPluginEnabled>[1] = {}) => {
-      if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
+      if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
       return owner.setAgentPluginEnabled(input, options);
     },
     // A Soon face never follows its provider plugin on; one that is on is switched off.
     reconcileAgentPluginActivation: async (input: Parameters<typeof owner.reconcileAgentPluginActivation>[0], options: Parameters<typeof owner.reconcileAgentPluginActivation>[1] = {}) => {
-      const soon = await findSoonAgentPlugin({ catalog: soonCatalog, workspaceRoot: input.workspaceRoot, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS });
+      const soon = await findSoonAgentPlugin({ catalog: soonCatalog, workspaceRoot: input.workspaceRoot, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
       return owner.reconcileAgentPluginActivation(soon ? { ...input, resolveEnabled: async () => false } : input, options);
     },
     // Select the trusted replacement at the contribution owner BEFORE duplicate-id validation.
@@ -181,7 +182,7 @@ function buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, op
     loadPluginContributions: async <D, T>(input: { readonly workspaceId: string; readonly definition: PluginContributionDefinition<D, T> }, options: LoadPluginContributionsOptional = {}) => {
       const verdicts = await owner.findTrustedPluginPackages({ workspaceId: input.workspaceId, filename: input.definition.filename,
         contribution: input.definition.contribution, requireActive: false });
-      const supersessions = await readSupersessions({ verdicts, manifests, orFallback });
+      const supersessions = await readSupersessions({ verdicts, manifests, orFallback }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
       const definition = { ...input.definition, load: async (context: Parameters<typeof input.definition.load>[0]) =>
         supersededDescriptorRefusal({ supersessions, pluginId: context.plugin.pluginId, descriptor: context.descriptor }) ?? input.definition.load(context) };
       return owner.loadPluginContributions({ ...input, definition }, { ...options, packageRefusal: ({ plugin }) =>
@@ -272,7 +273,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     deliveryMode: resolveAgentPluginDeliveryMode(), formatPluginToolPointer,
     fetch: unbound, outboundGuard: { assertAllowed: unbound },
     mcpProvisioning: optional.mcpProvisioning ?? { provision: unbound, setEnabled: unbound, remove: unbound, notifyRosterChanged: unbound },
-  }, { ...policy, legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES });
+  }, { ...policy, legacyMcpAliases: TOVU_LEGACY_MCP_ALIASES, ...TOVU_AGENT_PLUGIN_IDENTITY_READ });
   const manifests: SupersessionManifestsPort = optional.supersessionManifests ?? {
     readInstalled: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
     readBundledSource: optional.bundledSourceRoot === undefined ? unbound : createBundledSourceManifestReader({ bundledSourceRoot: optional.bundledSourceRoot }),
