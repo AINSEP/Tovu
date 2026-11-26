@@ -23,9 +23,3 @@ import { listConversations } from "../../lib/assistant-chats";
 export const lookupOwnedConversation: DeepLinkPorts["lookupConversation"] = async ({ id }) => (await listConversations()).some((conversation) => conversation.id === id);
 
 /** Production URL rewrite: replaceState keeps history clean; the router re-reads the URL on its next navigation. */
-export const replaceBrowserQuery: DeepLinkPorts["replaceQuery"] = ({ query }) => {
-  const url = new URL(window.location.href);
-  url.search = query.toString();
-  window.history.replaceState(window.history.state, "", url);
-};
-

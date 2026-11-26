@@ -11,7 +11,8 @@ import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-pr
 import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "@jini-ai/admin/shell/components/AssistantDock/hooks/conversation-refresh.hooks";
-import { lookupOwnedConversation, replaceBrowserQuery } from "../../features/routines/use-conversation-deep-link";
+import { lookupOwnedConversation } from "../../features/routines/use-conversation-deep-link";
+import { replaceBrowserQuery } from "@jini-ai/admin/shell/hooks/use-conversation-deep-link";
 
 import { defaultAssistantChatsPort } from "../../hooks/assistant-chats-dependencies.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";

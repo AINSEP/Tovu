@@ -1,4 +1,4 @@
-import { browserDurableSubscriptionPorts as createBrowserPorts, followDurableRun as follow } from "@jini-ai/chat/transports/http";
+import { browserDurableSubscriptionPorts as createBrowserPorts, browserTimeoutSchedule, followDurableRun as follow } from "@jini-ai/chat/transports/http";
 import type { DurableRunBinding, DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
 import { followDurableRun as followWithActivity } from "@jini-ai/admin/shell/lib/stream-activity";
@@ -9,9 +9,7 @@ export function followDurableRun(required: Omit<Parameters<typeof follow>[0], "n
 
 export function browserDurableSubscriptionPorts(_required = {}, {
   request = fetch, open = (url: string) => new EventSource(url),
-  schedule = ({ work, delayMs }: { work: () => void; delayMs: number }) => {
-    const timer = setTimeout(work, delayMs); return () => clearTimeout(timer);
-  },
+  schedule = browserTimeoutSchedule,
 }: {
   request?: typeof fetch;
   open?: (url: string) => Pick<EventSource, "addEventListener" | "close" | "readyState">;
