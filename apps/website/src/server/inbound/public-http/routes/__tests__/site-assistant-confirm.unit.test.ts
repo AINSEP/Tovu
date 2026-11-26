@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { registerSiteAssistantConfirm } from "../site-assistant-confirm.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { SITE_ASSISTANT_CONFIRM_PATH } from "@jini-ai/daemon/surface-exchanges/site-assistant-confirm";
 
 /** Registered Express handler with DI fakes; never opens a listener. */
@@ -8,7 +9,7 @@ function fixture(options: { enabled?: boolean; allowed?: boolean; origin?: strin
   let handler: (req: unknown, res: unknown) => void;
   let enabledCalls = 0;
   const deliveries: unknown[] = [], errors: unknown[] = [], origins: string[] = [], addresses: string[] = [];
-  registerSiteAssistantConfirm({ app: { post(path: string, fn: typeof handler) { assert.equal(path, SITE_ASSISTANT_CONFIRM_PATH); handler = fn; } } as never,
+  registerSiteAssistantConfirm({ errors: createRouteIncidentReporter().errors, app: { post(path: string, fn: typeof handler) { assert.equal(path, SITE_ASSISTANT_CONFIRM_PATH); handler = fn; } } as never,
     ports: {
       confirmations: { request: async () => false, confirm: async input => { deliveries.push(input); if (options.fail) throw new Error("storage failed"); return options.accepted !== false; } },
       resolveOwner: async ({ request }) => {
