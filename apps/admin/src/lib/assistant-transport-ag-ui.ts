@@ -73,6 +73,7 @@ const AG_UI_RUN_ID_PREFIX = "agui:";
 export interface AdminAgUiDurablePorts {
   followRun(required: AcceptedAgUiRun & { handlers: RunHandlers; signal: AbortSignal }, optional: Record<string, never>): void;
   cancelRun(required: AcceptedAgUiRun, optional: Record<string, never>): Promise<void>;
+  cancelPendingRun(required: { messageId: string; conversationId: string }, optional: Record<string, never>): Promise<void>;
 }
 
 /** `assistant-ag-ui.ts`'s durable-identity field: a start that carries it gets the owned durable run. */
@@ -87,9 +88,9 @@ function durableRunProps(forwardedProps: unknown): DurableRunProps | undefined {
 /** The prepared launch's per-run fields (attachments, plugins, model, reasoning), the ones the
  *  Local CLI acceptance would carry in its contextRef. The server bounds them again and stamps its
  *  own principal and recovery choice, so nothing authoritative rides here. */
-function wireLaunchFields(contextRef: Record<string, unknown>): Record<string, unknown> {
+function wireLaunchFields({ contextRef }: { contextRef: Record<string, unknown> }, _optional = {}): Record<string, unknown> {
   const picked: Record<string, unknown> = {};
-  for (const key of ["attachmentIds", "pluginRefIds", "model", "reasoning"]) if (contextRef[key] !== undefined) picked[key] = contextRef[key];
+  for (const key of ["attachmentIds", "pluginRefIds", "model", "reasoning", "pageContext", "folders", "agentPluginState"]) if (contextRef[key] !== undefined) picked[key] = contextRef[key];
   return picked;
 }
 
@@ -107,7 +108,7 @@ export function adminAgUiDurableBinding({ ports }: { ports: AdminAgUiDurablePort
       const forwarded = typeof wire.forwardedProps === "object" && wire.forwardedProps !== null ? wire.forwardedProps as Record<string, unknown> : {};
       // The prepared launch's agent selection is the one the Local CLI acceptance would send.
       return { ...wire, forwardedProps: { ...forwarded, ...(launch.agentId ? { agentId: launch.agentId } : {}),
-        durableRun: { conversationId: launch.conversationId, assistantMessageId: launch.messageId, launch: wireLaunchFields(launch.contextRef) } } };
+        durableRun: { conversationId: launch.conversationId, assistantMessageId: launch.messageId, launch: wireLaunchFields({ contextRef: launch.contextRef }, {}) } } };
     },
     readAcceptedRun: ({ event, input }) => {
       const durable = durableRunProps(input.forwardedProps);
@@ -116,6 +117,7 @@ export function adminAgUiDurableBinding({ ports }: { ports: AdminAgUiDurablePort
     },
     followAcceptedRun: (required) => ports.followRun(required, {}),
     cancelAcceptedRun: (required) => ports.cancelRun(required, {}),
+    cancelPendingRun: (required) => ports.cancelPendingRun(required, {}),
   };
 }
 
@@ -230,6 +232,11 @@ const client = createAdminAgUiRunClient({ durable: {
     followDurableRun({ runId, handlers, signal, binding: { messageId, conversationId }, ports: browserDurableSubscriptionPorts({}, {}) }, {});
   },
   cancelRun: (required) => cancelAcceptedRunOverHttp(required, {}),
+  cancelPendingRun: async ({ messageId, conversationId }) => {
+    const response = await fetch("/api/runs/pending/cancel", { method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId, conversationId }) });
+    if (!response.ok) throw new Error(`Stopping the assistant failed (HTTP ${response.status}).`);
+  },
 } }, {});
 
 /** Share the same client with the main transport so stop reaches its in-flight run. */

@@ -842,6 +842,7 @@ describe("durable AG-UI binding (Local CLI lifecycle)", () => {
         h.onDone([{ kind: "text", text: "Durable answer." } as AgentEvent]);
       },
       cancelRun: async (accepted) => { cancels.push(accepted); },
+      cancelPendingRun: async () => {},
     };
     return { ports, follows, cancels };
   }
@@ -883,7 +884,7 @@ describe("durable AG-UI binding (Local CLI lifecycle)", () => {
     }
   });
 
-  test("explicit Stop of an accepted AG-UI run reaches the owned cancel once; a detach never does", async () => {
+  test("a completed and detached AG-UI run is released before a later Stop", async () => {
     fetchMock = vi.fn(async () => acceptedSegment());
     vi.stubGlobal("fetch", fetchMock);
     const { ports, cancels } = durablePorts();
@@ -895,7 +896,7 @@ describe("durable AG-UI binding (Local CLI lifecycle)", () => {
     cancel.abort();
     await client.stopAgUiRun({ runId: "run-durable-1" }, {});
     await client.stopAgUiRun({ runId: "run-durable-1" }, {});
-    expect(cancels).toEqual([{ runId: "run-durable-1", messageId: "msg-a1", conversationId: "conv-1" }]);
+    expect(cancels).toEqual([]);
   });
 });
 
@@ -963,7 +964,7 @@ describe("admin AG-UI refusals, failures, disconnects and no reply each leave on
     fetchMock = vi.fn(async () => ({ ok: true, status: 200, headers: new Headers({ "content-type": "text/event-stream" }), body: { getReader: () => reader } }) as unknown as Response);
     vi.stubGlobal("fetch", fetchMock);
     const follows: string[] = [];
-    const client = createAdminAgUiRunClient({ durable: { followRun: ({ runId }) => { follows.push(runId); }, cancelRun: async () => undefined } }, {});
+    const client = createAdminAgUiRunClient({ durable: { followRun: ({ runId }) => { follows.push(runId); }, cancelRun: async () => undefined, cancelPendingRun: async () => {} } }, {});
     const { rec, recorder } = terminalRecorder();
     const bound: Array<{ runId: string }> = [];
 
@@ -1003,7 +1004,7 @@ describe("the AG-UI cost footer survives reconnect exactly once", () => {
     vi.stubGlobal("fetch", fetchMock);
     // The existing checkpoint subscription delivers the authoritative final transcript; a reconnect
     // delivers it again, with the usage it already holds (the "duplicated last delivery").
-    const client = createAdminAgUiRunClient({ durable: { cancelRun: async () => undefined,
+    const client = createAdminAgUiRunClient({ durable: { cancelRun: async () => undefined, cancelPendingRun: async () => {},
       followRun: ({ handlers: h }) => { h.onDone([{ kind: "text", text: "Done." } as AgentEvent, USAGE as AgentEvent]); } } }, {});
     const finals: AgentEvent[][] = [];
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -1028,7 +1029,7 @@ describe("an AG-UI attachment reaches the selected agent (client wire)", () => {
     fetchMock = vi.fn(async () => new Response(streamFromChunks([frame({ type: EventType.RUN_STARTED, threadId: "conv-1", runId: "run-durable-1" }),
       frame({ type: EventType.RUN_FINISHED, threadId: "conv-1", runId: "run-durable-1" })]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    const client = createAdminAgUiRunClient({ durable: { followRun: () => undefined, cancelRun: async () => undefined } }, {});
+    const client = createAdminAgUiRunClient({ durable: { followRun: () => undefined, cancelRun: async () => undefined, cancelPendingRun: async () => {} } }, {});
     const { recorder } = terminalRecorder();
 
     await client.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal, cancelSignal: new AbortController().signal }, handlers: recorder,

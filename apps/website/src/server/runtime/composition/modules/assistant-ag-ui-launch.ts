@@ -1,10 +1,12 @@
 /**
  * @file The bounded launch fields an admin AG-UI start may carry beside its durable identity:
- * attachment refs, plugin refs, model and reasoning, the same fields the direct Local CLI start
+ * attachment refs, plugin refs, model, reasoning, page context, folders and plugin state, the fields the direct Local CLI start
  * puts in its `contextRef`. The browser sends them under `forwardedProps.durableRun.launch`; this
  * parser is the server's one bounded read of them. Everything else the browser could claim
- * (principal, recovery mode or session, page context) is deliberately not read here.
+ * (principal, recovery mode or session) is deliberately not read here.
  */
+import { readRunPageContext, type RunPageContext } from "#src/assistant/run-page-context";
+
 const MAX_REFS = 32;
 const MAX_REF_LENGTH = 512;
 const MAX_SETTING_LENGTH = 200;
@@ -14,6 +16,9 @@ export interface AgUiLaunchFields {
   readonly pluginRefIds?: readonly string[];
   readonly model?: string;
   readonly reasoning?: string;
+  readonly pageContext?: RunPageContext;
+  readonly folders?: unknown;
+  readonly agentPluginState?: unknown;
 }
 
 /** Non-empty, bounded string entries only; a malformed field degrades to absent, as the run-start
@@ -37,5 +42,6 @@ export function readAgUiLaunchFields({ durable }: { durable: unknown }, _optiona
   const pluginRefIds = readRefs({ value: raw.pluginRefIds });
   const model = readSetting({ value: raw.model });
   const reasoning = readSetting({ value: raw.reasoning });
-  return { ...(attachmentIds ? { attachmentIds } : {}), ...(pluginRefIds ? { pluginRefIds } : {}), ...(model ? { model } : {}), ...(reasoning ? { reasoning } : {}) };
+  return { ...(attachmentIds ? { attachmentIds } : {}), ...(pluginRefIds ? { pluginRefIds } : {}), ...(model ? { model } : {}), ...(reasoning ? { reasoning } : {}),
+    pageContext: readRunPageContext({ value: raw.pageContext }), folders: raw.folders, agentPluginState: raw.agentPluginState };
 }
