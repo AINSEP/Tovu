@@ -580,7 +580,7 @@ test("retire() records a change set whose revert un-trashes the row", async () =
     forgetRemoved: deps.forgetRemovedPost,
   });
   await revertChangeSet({
-    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
+    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen, transaction: ({ work }, _optional = {}) => deps.postRepo.transaction({ fn: work }) },
     input: { workspaceId: WORKSPACE_ID, changeSetId },
   });
 
@@ -602,6 +602,7 @@ test("T32: reverting a retirement from history restores the holder's original fr
   await revertChangeSet({
     deps: {
       changeSets: deps.changeSets, clock: deps.clock, idGen: deps.idGen,
+      transaction: ({ work }, _optional = {}) => deps.postRepo.transaction({ fn: work }),
       registry: createPostRevertRegistry({ postRepo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, forgetRemoved: deps.forgetRemovedPost }),
     },
     input: { workspaceId: WORKSPACE_ID, changeSetId },
@@ -650,7 +651,7 @@ test("retire of an already-trashed holder: revert leaves it in the Trash", async
     forgetRemoved: forgetRemovedSpy,
   });
   await revertChangeSet({
-    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
+    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen, transaction: ({ work }, _optional = {}) => deps.postRepo.transaction({ fn: work }) },
     input: { workspaceId: WORKSPACE_ID, changeSetId },
   });
 

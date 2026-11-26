@@ -40,9 +40,11 @@ const WS = "ws-media" as UUID;
 const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z"), nowIso: () => "2026-10-04T00:00:00.000Z" };
 
 function makeDeps() {
-  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
+  let nextId = 0;
+  const idGen = { newId: () => `fresh-vault-${++nextId}` };
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock(), idGen });
   const keyring = new InMemoryKeyring();
-  return { repo, deps: { repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock } };
+  return { repo, deps: { repo, keyring, idGen, sealer: new AesGcmSecretSealer({ keyring }), clock } };
 }
 
 test("a first key for a provider is saved and reported configured, with no model or baseUrl", async () => {

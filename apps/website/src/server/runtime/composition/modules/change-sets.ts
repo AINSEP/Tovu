@@ -60,7 +60,7 @@ function currentRevertRegistry({ deps }: { deps: ContentRouteDeps }, _optional: 
 export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const revertDeps = {
     ...changeSetPortDeps({ deps }), changeSets: deps.changeSets, revertRegistry: currentRevertRegistry({ deps }),
-    clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, toChangeSetHeader,
+    clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, toChangeSetHeader, transaction: deps.revertTransaction,
   };
   mountAdminJsonRoute({ errors, app, spec: changeSetRevertRoute, deps: revertDeps }, mountOptions("routes/change-sets/revert"));
 };

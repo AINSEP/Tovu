@@ -141,7 +141,7 @@ export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsR
     // capability is correct here rather than a third `EnvOrFileKeyring` instance).
     adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo({ store: kernel }),
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
-    mediaProviderCredentialRepo: new SqlMediaProviderCredentialRepo(kernel),
+    mediaProviderCredentialRepo: new SqlMediaProviderCredentialRepo({ kernel, idGen }),
     externalMcpServerRepo,
     bundledSourceRoot: bundledAgentPluginsDir(),
     mcp: agentPluginMcp,

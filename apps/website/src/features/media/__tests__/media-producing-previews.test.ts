@@ -40,9 +40,10 @@ test("every registered media-producing tool returns the same inline image previe
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   let ids = 0;
+  const idGen = { newId: () => `preview-${++ids}` };
   const deps = {
     workspaceId: "workspace-local", siteBinding: { dir: root },
-    clock: { nowMs: () => Date.parse("2026-10-31T00:00:00Z") }, idGen: { newId: () => `preview-${++ids}` },
+    clock: { nowMs: () => Date.parse("2026-10-31T00:00:00Z") }, idGen,
     authorize: async () => ({ allowed: true, reason: "matched" as const }),
     mediaRepo: new SqliteMediaRepo({ store: db }), assetBlobRepo: new SqliteAssetBlobRepo({ store: db }), assetRenditionRepo: new SqliteAssetRenditionRepo({ store: db }),
     blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new SqliteMediaContentTypeStore({ store: db }),
@@ -50,7 +51,7 @@ test("every registered media-producing tool returns the same inline image previe
     resolveRoots: () => ({ repo: root, site: root, custom: root }),
     mediaImportHttpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "", bodyBytes: bytes, bodyTruncated: false }) },
     mediaGenerationHttpClient: { send: async () => { throw new Error("unexpected generation HTTP"); } },
-    mediaProviderRegistry: createHostMediaProviderRegistry(), mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }),
+    mediaProviderRegistry: createHostMediaProviderRegistry(), mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock(), idGen }),
     siteAssistantSecretSealer: { seal: async () => { throw new Error("unexpected seal"); }, open: async () => { throw new Error("unexpected open"); } },
     env: { OPENAI_API_KEY: "test-preview-key" },
     generateMedia: async () => ({ bytes, providerNote: "test fixture", providerId: "openai", usedStubFallback: false, warnings: [] }),

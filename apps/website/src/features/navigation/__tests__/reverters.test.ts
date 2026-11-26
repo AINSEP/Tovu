@@ -95,7 +95,7 @@ test("revertChangeSet undoes a repoint change set, restoring the prior entryRef"
   } });
 
   await revertChangeSet({
-    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
+    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen, transaction: ({ work }, _optional = {}) => menuRepo.transaction({ fn: work }) },
     input: { workspaceId: WORKSPACE_ID, changeSetId, actor: { id: "operator", kind: "user" } },
   });
 
@@ -133,7 +133,7 @@ test("revertChangeSet refuses a repoint change set whose menu changed since — 
   await assert.rejects(
     () =>
       revertChangeSet({
-        deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
+        deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen, transaction: ({ work }, _optional = {}) => menuRepo.transaction({ fn: work }) },
         input: { workspaceId: WORKSPACE_ID, changeSetId, actor: { id: "operator", kind: "user" } },
       }),
     (err: unknown) => err instanceof RevertConflictError

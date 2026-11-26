@@ -57,6 +57,7 @@ export type MediaProviderRouteDeps = Pick<
   | "workspaceId"
   | "authorize"
   | "clock"
+  | "idGen"
   | "mediaProviderCredentialRepo"
   | "mediaProviderRegistry"
   | "siteAssistantSecretSealer"

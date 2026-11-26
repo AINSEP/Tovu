@@ -52,7 +52,7 @@ export function memoryAssistantCredentialDeps(required: MemoryRootContext, _opti
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
-    mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }),
+    mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock(), idGen }),
     externalMcpServerRepo,
     bundledSourceRoot: bundledAgentPluginsDir(),
     mcp: agentPluginMcp,
@@ -155,6 +155,8 @@ export function memoryReadinessRevertDeps(required: MemoryRootContext, _optional
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     // Hoisted above (not constructed inline) — see the comment there for why.
     changeSets,
+    // in-memory store: no rollback boundary (L079-MEM, deferred)
+    revertTransaction: ({ work }, _optional = {}) => work(),
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).

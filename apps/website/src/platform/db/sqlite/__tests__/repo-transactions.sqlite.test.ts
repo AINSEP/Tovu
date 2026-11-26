@@ -56,7 +56,8 @@ test("publish credentials: insert survives another caller's rollback", async () 
 
 test("media provider credentials: replaceWorkspace survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqlMediaProviderCredentialRepo(contentKernel({ store: db }));
+  let nextId = 0;
+  const repo = new SqlMediaProviderCredentialRepo({ kernel: contentKernel({ store: db }), idGen: { newId: () => `fresh-vault-${++nextId}` } });
   const record = {
     workspaceId: WORKSPACE,
     providerId: "openai",

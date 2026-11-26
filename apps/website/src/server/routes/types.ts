@@ -700,6 +700,7 @@ export interface SettingsDeps {
 export interface ChangeSetDeps {
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
+  revertTransaction<T>(required: { work: () => Promise<T> }, optional?: Record<string, never>): Promise<T>;
   /**
    * Inverse-applier registry for `changeset.revert` (ADR-018 C-005/C-006), pre-loaded with the
    * post-domain reverters (`features/post/reverters.ts`'s `createPostRevertRegistry`) by both

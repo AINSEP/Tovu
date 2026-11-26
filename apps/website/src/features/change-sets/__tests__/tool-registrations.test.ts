@@ -88,6 +88,7 @@ function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[]
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     changeSets,
+    revertTransaction: <T>({ work }: { work: () => Promise<T> }, _optional = {}) => postRepo.transaction({ fn: work }),
     outbox,
     bus,
     postRepo,

@@ -169,6 +169,7 @@ export type ContentRouteDeps = Pick<
   | "outbox"
   | "bus"
   | "revertRegistry"
+  | "revertTransaction"
   | "presentationRepo"
   | "themes"
   | "themesDir"

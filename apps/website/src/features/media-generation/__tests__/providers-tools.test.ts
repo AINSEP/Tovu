@@ -87,11 +87,13 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
   assert.equal(f.surfaces.size(), 0);
 });
 function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof createSurfaceExchangeStore>[1]> = {}) {
-  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
+  let nextId = 0;
+  const idGen = { newId: () => `fresh-vault-${++nextId}` };
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock(), idGen });
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   const auth: unknown[] = [];
-  const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer, mediaProviderRegistry: createHostMediaProviderRegistry(),
+  const deps = { workspaceId: 'ws-t10', idGen, mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer, mediaProviderRegistry: createHostMediaProviderRegistry(),
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
   const exchangeClock = createFakeClock({ startIso: '2026-10-01T00:00:00.000Z' });
@@ -102,7 +104,7 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
     return invokeFixtureHandler(tool(id), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input: id === 'credential_save' ? credentialSaveFixtureInput({ input, kind: 'media-provider' }) : input,
       signal: new AbortController().signal, ...extra });
   }
-  const writeDeps = { repo, sealer, keyring, clock: deps.clock };
+  const writeDeps = { repo, sealer, keyring, clock: deps.clock, idGen };
   return { deps, repo, sealer, auth, surfaces, tool, call, writeDeps, exchangeClock };
 }
 async function form(f: ReturnType<typeof fixture>, extra: CallExtra = {}) {

@@ -50,7 +50,7 @@ async function undo(required: { repo: InMemoryPostRepo; outbox: OutboxPort; nowI
   const changeSet: ChangeSetRecord = { id: "cs-1", workspaceId: WS, status: "applied", summary: "edit p1", createdAt: SAVED, appliedAt: SAVED };
   const changeSets = new InMemoryChangeSetRepo([changeSet], [{ id: "csi-1", changeSetId: "cs-1", entityType: "post", entityId: "p1", entityVersionAtApply: 2, position: 0, ...item }]);
   const registry = createPostRevertRegistry({ postRepo: repo, clock, outbox, forgetRemoved: async () => {} });
-  await revertChangeSet({ deps: { changeSets, registry, clock, idGen: { newId: () => "id-1" } }, input: { workspaceId: WS, changeSetId: "cs-1" } });
+  await revertChangeSet({ deps: { changeSets, registry, clock, idGen: { newId: () => "id-1" }, transaction: ({ work }, _optional = {}) => repo.transaction({ fn: work }) }, input: { workspaceId: WS, changeSetId: "cs-1" } });
 }
 
 const scheduledPreImage = { title: "Scheduled", slug: "p1", bodyJson: { type: "doc", content: [] }, status: "published", publishAt: GO_LIVE };
