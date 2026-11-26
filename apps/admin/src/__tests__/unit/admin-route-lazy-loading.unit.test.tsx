@@ -51,7 +51,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/ai-assistant", moduleId: "ai-assistant", exports: ["AiAssistant"] },
   { modulePath: "../../features/playground", moduleId: "playground", exports: ["Playground"] },
   { modulePath: "../../features/sites", moduleId: "sites", exports: ["Sites"] },
-  { modulePath: "../../features/media", moduleId: "media", exports: ["Media"] },
+  { modulePath: "@jini-ai/admin/screens/media/Media", moduleId: "media", exports: ["Media"] },
   { modulePath: "../../features/integrations/integration-deliveries-panel", moduleId: "integrations", exports: ["IntegrationDeliveries"] },
 ];
 

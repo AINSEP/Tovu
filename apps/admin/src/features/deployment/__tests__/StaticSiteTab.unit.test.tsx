@@ -14,7 +14,8 @@ import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/ren
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { StaticSiteTab } from "../StaticSiteTab";
+import { StaticSiteTab } from "@jini-ai/devops/deploy/react/StaticSiteTab";
+import { STATIC_SITE_TAB_PROPS } from "../StaticSiteTab";
 import type { StaticExportController } from "@jini-ai/devops/deploy/react/hooks/use-static-export.hooks";
 import type { StaticPublishController } from "@jini-ai/devops/deploy/react/hooks/use-static-publish.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "@jini-ai/devops/deploy/react/hooks/use-publish-credentials.hooks";
@@ -183,9 +184,13 @@ function renderTab(overrides: {
   // c348ee3ba, and a `wrapper` also covers every later `rerender` of this mount.
   return render(
     <StaticSiteTab
-      useStaticExportHook={() => exportControllerFixture(overrides.exportController)}
-      useStaticPublishHook={() => publishControllerFixture(overrides.publishController)}
-      usePublishCredentialsHook={() => credentialsControllerFixture(overrides.credentialsController)}
+      {...STATIC_SITE_TAB_PROPS}
+      hooks={{
+        ...STATIC_SITE_TAB_PROPS.hooks,
+        useStaticExportHook: () => exportControllerFixture(overrides.exportController),
+        useStaticPublishHook: () => publishControllerFixture(overrides.publishController),
+        usePublishCredentialsHook: () => credentialsControllerFixture(overrides.credentialsController),
+      }}
     />,
     { wrapper: FetchQueryProvider },
   );
@@ -424,9 +429,13 @@ describe("StaticSiteTab — provider picker shows one provider's fields at a tim
 
     rerender(
       <StaticSiteTab
-        useStaticExportHook={() => exportControllerFixture()}
-        useStaticPublishHook={() => publishControllerFixture({ target: "vercel" })}
-        usePublishCredentialsHook={() => credentialsControllerFixture()}
+        {...STATIC_SITE_TAB_PROPS}
+        hooks={{
+          ...STATIC_SITE_TAB_PROPS.hooks,
+          useStaticExportHook: () => exportControllerFixture(),
+          useStaticPublishHook: () => publishControllerFixture({ target: "vercel" }),
+          usePublishCredentialsHook: () => credentialsControllerFixture(),
+        }}
       />,
     );
     expect(screen.getByLabelText("Team ID (optional)")).toBeInTheDocument();
@@ -553,9 +562,13 @@ describe("StaticSiteTab — preview and publish gating", () => {
 
     rerender(
       <StaticSiteTab
-        useStaticExportHook={() => exportControllerFixture()}
-        useStaticPublishHook={() => publishControllerFixture({ target: "vercel", projectName: "my-site", isPublishing: true })}
-        usePublishCredentialsHook={() => credentialsControllerFixture()}
+        {...STATIC_SITE_TAB_PROPS}
+        hooks={{
+          ...STATIC_SITE_TAB_PROPS.hooks,
+          useStaticExportHook: () => exportControllerFixture(),
+          useStaticPublishHook: () => publishControllerFixture({ target: "vercel", projectName: "my-site", isPublishing: true }),
+          usePublishCredentialsHook: () => credentialsControllerFixture(),
+        }}
       />,
     );
     expect(screen.getByRole("button", { name: "Publishing…" })).toBeDisabled();
@@ -945,9 +958,13 @@ describe("StaticSiteTab — credential section: rows", () => {
 
     rerender(
       <StaticSiteTab
-        useStaticExportHook={() => exportControllerFixture()}
-        useStaticPublishHook={() => publishControllerFixture({ target: "vercel" })}
-        usePublishCredentialsHook={() => credentialsControllerFixture()}
+        {...STATIC_SITE_TAB_PROPS}
+        hooks={{
+          ...STATIC_SITE_TAB_PROPS.hooks,
+          useStaticExportHook: () => exportControllerFixture(),
+          useStaticPublishHook: () => publishControllerFixture({ target: "vercel" }),
+          usePublishCredentialsHook: () => credentialsControllerFixture(),
+        }}
       />,
     );
     expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-row-vercel"]')).toBeInTheDocument();
@@ -1318,9 +1335,13 @@ describe("StaticSiteTab — Publish waits for a credential switch to land (terra
     return render(
       <FetchQueryProvider>
         <StaticSiteTab
-          useStaticExportHook={() => exportControllerFixture()}
-          useStaticPublishHook={() => publishControllerFixture({ configValues: { owner: "octo", repo: "demo-repo" }, projectName: "deploy", publish })}
-          usePublishCredentialsHook={() => usePublishCredentials({ hooks, deps, port, t: fakeT, locale: "en", targets: PUBLISH_TARGETS })}
+          {...STATIC_SITE_TAB_PROPS}
+          hooks={{
+            ...STATIC_SITE_TAB_PROPS.hooks,
+            useStaticExportHook: () => exportControllerFixture(),
+            useStaticPublishHook: () => publishControllerFixture({ configValues: { owner: "octo", repo: "demo-repo" }, projectName: "deploy", publish }),
+            usePublishCredentialsHook: () => usePublishCredentials({ hooks, deps, port, t: fakeT, locale: "en", targets: PUBLISH_TARGETS }),
+          }}
         />
       </FetchQueryProvider>,
     );

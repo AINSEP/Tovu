@@ -14,7 +14,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Icon } from "@jini-ai/ui";
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { resolveMediaTabs } from "@jini-ai/admin/screens/media/media-tabs.hooks";
 import { mediaContentTabCounts } from "@jini-ai/admin/screens/media/rules";
 
@@ -32,6 +33,7 @@ import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -158,7 +160,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 function renderScreen(props: Partial<React.ComponentProps<typeof Media>> = {}) {
   return render(
     <FetchQueryProvider>
-      <Media {...requiredMediaHooks} {...props} />
+      <Media {...MEDIA_PROPS} hooks={requiredMediaHooks} {...props} />
     </FetchQueryProvider>
   );
 }

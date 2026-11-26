@@ -13,11 +13,13 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-w
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -57,7 +59,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("media preview click opens lightbox", () => {
   it("clicking the picture itself opens the lightbox at that item, and next/prev cycle", async () => {
     const user = userEvent.setup();
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
     const card = (await screen.findByRole("button", { name: "Beta.png" })).closest(".media-card") as HTMLElement;
 
@@ -77,7 +79,7 @@ describe("media preview click opens lightbox", () => {
   // the lightbox, where the video plays at its real shape.
   it("video cards: the still frame (no controls) opens the lightbox, which plays it with controls", async () => {
     const user = userEvent.setup();
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
     const card = (await screen.findByRole("button", { name: "Beta.png" })).closest(".media-card") as HTMLElement;
     fireEvent.error(card.querySelector(".media-card-preview img")!);

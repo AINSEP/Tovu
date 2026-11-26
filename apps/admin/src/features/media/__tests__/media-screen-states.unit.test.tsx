@@ -14,13 +14,15 @@ import { describe, expect, it, vi } from "vitest";
 import { cloneElement, Suspense } from "react";
 import { renderMediaPanel } from "@/media-panel";
 import type { PanelRouteContext } from "@/panel-contracts";
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import type { MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
   useEditMediaPanelHook: useWiredEditMediaPanel,
@@ -112,7 +114,7 @@ function renderMedia(overrides: Partial<MediaController> = {}, tabId: string | n
   const controller = mediaController(overrides);
   const view = render(
     <FetchQueryProvider>
-      <Media {...requiredMediaHooks} useMediaHook={() => controller} tabId={tabId} />
+      <Media {...MEDIA_PROPS} hooks={{ ...requiredMediaHooks, useMediaHook: () => controller }} tabId={tabId} />
     </FetchQueryProvider>,
   );
   return { controller, ...view };
@@ -186,7 +188,7 @@ describe("Media screen states", () => {
 it("the admin media mount passes a distinct injected hook state to the screen", async () => {
   const mount = renderMediaPanel({ query: new URLSearchParams() } as PanelRouteContext);
   const useMediaHook = vi.fn(() => mediaController({ media: null, error: "Injected mount state 731" }));
-  const { container } = render(<FetchQueryProvider><Suspense fallback={null}>{cloneElement(mount, { useMediaHook })}</Suspense></FetchQueryProvider>);
+  const { container } = render(<FetchQueryProvider><Suspense fallback={null}>{cloneElement(mount, { hooks: { ...mount.props.hooks, useMediaHook } })}</Suspense></FetchQueryProvider>);
   await screen.findByText("Injected mount state 731");
   expect(useMediaHook).toHaveBeenCalled();
   expect(container.textContent).toBe("Injected mount state 731");

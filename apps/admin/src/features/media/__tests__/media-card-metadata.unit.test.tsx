@@ -12,10 +12,12 @@ import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-i
 import { render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -46,7 +48,7 @@ describe("legacy media cards", () => {
         : url.includes("/users") ? { users: [] } : { media: [item] };
       return new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
     }));
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
     const title = await screen.findByRole("button", { name: "Metadata photo.png" });
     const card = title.closest(".media-card")!;

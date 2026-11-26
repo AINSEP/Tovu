@@ -23,7 +23,8 @@ import ts from "typescript";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { MEDIA_DICT, t } from "../media-i18n";
 import { MEDIA_ORDER_OPTIONS } from "@jini-ai/admin/screens/media/rules";
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { useMedia } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
 import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
@@ -32,6 +33,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
   useEditMediaPanelHook: useWiredEditMediaPanel,
@@ -45,6 +47,21 @@ const requiredMediaHooks = {
 };
 
 afterEach(() => vi.restoreAllMocks());
+
+const MEDIA_SOURCE_FILES = [
+  "Media.tsx",
+  "MediaPageShell.tsx",
+  "MediaPreview.tsx",
+  "MediaCards.tsx",
+  "MediaEditPanel.tsx",
+  "MediaEditFields.tsx",
+  "MediaEditChildren.tsx",
+  "MediaToolbar.tsx",
+  "MediaLightbox.tsx",
+  "MediaPurgeDialog.tsx",
+  "MediaGridOrEmpty.tsx",
+  "MediaLibraryPanel.tsx",
+];
 
 const COPY_KEYS = ['Edit "{title}"', 'View "{title}" larger', "native", "failed to read file"];
 
@@ -61,21 +78,23 @@ describe("Media copy reaches the active locale", () => {
 
   // Guard the class: accessible attributes must translate authored copy, including templates.
   it("has no untranslated literal copy in Media's accessible labels or placeholders", () => {
-    const source = ts.createSourceFile("Media.tsx", readFileSync(resolve(process.cwd(), "src/features/media/Media.tsx"), "utf8"), ts.ScriptTarget.Latest, true);
     const bypasses: string[] = [];
-    function visit(node: ts.Node) {
-      if (ts.isJsxAttribute(node) && ["aria-label", "title", "placeholder", "alt"].includes(node.name.getText(source))) {
-        const value = node.initializer;
-        const expression = value && ts.isJsxExpression(value) ? value.expression : value;
-        if (expression && ts.isStringLiteralLike(expression) && expression.text.trim()) bypasses.push(node.getText(source));
-        if (expression && ts.isTemplateExpression(expression)) {
-          const fragments = [expression.head.text, ...expression.templateSpans.map(span => span.literal.text)];
-          if (fragments.some(fragment => /[a-zA-Z]/.test(fragment))) bypasses.push(node.getText(source));
+    for (const filename of MEDIA_SOURCE_FILES) {
+      const source = ts.createSourceFile(filename, readFileSync(resolve(process.cwd(), "src", "../node_modules/@jini-ai/admin/src/screens/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
+      function visit(node: ts.Node) {
+        if (ts.isJsxAttribute(node) && ["aria-label", "title", "placeholder", "alt"].includes(node.name.getText(source))) {
+          const value = node.initializer;
+          const expression = value && ts.isJsxExpression(value) ? value.expression : value;
+          if (expression && ts.isStringLiteralLike(expression) && expression.text.trim()) bypasses.push(node.getText(source));
+          if (expression && ts.isTemplateExpression(expression)) {
+            const fragments = [expression.head.text, ...expression.templateSpans.map(span => span.literal.text)];
+            if (fragments.some(fragment => /[a-zA-Z]/.test(fragment))) bypasses.push(node.getText(source));
+          }
         }
+        ts.forEachChild(node, visit);
       }
-      ts.forEachChild(node, visit);
+      visit(source);
     }
-    visit(source);
     expect(bypasses).toEqual([]);
   });
 
@@ -87,9 +106,9 @@ describe("Media copy reaches the active locale", () => {
       const port = createFakeMediaPort();
       await port.uploadMedia({ filename: "Sunset $&", contentType: "image/png", dataBase64: "aGk=" });
       const translate = (key: string) => t({ locale: copy.locale, key });
-      render(createElement(FetchQueryProvider, {}, createElement(Media, { ...requiredMediaHooks,
+      render(createElement(FetchQueryProvider, {}, createElement(Media, { ...MEDIA_PROPS, hooks: { ...requiredMediaHooks,
         useMediaHook: ({ tab, itemId }) => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab, itemId, locale: copy.locale, t: translate }),
-      })));
+      } })));
       return { port, translate };
     }
 
@@ -177,8 +196,8 @@ describe("MEDIA_DICT: cross-locale key parity", () => {
 
   it("translates every literal t() key in Media.tsx and rules.ts, plus the order-option labels, in every locale", () => {
     const keys = new Set(MEDIA_ORDER_OPTIONS.map((option) => option.label));
-    for (const filename of ["Media.tsx", "rules.ts"]) {
-      const source = ts.createSourceFile(filename, readFileSync(filename === "rules.ts" ? resolve(process.cwd(), "node_modules/@jini-ai/admin/src/screens/media/rules.ts") : resolve(process.cwd(), "src/features/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
+    for (const filename of [...MEDIA_SOURCE_FILES, "rules.ts"]) {
+      const source = ts.createSourceFile(filename, readFileSync(resolve(process.cwd(), "src", "../node_modules/@jini-ai/admin/src/screens/media", filename), "utf8"), ts.ScriptTarget.Latest, true);
       function visit(node: ts.Node) {
         if (ts.isCallExpression(node)) {
           const callee = node.expression;

@@ -19,6 +19,7 @@
 ^apps/admin/src/features/deployment/hooks/use-static-publish\.hooks\.ts$
 ^apps/admin/src/features/posts/Posts\.tsx$
 ^apps/admin/src/features/publish-content/PublishContentDialog\.tsx$
+^apps/admin/src/features/deployment/StaticSiteTab\.tsx$
 ```
 
 ## Round 2 status

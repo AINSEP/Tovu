@@ -15,11 +15,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -68,7 +70,7 @@ function setSize(el: Element, sizes: Record<string, number>) {
 describe("media grid tiles fit the asset instead of cropping it", () => {
   it("a vertical video card is a still frame with a play cue, its shape and its duration — no player controls", async () => {
     const user = userEvent.setup();
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     const card = await cardFor("GRV recap.mp4");
     fireEvent.error(card.querySelector(".media-card-preview img")!);
     const video = await waitFor(() => card.querySelector(".media-card-preview video") as HTMLVideoElement);
@@ -86,7 +88,7 @@ describe("media grid tiles fit the asset instead of cropping it", () => {
   });
 
   it("an image taller than 1:3 gets the long-image treatment and badge", async () => {
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     const card = await cardFor("Poster.png");
     const img = card.querySelector(".media-card-preview img") as HTMLImageElement;
     setSize(img, { naturalWidth: 400, naturalHeight: 1600 });
@@ -105,7 +107,7 @@ describe("media grid tiles fit the asset instead of cropping it", () => {
   });
 
   it("a landscape image fills the preview edge to edge; a tall one stays whole over a blurred copy", async () => {
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     const card = await cardFor("Poster.png");
     const img = card.querySelector(".media-card-preview img") as HTMLImageElement;
 
@@ -121,7 +123,7 @@ describe("media grid tiles fit the asset instead of cropping it", () => {
   });
 
   it("the shape and length sit in the info section's second row, not on the picture", async () => {
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     const card = await cardFor("Poster.png");
     const img = card.querySelector(".media-card-preview img") as HTMLImageElement;
     setSize(img, { naturalWidth: 1440, naturalHeight: 900 });
@@ -138,7 +140,7 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
   it("the upload button is an icon with a tooltip and name that follow the tab, and the picker accepts only that kind", async () => {
     const user = userEvent.setup();
     window.history.pushState({}, "", "/admin/media");
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} tabId="images" /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} tabId="images" /></FetchQueryProvider>);
     const upload = await screen.findByRole("button", { name: "Upload image" });
     expect(upload).toHaveAttribute("aria-label", "Upload image");
     expect(upload.textContent).toBe("");
@@ -148,18 +150,18 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
 
   it("All says image or video; Videos says video and accepts only video; Import keeps its name", async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<FetchQueryProvider><Media {...requiredMediaHooks} tabId="videos" /></FetchQueryProvider>);
+    const { unmount } = render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} tabId="videos" /></FetchQueryProvider>);
     await user.click(await screen.findByRole("button", { name: "Upload video" }));
     expect(screen.getByLabelText("File to upload").getAttribute("accept")).toBe("video/mp4,video/webm,.mov,.m4v,video/quicktime,video/x-m4v");
     expect(screen.getByRole("button", { name: "Import from URL" })).toHaveAttribute("aria-label", "Import from URL");
     unmount();
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     expect(await screen.findByRole("button", { name: "Upload image or video" })).toBeInTheDocument();
   });
 
   it("the Size select defaults to Medium, resizes the grid and is remembered", async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    const { unmount } = render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     const select = await screen.findByLabelText("Size");
     const grid = () => document.querySelector(".media-grid") as HTMLElement;
     await waitFor(() => expect(grid()).not.toBeNull());
@@ -169,7 +171,7 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     expect(grid().dataset.size).toBe("small");
     expect(window.localStorage.getItem("tovu.admin.media.cardSize")).toBe("small");
     unmount();
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     expect(await screen.findByLabelText("Size")).toHaveValue("small");
   });
 
@@ -190,7 +192,7 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
 
   it("the icon buttons show a real tooltip bubble on hover and on keyboard focus (a bare title does not show reliably)", async () => {
     const user = userEvent.setup();
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} tabId="videos" /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} tabId="videos" /></FetchQueryProvider>);
     const upload = await screen.findByRole("button", { name: "Upload video" });
     const bubble = () => document.querySelector(".info-tip-bubble");
     expect(bubble()).toBeNull();
@@ -222,7 +224,7 @@ describe("Chrome playback note", () => {
       const body = String(url).includes("/settings/effective") ? { data: [] } : { media: items };
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     }));
-    render(<FetchQueryProvider><Media {...requiredMediaHooks} /></FetchQueryProvider>);
+    render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} /></FetchQueryProvider>);
     const card = async (title: string) => (await screen.findByRole("button", { name: new RegExp(`^${title}`) })).closest(".media-card") as HTMLElement;
     expect(within(await card("Small HEVC")).getByText("This video may not play in Chrome.")).toBeInTheDocument();
     // A QuickTime container or .mov name is not a codec; only the probed answer counts, and only under the base limit.

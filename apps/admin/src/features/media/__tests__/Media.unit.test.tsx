@@ -15,13 +15,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ALLOWED_MIME_TYPES } from "@jini-ai/cms/media";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
 import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -135,7 +137,7 @@ function routeFetch(routes: Array<{ method?: string; match: string; handler: () 
 function renderScreen(props: Partial<React.ComponentProps<typeof Media>> = {}) {
   return render(
     <FetchQueryProvider>
-      <Media {...requiredMediaHooks} {...props} />
+      <Media {...MEDIA_PROPS} hooks={requiredMediaHooks} {...props} />
     </FetchQueryProvider>
   );
 }
@@ -175,7 +177,7 @@ function openUploadDialog() {
 it("uses the returned provider catalog for both rows and count", async () => {
   routeFetch([{ match: "/media/providers", handler: async () => jsonResponse({}) }]);
   const catalog = [{ id: "openai", label: "OpenAI" }];
-  renderScreen({ tabId: "external-providers", useMediaProviderCatalogHook: () => catalog });
+  renderScreen({ tabId: "external-providers", hooks: { ...requiredMediaHooks, useMediaProviderCatalogHook: () => catalog } });
   expect(await screen.findByLabelText("OpenAI API key")).toBeTruthy();
   expect(screen.queryByLabelText("Nano Banana API key")).toBeNull();
   const tab = screen.getByRole("tab", { name: /External Providers/ });
@@ -1256,7 +1258,7 @@ describe("tab bar — useMediaTabsHook injection seam", () => {
     // trash tab on first render is a value the real hook cannot produce, so seeing only the
     // trashed fixture here proves this seam is wired to the injected hook, not calling
     // `useMediaTabs()` directly.
-    renderScreen({ useMediaTabsHook: () => ({ activeTab: "trash", setActiveTab: vi.fn() }) });
+    renderScreen({ hooks: { ...requiredMediaHooks, useMediaTabsHook: () => ({ activeTab: "trash", setActiveTab: vi.fn() }) } });
 
     expect(await waitForCard(document.body, "Trashed Clip.mp4")).toBeInTheDocument();
     expect(cardTitles()).not.toContain("Sunset Photo.png");
