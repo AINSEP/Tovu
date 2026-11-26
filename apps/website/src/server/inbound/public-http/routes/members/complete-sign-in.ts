@@ -1,7 +1,7 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import { serialize } from "cookie";
-import { memberAuthRefusal, memberCookieExpiry } from "@jini-ai/user-management/members/public-member-auth-response";
+import { memberAuthRefusal, memberCookieExpiry, sendMemberAuthError as sendAuthError } from "@jini-ai/user-management/members/public-member-auth-response";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 
 /**
@@ -57,9 +57,9 @@ export const MEMBER_AUTH_FAILURE = {
 } as const;
 
 /** Write `memberAuthRefusal`'s answer, or report the failure and answer the redacted 500. */
-export function sendMemberAuthError({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void {
-  const refusal = memberAuthRefusal({ error }, options);
-  if (refusal) { res.status(refusal.status).json(refusal.body); return; }
-  const { errorId } = reportServerFailure({ error, operation: MEMBER_AUTH_FAILURE.operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
-  res.status(500).json({ error: MEMBER_AUTH_FAILURE.visitorError, errorId });
-}
+export const sendMemberAuthError = ({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void => sendAuthError({ error, deps: {
+  refusal: memberAuthRefusal,
+  report: input => reportServerFailure(input, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+  json: (body, status) => { res.status(status).json(body); },
+  copy: MEMBER_AUTH_FAILURE,
+} }, options);

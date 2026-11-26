@@ -1,3 +1,4 @@
+import { withinRateLimit } from "@jini-ai/cms/admin-http/routes/external-mcp/route-helpers";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
@@ -53,21 +54,12 @@ export function createExternalMcpProbeLimiter(deps: Pick<ExternalMcpRouteDeps, "
   return createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
 }
 
-/** Answers the shared limiter check, writing the 429 itself. Mirrors `oauth.ts`'s
- *  `withinRateLimit` — not imported from there, so this route stays independent of a sibling
- *  family's file (see the implementation outline's own "different failure modes, different copy"
- *  argument for why `probe.ts` and `admissions.ts` are separate files in the first place). */
-async function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Response): Promise<boolean> {
-  const result = await limiter.check({ key: resolveClientIp(req) });
-  if (result.allowed) return true;
-  res.setHeader("Retry-After", String(result.retryAfterSeconds));
-  res.status(429).json({
-    error: "too many probe attempts",
-    code: "RATE_LIMIT_EXCEEDED",
-    details: { retryAfterSeconds: result.retryAfterSeconds },
-  });
-  return false;
-}
+const withinProbeRateLimit = (limiter: RateLimiter, req: Request, res: Response): Promise<boolean> => withinRateLimit({ deps: {
+  check: () => limiter.check({ key: resolveClientIp(req) }),
+  retryAfter: value => { res.setHeader("Retry-After", value); },
+  json: (body, status) => { res.status(status).json(body); },
+  message: "too many probe attempts",
+} });
 
 /**
  * `POST .../mcp-servers/:serverId/probe`.

@@ -1,4 +1,4 @@
-import { matchConsentPluginHttp, collectorDecision as neutralCollectorDecision, readVisitorConsent, receiptAllowsAnalytics } from '@jini-ai/cookie-consent/site/http';
+import { matchConsentPluginHttp, collectorDecision as neutralCollectorDecision, readVisitorConsent, receiptAllowsAnalytics, analyticsProof } from '@jini-ai/cookie-consent/site/http';
 import { documentPolicy as readDocumentPolicy, briefPendingRead, refreshDocumentState as refreshState, type DocumentState } from '@jini-ai/cookie-consent/site/document-state';
 import { siteConsentDocumentAssets as documentAssets, siteConsentExportAssets as exportAssets, staticConsentLoaderScript } from '@jini-ai/cookie-consent/site/document-assets';
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
@@ -16,9 +16,8 @@ import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import express, { type Express, type Request, type Response } from 'express';
-import { CONSENT_COOKIE, REGION_COOKIE } from '@jini-ai/cookie-consent';
+import { REGION_COOKIE } from '@jini-ai/cookie-consent';
 import type { ConsentState, RawContribution, RegionResolver } from '@jini-ai/core/contracts/site/cookie-consent';
-import { parseStored } from '@jini-ai/cookie-consent/policy';
 import { handleReceipt, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles } from '@jini-ai/cookie-consent/node';
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platform/fs';
@@ -187,12 +186,7 @@ export async function siteReceiptAllowsAnalytics({ deps, proof }: { deps: RouteD
 /** The old engine's analytics proof shape (receipt id + policy), from the new cookie. Undefined unless
  * analytics is allowed and a server receipt exists. @complexity O(cookie header). */
 export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; req: Request }, _optional = {}): Promise<{ receiptId: string; policyVersion: string } | undefined> {
-  const state = await readSiteVisitorConsent({ deps, req });
-  if (state.analyticsLevel !== 'full') return undefined;
-  const raw = req.get('cookie')?.match(new RegExp(`(?:^|;\\s*)${CONSENT_COOKIE}=([^;]*)`))?.[1];
-  let receiptId: string | undefined;
-  try { receiptId = parseStored({ raw: raw === undefined ? null : decodeURIComponent(raw) })?.r; } catch { receiptId = undefined; }
-  return receiptId ? { receiptId, policyVersion: state.policy } : undefined;
+  return analyticsProof({ state: await readSiteVisitorConsent({ deps, req }), get cookieHeader() { return req.get('cookie'); } });
 }
 
 /** One published construction snapshot per site (per consent deps), shared by every app built over

@@ -89,7 +89,9 @@ test("anonymous, operator, duplicate-cookie, disabled, revoked and expired sessi
   }
   await f.memberRepo.save({ ...f.member, status: "disabled", version: 2 });
   assert.equal((await f.request(orders, { priceId: "p" })).status, 401);
-  await f.memberRepo.save({ ...f.member, version: 3 });
+  await f.memberRepo.save({ ...f.member, credentialsRevokedAt: "2026-11-05T18:00:01.000Z", version: 3 });
+  assert.equal((await f.request(orders, { priceId: "p" })).status, 401);
+  await f.memberRepo.save({ ...f.member, version: 4 });
   await f.memberSessionRepo.save({ ...f.session, revokedAt: now });
   assert.equal((await f.request(orders, { priceId: "p" })).status, 401);
   await f.memberSessionRepo.save({ ...f.session, expiresAt: now });

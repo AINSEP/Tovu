@@ -3,35 +3,26 @@ import type { SiteShareBackend } from "@jini-ai/devops/backup/site/share-backend
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
-import { savedKeysSameOrigin, savedShareRefusalStatus, savedShareUploadRefusal } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
+import { savedKeysSameOrigin, requireSavedKeysOwnerSession as requireOwnerSession, sendSiteShareFailure as sendShareFailure } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { SiteShareExportFailure, type SiteShareExportStep } from "@jini-ai/devops/backup/site/share-export-failure";
-import { sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
-
-/** Closed stage descriptions: the route never infers storage trouble from an arbitrary exception. */
-const SITE_EXPORT_FAILURE_MESSAGES: Readonly<Record<SiteShareExportStep, string>> = {
-  prepare: "The export stopped while preparing the site files.",
-  archive: "The export stopped while building the ZIP.",
-  delivery: "The export stopped while saving or delivering the ZIP.",
-};
+import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 interface SavedKeysOwnerDeps {
   workspaceId: string;
   ownerPrincipalId: PromiseLike<string> | string;
 }
-/** Shared by opt-in export and explicit reveal. Owner identity is stronger than general backup
- * permission; a connected-computer, tool or API credential must never reveal an archive password.
- * @complexity O(1) checks, before any share lookup or secret open.
- */
-export async function requireSavedKeysOwnerSession(required: { req: Request; res: Response; deps: SavedKeysOwnerDeps }, _optional: Record<string, never> = {}): Promise<boolean> {
-  const { req, res, deps } = required;
-  res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" });
-  if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: "Saved keys access failed: this workspace is not available." }); return false; }
-  if (!rejectUnlessSessionCredential({ res, message: "Use the site owner's signed-in browser for saved keys.", permission: "site-backup.push" })) return false;
-  if (getPublishTrustContext(res) || getAuthedPrincipal(res).id !== await deps.ownerPrincipalId) { res.status(403).json({ code: "FORBIDDEN", message: "Saved keys access requires the site owner’s signed-in browser on this Tovu site." }); return false; }
-  if (!savedKeysSameOrigin({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site"), protocol: req.protocol })) { res.status(403).json({ code: "FORBIDDEN", message: "Saved keys access requires the site owner’s signed-in browser on this Tovu site." }); return false; }
-  return true;
-}
+export const requireSavedKeysOwnerSession = ({ req, res, deps }: { req: Request; res: Response; deps: SavedKeysOwnerDeps }, _optional: Record<string, never> = {}): Promise<boolean> => requireOwnerSession({ deps: {
+  noStore: () => { res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" }); },
+  foreignWorkspace: () => String(req.params.workspaceId) !== deps.workspaceId,
+  requireSession: () => rejectUnlessSessionCredential({ res, message: "Use the site owner's signed-in browser for saved keys.", permission: "site-backup.push" }),
+  publishTrustContext: () => getPublishTrustContext(res),
+  principalId: () => getAuthedPrincipal(res).id,
+  ownerPrincipalId: () => deps.ownerPrincipalId,
+  sameOrigin: () => savedKeysSameOrigin({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site"), protocol: req.protocol }),
+  json: (body, status) => { res.status(status).json(body); },
+  ownerMessage: "Saved keys access requires the site owner’s signed-in browser on this Tovu site.",
+} });
 
 /** Register on POST …/site-shares/:shareId/password after the existing session middleware.
  * The backend owns record/workspace lookup and password opening; this boundary adds browser-only
@@ -51,49 +42,13 @@ export function createSiteSharePasswordHandler(required: { deps: SavedKeysOwnerD
   };
 }
 
-/** Share and password failures must remain diagnosable even when telemetry is disabled.
- * Expected refusals keep their safe public diagnosis. The authorized export pilot discloses its
- * redacted cause; other unexpected details stay in redacted logs.
- * @complexity The shared redaction cost, with one local log and one tracker report.
- */
-export function sendSiteShareFailure(
+/** Closed stage descriptions: the route never infers storage trouble from an arbitrary exception. */
+export const sendSiteShareFailure = (
   { res, error, tracker }: { res: Response; error: unknown; tracker?: Pick<Tracker, "error"> },
-  { password = false, step }: { password?: boolean; step?: string } = {},
-): void {
-  if (sendShareRefusal({ res, error }, { password, step })) return;
-  if (sendShareUploadRefusal({ res, error }, { step })) return;
-  sendAdminFailure({ res, error, tracker }, shareFailureOptions({ error, step, password }));
-}
-
-function shareFailureMessage({ step, password }: { step: string | undefined; password: boolean }): string {
-  if (step) return `${step} could not finish.`;
-  return password ? "Export password is unavailable for this site." : "The share operation could not finish.";
-}
-
-/** Preserve safe refusals and their established status codes without generating an incident. */
-function sendShareRefusal({ res, error }: { res: Response; error: unknown }, { password, step }: { password: boolean; step: string | undefined }): boolean {
-  if (!(error instanceof SiteShareRefusal)) return false;
-  const status = savedShareRefusalStatus({ code: error.code });
-  const message = password ? shareFailureMessage({ step, password }) : step ? `${step} failed: ${error.message}` : error.message;
-  res.status(status).json({ code: error.code, message });
-  return true;
-}
-
-/** Map only export-owned stages to public explanations; never guess a provider-specific remedy. */
-function shareFailureOptions({ error, step, password }: { error: unknown; step: string | undefined; password: boolean }): FailureOptions {
-  const common = { operation: step ? `site-share:${step}` : "site-share", code: "SHARE_FAILED", field: "message" as const };
-  const action = "Copy details and report this problem. Check export history before starting another export.";
-  if (error instanceof SiteShareExportFailure) {
-    const metadata = Object.fromEntries(Object.entries({ appVersion: error.appVersion, jiniVersion: error.jiniVersion, time: error.time }).filter(([, value]) => value !== undefined));
-    return { ...common, message: SITE_EXPORT_FAILURE_MESSAGES[error.step], failure: { action, step: error.step, cause: error.cause, metadata } };
-  }
-  return { ...common, message: shareFailureMessage({ step, password }), failure: { action, step: step ?? "site-share" } };
-}
-
-/** Parser errors describe a failed upload, while unexpected storage faults remain incidents. */
-function sendShareUploadRefusal({ res, error }: { res: Response; error: unknown }, { step = "Share artifact upload" }: { step?: string } = {}): boolean {
-  const refusal = savedShareUploadRefusal({ error });
-  if (!refusal) return false;
-  res.status(refusal.status).json({ code: refusal.code, message: `${step} failed: upload raw application/zip bytes within the 300 MiB cap.` });
-  return true;
-}
+  options: { password?: boolean; step?: string } = {},
+): void => sendShareFailure({ error, deps: {
+  refusal: SiteShareRefusal,
+  exportFailure: SiteShareExportFailure,
+  json: (body, status) => { res.status(status).json(body); },
+  failure: (error, options) => sendAdminFailure({ res, error, tracker }, options),
+} }, options);

@@ -25,7 +25,7 @@ import {
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
 import { humanConfirmedToolHandler } from "#src/contracts/core/human-confirm";
-import { refuseUnexpectedKeys } from "@jini-ai/core";
+import { refuseUnexpectedKeysPort } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
@@ -154,7 +154,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: TaxonomyToolDeps }, { mutatio
       execute: (required) => gatewayExecute({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
     },
     mergeConfirmedHandler: confirmedMergeHandler,
-    refuseUnexpectedKeys: (input, allowed) => refuseUnexpectedKeys({ input, allowed }),
+    refuseUnexpectedKeys: refuseUnexpectedKeysPort,
     toSlug,
   };
 }

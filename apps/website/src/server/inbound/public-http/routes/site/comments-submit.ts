@@ -1,12 +1,11 @@
 import type { Request } from "express";
 import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
-import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
-import { urlencoded, type Express, type RequestHandler } from "express";
+import { urlencoded, type Express } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/comments-providers';
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
 import { createCommentSubmitHandler } from "@jini-ai/cms/comments/express";
-import { commentFormReturnTo, commentProviderIngress, isSameOriginCommentPost as isSameOriginPost } from "@jini-ai/cms/public-http/routes/site/comments-submit";
+import { registerCommentsSubmitRoute as registerCommentsSubmitRouteWithPorts, isSameOriginCommentPost as isSameOriginPost } from "@jini-ai/cms/public-http/routes/site/comments-submit";
 import { resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveProtocol, resolvePublicOrigin } from "../../../../../platform/express/public-origin.js";
 
@@ -40,7 +39,7 @@ export interface CommentsSubmitDeps extends VisitorAnalyticsDeps<Request> {
  * Each read is a lazy callback so only the branch the decision consults runs (a misconfigured
  * TOVU_PUBLIC_URL still throws a 500, loudly). The admission rules live in `@jini-ai/cms`.
  * @complexity O(1). */
-export function isSameOriginCommentPost({ request }: { request: Parameters<RequestHandler>[0] }, _optional = {}): boolean {
+export function isSameOriginCommentPost({ request }: { request: Request }, _optional = {}): boolean {
   return isSameOriginPost({
     origin: request.get('origin'),
     isJson: () => request.is('application/json') === 'application/json',
@@ -49,50 +48,17 @@ export function isSameOriginCommentPost({ request }: { request: Parameters<Reque
   });
 }
 
-/** Mounts Jini's handler with the site's ingress, request budget, salt and proxy policy.
- * @throws TypeError at registration when `deps.ipHashSalt` is missing; any other missing/invalid
- *   handler dependency (Jini's TypeError) surfaces as a 500 through `next(error)` on the first
- *   request, once the salt promise has settled.
- * @complexity O(1) route setup; request work belongs to the Jini handler.
- */
-export function registerCommentsSubmitRoute({ app, deps }: { app: Express; deps: CommentsSubmitDeps }, _optional: Record<string, never> = {}): void {
-  // Named refusal rather than "Cannot read properties of undefined (reading 'then')", which is
-  // what a caller missing this dependency produced on 2026-10-08.
-  if (typeof deps.ipHashSalt?.then !== "function") {
-    throw new TypeError("registerCommentsSubmitRoute requires deps.ipHashSalt (a Promise<string> from resolveCommentsIpHashSalt at the composition root)");
-  }
-  const handler = deps.ipHashSalt.then((ipHashSalt) => createCommentSubmitHandler({
-    ingressPolicy: { submit: async submission => {
-      const owner = deps.providers ? commentProviderIngress({ providers: deps.providers, siteId: deps.workspaceId }) : deps.ingressPolicy;
-      return owner.submit(submission);
-    } },
-    workspaceId: deps.workspaceId,
-    ipHashSalt,
-    rateLimiter: deps.rateLimiter,
-    clientIp: ({ request }) => resolveClientIp(request),
-  }, { onAccepted: ({ request, submission, comment }) => captureVisitorEvent({ deps, request, name: "comment_submitted", properties: {
+export const registerCommentsSubmitRoute = ({ app, deps }: { app: Express; deps: CommentsSubmitDeps }, _optional: Record<string, never> = {}): void => registerCommentsSubmitRouteWithPorts({ app, deps: {
+  get ingressPolicy() { return deps.ingressPolicy; },
+  get workspaceId() { return deps.workspaceId; },
+  get rateLimiter() { return deps.rateLimiter; },
+  get ipHashSalt() { return deps.ipHashSalt; },
+  get providers() { return deps.providers!; },
+  createCommentSubmitHandler,
+  clientIp: ({ request }) => resolveClientIp(request),
+  onAccepted: ({ request, submission, comment }) => captureVisitorEvent({ deps, request, name: "comment_submitted", properties: {
     entryId: submission.entryId, moderationState: ["pending", "approved", "spam"].includes(comment.status) ? comment.status : "other",
-  } }), formRedirect: ({ request }) => request.is('application/x-www-form-urlencoded')
-    ? commentFormReturnTo({ value: request.body?.returnTo }) : undefined }));
-  // Observed here so a construction failure is not an unhandled rejection at boot; each request
-  // below re-awaits the same promise and hands that failure to Express's error path instead.
-  handler.catch((error: unknown) => {
-    console.error("[comments] Could not prepare the comment submission handler:",
-      describeErrorForLog({ err: error }));
-  });
-  const submit: RequestHandler = async (request, response, next) => {
-    if (!isSameOriginCommentPost({ request })) {
-      response.status(403).json({ error: 'A same-origin comment submission is required' });
-      return undefined;
-    }
-    let built: RequestHandler;
-    try {
-      built = await handler;
-    } catch (error) {
-      next(error);
-      return undefined;
-    }
-    return built(request, response, next);
-  };
-  app.post("/api/site/comments", urlencoded({ extended: false, limit: '32kb', parameterLimit: 16 }), submit);
-}
+  } }),
+  isSameOriginCommentPost,
+  formParser: urlencoded({ extended: false, limit: '32kb', parameterLimit: 16 }),
+} });

@@ -1,9 +1,10 @@
+import { withinRateLimit as checkRateLimit, externalMcpErrorStatus } from "@jini-ai/cms/admin-http/routes/external-mcp/route-helpers";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, RequestHandler } from "express";
 import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
 import { mountAdminRawRoute } from "../../admin-raw-route-ports.js";
 import { refuseUnlessSessionCredential } from "../../admin-request-facts.js";
-import { externalMcpOAuthConnectRoute, externalMcpOAuthPollRoute, externalMcpSharedListRoute, externalMcpSharedLocalRoute, externalMcpSharedSelectRoute, createExternalMcpBrowserSignInRoute, externalMcpProviderRefusal } from "@jini-ai/cms/admin-http/routes/external-mcp/oauth";
+import { externalMcpOAuthConnectRoute, externalMcpOAuthPollRoute, externalMcpSharedListRoute, externalMcpSharedLocalRoute, externalMcpSharedSelectRoute, createExternalMcpBrowserSignInRoute } from "@jini-ai/cms/admin-http/routes/external-mcp/oauth";
 import { randomBytes } from 'node:crypto';
 import { generateOAuthState } from '@jini-ai/oauth';
 import { browserBindingCookie, EXTERNAL_MCP_BROWSER_BINDING, EXTERNAL_MCP_SIGN_IN_PATH } from '#src/features/api-connections/browser-binding';
@@ -53,61 +54,21 @@ const SHARED_MCP_PERMISSION = 'admin.integrations.manage';
  *  that cannot run without the service should not be able to compile without it. */
 export type ExternalMcpOAuthRouteDeps = ExternalMcpRouteDeps & { readonly externalMcpOAuth: ExternalMcpOAuthService };
 
-/**
- * Maps a caught error onto an HTTP response.
- *
- * Provider response bodies never reach the caller — `OAuthError.message` is built from a closed
- * vocabulary, and `operatorAction` is Tovu's own copy. The `retryable` flag is forwarded so an admin
- * client can tell "wait and poll again" from "this is over", without re-deriving that rule.
- *
- * @complexity O(1).
- */
 function sendExternalMcpOAuthError({ res, error }: { res: import("express").Response; error: unknown }, _optional = {}): void {
-  if (error instanceof ApiConnectionError) { res.status(error.code === 'access-denied' ? 403 : 400).json({ error: error.message, code: error.code }); return; }
-  if (error instanceof ExternalMcpValidationError) {
-    res.status(400).json({ error: error.message, code: "INVALID_MCP_SERVER", details: { field: error.field } });
-    return;
-  }
-  if (error instanceof ExternalMcpReauthRequiredError) {
-    res.status(409).json({ error: error.message, code: error.code, details: { retryable: false, settingsLink: error.settingsLink } });
-    return;
-  }
-  if (error instanceof ExternalMcpSecretStoreUnconfiguredError) {
-    // Same status and code `routes/external-mcp/put.ts` already answers with for this class, so an
-    // admin client has one contract to handle rather than two. It matters here because the routes
-    // that still surface it — connect and the callback, which must OPEN the blob to authenticate to
-    // the token endpoint — otherwise fall through to a bare 500 "internal error", which tells an
-    // operator whose site key has rotated nothing about the one thing they can act on.
-    res.status(503).json({ error: error.message, code: "SECRET_STORE_UNCONFIGURED" });
-    return;
-  }
-  if (error instanceof OAuthError) {
-    sendProviderOAuthError(res, error);
-    return;
-  }
+  const reply = externalMcpErrorStatus({ error, deps: {
+    apiConnection: ApiConnectionError, validation: ExternalMcpValidationError, reauth: ExternalMcpReauthRequiredError,
+    secretStoreUnconfigured: ExternalMcpSecretStoreUnconfiguredError, oauth: OAuthError,
+  } });
+  if (reply) { res.status(reply.status).json(reply.body); return; }
   sendAdminFailure({ res, error }, { operation: "routes/external-mcp/oauth", code: "INTERNAL_ERROR" });
 }
 
-function sendProviderOAuthError(res: import("express").Response, error: OAuthError): void {
-  const reply = externalMcpProviderRefusal({ error: { code: error.code, message: error.message, retryable: error.retryable, operatorAction: error.operatorAction,
-    ...(error.retryAfterSeconds === undefined ? {} : { retryAfterSeconds: error.retryAfterSeconds }),
-  } });
-  res.status(reply.status).json(reply.body);
-}
-
-/** Answers the shared limiter check, writing the 429 itself. `Retry-After` is set so a client can
- *  back off correctly instead of hammering. */
-async function withinRateLimit(limiter: RateLimiter, req: import("express").Request, res: import("express").Response): Promise<boolean> {
-  const result = await limiter.check({ key: resolveClientIp(req) });
-  if (result.allowed) return true;
-  res.setHeader("Retry-After", String(result.retryAfterSeconds));
-  res.status(429).json({
-    error: "too many OAuth attempts",
-    code: "RATE_LIMIT_EXCEEDED",
-    details: { retryAfterSeconds: result.retryAfterSeconds },
-  });
-  return false;
-}
+const withinRateLimit = (limiter: RateLimiter, req: import("express").Request, res: import("express").Response): Promise<boolean> => checkRateLimit({ deps: {
+  check: () => limiter.check({ key: resolveClientIp(req) }),
+  retryAfter: value => { res.setHeader("Retry-After", value); },
+  json: (body, status) => { res.status(status).json(body); },
+  message: "too many OAuth attempts",
+} });
 
 /**
  * `POST .../mcp-servers/:serverId/oauth/connect` — begins an authorization.

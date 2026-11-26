@@ -1,5 +1,4 @@
 import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
-import { readOverwriteEntityKeys } from "@jini-ai/cms/admin-http/routes/publish-content/import";
 import { knownMappedErrorResponse, type MappedErrorClass, type RouteRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
 import type { Response } from "express";
 
@@ -48,26 +47,4 @@ export function mappedErrorResponse({ err, table }: { err: unknown; table: reado
 /** Sends a {@link RouteRefusal}. @complexity O(1). */
 export function sendRefusal({ res, refusal }: { res: Response; refusal: RouteRefusal }, _optional: Record<string, never> = {}): void {
   res.status(refusal.status).json(refusal.body);
-}
-
-/** Returned by {@link acceptOverwriteEntityKeys} when it has already sent a 400 or 403. */
-export const OVERWRITE_REFUSED = Symbol("overwrite-refused");
-
-/** A route's own "who may tick overwrite" rule; on `false` it has already sent its 403. */
-export type OverwriteRule = (required: { res: Response; overwriteEntityKeys: readonly string[] | null }, optional?: Record<string, never>) => boolean;
-
-/**
- * Reads `overwriteEntityKeys` (Jini's parser answers the `"invalid"` sentinel for a malformed set,
- * which this adapter turns into the relay's 400) and applies the route's own "who may tick overwrite" rule.
- * @returns the ticks (`null` = force nothing), or {@link OVERWRITE_REFUSED} once the 400 (malformed)
- *   or the rule's own 403 has been sent.
- * @complexity O(n) in the submitted key count.
- */
-export function acceptOverwriteEntityKeys({ res, raw, mayOverwrite }: { res: Response; raw: unknown; mayOverwrite: OverwriteRule }, _options: Record<string, never> = {}): readonly string[] | null | typeof OVERWRITE_REFUSED {
-  const keys = readOverwriteEntityKeys({ overwriteEntityKeys: raw });
-  if (keys === "invalid") {
-    res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
-    return OVERWRITE_REFUSED;
-  }
-  return mayOverwrite({ res, overwriteEntityKeys: keys }) ? keys : OVERWRITE_REFUSED;
 }

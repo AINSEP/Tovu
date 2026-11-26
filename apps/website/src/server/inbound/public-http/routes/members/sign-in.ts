@@ -2,7 +2,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
-import { memberSignInRefusal as memberSignInRefusalFor } from "@jini-ai/user-management/members/public-member-auth-response";
+import { memberSignInRefusal as memberSignInRefusalFor, sendMemberAuthError } from "@jini-ai/user-management/members/public-member-auth-response";
 
 /**
  * @file Tovu's policy for the PUBLIC sign-in request routes: the sign-in refusal copy, the redacted 500 and the
@@ -20,12 +20,12 @@ export function reportMemberDeliveryFailure({ error, reporter }: { error: unknow
  * Per-address delivery outcomes never enter this error path: they use generic acceptance.
  * @complexity O(1); writes one response, without logging credentials or provider detail.
  */
-export function respondToSignInError({ error, res }: { error: unknown; res: Response }, _options = {}): void {
-  const refusal = memberSignInRefusal({ error });
-  if (refusal) { res.status(refusal.status).json(refusal.body); return; }
-  const { errorId } = reportServerFailure({ error, operation: MEMBER_SIGN_IN_FAILURE.operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
-  res.status(500).json({ error: MEMBER_SIGN_IN_FAILURE.visitorError, errorId });
-}
+export const respondToSignInError = ({ error, res }: { error: unknown; res: Response }, _options = {}): void => sendMemberAuthError({ error, deps: {
+  refusal: memberSignInRefusal,
+  report: input => reportServerFailure(input, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+  json: (body, status) => { res.status(status).json(body); },
+  copy: MEMBER_SIGN_IN_FAILURE,
+} });
 
 /** The sign-in request routes' unexpected-failure copy (`reportServerFailure` operation + visitor sentence). */
 export const MEMBER_SIGN_IN_FAILURE = {

@@ -1,10 +1,9 @@
-import { readTargetConfig as jiniReadTargetConfig, publishPreviewFor as jiniPublishPreviewFor, describePublishTargets } from "@jini-ai/devops/deploy/site/static-publish/admin-publish-read";
+import { readTargetConfig as jiniReadTargetConfig, publishPreviewFor as jiniPublishPreviewFor, describePublishTargets, credentialChoice } from "@jini-ai/devops/deploy/site/static-publish/admin-publish-read";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import { listPublishContentPeers } from "@jini-ai/cms/publish/content/peer-registry";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { Express } from "express";
-import { ToolInputError } from "@jini-ai/core";
 
 import { inspectStaticPublish, composePublishCredentialSource, getPublishRunSnapshot, listPublishDestinations, missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, startPublishRun, unknownTargetMessage } from "#src/features/deployments/static-publish/index";
 import { type StaticPublishConfig, type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
@@ -100,12 +99,6 @@ async function readTargetConfig({ context, targetId, raw, blankAsAbsent }: { con
       deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination }, input,
     }),
   }, targetId, raw, blankAsAbsent });
-}
-
-function credentialChoice({ value }: { value: unknown }, _options = {}): { credentialId?: string } {
-  if (value === undefined) return {};
-  if (typeof value !== "string" || !value.trim()) throw new ToolInputError({ message: "credentialId must be a non-empty string naming the selected connection. Reload and choose it again." });
-  return { credentialId: value };
 }
 
 export type PublishSiteContext = { deps: AdminPublishSiteDeps; credentialSource: PublishCredentialSource };

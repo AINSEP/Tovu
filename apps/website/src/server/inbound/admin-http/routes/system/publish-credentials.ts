@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { knownPublishCredentialListRefusal } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/list";
+import { knownPublishCredentialListRefusal, listPublishCredentialsReply } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/list";
 import type { Express } from "express";
 import {
   listPublishCredentials,
@@ -72,15 +72,12 @@ export function registerAdminPublishCredentialsListRoute(
     const params = { principalId: principal.id, permission: "system.publish", workspaceId: deps.workspaceId, entityType: "site-publish" };
     if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
     try {
-      const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
-      res.status(200).json({ credentials, executionMode: deps.publishExecutionMode });
-      // Fires AFTER the response is already sent, and only for rows THIS call itself found still
-      // `null` — never awaited, never able to change or delay what the caller above just received.
-      // `accountLabelHealScheduler.triggerFor` is documented to never throw or reject, even if `heal`
-      // misbehaves (`account-label-heal-scheduler.ts`'s own tests cover that directly) — see this
-      // file's header for why this is the one new trigger point and why it must stay exactly this
-      // narrow.
-      void triggerAccountLabelHeal(credentials);
+      await listPublishCredentialsReply({ deps: {
+        list: () => listPublishCredentials(readDeps, { workspaceId: deps.workspaceId }),
+        executionMode: () => deps.publishExecutionMode,
+        json: body => { res.status(200).json(body); },
+        triggerAccountLabelHeal,
+      } });
     } catch (err) {
       sendStoreError({ res, err });
     }
