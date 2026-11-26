@@ -28,6 +28,8 @@
 ^apps/admin/src/features/settings/ExternalMcpSettingsPanel\.tsx$
 ^apps/admin/src/features/settings/SettingsUi\.tsx$
 ^apps/admin/src/features/deployment/StaticSiteTab\.tsx$
+^apps/admin/src/components/AssistantDock/AssistantDock\.tsx$
+^apps/admin/src/components/AssistantDock/hooks/execution-config\.hooks\.ts$
 ```
 
 ## Round 2 status

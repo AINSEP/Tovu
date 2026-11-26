@@ -206,7 +206,7 @@ describe("useExecutionConfig", () => {
   it("revalidates execution config when the document becomes visible and removes the listener", async () => {
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
     const current = byokConfig();
-    const { result, unmount } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result, unmount } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     try {
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(1);
@@ -229,7 +229,7 @@ describe("useExecutionConfig", () => {
   it("adopts a deferred initial read after a same-value mode pick", async () => {
     let resolveLoad!: (config: ExecutionConfig) => void;
     mockLoadExecutionConfig.mockReturnValue(new Promise((resolve) => { resolveLoad = resolve; }));
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     act(() => result.current.handleExecutionModeChange("local"));
     expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
     const loaded = byokConfig();
@@ -243,7 +243,7 @@ describe("useExecutionConfig", () => {
     const loaded: ExecutionConfig = { ...DEFAULT_EXECUTION_CONFIG, mode: "byok" };
     mockLoadExecutionConfig.mockResolvedValue(loaded);
 
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     expect(result.current.executionConfig).toEqual(DEFAULT_EXECUTION_CONFIG);
 
     await waitFor(() => expect(result.current.executionConfig).toEqual(loaded));
@@ -252,7 +252,7 @@ describe("useExecutionConfig", () => {
   it("falls back to the default config and logs, rather than throwing, when the load rejects", async () => {
     mockLoadExecutionConfig.mockRejectedValue(new Error("server down"));
 
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     await waitFor(() => expect(consoleErrorSpy).toHaveBeenCalledWith(
       "[AssistantDock] failed to load execution config",
@@ -265,7 +265,7 @@ describe("useExecutionConfig", () => {
     let resolveLoad!: (config: ExecutionConfig) => void;
     mockLoadExecutionConfig.mockReturnValue(new Promise((resolve) => { resolveLoad = resolve; }));
 
-    const { result, unmount } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result, unmount } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     unmount();
     await act(async () => {
       resolveLoad({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok" });
@@ -282,7 +282,7 @@ describe("useExecutionConfig", () => {
     mockLoadAdminExecutionCredential.mockReturnValue(new Promise(() => {}));
     const abort = vi.spyOn(AbortController.prototype, "abort");
     try {
-      const { unmount } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+      const { unmount } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
       expect(abort).not.toHaveBeenCalled();
       unmount();
       expect(abort).toHaveBeenCalledTimes(2);
@@ -303,7 +303,7 @@ describe("useExecutionConfig", () => {
     mockLoadAdminExecutionCredential
       .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectCredential = reject; }))
       .mockResolvedValueOnce(storedCredential(true));
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider, reactStrictMode: true });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider, reactStrictMode: true });
     // Replay shares the pending boot reads; a real refresh supersedes those obsolete responses.
     await act(async () => {
       for (const listener of settingsRefreshListeners) listener(["core.execution"]);
@@ -331,7 +331,7 @@ describe("useExecutionConfig", () => {
     let resolveLoad!: (config: ExecutionConfig) => void;
     mockLoadExecutionConfig.mockReturnValue(new Promise((resolve) => { resolveLoad = resolve; }));
 
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     act(() => result.current.handleExecutionModeChange("api"));
     expect(result.current.executionConfig.mode).toBe("byok");
@@ -347,7 +347,7 @@ describe("useExecutionConfig", () => {
   });
 
   it("is a no-op — no save call, no state change — when the picked mode is already active", () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     const before = result.current.executionConfig;
 
     act(() => result.current.handleExecutionModeChange("local")); // DEFAULT_EXECUTION_CONFIG.mode is "local-cli"
@@ -357,7 +357,7 @@ describe("useExecutionConfig", () => {
   });
 
   it("persists a real mode switch through saveExecutionConfig and updates state immediately", () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     act(() => result.current.handleExecutionModeChange("api"));
 
@@ -369,7 +369,7 @@ describe("useExecutionConfig", () => {
   });
 
   it("publishes a settings refresh once the mode-switch save succeeds", async () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     act(() => result.current.handleExecutionModeChange("api"));
 
@@ -377,7 +377,7 @@ describe("useExecutionConfig", () => {
   });
 
   it("does not publish a settings refresh when the picked mode is already active", () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     act(() => result.current.handleExecutionModeChange("local")); // DEFAULT_EXECUTION_CONFIG.mode is "local-cli"
 
@@ -386,7 +386,7 @@ describe("useExecutionConfig", () => {
 
   it("logs rather than throwing when the mode-switch save rejects", async () => {
     mockSaveExecutionConfig.mockRejectedValue(new Error("write failed"));
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     act(() => result.current.handleExecutionModeChange("api"));
 
@@ -399,7 +399,7 @@ describe("useExecutionConfig", () => {
   });
 
   it("configLoaded starts false and flips true once the mount-load settles successfully", async () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     expect(result.current.configLoaded).toBe(false);
 
     await waitFor(() => expect(result.current.configLoaded).toBe(true));
@@ -407,14 +407,14 @@ describe("useExecutionConfig", () => {
 
   it("configLoaded still flips true when the mount-load rejects — settled, not succeeded", async () => {
     mockLoadExecutionConfig.mockRejectedValue(new Error("server down"));
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     await waitFor(() => expect(result.current.configLoaded).toBe(true));
   });
 
   it("configLoaded stays false while the load is still in flight", async () => {
     mockLoadExecutionConfig.mockReturnValue(new Promise(() => {})); // never resolves
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     // Give any microtask queue a chance to run before asserting the negative.
     await act(async () => {
@@ -428,7 +428,7 @@ describe("useExecutionConfig", () => {
   // sit on a stale answer for the entire session once a settings screen's OWN, independently mounted
   // `useAdminExecutionCredential` saved/rotated/migrated the same server-side credential row.
   it("hasStoredAdminKey re-reads on a core.execution settings refresh, without remounting", async () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     await waitFor(() => expect(result.current.hasStoredAdminKey).toBe(false));
 
     // A key was saved from elsewhere (a settings screen's own mount) — nothing here changed except
@@ -442,7 +442,7 @@ describe("useExecutionConfig", () => {
   });
 
   it("hasStoredAdminKey ignores a settings refresh for an unrelated namespace", async () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     await waitFor(() => expect(result.current.hasStoredAdminKey).toBe(false));
     mockLoadAdminExecutionCredential.mockClear().mockResolvedValue(storedCredential(true));
 
@@ -458,7 +458,7 @@ describe("useExecutionConfig", () => {
   it("hasStoredAdminKey falls back to false and logs, rather than throwing, when the credential load rejects", async () => {
     mockLoadAdminExecutionCredential.mockRejectedValue(new Error("credential fetch failed"));
 
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     await waitFor(() =>
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -477,7 +477,7 @@ describe("useExecutionConfig", () => {
       }),
     );
 
-    const { result, unmount } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result, unmount } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
     unmount();
     await act(async () => {
       rejectLoad(new Error("credential fetch failed"));
@@ -491,7 +491,7 @@ describe("useExecutionConfig", () => {
   });
 
   it("setExecutionConfig also accepts a plain value, not only an updater function", () => {
-    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    const { result } = renderHook(() => useExecutionConfig({}), { wrapper: FetchQueryProvider });
 
     const next = byokConfig();
     act(() => result.current.setExecutionConfig(next));
@@ -2292,7 +2292,7 @@ describe("dock picks under StrictMode", () => {
   const strict = ({ children }: { children: ReactNode }) => <StrictMode><FetchQueryProvider>{children}</FetchQueryProvider></StrictMode>;
 
   function useDockExecution() {
-    const execution = useExecutionConfig();
+    const execution = useExecutionConfig({});
     const byok = useByokRuntime(execution);
     const localCli = useLocalCliSelection(execution);
     return { ...execution, ...byok, ...localCli };
