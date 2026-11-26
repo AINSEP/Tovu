@@ -1,9 +1,10 @@
 import { failRunBeforeStart as realFailRunBeforeStart } from "@jini-ai/daemon/session-coordination";
 import type express from "express";
-import { readFile as realReadFile } from "node:fs/promises";
+import { copyFile, open as realOpen } from "node:fs/promises";
+import { constants } from "node:fs";
 import type { Principal } from "@jini-ai/core";
-import { prepareMessageAttachments as realPrepareMessageAttachments, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
-import { createDiskAttachmentStore, stageAttachmentClaim as realStageAttachmentClaim, attachmentUploadRoutes, attachmentCleanupRoutes, type AttachmentsHttpDeps, type RunMessageRequest, type RunStartHandler, type StoredAttachment } from "@jini-ai/daemon/http";
+import { isNativeMessageImage, prepareMessageAttachments as realPrepareMessageAttachments, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
+import { createDiskAttachmentStore, stageAttachmentClaim as realStageAttachmentClaim, attachmentUploadRoutes, attachmentCleanupRoutes, type AttachmentReadPorts, type AttachmentsHttpDeps, type RunMessageRequest, type RunStartHandler, type StoredAttachment } from "@jini-ai/daemon/http";
 import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 import { MAX_UPLOAD_BATCH_BYTES, uploadLimitForFile } from "@tovu/contracts/upload-limits";
 import { sniffContentType as realSniffContentType, MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
@@ -44,7 +45,7 @@ type AttachmentPorts = {
   routeDeps: { siteBinding: { dir: string } }; stagedAttachmentCleanupByRunId: Map<string, () => Promise<void>>;
   defaultAgentId: string; getAgentDef: (required: { id: string }) => Parameters<typeof realAgentReceivesImageAttachments>[0]['def'];
   stageAttachmentClaim?: typeof realStageAttachmentClaim; prepareMessageAttachments?: typeof realPrepareMessageAttachments;
-  readFile?: (path: string) => Promise<Uint8Array>; sniffContentType?: typeof realSniffContentType;
+  openFile?: (path: string, flags: string) => ReturnType<AttachmentReadPorts["openNoFollow"]>; sniffContentType?: typeof realSniffContentType;
   failRunBeforeStart?: typeof realFailRunBeforeStart; console?: Pick<Console, 'error'>; agentReceivesImageAttachments?: typeof realAgentReceivesImageAttachments;
 };
 export function createAttachmentRunFieldsResolver(ports: AttachmentPorts, _optional = {}) {
@@ -67,8 +68,8 @@ async function resolveAttachmentRunFields(
 ): Promise<AttachmentRunFields | null> {
   // Defaults by spread rather than per-field `=` defaults: same values, without a branch per seam.
   const { getAttachmentStore, routeDeps, stagedAttachmentCleanupByRunId, getAgentDef, stageAttachmentClaim, prepareMessageAttachments,
-    readFile, sniffContentType, failRunBeforeStart, console, agentReceivesImageAttachments } = {
-    stageAttachmentClaim: realStageAttachmentClaim, prepareMessageAttachments: realPrepareMessageAttachments, readFile: realReadFile,
+    openFile, sniffContentType, failRunBeforeStart, console, agentReceivesImageAttachments } = {
+    stageAttachmentClaim: realStageAttachmentClaim, prepareMessageAttachments: realPrepareMessageAttachments, openFile: realOpen,
     sniffContentType: realSniffContentType, failRunBeforeStart: realFailRunBeforeStart, console: globalThis.console,
     agentReceivesImageAttachments: realAgentReceivesImageAttachments, ...ports };
   if (attachmentIds.length === 0) return {};
@@ -92,14 +93,16 @@ async function resolveAttachmentRunFields(
     const originalClaim = await attachmentStore.claim({ attachments: refs, runId: run.id });
     if (originalClaim.batchDirectory === undefined) return {};
     // Register cleanup before yielding so terminalization during the copy still reaps it.
-    const staging = stageAttachmentClaim({ claim: originalClaim, filesystemRoot: routeDeps.siteBinding.dir }, {});
+    const staging = stageAttachmentClaim({ claim: originalClaim, filesystemRoot: routeDeps.siteBinding.dir,
+      deps: { copyFile: (src, dst) => copyFile(src, dst, constants.COPYFILE_FICLONE) } }, {});
     stagedAttachmentCleanupByRunId.set(run.id, async () => (await staging).cleanup());
     const claimed = (await staging).claim;
     const def = getAgentDef({ id: agentId });
+    const imageAccess = agentReceivesImageAttachments({ def }, {});
     const byPath = new Map(claimed.attachments.map(attachment => [attachment.path, attachment]));
     const prepared = await prepareMessageAttachments({ refs: [...byPath.keys()], read: ({ ref }) => {
-      return readStagedAttachment({ byPath, ref, readFile, sniffContentType });
-    } }, { fileAccess: true, imageAccess: agentReceivesImageAttachments({ def }, {}) });
+      return readStagedAttachment({ byPath, ref, openFile, sniffContentType, imageAccess });
+    } }, { fileAccess: true, imageAccess });
     // Non-image uploads need an explicit prompt notice as well as site-contained staging; otherwise a
     // readable .md/video is never named to the agent. Generic delivery now owns that distinction.
     return { imagePaths: prepared.imagePaths, imageContents: prepared.images, attachmentNotice: prepared.notice,
@@ -118,13 +121,26 @@ async function resolveAttachmentRunFields(
   }
 }
 
-async function readStagedAttachment({ byPath, ref, readFile, sniffContentType }: {
-  byPath: Map<string, StoredAttachment>; ref: string; readFile: (path: string) => Promise<Uint8Array>; sniffContentType: typeof realSniffContentType;
+async function readStagedAttachment({ byPath, ref, openFile, sniffContentType, imageAccess }: {
+  byPath: Map<string, StoredAttachment>; ref: string; openFile: NonNullable<AttachmentPorts["openFile"]>; sniffContentType: typeof realSniffContentType; imageAccess: boolean;
 }, _optional = {}) {
   const attachment = byPath.get(ref);
   if (!attachment) throw new Error(`agent attachment was not staged: ${ref}`);
-  const bytes = await readFile(attachment.path);
-  return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
+  const handle = await openFile(attachment.path, "r");
+  try {
+    const { size } = await handle.stat();
+    const buffer = new Uint8Array(Math.min(size, 64 * 1024));
+    const { bytesRead } = await handle.read({ buffer, position: 0, length: buffer.byteLength });
+    let bytes: Uint8Array = buffer.subarray(0, bytesRead);
+    const mimeType = sniffContentType({ bytes });
+    if (imageAccess && isNativeMessageImage({ mimeType })) {
+      if (size > TOVU_MAX_UPLOAD_BYTES) throw new Error("Attached image exceeds the upload limit.");
+      bytes = await handle.readFile();
+    }
+    return { name: attachment.name, path: attachment.path, bytes, mimeType };
+  } finally {
+    await handle.close();
+  }
 }
 
 type DeliveryPorts = {
@@ -180,6 +196,7 @@ export function openScopeAttachments({ ATTACHMENT_UPLOAD_DIRECTORY }: { ATTACHME
   }, {
     retainAcrossRestarts: true,
     maxBatchBytes: ATTACHMENT_MAX_BATCH_BYTES,
+    maxStoredBytes: MAX_UPLOAD_BATCH_BYTES,
   });
 }
 

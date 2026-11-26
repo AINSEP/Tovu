@@ -4,6 +4,7 @@ import test from "node:test";
 import { Readable } from "node:stream";
 import express from "express";
 import type { Request, Response } from "express";
+import { MEDIA_JSON_UPLOAD_MAX_BYTES } from "@tovu/contracts/upload-limits";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { loginAsOwner, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -103,13 +104,14 @@ test("isAuthenticatedBodyPath matches every session-gated prefix on a segment bo
   }
 });
 
-test("jsonBodyLimitForAuthenticatedRequest gives the 700 MB video limit only to media upload and replace; publish-content keeps 75 MB", () => {
+test("jsonBodyLimitForAuthenticatedRequest gives the safe JSON limit only to media upload and replace; publish-content keeps 75 MB", () => {
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media" }), MEDIA_UPLOAD_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media/m1/replace" }), MEDIA_UPLOAD_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "PUT", path: "/api/admin/v1/workspaces/w/publish-content/blobs/abc" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/publish-content/bundles" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
   assert.equal(LARGE_UPLOAD_JSON_BODY_LIMIT, "75mb", "only video media routes may exceed the previous limit");
-  assert.equal(MEDIA_UPLOAD_JSON_BODY_LIMIT, "700mb");
+  assert.equal(MEDIA_JSON_UPLOAD_MAX_BYTES, 192 * 1024 * 1024);
+  assert.equal(MEDIA_UPLOAD_JSON_BODY_LIMIT, "257mb");
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "PATCH", path: "/api/admin/v1/workspaces/w/media" }), AUTHENTICATED_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media/1/extra" }), AUTHENTICATED_JSON_BODY_LIMIT);
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/runs" }), AUTHENTICATED_JSON_BODY_LIMIT);
@@ -158,20 +160,22 @@ test("login's public parser refuses 200 KB before authentication", async () => {
   assert.equal((error as { type: string }).type, "entity.too.large");
 });
 
-test("an authenticated upload declared above 700 MB takes the JSON 413 error path", async () => {
+test("media POST and replace reject a body above the safe JSON ceiling before buffering it", async () => {
   // raw-body rejects an oversized Content-Length before buffering the advertised upload.
-  const { error } = await parseBody("/api/admin/v1/workspaces/ws/media", "{}", false, 701 * 1024 * 1024);
-  assert.equal((error as { type: string }).type, "entity.too.large");
-  let status: number | undefined;
-  let body: unknown;
-  const res = {
-    headersSent: false,
-    status(code: number) { status = code; return res; },
-    json(value: unknown) { body = value; return res; },
-  } as unknown as Response;
-  respondToOversizedBody(error, {} as Request, res, () => assert.fail("oversized body should be answered"));
-  assert.equal(status, 413);
-  assert.deepEqual(body, TOO_LARGE);
+  for (const path of ["/api/admin/v1/workspaces/ws/media", "/api/admin/v1/workspaces/ws/media/m1/replace"]) {
+    const { error } = await parseBody(path, "{}", false, 257 * 1024 * 1024 + 1);
+    assert.equal((error as { type: string }).type, "entity.too.large");
+    let status: number | undefined;
+    let body: unknown;
+    const res = {
+      headersSent: false,
+      status(code: number) { status = code; return res; },
+      json(value: unknown) { body = value; return res; },
+    } as unknown as Response;
+    respondToOversizedBody(error, {} as Request, res, () => assert.fail("oversized body should be answered"));
+    assert.equal(status, 413);
+    assert.deepEqual(body, TOO_LARGE);
+  }
 });
 
 test("malformed authenticated JSON and errors after headers are sent are forwarded unchanged", async () => {

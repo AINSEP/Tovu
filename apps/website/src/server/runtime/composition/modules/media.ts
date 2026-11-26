@@ -10,7 +10,7 @@ import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
  * (owner 2026-11-24). One source: `@tovu/contracts/upload-limits`. Call sites pass the caps as
  * uploadMedia's override; Jini's default for other consumers' image/video uploads stays 10 MiB.
  */
-import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
+import { MEDIA_JSON_UPLOAD_MAX_BYTES, UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import type { Express } from "express";
 import { describeRequestFailure } from "@jini-ai/core";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
@@ -211,6 +211,7 @@ export function registerAdminMediaReplaceRoute(
     ...mediaPortDeps({ deps }),
     mediaRepo: deps.mediaRepo,
     ...UPLOAD_CAPS,
+    maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES,
     replaceFile: (input: MediaReplacement) => replaceMediaFile({ deps, ...input }, { ...UPLOAD_CAPS, videoCodecProbe }),
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ ...input, resolvePublicUrls: ({ media }) => resolveMediaPublicUrls({ deps, assets: media }), resolveByteSizes: ({ media }) => resolveMediaByteSizes({ deps, media }) }),
   };
@@ -256,6 +257,7 @@ export function registerAdminMediaUploadRoute(
   const storeUpload = (input: MediaUploadInput) => convertingUpload({ workspaceId: deps.workspaceId, ...input });
   const uploadDeps = {
     ...mediaPortDeps({ deps }),
+    maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES,
     storeUpload,
     recordContentType: ({ sha256, contentType }: { sha256: string; contentType: string }) => deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType }),
     onUploaded: ({ actorId, kind, contentType, byteLength }: { actorId: string; kind: MediaKind; contentType: string; byteLength: number }) => captureMediaUploaded({

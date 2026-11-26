@@ -585,7 +585,8 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeFilesCopyTools({
     catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION }),
     approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) },
-    bindDeps: ({ deps }) => bindFilesCopyToolDeps({ deps: { ...deps, resolveImportedMediaUrls: resolveMediaPublicUrls, assetHost: bindAssetHost(deps) } }),
+    bindDeps: ({ deps }) => bindFilesCopyToolDeps({ deps: { ...deps, resolveImportedMediaUrls: resolveMediaPublicUrls, assetHost: bindAssetHost(deps) },
+      videoImport: { ports: mediaConversionPorts, reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }),
   }) });
   contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
   contributions.contributors.register({ contribution: contributeIdentityTools() });

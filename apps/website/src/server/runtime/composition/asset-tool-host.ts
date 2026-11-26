@@ -24,6 +24,8 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/ag
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, resolveThemeFilePath, sniffThemeImportType, THEME_IMPORT_ACCEPT, THEME_IMPORT_POLICY, THEME_WRITE_PERMISSION, writeThemeBinaryFile, type ThemeToolDeps } from "#src/features/theme/asset-operations";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { saveLibraryDocument } from "@jini-ai/cms/media/site/library-save-attachment";
+import type { VideoImportOptions } from "#src/features/media/import-video-conversion";
+import { VIDEO_UPLOAD_LIMIT_BYTES } from "@tovu/contracts/upload-limits";
 
 /** What the host binding reads: the asset tools' own deps plus the theme roster they write into. */
 export type AssetHostDeps = Omit<AssetToolDeps, "resolveImportedMediaUrls" | "assetHost"> & ThemeToolDeps;
@@ -46,7 +48,7 @@ export function bindAssetHost(deps: AssetHostDeps, _optional = {}): AssetHostPor
   };
 }
 
-export function bindAssetDestinationDeps(required: { deps: AssetToolDeps }, _optional = {}): AssetDestinationDeps<AssetTheme> {
+export function bindAssetDestinationDeps(required: { deps: AssetToolDeps }, { videoImport }: { videoImport?: VideoImportOptions } = {}): AssetDestinationDeps<AssetTheme> {
   const { deps } = required;
   return {
     authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, refuseUnexpectedKeys,
@@ -62,7 +64,7 @@ export function bindAssetDestinationDeps(required: { deps: AssetToolDeps }, _opt
     },
     theme: deps.assetHost,
     media: { validateBytes: input => validateImageBytes(input), persist: input => persistImportedMedia({ routeDeps: deps,
-      resolvePublicUrls: deps.resolveImportedMediaUrls, ...input }) },
+      resolvePublicUrls: deps.resolveImportedMediaUrls, ...input }, { videoImport }) },
     library: { saveDocument: input => deps.assetHost.saveLibraryDocument(input, { archiveReader: deps.documentArchiveReader }) },
   };
 }
@@ -70,10 +72,11 @@ export function bindAssetDestinationDeps(required: { deps: AssetToolDeps }, _opt
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
 const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
-export function bindFilesCopyToolDeps(required: { deps: AssetToolDeps }, _optional = {}): FilesCopyToolDeps<AssetTheme> {
+export function bindFilesCopyToolDeps(required: { deps: AssetToolDeps; videoImport: VideoImportOptions }, _optional = {}): FilesCopyToolDeps<AssetTheme> {
   const deps = { ...required.deps, documentArchiveReader: required.deps.documentArchiveReader ?? createDocumentArchiveReader(documentArchiveDeps) };
   return {
-    destination: bindAssetDestinationDeps({ deps }), refuseUnexpectedKeys,
+    destination: bindAssetDestinationDeps({ deps }, { videoImport: required.videoImport }), refuseUnexpectedKeys,
+    mediaVideoMaxBytes: VIDEO_UPLOAD_LIMIT_BYTES,
     source: {
       readAsset: input => readAssetSource({ deps, ...input }), resolveFolder: input => resolveAssetSource({ deps, ...input }),
       list: input => listFsFiles(input), readFile: input => readLocalFile(input),

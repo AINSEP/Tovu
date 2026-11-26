@@ -1,4 +1,5 @@
 import express, { type ErrorRequestHandler, type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import { MEDIA_JSON_UPLOAD_MAX_BYTES } from "@tovu/contracts/upload-limits";
 
 /**
  * @file The app's JSON body parsers and their size limits.
@@ -36,10 +37,10 @@ export const TELEMETRY_JSON_BODY_LIMIT = "16kb";
  *  blob/bundle bodies — unchanged since before the video cap, because those routes never carry a video. */
 export const LARGE_UPLOAD_JSON_BODY_LIMIT = "75mb";
 
-/** Covers the 500 MiB video limit (`VIDEO_UPLOAD_LIMIT_BYTES`) once base64 inflates it ~1.33x (~667 MiB), plus headroom.
+/** Covers the 192 MiB JSON video limit (`MEDIA_JSON_UPLOAD_MAX_BYTES`) once base64 inflates it to 256 MiB, plus headroom.
  *  ONLY media upload and replace get this: every other large-body route stays at {@link LARGE_UPLOAD_JSON_BODY_LIMIT},
- *  so one authenticated caller cannot make any other route buffer 700 MB. */
-export const MEDIA_UPLOAD_JSON_BODY_LIMIT = "700mb";
+ *  so one authenticated caller cannot make any other route buffer 257 MiB. */
+export const MEDIA_UPLOAD_JSON_BODY_LIMIT = `${Math.ceil(MEDIA_JSON_UPLOAD_MAX_BYTES * 4 / 3 / 1024 / 1024) + 1}mb`;
 
 /** Every mount prefix of `requireAdminSession` (`modules/core.ts`, `assistant*.ts`). A prefix here
  *  that has no gate would leave its routes with no parsed body at all. */
@@ -58,7 +59,7 @@ const AUTHENTICATED_PATH_PREFIXES = [
 const UNGATED_ADMIN_AUTH_PREFIX = "/api/admin/v1/auth/";
 
 /** Routes whose JSON carries base64 file bytes: media upload, publish-content blob put, bundle create. Each carries the limit it
- *  may buffer: media upload and replace accept a video (700 MB), publish-content blob put and bundle create never do (75 MB). */
+ *  may buffer: media upload and replace accept a video (257 MiB), publish-content blob put and bundle create never do (75 MB). */
 const LARGE_UPLOAD_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp; limit: string }> = [
   { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/media\/?$/, limit: MEDIA_UPLOAD_JSON_BODY_LIMIT },
   { method: "POST", pattern: /^\/api\/admin\/v1\/workspaces\/[^/]+\/media\/[^/]+\/replace\/?$/, limit: MEDIA_UPLOAD_JSON_BODY_LIMIT },

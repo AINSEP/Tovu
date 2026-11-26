@@ -1,13 +1,45 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { lstat, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, open, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import ts from "typescript";
 import { AttachmentUnavailableError, prepareByokMessageAttachments } from "../byok-message-attachments.js";
 import { readPickedFolders } from "#src/assistant/run-page-context";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { createDiskAttachmentStore } from "@jini-ai/daemon/http";
+import { readOwnerChatAttachment } from "#src/features/media/chat-attachment-reader-host";
+
+test("BYOK sniffs a video prefix without hydrating it and delivers full PNG pixels", async t => {
+  const uploadDirectory = await mkdtemp(path.join(tmpdir(), "byok-prefix-"));
+  t.after(() => rm(uploadDirectory, { recursive: true, force: true }));
+  const store = await createDiskAttachmentStore({ uploadDirectory }, { retainAcrossRestarts: true });
+  const directory = await store.createBatchDirectory({ batchId: "batch-prefix" }, {});
+  const video = Buffer.alloc(128 * 1024);
+  Buffer.from([0, 0, 0, 24, ...Buffer.from("ftypisom"), 0, 0, 2, 0, ...Buffer.from("isomiso2")]).copy(video);
+  const png = Buffer.from("iVBORw0KGgoB", "base64"), refs: string[] = [];
+  for (const [name, bytes] of [["clip.mov", video], ["pixel.png", png]] as const) {
+    const filePath = path.join(directory, name);
+    await writeFile(filePath, bytes);
+    const stored = await store.register({ input: { batchId: "batch-prefix", path: filePath, name, kind: "file", size: bytes.length, ownerId: "alice" } }, {});
+    refs.push(stored.path);
+  }
+  const fullReads: string[] = [];
+  const prepared = await prepareByokMessageAttachments({ refs, principalId: "alice", uploadDirectory }, {
+    read: (input, options) => readOwnerChatAttachment({ uploadDirectory, ...input }, { ...options, openFile: async (filePath, flags) => {
+      const handle = await open(filePath, flags);
+      return {
+        stat: () => handle.stat(), read: options => { assert.equal(options.position, 0); assert.ok(options.length <= 64 * 1024); return handle.read(options); },
+        readFile: async () => { assert.equal(path.basename(filePath), "pixel.png", "video payload must not be hydrated"); fullReads.push(filePath); return handle.readFile(); },
+        close: () => handle.close(),
+      };
+    } }),
+  });
+  assert.match(prepared.notice, /video attachments are unsupported by this runtime/);
+  assert.deepEqual(prepared.images, [{ mimeType: "image/png", data: png.toString("base64") }]);
+  assert.deepEqual(fullReads.map(filePath => path.basename(filePath)), ["pixel.png"]);
+});
 
 test("BYOK attachment refusals stay 400 while preparation faults become redacted incidents", async (t) => {
   const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);

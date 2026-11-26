@@ -5,6 +5,9 @@ import test, { describe } from "node:test";
 import type { prepareMessageAttachments } from "@jini-ai/daemon";
 import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 import { agentReceivesImageAttachments } from "@jini-ai/daemon/run-start-decisions";
+import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 
 /**
@@ -35,7 +38,7 @@ function resolver({ claim, def, attachmentStoreMissing = false }: {
       calls.prepareOptions.push(options);
       return { imagePaths: ["/batch/a.png"], images: [], notice: "notice" };
     },
-    readFile: async () => assert.fail("the fake preparation reads nothing"),
+    openFile: async () => assert.fail("the fake preparation reads nothing"),
     sniffContentType: () => "application/octet-stream",
     failRunBeforeStart: async (input: unknown) => { calls.failures.push(input); },
     console: { error: (...args: unknown[]) => { calls.errors.push(args); } },
@@ -44,6 +47,43 @@ function resolver({ claim, def, attachmentStoreMissing = false }: {
 }
 
 const claimedBatch: Claim = async () => ({ batchDirectory: "/batch", attachments: [{ path: "/batch/a.png", name: "a.png", kind: "image" }] });
+
+test("a staged video is sniffed from a prefix without reading its payload; PNG pixels stay exact", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "staged-prefix-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const videoPath = join(directory, "clip.mov"), imagePath = join(directory, "pixel.png");
+  const video = Buffer.alloc(128 * 1024);
+  Buffer.from([0, 0, 0, 24, ...Buffer.from("ftypisom"), 0, 0, 2, 0, ...Buffer.from("isomiso2")]).copy(video);
+  const png = Buffer.from("iVBORw0KGgoB", "base64");
+  await writeFile(videoPath, video);
+  await writeFile(imagePath, png);
+  const closed: string[] = [], fullReads: string[] = [];
+  const resolve = createAttachmentRunFieldsResolver({
+    getAttachmentStore: () => ({ claim: async () => ({ batchDirectory: directory, attachments: [
+      { path: videoPath, name: "clip.mov", kind: "file" }, { path: imagePath, name: "pixel.png", kind: "image" },
+    ] }) }),
+    routeDeps: { siteBinding: { dir: directory } }, stagedAttachmentCleanupByRunId: new Map(),
+    stageAttachmentClaim: async ({ claim }) => ({ claim, cleanup: async () => {} }),
+    defaultAgentId: "claude", getAgentDef: () => ({ imageDelivery: "native" }),
+    openFile: async path => {
+      const handle = await open(path, "r");
+      return {
+        stat: () => handle.stat(), read: options => { assert.equal(options.position, 0); assert.ok(options.length <= 64 * 1024); return handle.read(options); },
+        readFile: async () => { assert.notEqual(path, videoPath, "video payload must not be hydrated"); fullReads.push(path); return handle.readFile(); },
+        close: async () => { closed.push(path); await handle.close(); },
+      };
+    },
+    failRunBeforeStart: async () => assert.fail("attachment preparation must succeed"),
+  });
+  const result = await resolve({ run: RUN, attachmentIds: ["video", "png"], runLifecycle: LIFECYCLE }, {});
+  assert.ok(result);
+  assert.deepEqual(result.imagePaths, [imagePath]);
+  assert.deepEqual(result.imageContents, [{ mimeType: "image/png", data: png.toString("base64") }]);
+  assert.match(result.attachmentNotice!, /clip.mov: video attachments are unsupported/);
+  assert.ok(result.attachmentNotice!.includes(videoPath));
+  assert.deepEqual(fullReads, [imagePath]);
+  assert.deepEqual(closed, [videoPath, imagePath]);
+});
 
 describe("resolveAttachmentRunFields", () => {
   test("a message without attachments contributes no fields and never touches the store", async () => {
