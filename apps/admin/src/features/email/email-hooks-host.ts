@@ -18,7 +18,7 @@ import { emailApi } from "./email-api";
 /**
  * @file This app's bindings of the Email screen's data hooks (`@jini-ai/admin/screens/email/hooks/*`):
  * each `useWired*` hands its hook this app's HTTP client (`emailApi`, `mailStatusApi`), its transport
- * error class (`ApiError`), its router and its id source. `Email.tsx` and `EmailTemplateEditor.tsx`
+ * error class (`ApiError`), its router and its id source. `email-panel.tsx`
  * mount these; tests mount the unbound hooks with fakes.
  */
 
