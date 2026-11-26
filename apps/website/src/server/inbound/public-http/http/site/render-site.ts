@@ -26,7 +26,7 @@ export const renderSite = (required: RenderSiteRequired): Promise<string> => ren
   loadLiquidSandbox: () => import("./liquid-sandbox.js"),
   loadHandlebarsSandbox: () => import("./handlebars-sandbox.js"),
   renderBlock,
-  renderStaticPage: input => renderStaticPage({ ...input, theme: required.theme! }),
+  renderStaticPage: input => renderStaticPage({ ...input, theme: required.theme! }) ?? undefined,
   injectSiteAssistantIntoStaticPage,
   entryContent,
   entryList,

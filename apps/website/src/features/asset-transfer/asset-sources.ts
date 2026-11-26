@@ -16,6 +16,7 @@ import type { AssetTheme } from '@jini-ai/core/contracts/site/asset-transfer-too
 import type { DocumentArchiveReaderPort } from '@jini-ai/cms/media';
 import type { FsFilesToolDeps } from '../fs-files/tool-registrations.js';
 import type { MediaImportToolDeps } from '@jini-ai/cms/media/site-import/bindings';
+import type { HttpClientPort } from '#src/platform/http/index';
 import type { persistImportedMedia } from '../media-import/tool-registrations.js';
 import type { fetchImage } from '../media-import/fetch-image.js';
 
@@ -35,7 +36,7 @@ export interface AssetHostPort<T extends AssetTheme = AssetTheme> {
   isThemeShapeRejection(required: { error: unknown }): boolean;
   saveLibraryDocument(required: { bytes: Uint8Array; name: string; principalId: string }, optional: { archiveReader?: DocumentArchiveReaderPort }): Promise<{ document: unknown }>;
 }
-export type AssetToolDeps = FsFilesToolDeps & MediaImportToolDeps & { assetHost: AssetHostPort; documentArchiveReader?: DocumentArchiveReaderPort; resolveImportedMediaUrls: Parameters<typeof persistImportedMedia>[0]["resolvePublicUrls"] };
+export type AssetToolDeps = FsFilesToolDeps & MediaImportToolDeps & { mediaImportHttpClient: HttpClientPort; assetHost: AssetHostPort; documentArchiveReader?: DocumentArchiveReaderPort; resolveImportedMediaUrls: Parameters<typeof persistImportedMedia>[0]["resolvePublicUrls"] };
 
 export const ASSET_SOURCE_SCHEMA = { type: "object", additionalProperties: false, required: ["root", "path"], properties: {
   root: { type: "string", enum: ["site", "picked", "theme", "media"] },

@@ -10,6 +10,7 @@ import { protectThemeFileTools } from './file-mutation-tools.js';
 
 import { isImportShapeRejection, resolveLocalImportRequest, withCallerSafeEgressRefusal } from "../media-import/tool-registrations.js";
 import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
+import type { HttpClientPort } from "#src/platform/http/index";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
 import { THEME_WRITE_PERMISSION, THEME_FILE_REPLACEMENT_GUIDANCE } from "./agent-tools.js";
@@ -36,7 +37,8 @@ import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThem
 
 /** Theme registry plus the guarded client; the assistant deps bag satisfies it structurally. */
 export type ImportThemeFileToolDeps = ThemeToolDeps &
-  Pick<MediaImportToolDeps, "mediaImportHttpClient" | "outboundTestOrigins" | "mediaImportEgressRefusalLog" | "siteBinding" | "resolveRoots">;
+  Pick<MediaImportToolDeps, "mediaImportHttpClient" | "outboundTestOrigins" | "mediaImportEgressRefusalLog" | "siteBinding" | "resolveRoots"> &
+  { mediaImportHttpClient: HttpClientPort };
 
 const IMPORT_THEME_FILE_CATALOG: AgentToolDefinition = {
   name: "theme_import_file_from_url",

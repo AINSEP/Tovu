@@ -579,7 +579,7 @@ function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contribu
         conversationIdForRun: () => readDaemonCallContext()?.conversationId,
       },
       hostRegistrations: ({ registrations }) => buildDaemonAttachmentTools({ deps: routeDeps, registrations }, attachmentLookup ? { getLookup: () => attachmentLookup } : {}),
-      prepareGuidance: (required, optional) => automaticPluginRuns().prepareGuidance(required, optional),
+      prepareGuidance: required => automaticPluginRuns().prepareGuidance(required),
       // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
       // consumers must not open their own database. A supplied toolSurface bypasses this branch.
       toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
