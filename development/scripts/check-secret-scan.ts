@@ -3,10 +3,8 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { resolveOnPath } from "@jini-ai/agent-runtime";
 import { pathToFileURL } from "node:url";
-
 import { PEM_PATTERN_NAME } from "@jini-ai/diagnostics/redaction/secrets-only";
-import type { SecretScanViolation } from "@jini-ai/diagnostics/redaction/repo-secret-scan";
-import { scanRepoForSecrets as scan, scanGitHistoryForSecrets as scanHistory } from "@jini-ai/diagnostics/redaction/repo-secret-scan.node";
+import { createRepoSecretCheck } from "@jini-ai/diagnostics/redaction/repo-secret-scan.node";
 
 /**
  * @file Repo-scanning static check (same shape as `seal-aad-invariant.ts` in this folder): fails
@@ -73,7 +71,7 @@ import { scanRepoForSecrets as scan, scanGitHistoryForSecrets as scanHistory } f
  * requires the separate, human-approved history-rewrite step the file's Usage note already calls
  * out for the tip case.
  *
- * Usage: npx tsx apps/website/src/features/webhooks/secret-scan-guard.ts
+ * Usage: npx tsx development/scripts/check-secret-scan.ts
  * Exit codes: 0 = no un-allowlisted credential-shaped string found in any tracked file. 1 = at
  *             least one was found.
  *
@@ -94,7 +92,7 @@ import { scanRepoForSecrets as scan, scanGitHistoryForSecrets as scanHistory } f
  * `{n}`, and why a fixed-length format like Google's needs the exact-length trap guarded against.
  */
 
-const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 
 /** Binary media extensions that never legitimately carry credential-shaped ASCII text; skipped by
  *  extension to keep this check fast (see file header). Everything else — including `.db`/
@@ -152,69 +150,32 @@ const ALLOWLIST: readonly AllowlistEntry[] = [
   },
 ];
 
-export function isAllowlisted(
-  { file, patternName, value }: { file: string; patternName: string; value: string },
-  _optional = {}
-): boolean {
-  return ALLOWLIST.some((e) => e.file === file && e.patternName === patternName && e.value === value);
-}
-
 function gitCommand(_required: Record<string, never>, _options: Record<string, never> = {}): string {
   const command = resolveOnPath({ bin: "git" });
   if (!command) throw new Error("git executable is unavailable");
   return command;
 }
 
-export function scanRepoForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
-  return scan({ repoRoot: options?.repoRoot ?? REPO_ROOT, fs,
-    runner: (args, options) => execFileSync(gitCommand({}), [...args], options),
-    policy: { selectPath: ({ file }) => !SKIP_EXTENSIONS.has(path.extname(file).toLowerCase()), maxScanBytes: MAX_SCAN_BYTES, isAllowlisted },
-  });
-}
-
-export function scanGitHistoryForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
-  return scanHistory({ repoRoot: options?.repoRoot ?? REPO_ROOT, fs,
-    runner: (args, options) => execFileSync(gitCommand({}), [...args], options),
-    policy: { selectPath: ({ file }) => !SKIP_EXTENSIONS.has(path.extname(file).toLowerCase()), maxScanBytes: MAX_SCAN_BYTES, isAllowlisted },
-  });
-}
-
-function main(): void {
-  const tipViolations = scanRepoForSecrets();
-  const historyViolations = scanGitHistoryForSecrets();
-
-  if (tipViolations.length === 0 && historyViolations.length === 0) {
-    console.log(
-      "check:secret-scan — OK: no credential-shaped string found in any tracked file or git history.",
-    );
-    return;
-  }
-
-  if (tipViolations.length > 0) {
-    console.error(`check:secret-scan — ${tipViolations.length} credential-shaped string(s) found in tracked files:`);
-    for (const v of tipViolations) {
-      console.error(`  - ${v.file}:${v.line} [${v.patternName}]`);
-    }
-  }
-  if (historyViolations.length > 0) {
-    console.error(
-      `check:secret-scan — ${historyViolations.length} credential-shaped string(s) found in git history ` +
-        "(not necessarily present in the current tree):",
-    );
-    for (const v of historyViolations) {
-      console.error(`  - ${v.file}:${v.line} [${v.patternName}]`);
-    }
-  }
-  console.error(
-    "\nA credential-shaped string was found. If it is real: revoke/rotate it immediately. If it was " +
+const checkOptions = {
+  runner: (args: Parameters<Parameters<typeof createRepoSecretCheck>[0]["runner"]>[0], options: Parameters<Parameters<typeof createRepoSecretCheck>[0]["runner"]>[1]) => execFileSync(gitCommand({}), [...args], options),
+  fs, skipExtensions: SKIP_EXTENSIONS, maxScanBytes: MAX_SCAN_BYTES, exemptions: ALLOWLIST,
+  stdout: (text: string) => console.log(text), stderr: (text: string) => console.error(text),
+  copy: {
+    clean: "check:secret-scan — OK: no credential-shaped string found in any tracked file or git history.",
+    tip: (count: number) => `check:secret-scan — ${count} credential-shaped string(s) found in tracked files:`,
+    history: (count: number) => `check:secret-scan — ${count} credential-shaped string(s) found in git history ` + "(not necessarily present in the current tree):",
+    guidance: "\nA credential-shaped string was found. If it is real: revoke/rotate it immediately. If it was " +
       "found only in git history and is already dead (revoked/rotated), or is a fixture that " +
       "legitimately needs this shape, add a (file, pattern, exact-value)-scoped ALLOWLIST entry in " +
       "secret-scan-guard.ts with a reason, or — preferably — shorten/mutate the fixture so it no " +
       "longer matches a real credential's exact length. A history rewrite to purge a real committed " +
       "secret is a separate, human-approved step — this check cannot and does not do that.",
-  );
-  process.exit(1);
-}
+  },
+};
+
+export const { isAllowlisted, run } = createRepoSecretCheck({ ...checkOptions, repoRoot: REPO_ROOT });
+export const scanRepoForSecrets = (options?: { readonly repoRoot?: string }) => createRepoSecretCheck({ ...checkOptions, repoRoot: options?.repoRoot ?? REPO_ROOT }).scanTip();
+export const scanGitHistoryForSecrets = (options?: { readonly repoRoot?: string }) => createRepoSecretCheck({ ...checkOptions, repoRoot: options?.repoRoot ?? REPO_ROOT }).scanHistory();
 
 // Guarded, matching `seal-aad-invariant.ts`/`check-theme-replaced-elements.ts`: this file's
 // exported functions are imported directly by `__tests__/secret-scan-guard.test.ts`, and an
@@ -222,5 +183,5 @@ function main(): void {
 // side effect of that import.
 const entry = process.argv[1];
 if (entry && import.meta.url === pathToFileURL(entry).href) {
-  main();
+  process.exitCode = run({});
 }

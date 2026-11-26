@@ -1,3 +1,4 @@
+import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 /** A real HTTP server used only by disk-leak.test; stdout/stderr are its on-disk server log. */
 import express from 'express';
@@ -9,7 +10,7 @@ import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import { registerAdminExternalMcpListRoute, registerAdminExternalMcpPutRoute } from '#src/server/runtime/composition/modules/external-mcp';
-import { registerAdminExternalMcpProbeRoute, createExternalMcpProbeLimiter, type ExternalMcpProbeRouteDeps } from '../../../server/inbound/admin-http/routes/external-mcp/probe.js';
+import { registerAdminExternalMcpProbeRoute, type ExternalMcpProbeRouteDeps } from '#src/server/runtime/composition/modules/external-mcp';
 
 const db = openContentDb(process.argv[2]!);
 db.$client.pragma('journal_mode = WAL');
@@ -36,7 +37,7 @@ app.use((_request, response, next) => {
 });
 registerAdminExternalMcpPutRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 registerAdminExternalMcpListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
-registerAdminExternalMcpProbeRoute({ errors: createRouteIncidentReporter().errors, app, deps, limiter: createExternalMcpProbeLimiter(deps) });
+registerAdminExternalMcpProbeRoute({ errors: createRouteIncidentReporter().errors, app, deps, limiter: createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock }) });
 const server = createServer(app);
 server.listen(0, '127.0.0.1', () => {
   const address = server.address();

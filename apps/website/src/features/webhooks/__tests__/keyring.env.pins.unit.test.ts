@@ -15,7 +15,7 @@ import {
   SiteKeyFileAlreadyExistsError,
   UnusableSiteKeyError,
 } from "../keyring.env.js";
-import type { SiteKeySource } from "../site-key-sources.js";
+import type { SiteKeySource } from "../site-key-read-bindings.js";
 
 /**
  * @file Boundary pins for `keyring.env.ts` (security-sensitive): the exact refusal wording per

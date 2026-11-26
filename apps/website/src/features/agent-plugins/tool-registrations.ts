@@ -1,3 +1,4 @@
+import { tovuConnectDeps } from "#src/features/agent-plugins/connect-bindings";
 /**
  * @file Agent Plugin tool wiring for this product. The skill tool, its per-call gate, plugin search,
  * plugin memory tools and the note tool live in `@jini-ai/agent-plugins/lifecycle/host-tools`, and
@@ -21,12 +22,8 @@ import { deliverHostPluginGuidance, isHostPluginFileRequest } from "@jini-ai/age
 import { agentPluginOverlaysDir } from "./host-overlays-dir.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import {
-  AGENT_PLUGIN_CONNECT_TOOL_ID,
-  agentPluginConnectAgentToolCatalog,
-  agentPluginConnectDerivedRisk,
-  runAgentPluginConnect,
-} from "./connect-tool.js";
+import { AGENT_PLUGIN_CONNECT_TOOL_ID, agentPluginConnectAgentToolCatalog, agentPluginConnectDerivedRisk } from "#src/features/agent-plugins/connect-bindings";
+import { runAgentPluginConnect } from "@jini-ai/agent-plugins/connect";
 import {
   saveAgentPluginToken,
   type AgentPluginAccessTokenToolDeps,
@@ -141,7 +138,7 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
     [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx, optional) => {
       const input = requireInputRecord({ input: ctx.input });
       const pluginId = requireString({ input: input, key: "pluginId" });
-      return runAgentPluginConnect({ routeDeps, surfaces, ctx, pluginId }, {
+      return runAgentPluginConnect({ routeDeps: tovuConnectDeps(routeDeps), surfaces, ctx, pluginId }, {
         ...optional,
         // Retained sign-ins use the common fixed access card; the OAuth callback retains its own defaults.
         saveToken: ({ ctx, pluginId }, execution = {}) => saveAgentPluginToken({
@@ -154,7 +151,7 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "agent-plugin-connect",
-    catalogModule: "features/agent-plugins/connect-tool.ts",
+    catalogModule: "features/agent-plugins/connect-bindings.ts",
     catalog: indexCatalogById({ catalog: agentPluginConnectDomainCatalog }),
     handlers,
     derivedRisk: agentPluginConnectDomainRisk,

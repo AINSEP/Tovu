@@ -715,11 +715,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/webhooks/secret-scan-guard.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/webhooks/site-key-ensure.ts",
     "rule": "catch-reads-error",
     "value": 1

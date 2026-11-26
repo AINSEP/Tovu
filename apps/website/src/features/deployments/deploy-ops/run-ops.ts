@@ -2,7 +2,7 @@ import { secretFingerprint as fingerprintWithPorts, bindDeployOpsRuntime as bind
 import { homedir } from 'node:os';
 import { resolveRuntimeMode } from '#src/contracts/core/runtime-mode';
 import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from '#src/features/webhooks/keyring.env';
-import { siteKeySourcesForSiteDir } from '#src/features/webhooks/site-key-sources';
+import { siteKeySourcesForSiteDir } from '#src/features/webhooks/site-key-read-bindings';
 import type { PublishHistoryStore } from '@jini-ai/devops/deploy/site/static-publish/publish-history';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';

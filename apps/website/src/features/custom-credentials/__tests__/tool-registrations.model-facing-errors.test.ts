@@ -1,6 +1,6 @@
 import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
-import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-read-bindings";
 /**
  * @file RED regression suite for the custom-credentials half of the 2026-09-16 "always say the real
  * reason" sweep, modelled on `features/post/__tests__/tool-registrations.model-facing-errors.test.ts`:

@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type { SiteKeyRejection } from "./keyring.env.js";
-import { readSiteKeySourceMaterial, readSiteMetaJson, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-sources.js";
+import { readSiteKeySourceMaterial, readSiteMetaJson, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-read-bindings.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";

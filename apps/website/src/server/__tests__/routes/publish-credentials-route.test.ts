@@ -7,9 +7,15 @@ import express from "express";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
-import { createPublishCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/store";
+import { createPublishCredential, resolveForPublish, listPublishCredentials } from "#src/features/deployments/publish-credentials/store";
 import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
-import { registerAdminPublishCredentialsListRoute } from "../../inbound/admin-http/routes/system/publish-credentials.js";
+import { registerPublishCredentialsListRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/list";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { asyncRoute } from "#src/platform/express/async-route";
+import { PublishCredentialValidationError, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import { registerAdminPublishCredentialsRoutes } from "#src/server/runtime/composition/modules/system-credentials";
 import {
   bootAuthenticated,
@@ -862,9 +868,20 @@ test('publish-credentials list writes JSON before triggering account-label heali
   const deps = createRouteDeps();
   const app = express();
   const order: string[] = [];
-  registerAdminPublishCredentialsListRoute({ app, deps: { ...deps, authorize: async () => ({ allowed: true, reason: 'fixture' }) },
-    readDeps: { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deps.loadDeployTargets },
+  registerPublishCredentialsListRoute({
+    workspaceId: deps.workspaceId,
+    mount: ({ path, handle }) => { app.get(path, asyncRoute({ handler: (req, res) => handle({
+      foreignWorkspace: () => rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId }),
+      principalId: () => getAuthedPrincipal(res).id,
+      authorize: params => authorizeDirectOrRespond({ res, authorize: async () => ({ allowed: true, reason: 'fixture' }), params }),
+      json: (body, status) => res.status(status).json(body),
+      failure: (error, options) => sendAdminFailure({ res, error }, options),
+    }) })); },
+    list: () => listPublishCredentials({ repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deps.loadDeployTargets }, { workspaceId: deps.workspaceId }),
+    executionMode: () => deps.publishExecutionMode,
     triggerAccountLabelHeal: async () => { order.push('heal'); },
+    storeErrors: { validation: PublishCredentialValidationError, duplicateLabel: PublishCredentialDuplicateLabelError, notFound: PublishCredentialNotFoundError, secretStoreUnconfigured: PublishCredentialSecretStoreUnconfiguredError },
+    operation: "routes/system/publish-credentials",
   });
   const handler = extractRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/system/publish/credentials');
   const { res } = createCapturingResponse();

@@ -1,4 +1,6 @@
-import { sendSiteShareFailure } from "./site-share-password.js";
+import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { sendSiteShareFailure } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -88,7 +90,11 @@ function sendShareZip({ req, res, row, registry, fail }: { req: Request; res: Re
  */
 export function registerAdminSiteShareDownloadRoute(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
-  const fail: ShareFail = (res, error) => sendSiteShareFailure({ res, error, tracker: deps.tracker }, { step: DOWNLOAD_STEP });
+  const fail: ShareFail = (res, error) => sendSiteShareFailure({ error, deps: {
+    refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
+    json: (body, status) => res.status(status).json(body),
+    failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker }, options),
+  } }, { step: DOWNLOAD_STEP });
   app.get("/api/admin/v1/workspaces/:workspaceId/site-shares/:shareId/download", async (req, res) => {
     try {
       const backend = await shareGate({ req, res, deps, step: DOWNLOAD_STEP, artifact: false });
@@ -119,7 +125,11 @@ const UPLOAD_STEP = "Share artifact upload";
  */
 export function registerAdminSiteShareArtifactUploadRoute(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
-  const fail: ShareFail = (res, error) => sendSiteShareFailure({ res, error, tracker: deps.tracker }, { step: UPLOAD_STEP });
+  const fail: ShareFail = (res, error) => sendSiteShareFailure({ error, deps: {
+    refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
+    json: (body, status) => res.status(status).json(body),
+    failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker }, options),
+  } }, { step: UPLOAD_STEP });
   app.put("/api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file", async (req, res, next) => {
     try { if (await shareGate({ req, res, deps, step: UPLOAD_STEP, artifact: true })) next(); }
     catch (error) { fail(res, error); }

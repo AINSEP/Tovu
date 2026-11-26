@@ -8,7 +8,8 @@ import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mc
 import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { composeAgentPluginMcp } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
-import { runAgentPluginConnect } from '../../connect-tool.js';
+import { tovuConnectDeps } from "#src/features/agent-plugins/connect-bindings";
+import { runAgentPluginConnect } from "@jini-ai/agent-plugins/connect";
 import { validatedAgentPluginToolGrant } from '../../enable-access.js';
 import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
@@ -27,14 +28,14 @@ function harness(fault: unknown, refusal: boolean) {
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   const emissions: SurfaceEmission[] = [];
   const ctx: ToolExecutionContext = { executionId: 'e', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal };
-  const run = () => runAgentPluginConnect({ routeDeps: {
+  const run = () => runAgentPluginConnect({ routeDeps: tovuConnectDeps({
     workspaceId: 'workspace', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/tmp/extract-s4-safe-refusal-no-io' }),
     authorize: async () => ({ allowed: true, reason: 'test' }), mcp: { ...mcp, notifyRosterChanged: async () => {} },
     credentials: { loadSafe: async () => [] },
     isPluginEnabled: async () => true,
     resolveInstalledPlugin: async () => ({ servers: { example: { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' } } }),
     externalMcpOAuth: { beginConnect: async () => { throw fault; }, isSignInRefusal: ({ error }) => { seen.push(error); return refusal; } },
-  }, surfaces, ctx, pluginId: 'example-plugin' }, { emitSurface: async emission => { emissions.push(emission); } });
+  }), surfaces, ctx, pluginId: 'example-plugin' }, { emitSurface: async emission => { emissions.push(emission); } });
   return { run, seen, emissions };
 }
 

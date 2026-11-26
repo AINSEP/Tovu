@@ -49,7 +49,7 @@ deps (`externalMcpServerRepo`, `siteAssistantSecretSealer`, `externalMcpOAuth?.t
 `connectMcpHttpSession` (Tovu's MCP client identity), `createExternalMcpReauthRequiredError`,
 `externalMcpSettingsDeepLink`, the `EXTERNAL_MCP_REAUTH_REQUIRED` code and `credentialText` from
 `@tovu/contracts/credential-copy`. `ExternalMcpProbeServiceDeps` is declared there too; the probe route
-(`server/inbound/admin-http/routes/external-mcp/probe.ts`), `tool-catalog-manifest.ts` and the tests import the
+(`server/runtime/composition/modules/external-mcp.ts`), `tool-catalog-manifest.ts` and the tests import the
 bound `probeExternalMcpServer` and that type from the host-copy module.
 
 ## Wiring (admissions report and probe reauth copy)

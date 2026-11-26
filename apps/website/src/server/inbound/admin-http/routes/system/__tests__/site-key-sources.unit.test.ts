@@ -1,4 +1,4 @@
-import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-read-bindings";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os, { homedir, tmpdir } from "node:os";

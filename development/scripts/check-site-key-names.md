@@ -18,7 +18,7 @@ All paths below are repo-relative. Each listed line is annotated with its remova
 
 | Path | Counted line / reason | Retirement |
 |---|---|---|
-| `apps/website/src/features/webhooks/site-key-sources.ts` | Legacy file-name constant | D3 after owner migration confirmation, on/after 2026-11-01 |
+| `apps/website/src/features/webhooks/site-key-read-bindings.ts` | Legacy file-name constant | D3 after owner migration confirmation, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `JiniFixedSiteKeyKeyring` | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `JiniUnusableSiteKeyError` | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `parseKeyHex` | Install platform release with canonical exports, on/after 2026-11-01 |

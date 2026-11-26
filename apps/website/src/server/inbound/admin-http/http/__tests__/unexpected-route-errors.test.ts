@@ -9,7 +9,7 @@ import path from "node:path";
 import ts from "typescript";
 import express from "express";
 import type { RouteDeps } from "#src/server/routes/types";
-import { registerAdminSiteImportRoutes } from "../../routes/system/site-imports.js";
+import { registerAdminSiteImportRoutes } from "#src/server/runtime/composition/http-app/mount-admin-system";
 import { registerAdminRecoveryRestoreRoutes } from "#src/server/runtime/composition/modules/recovery-restore";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { widgetErrorToResponse } from "../widgets.js";

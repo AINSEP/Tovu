@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";

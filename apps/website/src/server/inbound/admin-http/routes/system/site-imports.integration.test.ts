@@ -9,7 +9,7 @@ import { once } from "node:events";
 import test from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSiteImportRoutes } from "./site-imports.js";
+import { registerAdminSiteImportRoutes } from "#src/server/runtime/composition/http-app/mount-admin-system";
 import { type SiteImportBackend } from "@jini-ai/devops/backup/site/import-backend";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 

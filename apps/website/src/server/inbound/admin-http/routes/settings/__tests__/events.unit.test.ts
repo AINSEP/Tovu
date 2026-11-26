@@ -9,7 +9,7 @@ import express from "express";
 import type { SettingDefinitionRecord, SettingRevisionRecord } from "@jini-ai/core/settings";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSettingsEventsRoute, type SettingsEventsDeps } from "../events.js";
+import { registerAdminSettingsEventsRoute, type SettingsEventsDeps } from "#src/server/runtime/composition/modules/settings";
 
 /**
  * @file Boundary pins for the settings SSE change feed: every admission refusal (exact status and

@@ -12,7 +12,8 @@ import { openExternalMcpOAuthPayload } from "../../../external-mcp/external-mcp-
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
-import { hasStoredAgentPluginCredential } from "../../connect-tool.js";
+import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
+import { hasStoredAgentPluginCredential } from "@jini-ai/agent-plugins/connect";
 import { BUNDLED_DIGESTS_FILENAME, listInstalledPlugins, readBundledAgentPluginDigests } from "../../lifecycle.js";
 import {
   importAgentPluginAccessToken,
@@ -162,11 +163,11 @@ test("a token saved while an operator keeps the plugin off survives the next imp
 
 test("hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not", () => {
   const blob = { ciphertext: "x", nonce: "y" } as never;
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedOAuth: null, oauthStatus: "connected" }), true);
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "static_env", sealedOAuth: blob, oauthStatus: null }), true);
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedOAuth: null, oauthStatus: null }), false);
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedOAuth: blob, oauthStatus: "pending" }), false, "an oauth row's client secret is not a credential");
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "static_env", sealedOAuth: null, oauthStatus: null }), false);
+  assert.equal(hasStoredAgentPluginCredential({ row: { authMode: "oauth", sealedOAuth: null, oauthStatus: "connected" }, projections: agentPluginMcpPortsOf({}).projections }), true);
+  assert.equal(hasStoredAgentPluginCredential({ row: { authMode: "static_env", sealedOAuth: blob, oauthStatus: null }, projections: agentPluginMcpPortsOf({}).projections }), true);
+  assert.equal(hasStoredAgentPluginCredential({ row: { authMode: "oauth", sealedOAuth: null, oauthStatus: null }, projections: agentPluginMcpPortsOf({}).projections }), false);
+  assert.equal(hasStoredAgentPluginCredential({ row: { authMode: "oauth", sealedOAuth: blob, oauthStatus: "pending" }, projections: agentPluginMcpPortsOf({}).projections }), false, "an oauth row's client secret is not a credential");
+  assert.equal(hasStoredAgentPluginCredential({ row: { authMode: "static_env", sealedOAuth: null, oauthStatus: null }, projections: agentPluginMcpPortsOf({}).projections }), false);
 });
 
 test("env import copies the declared env token once, logs once, and is silent on the next boot", async () => {

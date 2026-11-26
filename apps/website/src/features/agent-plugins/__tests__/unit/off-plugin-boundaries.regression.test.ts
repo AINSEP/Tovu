@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runAgentPluginConnect } from '../../connect-tool.js';
+import { tovuConnectDeps } from "#src/features/agent-plugins/connect-bindings";
+import { runAgentPluginConnect } from "@jini-ai/agent-plugins/connect";
 import { type ResolvedAgentPluginForConnect } from '@jini-ai/agent-plugins/connect';
 import { installAgentPlugin, removeFrozenPackageTree } from '../../lifecycle.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
@@ -32,12 +33,12 @@ function connectOff(pluginId: string, routeDeps: { agentPluginLayout?: ReturnTyp
   const h = harness();
   return runAgentPluginConnect({
     pluginId, ctx: context({ pluginId }), surfaces: { surfaceExchanges: h.surfaceExchanges },
-    routeDeps: { workspaceId: 'workspace-1', agentPluginLayout: h.deps.agentPluginLayout,
+    routeDeps: tovuConnectDeps({ workspaceId: 'workspace-1', agentPluginLayout: h.deps.agentPluginLayout,
       authorize: async () => ({ allowed: true, reason: 'matched' }), credentials: credentialTestPort({}),
       mcp: { repo: new InMemoryExternalMcpServerRepo(), applyAccess: async () => assert.fail('OFF must not grant'), saveServer: async () => assert.fail('OFF must not save') },
       isPluginEnabled: async () => false,
       ...routeDeps,
-    },
+    }),
   });
 }
 

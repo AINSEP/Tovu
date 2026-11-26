@@ -1,3 +1,4 @@
+import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
@@ -5,7 +6,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerAdminExternalMcpAdmissionsRoute, registerAdminExternalMcpDeleteRoute, registerAdminExternalMcpListRoute, registerAdminExternalMcpOAuthDisconnectRoute, registerAdminExternalMcpPutRoute, registerAdminExternalMcpToolApprovalsRoutes } from '#src/server/runtime/composition/modules/external-mcp';
-import { registerAdminExternalMcpProbeRoute, createExternalMcpProbeLimiter } from '../probe.js';
+import { registerAdminExternalMcpProbeRoute } from '#src/server/runtime/composition/modules/external-mcp';
 import { registerAdminExternalMcpOAuthConnectRoute, registerAdminExternalMcpOAuthDevicePollRoute } from '../oauth.js';
 import { EXTERNAL_MCP_SIGN_IN_PATH } from '#src/features/api-connections/browser-binding';
 import { OAuthError } from '@jini-ai/oauth';
@@ -42,9 +43,8 @@ test('MCP probe: repository failure is a private 500 rather than an unreachable-
 
 test('MCP probe limiter uses the shared outbound call budget and restores it after the window', async () => {
   let now = 0;
-  const probeLimiter = createExternalMcpProbeLimiter({ clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() } });
+  const probeLimiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() } });
   // The shared profile is deliberately read from its owner, so this pins the route's choice.
-  const { OUTBOUND_CALL_PER_IP } = await import('#src/contracts/core/rate-limit/rate-limit');
   for (let index = 0; index < OUTBOUND_CALL_PER_IP.max + OUTBOUND_CALL_PER_IP.burst; index++) {
     assert.deepEqual(await probeLimiter.check({ key: 'client' }), { allowed: true });
   }

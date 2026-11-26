@@ -9,7 +9,15 @@ import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { bindSiteConsentService } from '../site-consent.js';
 import { registerAdminConsentRoutes } from '../modules/consent.js';
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
-import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
+import { registerSiteImportRoutes } from "@jini-ai/cms/admin-http/routes/system/site-imports";
+import { ImportHistoryUnavailable, mapSqliteError } from "@jini-ai/devops/backup/site/import-index/errors";
+import { parseSiteImportInput } from "@jini-ai/devops/backup/site/import-backend";
+import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
+import { formatByteSize } from "@jini-ai/devops/backup/site/sources";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import express from "express";
 import { registerAdminSiteBackupRoutes } from "#src/server/runtime/composition/modules/system-site-backups";
 import { toolGapsRoute } from "@jini-ai/cms/admin-http/routes/system/tool-gaps";
 import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
@@ -44,7 +52,7 @@ import { siteUpdateStatusRoute, type SiteUpdateStatusRouteDeps } from "@jini-ai/
 import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
 import { readSiteUpdateStatus, type ReadSiteUpdateStatusRequired, type SiteUpdateStatusPorts } from "#src/features/site-update/read-status";
 import type { SiteUpdateCheckRuntime } from "#src/features/site-update/tools";
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { sendAdminFailure, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { siteKeyRecovery } from "../site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminFsFilesFolderPickerRoutes } from "../../../inbound/admin-http/routes/fs-files/folder-picker.js";
@@ -285,4 +293,48 @@ function mountCredentialsAndFiles({ app, routeDeps, errors }: ErrorBoundMountInp
   // for a request from this machine — see that route file's own header.
   registerAdminFsFilesFolderPickerRoutes({ errors, app, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize,
     localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({ platform: process.platform, env: process.env }) } });
+}
+
+/** Upload stall limits: a whole-upload deadline and a per-socket idle timeout, either of which
+ * destroys the request so a stalled client cannot hold the single upload lane. */
+const UPLOAD_DEADLINE_MS = 120_000;
+const UPLOAD_IDLE_MS = 30_000;
+
+
+/** Authenticated uploads/history and principal-bound password setup, shared with tools.
+ * GET returns the setup contract for the separately-owned UI; no source markup enters admin.
+ * `uploadDeadlineMs`/`uploadIdleMs` default to the production stall limits; tests shorten them.
+ * @complexity O(body bytes), bounded raw parsing AFTER authorization and concurrency admission.
+ */
+export function registerAdminSiteImportRoutes(
+  { app, deps, errors }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend" | "tracker">; errors: RouteErrorPorts },
+  { uploadDeadlineMs = UPLOAD_DEADLINE_MS, uploadIdleMs = UPLOAD_IDLE_MS }: { uploadDeadlineMs?: number; uploadIdleMs?: number } = {},
+): void {
+  registerSiteImportRoutes({
+    workspaceId: deps.workspaceId, backend: () => deps.siteImportBackend, parseInput: parseSiteImportInput,
+    refusal: required => new SiteShareRefusal(required), historyUnavailable: ImportHistoryUnavailable,
+    mapHistoryError: error => mapSqliteError({ error, messages: {
+      busy: "Import history is busy. Try again in a moment.",
+      storage: "There is not enough free disk space to record the import. Free up space and try again.",
+      damaged: "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID.",
+    } }),
+    failureCollaborators: { asRefusal: ({ error }) => (error instanceof SiteShareRefusal ? error : undefined), formatByteSize },
+    steps: { list: "Import history", import: "Archive verification", upload: "ZIP upload", ownerGet: "Import owner setup", ownerPost: "Imported site creation" },
+    ownerSessionMessage: "Open owner setup in your signed-in browser; passwords are never submitted through an agent tool.",
+    originRefusalMessage: "Import owner setup failed: submit this form from the same signed-in Tovu site.",
+    maxArchiveBytes: SHARE_LIMITS.maxArchiveBytes, uploadDeadlineMs, uploadIdleMs, setTimeout, clearTimeout,
+    mount: ({ method, path, handle }) => { app[method](path, (req, res) => handle({
+      workspaceId: () => String(req.params.workspaceId), principalId: () => getAuthedPrincipal(res).id,
+      authorize: params => authorizeOrRespond({ res, authorize: deps.authorize, params }),
+      requireSession: options => rejectUnlessSessionCredential({ res, ...options }),
+      noStore: headers => { res.set(headers); }, json: (body, status) => res.status(status).json(body),
+      failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker, reporter: errors.reporter }, options),
+      body: () => req.body, query: () => req.query, importId: () => String(req.params.importId),
+      origin: () => req.get("origin"), protocol: () => req.protocol, host: () => req.get("host"),
+      parseZip: options => new Promise<void>((resolve, reject) => express.raw(options)(req, res, error => error ? reject(error) : resolve())),
+      parseForm: options => new Promise<void>((resolve, reject) => express.urlencoded(options)(req, res, error => error ? reject(error) : resolve())),
+      isBuffer: Buffer.isBuffer, onClose: callback => { res.once("close", callback); }, onAborted: callback => { req.once("aborted", callback); },
+      writableEnded: () => res.writableEnded, destroy: () => { req.destroy(); }, setIdleTimeout: (milliseconds, callback) => { req.setTimeout(milliseconds, callback); },
+    })); },
+  });
 }

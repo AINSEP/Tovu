@@ -93,7 +93,7 @@ export const SITE_ASSISTANT_PER_IP: RateLimitProfile = {
 
 /**
  * Admin routes that make a real outbound call to a third-party service on every hit, today the
- * external-MCP probe (`apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts`). Session auth alone does not bound how
+ * external-MCP probe (`apps/website/src/server/runtime/composition/modules/external-mcp.ts`). Session auth alone does not bound how
  * often they can be called, and a retry storm (a double-clicked button, a buggy client retry loop)
  * can get the workspace's own credential rate-limited or blocked provider-side: a self-inflicted
  * denial of service against every admin, not just the caller. Keyed by `resolveClientIp(req)`,

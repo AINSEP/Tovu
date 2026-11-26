@@ -9,7 +9,8 @@ import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attache
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { formatErrorForLog } from "@jini-ai/core";
 import { homedir } from "node:os";
-import { isSiteIdToken, readSiteMetaId } from "#src/features/webhooks/site-key-sources";
+import { readSiteMetaId } from "#src/features/webhooks/site-key-read-bindings";
+import { isSiteIdToken } from "@jini-ai/platform/secrets/root-key/sources";
 import { ownerKeyHandleOnly, siteGrantedSealer } from "@jini-ai/user-management/project-keys/site-sealer";
 import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { attachedVaultPolicy, createVaultPolicy, keyringPolicy, sealerPolicy } from "#src/features/project-keys/vault-policy";

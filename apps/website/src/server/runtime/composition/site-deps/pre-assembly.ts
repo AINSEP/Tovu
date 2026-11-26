@@ -19,7 +19,7 @@ import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../configuration/seed
 import { bundledAgentPluginsDir } from "../site-paths.js";
 import { composeAgentPluginMcp } from "../agent-plugin-service-ports.js";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
-import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
+import { createPluginExportSource } from "#src/features/agent-plugins/exports/bindings";
 import { createTovuReadyLoginProviderList } from "#src/features/member-login/bindings";
 import { createSeoDeps } from "#src/features/seo/index";
 import { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/settings";

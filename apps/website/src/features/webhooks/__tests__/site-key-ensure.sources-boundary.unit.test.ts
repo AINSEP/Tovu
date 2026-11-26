@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { mock } from "node:test";
 
-import * as realSources from "../site-key-sources.js";
-import type { SiteKeySource } from "../site-key-sources.js";
+import * as realSources from "../site-key-read-bindings.js";
+import type { SiteKeySource } from "../site-key-read-bindings.js";
 
 /**
  * @file Pins `installSiteKey`'s defence against a source list with no key file to write. Today's
@@ -17,7 +17,7 @@ import type { SiteKeySource } from "../site-key-sources.js";
 
 let sourcesOverride: SiteKeySource[] | undefined;
 
-mock.module(new URL("../site-key-sources.ts", import.meta.url).href, {
+mock.module(new URL("../site-key-read-bindings.ts", import.meta.url).href, {
   namedExports: { ...realSources, siteKeySources: (input: realSources.SiteKeySourcesInput) => sourcesOverride ?? realSources.siteKeySources(input) },
 });
 

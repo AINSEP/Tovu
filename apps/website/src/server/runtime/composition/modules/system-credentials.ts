@@ -29,7 +29,7 @@ import {
   updateCustomCredential,
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
-import { createPublishCredential, invalidatePublishCredentialCompatibility, describeCredential as describePublishCredential, updatePublishCredential } from "#src/features/deployments/publish-credentials/store";
+import { listPublishCredentials, createPublishCredential, invalidatePublishCredentialCompatibility, describeCredential as describePublishCredential, updatePublishCredential } from "#src/features/deployments/publish-credentials/store";
 import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, PublishCredentialValidationError, type UpdatePublishCredentialInput } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "@jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler";
@@ -38,7 +38,12 @@ import { verifyPublishCredentialById } from "#src/features/deployments/static-pu
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { getAuthedCredentialKind } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { registerAdminPublishCredentialsListRoute } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
+import { registerPublishCredentialsListRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/list";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { asyncRoute } from "#src/platform/express/async-route";
 
 /**
  * @file The saved-credential admin routes (K1, RT-K1-adm-system-1/-10/-11): source-control, custom
@@ -435,6 +440,24 @@ async function preparePublishInvalidation({ deps }: { deps: AdminPublishCredenti
  *
  * Same registration order as before: list, create, update, verify, delete.
  */
+/**
+ * The list's store-error answers — the same ladder the four spec routes map in Jini. History carried
+ * over from when this ladder served all five verbs:
+ *
+ * Every error this route can produce, shaped once so each handler below stays a thin dispatch.
+ * Mirrors `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same
+ * permission failure; the four typed store-error branches are new to this route and have no
+ * precedent to match.
+ *
+ * 2026-08-16 — the untyped fallback used to be `throw err`, re-throwing out of the caller's own
+ * `catch` block instead of responding. That is not a guard, it just moves the same unhandled
+ * rejection one frame up: found live when `GET`/`DELETE` below had no `try`/`catch` at all (an
+ * AST scan over every `app.<verb>()` handler in `src/server/routes/**` caught it), and the SAME
+ * scan showed `POST`/`PUT`/`POST .../:id/verify` already had a `try { ... } catch (err) {
+ * sendStoreError(res, err); }` shape that LOOKED guarded but was not — any error outside the four
+ * typed ones above still escaped every one of those handlers too. Every caller below now gets a
+ * real response for an error this function does not recognize, instead of a hung request.
+ */
 export function registerAdminPublishCredentialsRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const options = mountOptions({ operation: "routes/system/publish-credentials", authorization: "direct" });
   // Store deps are bound once, at registration, as the hand-written routes bound them: a later
@@ -447,8 +470,15 @@ export function registerAdminPublishCredentialsRoutes({ errors, app, deps }: { e
     prepareInvalidation: () => preparePublishInvalidation({ deps }),
     describeCredential: (target: { workspaceId: string; id: string }) => describePublishCredential(readDeps, target),
   };
-  // STAYS hand-written (K1 STOP): a wire test pins that a principal-less direct call rejects.
-  registerAdminPublishCredentialsListRoute({ app, deps, readDeps, triggerAccountLabelHeal: buildTriggerAccountLabelHeal({ deps, verifyAfterSave }) });
+  registerPublishCredentialsListRoute({ workspaceId: deps.workspaceId, operation: "routes/system/publish-credentials", storeErrors: PUBLISH_ERRORS,
+    list: () => listPublishCredentials(readDeps, { workspaceId: deps.workspaceId }), executionMode: () => deps.publishExecutionMode,
+    triggerAccountLabelHeal: buildTriggerAccountLabelHeal({ deps, verifyAfterSave }),
+    mount: ({ path, handle }) => { app.get(path, asyncRoute({ handler: (req, res) => handle({
+      foreignWorkspace: () => rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId }), principalId: () => getAuthedPrincipal(res).id,
+      authorize: params => authorizeDirectOrRespond({ res, authorize: deps.authorize, params }),
+      json: (body, status) => res.status(status).json(body), failure: (error, options) => sendAdminFailure({ res, error }, options),
+    }) })); },
+  });
   mountAdminJsonRoute({ errors, app, spec: publishCredentialCreateRoute, deps: {
     ...base,
     createCredential: (input) => createPublishCredential(writeDeps, input as Parameters<typeof createPublishCredential>[1]),

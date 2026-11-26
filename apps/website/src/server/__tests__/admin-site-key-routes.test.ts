@@ -1,5 +1,5 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-read-bindings";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

@@ -23,7 +23,7 @@ import { getPublishRunSnapshot } from "../../../features/deployments/static-publ
 import { registerWarmSiteRetirement } from "../lifecycle/warm-site-retirement.js";
 import { composeAgentPluginMcp } from "./agent-plugin-service-ports.js";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
-import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
+import { createPluginExportSource } from "#src/features/agent-plugins/exports/bindings";
 import { bindSiteConsentService } from "./site-consent.js";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { randomBytes } from "node:crypto";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
-import { siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 import * as vaultBoot from "../vault-boot.js";
 
 // Exercise the boot caller as well as the key reader: a relocated database cannot choose either

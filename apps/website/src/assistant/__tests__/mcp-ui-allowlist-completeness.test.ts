@@ -109,7 +109,7 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   ["features/storage/compaction-marker.ts", new Set([`files.open(temp, "r")`, `files.open(opsDir, "r")`])],
   ["features/storage/compaction-recovery-ports.ts", new Set([`fs.open(file, "r")`])],
   // The settings change feed opens Jini's SSE route session; it streams revisions, never a surface exchange.
-  ["server/inbound/admin-http/routes/settings/events.ts", new Set(["settingsEventsRoute.open(feed)"])],
+  ["server/runtime/composition/modules/settings.ts", new Set(["settingsEventsRoute.open(feed)"])],
   // 7f97eb6f0: owner MFA unseals its stored authenticator secret; no card or exchange is involved.
   ["server/inbound/admin-http/owner-mfa-deps.ts", new Set(["secrets().open(input)"])],
   // f82b172d6 (A04) / ab8ccf9f3: the credential stores open their injected CredentialVaultBinding,

@@ -28,7 +28,8 @@ import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import { grantDeclaredToolsToSignedInRows } from "../../grant-signed-in-defaults.js";
 import { previewAgentPluginEnableAccess } from "../../enable-access.js";
-import { defaultResolveInstalledAgentPlugin } from "../../connect-tool.js";
+import { installedPluginDeps } from "#src/features/agent-plugins/connect-bindings";
+import { resolveInstalledAgentPlugin as defaultResolveInstalledAgentPlugin } from "@jini-ai/agent-plugins/connect/installed-plugin";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { uninstallAgentPlugin } from "../../lifecycle.js";
@@ -660,7 +661,7 @@ test("the registered connect handler resolves a real installed plugin and reuses
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer({ keyring });
     const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z") };
-    const plugin = await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_A, pluginId: "supabase", agentPluginLayout: testSiteLayoutContext({}).agentPluginLayout });
+    const plugin = await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_A, pluginId: "supabase", agentPluginLayout: testSiteLayoutContext({}).agentPluginLayout, ...installedPluginDeps });
     assert.ok(plugin);
     const mcp = mcpTestPort({ repo, keyring, sealer, clock });
     await provisionAgentPluginMcpServers(mcp, { workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, principalId: "owner" });

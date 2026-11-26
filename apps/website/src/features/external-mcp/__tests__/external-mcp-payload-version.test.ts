@@ -1,4 +1,4 @@
-import { SITE_KEY_ENV_VAR_NAME } from "../../webhooks/site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME } from "../../webhooks/site-key-read-bindings.js";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import test from "node:test";

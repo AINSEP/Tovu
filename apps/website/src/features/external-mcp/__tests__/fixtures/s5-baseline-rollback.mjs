@@ -63,7 +63,7 @@ const createDeviceAuthorizationStore = legacyOAuth.createDeviceAuthorizationStor
 const { createTovuOAuthGuard } = await load("platform/oauth/endpoint-safety.ts");
 const { EnvOrFileKeyring } = await load("features/webhooks/keyring.env.ts");
 const { AesGcmSecretSealer } = await load("features/webhooks/secret-sealer.aesgcm.ts");
-const { SITE_KEY_ENV_VAR_NAME } = await load("features/webhooks/site-key-sources.ts");
+const { SITE_KEY_ENV_VAR_NAME } = await load("features/webhooks/site-key-read-bindings.ts");
 
 async function open(filePath) {
   const db = openContentDb(filePath);

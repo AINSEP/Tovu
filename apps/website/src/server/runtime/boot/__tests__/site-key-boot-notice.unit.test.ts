@@ -1,7 +1,7 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { isolatedCatalogEnv } from "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
-import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-read-bindings";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-read-bindings";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";

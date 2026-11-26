@@ -16,7 +16,7 @@ import {
   SiteKeyFileAlreadyExistsError,
   UnusableSiteKeyError,
 } from "../keyring.env.js";
-import type { SiteKeySource } from "../site-key-sources.js";
+import type { SiteKeySource } from "../site-key-read-bindings.js";
 
 const ENV_VAR = "TOVU_TEST_SITE_KEY";
 

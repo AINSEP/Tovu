@@ -10,7 +10,8 @@ import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mc
 import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { composeAgentPluginMcp, composeAgentPluginConnectServices } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
-import { runAgentPluginConnect } from '../../connect-tool.js';
+import { tovuConnectDeps } from "#src/features/agent-plugins/connect-bindings";
+import { runAgentPluginConnect } from "@jini-ai/agent-plugins/connect";
 import { resolveAgentPluginLayout } from '../../layout.js';
 
 function harness(fault: Error) {
@@ -26,13 +27,13 @@ function harness(fault: Error) {
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   const emissions: SurfaceEmission[] = [];
   const ctx: ToolExecutionContext = { executionId: 'e', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal };
-  const run = () => runAgentPluginConnect({ routeDeps: {
+  const run = () => runAgentPluginConnect({ routeDeps: tovuConnectDeps({
     workspaceId: 'workspace', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/tmp/extract-s3-refusal-no-io' }),
     authorize: async () => ({ allowed: true, reason: 'test' }), mcp: { ...mcp, notifyRosterChanged: async () => {} },
     credentials: services.credentials, isPluginEnabled: async () => true,
     resolveInstalledPlugin: async () => ({ servers: { example: { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' } } }),
     externalMcpOAuth: { ...oauth, isSignInRefusal: input => { seen.push(input.error); return oauth.isSignInRefusal(input); } },
-  }, surfaces, ctx, pluginId: 'example-plugin' }, { emitSurface: async emission => { emissions.push(emission); } });
+  }), surfaces, ctx, pluginId: 'example-plugin' }, { emitSurface: async emission => { emissions.push(emission); } });
   return { repo, mcp, run, seen, emissions };
 }
 

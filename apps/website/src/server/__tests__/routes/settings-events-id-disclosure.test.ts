@@ -7,7 +7,7 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminSettingsEventsRoute } from "../../inbound/admin-http/routes/settings/events.js";
+import { registerAdminSettingsEventsRoute } from "#src/server/runtime/composition/modules/settings";
 import type { RouteDeps } from "../../routes/types.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 

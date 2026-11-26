@@ -9,7 +9,7 @@ import {
   scanRepoForSecrets,
   scanGitHistoryForSecrets,
   isAllowlisted,
-} from "../secret-scan-guard.js";
+} from "../../../../../../development/scripts/check-secret-scan.js";
 import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 
 /**
@@ -200,9 +200,9 @@ test("the real CLI succeeds on a clean repository and rejects text, binary and h
   const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "secret-scan-cli-")));
   t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
   // Preserve the CLI's root-relative layout; copy today's source verbatim, with no test rewrite.
-  const script = path.join(repoRoot, "apps/website/src/features/webhooks/secret-scan-guard.ts");
+  const script = path.join(repoRoot, "development/scripts/check-secret-scan.ts");
   fs.mkdirSync(path.dirname(script), { recursive: true });
-  fs.copyFileSync(path.resolve(import.meta.dirname, "../secret-scan-guard.ts"), script);
+  fs.copyFileSync(path.resolve(import.meta.dirname, "../../../../../../development/scripts/check-secret-scan.ts"), script);
   // Use the real built packages consumed by the copied scanner, keeping dependencies out of git.
   fs.symlinkSync(path.resolve("node_modules"), path.join(repoRoot, "node_modules"), "dir");
   fs.writeFileSync(path.join(repoRoot, ".gitignore"), "node_modules/\n");

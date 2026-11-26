@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 import { runProductionReadinessGate, type BootRefusalFailure } from "./production-readiness-gate.js";
 import { CAPABILITY_INVENTORY } from "../configuration/capability-inventory.js";
 import { DEFAULT_OWNER_PASSWORD } from "../../../features/identity/wiring.js";

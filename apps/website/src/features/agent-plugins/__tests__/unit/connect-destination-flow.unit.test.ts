@@ -7,7 +7,9 @@ import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
-import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from '../../connect-tool.js';
+import { tovuConnectDeps } from "#src/features/agent-plugins/connect-bindings";
+import { type AgentPluginConnectToolDeps } from "#src/features/agent-plugins/connect-bindings";
+import { runAgentPluginConnect } from "@jini-ai/agent-plugins/connect";
 import { mcpTestPort } from '../fixtures/connection-service-ports.js';
 
 function fixture(principalId = 'owner') {
@@ -38,7 +40,7 @@ function fixture(principalId = 'owner') {
 test('owner human choice reaches the real connect-tool branch as shared; cancellation starts nothing', async () => {
   for (const cancel of [false, true]) {
     const f = fixture();
-    const result = await runAgentPluginConnect({ routeDeps: f.deps, surfaces: f.surfaces, ctx: f.ctx, pluginId: 'office' }, {
+    const result = await runAgentPluginConnect({ routeDeps: tovuConnectDeps(f.deps), surfaces: f.surfaces, ctx: f.ctx, pluginId: 'office' }, {
       emitSurface: async emission => {
         const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
         f.deliver(html, cancel ? { __dismissed: true } : { destination: 'shared' });
@@ -51,14 +53,14 @@ test('owner human choice reaches the real connect-tool branch as shared; cancell
 
 test('other site admins keep local sign-in and never receive an owner sharing card', async () => {
   const f = fixture('site-admin');
-  const result = await runAgentPluginConnect({ routeDeps: f.deps, surfaces: f.surfaces, ctx: f.ctx, pluginId: 'office' });
+  const result = await runAgentPluginConnect({ routeDeps: tovuConnectDeps(f.deps), surfaces: f.surfaces, ctx: f.ctx, pluginId: 'office' });
   assert.equal(result.status, 'connected');
   assert.deepEqual(f.destinations, ['site']);
 });
 
 test('permission revoked while the owner reads the choice card starts no sign-in', async () => {
   const f = fixture();
-  await assert.rejects(runAgentPluginConnect({ routeDeps: f.deps, surfaces: f.surfaces, ctx: f.ctx, pluginId: 'office' }, {
+  await assert.rejects(runAgentPluginConnect({ routeDeps: tovuConnectDeps(f.deps), surfaces: f.surfaces, ctx: f.ctx, pluginId: 'office' }, {
     emitSurface: async emission => {
       f.deny();
       f.deliver((emission.payload.resource as { resource: { text: string } }).resource.text, { destination: 'shared' });

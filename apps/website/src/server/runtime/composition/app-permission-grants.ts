@@ -3,7 +3,7 @@ import { registerFsFilesCustomRootPermissionGrants } from "@jini-ai/cms/fs-files
 import { createPermissionGrantRegistry, type PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { registerRoleManagePermissionGrants } from "@jini-ai/user-management/identity/role-manage-permission";
 import { registerSiteKeyPermissionGrants } from "@jini-ai/user-management/identity/site-key-permission";
-import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-read-bindings";
 import { registerPagesPermissionGrants } from "#src/features/pages/permissions";
 import { registerPermission } from "@jini-ai/user-management";
 import { registerPublishContentPermissionGrants } from "@jini-ai/cms/publish/content/permissions";

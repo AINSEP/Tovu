@@ -1,3 +1,4 @@
+
 /**
  * A10b seam: the portable `agent_plugin_connect` body driven by a second host's ports only (alternate
  * tool id, permissions, approval owner, copy and card waiter). Proves R4: approve -> provision -> sign in
@@ -15,7 +16,7 @@ import { withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
 import { mcpServerTrustClassifier } from '../../lifecycle.js';
 import { tovuEnableAccessMessages } from '../../enable-access.js';
 import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '@jini-ai/agent-plugins/connect';
-import { tovuAgentPluginConnectHost, agentPluginConnectAgentToolCatalog } from '../../connect-tool.js';
+import { tovuAgentPluginConnectHost, agentPluginConnectAgentToolCatalog } from "#src/features/agent-plugins/connect-bindings";
 import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 
 const WORKSPACE_ID = '77777777-7777-4777-8777-777777777777';

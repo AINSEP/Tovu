@@ -230,7 +230,7 @@ jobs:
         # check:coverage-integrity above. Verified non-vacuous: independently grepped 36
         # `.seal(` call sites across 13 files under apps/website/src before wiring; the script
         # itself confirms every one supplies `aad`. Do not edit
-        # apps/website/src/features/webhooks/seal-aad-invariant.ts from this workflow file —
+        # development/scripts/check-seal-aad.ts from this workflow file —
         # it is owned elsewhere this session.
         id: gate-seal-aad
         continue-on-error: true

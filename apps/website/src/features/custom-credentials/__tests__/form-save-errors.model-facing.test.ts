@@ -1,6 +1,6 @@
 import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import { credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
-import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-read-bindings";
 /**
  * @file Regression suite for the SAVE-failure branch of `custom_credential_set_token` and
  * `custom_credential_create` (2026-09-16, w7).

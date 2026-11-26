@@ -27,7 +27,7 @@ import { resolveSiteDatabasePaths } from "../../../../platform/site-dir/site-dat
 import { readTemplate } from "../../../../platform/site-dir/read-template.js";
 import { FixedSiteKeyKeyring, EnvOrFileKeyring } from "../../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { siteKeySourcesForSiteDir } from "../../../webhooks/site-key-sources.js";
+import { siteKeySourcesForSiteDir } from "../../../webhooks/site-key-read-bindings.js";
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
 import { openProjectStore } from "../../../../server/runtime/composition/project-store.js";

@@ -36,7 +36,7 @@ test("settings-only subscription does not acquire theme permission or bypass set
 });
 
 test("existing stream emits exact theme frames across writers, reauthorizes and cleans up its timers", async (t) => {
-  const { registerAdminSettingsEventsRoute } = await import("../events.js");
+  const { registerAdminSettingsEventsRoute } = await import("#src/server/runtime/composition/modules/settings");
   const fs = await import("node:fs");
   const os = await import("node:os");
   const path = await import("node:path");

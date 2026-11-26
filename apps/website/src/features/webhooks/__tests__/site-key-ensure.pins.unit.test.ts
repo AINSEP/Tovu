@@ -9,7 +9,7 @@ import test, { type TestContext } from "node:test";
 
 import { fingerprintSiteKeyHex } from "../keyring.env.js";
 import { ensureSiteKey, ensureSiteKeyForBoot, ensureSiteKeyForSite, installSiteKey } from "../site-key-ensure.js";
-import { LEGACY_SITE_KEY_FILENAME } from "../site-key-sources.js";
+import { LEGACY_SITE_KEY_FILENAME } from "../site-key-read-bindings.js";
 
 /**
  * @file Boundary pins for `site-key-ensure.ts` (security-sensitive: the one writer of a site key

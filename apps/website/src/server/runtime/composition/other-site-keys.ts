@@ -23,7 +23,7 @@ import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { EnvOrFileKeyring, inspectSiteKeyMaterial } from "#src/features/webhooks/keyring.env";
-import { resolveSiteKeyFingerprint, siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyFingerprint, siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-read-bindings";
 import { SITE_KEY_ID_PREFIX, type SiteKeyChoice, type SiteKeySource } from "@jini-ai/user-management/project-keys/service";
 import { registeredSources, type RegisteredSiteSource as Source } from "./registered-sites.js";
 import { PROJECT_WORKSPACE_ID, type ProjectVaultScope } from "./project-store.js";

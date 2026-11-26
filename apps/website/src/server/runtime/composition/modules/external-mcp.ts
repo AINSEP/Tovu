@@ -26,7 +26,12 @@ import {
   registerAdminExternalMcpOAuthDevicePollRoute,
   type ExternalMcpOAuthRouteDeps,
 } from "#src/server/inbound/admin-http/routes/external-mcp/oauth";
-import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "#src/server/inbound/admin-http/routes/external-mcp/probe";
+import { registerExternalMcpProbeRoute } from "@jini-ai/cms/admin-http/routes/external-mcp/probe";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { probeExternalMcpServer, type ExternalMcpProbeServiceDeps } from "#src/features/external-mcp/external-mcp-host-copy";
+import { OUTBOUND_CALL_PER_IP, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { asyncRoute } from "#src/platform/express/async-route";
+import type { Express, RequestHandler } from "express";
 import { registerExternalMcpOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
@@ -169,7 +174,11 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
   // callback's budget — the same reasoning the connectors module records for its four.
   const oauthLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_PER_IP, clock: deps.clock });
   const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
-  const probeLimiter = createExternalMcpProbeLimiter(deps);
+/** Builds this route's own probe rate limiter. Reuses {@link OUTBOUND_CALL_PER_IP} rather than
+ *  a new profile: a probe is the same self-DoS shape that profile already names — a real outbound
+ *  call using the workspace's own credentials — with its own instance so a burst on one connector
+ *  family never eats another's budget. */
+  const probeLimiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
 
   return {
     name: "external-mcp",
@@ -196,3 +205,52 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
     },
   };
 }
+
+/**
+ * @file `POST .../mcp-servers/:serverId/probe` (C-007) — connects to ONE configured server, once,
+ * lists its tools, describes the surface, and closes. Registers nothing into any `ToolRegistry`, so
+ * R5 (`Jini packages/mcp/src/federation/trust.ts`'s "frozen at connect") is untouched by this route — see the
+ * write-tools implementation outline §3.1/C-4 for the full argument that a probe run in the admin
+ * web server cannot un-freeze anything the daemon holds.
+ *
+ * ## D-7: hosted connections only
+ *
+ * A `stdio` row is refused before anything is attempted, rather than spawned. The daemon already
+ * pays the cost of a local-command child process at boot, with its own timeout and its own
+ * catch-and-close (`mcp-federation/bootstrap.ts`); this on-demand admin action is a strictly worse
+ * place for that risk to live a second time — a leaked child here is a leaked child in the process
+ * serving the whole admin UI, not a subprocess the daemon already knows how to reap. The motivating
+ * connection (Higgsfield) is hosted, so this is not a regression for the case that exists today; a
+ * `stdio` operator keeps the plain text-field path exactly as it works now.
+ *
+ * ## Rate limiting sits IN FRONT of the guard
+ *
+ * Same ordering `oauth.ts` uses and for the same reason: a hit that will be rejected by the
+ * permission check has still made this process reach for an outbound socket on the operator's own
+ * credentials if the limiter did not run first.
+ *
+ * ## INV-006 — no secret in the response
+ *
+ * The response body is built ONLY from `describeRemoteToolSurface`'s output — a pure function over
+ * the remote's `tools/list` reply and the two operator name lists (`Jini packages/mcp/src/federation/trust.ts`). It
+ * never touches the resolved launch spec's headers/env, so there is no code path by which a bearer
+ * token, a client secret, or an env value could reach this route's response. Any other error this
+ * route can raise is either fixed, Tovu-authored copy, or a stored failure REASON string that
+ * `external-mcp-store.ts` itself already guarantees is secret-free (it exists specifically to be
+ * shown to the operator). See this file's test for the direct property assertion.
+ */
+
+export type ExternalMcpProbeRouteDeps = ExternalMcpRouteDeps & ExternalMcpProbeServiceDeps;
+
+export const registerAdminExternalMcpProbeRoute = ({ app, deps, limiter, errors }: { app: Express; deps: ExternalMcpProbeRouteDeps; limiter: RateLimiter; errors: RouteErrorPorts }, _optional = {}): void =>
+  registerExternalMcpProbeRoute({
+    probe: ({ serverId }) => probeExternalMcpServer({ deps, serverId }), operation: "routes/external-mcp/probe",
+    mount: ({ spec, deps: probe, authorization, before, failure }) => mountAdminJsonRoute({
+      app: { post: (path: string, handler: RequestHandler) => app.post(path, asyncRoute({ handler: (req, res, next) => before({ rate: {
+        check: () => limiter.check({ key: resolveClientIp(req) }),
+        retryAfter: value => { res.setHeader("Retry-After", value); },
+        json: (body, status) => res.status(status).json(body), message: "too many probe attempts",
+      } }, async () => { await handler(req, res, next); }) })) } as unknown as Express,
+      errors, spec, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, ...probe },
+    }, { authorization, failureWriter: ({ res, error }) => failure({ error, incident: (error, options) => sendAdminFailure({ res, error }, options) }) }),
+  });

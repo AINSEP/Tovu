@@ -1,3 +1,7 @@
+import { savedKeysSameOrigin } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
+import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,7 +12,7 @@ import type { Socket } from "node:net";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { sendSiteShareFailure, requireSavedKeysOwnerSession } from "../site-share-password.js";
+import { sendSiteShareFailure, requireSavedKeysOwnerSession } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
@@ -132,7 +136,11 @@ test("shared diagnostics remain correlated without a telemetry provider", t => {
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
   let status = 0, body: any;
   const res = { status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
-  sendSiteShareFailure({ res: res as any, error: "storage unavailable" });
+  sendSiteShareFailure({ error: "storage unavailable", deps: {
+    refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
+    json: (body, status) => res.status(status).json(body),
+    failure: (error, options) => sendAdminFailure({ res, error }, options),
+  } });
   assert.equal(status, 500);
   assert.equal(body.code, "SHARE_FAILED");
   assert.equal(typeof body.errorId, "string");
@@ -174,7 +182,16 @@ test("publish trust refuses saved-key access before reading owner identity or or
     Object.defineProperty(res.locals, "principal", { get: () => { ownerReads++; return { id: "owner" }; } });
     const get = req.get.bind(req);
     req.get = ((name: string) => { if (name === "origin") originReads++; return get(name); }) as typeof req.get;
-    if (await requireSavedKeysOwnerSession({ req, res, deps: { workspaceId: "ws", ownerPrincipalId: "owner" } })) {
+    if (await requireSavedKeysOwnerSession({ deps: {
+      noStore: () => res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" }),
+      foreignWorkspace: () => String(req.params.workspaceId) !== "ws",
+      requireSession: () => rejectUnlessSessionCredential({ res, message: "Use the site owner's signed-in browser for saved keys.", permission: "site-backup.push" }),
+      publishTrustContext: () => getPublishTrustContext(res), principalId: () => getAuthedPrincipal(res).id,
+      ownerPrincipalId: () => "owner",
+      sameOrigin: () => savedKeysSameOrigin({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site"), protocol: req.protocol }),
+      json: (body, status) => res.status(status).json(body),
+      ownerMessage: "Saved keys access requires the site owner’s signed-in browser on this Tovu site.",
+    } })) {
       revealed++;
       res.json({ password: "never" });
     }

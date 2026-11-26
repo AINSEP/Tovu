@@ -17,7 +17,7 @@ import type { FormDestinationModule, FormDestinationPage, RemoteFormSubmission }
 import type { FormsAutoPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
-import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-read-bindings";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { SiteStore } from "../open-site-store.js";
 import { createSiteRouteDeps } from "../deps.js";

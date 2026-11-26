@@ -4,7 +4,7 @@ import path from "node:path";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
-import { readSiteMetaJson } from "#src/features/webhooks/site-key-sources";
+import { readSiteMetaJson } from "#src/features/webhooks/site-key-read-bindings";
 import { bootLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { detectDeploymentSignals } from "../boot/boot-readiness-warnings.js";
 

@@ -6,7 +6,7 @@ import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import type { RouteDeps } from "#src/server/routes/types";
-import { registerAdminSiteImportRoutes } from "../site-imports.js";
+import { registerAdminSiteImportRoutes } from "#src/server/runtime/composition/http-app/mount-admin-system";
 
 test("non-ZIP import failures name the parser's actual limit and cause", async () => {
   let failure: unknown;

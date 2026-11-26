@@ -11,7 +11,8 @@ import {
   type RenderDeployConfigOptions,
   deployConfigGenerators,
 } from "../../features/deployments/index.js";
-import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/site-key-sources.js";
+import { readSiteMetaId } from "../../features/webhooks/site-key-read-bindings.js";
+import { isSiteIdToken } from "@jini-ai/platform/secrets/root-key/sources";
 import { bundledAgentPluginsDir, resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { scanGitHistoryForSecrets, scanRepoForSecrets } from "../secret-scan-guard.js";
+import { scanGitHistoryForSecrets, scanRepoForSecrets } from "../../../../../../development/scripts/check-secret-scan.js";
 
 /**
  * @file Owner-approved FU-A 2d (2026-10-25): a credential can live in a file or directory NAME, so

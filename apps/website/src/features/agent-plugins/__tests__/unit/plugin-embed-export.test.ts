@@ -11,7 +11,8 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { exportSite } from "#src/features/site-export/site-exporter";
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
-import { createPluginExportSource, pluginExportFileUrl } from "../../exports/source.js";
+import { pluginExportFileUrl } from "@jini-ai/agent-plugins/site/exports/source";
+import { createPluginExportSource, PLUGIN_EXPORT_FILES_PREFIX } from "../../exports/bindings.js";
 import { config, definition, template } from "../fixtures/plugin-exports.js";
 
 const png = Buffer.from([137, 80, 78, 71, 255]);
@@ -50,7 +51,7 @@ test("T1: static snapshot ships fallback + deduplicated CSS/artwork, no marker/s
   assert.doesNotMatch(html, /"type":"plugin"|\/oidc\/demo\/start/);
   assert.equal((html.match(/components\/button.css/g) ?? []).length, 1);
   assert.match(html, /\/snapshot\/api\/agent-plugin-exports\/v1\/demo\/button\/components\/mark.png/);
-  const asset = (filename: string) => pluginExportFileUrl({ pluginId: "demo", component: "button", filename }).slice(1);
+  const asset = (filename: string) => pluginExportFileUrl({ prefix: PLUGIN_EXPORT_FILES_PREFIX, pluginId: "demo", component: "button", filename }).slice(1);
   assert.match(readFileSync(path.join(outputDir, asset("components/button.css")), "utf8"), /@layer plugin-exports/);
   assert.deepEqual(readFileSync(path.join(outputDir, asset("components/mark.png"))), png);
 });

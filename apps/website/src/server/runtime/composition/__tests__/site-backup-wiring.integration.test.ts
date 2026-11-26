@@ -28,7 +28,7 @@ import { MEDIA_OBJECT_STORE_KEY, STORAGE_SETTINGS_NAMESPACE } from "@jini-ai/pla
 import { FakeGitHub } from "#src/features/site-backup/__tests__/fixtures/fake-github";
 import { githubFromSource } from "#src/features/source-control/__tests__/fixtures/github-from-source";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
-import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-read-bindings";
 import { describeSiteBinding } from "#src/platform/site-dir/site-registry";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { createRouteDeps } from "../app.js";

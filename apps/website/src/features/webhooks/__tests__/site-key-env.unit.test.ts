@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, rmSync, mkdirSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { resolveSiteKeyEnv, SITE_KEY_ENV_VAR_NAME, siteKeyEnvOnlySources, siteKeySources } from "../site-key-sources.js";
+import { resolveSiteKeyEnv, SITE_KEY_ENV_VAR_NAME, siteKeyEnvOnlySources, siteKeySources } from "../site-key-read-bindings.js";
 import { EnvOrFileKeyring, inspectSiteKeyMaterial, revealSiteKeyMaterial } from "../keyring.env.js";
 
 const key = "ab".repeat(32);

@@ -16,7 +16,8 @@ import { createTovuPluginHost, type TovuPluginHostDeps } from '../../../../serve
 import { agentPluginMcpProjections, withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
 import { grantDeclaredToolsToSignedInRows } from '../../grant-signed-in-defaults.js';
 import { loadAgentPluginConnectionStatuses as loadWithPorts } from '@jini-ai/agent-plugins/connect';
-import { hasStoredAgentPluginCredential } from '../../connect-tool.js';
+import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
+import { hasStoredAgentPluginCredential } from "@jini-ai/agent-plugins/connect";
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '../../lifecycle.js';
 import { forceRemove } from '../fixtures/force-remove.js';
@@ -133,6 +134,6 @@ test('status and stored-credential reads use the host pure projections', async (
   const control = await loadAgentPluginConnectionStatuses({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] } });
   assert.equal(control.get('images'), 'connected');
   const unsigned = { authMode: 'oauth' as const, sealedOAuth: null, oauthStatus: null };
-  assert.equal(hasStoredAgentPluginCredential(unsigned), false);
-  assert.equal(hasStoredAgentPluginCredential(unsigned, hostPorts({ hasStaticAccessToken: () => true }).ports), true);
+  assert.equal(hasStoredAgentPluginCredential({ row: unsigned, projections: agentPluginMcpPortsOf({}).projections }), false);
+  assert.equal(hasStoredAgentPluginCredential({ row: unsigned, projections: agentPluginMcpPortsOf(hostPorts({ hasStaticAccessToken: () => true }).ports).projections }), true);
 });

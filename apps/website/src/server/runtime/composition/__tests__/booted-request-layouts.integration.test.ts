@@ -1,3 +1,4 @@
+import { installedPluginDeps } from "#src/features/agent-plugins/connect-bindings";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
@@ -14,7 +15,7 @@ import { SKILL_SITE_HOST } from "#src/features/skills/site-host";
 import { installAgentPlugin, removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { loadAgentPluginSearchCandidates, createAgentPluginToolGate } from "#src/features/agent-plugins/tool-registrations";
 import { listInstalledAgentPluginServers } from "#src/features/agent-plugins/import-access-token";
-import { defaultResolveInstalledAgentPlugin } from "#src/features/agent-plugins/connect-tool";
+import { resolveInstalledAgentPlugin as defaultResolveInstalledAgentPlugin } from "@jini-ai/agent-plugins/connect/installed-plugin";
 import { resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { pluginMemory } from "#src/features/agent-plugins/memory";
@@ -72,7 +73,7 @@ test("plugin discovery, MCP, activation and memory stay on A after env selects B
   const input = { ...binding, workspaceId, pluginId: "bound-plugin" };
   assert.deepEqual((await loadAgentPluginSearchCandidates(input)).map(p => p.pluginId), ["bound-plugin"]);
   assert.deepEqual((await listInstalledAgentPluginServers(input)).map(p => p.pluginId), ["bound-plugin"]);
-  assert.ok((await defaultResolveInstalledAgentPlugin(input))?.servers.bound);
+  assert.ok((await defaultResolveInstalledAgentPlugin({ ...input, ...installedPluginDeps }))?.servers.bound);
   assert.ok((await resolveAgentPluginMcpServers(input)).bound);
   const gate = createAgentPluginToolGate(input);
   assert.equal(await gate.isCallable({ pluginId: "bound-plugin", archiveDigest: plugin.archiveDigest }), true);

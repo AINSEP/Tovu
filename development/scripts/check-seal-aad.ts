@@ -2,9 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
-
-import type { SealViolation } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant";
-import { findSealCallsWithoutAad as find } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant.node";
+import { findSealCallsWithoutAad as find, createNonSecretSealCallPredicate, runSealAadCheck } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant.node";
 
 /**
  * @file Enforces, as a repo-scanning static check, that no production call to
@@ -74,7 +72,7 @@ import { findSealCallsWithoutAad as find } from "@jini-ai/integrations/webhooks/
  * pair. Enforcing "always pass aad" on `open()` would break that legitimate backward-compatibility
  * path, not catch a bug.
  *
- * Usage: npx tsx apps/website/src/features/webhooks/seal-aad-invariant.ts
+ * Usage: npx tsx development/scripts/check-seal-aad.ts
  * Not part of the server build: the root `tsconfig.json` excludes this file, because it imports
  * `typescript` (a devDependency) and dist/ ships whole in the desktop payload. `typecheck:tests`
  * still type-checks it.
@@ -82,7 +80,7 @@ import { findSealCallsWithoutAad as find } from "@jini-ai/integrations/webhooks/
  *             1 = at least one does not, or has a shape this scan can't verify.
  */
 
-const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 const DEFAULT_SCAN_ROOT = path.join(REPO_ROOT, "apps", "website", "src");
 
 // These Jini plugin lifecycle calls seal source versions/contributions, never credentials.
@@ -92,33 +90,9 @@ const NON_SECRET_SEAL_CALLS: Readonly<Record<string, string>> = {
   "apps/website/src/server/runtime/composition/plugin-runtime.ts": "capture.seal({ sdk: scopedSdk })",
 };
 
-/** The host's exact exemption: one path AND one whitespace-collapsed call text, never the text alone. */
-export function isNonSecretSealCall({ displayPath, text }: { displayPath: string; text: string }, _optional: Record<string, never> = {}): boolean {
-  return NON_SECRET_SEAL_CALLS[displayPath] === text;
-}
-
-export function findSealCallsWithoutAad(
-  _required: Record<string, never> = {},
-  { scanRoot = DEFAULT_SCAN_ROOT }: { scanRoot?: string } = {}
-): SealViolation[] {
-  return find({ repoRoot: REPO_ROOT, scanRoot, fs, ast: ts, isExempt: isNonSecretSealCall });
-}
-
-function main(): void {
-  const violations = findSealCallsWithoutAad();
-
-  if (violations.length === 0) {
-    console.log("check:seal-aad — OK: every SecretSealerPort.seal() call site under apps/website/src supplies aad.");
-    return;
-  }
-
-  console.error(`check:seal-aad — ${violations.length} .seal() call site(s) do not verifiably supply aad:`);
-  for (const v of violations) {
-    console.error(`  - ${v.file}:${v.line} [${v.reason}] ${v.text}`);
-  }
-  console.error(`\nEvery credential store's seal() call must pass its own row-identity aad (see any of the\nexisting */aad.ts helpers for the pattern) — or, if this really is a call this scan can't see\nthrough safely, resolve it explicitly rather than leaving it unresolved.`);
-  process.exit(1);
-}
+export const isNonSecretSealCall = createNonSecretSealCallPredicate({ exemptions: NON_SECRET_SEAL_CALLS });
+export const findSealCallsWithoutAad = (_required: Record<string, never> = {}, { scanRoot = DEFAULT_SCAN_ROOT }: { scanRoot?: string } = {}) =>
+  find({ repoRoot: REPO_ROOT, scanRoot, fs, ast: ts, isExempt: isNonSecretSealCall });
 
 // Guarded, matching `check-theme-replaced-elements.ts`/`check-src-complexity-drift.ts`: this file's
 // exported functions are imported directly by `__tests__/seal-aad-invariant.test.ts`, and an
@@ -126,5 +100,12 @@ function main(): void {
 // side effect of that import.
 const entry = process.argv[1];
 if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
-  main();
+  process.exitCode = runSealAadCheck({ repoRoot: REPO_ROOT, scanRoot: DEFAULT_SCAN_ROOT, fs, ast: ts,
+    exemptions: NON_SECRET_SEAL_CALLS, stdout: text => console.log(text), stderr: text => console.error(text),
+    copy: {
+      clean: "check:seal-aad — OK: every SecretSealerPort.seal() call site under apps/website/src supplies aad.",
+      findings: count => `check:seal-aad — ${count} .seal() call site(s) do not verifiably supply aad:`,
+      guidance: `\nEvery credential store's seal() call must pass its own row-identity aad (see any of the\nexisting */aad.ts helpers for the pattern) — or, if this really is a call this scan can't see\nthrough safely, resolve it explicitly rather than leaving it unresolved.`,
+    },
+  });
 }

@@ -4,11 +4,11 @@ import { MembersSubscriberDirectory } from "@jini-ai/user-management/members/sub
 import { SqliteMemberRepo } from "#src/features/members/repo.sqlite";
 import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
+import { siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-read-bindings";
 import type { SiteStore } from "../open-site-store.js";
 import type { CreateSiteRouteDepsOverrides } from "./overrides.js";
 import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
-import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 import { homedir } from "node:os";
 
 interface ComposeSiteKeysMembersRequired {

@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { SITE_KEY_ENV_VAR_NAME, LEGACY_SITE_KEY_FILENAME, isSafeSiteKeyId, readSiteKeySourceMaterial, resolveSiteKeyEnv, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeyEnvOnlySources, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir } from "../site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME, LEGACY_SITE_KEY_FILENAME, readSiteKeySourceMaterial, resolveSiteKeyEnv, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeyEnvOnlySources, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir } from "../site-key-read-bindings.js";
+import { isSafeSiteKeyId } from "@jini-ai/platform/secrets/root-key/sources";
 
 /**
  * @file Site-key plan §A.1 slice 1 — `siteKeySources` is a pure ordering function: given a mode,

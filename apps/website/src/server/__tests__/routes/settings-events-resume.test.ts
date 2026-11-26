@@ -4,7 +4,7 @@ import test from "node:test";
 import { EventEmitter } from "node:events";
 import type { Express, Request, Response } from "express";
 import type { SettingRevisionRecord } from "#src/features/settings/index";
-import { registerAdminSettingsEventsRoute } from "../../inbound/admin-http/routes/settings/events.js";
+import { registerAdminSettingsEventsRoute } from "#src/server/runtime/composition/modules/settings";
 import type { SettingsRouteDeps } from "../../inbound/admin-http/routes/settings/deps.js";
 import type { AsyncRouteRequestHandler } from "../../../platform/express/async-route.js";
 

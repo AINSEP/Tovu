@@ -3,7 +3,7 @@ import test from "node:test";
 import express, { type Response } from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { captureRouteError } from "#src/server/inbound/shared/observability-middleware";
-import { registerAdminSettingsEventsRoute, type SettingsEventsDeps } from "../events.js";
+import { registerAdminSettingsEventsRoute, type SettingsEventsDeps } from "#src/server/runtime/composition/modules/settings";
 
 // REGRESSION (hung async route): the ledger head read runs after the SSE head is written. When it
 // failed, Express 4 dropped the rejection and the stream stayed open with no feed behind it.

@@ -1,7 +1,7 @@
 /** OPUS-REVIEW T1: catalog admission delegates to Jini; declared identities are never reconstructed. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createPluginExportSource } from "../../exports/source.js";
+import { createPluginExportSource } from "../../exports/bindings.js";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
 import type { TovuAgentPluginLifecycle } from "../../lifecycle.js";
 import { definition, owner, workspaceId } from "../fixtures/plugin-exports.js";

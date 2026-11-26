@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { assertTestHomeIsolation, createSitesWorkspace } from "../../sites-home.js";
-import { siteKeySources } from "../../../../features/webhooks/site-key-sources.js";
+import { siteKeySources } from "../../../../features/webhooks/site-key-read-bindings.js";
 import { childProcessCoverageEnv } from "../../../../contracts/core/__tests__/helpers/child-process-coverage-env.js";
 
 /** Sweep s01: fail before owner settings/key I/O; exercise the real resolvers without mocks. */

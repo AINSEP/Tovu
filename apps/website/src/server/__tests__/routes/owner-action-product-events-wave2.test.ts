@@ -23,7 +23,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerContentAnalytics } from "../../runtime/composition/content-events.js";
 import { withToolUseEvents } from "../../runtime/composition/tool-use-events.js";
 import { registerPluginInstallRoutes } from "../../inbound/admin-http/routes/plugins/install.js";
-import { registerAdminSiteImportRoutes } from "../../inbound/admin-http/routes/system/site-imports.js";
+import { registerAdminSiteImportRoutes } from "#src/server/runtime/composition/http-app/mount-admin-system";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { bootAuthenticated, startTestServer } from "../helpers/http-test-server.js";
 

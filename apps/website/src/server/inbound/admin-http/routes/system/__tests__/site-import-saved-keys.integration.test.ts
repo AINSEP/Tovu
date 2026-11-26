@@ -6,7 +6,7 @@ import express from "express";
 import { IncomingMessage, ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import { PassThrough } from "node:stream";
-import { registerAdminSiteImportRoutes } from "../site-imports.js";
+import { registerAdminSiteImportRoutes } from "#src/server/runtime/composition/http-app/mount-admin-system";
 import type { RouteDeps } from "#src/server/routes/types";
 
 test("owner setup accepts the optional password without echoing or caching it", { timeout: 120000 }, async () => {

@@ -6,7 +6,7 @@ import { type ContentDb, openContentDb } from "../../../../platform/db/sqlite/co
 import type { OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { EnvOrFileKeyring } from "../../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { SITE_KEY_ENV_VAR_NAME } from "../../../webhooks/site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME } from "../../../webhooks/site-key-read-bindings.js";
 
 /**
  * @file Shared inputs for the frozen external-MCP credential database (EXTRACT-S5 H0, G-mcp).

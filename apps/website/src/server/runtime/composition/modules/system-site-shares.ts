@@ -1,3 +1,7 @@
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
+import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
+import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express, Response } from "express";
 import {
@@ -12,7 +16,7 @@ import type { AdminJsonRouteMountOptions } from "#src/server/inbound/admin-http/
 import { adminPublishTrustFor } from "#src/server/inbound/admin-http/admin-request-facts";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import { readShareInput, readStaticShareInput, registerAdminSiteShareArtifactUploadRoute, registerAdminSiteShareDownloadRoute } from "#src/server/inbound/admin-http/routes/system/site-shares";
-import { createSiteSharePasswordHandler, sendSiteShareFailure } from "#src/server/inbound/admin-http/routes/system/site-share-password";
+import { createSiteSharePasswordHandler, sendSiteShareFailure, savedKeysSameOrigin } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { SHARE_LIMITS } from "#src/features/site-backup/share-policy";
 import { SHARE_FILE } from "#src/features/site-backup/share-registry";
@@ -61,7 +65,11 @@ function siteShareFailureReply({ args, errors }: { args: SiteShareFailureArgs; e
     locals: { ...(authenticated ? { principal: true } : {}), failureReporter: errors.reporter }, req: { method, route: { path } },
   };
   // Only `status().json()`, `locals` and `req.method/route` are read (`admin-failure.ts` `FailureResponse`).
-  sendSiteShareFailure({ res: res as unknown as Response, error: failure }, { step });
+  sendSiteShareFailure({ error: failure, deps: {
+    refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
+    json: (body, status) => (res as unknown as Response).status(status).json(body),
+    failure: (error, options) => sendAdminFailure({ res: res as unknown as Response, error }, options),
+  } }, { step });
   return reply;
 }
 
@@ -111,7 +119,26 @@ export function registerAdminSiteShareRoutes(required: { errors: RouteErrorPorts
   const { app, deps } = required;
   const routeDeps = siteShareRouteDeps({ deps, errors: required.errors });
   for (const spec of [siteShareListRoute, siteShareCreateRoute, siteShareStaticOptionsRoute, siteShareStaticCreateRoute]) mountSiteShareRoute({ errors: required.errors, app, spec, routeDeps });
-  app.post("/api/admin/v1/workspaces/:workspaceId/site-shares/:shareId/password", createSiteSharePasswordHandler({ deps }));
+  const passwordHandler = createSiteSharePasswordHandler({ readBackend: () => deps.siteShareBackend });
+  app.post("/api/admin/v1/workspaces/:workspaceId/site-shares/:shareId/password", (req, res) => passwordHandler({
+    owner: {
+      noStore: () => res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" }),
+      foreignWorkspace: () => String(req.params.workspaceId) !== deps.workspaceId,
+      requireSession: () => rejectUnlessSessionCredential({ res, message: "Use the site owner's signed-in browser for saved keys.", permission: "site-backup.push" }),
+      publishTrustContext: () => getPublishTrustContext(res), principalId: () => getAuthedPrincipal(res).id,
+      ownerPrincipalId: () => deps.ownerPrincipalId,
+      sameOrigin: () => savedKeysSameOrigin({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site"), protocol: req.protocol }),
+      json: (body, status) => res.status(status).json(body),
+      ownerMessage: "Saved keys access requires the site owner’s signed-in browser on this Tovu site.",
+    },
+    principalId: () => getAuthedPrincipal(res).id, shareId: () => String(req.params.shareId),
+    json: (body, status) => res.status(status).json(body),
+    failure: (error, options) => sendSiteShareFailure({ error, deps: {
+      refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
+      json: (body, status) => res.status(status).json(body),
+      failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker }, options),
+    } }, options),
+  }));
   mountSiteShareRoute({ errors: required.errors, app, spec: siteShareAcknowledgeRoute, routeDeps });
   registerAdminSiteShareDownloadRoute({ app, deps });
   mountSiteShareRoute({ errors: required.errors, app, spec: siteShareRevokeRoute, routeDeps });

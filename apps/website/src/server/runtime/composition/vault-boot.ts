@@ -2,7 +2,7 @@ import { bundledAgentPluginsDir, siteDir } from "./site-paths.js";
 import { homedir } from "node:os";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 import { createTovuAgentPluginLifecycle, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";

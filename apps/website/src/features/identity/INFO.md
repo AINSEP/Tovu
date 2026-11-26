@@ -86,7 +86,7 @@ What this host injects into the Jini identity modules (`@jini-ai/user-management
 - `user-purge.ts` (`SqlUserPurge`) implements Jini's `UserPurgePort`.
 - `server/runtime/composition/app-permission-grants.ts` calls `registerSiteKeyPermissionGrants`
   (`@jini-ai/user-management/identity/site-key-permission`) with `siteKeyName: SITE_KEY_ENV_VAR_NAME`
-  (`features/webhooks/site-key-sources.ts`, K3: the product env var name stays here);
+  (`features/webhooks/site-key-read-bindings.ts`, K3: the product env var name stays here);
   `__tests__/site-key-permission.test.ts` pins the bound reason and the real SQLite boot.
 - `trash-user-binding.ts` calls `createTrashUserService({})` ONCE for the process (one workspace per
   process, CIC U-001) so the admin `DELETE users/:principalId` route and the assistant's `trash_item`

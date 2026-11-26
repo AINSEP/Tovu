@@ -1,3 +1,4 @@
+import { installedPluginDeps } from "#src/features/agent-plugins/connect-bindings";
 /** Tovu compatibility shim (A10c seam). The portable `agent_plugin_set_access_token` body lives in
  * `@jini-ai/agent-plugins/connect`; these entries keep their signatures and bind Tovu's tool name and
  * product copy ("this Tovu version"), the `credential_save` card lifecycle id and `ui://tovu` card
@@ -13,7 +14,8 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import type { AgentPluginMcpRecord } from "@jini-ai/agent-plugins/connect";
 import { agentPluginCardHost, tovuAgentPluginCardIdentity } from "./card-host-bindings.js";
 import { tovuAccessTokenFormMessages } from "./connect-card-ui.js";
-import { defaultResolveInstalledAgentPlugin, type AgentPluginConnectToolDeps } from "./connect-tool.js";
+import { type AgentPluginConnectToolDeps } from "#src/features/agent-plugins/connect-bindings";
+import { resolveInstalledAgentPlugin as defaultResolveInstalledAgentPlugin } from "@jini-ai/agent-plugins/connect/installed-plugin";
 import { tovuFederationMessages } from "./federate-mcp.js";
 import { mcpServerTrustClassifier } from "./lifecycle.js";
 import { withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
@@ -84,7 +86,7 @@ export function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: 
   let mcp: ReturnType<typeof withAgentPluginMcpPorts<D["mcp"]>> | undefined;
   const deps = withOverrides({ target: routeDeps, overrides: {
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
-      : defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout }),
+      : defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout, ...installedPluginDeps }),
     federation: tovuTokenFederation,
     messages: tovuAccessTokenMessages,
   } });

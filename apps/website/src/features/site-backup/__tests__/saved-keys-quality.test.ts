@@ -16,7 +16,7 @@ test("saved-key transport functions stay within the approved complexity budget",
     "apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts",
     "apps/website/src/features/api-connections/vault-store-binding.ts",
     "apps/website/src/server/runtime/composition/site-portability.ts",
-    "apps/website/src/server/inbound/admin-http/routes/system/site-share-password.ts",
+    "apps/website/src/server/runtime/composition/modules/system-site-shares.ts",
   ];
   const linter = new Linter();
   for (const source of sources) {

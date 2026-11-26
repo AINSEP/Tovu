@@ -1,3 +1,4 @@
+import type { PluginExportPackage, PluginExportSource } from "@jini-ai/agent-plugins/site/exports/source";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 /** Public declarative export assets; templates and undeclared files are never served. */
 import type { Express } from "express";
@@ -5,7 +6,7 @@ import { createPluginExportFilesRoute } from "@jini-ai/cms/public-http/routes/ag
 import type { Clock } from "@jini-ai/core/primitives";
 import { ADMIN_SURFACE_FILES_PER_IP, createRateLimiter, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { createPluginExportSource, PLUGIN_EXPORT_FILES_PREFIX, type PluginExportPackage, type PluginExportSource } from "#src/features/agent-plugins/exports/source";
+import { createPluginExportSource, PLUGIN_EXPORT_FILES_PREFIX } from "#src/features/agent-plugins/exports/bindings";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 
 /**

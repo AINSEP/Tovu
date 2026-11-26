@@ -16,7 +16,7 @@ import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/
 import { getPublishRunSnapshot } from "#src/features/deployments/static-publish/publish-run";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
-import { siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 import { startupSecretEnvironment } from "#src/platform/secrets/startup-secrets";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import {

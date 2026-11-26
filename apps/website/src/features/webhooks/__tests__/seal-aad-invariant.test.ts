@@ -8,7 +8,7 @@ import test from "node:test";
 import ts from "typescript";
 
 import { findSealCallsInSource } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant";
-import { findSealCallsWithoutAad, isNonSecretSealCall } from "../seal-aad-invariant.js";
+import { findSealCallsWithoutAad, isNonSecretSealCall } from "../../../../../../development/scripts/check-seal-aad.js";
 
 /** The pure scanner bound to the host's TypeScript and the host's exact exemption policy. */
 const scan = ({ sourceText, displayPath }: { sourceText: string; displayPath: string }) =>
@@ -174,7 +174,7 @@ test("filesystem scan ignores node_modules and dist but reports a violation outs
 });
 
 test("the CLI exits successfully and prints OK when the real repository has no seal violations", () => {
-  const cli = fileURLToPath(new URL("../seal-aad-invariant.ts", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../../../../development/scripts/check-seal-aad.ts", import.meta.url));
   const result = spawnSync(process.execPath, ["--import", "tsx", cli], {
     cwd: path.resolve(import.meta.dirname, "../../../../../.."),
     encoding: "utf8",
@@ -193,7 +193,7 @@ test("filesystem scan and CLI report a known violating file with a nonzero exit"
     fs.writeFileSync(path.join(root, fixture), "// fixture\ndeps.sealer.seal({ plaintext: token, key });\n");
     const violations = findSealCallsWithoutAad({}, { scanRoot: root });
     assert.deepEqual(violations, [{ file: path.relative(process.cwd(), path.join(root, fixture)), line: 2, reason: "missing-aad", text: "deps.sealer.seal({ plaintext: token, key })" }]);
-    const cli = fileURLToPath(new URL("../seal-aad-invariant.ts", import.meta.url));
+    const cli = fileURLToPath(new URL("../../../../../../development/scripts/check-seal-aad.ts", import.meta.url));
     const scanRoot = path.resolve(import.meta.dirname, "../../..");
     // Redirect only the CLI's filesystem boundary to our real temp fixture. The entry guard,
     // default scan root, parser, diagnostics and exit handling all run unchanged.
@@ -239,7 +239,7 @@ test("the CLI refuses a matching call text in a different path", () => {
     fs.writeFileSync(path.join(root, fixture), `${call};\n`);
     assert.deepEqual(isNonSecretSealCall({ displayPath: fixture, text: call }), false);
     assert.deepEqual(findSealCallsWithoutAad({}, { scanRoot: root }).map(({ text, reason }) => ({ text, reason })), [{ text: call, reason: "missing-aad" }]);
-    const cli = fileURLToPath(new URL("../seal-aad-invariant.ts", import.meta.url));
+    const cli = fileURLToPath(new URL("../../../../../../development/scripts/check-seal-aad.ts", import.meta.url));
     const scanRoot = path.resolve(import.meta.dirname, "../../..");
     const script = `
       import fs from "node:fs";
