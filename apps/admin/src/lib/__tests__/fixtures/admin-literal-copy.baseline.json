@@ -99,20 +99,6 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/pages/PageEditor.tsx",
-      "line": 936,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/pages/PageEditor.tsx",
-      "line": 936,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
       "file": "features/pages/Pages.tsx",
       "line": 299,
       "kind": "text",

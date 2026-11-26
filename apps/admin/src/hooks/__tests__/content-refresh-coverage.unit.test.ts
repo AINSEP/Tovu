@@ -87,7 +87,7 @@ const WIRED_HOOKS: readonly string[] = [
   "features/themes/hooks/use-theme-explore.hooks.ts",
   // Editors wired through `use-external-entry-refresh.hooks.ts` (2026-09-16) — see this file's own
   // header note above for why these belong here despite holding an unsaved working copy.
-  "features/pages/hooks/use-page-editor.hooks.ts",
+  "../node_modules/@jini-ai/admin/src/pages/hooks/page-editor-recovery.hooks.ts",
 ];
 
 /** Parse real calls, so commented-out subscriptions cannot satisfy the guard. */
