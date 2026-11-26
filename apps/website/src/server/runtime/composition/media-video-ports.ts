@@ -3,6 +3,10 @@ import { readOwnerChatAttachment as readChatAttachmentForOwner } from "#src/feat
 import { createFfmpegMediaTranscoder } from "@jini-ai/agent-plugins/ffmpeg-transcode/adapter";
 import { createFfmpegVideoCodecProbe, createFfmpegVideoFrameExtractor, createVideoExtractionLock, findVideoBinaries, runLowPriorityVideoProcess } from "@jini-ai/cms/media/node";
 import { VIDEO_CONVERSION_MESSAGES, VIDEO_TRANSCODE_MAX_INPUT_BYTES, sniffContentType } from "@jini-ai/cms/media";
+import { VIDEO_UPLOAD_LIMIT_BYTES } from "@tovu/contracts/upload-limits";
+import fsPromises from "node:fs/promises";
+import { createStagedFileAdapter } from "@jini-ai/platform/fs";
+import { siteTempRoot, SITE_TEMP_PREFIXES } from "#src/platform/temp/site-temp-roots";
 import type { MediaVideoToolPorts } from "@jini-ai/cms/media/site/view-video-tool";
 import type { MediaConversionPorts } from "#src/features/media/tool-registrations";
 
@@ -34,17 +38,23 @@ export function createMediaVideoToolPorts(
 export function createMediaConversionPorts({ env }: { env: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): MediaConversionPorts {
   // One lock for both: a codec probe never competes with a running conversion for the same machine.
   const lock = createVideoExtractionLock({});
+  const { sealStagedFile } = createStagedFileAdapter({ filesystem: fsPromises,
+    withTempRoot: siteTempRoot({ prefix: SITE_TEMP_PREFIXES.mediaVideo }), sniffContentType,
+  }, {});
+  const transcoderDeps = {
+    findBinaries: findVideoBinaries,
+    runProcess: runLowPriorityVideoProcess,
+    lock,
+    sniffContentType,
+    maxInputBytes: VIDEO_TRANSCODE_MAX_INPUT_BYTES,
+    messages: VIDEO_CONVERSION_MESSAGES,
+    env,
+    sealStagedFile,
+  };
   return {
     // Compatibility depends on the codec, not the filename or container, so only ffprobe's answer is recorded.
     videoCodecProbe: createFfmpegVideoCodecProbe({ findBinaries: findVideoBinaries, runProcess: runLowPriorityVideoProcess, lock, env }, {}),
-    transcoder: createFfmpegMediaTranscoder({
-      findBinaries: findVideoBinaries,
-      runProcess: runLowPriorityVideoProcess,
-      lock,
-      sniffContentType,
-      maxInputBytes: VIDEO_TRANSCODE_MAX_INPUT_BYTES,
-      messages: VIDEO_CONVERSION_MESSAGES,
-      env,
-    }, {}),
+    transcoder: createFfmpegMediaTranscoder(transcoderDeps, {}),
+    stagedTranscoder: createFfmpegMediaTranscoder({ ...transcoderDeps, maxInputBytes: VIDEO_UPLOAD_LIMIT_BYTES }, {}),
   };
 }

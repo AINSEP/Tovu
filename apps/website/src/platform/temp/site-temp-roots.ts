@@ -13,6 +13,7 @@ export const SITE_TEMP_PREFIXES = {
   importDatabase: "tovu-import-db-",
   shareProjection: "tovu-share-projection-",
   archiveMedia: "tovu-archive-media-",
+  mediaVideo: "tovu-media-video-",
   staticCopy: "tovu-static-copy-",
   snapshot: "tovu-snapshot-",
   transferChat: "tovu-transfer-chat-",

@@ -14,6 +14,7 @@ import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site
 import { storeBoundServicesFor } from "../store-bound-services.js";
 import { toDeployTargetCredential } from "@jini-ai/devops/deploy/site/static-publish/credentials";
 import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { fetch as sendStaged } from "undici";
 import type { CreateSiteRouteDepsOverrides, resolveSiteBindingOverride } from "./overrides.js";
 import type { providerPluginBoot } from "./provider-identity.js";
 import type { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
@@ -53,7 +54,8 @@ export function composeMediaStorage(required: ComposeMediaStorageRequired, _opti
   let provideMediaCredentials!: (source: ReturnType<typeof composePublishCredentialSource>) => void;
   const mediaCredentials = new Promise<ReturnType<typeof composePublishCredentialSource>>((done) => { provideMediaCredentials = done; });
   const mediaStorePorts = (): MediaObjectStorePorts => ({
-    host: { createSigV4Client: createDeployHostKit({}).createSigV4Client, wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability: observability() }) },
+    host: { createSigV4Client: createDeployHostKit({}).createSigV4Client, wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability: observability() }),
+      sendStaged: trackFetch({ fetch: sendStaged, observability: observability() }) },
     loadBundledRegistry: () => loadBundledObjectStoreRegistry({ uploadsDir: resolvedUploadsDir, sourceRoot: bundledAgentPluginsDir(), bundledContributionSources, loadPluginContributionsFromSource, ...objectStoreContributionPorts }),
     loadSiteRegistry: () => loadObjectStoreRegistry({ workspaceId: workspaceId(), uploadsDir: resolvedUploadsDir, loadContributions: agentPluginLifecycle.loadPluginContributions, ...objectStoreContributionPorts }),
     readSetting: () => readMediaObjectStoreSetting({ settingsRepo: settingsRepo(), workspaceId: workspaceId(), getEffective }),

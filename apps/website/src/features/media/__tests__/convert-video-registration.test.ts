@@ -78,6 +78,7 @@ test("with no ffmpeg on the host the tool says so in plain words and saves nothi
   const original = await seedVideo(deps);
   const transcoder = createFfmpegMediaTranscoder({
     findBinaries: async () => undefined, runProcess: async () => { throw new Error("must not run"); }, lock: { tryAcquire: () => () => undefined },
+    sealStagedFile: async () => { throw new Error("must not seal"); },
     sniffContentType, maxInputBytes: VIDEO_TRANSCODE_MAX_INPUT_BYTES, messages: VIDEO_CONVERSION_MESSAGES, env: {},
   }, {});
   const tool = registrations(deps, { transcoder }).find((r) => r.descriptor.id === TOOL_ID);

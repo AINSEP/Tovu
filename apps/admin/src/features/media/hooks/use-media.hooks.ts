@@ -1,4 +1,5 @@
 import { bindMedia } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
+import { MEDIA_JSON_UPLOAD_MAX_BYTES } from "@tovu/contracts/upload-limits";
 import { describeApiError } from "@/lib/admin-http/request";
 import { sizeRefusalFromError } from "../upload-size-copy";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
@@ -12,5 +13,5 @@ import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.
 
 export const useWiredMedia = bindMedia({
   hooks: { useLocaleHook: useAdminLocale, useGridPages, useMediaWrites, useFetchQuery, useFetchMutation, useInvalidate, useContentRefreshSubscription },
-  deps: { port: defaultMediaPort, translate, describeApiError, sizeRefusalFromError, readFileAsBase64 },
+  deps: { port: defaultMediaPort, translate, describeApiError, sizeRefusalFromError, readFileAsBase64, maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES },
 });

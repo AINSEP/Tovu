@@ -21,6 +21,7 @@ import { assertAllowedSniffedContentType } from "@jini-ai/cms/media/site/upload-
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
 import type { MediaPublicUrlDeps, RemoveMediaFn } from "@jini-ai/cms/media/site/contracts";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
+import type { StagedMediaTranscoderPort } from "@jini-ai/core/contracts/site/cms-media";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
 
@@ -69,7 +70,7 @@ function buildRecordUploadContentType(
 /** Host-injected video converter (an ffmpeg adapter built at the composition root). Absent means this
  * host cannot convert video, so `media_convert_video` is not offered. Never vendored into core. */
 /** The host video adapters: the converter, and the codec probe whose result the store keeps as a playback hint. */
-export interface MediaConversionPorts { transcoder?: MediaTranscoderPort; videoCodecProbe?: VideoCodecProbePort }
+export interface MediaConversionPorts { transcoder?: MediaTranscoderPort; stagedTranscoder?: StagedMediaTranscoderPort; videoCodecProbe?: VideoCodecProbePort }
 
 const MEDIA_TRASH_TOOL_ID = "media_trash_asset";
 

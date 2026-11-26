@@ -1,3 +1,4 @@
+import { MEDIA_JSON_UPLOAD_MAX_BYTES } from "@tovu/contracts/upload-limits";
 import { t as translateMediaCopy } from "../media-i18n";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
@@ -59,7 +60,7 @@ function renderWithPort(port: ReturnType<typeof createFakeMediaPort>) {
   const t = (key: string) => translate({ locale: "en", key });
   return render(
     <FetchQueryProvider>
-      <Media {...MEDIA_PROPS} hooks={{ ...requiredMediaHooks, useMediaHook: () => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t }) }} />
+      <Media {...MEDIA_PROPS} hooks={{ ...requiredMediaHooks, useMediaHook: () => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t }) }} />
     </FetchQueryProvider>,
   );
 }
