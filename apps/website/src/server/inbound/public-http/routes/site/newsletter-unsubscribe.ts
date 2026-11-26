@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
@@ -13,7 +14,7 @@ import { currentNewsletterRequest, newsletterPublicApp } from "./newsletter-publ
  * the unsubscribe service and incident tracker. Public, cookie-less, no-login by design: never reads or sets a
  * session cookie. Everything is read per request, as the hand-written route did.
  */
-export function registerPublicNewsletterUnsubscribeRoute({ app, deps }: { app: Express; deps: NewsletterPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerPublicNewsletterUnsubscribeRoute({ app, deps, errors }: { app: Express; deps: NewsletterPublicRouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   const routeDeps = {
     ready: () => deps.newsletterReady,
     unsubscribe: ({ rawToken }: { rawToken: string }) => processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken } }),
@@ -21,6 +22,6 @@ export function registerPublicNewsletterUnsubscribeRoute({ app, deps }: { app: E
   };
   const failure = { operation: "public:newsletter-unsubscribe", visitorError: "The site couldn’t complete unsubscription." };
   const scoped = newsletterPublicApp({ app });
-  mountPublicRawRoute({ app: scoped, spec: newsletterUnsubscribeGetRoute, deps: routeDeps, failure });
-  mountPublicRawRoute({ app: scoped, spec: newsletterUnsubscribePostRoute, deps: routeDeps, failure });
+  mountPublicRawRoute({ errors, app: scoped, spec: newsletterUnsubscribeGetRoute, deps: routeDeps, failure });
+  mountPublicRawRoute({ errors, app: scoped, spec: newsletterUnsubscribePostRoute, deps: routeDeps, failure });
 }

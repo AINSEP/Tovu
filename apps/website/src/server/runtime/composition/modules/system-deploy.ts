@@ -263,10 +263,10 @@ const PUBLISH_MOUNT = mountOptions({ operation: "routes/system/publish-site", au
  */
 export function registerAdminPublishSiteRoutes({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}): void {
   const context = createPublishSiteContext({ deps });
-  registerAdminPublishTriggerRoute({ app, context });
+  registerAdminPublishTriggerRoute({ app, context, errors });
   mountAdminJsonRoute({ errors, app, spec: publishStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot: () => getPublishRunSnapshot() } }, PUBLISH_MOUNT);
   mountAdminJsonRoute({ errors, app, spec: publishPreviewRoute, deps: { ...deployPortDeps({ deps }), previewPublish: publishPreviewFor({ context }) } }, PUBLISH_MOUNT);
-  registerAdminPublishDestinationsRoute({ app, context });
+  registerAdminPublishDestinationsRoute({ app, context, errors });
   // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
   mountAdminJsonRoute({ errors, app, spec: publishTargetsRoute, deps: { ...deployPortDeps({ deps }), listTargets: publishTargetsFor({ deps }) } }, PUBLISH_MOUNT);
 }

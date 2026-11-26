@@ -14,6 +14,7 @@ import type { AnalyticsIngestRouteDeps } from "@jini-ai/analytics/site/jini-adap
 import { analyticsSaltContext } from "#src/features/analytics/salt-context";
 import { reportAnalyticsForwardFailure } from "#src/features/analytics/warn";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Route-level tests for `POST /_analytics/e` (the public beacon endpoint).
@@ -50,7 +51,7 @@ const ids: IdGeneratorPort = { newId: () => "id-1" as UUID };
 async function startTestApp(deps: AnalyticsIngestRouteDeps) {
   const app = express();
   app.use(express.json());
-  registerAnalyticsIngestRoute({ app, deps });
+  registerAnalyticsIngestRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   const server = createServer(app);
   server.listen(0);

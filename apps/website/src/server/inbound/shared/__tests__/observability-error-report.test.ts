@@ -12,6 +12,9 @@ import {
 import { applyRequestTracking, captureRouteError } from "../observability-middleware.js";
 import { createTovuErrorReporter } from "#src/server/runtime/composition/error-reporter";
 import { reportServerFailure } from "../admin-failure.js";
+import { defineJsonRoute } from "@jini-ai/core/contracts/server";
+import { NOOP_OPERATION_TRACKER } from "@jini-ai/core/errors/reporter";
+import { mountPublicJsonRoute } from "../../admin-http/admin-json-route-ports.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 
 /**
@@ -200,7 +203,7 @@ test("admin errors with statusCode 413 are delegated unchanged before a response
 });
 
 /** The bound host shape `createApp` installs: one site reporter over the request's real tracker, on `res.locals`. */
-async function bootWithReporter(t: test.TestContext, routes: (app: express.Express, tracker: ReturnType<typeof createTracker>) => void) {
+async function bootWithReporter(t: test.TestContext, routes: (app: express.Express, tracker: ReturnType<typeof createTracker>, reporter: ReturnType<typeof createTovuErrorReporter>) => void) {
   const { port, reports } = recording();
   const tracker = createTracker({ observability: port });
   const hostRecords: unknown[][] = [];
@@ -209,7 +212,7 @@ async function bootWithReporter(t: test.TestContext, routes: (app: express.Expre
   const app = express();
   app.use((_req, res, next) => { res.locals.failureReporter = reporter; next(); });
   applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
-  routes(app, tracker);
+  routes(app, tracker, reporter);
   app.use(captureRouteError);
   // A host-only control: the same host logger, a tracker that records nothing. Recording through it
   // establishes the one expected logger call without touching the tracker path under measurement.
@@ -309,4 +312,28 @@ test("an unreported 5xx still produces the http.request marker", async t => {
   assert.equal((reports[0]!.error as Error).name, "ServerErrorResponse");
   assert.equal((reports[0]!.error as Error).message, "HTTP 503 from GET /api/public/down");
   assert.deepEqual([logged.mock.callCount(), hostRecords.length, reports.length], [0, 1, 1]);
+});
+
+test("two site compositions do not share incident ownership", async t => {
+  t.mock.method(console, "error", () => {});
+  // Each site binds its OWN reporter at registration, exactly as `createApp` does for its one site.
+  const boom = defineJsonRoute<void, never, object>({ method: "get", path: "/api/public/boom", parse: () => ({ ok: true, value: undefined }), handle: async () => { throw new Error("PRIVATE_BACKEND"); } });
+  const mountBoom = (app: express.Express, reporter: ReturnType<typeof createTovuErrorReporter>) =>
+    mountPublicJsonRoute({ app, errors: { reporter, observability: { trackOperation: () => NOOP_OPERATION_TRACKER } }, spec: boom, deps: {}, failure: { operation: "public:boom", visitorError: "Down." } });
+  const siteA = await bootWithReporter(t, (app, _tracker, reporter) => { mountBoom(app, reporter); });
+  const siteB = await bootWithReporter(t, (app, _tracker, reporter) => { mountBoom(app, reporter); });
+  const answerA = await fetch(`${siteA.baseUrl}/api/public/boom`);
+  assert.equal(answerA.status, 500);
+  const idA = (await answerA.json() as { errorId?: string }).errorId;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(siteA.hostRecords.length, 1);
+  assert.ok(idA && JSON.stringify(siteA.hostRecords[0]).includes(idA));
+  assert.deepEqual(siteB.hostRecords, []);
+  assert.deepEqual(siteB.reports, []);
+  const answerB = await fetch(`${siteB.baseUrl}/api/public/boom`);
+  const idB = (await answerB.json() as { errorId?: string }).errorId;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(siteB.hostRecords.length, 1);
+  assert.ok(idB && JSON.stringify(siteB.hostRecords[0]).includes(idB));
+  assert.equal(siteA.hostRecords.length, 1);
 });

@@ -19,7 +19,7 @@ import { createFormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage
 import { sniffContentType, uploadMedia, trashMedia } from "@jini-ai/cms/media";
 import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { registerFormsSubmitRoute } from "../../../inbound/public-http/routes/site/forms-submit.js";
-import type { MountInput } from "./module-handles.js";
+import type { ErrorBoundMountInput, MountInput } from "./module-handles.js";
 
 /** Public comment submission: the salt resolution STARTS here (once per app), from the root's env and site-key keyring. */
 export function registerCommentsSubmit({ app, routeDeps }: MountInput, _optional = {}): void {
@@ -47,12 +47,12 @@ export function registerCommentsSubmit({ app, routeDeps }: MountInput, _optional
 }
 
 /** Public analytics beacon (ADR-035 §5). */
-export function registerAnalyticsIngest({ app, routeDeps }: MountInput, _optional = {}): void {
+export function registerAnalyticsIngest({ app, routeDeps, errors }: ErrorBoundMountInput, _optional = {}): void {
   // Public analytics beacon (ADR-035 §5) — unauthenticated by design; must precede the site
   // `/:slug` catch-all. `config` is now the real ADR-028-backed adapter
   // (`analytics/config.settings.ts`'s `createSettingsAnalyticsConfig`), replacing the former
   // hardcoded dev-only stub.
-  registerAnalyticsIngestRoute({ app, deps: {
+  registerAnalyticsIngestRoute({ app, errors, deps: {
     browserAnalytics: routeDeps.browserAnalytics,
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,

@@ -19,6 +19,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import type { PublishContentRouteDeps } from "../deps.js";
 import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 import { registerPublishContentPeerTransportRoutes } from "../../../../../runtime/composition/modules/publish-content-transport.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file S18 (S-F3) route wiring — `publish-files-plan-2026-09-24.md` §3. Proves that `push/plan`
@@ -72,8 +73,8 @@ function buildApp(options: {
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerPublishContentPeerRoutes({ app, deps });
-  registerPublishContentPeerTransportRoutes({ app, deps });
+  registerPublishContentPeerRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerPublishContentPeerTransportRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, repo };
 }
 

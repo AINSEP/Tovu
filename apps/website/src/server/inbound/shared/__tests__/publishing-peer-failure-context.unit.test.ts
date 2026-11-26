@@ -3,6 +3,7 @@ import test from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content/peers";
 const CANARY = "SECRET_CANARY_PEER_CONTEXT";
@@ -31,7 +32,7 @@ for (const row of cases) {
         if (authenticated) res.locals.principal = { id: "owner" };
         next();
       });
-      registerPublishContentPeerRoutes({ app, deps: { workspaceId: "ws", authorize: async () => {
+      registerPublishContentPeerRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", authorize: async () => {
         throw new Error(`PRIVATE_BACKEND password=${CANARY}`);
       } } as never });
       const baseUrl = await startTestServer(app, t);

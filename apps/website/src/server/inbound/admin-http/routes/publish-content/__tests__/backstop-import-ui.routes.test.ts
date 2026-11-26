@@ -16,6 +16,7 @@ import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/tr
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { registerPublishContentImportRoutes } from "#src/server/runtime/composition/modules/publish-content-import";
 import type { PublishContentRouteDeps } from "../deps.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test("real import plan returns safe before/after values for raw rows without requiring report.backstop", async (t) => {
   const db = new Database(":memory:"); t.after(() => db.close());
@@ -45,7 +46,7 @@ test("real import plan returns safe before/after values for raw rows without req
   } as unknown as PublishContentRouteDeps;
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPublishContentImportRoutes({ app, deps });
+  registerPublishContentImportRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   const server = await startTestServer(app, t);
   const request = () => fetch(`${server}/api/admin/v1/workspaces/ws/publish-content/import/plan`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bundleId: staged.bundleId }) });
   const response = await request(); const body = await response.json();

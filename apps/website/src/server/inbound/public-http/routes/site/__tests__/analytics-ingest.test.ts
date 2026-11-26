@@ -12,6 +12,7 @@ import { registerAnalyticsIngestRoute } from "../analytics-ingest.js";
 import type { AnalyticsIngestRouteDeps } from "@jini-ai/analytics/site/jini-adapters";
 import { analyticsSaltContext } from "#src/features/analytics/salt-context";
 import { reportAnalyticsForwardFailure } from "#src/features/analytics/warn";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Unit-tier coverage for `POST /_analytics/e` (`registerAnalyticsIngestRoute`) — a PUBLIC,
@@ -37,7 +38,7 @@ function buildApp(sink: ReturnType<typeof createLocalAnalyticsSink> = createLoca
   };
   const app = express();
   app.use(express.json());
-  registerAnalyticsIngestRoute({ app, deps });
+  registerAnalyticsIngestRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, sink };
 }
 
@@ -365,7 +366,7 @@ test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct han
   };
   const app = express();
   app.use(express.json());
-  registerAnalyticsIngestRoute({ app, deps });
+  registerAnalyticsIngestRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const handler = extractHandler(app, "/_analytics/e");
 
   let statusCode: number | undefined;

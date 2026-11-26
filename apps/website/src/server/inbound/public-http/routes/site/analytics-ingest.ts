@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express, Request } from "express";
 
@@ -24,7 +25,7 @@ const boundPerRequest = (): never => { throw new Error("bound per request by req
  * The binding adapter supplies Jini's required policy/salt context and converts port/hook arguments.
  * createApp wires this public route separately from admin RouteDeps.
  */
-export function registerAnalyticsIngestRoute({ app, deps }: { app: Express; deps: AnalyticsIngestRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerAnalyticsIngestRoute({ app, deps, errors }: { app: Express; deps: AnalyticsIngestRouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   // One cap per route for every request's vendor calls: a beacon flood sheds vendor calls, never local hits.
   const mounted: AnalyticsIngestBeaconRouteDeps = {
     ingest: deps,
@@ -35,6 +36,7 @@ export function registerAnalyticsIngestRoute({ app, deps }: { app: Express; deps
     clientAddress: boundPerRequest,
   };
   mountPublicRawRoute({
+    errors,
     app,
     spec: analyticsIngestRoute,
     deps: mounted,

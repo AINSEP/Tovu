@@ -79,8 +79,8 @@ function buildApp(options: {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter });
-  registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limiter });
+  registerAdminExternalMcpOAuthConnectRoute({ errors: createRouteIncidentReporter().errors, app, deps, limiter });
+  registerAdminExternalMcpOAuthDevicePollRoute({ errors: createRouteIncidentReporter().errors, app, deps, limiter });
   registerAdminExternalMcpOAuthDisconnectRoute({ errors: routeErrors, app, deps });
   return { app, authorizeCalls };
 }

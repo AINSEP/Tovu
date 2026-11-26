@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { feedRoute, type FeedRouteDeps } from "@jini-ai/cms/public-http/routes/site/feed";
 import { llmsTxtRoute, type LlmsTxtRouteDeps } from "@jini-ai/cms/public-http/routes/site/llms";
 import { robotsRoute, type RobotsRouteDeps } from "@jini-ai/cms/public-http/routes/site/robots";
@@ -61,28 +62,28 @@ function siteTitleFor({ deps }: { deps: SeoRouteDeps }, _optional: Record<string
  * @complexity O(1) setup; per request O(n) in the document size.
  */
 function mountDocument<Deps extends object>(
-  { app, spec, deps, failure }: { app: Parameters<typeof mountPublicRawRoute<Deps>>[0]["app"]; spec: Parameters<typeof mountPublicRawRoute<Deps>>[0]["spec"]; deps: Deps; failure: PublicRawFailureWriter },
+  { app, errors, spec, deps, failure }: { app: Parameters<typeof mountPublicRawRoute<Deps>>[0]["app"]; errors: RouteErrorPorts; spec: Parameters<typeof mountPublicRawRoute<Deps>>[0]["spec"]; deps: Deps; failure: PublicRawFailureWriter },
   _optional: Record<string, never> = {},
 ): void {
-  mountPublicRawRoute({ app, spec: { ...spec, bufferedReply: true }, deps, failure });
+  mountPublicRawRoute({ app, errors, spec: { ...spec, bufferedReply: true }, deps, failure });
 }
 
 /**
  * GET /sitemap.xml — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_SITEMAP`, REQ-08,
  * tasks.md T046). Registered ahead of the `/:slug` catch-all in `pages.ts`'s registration order.
  */
-export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const specDeps: SitemapRouteDeps = documentDeps({ deps, extra: { buildSitemap: (input: { workspaceId: string }, optional: { renderBaseUrl?: string | undefined }) => deps.sitemapService.buildSitemap(input, optional) } });
-  mountDocument({ app, spec: sitemapRoute, deps: specDeps, failure: textFailure({ operation: "public:sitemap", subject: "the sitemap" }) });
+  mountDocument({ app, errors, spec: sitemapRoute, deps: specDeps, failure: textFailure({ operation: "public:sitemap", subject: "the sitemap" }) });
 };
 
 /**
  * GET /robots.txt — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_ROBOTS`, REQ-09,
  * tasks.md T046).
  */
-export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const specDeps: RobotsRouteDeps = documentDeps({ deps, extra: {} });
-  mountDocument({ app, spec: robotsRoute, deps: specDeps, failure: textFailure({ operation: "public:robots", subject: "the crawler rules" }) });
+  mountDocument({ app, errors, spec: robotsRoute, deps: specDeps, failure: textFailure({ operation: "public:robots", subject: "the crawler rules" }) });
 };
 
 /**
@@ -105,17 +106,17 @@ export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ app, deps }, _option
  * leak here, same guarantee `sitemap.xml` gives. This is a deliberate, disclosed behavior change,
  * not silent drift — see `__tests__/llms.route.test.ts`'s file header for what it replaces.
  */
-export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   // Share sitemap/feed's serving origin; the exporter rewrites it for its destination.
   const specDeps: LlmsTxtRouteDeps = documentDeps({ deps, extra: { resolveSiteTitle: siteTitleFor({ deps }) } });
-  mountDocument({ app, spec: llmsTxtRoute, deps: specDeps, failure: textFailure({ operation: "public:llms", subject: "the site index" }) });
+  mountDocument({ app, errors, spec: llmsTxtRoute, deps: specDeps, failure: textFailure({ operation: "public:llms", subject: "the site index" }) });
 };
 
 /**
  * GET /feed.xml — the public RSS 2.0 feed (`Jini/packages/cms/src/seo/feed.ts`). Public and unauthenticated like
  * `sitemap.xml`, and registered with it by `modules/seo.ts`, ahead of the `/:slug` catch-all.
  */
-export const registerFeedRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerFeedRoute: SeoRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const specDeps: FeedRouteDeps = documentDeps({ deps, extra: { resolveSiteTitle: siteTitleFor({ deps }) } });
-  mountDocument({ app, spec: feedRoute, deps: specDeps, failure: textFailure({ operation: "public:feed", subject: "the feed" }) });
+  mountDocument({ app, errors, spec: feedRoute, deps: specDeps, failure: textFailure({ operation: "public:feed", subject: "the feed" }) });
 };

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { type ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 import { createVisitorPageTargets } from "../visitor-page-targets.js";
 import { createVisitorFrontendControl } from "#src/assistant/site/visitor-frontend-control";
@@ -644,6 +645,8 @@ export function createSiteAssistantModule(
 }
 
 function createSiteAssistantContext(deps: SiteAssistantModuleDeps, env: NodeJS.ProcessEnv, siteReporter: ErrorReporter) {
+  // The site's one reporter as route error ports: the visitor frontend and confirm mounts are this site's routes.
+  const routeErrors: RouteErrorPorts = { reporter: siteReporter, observability: NO_OPERATION_TRACKING };
   const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
     exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}),
       // This generator is cryptographic; the site's ordinary IDs can be time ordered.
@@ -668,7 +671,7 @@ function createSiteAssistantContext(deps: SiteAssistantModuleDeps, env: NodeJS.P
 
   const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock, ports: { mountRoutes: mountJiniRoutes,
     // The visitor frontend routes are this site's: their incidents go to the site's one reporter.
-    routeHost: (required) => daemonRouteHost({ ...required, errors: { reporter: siteReporter, observability: NO_OPERATION_TRACKING } }), parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput },
+    routeHost: (required) => daemonRouteHost({ ...required, errors: routeErrors }), parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput },
     enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== 'off' && await isPublicAssistantEnabled(
       { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
     canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },
@@ -678,11 +681,11 @@ function createSiteAssistantContext(deps: SiteAssistantModuleDeps, env: NodeJS.P
   const approvalResume = createVisitorAgUiResume<VisitorSegment>({ nowMs: () => deps.clock.nowMs(),
     scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}), confirm: (required) => confirmations.confirm(required),
     reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); } });
-  return { approvalResume, deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend, turnDedupe };
+  return { approvalResume, deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, routeErrors, frontend, turnDedupe };
 }
 
 function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof createSiteAssistantContext>): void {
-      const { deps, env, confirmations, confirmLimiter, reporter, frontend } = context;
+      const { deps, env, confirmations, confirmLimiter, reporter, routeErrors, frontend } = context;
       frontend.mount({ app });
       const enabled = async () => env.TOVU_VISITOR_TOOLS_POLICY !== "off" && await isPublicAssistantEnabled(
         { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId });
@@ -699,7 +702,7 @@ function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof cr
           writer.start();
           return { res, writer, runId };
         } };
-      registerSiteAssistantConfirm({ app, ports: {
+      registerSiteAssistantConfirm({ app, errors: routeErrors, ports: {
         confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner, enabled, allowsOrigin,
         reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
       } });

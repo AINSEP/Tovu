@@ -181,14 +181,14 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
       registerAdminExternalMcpPutRoute({ errors, app, deps });
       registerAdminExternalMcpDeleteRoute({ errors, app, deps });
       registerAdminExternalMcpAdmissionsRoute({ errors, app, deps });
-      registerAdminExternalMcpProbeRoute({ app, deps, limiter: probeLimiter });
+      registerAdminExternalMcpProbeRoute({ errors, app, deps, limiter: probeLimiter });
       // `GET /tool-approvals` is registered before nothing it could be mistaken for: there is no
       // `GET /:serverId`, and the revoke path has four segments past `mcp-servers`.
       registerAdminExternalMcpToolApprovalsRoutes({ errors, app, deps });
 
       if (!oauthDeps) return;
-      registerAdminExternalMcpOAuthConnectRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
-      registerAdminExternalMcpOAuthDevicePollRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
+      registerAdminExternalMcpOAuthConnectRoute({ errors, app, deps: oauthDeps, limiter: oauthLimiter });
+      registerAdminExternalMcpOAuthDevicePollRoute({ errors, app, deps: oauthDeps, limiter: oauthLimiter });
       registerAdminExternalMcpOAuthDisconnectRoute({ errors, app, deps: oauthDeps });
 
       // PUBLIC — deliberately outside `/api/admin`, so `requireAdminSession` never sees it.

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { FrontendSessionOwner } from '@jini-ai/core/contracts/site/daemon';
 import type { FrontendHookInput } from "@jini-ai/core/contracts/site/daemon-http";
 /** One human-only reply route. No model tool or admin exchange can reach this visitor store. */
@@ -21,9 +22,9 @@ interface ConfirmRoutePorts {
 }
 
 /** Mount without opening a listener; route tests inject the entire trust and delivery boundary. */
-export function registerSiteAssistantConfirm({ app, ports }: { app: Express; ports: ConfirmRoutePorts }, _options = {}): void {
+export function registerSiteAssistantConfirm({ app, ports, errors }: { app: Express; ports: ConfirmRoutePorts; errors: RouteErrorPorts }, _options = {}): void {
   mountPublicRawRoute<SiteAssistantConfirmDeps>({
-    app, spec: siteAssistantConfirmRoute, deps: {} as SiteAssistantConfirmDeps,
+    app, errors, spec: siteAssistantConfirmRoute, deps: {} as SiteAssistantConfirmDeps,
     failure: ({ res, error }) => {
       ports.reportError({ error });
       res.setHeader("Cache-Control", "no-store");

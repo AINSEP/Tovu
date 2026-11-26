@@ -14,6 +14,7 @@ import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublishContentImportRoutes } from "#src/server/runtime/composition/modules/publish-content-import";
 import type { PublishContentRouteDeps } from "../deps.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";
 
@@ -26,7 +27,7 @@ function routeApp(options: { jsonBody: boolean; deps?: Partial<Record<string, un
   const app = express();
   if (options.jsonBody) app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPublishContentImportRoutes({ app, deps });
+  registerPublishContentImportRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   return app;
 }
 

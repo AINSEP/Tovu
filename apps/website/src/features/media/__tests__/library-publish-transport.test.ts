@@ -24,6 +24,7 @@ import { registerPublishContentBlobGetRoute, registerPublishContentBlobPutRoute 
 import type { PublishContentRouteDeps } from '#src/server/inbound/admin-http/routes/publish-content/deps';
 import { contributeMediaPublish } from '../publish-content.js';
 import { libraryFixture } from './library.fixture.js';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test('Library document-only blob hashes cannot be downloaded through publish peer transport', async t => {
   const { deps } = libraryFixture();
@@ -33,7 +34,7 @@ test('Library document-only blob hashes cannot be downloaded through publish pee
   deps.blobStore.get = async input => { reads++; return get(input); };
   const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
   const routeDeps = { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps;
-  registerPublishContentBlobGetRoute({ app, deps: routeDeps }); registerPublishContentBlobPutRoute({ app, deps: routeDeps });
+  registerPublishContentBlobGetRoute({ errors: createRouteIncidentReporter().errors, app, deps: routeDeps }); registerPublishContentBlobPutRoute({ errors: createRouteIncidentReporter().errors, app, deps: routeDeps });
   const base = await startTestServer(app, t);
   const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
     referenceCheck: { findReferences: async () => [] } };
@@ -141,7 +142,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
       'theme-files': { themesDir } },
     backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir }), blobs: deps.blobStore } };
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerPublishContentBlobGetRoute({ app, deps: { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps });
+  registerPublishContentBlobGetRoute({ errors: createRouteIncidentReporter().errors, app, deps: { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps });
   const base = await startTestServer(app, t);
   for (const status of ['tombstoned', 'active'] as const) {
     await deps.assetBlobRepo.save({ ...retained, status });

@@ -6,6 +6,7 @@ import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import { rejectUnlessSessionCredential } from "../dev-auth.js";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions } from "../admin-json-route-ports.js";
 import { captureRes, fakeAdminApp, listen } from "./fixtures/port-harness.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * w3-rtfnd T3/T5/T7: per-mount port options that let the routes the rt-* lanes STOPPED on answer
@@ -32,7 +33,7 @@ async function serve(options: AdminJsonRouteMountOptions & { allowed?: boolean; 
       return ok({ value: { done: true } });
     },
   });
-  mountAdminJsonRoute({ app, spec, deps: { workspaceId: "local", authorize } as never }, mount);
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps: { workspaceId: "local", authorize } as never }, mount);
   const server = await listen({ app });
   return { ...probe, ...server, post: (headers: Record<string, string> = {}) => server.call(url, { method: "POST", body: "{}", headers }) };
 }

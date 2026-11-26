@@ -6,6 +6,7 @@ import type { MailFeedbackRequest, MailFeedbackRoute } from "@jini-ai/platform/m
 import { parsePublicJsonBody } from "../../../shared/json-body-parsers.js";
 import { startTestServer } from "../../../../__tests__/helpers/http-test-server.js";
 import { MAIL_FEEDBACK_PATH, registerMailFeedbackRoute } from "../mail-feedback.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file The Express mount of `POST /hooks/mail/:providerId`: the handler sees the exact request
@@ -20,7 +21,7 @@ function fakeRoute(handle: (input: MailFeedbackRequest) => Promise<{ status: 200
 
 async function serve(t: test.TestContext, route: MailFeedbackRoute): Promise<string> {
   const app = express();
-  registerMailFeedbackRoute({ app, route });
+  registerMailFeedbackRoute({ errors: createRouteIncidentReporter().errors, app, route });
   app.use(parsePublicJsonBody);
   return startTestServer(app, t);
 }
@@ -116,7 +117,7 @@ test("a handler failure through the composed reporter is one incident id, one ho
     tracker: { error: (...a: unknown[]) => { reports.push(a as never); } }, clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" } } as never);
   const app = express();
   app.use((_req, res, next) => { res.locals.failureReporter = reporter; next(); });
-  registerMailFeedbackRoute({ app, route: fakeRoute(async () => { throw thrown; }) });
+  registerMailFeedbackRoute({ errors: createRouteIncidentReporter().errors, app, route: fakeRoute(async () => { throw thrown; }) });
   const base = await startTestServer(app, t);
   const response = await fetch(`${base}/hooks/mail/resend`, { method: "POST", body: "{}" });
   assert.equal(response.status, 500);

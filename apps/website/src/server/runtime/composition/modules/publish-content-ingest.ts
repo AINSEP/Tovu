@@ -51,10 +51,10 @@ function bundleCreateDeps({ deps }: { deps: PublishContentRouteDeps }, _optional
  * its two-handler row. The spec reads the request `Host` (the manual-send address check) through the
  * `requestFacts` opt-in and the publishing grant through `adminRequestFactsFor`.
  */
-export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES }) });
   mountAdminJsonRoute(
-    { app: capped, spec: { ...bundleCreateRoute, requestFacts: true }, deps: bundleCreateDeps({ deps }) },
+    { app: capped, errors, spec: { ...bundleCreateRoute, requestFacts: true }, deps: bundleCreateDeps({ deps }) },
     { authorization: "guarded", failure: { operation: "routes/publish-content/bundle-create", code: "INTERNAL_ERROR" } },
   );
 };
@@ -76,9 +76,9 @@ function capabilitiesDeps({ deps }: { deps: PublishContentRouteDeps }, _optional
  * `GET .../publish-content/capabilities` (S-F1): the Jini spec behind the admin ports (`"guarded"`,
  * the route's own 500 copy). What this instance accepts, for the caller's grant; see the spec's header.
  */
-export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: capabilitiesRoute, deps: capabilitiesDeps({ deps }) },
+    { app, errors, spec: capabilitiesRoute, deps: capabilitiesDeps({ deps }) },
     { authorization: "guarded", failure: { operation: "routes/publish-content/capabilities", code: "INTERNAL_ERROR" } },
   );
 };

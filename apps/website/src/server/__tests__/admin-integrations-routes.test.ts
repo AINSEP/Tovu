@@ -108,11 +108,11 @@ function buildTestApp(): { app: express.Express; deps: IntegrationsTestDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminIntegrationsListRoute({ app, deps });
-  registerAdminIntegrationsCreateRoute({ app, deps });
-  registerAdminIntegrationsPauseRoute({ app, deps });
-  registerAdminIntegrationsDeleteRoute({ app, deps });
-  registerAdminIntegrationsDeliveriesRoute({ app, deps });
+  registerAdminIntegrationsListRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminIntegrationsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminIntegrationsPauseRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminIntegrationsDeleteRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminIntegrationsDeliveriesRoute({ errors: createRouteIncidentReporter().errors, app, deps });
 
   return { app, deps };
 }
@@ -427,7 +427,7 @@ test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
   const app = express();
-  registerAdminIntegrationsDeleteRoute({ app, deps });
+  registerAdminIntegrationsDeleteRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const handler = extractHandler(
     app,
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"

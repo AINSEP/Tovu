@@ -378,7 +378,7 @@ test("RESET_USER_PASSWORD error mapping: SelfDeleteError maps to 409 SELF_DELETE
     next();
   });
   const guard = async () => { throw new SelfDeleteError("you cannot reset your own password here"); };
-  mountAdminJsonRoute({ app, spec: userResetPasswordRoute, deps: { ...userResetPasswordRouteDeps({ deps }), assertUserAccountAction: guard } },
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: userResetPasswordRoute, deps: { ...userResetPasswordRouteDeps({ deps }), assertUserAccountAction: guard } },
     { authorization: "direct", failure: { operation: "routes/users/reset-password", code: "INTERNAL_ERROR" } });
   const baseUrl = await startTestServer(app, t);
   const { principalId } = await createTestUser(deps, ownerId, "resetselfdelete");

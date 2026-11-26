@@ -39,7 +39,12 @@ admin and public mount binds http-kit's `requestFacts` port to `routeRequestFact
 `captureRequestFacts`, `User-Agent`, `Host`), read only by a spec that opts in; a public mount given `workspaceId`
 answers the shared workspace 404. Non-JSON specs mount through `admin-raw-route-ports.ts`
 (`mountAdminRawRoute`/`mountPublicRawRoute`, same ports, `app[method]` registration); a spec with `requireSameOrigin`
-needs the host's `origin` (`OriginContext`) on the mount, refused at registration without it. An admin mount
+needs the host's `origin` (`OriginContext`) on the mount, refused at registration without it. Every one of the four
+wrappers (`mountAdminJsonRoute`, `mountPublicJsonRoute`, `mountAdminRawRoute`, `mountPublicRawRoute`) REQUIRES `errors`
+(`RouteErrorPorts`, the owning site's one reporter that `createApp` builds after `siteFailureReporter`) and refuses an
+untyped caller without it at registration, before Express is touched (T-GATE; pinned by `admin-route-reporter-batches.test.ts`).
+A module reads it from `registerRoutes: ({ app, errors })` and forwards it to the registrars it mounts; tests bind a fresh
+`createRouteIncidentReporter().errors`, never a production default. An admin mount
 cannot set both `deferMissingPrincipal` and `sessionCredentialOnly` (refused at registration). An `authorize` call without
 `entityType` reaches `deps.authorize` without the key. Template: `plans/K1-route-template.md` §9.
 w4-routes K legacy-wire opt-ins (default off): `authenticateBeforeWorkspace` runs the workspace refusal inside

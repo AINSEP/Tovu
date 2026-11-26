@@ -172,7 +172,7 @@ test("plugin_installed on an install (never a preview), with the plugin id", asy
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
   app.use(express.json());
-  registerPluginInstallRoutes({ app, deps: { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
+  registerPluginInstallRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
     pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" }, hostSignals: resolveHostSignals({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" } }) }),
     pluginInstaller: { preview: async () => plugin, install: async () => plugin } } });
   const baseUrl = await startTestServer(app, t);

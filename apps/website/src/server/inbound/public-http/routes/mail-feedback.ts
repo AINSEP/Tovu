@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import type { MailFeedbackRoute } from "@jini-ai/platform/mail";
 import { mailFeedbackRoute } from "@jini-ai/user-management/public-http/routes/mail/feedback";
@@ -34,9 +35,9 @@ function writeMailFeedbackFailure({ res, error }: { res: Response; error: unknow
   res.status(500).json({ ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId });
 }
 
-/** @example registerMailFeedbackRoute({ app, route: createMailFeedbackRoute(deps) }) */
-export function registerMailFeedbackRoute({ app, route }: { app: Express; route: MailFeedbackRoute }, _optional: Record<string, never> = {}): void {
-  mountPublicRawRoute({ app, spec: mailFeedbackRoute, deps: { ingest: route, requestHeaders: {} }, failure: writeMailFeedbackFailure }, {
+/** @example registerMailFeedbackRoute({ app, errors, route: createMailFeedbackRoute(deps) }) */
+export function registerMailFeedbackRoute({ app, route, errors }: { app: Express; route: MailFeedbackRoute; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
+  mountPublicRawRoute({ app, errors, spec: mailFeedbackRoute, deps: { ingest: route, requestHeaders: {} }, failure: writeMailFeedbackFailure }, {
     bodyParsers: [rawBody(route)],
     requestDeps: ({ req, deps }) => ({ ...deps, requestHeaders: req.headers }),
   });

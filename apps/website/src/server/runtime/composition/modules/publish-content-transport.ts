@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import {
@@ -56,19 +57,19 @@ function peerWriteDeps({ deps }: { deps: PublishContentRouteDeps }, _optional: R
 
 /** Peer CRUD (list/create/update/delete), same order as before. An unmapped failure keeps the copy
  *  key the shared `mappedErrorResponse` used (`routes/publish-content/route-helpers`). */
-export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const base = { ...transportPortDeps({ deps }), peerErrors: PEER_ERRORS };
   const mount = guardedMount({ operation: "routes/publish-content/route-helpers" });
   const listPeers = (input: { workspaceId: string }, _o: Record<string, never> = {}) => listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input });
-  mountAdminJsonRoute({ app, spec: peerListRoute, deps: { ...base, listPeers } }, mount);
+  mountAdminJsonRoute({ app, errors, spec: peerListRoute, deps: { ...base, listPeers } }, mount);
   const createPeer = (input: Parameters<typeof createPublishContentPeer>[0]["input"], _o: Record<string, never> = {}) =>
     createPublishContentPeer({ deps: peerWriteDeps({ deps }), input });
-  mountAdminJsonRoute({ app, spec: peerCreateRoute, deps: { ...base, createPeer } }, mount);
+  mountAdminJsonRoute({ app, errors, spec: peerCreateRoute, deps: { ...base, createPeer } }, mount);
   const updatePeer = (input: Parameters<typeof updatePublishContentPeer>[0]["input"], _o: Record<string, never> = {}) =>
     updatePublishContentPeer({ deps: peerWriteDeps({ deps }), input });
-  mountAdminJsonRoute({ app, spec: peerUpdateRoute, deps: { ...base, updatePeer } }, mount);
+  mountAdminJsonRoute({ app, errors, spec: peerUpdateRoute, deps: { ...base, updatePeer } }, mount);
   const deletePeer = (input: { workspaceId: string; id: string }, _o: Record<string, never> = {}) => deletePublishContentPeer({ deps: { repo: deps.publishContentPeerRepo }, input });
-  mountAdminJsonRoute({ app, spec: peerDeleteRoute, deps: { ...base, deletePeer } }, mount);
+  mountAdminJsonRoute({ app, errors, spec: peerDeleteRoute, deps: { ...base, deletePeer } }, mount);
 };
 
 /** The destination routes' host-only collaborators: the grant file and the deploy-config candidate. */
@@ -110,7 +111,7 @@ function disconnectWith({ deps, own }: { deps: PublishContentRouteDeps; own: Pub
  * @complexity O(1) per request beyond each handler's own cost.
  */
 export function registerPublishContentDestinationRoutes(
-  { app, deps, own }: { app: Express; deps: PublishContentRouteDeps; own: PublishDestinationDeps }, _options: Record<string, never> = {},
+  { app, deps, own, errors }: { app: Express; deps: PublishContentRouteDeps; own: PublishDestinationDeps; errors: RouteErrorPorts }, _options: Record<string, never> = {},
 ): void {
   const base = {
     ...transportPortDeps({ deps }),
@@ -120,10 +121,10 @@ export function registerPublishContentDestinationRoutes(
   const mount = guardedMount({ operation: "routes/publish-content/destination" });
   const findConnectedPeer = async ({ workspaceId }: { workspaceId: string }, _o: Record<string, never> = {}) =>
     selectConnectedDestination({ rows: await deps.publishContentPeerRepo.listByWorkspace({ workspaceId }) }) ?? null;
-  mountAdminJsonRoute({ app, spec: destinationReadRoute, deps: { ...base, findConnectedPeer } }, mount);
+  mountAdminJsonRoute({ app, errors, spec: destinationReadRoute, deps: { ...base, findConnectedPeer } }, mount);
   const listPublishableTypes = () => listPublishContentContributors().map((contributor) => contributor.entityType);
-  mountAdminJsonRoute({ app, spec: destinationConnectRoute, deps: { ...base, listPublishableTypes, connectDestination: connectWith({ deps, own }) } }, mount);
-  mountAdminJsonRoute({ app, spec: destinationDisconnectRoute, deps: { ...base, disconnectDestination: disconnectWith({ deps, own }) } }, mount);
+  mountAdminJsonRoute({ app, errors, spec: destinationConnectRoute, deps: { ...base, listPublishableTypes, connectDestination: connectWith({ deps, own }) } }, mount);
+  mountAdminJsonRoute({ app, errors, spec: destinationDisconnectRoute, deps: { ...base, disconnectDestination: disconnectWith({ deps, own }) } }, mount);
 }
 
 /**
@@ -132,9 +133,9 @@ export function registerPublishContentDestinationRoutes(
  * spec. Pull's failures answer through `knownPeerActionRefusal`, else the redacted 500 under the copy
  * key `respondWithError` used (`routes/publish-content/route-helpers`).
  */
-export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  registerPublishContentPeerPushRoutes({ app, deps });
+export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  registerPublishContentPeerPushRoutes({ app, deps, errors });
   const pullAndStage = ({ peerId, principalId }: { peerId: string; principalId: string }) => pullAndStageFromPeer({ deps, input: { peerId, principalId } });
-  mountAdminJsonRoute({ app, spec: peerPullRoute, deps: { ...transportPortDeps({ deps }), peerActionRefusal: ({ error }) => knownPeerActionRefusal({ err: error }), pullAndStage } },
+  mountAdminJsonRoute({ app, errors, spec: peerPullRoute, deps: { ...transportPortDeps({ deps }), peerActionRefusal: ({ error }) => knownPeerActionRefusal({ err: error }), pullAndStage } },
     { authorization: "guarded", failure: { operation: "routes/publish-content/route-helpers" } });
 };

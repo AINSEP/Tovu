@@ -28,10 +28,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminFormsCreateRoute({ app, deps });
-  registerAdminFormsListSubmissionsRoute({ app, deps });
-  registerAdminFormsGetSubmissionRoute({ app, deps });
-  registerAdminFormsDeleteSubmissionRoute({ app, deps });
+  registerAdminFormsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsListSubmissionsRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsGetSubmissionRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+  registerAdminFormsDeleteSubmissionRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   createTrashModule(deps).registerRoutes?.({ errors: createRouteIncidentReporter().errors, app });
   return { app, deps };
 }

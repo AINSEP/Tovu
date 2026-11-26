@@ -4,6 +4,7 @@ import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerPublishContentPeerTransportRoutes } from "../../../runtime/composition/modules/publish-content-transport.js";
 import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";
 const cases = [
@@ -18,8 +19,8 @@ for (const row of cases) {
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
     const deps = { workspaceId: "ws", authorize: async () => { throw new Error("PRIVATE_BACKEND password=SECRET_CANARY"); } } as never;
-    registerPublishContentPeerTransportRoutes({ app, deps });
-    registerPublishBackstopRoutes({ app, deps });
+    registerPublishContentPeerTransportRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
+    registerPublishBackstopRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
     const response = await dispatchJsonRequest(app, "POST", row.path, { bundleId: "b", confirmationToken: "c" });
     assert.equal(response.status, 500);
     const body = response.body as any;
@@ -37,7 +38,7 @@ for (const row of cases) {
 test("publishing mapper sends anonymous failures without a details envelope", async t => {
   t.mock.method(console, "error", () => {});
   const app = express();
-  registerPublishContentPeerTransportRoutes({ app, deps: { workspaceId: "ws" } as never });
+  registerPublishContentPeerTransportRoutes({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "ws" } as never });
   const response = await dispatchJsonRequest(app, "POST", cases[0].path, {});
   assert.equal(response.status, 500);
   const body = response.body as any;

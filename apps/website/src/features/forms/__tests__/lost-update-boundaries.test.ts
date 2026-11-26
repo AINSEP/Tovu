@@ -11,6 +11,7 @@ import { toAdminFormDefinitionDto } from "@jini-ai/cms/admin-http/http/forms";
 import { registerAdminFormsAuthoringRoute, registerAdminFormsUpdateRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
 import { buildFormsRegistrations } from "../tool-registrations.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const record = { id: "form", workspaceId: "ws", name: "Contact", slug: "contact", fields: [],
   notify: { enabled: false, recipients: [] }, status: "active" as const, createdAt: "t0", updatedAt: "t0", version: 1 };
@@ -48,7 +49,7 @@ test("form authoring maps a stale version to 409 and malformed versions to 400",
   repo.update = async () => { throw new RecordVersionConflictError({ recordKind: "form", recordId: "form", expectedVersion: 1, currentVersion: 2 }); };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; next(); });
-  registerAdminFormsAuthoringRoute({ app, deps: deps as FormsRouteDeps });
+  registerAdminFormsAuthoringRoute({ errors: createRouteIncidentReporter().errors, app, deps: deps as FormsRouteDeps });
   const path = "/api/admin/v1/workspaces/ws/forms/form/authoring";
   const stale = await dispatchJsonRequest(app, "PUT", path, { name: "Edit", expectedVersion: 1 });
   assert.equal(stale.status, 409);
@@ -69,7 +70,7 @@ async function ordinaryPutFixture() {
   const outbox = { ...deps.outbox, enqueue: async () => { counts.outbox += 1; } };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; next(); });
-  registerAdminFormsUpdateRoute({ app, deps: { ...deps, changeSets, outbox } as FormsRouteDeps });
+  registerAdminFormsUpdateRoute({ errors: createRouteIncidentReporter().errors, app, deps: { ...deps, changeSets, outbox } as FormsRouteDeps });
   const put = (body: unknown) => dispatchJsonRequest(app, "PUT", "/api/admin/v1/workspaces/ws/forms/form", body);
   const stored = async () => structuredClone(await repo.findById({ workspaceId: "ws", id: "form" }));
   return { put, stored, counts };

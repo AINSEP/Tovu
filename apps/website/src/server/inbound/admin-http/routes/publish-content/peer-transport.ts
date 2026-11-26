@@ -131,8 +131,8 @@ async function openPeer({ deps, peerId }: { deps: PublishContentRouteDeps; peerI
     publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock } };
 }
 
-function registerPushPlanRoute({ app, deps }: Parameters<PublishContentRouteRegistrar>[0]): void {
-  mountAdminJsonRoute({ app, spec: peerPushPlanRoute, deps: {
+function registerPushPlanRoute({ app, deps, errors }: Parameters<PublishContentRouteRegistrar>[0]): void {
+  mountAdminJsonRoute({ app, errors, spec: peerPushPlanRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     requireOverwriteSession: (): void => { throw new Error("bound per request"); },
     openPeer: ({ peerId }) => openPeer({ deps, peerId }),
@@ -144,8 +144,8 @@ function registerPushPlanRoute({ app, deps }: Parameters<PublishContentRouteRegi
   });
 }
 
-function registerPushConfirmRoute({ app, deps }: Parameters<PublishContentRouteRegistrar>[0]): void {
-  mountAdminJsonRoute({ app, spec: peerPushConfirmRoute, deps: {
+function registerPushConfirmRoute({ app, deps, errors }: Parameters<PublishContentRouteRegistrar>[0]): void {
+  mountAdminJsonRoute({ app, errors, spec: peerPushConfirmRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     openPeer: ({ peerId }) => openPeer({ deps, peerId }),
     confirm: ({ peer, planId, planHash }) => confirmPeerImport({ deps: peer, required: { planId, planHash } }),
@@ -155,8 +155,8 @@ function registerPushConfirmRoute({ app, deps }: Parameters<PublishContentRouteR
   });
 }
 
-function registerPushExecuteRoute({ app, deps }: Parameters<PublishContentRouteRegistrar>[0]): void {
-  mountAdminJsonRoute({ app, spec: peerPushExecuteRoute, deps: {
+function registerPushExecuteRoute({ app, deps, errors }: Parameters<PublishContentRouteRegistrar>[0]): void {
+  mountAdminJsonRoute({ app, errors, spec: peerPushExecuteRoute, deps: {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     openPeer: ({ peerId }) => openPeer({ deps, peerId }),
     requireOverwriteSession: (): void => { throw new Error("bound per request"); },
@@ -170,8 +170,8 @@ function registerPushExecuteRoute({ app, deps }: Parameters<PublishContentRouteR
 
 /** The three push routes, in their registered order; the pull spec follows them
  *  (`modules/publish-content-transport.ts`'s `registerPublishContentPeerTransportRoutes`). */
-export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  registerPushPlanRoute({ app, deps });
-  registerPushConfirmRoute({ app, deps });
-  registerPushExecuteRoute({ app, deps });
+export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  registerPushPlanRoute({ app, deps, errors });
+  registerPushConfirmRoute({ app, deps, errors });
+  registerPushExecuteRoute({ app, deps, errors });
 };

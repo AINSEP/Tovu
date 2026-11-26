@@ -16,6 +16,7 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";
 const TOO_LARGE = "Choose files totaling at most 50 MB per send.";
@@ -36,7 +37,9 @@ function fixture(t: TestContext) {
     res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
     res.locals.adminFailureTracker = { error: (input: unknown) => { reports.push(input); } }; next();
   });
-  registerPublishBackstopRoutes({ app, deps: portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
+  // The site's bound reporter owns the incident record now (T-GATE), not the request-local tracker/console path.
+  const incidents = createRouteIncidentReporter();
+  registerPublishBackstopRoutes({ errors: incidents.errors, app, deps: portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => ({ allowed: true, reason: "owner" }), contentKernel: kernel, siteBinding: { dir }, fileBlobIndex: new Map(),
     publishContentPeerRepo: { findById: async () => ({ baseUrl: "https://live.example" }) },
   }) });
@@ -49,7 +52,7 @@ function fixture(t: TestContext) {
   const planRows = (rows = [{ table: "p_widgets", pk: { id: "a" } }]) => dispatchJsonRequest(app, "POST", `${BASE}/backstop`, {
     action: "plan", peerId: "peer", reason: "Emergency row repair", rows,
   });
-  return { dir, db, plan, planRows, undo, seedUndo, reports, logs };
+  return { dir, db, plan, planRows, undo, seedUndo, reports, logs, incidents };
 }
 
 for (const operation of ["read", "columns"] as const) {
@@ -72,13 +75,13 @@ for (const operation of ["read", "columns"] as const) {
     assert.equal(body.code, "INTERNAL_ERROR");
     assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.ok(body.error.includes(body.errorId));
-    assert.equal(f.logs.length, 1); assert.equal(f.reports.length, 1);
-    assert.ok(JSON.stringify(f.logs).includes(body.errorId));
-    for (const sink of [f.logs, f.reports]) {
+    assert.equal(f.incidents.entries.length, 1); assert.deepEqual([f.logs.length, f.reports.length], [0, 0]);
+    assert.ok(JSON.stringify(f.incidents.entries).includes(body.errorId));
+    for (const sink of [f.logs, f.reports, f.incidents.entries]) {
       assert.equal(JSON.stringify(sink).includes(KEY), false);
     }
-    assert.match(JSON.stringify(f.logs), /REDACTED/);
-    assert.equal((f.reports[0] as { error: Error }).error.message.includes(KEY), false);
+    assert.match(JSON.stringify(f.incidents.entries), /REDACTED/);
+    assert.equal(JSON.stringify(f.incidents.reports).includes(KEY), false);
   });
 }
 
@@ -131,10 +134,10 @@ for (const operation of ["plan", "undo"] as const) {
     assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.ok(body.error.includes(body.errorId));
     assert.equal(JSON.stringify(response).includes(KEY), false);
-    assert.equal(f.logs.length, 1); assert.equal(f.reports.length, 1);
-    assert.ok(JSON.stringify(f.logs).includes(body.errorId));
+    assert.equal(f.incidents.entries.length, 1); assert.deepEqual([f.logs.length, f.reports.length], [0, 0]);
+    assert.ok(JSON.stringify(f.incidents.entries).includes(body.errorId));
     assert.equal(JSON.stringify(f.logs).includes(KEY), false);
-    assert.match(JSON.stringify(f.logs), /REDACTED/);
-    assert.equal((f.reports[0] as { error: Error }).error.message.includes(KEY), false);
+    assert.match(JSON.stringify(f.incidents.entries), /REDACTED/);
+    assert.equal(JSON.stringify(f.incidents.reports).includes(KEY), false);
   });
 }

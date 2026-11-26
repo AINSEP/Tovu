@@ -13,6 +13,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
 import { registerPublishContentDestinationRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file `GET .../publish-content/destination`, `POST .../destination/connect` and
@@ -102,7 +103,7 @@ async function boot(t: test.TestContext, options: HarnessOptions = {}): Promise<
     next();
   });
   const candidate = options.candidate === undefined ? null : options.candidate;
-  registerPublishContentDestinationRoutes({ app, deps, own: { provisioning, findCandidate: async () => candidate } });
+  registerPublishContentDestinationRoutes({ errors: createRouteIncidentReporter().errors, app, deps, own: { provisioning, findCandidate: async () => candidate } });
 
   const url = await startTestServer(app, t);
   return { url, app, repo, httpCalls, provisioningCalls, authorizeCalls };

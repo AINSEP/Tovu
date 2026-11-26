@@ -6,13 +6,14 @@ import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { BACKSTOP_FORBIDDEN } from '@jini-ai/cms/publish/content/backstop-service';
 import type { PublishContentRouteDeps } from '../../deps.js';
 import { registerPublishBackstopRoutes } from '#src/server/runtime/composition/modules/publish-content-backstop';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 for (const [role, allowed] of [[null, false], [{ name: 'admin', isBuiltin: false }, false],
   [{ name: 'viewer', isBuiltin: true }, false], [{ name: 'admin', isBuiltin: true }, true], [{ name: 'owner', isBuiltin: true }, true]] as const) {
   test(`backstop non-owner admission checks live roles: ${JSON.stringify(role)}`, async () => {
     const reads: unknown[] = [];
     const app = express();
-    registerPublishBackstopRoutes({ app, deps: portFake<PublishContentRouteDeps>({ workspaceId: 'ws', ownerPrincipalId: Promise.resolve('owner'),
+    registerPublishBackstopRoutes({ errors: createRouteIncidentReporter().errors, app, deps: portFake<PublishContentRouteDeps>({ workspaceId: 'ws', ownerPrincipalId: Promise.resolve('owner'),
       authorize: async input => { reads.push(input); return { allowed: true, reason: 'grant' }; },
       principalRoleRepo: { listByPrincipalId: async (input: unknown) => { reads.push(input); return [{ roleId: 'deleted' }, { roleId: 'candidate' }]; } },
       roleRepo: { findById: async (input: { id: string }) => { reads.push(input); return input.id === 'candidate' ? role : null; } },

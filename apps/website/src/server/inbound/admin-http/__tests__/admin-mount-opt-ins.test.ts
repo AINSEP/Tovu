@@ -8,6 +8,7 @@ import { defineRawRoute } from "@jini-ai/http-kit";
 import { mountAdminJsonRoute } from "../admin-json-route-ports.js";
 import { mountAdminRawRoute } from "../admin-raw-route-ports.js";
 import { fakeAdminApp, listen } from "./fixtures/port-harness.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * Mount opt-ins that let a hand-written route's wire survive its move onto a spec: the host's body-cap 413,
@@ -42,8 +43,8 @@ test("payloadTooLarge writes the host 413 ahead of the workspace 404 and the han
     method: "post", path: "/api/admin/v1/workspaces/:workspaceId/optin-json", maxBodyBytes: 64,
     parse: ({ body }) => ok({ value: body }), handle: async () => { calls.push("json"); return ok({ value: { ok: true } }); },
   });
-  mountAdminJsonRoute({ app, spec: json, deps: deps() }, { payloadTooLarge: writer });
-  mountAdminRawRoute({ app, spec: rawSpec({ method: "post" }), deps: deps() }, { payloadTooLarge: writer });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: json, deps: deps() }, { payloadTooLarge: writer });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec({ method: "post" }), deps: deps() }, { payloadTooLarge: writer });
   const server = await listen({ app });
   t.after(server.close);
   const big = JSON.stringify({ pad: "x".repeat(100) });
@@ -58,7 +59,7 @@ test("payloadTooLarge writes the host 413 ahead of the workspace 404 and the han
 
 test("without the port a mount keeps the kit's core 413 envelope", async (t) => {
   const app = fakeAdminApp();
-  mountAdminRawRoute({ app, spec: rawSpec({ method: "post" }), deps: deps() });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec({ method: "post" }), deps: deps() });
   const server = await listen({ app });
   t.after(server.close);
   const refused = await server.call("/api/admin/v1/workspaces/local/optin", { method: "POST", body: JSON.stringify({ pad: "x".repeat(100) }) });
@@ -69,11 +70,11 @@ test("without the port a mount keeps the kit's core 413 envelope", async (t) => 
 test("bodyParsers are scoped to the one registration, ahead of the named handler or the asyncRoute wrapper", async (t) => {
   const app = fakeAdminApp();
   const form = express.urlencoded({ extended: false, limit: "15mb" });
-  mountAdminRawRoute({ app, spec: rawSpec({ method: "post" }), deps: deps(), handlerName: "handleOptInRequest" }, { bodyParsers: [form] });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec({ method: "post" }), deps: deps(), handlerName: "handleOptInRequest" }, { bodyParsers: [form] });
   const json = defineJsonRoute<unknown, unknown, Deps, { id: string }>({
     method: "put", path, parse: ({ body }) => ok({ value: body }), handle: async ({ input }) => ok({ value: input ?? null }),
   });
-  mountAdminJsonRoute({ app, spec: json, deps: deps() }, { bodyParsers: [form], forwardRejection: true });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: json, deps: deps() }, { bodyParsers: [form], forwardRejection: true });
   assert.deepEqual(app._router.stack.filter((layer: { route?: { path: string; methods: Record<string, boolean> } }) => layer.route?.path === path)
     .map((layer: { route: { methods: Record<string, boolean>; stack: { name: string }[] } }) => `${Object.keys(layer.route.methods)[0]}:${layer.route.stack.map((entry) => entry.name).join(">")}`),
   ["post:urlencodedParser>handleOptInRequest", "put:urlencodedParser>forwardRejection"]);
@@ -87,7 +88,7 @@ test("bodyParsers are scoped to the one registration, ahead of the named handler
 
 test("a mount without bodyParsers registers the handler alone", () => {
   const app = fakeAdminApp();
-  mountAdminRawRoute({ app, spec: rawSpec(), deps: deps(), handlerName: "handleOptInRequest" });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec(), deps: deps(), handlerName: "handleOptInRequest" });
   assert.deepEqual(handlerNames(app), ["handleOptInRequest"]);
 });
 
@@ -100,10 +101,10 @@ test("refusalWriter and failureWriter answer text/plain for the workspace 404, t
     failureWriter: ({ res, error }: { res: express.Response; error: unknown }) => { seen.push((error as Error).message); plain(res, 500, "preview render failed"); },
   };
   const app = fakeAdminApp();
-  mountAdminRawRoute({ app, spec: rawSpec(), deps: deps(false) }, options);
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec(), deps: deps(false) }, options);
   const crashing = express();
   crashing.use((_req, res, next) => { res.locals.principal = { id: "caller", kind: "user" }; next(); });
-  mountAdminRawRoute({ app: crashing, spec: rawSpec({ crash: true }), deps: deps() }, options);
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app: crashing, spec: rawSpec({ crash: true }), deps: deps() }, options);
   const denied = await listen({ app });
   const crashed = await listen({ app: crashing });
   t.after(denied.close);
@@ -118,7 +119,7 @@ test("refusalWriter and failureWriter answer text/plain for the workspace 404, t
 
 test("without the writers the same refusals and failures keep the JSON envelope", async (t) => {
   const app = fakeAdminApp();
-  mountAdminRawRoute({ app, spec: rawSpec({ crash: true }), deps: deps() }, { authorization: "direct" });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec({ crash: true }), deps: deps() }, { authorization: "direct" });
   const server = await listen({ app });
   t.after(server.close);
   assert.deepEqual(await server.call("/api/admin/v1/workspaces/elsewhere/optin"), { status: 404, body: { error: "workspace was not found" } });
@@ -135,11 +136,11 @@ test("requestDeps hands each request its own bound deps through the admin and pu
   const { mountPublicRawRoute } = await import("../admin-raw-route-ports.js");
   const app = fakeAdminApp();
   const failure = { operation: "probe", visitorError: "x" };
-  mountAdminJsonRoute({ app, spec: jsonAt(`${path}-j`), deps: mounted }, { requestDeps: bind });
-  mountAdminRawRoute({ app, spec: rawAt(`${path}-r`), deps: mounted }, { requestDeps: bind });
-  mountPublicJsonRoute({ app, spec: jsonAt("/pub-j"), deps: mounted, failure }, { requestDeps: bind });
-  mountPublicRawRoute({ app, spec: rawAt("/pub-r"), deps: mounted, failure }, { requestDeps: bind });
-  mountPublicJsonRoute({ app, spec: jsonAt("/pub-plain"), deps: mounted, failure });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: jsonAt(`${path}-j`), deps: mounted }, { requestDeps: bind });
+  mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawAt(`${path}-r`), deps: mounted }, { requestDeps: bind });
+  mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: jsonAt("/pub-j"), deps: mounted, failure }, { requestDeps: bind });
+  mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawAt("/pub-r"), deps: mounted, failure }, { requestDeps: bind });
+  mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: jsonAt("/pub-plain"), deps: mounted, failure });
   const server = await listen({ app });
   t.after(server.close);
   const read = async (at: string, who: string) => (await server.call(at, { headers: { "x-who": who } })).body?.who;
@@ -175,9 +176,9 @@ test("afterWorkspace answers after the workspace 404 and before the principal re
   };
   // No session on this app: a request that reached the principal read would fail closed (500), so a 403 proves the order.
   const anonymous = fakeAdminApp({ principal: false });
-  mountAdminJsonRoute({ app: anonymous, spec: phaseRoute({ calls }), deps: hostDeps }, { afterWorkspace });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app: anonymous, spec: phaseRoute({ calls }), deps: hostDeps }, { afterWorkspace });
   const signedIn = fakeAdminApp();
-  mountAdminJsonRoute({ app: signedIn, spec: phaseRoute({ calls }), deps: hostDeps }, { afterWorkspace });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app: signedIn, spec: phaseRoute({ calls }), deps: hostDeps }, { afterWorkspace });
   const bare = await listen({ app: anonymous });
   const session = await listen({ app: signedIn });
   t.after(bare.close);
@@ -203,11 +204,11 @@ test("failureByPhase answers the before copy until authorize allowed THIS reques
   let authorizeCrashes = false;
   const hostDeps: Deps = { workspaceId: "local", authorize: async () => { if (authorizeCrashes) throw new Error("rbac store offline"); return { allowed: true, reason: "owner" }; } };
   const app = fakeAdminApp();
-  mountAdminJsonRoute({ app, spec: phaseRoute({ calls }), deps: hostDeps }, { failureByPhase: copy });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: phaseRoute({ calls }), deps: hostDeps }, { failureByPhase: copy });
   const anonymous = fakeAdminApp({ principal: false });
-  mountAdminJsonRoute({ app: anonymous, spec: phaseRoute({ calls }), deps: hostDeps }, { failureByPhase: copy });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app: anonymous, spec: phaseRoute({ calls }), deps: hostDeps }, { failureByPhase: copy });
   const plain = fakeAdminApp();
-  mountAdminJsonRoute({ app: plain, spec: phaseRoute({ calls }), deps: hostDeps }, { failure: { operation: "probe/phase", code: "INTERNAL_ERROR", message: "Could not do the probe." } });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app: plain, spec: phaseRoute({ calls }), deps: hostDeps }, { failure: { operation: "probe/phase", code: "INTERNAL_ERROR", message: "Could not do the probe." } });
   const server = await listen({ app });
   const bare = await listen({ app: anonymous });
   const unphased = await listen({ app: plain });

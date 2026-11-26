@@ -134,7 +134,7 @@ for (const [path, register] of [["/newsletter/confirm", registerPublicNewsletter
   const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
   const app = express();
   app.use((_req, res, next) => { res.locals.failureReporter = probe.reporter; next(); });
-  register({ app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: "ws", newsletterReady: Promise.resolve(),
+  register({ errors: { ...createRouteIncidentReporter().errors, reporter: probe.reporter }, app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: "ws", newsletterReady: Promise.resolve(),
     newsletterConfirmationTokenRepo: { findByTokenHash: async () => { throw thrown; } }, newsletterKeyring: { derive: async () => { throw thrown; } },
     clock: { nowIso: () => "2026-10-28T00:00:00.000Z" } }) });
   const response = await dispatchHttpRequest({ app, method: "get", url: `${path}?token=${Buffer.from("{}").toString("base64url")}.signature` });

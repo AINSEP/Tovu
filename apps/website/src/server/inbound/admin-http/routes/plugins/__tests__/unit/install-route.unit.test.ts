@@ -11,6 +11,7 @@ import type { PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { registerPluginInstallRoutes, type PluginInstallRouteDeps } from "../../install.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 // Route-level tests for the input/option/error-mapping branches. The integration tests
 // (install.integration.test.ts, install-zip.integration.test.ts) cover the real installer and
@@ -45,7 +46,7 @@ async function boot(t: TestContext, options: BootOptions = {}) {
   const app = express();
   if (options.principal !== "none") app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   if (options.jsonParser !== false) app.use(express.json());
-  registerPluginInstallRoutes({ app, deps });
+  registerPluginInstallRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
   const server = app.listen(0, "127.0.0.1");
   await new Promise(resolve => server.once("listening", resolve));
   t.after(() => {

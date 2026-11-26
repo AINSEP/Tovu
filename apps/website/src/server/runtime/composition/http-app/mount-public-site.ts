@@ -20,7 +20,7 @@ import { registerCommentsSubmit, registerAnalyticsIngest, registerFormsSubmit } 
 import type { ErrorBoundMountInput, PreviewRevisionCheck } from "./module-handles.js";
 
 /** Static mounts, theme previews, commerce, the visitor registrations, member pages and the site catch-all, in registration order. */
-export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision }: ErrorBoundMountInput & { isAuthenticatedPreviewRevision: PreviewRevisionCheck }, _optional = {}): void {
+export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision, errors }: ErrorBoundMountInput & { isAuthenticatedPreviewRevision: PreviewRevisionCheck }, _optional = {}): void {
   // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
   // at the site root (hardcoded, no `ChatPaneProps` override exists to relocate it — verified
   // against `chat-react@0.2.0`'s `AgentRuntimePicker.tsx`), which sits outside the admin SPA's own
@@ -90,7 +90,7 @@ export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision
   registerCommerceHttp({ app, deps: routeDeps });
 
   registerCommentsSubmit({ app, routeDeps });
-  registerAnalyticsIngest({ app, routeDeps });
+  registerAnalyticsIngest({ app, routeDeps, errors });
   registerFormsSubmit({ app, routeDeps });
 
   // Member sign-in pages (/signin, /account, ...) must precede the /:slug catch-all below.

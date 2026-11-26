@@ -37,7 +37,7 @@ export const registerPublishContentExportRoute: (required: Parameters<PublishCon
 };
 
 /** `PUT …/publish-content/blobs/:sha` — one blob upload, refused unless the bytes hash to the claimed sha. */
-export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const routeDeps: BlobPutRouteDeps & AdminJsonRoutePortDeps = {
     ...blobPortDeps({ deps }),
     blobStore: { putIfAbsent: (input) => deps.blobStore.putIfAbsent(input) },
@@ -45,13 +45,13 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
     maxUploadBytes: MAX_DOCUMENT_BYTES,
   };
   mountAdminJsonRoute(
-    { app, spec: blobPutRoute, deps: routeDeps },
+    { app, errors, spec: blobPutRoute, deps: routeDeps },
     { authorization: "guarded", deferMissingPrincipal: true, failure: { operation: "routes/publish-content/blob-put", code: "INTERNAL_ERROR" } },
   );
 };
 
 /** `GET …/publish-content/blobs/:sha` — one blob download through the composite (blob store, then file-blob index) source. */
-export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const routeDeps: BlobGetRouteDeps & AdminJsonRoutePortDeps = {
     ...blobPortDeps({ deps }),
     isDocumentOnlyBlob: ({ sha256 }) => isDocumentOnlyBlob({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo }, input: { workspaceId: deps.workspaceId, sha256 } }),
@@ -60,7 +60,7 @@ export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = 
     blobSource: () => createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
   };
   mountAdminJsonRoute(
-    { app, spec: blobGetRoute, deps: routeDeps },
+    { app, errors, spec: blobGetRoute, deps: routeDeps },
     { authorization: "guarded", deferMissingPrincipal: true, failure: { operation: "routes/publish-content/blob-get", code: "INTERNAL_ERROR" } },
   );
 };

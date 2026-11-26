@@ -8,6 +8,7 @@ import { registerAdminFormsCreateRoute } from '#src/server/runtime/composition/m
 import { registerAdminFormsAuthoringRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import { registerAdminFormsUpdateRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const WS = 'workspace-local';
 const BASE = `/api/admin/v1/workspaces/${WS}`;
@@ -22,7 +23,7 @@ function fixture(register: FormsRouteRegistrar, overrides: Partial<FormsRouteDep
   } as FormsRouteDeps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  register({ app, deps });
+  register({ errors: createRouteIncidentReporter().errors, app, deps });
   return { app, deps };
 }
 
@@ -34,9 +35,9 @@ test('form editor rejects provider settings before creating or replacing a saved
       : { kind: 'unavailable', code: 'invalid_configuration', message: 'Enter the public form link supplied by your form provider.' },
   } } });
   const { app, deps } = fixture(({ app, deps }) => {
-    registerAdminFormsCreateRoute({ app, deps });
-    registerAdminFormsAuthoringRoute({ app, deps });
-    registerAdminFormsUpdateRoute({ app, deps });
+    registerAdminFormsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+    registerAdminFormsAuthoringRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+    registerAdminFormsUpdateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   }, { formCollectionProviders: () => providers });
   const body = { name: 'Contact', slug: 'contact', fields: [{ id: 'message', type: 'text', label: 'Message', required: false }] };
   const invalid = { id: 'remote', config: { url: 'invalid' } };

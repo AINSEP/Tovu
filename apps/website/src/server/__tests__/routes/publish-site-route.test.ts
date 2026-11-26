@@ -23,6 +23,7 @@ import { set as setSetting } from "@jini-ai/core/settings";
 import { SITE_CONSENT_NAMESPACE } from "@jini-ai/cookie-consent/site/config";
 import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
 /**
@@ -1157,7 +1158,7 @@ test("auth denial writes once and records one blocked event, and a granted desti
     next();
   });
   const context = createPublishSiteContext({ deps });
-  registerAdminPublishTriggerRoute({ app, context }); registerAdminPublishDestinationsRoute({ app, context });
+  registerAdminPublishTriggerRoute({ errors: createRouteIncidentReporter().errors, app, context }); registerAdminPublishDestinationsRoute({ errors: createRouteIncidentReporter().errors, app, context });
   const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish`;
   const denied = await fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
   assert.equal(denied.status, 403);

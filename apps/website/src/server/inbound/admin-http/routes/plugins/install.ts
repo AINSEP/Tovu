@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
@@ -26,7 +27,7 @@ function respondInstallFailure({ res, error }: { res: Response; error: unknown }
 }
 
 /** Local sources are explicitly opt-in, even for admins. ZIP parsing follows authorization. */
-export const registerPluginInstallRoutes = ({ app, deps }: { app: Express; deps: PluginInstallRouteDeps }, _optional: Record<string, never> = {}): void => {
+export const registerPluginInstallRoutes = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: PluginInstallRouteDeps }, _optional: Record<string, never> = {}): void => {
   const parseZip = raw({ type: "application/zip", limit: MAX_PLUGIN_ARCHIVE_BYTES, inflate: false });
   for (const [spec, zip, preview] of [[folderPluginInstallPreviewRoute, false, true], [folderPluginInstallRoute, false, false], [zipPluginInstallPreviewRoute, true, true], [zipPluginInstallRoute, true, false]] as const) {
     const mounted = {
@@ -38,7 +39,7 @@ export const registerPluginInstallRoutes = ({ app, deps }: { app: Express; deps:
       },
     };
     if (zip) {
-      mountAdminRawRoute<typeof mounted>({ app, spec, deps: mounted }, {
+      mountAdminRawRoute<typeof mounted>({ errors, app, spec, deps: mounted }, {
         requestDeps: ({ req, res, deps: base }) => ({ ...base, readZipUpload: () => readZipUpload(req, res, parseZip) }),
         failureWriter: ({ res, error }) => {
           if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
@@ -46,7 +47,7 @@ export const registerPluginInstallRoutes = ({ app, deps }: { app: Express; deps:
         },
       });
     } else {
-      mountAdminJsonRoute({ app, spec, deps: mounted }, {
+      mountAdminJsonRoute({ errors, app, spec, deps: mounted }, {
         failureWriter: ({ res, error }) => {
           if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
           respondInstallFailure({ res, error });

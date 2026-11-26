@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express } from "express";
@@ -14,8 +15,9 @@ import { currentNewsletterRequest, newsletterPublicApp } from "./newsletter-publ
  * tracker. Public, cookie-less, no-login by design: this registrar must NEVER read or set a session cookie.
  * Everything is read per request, as the hand-written route did: tests swap repository methods after registration.
  */
-export function registerPublicNewsletterConfirmRoute({ app, deps }: { app: Express; deps: NewsletterPublicRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerPublicNewsletterConfirmRoute({ app, deps, errors }: { app: Express; deps: NewsletterPublicRouteDeps; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   mountPublicRawRoute({
+    errors,
     app: newsletterPublicApp({ app }),
     spec: newsletterConfirmRoute,
     deps: {

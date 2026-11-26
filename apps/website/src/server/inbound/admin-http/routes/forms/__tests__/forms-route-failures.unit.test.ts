@@ -13,6 +13,7 @@ import { registerAdminFormsListRoute } from '#src/server/runtime/composition/mod
 import { registerAdminFormsUpdateRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import { DuplicateCommandError } from '@jini-ai/cms/core';
 import { WS, BASE, INTERNAL_CODE, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const routes: RouteFailureCase[] = [
   { name: 'forms authoring', register: registerAdminFormsAuthoringRoute, method: 'PUT', path: `${BASE}/forms/form/authoring`, coded: true , failure: {"message":"The form save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save form"} },
@@ -126,9 +127,9 @@ test('forms create: unexpected command failure is private and leaves no definiti
 
 test('forms authoring: supplied patch fields persist, absent fields and an absent body preserve them', async () => {
   const { app, deps } = fixture(({ app, deps }) => {
-    registerAdminFormsCreateRoute({ app, deps });
-    registerAdminFormsAuthoringRoute({ app, deps });
-    registerAdminFormsUpdateRoute({ app, deps });
+    registerAdminFormsCreateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+    registerAdminFormsAuthoringRoute({ errors: createRouteIncidentReporter().errors, app, deps });
+    registerAdminFormsUpdateRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   });
   // Start with a valid field; the authoring patch must change its label and required flag.
   const created = await dispatchJsonRequest(app, 'POST', `${BASE}/forms`, {

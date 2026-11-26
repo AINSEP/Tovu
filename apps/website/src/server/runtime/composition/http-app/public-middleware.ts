@@ -37,7 +37,7 @@ import type { ErrorBoundMountInput, MountInput } from "./module-handles.js";
 
 /** Install the ordered public request guards before any normal routes. O(1) setup. */
 export function applyPublicMiddleware(
-  { app, routeDeps, internalRouter }: ErrorBoundMountInput & { internalRouter: express.Router },
+  { app, routeDeps, internalRouter, errors }: ErrorBoundMountInput & { internalRouter: express.Router },
   options: Pick<CreateAppOptions, "themeIdOverride" | "consentAudit" | "applyDevCors"> = {},
 ): void {
   // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
@@ -79,7 +79,7 @@ export function applyPublicMiddleware(
   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
   // Mail provider webhooks read RAW bytes (signatures), so they mount ahead of the JSON parser.
-  if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, route: routeDeps.mailFeedbackRoute });
+  if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, errors, route: routeDeps.mailFeedbackRoute });
   registerCommerceWebhooks({ app, deps: routeDeps });
   // The agent daemon's tool RPC (ADR-070) gates before parsing and parses its own body, so it mounts
   // ahead of the public parser. Its routes are added once the BYOK surface exists (`createApp`); they
