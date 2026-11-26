@@ -205,10 +205,10 @@ const READ_FAILURE = { operation: "routes/publish-content/backstop", code: "INTE
 const SEND_FAILURE = { operation: "routes/publish-content/route-helpers" } as const;
 
 /** Session-only: neither an API key nor an assistant can perform the manual confirmation. */
-export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const base = backstopDeps({ deps });
-  mountAdminJsonRoute({ app, spec: backstopStatusRoute, deps: base }, backstopMount({ failure: { ...READ_FAILURE, message: "Manual publishing availability could not be read." } }));
-  mountAdminJsonRoute({ app, spec: backstopRunRoute, deps: base }, backstopMount({ failure: { ...READ_FAILURE, message: "This send could not be read." } }));
+  mountAdminJsonRoute({ app, errors, spec: backstopStatusRoute, deps: base }, backstopMount({ failure: { ...READ_FAILURE, message: "Manual publishing availability could not be read." } }));
+  mountAdminJsonRoute({ app, errors, spec: backstopRunRoute, deps: base }, backstopMount({ failure: { ...READ_FAILURE, message: "This send could not be read." } }));
   const sendDeps = {
     ...base, backstopRefusal,
     findPeer: ({ peerId }: { peerId: string }) => deps.publishContentPeerRepo.findById({ workspaceId: deps.workspaceId, id: peerId }),
@@ -216,11 +216,11 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = ({ ap
     redeemPlan: (input: { target: BackstopTarget; audit: BackstopAuditPort; log: BackstopAuditRecord }) => redeemPlan({ deps, ...input }),
     planSelection: (input: Omit<PlanRequest, "deps">) => planSelection({ deps, ...input }),
   };
-  mountAdminJsonRoute({ app, spec: backstopSendRoute, deps: sendDeps }, backstopMount({ failure: { ...SEND_FAILURE, message: "This send could not complete." } }));
-  mountAdminJsonRoute({ app, spec: backstopGapsRoute, deps: base }, {
+  mountAdminJsonRoute({ app, errors, spec: backstopSendRoute, deps: sendDeps }, backstopMount({ failure: { ...SEND_FAILURE, message: "This send could not complete." } }));
+  mountAdminJsonRoute({ app, errors, spec: backstopGapsRoute, deps: base }, {
     ...backstopMount({ failure: { ...READ_FAILURE, message: "Publishing history could not be read." }, sessionOnly: false }),
     forbidden: () => ({ status: 403, body: { error: "Publishing history is not available to this account." } }),
   });
-  mountAdminJsonRoute({ app, spec: backstopUndoRoute, deps: { ...base, backstopRefusal, openUndo: () => openUndo({ deps }) } },
+  mountAdminJsonRoute({ app, errors, spec: backstopUndoRoute, deps: { ...base, backstopRefusal, openUndo: () => openUndo({ deps }) } },
     backstopMount({ failure: { ...SEND_FAILURE, message: "This send could not be undone." } }));
 };

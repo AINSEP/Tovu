@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { buildContentPublishPorts, type ContentPublishSources } from "#src/server/runtime/composition/content-publish-ports";
@@ -91,7 +92,8 @@ export type PublishContentRouteDeps = Pick<
   | keyof ContentPublishSources
 >;
 
-export type PublishContentRouteRegistrar = (required: { app: Express; deps: PublishContentRouteDeps }, optional?: Record<string, never>) => void;
+/** `errors` is the owning site's route error ports, bound to every publish-content mount (T-GATE). */
+export type PublishContentRouteRegistrar = (required: { app: Express; deps: PublishContentRouteDeps; errors: RouteErrorPorts }, optional?: Record<string, never>) => void;
 
 export type PublishContentProjectionDeps = ContentPublishSources & Partial<Pick<PublishContentRouteDeps, "contentKernel" | "siteBinding">> & Pick<PublishContentRouteDeps,
   | "clock" | "idGen" | "outbox" | "pluginBeforeSaveHook" | "blobStore"

@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import { listPublishContentPeers } from "@jini-ai/cms/publish/content/peer-registry";
@@ -252,7 +253,7 @@ export function createPublishSiteContext({ deps }: { deps: AdminPublishSiteDeps 
   return { deps, credentialSource };
 }
 
-export function registerAdminPublishTriggerRoute({ app, context }: { app: Express; context: PublishSiteContext }, _optional: Record<string, never> = {}): void {
+export function registerAdminPublishTriggerRoute({ app, context, errors }: { app: Express; context: PublishSiteContext; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   const { deps } = context;
   const triggerDeps: PublishTriggerDeps<{ config: StaticPublishConfig; registry: DeployTargetRegistry }, ReturnType<typeof getPublishRunSnapshot>> = {
     readConfig: async ({ targetId, raw }) => {
@@ -270,7 +271,7 @@ export function registerAdminPublishTriggerRoute({ app, context }: { app: Expres
       parsed: { projectName, ...(credentialId === undefined ? {} : { credentialId }) } }),
     onBlocked: ({ principalId, reasonClass }) => captureBlockedPublish({ deps, principal: { id: principalId }, reasonClass }),
   };
-  mountAdminJsonRoute({ app, spec: createPublishTriggerRoute({ deps: triggerDeps }), deps: { ...triggerDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
+  mountAdminJsonRoute({ app, errors, spec: createPublishTriggerRoute({ deps: triggerDeps }), deps: { ...triggerDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
     refusalWriter: ({ res, error }) => {
       res.status(error.response.status).json(error.response.body);
       if (error.response.status === 403) captureBlockedPublish({ deps, principal: getAuthedPrincipal(res), reasonClass: "auth" });
@@ -279,7 +280,7 @@ export function registerAdminPublishTriggerRoute({ app, context }: { app: Expres
   });
 }
 
-export function registerAdminPublishDestinationsRoute({ app, context }: { app: Express; context: PublishSiteContext }, _optional: Record<string, never> = {}): void {
+export function registerAdminPublishDestinationsRoute({ app, context, errors }: { app: Express; context: PublishSiteContext; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   const { deps } = context;
   const destinationsDeps: PublishDestinationsDeps<DeployTargetRegistry, Awaited<ReturnType<typeof listPublishContentPeers>>[number], Awaited<ReturnType<typeof listPublishDestinations>>> = {
     loadRegistry: () => deps.loadDeployTargets({ workspaceId: deps.workspaceId }),
@@ -287,7 +288,7 @@ export function registerAdminPublishDestinationsRoute({ app, context }: { app: E
     listPeers: () => listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input: { workspaceId: deps.workspaceId } }),
     listDestinations: ({ registry, peers }) => listPublishDestinations({ workspaceId: deps.workspaceId, historyStore: deps.publishHistoryStore, registry, peers }),
   };
-  mountAdminJsonRoute({ app, spec: createPublishDestinationsRoute({ deps: destinationsDeps }), deps: { ...destinationsDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
+  mountAdminJsonRoute({ app, errors, spec: createPublishDestinationsRoute({ deps: destinationsDeps }), deps: { ...destinationsDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
     requestDeps: ({ res, deps: base }) => ({ ...base, mayReadPeers: async ({ principalId }) => {
       const trust = getPublishTrustContext(res);
       const peerAuthorization = await (trust ? publishTrustAuthorizeFor(trust) : deps.authorize)({ principalId, permission: "publish_content.read", workspaceId: deps.workspaceId });

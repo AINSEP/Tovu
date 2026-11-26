@@ -14,9 +14,9 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  * route-table pin keeps its middleware-plus-handler row. The spec declares no `maxBodyBytes`, so the body is
  * measured once. The route's rationale and the flat 400 bodies live with the spec.
  */
-export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   mountAdminJsonRoute(
-    { app, spec: blobsProbeRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, blobStore: deps.blobStore, computeBlobStorageKey } },
+    { app, errors, spec: blobsProbeRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, blobStore: deps.blobStore, computeBlobStorageKey } },
     {
       authorization: "guarded",
       failure: { operation: "routes/publish-content/blobs-probe", code: "INTERNAL_ERROR" },

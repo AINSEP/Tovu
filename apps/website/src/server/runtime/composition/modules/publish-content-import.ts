@@ -168,9 +168,9 @@ const IMPORT_MOUNT: AdminJsonRouteMountOptions = { authorization: "guarded", fai
  * the admin ports, registered in the hand-written order. An unmapped error answers `importErrorResponse`'s
  * redacted 500 (same operation and copy, the request's tracker) through `failureCopy: "operation"`.
  */
-export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: importPlanRoute, deps: planDeps({ deps }) }, IMPORT_MOUNT);
-  mountAdminJsonRoute({ app, spec: importConfirmRoute, deps: confirmDeps({ deps }) }, IMPORT_MOUNT);
-  mountAdminJsonRoute({ app, spec: importExecuteRoute, deps: executeDeps({ deps }) }, IMPORT_MOUNT);
-  mountAdminJsonRoute({ app, spec: importRunStatusRoute, deps: runStatusDeps({ deps }) }, IMPORT_MOUNT);
+export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: importPlanRoute, deps: planDeps({ deps }) }, IMPORT_MOUNT);
+  mountAdminJsonRoute({ app, errors, spec: importConfirmRoute, deps: confirmDeps({ deps }) }, IMPORT_MOUNT);
+  mountAdminJsonRoute({ app, errors, spec: importExecuteRoute, deps: executeDeps({ deps }) }, IMPORT_MOUNT);
+  mountAdminJsonRoute({ app, errors, spec: importRunStatusRoute, deps: runStatusDeps({ deps }) }, IMPORT_MOUNT);
 };

@@ -70,26 +70,26 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
     name: "publish-content",
     registerRoutes: ({ errors, app }, _options = {}) => {
       registerPublishContentExportRoute({ errors, app, deps });
-      registerPublishContentBlobsProbeRoute({ app, deps });
-      registerPublishContentBlobPutRoute({ app, deps });
+      registerPublishContentBlobsProbeRoute({ app, deps, errors });
+      registerPublishContentBlobPutRoute({ app, deps, errors });
       // The download half of the same blob channel (2026-09-19) — what makes the PULL direction
       // able to carry media bytes at all. Gated on `publish_content.read`, not `.apply`; see
       // `blob-get.ts`'s own header for why that is the read-side permission and not a relaxation.
-      registerPublishContentBlobGetRoute({ app, deps });
-      registerPublishContentBundleCreateRoute({ app, deps });
+      registerPublishContentBlobGetRoute({ app, deps, errors });
+      registerPublishContentBundleCreateRoute({ app, deps, errors });
       // S-F1: what THIS instance can accept, probed by a pushing peer BEFORE it stages a bundle —
       // see the capabilities spec's header for why this has to run ahead of `bundles`, not beside it.
-      registerPublishContentCapabilitiesRoute({ app, deps });
-      registerPublishContentImportRoutes({ app, deps });
-      registerPublishBackstopRoutes({ app, deps });
+      registerPublishContentCapabilitiesRoute({ app, deps, errors });
+      registerPublishContentImportRoutes({ app, deps, errors });
+      registerPublishBackstopRoutes({ app, deps, errors });
       // Task 10: peer CRUD, then the outbound push/pull driver that dials a peer's own copies of
       // the routes registered above.
-      registerPublishContentPeerRoutes({ app, deps });
-      registerPublishContentPeerTransportRoutes({ app, deps });
+      registerPublishContentPeerRoutes({ app, deps, errors });
+      registerPublishContentPeerTransportRoutes({ app, deps, errors });
       // Zero-setup publishing: the one action that turns a fresh install into one that can publish,
       // without a key ever being minted, displayed or copied. See `destination.ts`'s header for why
       // it lives behind the Publish button rather than on a settings screen.
-      registerPublishContentDestinationRoutes({ app, deps, own: { provisioning, findCandidate } });
+      registerPublishContentDestinationRoutes({ app, deps, errors, own: { provisioning, findCandidate } });
     },
   };
 }
