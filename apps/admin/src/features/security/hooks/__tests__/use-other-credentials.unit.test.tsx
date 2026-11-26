@@ -25,7 +25,7 @@ import { useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import { useOtherCredentials } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
-import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
+import type { AdminExternalMcpServer, ExternalMcpDeleteEnvelope } from "@jini-ai/core/contracts/site/cms-external-mcp";
 
 /** Minimal, fully-shaped `AdminExternalMcpServer` fixture — the OAuth-related fields this suite
  *  never exercises stay at their "nothing configured" defaults so each call site only spells out
@@ -674,7 +674,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
   });
 
   it("external-mcp: deleteExternalMcpServer(itemId)", async () => {
-    const deleteExternalMcpServer = vi.fn(() => Promise.resolve({ removed: true, restartRequired: true }));
+    const deleteExternalMcpServer = vi.fn((): Promise<ExternalMcpDeleteEnvelope> => Promise.resolve({ removed: true, restartRequired: true }));
     const port = createFakeOtherCredentialsPort({
       listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1", command: "x" })] }),
       deleteExternalMcpServer,
@@ -685,6 +685,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
     await act(() => result.current.remove(findGroup(result.current.groups, "external-mcp")!.rows[0]!));
 
     expect(deleteExternalMcpServer).toHaveBeenCalledWith({ serverId: "s1" });
+    await expect(deleteExternalMcpServer.mock.results[0]!.value).resolves.toEqual({ removed: true, restartRequired: true });
   });
 
   it("a rejected remove surfaces the exact error text and preserves whatever draft token already existed", async () => {
