@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { useProviderSettingsFocus } from "@/features/plugins/PluginProviderSettingsDialog";
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
@@ -68,7 +70,7 @@ describe("PluginProviderSettingsDialog", () => {
     ] }) } }), { onSaved });
     expect((await findControl(/^Authentication/)).value).toBe('bearer');
     const token = control(/^Token/);
-    expect(token.closest('.provider-settings-field')!.querySelector('.provider-settings-required')).toBeNull();
+    expect(token.closest('.jini-admin-provider-settings-field')!.querySelector('.jini-admin-provider-settings-required')).toBeNull();
     expect(control(/^Headers/).value).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
@@ -83,7 +85,7 @@ describe("PluginProviderSettingsDialog", () => {
     ] }) } }), { onSaved });
     await findControl(/^Authentication/);
     const token = control(/^Token/);
-    expect(token.closest('.provider-settings-field')!.querySelector('.provider-settings-required')).toBeNull();
+    expect(token.closest('.jini-admin-provider-settings-field')!.querySelector('.jini-admin-provider-settings-required')).toBeNull();
     expect(token.hasAttribute('aria-required')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
@@ -109,7 +111,7 @@ describe("PluginProviderSettingsDialog", () => {
     const auth = await findControl(/^Authentication/);
     const instance = control(/^Instance ID/);
     const token = control(/^Token/);
-    const hasMark = (input: HTMLInputElement) => input.closest('.provider-settings-field')!.querySelector('.provider-settings-required') !== null;
+    const hasMark = (input: HTMLInputElement) => input.closest('.jini-admin-provider-settings-field')!.querySelector('.jini-admin-provider-settings-required') !== null;
     expect(auth.value).toBe('grafana-cloud');
     expect(hasMark(instance)).toBe(true);
     expect(instance.getAttribute('aria-required')).toBe('true');
@@ -139,7 +141,7 @@ describe("PluginProviderSettingsDialog", () => {
     expect(token.value).toBe("");
     fireEvent.change(auth, { target: { value: "none" } });
     expect(token.hasAttribute("aria-required")).toBe(false);
-    expect(screen.getByLabelText(/^Token/, { selector: "input" }).closest(".provider-settings-field")!.querySelector(".provider-settings-required")).toBeNull();
+    expect(screen.getByLabelText(/^Token/, { selector: "input" }).closest(".jini-admin-provider-settings-field")!.querySelector(".jini-admin-provider-settings-required")).toBeNull();
     fireEvent.change(auth, { target: { value: "token" } });
     expect(token.getAttribute("aria-required")).toBe("true");
   });
@@ -251,11 +253,28 @@ describe("PluginProviderSettingsDialog", () => {
     const busy = await screen.findByRole("button", { name: /Saving…/ }) as HTMLButtonElement;
     expect(busy.disabled).toBe(true);
     expect(busy.getAttribute("aria-busy")).toBe("true");
-    expect(busy.querySelector(".provider-settings-spinner")).not.toBeNull();
+    expect(busy.querySelector(".jini-admin-provider-settings-spinner")).not.toBeNull();
     expect(saved).toBe(0);
     await act(async () => { release(); });
     await waitFor(() => expect(saved).toBe(1));
     expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe("provider settings dialog paint", () => {
+  it("the exported stylesheet still paints the mounted host view", async () => {
+    const port = createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card() } });
+    port.saveProviderSettings = () => new Promise(() => {});
+    dialogWith(port, {});
+    await findControl(/OTLP endpoint/);
+    const family = /^(jini-admin-)?provider-settings-/;
+    const cssModule = "@jini-ai/admin/screens/plugins/provider-settings-dialog.css";
+    // The form layout before saving, then the pending affordance while the request is out.
+    expect(unpaintedClasses({ root: document.body, cssModule, family }).missing).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const busy = await screen.findByRole("button", { name: /Saving…/ });
+    expect(busy.querySelector(".jini-admin-provider-settings-spinner")).not.toBeNull();
+    expect(unpaintedClasses({ root: busy, cssModule, family })).toEqual({ found: ["jini-admin-provider-settings-spinner"], missing: [] });
   });
 });
 
@@ -371,3 +390,10 @@ it('keeps a committed startup failure visible with the shared safe reason and co
   expect(saved).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
 });
+
+/** Classes of `family` on rendered nodes, each of which must be a real selector in the exported stylesheet. */
+function unpaintedClasses(required: { root: Element; cssModule: string; family: RegExp }, _optional = {}): { found: readonly string[]; missing: readonly string[] } {
+  const css = readFileSync(createRequire(import.meta.url).resolve(required.cssModule), "utf8");
+  const found = [...new Set([...required.root.querySelectorAll("[class]")].flatMap((node) => [...node.classList]).filter((name) => required.family.test(name)))];
+  return { found, missing: found.filter((name) => !new RegExp(`\\.${name}(?![\\w-])`).test(css)) };
+}

@@ -46,8 +46,8 @@ function handleWords({ name }: { name: string }, _options = {}): string {
 function ReentryNotices({ card, t }: { card: AdminPluginProviderSettings | null; t: (key: string) => string }) {
   return (
     <>
-      {card?.unreadable ? <p className="provider-settings-notice" role="note">{t("Saved keys for this plugin can't be read on this machine. Enter them again here and save.")}</p> : null}
-      {card?.legacyCredential ? <p className="provider-settings-notice" role="note">{t("A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.")}</p> : null}
+      {card?.unreadable ? <p className="jini-admin-provider-settings-notice" role="note">{t("Saved keys for this plugin can't be read on this machine. Enter them again here and save.")}</p> : null}
+      {card?.legacyCredential ? <p className="jini-admin-provider-settings-notice" role="note">{t("A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.")}</p> : null}
     </>
   );
 }
@@ -60,9 +60,9 @@ function SettingsFooter({ shown, saving, pluginName, agentHandleBase, onClose, t
         attrs={agentHandle({ handle: `${agentHandleBase}-settings-close` }, { role: "button", label: `Close ${pluginName} settings` })}>
         {t("Cancel")}
       </Button>
-      <Button type="submit" variant="primary" className="provider-settings-save" disabled={!shown} pending={saving}
+      <Button type="submit" variant="primary" className="jini-admin-provider-settings-save" disabled={!shown} pending={saving}
         attrs={agentHandle({ handle: `${agentHandleBase}-settings-save` }, { role: "button", label: `Save ${pluginName} settings` })}>
-        {saving ? <><span className="provider-settings-spinner" aria-hidden="true" />{t("Saving…")}</> : t("Save")}
+        {saving ? <><span className="jini-admin-provider-settings-spinner" aria-hidden="true" />{t("Saving…")}</> : t("Save")}
       </Button>
     </div>
   );
@@ -76,7 +76,7 @@ function unenteredFieldValue(field: { secret?: boolean; saved?: boolean; default
 
 function SettingsSubtitle({ card, t }: { card: AdminPluginProviderSettings | null; t: (key: string) => string }) {
   if (!card) return null;
-  return <p className="provider-settings-subtitle">{settingsSubtitleText({ card, t })}</p>;
+  return <p className="jini-admin-provider-settings-subtitle">{settingsSubtitleText({ card, t })}</p>;
 }
 
 function settingsSubtitleText({ card, t }: { card: AdminPluginProviderSettings; t: (key: string) => string }, _options = {}): string {
@@ -100,7 +100,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
     values[field.name]?.trim() || unenteredFieldValue(field)]));
   useProviderSettingsFocusHook({ card, fieldId });
   return (
-    <Dialog open title={interpolate({ template: t("{name} settings"), vars: { name: plugin.name } })} pending={saving} onClose={() => onClose()} className="settings-dialog jini-domain-dialog provider-settings-dialog">
+    <Dialog open title={interpolate({ template: t("{name} settings"), vars: { name: plugin.name } })} pending={saving} onClose={() => onClose()} className="settings-dialog jini-domain-dialog jini-admin-provider-settings-dialog">
       <SettingsSubtitle card={card} t={t} />
       <form onSubmit={(event) => { event.preventDefault(); void save().then((accepted) => { if (accepted) onSaved(); }); }} noValidate>
         <div className="jini-dialog-body">
