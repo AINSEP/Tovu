@@ -1,5 +1,7 @@
 import { InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo } from "../../../../../assistant/index.js";
-import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
+import { TurnLock } from "@jini-ai/db/kernel";
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import { bundledAgentPluginsDir, builtInThemesDir, resolveSiteStoragePaths, defaultContentDbPath, mediaUploadsDir } from "../../site-paths.js";
 import { composeAgentPluginPreferences, composePluginProviderFaces } from "../../agent-plugin-service-ports.js";
 import { getEffective, set } from "#src/features/settings/index";
@@ -26,6 +28,9 @@ import { createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters"
 import { createSettingsAnalyticsConfig } from "@jini-ai/analytics/site/config.settings";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
 
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+
 /** Site-assistant credentials and the external MCP repos, preferences and provider faces. */
 export function memoryAssistantCredentialDeps(required: MemoryRootContext, _optional = {}) {
   const {
@@ -47,7 +52,7 @@ export function memoryAssistantCredentialDeps(required: MemoryRootContext, _opti
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
-    mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
+    mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }),
     externalMcpServerRepo,
     bundledSourceRoot: bundledAgentPluginsDir(),
     mcp: agentPluginMcp,

@@ -10,7 +10,9 @@ import test from "node:test";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import { getMediaProviderCredentials, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import { mediaVaultScope } from "@jini-ai/cms/media/site/provider-credential-vault";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
@@ -38,7 +40,7 @@ const WS = "ws-media" as UUID;
 const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z"), nowIso: () => "2026-10-04T00:00:00.000Z" };
 
 function makeDeps() {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   const keyring = new InMemoryKeyring();
   return { repo, deps: { repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock } };
 }

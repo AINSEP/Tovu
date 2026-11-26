@@ -10,7 +10,9 @@ import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
-import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import { MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialValidationError, getMediaProviderCredentials, resolveMediaProviderCredential, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
@@ -43,7 +45,7 @@ const WORKSPACE = "workspace-1";
 const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () => "2026-08-09T00:00:00.000Z" };
 
 function makeDeps() {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, deps: { repo, keyring, sealer, clock } };
@@ -609,7 +611,7 @@ test("resolveMediaProviderCredential returns null (not an error) for a row saved
 });
 
 test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the site key is unavailable at decrypt time", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   const workingKeyring = new InMemoryKeyring();
   const workingSealer = new AesGcmSecretSealer({ keyring: workingKeyring });
   await saveMediaProviderCredentials(

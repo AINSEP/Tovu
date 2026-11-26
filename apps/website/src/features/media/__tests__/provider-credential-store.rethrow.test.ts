@@ -9,7 +9,9 @@ import { assertCredentialFreeField } from "#src/contracts/core/credential-token"
 import { CREDENTIAL_MESSAGES, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import { MediaProviderCredentialValidationError, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 
 const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
@@ -50,7 +52,7 @@ const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () 
 
 async function assertRethrown(providers: Record<string, Record<string, string>>) {
   const keyring = new InMemoryKeyring();
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock, credentialPolicy }, input: { workspaceId: "workspace-1", providers } }), (err: unknown) => err === unexpected);
   assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: "workspace-1" }), []);
 }
@@ -69,7 +71,7 @@ test("an unexpected failure normalizing a new key is rethrown unchanged", async 
 
 test("with no credentialPolicy supplied, a secret-shaped baseUrl is refused as a validation error", async () => {
   const keyring = new InMemoryKeyring();
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   // Build the fake GitHub token at runtime to preserve credential detection without a scanner finding.
   const token = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8";
   await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock }, input: { workspaceId: "workspace-1", providers: { openai: { baseUrl: `https://api.openai.com/v1?token=${token}` } } } }),

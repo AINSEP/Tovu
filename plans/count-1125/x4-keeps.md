@@ -212,3 +212,7 @@ Source-reviewed bindings only; residual LOC recorded in COMMIT-PLAN.md. No count
 - `^apps/website/src/features/trash/member\-credential\-ports\.ts$`
 - `^apps/website/src/features/trash/permissions\.ts$`
 - `^apps/website/src/features/site\-backup/import\-keep\-off\.ts$`
+
+## G3 bindings — WMZ round 2
+
+- `^apps/website/src/features/post/revision\-thinning\.ts$`

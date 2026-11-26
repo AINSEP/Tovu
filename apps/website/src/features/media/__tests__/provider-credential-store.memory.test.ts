@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { UUID } from "@jini-ai/core/primitives";
-import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import type { MediaProviderCredentialRecord } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 
@@ -18,6 +21,9 @@ import { VaultError } from "@jini-ai/core/contracts/vault";
  * implements them too) — this suite exercises them on their own, including the port's own
  * documented idempotency invariant ("ids with no row are skipped, not an error").
  */
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
 
 const WORKSPACE = "workspace-1" as UUID;
 const OTHER_WORKSPACE = "workspace-2" as UUID;
@@ -38,7 +44,7 @@ function makeRecord(overrides: Partial<MediaProviderCredentialRecord> = {}): Med
 }
 
 test("upsert inserts a row that listByWorkspaceId then returns", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
 
   await repo.upsert(makeRecord());
 
@@ -48,7 +54,7 @@ test("upsert inserts a row that listByWorkspaceId then returns", async () => {
 });
 
 test("upsert on an existing (workspaceId, providerId) pair replaces the row rather than adding a second one", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ baseUrl: "https://api.openai.com/v1" }));
 
   await repo.upsert(makeRecord({ baseUrl: "https://proxy.example.com/v1" }));
@@ -59,7 +65,7 @@ test("upsert on an existing (workspaceId, providerId) pair replaces the row rath
 });
 
 test("upsert scopes rows by workspace: the same providerId in two workspaces stays two rows", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ workspaceId: WORKSPACE, baseUrl: "https://w1.example.com" }));
   await repo.upsert(makeRecord({ workspaceId: OTHER_WORKSPACE, baseUrl: "https://w2.example.com" }));
 
@@ -74,7 +80,7 @@ test("upsert scopes rows by workspace: the same providerId in two workspaces sta
 });
 
 test("deleteByProviderIds removes only the named providers, leaving the rest of the workspace untouched", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ providerId: "openai" }));
   await repo.upsert(makeRecord({ providerId: "grok" }));
 
@@ -88,7 +94,7 @@ test("deleteByProviderIds removes only the named providers, leaving the rest of 
 });
 
 test("deleteByProviderIds is idempotent: a providerId with no row is skipped, not an error", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ providerId: "openai" }));
 
   // Contract doc comment: "ids with no row are skipped, not an error." Must not throw, and must
@@ -103,7 +109,7 @@ test("deleteByProviderIds is idempotent: a providerId with no row is skipped, no
 });
 
 test("deleteByProviderIds with an empty list is a no-op", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ providerId: "openai" }));
 
   await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: [] });
@@ -113,7 +119,7 @@ test("deleteByProviderIds with an empty list is a no-op", async () => {
 });
 
 test("deleteByProviderIds only deletes within the given workspace, never a same-providerId row in another workspace", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ workspaceId: WORKSPACE, providerId: "openai" }));
   await repo.upsert(makeRecord({ workspaceId: OTHER_WORKSPACE, providerId: "openai" }));
 
@@ -124,7 +130,7 @@ test("deleteByProviderIds only deletes within the given workspace, never a same-
 });
 
 test("a duplicate provider in a batch rolls back its first write and every tombstone", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
   await assert.rejects(repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => ({
     upserts: [makeRecord({ model: "first" }), makeRecord({ model: "duplicate" })],
@@ -134,7 +140,7 @@ test("a duplicate provider in a batch rolls back its first write and every tombs
 });
 
 test("a wrong-workspace planned row aborts without writing either workspace", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord({ model: "kept" }));
   await assert.rejects(repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => ({
     upserts: [makeRecord({ workspaceId: OTHER_WORKSPACE })], tombstoneProviderIds: ["openai"],
@@ -144,14 +150,14 @@ test("a wrong-workspace planned row aborts without writing either workspace", as
 });
 
 test("duplicate tombstones stay idempotent in the vault batch", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   await repo.upsert(makeRecord());
   await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai", "openai", "missing"] });
   assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), []);
 });
 
 test("a provider inserted by a concurrent primitive write cannot evade a whole-map replacement", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   // Queue the insert first. The replacement must take its snapshot after the insert commits.
   const inserted = repo.upsert(makeRecord({ providerId: "grok" }));
   const replaced = repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: ({ existing: current }) => ({

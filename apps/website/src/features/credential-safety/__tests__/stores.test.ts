@@ -21,7 +21,9 @@ import { createSourceControlCredential, updateSourceControlCredential } from '..
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createPublishCredential, updatePublishCredential, resolveForPublish, listPublishCredentials } from '../../deployments/publish-credentials/store.js';
 import type { DeployTargetRegistry } from '@jini-ai/devops/deploy/site/deploy-targets/types';
-import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import { saveMediaProviderCredentials, resolveMediaProviderCredential, getMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 
 const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
@@ -104,7 +106,7 @@ function publishHarness(): Harness {
   };
 }
 function mediaHarness(): Harness {
-  const deps = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo() };
+  const deps = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }) };
   return {
     save: apiKey => saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId, providers: { openai: { apiKey: apiKey as string } } } }),
     read: async () => (await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId, providerId: 'openai' }))?.apiKey,
@@ -206,7 +208,7 @@ test('plaintext labels and URL credentials are refused by the stores, with value
   await assert.rejects(createSourceControlCredential({ deps: source, input: { workspaceId, label: secretLabel, connection: { providerId: 'github', token: 'safe-key-a9F2' } } }), exactError(CREDENTIAL_MESSAGES.plain));
   const publish = { ...cryptoDeps(), repo: new InMemoryVendorCredentialSetRepo({}), loadDeployTargets: async () => registry };
   await assert.rejects(createPublishCredential(publish, { workspaceId, label: secretLabel, connection: { providerId: 'fixture-host', apiKey: 'safe-key-a9F2' } }), exactError(CREDENTIAL_MESSAGES.plain));
-  const media = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo() };
+  const media = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }) };
   await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...media }, input: { workspaceId, providers: { openai: { apiKey: 'safe-key-a9F2', baseUrl: 'https://example.test?token=never-echo' } } } }), exactError(CREDENTIAL_MESSAGES.plain));
 });
 

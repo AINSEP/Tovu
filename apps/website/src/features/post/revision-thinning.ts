@@ -1,10 +1,10 @@
-import { requireInputRecord, ToolInputError, type ToolHandler } from "@jini-ai/core";
+import type { ToolHandler } from "@jini-ai/core";
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
-import { bindRevisionThinning as bind, type RevisionThinningScope } from "@jini-ai/cms/posts/sql/revision-thinning";
+import { bindRevisionThinning as bind, revisionThinningApprovalHandler as approval, type RevisionThinningScope } from "@jini-ai/cms/posts/sql/revision-thinning";
 
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { postRevisionLockKey } from "#src/contracts/core/post-revision-lock";
+import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
 
 /**
  * @file Host adapter for Jini's revision-thinning engine over `post_revisions`: a date-only
@@ -46,16 +46,5 @@ export function revisionThinningApprovalHandler(
   { binding, surfaces, workspaceId }: { binding: RevisionThinningBinding; surfaces: Parameters<typeof approvalToolHandler>[0]["surfaces"]; workspaceId: string },
   _optional: Record<string, never> = {},
 ): ToolHandler {
-  return approvalToolHandler<Prepared>({ surfaces,
-    prepare: async ({ ctx }) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const scope = { workspaceId, postId: input.postId as string, kind: input.kind as string };
-      const preview = await binding.preview({ principal: ctx.principal.id, scope, before: input.before }, {}).catch((error: unknown) => {
-        throw new ToolInputError({ message: error instanceof Error ? error.message : "Revision thinning refused." });
-      });
-      return { scope, count: preview.count, previewToken: preview.previewToken };
-    },
-    describe: thinningCard,
-    run: async ({ ctx, prepared }) => ({ thinned: true, ...await binding.apply({ principal: ctx.principal.id, scope: prepared.scope, previewToken: prepared.previewToken, confirm: true }, {}) }),
-  }, { flag: "thinned", ask: ({ prepared }) => prepared.count > 0 });
+  return approval({ binding, surfaces, workspaceId, approvalToolHandler, thinningCard });
 }

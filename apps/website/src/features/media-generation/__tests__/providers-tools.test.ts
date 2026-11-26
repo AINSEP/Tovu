@@ -19,7 +19,9 @@ import { type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext } 
 /** Context overrides a call may pass; `emitSurface` travels as a handler option, not on the context. */
 type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
@@ -85,7 +87,7 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
   assert.equal(f.surfaces.size(), 0);
 });
 function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof createSurfaceExchangeStore>[1]> = {}) {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   const auth: unknown[] = [];
