@@ -65,7 +65,7 @@ test("every registered media-producing tool returns the same inline image previe
       scheduler: createTimeoutScheduler({}), clock: deps.clock, idGenerator: deps.idGen, defaultChannel: "mcp-ui",
     }) }),
     ...buildMediaGenerationRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }),
-    ...buildMediaImportRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }),
+    ...buildMediaImportRegistrations({ deps, resolvePublicUrls: resolveMediaPublicUrls }, {}),
   ];
   const upload = registrations.find(tool => tool.descriptor.id === "media_upload_asset")!;
   registrations.push(buildPromoteChatAttachmentTool({ getStore: () => ({ resolveForRun: async () => ({ path: path.join(root, "preview.png"), name: "preview.png", kind: "file" as const }) }), readFile: async () => bytes, mediaUploadHandler: upload.handler, isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, encodeBase64: ({ bytes }) => Buffer.from(bytes).toString("base64") }));

@@ -112,7 +112,7 @@ async function mayPurgeItem({ deps, item, principalId }: { deps: Deps; item: Tra
   if (forcePermission) {
     return (await deps.authorize({ workspaceId: deps.workspaceId, principalId, permission: forcePermission, entityType: item.entityType, entityId: item.entityId })).allowed;
   }
-  return (await mayActOnEntityType(deps, { principalId, entityType: item.entityType, entityId: item.entityId })).allowed;
+  return (await mayActOnEntityType({ deps, principalId, entityType: item.entityType, entityId: item.entityId })).allowed;
 }
 
 /**

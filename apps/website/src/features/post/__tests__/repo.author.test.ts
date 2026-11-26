@@ -13,7 +13,7 @@ import { postRepoFor } from "../repo.js";
 
 const clock = { nowMs: () => Date.parse("2026-10-09T00:00:00Z") };
 
-describeEachDialect<PostRepoPort>("post author", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }, (makeRepo) => {
+describeEachDialect<PostRepoPort>("post author", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}) }, (makeRepo) => {
   test("author and showAuthor round-trip through insert, CAS update, omission, clearing, and revisions", async () => {
     const repo = makeRepo();
     const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: {

@@ -85,7 +85,7 @@ import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-r
 import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
 import type { TrashItemToolDeps } from "../features/trash/trash-item-tool.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
-import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
+import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
 import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";

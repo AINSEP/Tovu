@@ -10,5 +10,5 @@ import { postRepoFor } from "../repo.js";
  * after another and each makes its repo before using it.
  */
 export function makePglitePostRepo(): { repo: PostRepoPort; teardown: () => void } {
-  return { repo: postRepoFor(emptiedPgContentKernel(["posts", "post_revisions"]), { mediaAccessEvidence: createMediaAccessEvidence() }), teardown: () => {} };
+  return { repo: postRepoFor({ kernel: emptiedPgContentKernel(["posts", "post_revisions"]), mediaAccessEvidence: createMediaAccessEvidence() }, {}), teardown: () => {} };
 }

@@ -43,9 +43,9 @@ export interface TrashToolDeps {
 /** Binds the host's product policy: permissions, visibility, days-left and the two kind lists. */
 function bindTrashPolicy(routeDeps: TrashToolDeps): TrashToolPolicy {
   return {
-    permissionFor: (entityType) => trashPermissionFor({ entityType, deps: routeDeps }),
+    permissionFor: (entityType) => trashPermissionFor({ entityType, registry: routeDeps.registry }),
     readPermission: TRASH_READ_PERMISSION,
-    filterVisible: (input) => filterVisibleTrashItems(routeDeps, input),
+    filterVisible: (input) => filterVisibleTrashItems({ deps: routeDeps, ...input }),
     daysRemaining: trashDaysRemaining,
     messageKinds: () => [...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()],
     catalogKinds: () => trashToolEntityTypes(routeDeps.registry),

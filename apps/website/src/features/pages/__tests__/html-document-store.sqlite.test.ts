@@ -411,7 +411,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const db = makeKernel();
     await insertPost(db, { id: "post-guard", kind: "post", body_json: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Keep me"}]}]}' });
     const before = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow());
-    const repo = postRepoFor(db, { mediaAccessEvidence: createMediaAccessEvidence() });
+    const repo = postRepoFor({ kernel: db, mediaAccessEvidence: createMediaAccessEvidence() }, {});
     const store = new SqlPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "post-guard" }, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, revisions: repo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>replacement</p>" }), PageKindMismatchError);
     assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow()), before);
@@ -425,7 +425,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const registrations = buildPagesRegistrations({ deps: {
       workspaceId: WS,
       authorize: async () => ({ allowed: true, reason: "matched" }),
-      postRepo: postRepoFor(db, { mediaAccessEvidence: createMediaAccessEvidence() }),
+      postRepo: postRepoFor({ kernel: db, mediaAccessEvidence: createMediaAccessEvidence() }, {}),
       ...pageHtmlChangeTestDeps(),
       pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel: db }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
     }, host: bindPagesToolHost({}) });

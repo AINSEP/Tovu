@@ -88,7 +88,7 @@ async function buildApp(
   const callerId = principalId ?? ownerId;
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),

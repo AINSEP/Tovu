@@ -1,6 +1,6 @@
 import { contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import { openContentDb } from "../../platform/db/sqlite/content-db.js";
-import { toRow } from "./repo.rows.js";
+import { toRow } from "@jini-ai/cms/posts/sql/repo.rows";
 import { type SearchProjectionTables, sqlitePostSearch } from "@jini-ai/cms/posts/sql";
 import type { PostSearchScratch } from "@jini-ai/cms/posts/search-index.memory";
 
@@ -41,7 +41,7 @@ export function openPostSearchScratch(_required: Record<string, never>, _optiona
     transaction: ({ run }) => kernel.transaction(run),
     clearProjection: async () => { await kernel.run((db) => db.withTables<SearchProjectionTables>().deleteFrom("post_search_document").execute()); },
     clearPosts: async () => { await kernel.run((db) => db.deleteFrom("posts").execute()); },
-    insertPost: async ({ post }) => { await kernel.run((db) => db.insertInto("posts").values(toRow(post)).execute()); },
+    insertPost: async ({ post }) => { await kernel.run((db) => db.insertInto("posts").values(toRow({ record: post })).execute()); },
     upsertDocument: ({ document }) => sqlitePostSearch.upsert({ kernel: schemaErasedKernel({ store: kernel }), document }),
     query: ({ query }) => sqlitePostSearch.search(schemaErasedKernel({ store: kernel }), query),
   };

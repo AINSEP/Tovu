@@ -1,6 +1,5 @@
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
-import { buildMediaGenerationRegistrations as build, mediaGenerationDerivedRisk } from "@jini-ai/cms/media/site-generation/tool-registrations";
-import { adaptLegacyAuthorize, type ToolContributor } from "@jini-ai/core";
+import { bindMediaGenerationTools } from "@jini-ai/cms/media/site-generation/tool-registrations";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { Clock, HttpClientPort } from "@jini-ai/core/primitives";
 import type { MediaRecord, AssetBlobRepoPort, AssetRenditionRepoPort, BlobStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "@jini-ai/cms/media";
@@ -86,32 +85,11 @@ export interface MediaGenerationToolDeps {
   env?: NodeJS.ProcessEnv;
 }
 
-export const buildMediaGenerationRegistrations = (routeDeps: MediaGenerationToolDeps, { resolvePublicUrls }: { resolvePublicUrls: ResolvePublicUrls }) => {
-  const registry = routeDeps.mediaProviderRegistry;
-  return build({
-  catalogInput: { imageModelIds: registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry }), defaultModelId: "gpt-image-2", mediaAssetReadToolId: "content_read.media_asset" },
-  deps: {
-    get workspaceId() { return routeDeps.workspaceId; },
-    get authorize() { return adaptLegacyAuthorize({ authorize: routeDeps.authorize }); },
-    get tracker() { return routeDeps.tracker; },
-    get imageCodec() { return routeDeps.imageCodec; },
-    findModel: required => registry.findModel(required) ?? undefined,
-    missingCredential: ({ providerId }) => ({ generated: false, message: buildNoCredentialError({ providerId, registry }).message,
-      credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "media-provider", target: providerId } }, {}) }),
-    storage: {
-      upload: ({ input }) => uploadMedia({ deps: { clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo, blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore }, input }, UPLOAD_CAPS),
-      recordContentType: required => routeDeps.mediaContentTypeStore.set(required),
-      resolvePublicUrls: ({ assets }) => resolvePublicUrls({ deps: routeDeps, assets }),
-    },
-    providers: {
-      readSavedSelections: required => getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: routeDeps.mediaProviderCredentialRepo }, ...required }),
-      readSavedCredential: required => resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: routeDeps.mediaProviderCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer }, ...required }).then(saved => saved ? { apiKey: saved.apiKey, ...(saved.baseUrl ? { baseUrl: saved.baseUrl } : {}) } : null),
-      readEnvCredential: ({ providerId }) => (fromEnv => fromEnv.apiKey ? fromEnv : null)(resolveProviderCredentialsFromEnv({ providerId, env: routeDeps.env ?? process.env }, { envVars: MEDIA_PROVIDER_ENV_VARS, aliases: MEDIA_PROVIDER_ALIASES })),
-      generateImage: ({ model, prompt, providerId, credentials, allowStubFallback }, optional) => (routeDeps.generateMedia ?? defaultGenerateMedia)({ request: { surface: "image", model, prompt }, credentials, options: { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry } }, optional),
-    },
-  },
-  });
-};
-
-export const contributeMediaGenerationTools = ({ resolvePublicUrls }: { resolvePublicUrls: ResolvePublicUrls }, _optional = {}): ToolContributor<MediaGenerationToolDeps, unknown> =>
-  ({ domain: "media-generation", build: deps => buildMediaGenerationRegistrations(deps, { resolvePublicUrls }), risk: mediaGenerationDerivedRisk });
+export const { buildMediaGenerationRegistrations, contributeMediaGenerationTools } = bindMediaGenerationTools({
+  imageModelIds: IMAGE_MODEL_IDS, imageModelIdsFrom, defaultModelId: "gpt-image-2", mediaAssetReadToolId: "content_read.media_asset",
+  findModel: ({ registry, id }: { registry: MediaProviderRegistry; id: string }) => registry.findModel({ id }) ?? undefined,
+  uploadMedia, uploadCaps: UPLOAD_CAPS, credentialBindings: MEDIA_CREDENTIAL_BINDINGS,
+  getMediaProviderCredentials, resolveMediaProviderCredential, resolveProviderCredentialsFromEnv,
+  readEnvironment: () => process.env, envVars: MEDIA_PROVIDER_ENV_VARS, aliases: MEDIA_PROVIDER_ALIASES,
+  buildNoCredentialError, issueCredentialSetup, defaultGenerateMedia,
+});

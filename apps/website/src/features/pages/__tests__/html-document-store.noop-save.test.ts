@@ -124,7 +124,7 @@ describe("HTML no-op saves: memory", () => saveContract(() => {
 }));
 
 describeEachDialect("HTML no-op saves: SQL", {
-  tables: ["posts", "post_revisions"], make: (kernel) => ({ kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }),
+  tables: ["posts", "post_revisions"], make: (kernel) => ({ kernel, repo: postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}) }),
 }, (make) => {
   saveContract(() => {
     const { kernel, repo } = make();

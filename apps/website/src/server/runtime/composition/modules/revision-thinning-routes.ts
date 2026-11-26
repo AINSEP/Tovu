@@ -8,8 +8,9 @@ import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refus
 import type { CleanupPreviewStore } from "@jini-ai/core/contracts/storage";
 
 import { postRevisionRefProbes } from "@jini-ai/cms/posts/sql/revision-refs";
-import { bindRevisionThinning, type RevisionThinningBinding } from "#src/features/post/revision-thinning";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { bindRevisionThinning, type RevisionThinningBinding } from "@jini-ai/cms/posts/sql/revision-thinning";
+import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
+import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import type { AdminJsonRoutePortDeps, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 
@@ -111,7 +112,7 @@ export function composeRevisionThinning(
   const { kernel, ownerPrincipalId, previewStore, clock } = required;
   const isOwner = async (principal: string | undefined) => Boolean(principal) && principal === await ownerPrincipalId();
   const binding = bindRevisionThinning({
-    kernel, ...postRevisionRefProbes({ kernel }, {}), previewStore, clock,
+    kernel: schemaErasedKernel({ store: kernel }), postRevisionLockKey, ...postRevisionRefProbes({ kernel: schemaErasedKernel({ store: kernel }) }, {}), previewStore, clock,
     authorize: async ({ principal }) => { if (!await isOwner(principal)) throw new Error(OWNER_ONLY); },
   }, {});
   const ownerCheck: MountRevisionThinningRequired["ownerCheck"] = async ({ context }) => {

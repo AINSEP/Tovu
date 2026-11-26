@@ -23,7 +23,7 @@ for (const dialect of eachDialect({ tables: ["posts", "post_revisions", "post_se
   test(`BUG: ${dialect.name} saves and backfills HTML search prose using the format discriminator`, async (t) => {
     const kernel = dialect.make();
     if (dialect.dialect === "sqlite") t.after(() => kernel.close());
-    const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+    const repo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
     const search = new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST });
     const find = async (query: string) => (await searchAdminPosts({
       deps: { search }, input: { workspaceId: "pb1-ws", query },
@@ -53,7 +53,7 @@ for (const dialect of eachDialect({ tables: ["posts", "post_revisions", "post_se
 
 test("BUG: PostgreSQL query folding re-tokenizes compatibility decompositions before OR syntax", async () => {
   const kernel = emptiedPgContentKernel(["posts", "post_revisions", "post_search_document"]);
-  const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   await repo.save({ ...page, bodyFormat: "doc", bodyHtml: null,
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "½ cup crème brûlée." }] }] },
   });

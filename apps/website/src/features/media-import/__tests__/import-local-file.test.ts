@@ -20,7 +20,7 @@ import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media"
 import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { buildMediaImportAgentToolCatalog } from "@jini-ai/cms/media/site-import/agent-tools";
 import { FS_FOLDER_READ_RECOVERY } from "@tovu/contracts/fs-folder-recovery";
-import type { MediaImportToolDeps } from "../tool-registrations.js";
+import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { applyBatchInputs } from "../../../assistant/batch-tool-inputs.js";
 import { invokeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
@@ -36,7 +36,8 @@ interface Result {
   media: { id: string; slug: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; publicUrl: string | null; sourceUrl: string };
 }
 async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?: number; unsetCustom?: boolean } = {}) {
-  const { buildMediaImportRegistrations, contributeMediaImportTools, mediaImportDerivedRisk } = await import("../tool-registrations.js");
+  const { buildMediaImportRegistrations, contributeMediaImportTools } = await import("../tool-registrations.js");
+  const { mediaImportDerivedRisk } = await import("@jini-ai/cms/media/site-import/tool-registrations");
   const siteLayouts = createTempSiteLayoutFixture({});
   const parent = siteLayouts.siteDir;
   const rootPath = path.join(parent, "root");
@@ -57,7 +58,7 @@ async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?:
   });
   const putSpy = t.mock.method(deps.blobStore, "put");
   function registration() {
-    const found = buildMediaImportRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }).find((r) => r.descriptor.id === TOOL);
+    const found = buildMediaImportRegistrations({ deps, resolvePublicUrls: resolveMediaPublicUrls }, {}).find((r) => r.descriptor.id === TOOL);
     assert.ok(found, "media_import_local_file must be wired");
     return found;
   }
@@ -223,7 +224,7 @@ test("catalog schema, domain registration and derived risk declare a permission-
   assert.doesNotMatch(definition.description, /retry with root 'custom'/);
   assert.equal(f.registration().descriptor.readOnly, false);
   assert.equal(f.mediaImportDerivedRisk.get(TOOL), "mutates-durable-state");
-  assert.equal(f.contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls }).domain, "media-import");
+  assert.equal(f.contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls }, {}).domain, "media-import");
   assert.equal(TOVU_MAX_UPLOAD_BYTES, 50 * 1024 * 1024);
 });
 

@@ -166,7 +166,7 @@ async function site(_required = {}, _optional = {}) {
   const persistence = memoryRoutinePersistence({ routines });
   const fired = new Set<string>();
   const wentLive = new Set<string>();
-  let posts = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+  let posts = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   let routineService = new RoutineService({ persistence }, { now: () => Date.parse(now) });
   const kindOf = (id: string): Kind => (id.includes("agent") ? "agent" : "person");
   // The routine's external effect: whatever the host's run handler would start (an agent run).
@@ -205,7 +205,7 @@ async function site(_required = {}, _optional = {}) {
 
   const restart = () => {
     routineService.stop({});
-    posts = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+    posts = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
     routineService = new RoutineService({ persistence }, { now: () => Date.parse(now) });
     routineService.setRunHandler({ handler: runRoutine });
   };

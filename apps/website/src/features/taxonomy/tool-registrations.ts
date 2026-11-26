@@ -16,7 +16,7 @@ import { type Clock } from "@jini-ai/core/primitives";
  * `humanConfirmedToolHandler`.
  */
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
-import { buildTaxonomyToolRegistrations, taxonomyDerivedRisk, type TaxonomyPackageToolDeps } from "@jini-ai/cms/taxonomy";
+import { createTaxonomyAgentToolCatalog, buildTaxonomyToolRegistrations, taxonomyDerivedRisk, type TaxonomyPackageToolDeps } from "@jini-ai/cms/taxonomy";
 import { type AuthorizeFn, type MutationActor, type OutboxPort, type TransactionalRepoPort } from "@jini-ai/core/contracts/events";
 import {
   confirm as gatewayConfirm,
@@ -33,7 +33,7 @@ import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy } from "@jini-ai/cms/taxonomy/site/content-targets";
 import type { CollectionOwnerLookupPort, MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import { buildMergeTermHooks } from "./gated-hooks.js";
-import { taxonomyAgentToolCatalog } from "./agent-tools.js";
+export const taxonomyAgentToolCatalog = createTaxonomyAgentToolCatalog({ termListToolId: "content_read.taxonomy" });
 import {
   type EntryRecordLookupPort,
 } from "@jini-ai/cms/taxonomy";

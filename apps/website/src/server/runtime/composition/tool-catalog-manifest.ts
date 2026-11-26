@@ -606,7 +606,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools({ ports: mediaVideoPorts, catalog: createMediaViewVideoCatalog({ mediaAssetReadToolId: "content_read.media_asset" }) }, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools({ host: mediaProviderHost }) });
-  contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: mediaConversionPorts, reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }) });
+  contributions.contributors.register({ contribution: contributeMediaImportTools({ resolvePublicUrls: resolveMediaPublicUrls, videoImport: { ports: mediaConversionPorts, reportNote: operatorLogVideoNote({ warn: (line, cause) => console.warn(line, cause) }) } }, {}) });
   contributions.contributors.register({ contribution: contributeMembersTools() });
   contributions.contributors.register({ contribution: contributeMenusTools() });
   contributions.contributors.register({ contribution: contributeNewsletterTools() });

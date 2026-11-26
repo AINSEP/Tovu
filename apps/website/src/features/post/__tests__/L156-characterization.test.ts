@@ -5,7 +5,7 @@ import type { ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
-import { toRecord, toRow, updatableColumns } from "../repo.rows.js";
+import { toRecord, toRow, updatableColumns } from "@jini-ai/cms/posts/sql/repo.rows";
 import { createPostReverters } from "@jini-ai/cms/posts/reverters";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
@@ -39,12 +39,12 @@ test("L156 duplicate clones all leaves and malformed embeds, minting only string
 
 test("L156 row mappings preserve null defaults, body exclusivity, tri-state and omitted schedule/ext", () => {
   const record = buildPostRecord();
-  const row = toRow(record);
+  const row = toRow({ record });
   assert.deepEqual([row.seo_ext_json, row.deleted_at, row.template_choice, row.overrides_theme_page,
     row.member_access_json, row.created_by_principal_id, row.created_at, row.publish_at,
     row.featured_media_id, row.author, row.show_author, row.ext],
   [null, null, null, null, null, null, null, null, null, null, false, "{}"]);
-  const read = toRecord({ ...row, autosave_json: null });
+  const read = toRecord({ row: { ...row, autosave_json: null } });
   assert.deepEqual(read, { ...record, seoExtJson: null, deletedAt: null, templateChoice: null,
     overridesThemePage: null, memberAccessJson: null, createdByPrincipalId: null, createdByKind: "person", createdAt: null,
     author: null, showAuthor: false });
@@ -52,20 +52,20 @@ test("L156 row mappings preserve null defaults, body exclusivity, tri-state and 
     deletedAt: "deleted", templateChoice: "template", overridesThemePage: false, memberAccessJson: "members",
     createdByPrincipalId: "creator", createdByKind: "agent", createdAt: "created", publishAt: "later", featuredMediaId: "media",
     author: "Writer", showAuthor: true, ext: { plugin: { flag: true } } });
-  const filledRow = toRow(filled);
+  const filledRow = toRow({ record: filled });
   assert.equal(filledRow.body_json, null);
   assert.equal(filledRow.body_html, "<p>body</p>");
-  assert.deepEqual(toRecord({ ...filledRow, autosave_json: null }), filled);
-  assert.equal(toRow({ ...record, bodyHtml: "stray" }).body_html, null);
-  assert.equal(toRecord({ ...row, overrides_theme_page: 1, show_author: 0, autosave_json: null }).overridesThemePage, true);
-  assert.equal(toRecord({ ...row, show_author: 1, autosave_json: null }).showAuthor, true);
-  const writable = updatableColumns(filledRow);
+  assert.deepEqual(toRecord({ row: { ...filledRow, autosave_json: null } }), filled);
+  assert.equal(toRow({ record: { ...record, bodyHtml: "stray" } }).body_html, null);
+  assert.equal(toRecord({ row: { ...row, overrides_theme_page: 1, show_author: 0, autosave_json: null } }).overridesThemePage, true);
+  assert.equal(toRecord({ row: { ...row, show_author: 1, autosave_json: null } }).showAuthor, true);
+  const writable = updatableColumns({ row: filledRow });
   assert.equal("created_by_principal_id" in writable, false);
   assert.equal("created_at" in writable, false);
   assert.equal("autosave_json" in writable, false);
   assert.equal("id" in writable, false);
-  assert.throws(() => toRecord({ ...row, ext: "invalid", autosave_json: null }), SyntaxError);
-  assert.throws(() => toRecord({ ...row, body_json: "invalid", autosave_json: null }), SyntaxError);
+  assert.throws(() => toRecord({ row: { ...row, ext: "invalid", autosave_json: null } }), SyntaxError);
+  assert.throws(() => toRecord({ row: { ...row, body_json: "invalid", autosave_json: null } }), SyntaxError);
 });
 
 test("L156 update inverse preserves legacy fields, restores explicit values, and replaces ext verbatim", async () => {

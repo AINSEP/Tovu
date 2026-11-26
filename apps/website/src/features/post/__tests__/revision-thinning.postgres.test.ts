@@ -6,11 +6,11 @@ import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { freshPostgresContentDatabase } from "#src/platform/db/__tests__/postgres-database";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import type { PostRecord, PostRevisionInput } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
-import { bindRevisionThinning } from "../revision-thinning.js";
+import { bindRevisionThinning } from "@jini-ai/cms/posts/sql/revision-thinning";
 import { postRevisionRefProbes } from "@jini-ai/cms/posts/sql/revision-refs";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 
@@ -50,12 +50,12 @@ function revision(seq: number, restoredFrom?: string, ws = WS): PostRevisionInpu
 }
 
 test("two connections: thinning apply waits for an open restore append and keeps its target", async () => {
-  const repoA = postRepoFor(first, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repoA = postRepoFor({ kernel: first, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   const ids: string[] = [];
   for (let seq = 1; seq <= 4; seq++) ids.push((await repoA.appendRevision(revision(seq))).id);
   const never = async () => false;
   const binding = bindRevisionThinning({
-    kernel: second, publishedRefs: never, restoreRefs: never, undoRefs: never, clock: () => Date.parse("2026-11-25T00:00:00.000Z"),
+    kernel: schemaErasedKernel({ store: second }), postRevisionLockKey, publishedRefs: never, restoreRefs: never, undoRefs: never, clock: () => Date.parse("2026-11-25T00:00:00.000Z"),
     previewStore: createCleanupPreviewStore({ randomToken: () => "pg-token", mono: () => 0 }), authorize: async () => {},
   }, {});
   const preview = await binding.preview({ principal: "owner", scope: SCOPE, before: "2026-11-01" }, {});
@@ -85,12 +85,12 @@ test("two connections: thinning apply waits for an open restore append and keeps
 test("undo reference written during apply keeps its target", async () => {
   const ws = "ws-thin-pg-undo";
   const scope = { workspaceId: ws, postId: "p1", kind: "post" } as const;
-  const repoA = postRepoFor(first, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repoA = postRepoFor({ kernel: first, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   const ids: string[] = [];
   for (let seq = 1; seq <= 4; seq++) ids.push((await repoA.appendRevision(revision(seq, undefined, ws))).id);
   const never = async () => false;
   const binding = bindRevisionThinning({
-    kernel: second, publishedRefs: never, restoreRefs: never, undoRefs: postRevisionRefProbes({ kernel: second }, {}).undoRefs,
+    kernel: schemaErasedKernel({ store: second }), postRevisionLockKey, publishedRefs: never, restoreRefs: never, undoRefs: postRevisionRefProbes({ kernel: schemaErasedKernel({ store: second }) }, {}).undoRefs,
     clock: () => Date.parse("2026-11-25T00:00:00.000Z"),
     previewStore: createCleanupPreviewStore({ randomToken: () => "pg-undo-token", mono: () => 0 }), authorize: async () => {},
   }, {});

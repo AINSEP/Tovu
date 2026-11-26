@@ -50,7 +50,8 @@ import type { PublishContentDeps } from "#src/features/publish-content/type-regi
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
-import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
+import { contributeMediaPublish } from "../publish-content.js";
+import { MediaApplyBlockedError, MediaApplyConflictError } from "@jini-ai/cms/media/site/publish-content";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";

@@ -16,7 +16,7 @@ import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/t
 import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "@jini-ai/cms/entries";
-import { contributeCollectionEntryPublish } from "../../publish-content.js";
+import { contributeCollectionEntryPublish } from "@jini-ai/cms/entries/site/publish-content";
 const at = "2026-09-01T00:00:00.000Z";
 const soupBody = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Simmer the tomatoes for twenty minutes." }] }] };
 
@@ -65,7 +65,7 @@ async function instance() {
 }
 
 async function sites() {
-  registerOnly([contributeCollectionEntryPublish()]);
+  registerOnly([contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] })]);
   const src = await instance();
   const dst = await instance();
   await src.entries.save(entry({ id: "e-soup", slug: "soup", bodyJson: soupBody }));
@@ -166,7 +166,7 @@ test("collection-entry: the same id created at the destination after the plan is
 });
 
 test("collection-entry termIds: packed sorted, synced exactly on the destination, then unchanged; none = omitted", async () => {
-  registerOnly([contributeTaxonomyPublish(), contributeTermPublish(), contributeCollectionEntryPublish()]);
+  registerOnly([contributeTaxonomyPublish(), contributeTermPublish(), contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] })]);
   const [src, dst] = [sqliteContentSite(), sqliteContentSite()];
   for (const site of [src, dst]) {
     await site.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "recipe", label: "Recipes", fields: [{ name: "servings", kind: "integer", required: false, queryable: false }], status: "active", version: 1, tombstonedAt: null });
@@ -202,11 +202,11 @@ test("collection-entry termIds: packed sorted, synced exactly on the destination
 // own permissions. A `collection-entry` entity naming one of their types must not write them: a
 // publishing grant limited to `collection-entry` would otherwise edit widgets it never named.
 async function widgetSmuggle() {
-  registerOnly([contributeCollectionEntryPublish()]);
+  registerOnly([contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] })]);
   const dst = await instance();
   await dst.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "widget", label: "Widgets", fields: [], status: "active", version: 1, tombstonedAt: null });
   const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes: dst.contentTypes, terms: dst.terms } }, "dst");
-  const handler = contributeCollectionEntryPublish().build(dest);
+  const handler = contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }).build(dest);
   const state = { type: "widget", slug: "evil", title: "Evil", status: "published", bodyJson: null, fieldsJson: { ext: { site: {} } } };
   const entity = { entityType: "collection-entry", id: "w-evil", schemaVersion: 2, contentHash: "x", hashVersion: 1, requiredBlobs: [], state };
   return { dst, handler, entity };
@@ -249,7 +249,7 @@ test("collection-entry: a missing owning type may arrive after precheck, and omi
   const contentTypes = new InMemoryContentTypeRepo();
   const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes, terms: dst.terms } }, "late-owner");
   // As the apply port does: the run's trusted actor is merged into the handler deps (FIX 19 / H2).
-  const handler = contributeCollectionEntryPublish().build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
+  const handler = contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }).build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
   const packed = (await packAll(source)).find(entity => entity.id === "e-cake");
   assert.ok(packed);
   const state = { ...packed.state };
@@ -269,7 +269,7 @@ test("collection-entry: a missing owning type may arrive after precheck, and omi
 
 test("collection-entry references include its owning collection and assigned terms", async () => {
   const { source, dest } = await sites();
-  const handler = contributeCollectionEntryPublish().build(dest);
+  const handler = contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }).build(dest);
   const packed = (await packAll(source)).find(entity => entity.id === "e-soup");
   assert.ok(packed);
   assert.ok(handler.references);

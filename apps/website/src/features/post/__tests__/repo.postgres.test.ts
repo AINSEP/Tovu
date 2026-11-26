@@ -56,8 +56,8 @@ function revision(seq: number): PostRevisionInput {
 }
 
 test("two connections: a concurrent appendRevision waits for the open one and chains after it", async () => {
-  const repoA = postRepoFor(first, { mediaAccessEvidence: createMediaAccessEvidence() });
-  const repoB = postRepoFor(second, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repoA = postRepoFor({ kernel: first, mediaAccessEvidence: createMediaAccessEvidence() }, {});
+  const repoB = postRepoFor({ kernel: second, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   const base = await repoA.appendRevision(revision(1));
 
   let appended!: () => void;

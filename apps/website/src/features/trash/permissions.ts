@@ -1,4 +1,4 @@
-import { trashPermissionFor as permission, mayActOnEntityType as mayAct, filterVisibleTrashItems as filter } from "@jini-ai/cms/trash/visibility";
+import { bindTrashVisibility } from "@jini-ai/cms/trash/visibility";
 /**
  * @file Who may see, restore and permanently remove which kind of trashed thing.
  *
@@ -26,7 +26,7 @@ import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
-import type { TrashEntityType, TrashItem, TrashRegistry } from "@jini-ai/cms/trash";
+import type { TrashEntityType } from "@jini-ai/cms/trash";
 
 /** The entry gate on the Trash surface itself. Every row is then filtered again, per kind. */
 export const TRASH_READ_PERMISSION = "content.read";
@@ -57,11 +57,4 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
 ]);
 
 
-export const trashPermissionFor = ({ entityType, deps }: { entityType: TrashEntityType; deps: { registry: TrashRegistry } }, _optional = {}) =>
-  permission({ entityType, registry: deps.registry, permissions: TRASH_PERMISSION_BY_ENTITY_TYPE });
-
-export const mayActOnEntityType = (deps: Omit<Parameters<typeof mayAct>[0]["deps"], "permissions">, required: Omit<Parameters<typeof mayAct>[0], "deps">) =>
-  mayAct({ ...required, deps: { ...deps, permissions: TRASH_PERMISSION_BY_ENTITY_TYPE } });
-
-export const filterVisibleTrashItems = (deps: Omit<Parameters<typeof filter>[0]["deps"], "permissions">, required: Omit<Parameters<typeof filter>[0], "deps">) =>
-  filter({ ...required, deps: { ...deps, permissions: TRASH_PERMISSION_BY_ENTITY_TYPE } });
+export const { trashPermissionFor, mayActOnEntityType, filterVisibleTrashItems } = bindTrashVisibility({ permissions: TRASH_PERMISSION_BY_ENTITY_TYPE });

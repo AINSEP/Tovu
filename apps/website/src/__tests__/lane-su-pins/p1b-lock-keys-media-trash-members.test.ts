@@ -96,7 +96,7 @@ describe("P1 trash lock keys", () => {
 
   test("the user adapter locks trash:user:<workspace>:<principal> (stays in Tovu)", async () => {
     const { kernel, keys } = recordingKernel();
-    const adapter = createUserTrashAdapter({
+    const adapter = createUserTrashAdapter({ assertAccountAction: async () => {},
       eventValues: outboxEventValues, db: kernel,
       purge: { purgeUser: async () => { throw new Error("purge is not reached by hide"); } },
       idGen: { next: () => "id-1" }, clock: { nowIso: () => NOW },

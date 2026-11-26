@@ -45,7 +45,7 @@ before(async () => {
   const base = openPgliteSocketKernel<unknown>({ socketPath: owner.socketPath });
   kernel = base as ContentKernel;
   await migrateContentDatabase({ kernel: base });
-  const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
+  const repo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   for (const post of EVAL_POSTS) {
     await createPost({
       deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },

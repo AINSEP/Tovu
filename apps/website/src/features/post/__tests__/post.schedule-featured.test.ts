@@ -93,7 +93,7 @@ function runContract(name: string, withRepo: () => Promise<{ repo: PostRepoPort;
 
 runContract("memory", async () => ({ repo: new InMemoryPostRepo({}), teardown: () => {} }));
 
-describeEachDialect<PostRepoPort>("post schedule/featured", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }, (makeRepo) => {
+describeEachDialect<PostRepoPort>("post schedule/featured", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}) }, (makeRepo) => {
   runContract("sql", async () => ({ repo: makeRepo(), teardown: () => {} }));
 });
 

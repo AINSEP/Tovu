@@ -10,11 +10,10 @@ import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import { InMemoryPublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import type { SourceControlCredentialSetRecord } from "@jini-ai/core/contracts/site/source-control-credentials";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqliteSourceControlCredentialSetRepo } from "#src/features/source-control/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/features/vendor-credentials/vendor-credential-repo.sqlite";
-import { TovuCredentialSetVaultAdapter } from "#src/features/vendor-credentials/vault-adapter";
+import { SourceControlCredentialSetVaultAdapter } from "#src/features/vendor-credentials/vault-adapter";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { executionModeFromEnv } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
@@ -89,7 +88,7 @@ export function routeDepsPublishCredentials(required: RouteDepsPublishCredential
     // `EnvOrFileKeyring` instance).
     // Its rows: this site's own, then the project's (owner 2026-10-25).
     sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(kernel, {
-      ...credentialProject({ projectVault, repo: vault => new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" }) }),
+      ...credentialProject({ projectVault, repo: vault => new SourceControlCredentialSetVaultAdapter({ vault, kind: "source-control" }) }),
       canonical: sourceControlKeyBinding({ credentials: { repo: customCredentialSetRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, idGen },
         loadProviders: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     }),

@@ -16,7 +16,7 @@ import { postRepoFor } from "../../post/repo.js";
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
 import { createCmsSearchAccessPort } from "@jini-ai/search/site/access";
 import { createCmsSearchRules } from "../cms-search-rules.js";
-import { toRecord } from "../../post/read-model.js";
+import { toRecord } from "@jini-ai/cms/posts/sql/repo.rows";
 
 /**
  * @file The CMS search source and access port on SQLite and PGlite, over real `posts` rows saved by
@@ -24,7 +24,7 @@ import { toRecord } from "../../post/read-model.js";
  * every change (scheduled go-live included), and member gates become audiences.
  */
 
-const cmsSearchRules = createCmsSearchRules({ toPostRecord: toRecord });
+const cmsSearchRules = createCmsSearchRules({ toPostRecord: row => toRecord({ row }) });
 
 const WS = "ws-search";
 const SITE = "site-1";
@@ -46,7 +46,7 @@ function setup(kernel: ContentKernel) {
   const counted: ContentKernel = { ...kernel, run: (fn) => { runs += 1; return kernel.run(fn); } };
   const [posts, pages] = createCmsSearchDocumentSources({ kernel, now: clock.now, ...cmsSearchRules }) as [SearchDocumentSource, SearchDocumentSource];
   return {
-    kernel, repo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), posts, pages, clock,
+    kernel, repo: postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {}), posts, pages, clock,
     access: createCmsSearchAccessPort({ kernel: counted, now: clock.now, ...cmsSearchRules }),
     runs: () => runs,
     load: (source: SearchDocumentSource, documentId: string, occurredAtMs = T0, workspaceId = WS) => source.load({ siteId: SITE, workspaceId, documentId, occurredAtMs }),
