@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
@@ -22,7 +23,7 @@ const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1
 async function fixture() {
   const deps = createRouteDeps();
   const { media } = await uploadMedia({
-    deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+    deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
       renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, bytes: SVG, filename: "logo.svg", contentType: "image/svg+xml", createdByPrincipal: "test" },
   });
@@ -93,7 +94,7 @@ for (const basePath of [undefined, "/preview"]) {
   test(`static export writes original.svg and rewrites theme, favicon, CSS, sitemap and manifest references (basePath=${basePath})`, async () => {
     const { deps, media, old, canonical } = await fixture();
     const { media: cssOnly } = await uploadMedia({
-      deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+      deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
         renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
       input: { workspaceId: deps.workspaceId, bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><circle r="2"/></svg>'), filename: "background.svg", contentType: "image/svg+xml", createdByPrincipal: "test" },
     });

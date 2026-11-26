@@ -2,7 +2,8 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fetchDestinationIdentity, openPublishSession, PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
+import { fetchDestinationIdentity, openPublishSession } from "@jini-ai/cms/publish/trust/handshake-client";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-error";
 import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 
 // A destination with no site key answers every handshake route with a typed 503. The owner must

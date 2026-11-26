@@ -64,7 +64,7 @@ function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}, inci
   const deps = {
     ...base,
     loadDeployTargets: async () => registry,
-    publishHistoryStore: new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }),
+    publishHistoryStore: new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit }),
     authorize: async (input: { permission: string }) => { permissions.push(input.permission); return { allowed: input.permission !== "publish_content.read", reason: "fixture" }; },
     ...overrides,
   };

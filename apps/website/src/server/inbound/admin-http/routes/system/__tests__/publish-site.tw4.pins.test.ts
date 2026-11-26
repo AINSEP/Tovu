@@ -2,7 +2,7 @@ import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import assert from "node:assert/strict";
-import { createPublishSiteContext, registerAdminPublishTriggerRoute, publishPreviewFor, publishTargetsFor } from "../publish-site.js";
+import { createPublishSiteContext, registerAdminPublishTriggerRoute, publishPreviewFor, publishTargetsFor, type PublishSiteContext } from "../publish-site.js";
 import test from "node:test";
 import express from "express";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -105,16 +105,21 @@ test('preview skips inspection after failed planning or readiness and target des
   };
   const registry: DeployTargetRegistry = { get: id => id === 'fixture' ? target : undefined, list: () => [target], refusals: [] };
   const deps = { ...createRouteDeps(), loadDeployTargets: async () => registry };
-  const context = { deps, credentialSource: {
-    isConfigured: async () => configured ? { configured: true as const } : { configured: false as const, reason: 'not ready' },
+  const context: PublishSiteContext = { deps, credentialSource: {
+    isConfigured: async () => configured ? { configured: true, basis: { kind: "env" } } : { configured: false, reason: 'not ready' },
     resolve: async () => { throw new Error('must not resolve'); },
   } };
   const preview = publishPreviewFor({ context });
   const planned = await preview({ query: { target: 'fixture' } });
-  assert.equal(planned.ok && planned.value.valid, false);
+  assert.ok(planned.ok);
+  assert.equal(planned.value.valid, false);
+  assert.equal(planned.value.validationError, 'invalid config');
   invalid = false; configured = false;
   const unready = await preview({ query: { target: 'fixture' } });
-  assert.equal(unready.ok && unready.value.credentialsConfigured, false);
+  assert.ok(unready.ok);
+  assert.equal(unready.value.valid, true);
+  assert.equal(unready.value.credentialsConfigured, false);
+  assert.equal(unready.value.credentialGuidance, 'not ready');
   assert.equal(inspections, 0);
   assert.deepEqual(await publishTargetsFor({ deps })(), [{ id: 'fixture', label: 'Fixture', defaultForNewDestination: false,
     authenticatedPreview: true, configFields: [] }]);

@@ -34,7 +34,7 @@ async function fixture(t: test.TestContext) {
     blobStore: new InMemoryBlobStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     imageTransformer: new InMemoryImageTransformer(),
   } as unknown as MediaRouteDeps;
-  const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
+  const { media } = await uploadMedia({ deps: { ...deps, createHash, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, filename: 'original.png', contentType: 'image/png', bytes: Buffer.from(png, 'base64'),
       alt: 'keep alt', caption: 'keep caption', credit: 'keep credit', createdByPrincipal: 'u1' } });
   await deps.assetRenditionRepo.save({ id: 'preview', workspaceId: deps.workspaceId, assetId: media.id,

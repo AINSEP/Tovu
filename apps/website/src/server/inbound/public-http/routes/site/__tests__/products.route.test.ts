@@ -346,7 +346,7 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
   assert.equal(products[0].price, 3500);
   assert.equal(products[0].compareAtPrice, 4500);
   const deps = {
-    ...baseDeps, commerceCatalog: undefined,
+    ...createRouteDeps(), commerceCatalog: undefined,
   };
   let html = "";
   let status = 200;

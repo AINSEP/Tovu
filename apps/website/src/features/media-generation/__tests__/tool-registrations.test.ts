@@ -1,4 +1,6 @@
 import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
+import { describeSiteBinding } from "#src/platform/site-dir/index";
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
@@ -150,9 +152,10 @@ function fakeRouteDeps(
   const generateCalls: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }> = [];
 
   const deps = {
+    createHash, siteBinding: describeSiteBinding(),
     workspaceId: WORKSPACE_ID,
     tracker: { ...createNoopTracker({}), capture: (...args: Parameters<Tracker["capture"]>) => { captures.push(args); } },
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen,
     mediaRepo,
     assetBlobRepo,
@@ -162,6 +165,7 @@ function fakeRouteDeps(
     transformDefinitionRepo,
     mediaProviderCredentialRepo,
     siteAssistantSecretSealer,
+    mediaImportHttpClient: { send: async () => assert.fail("the import parity fixture must not request remote media") },
     mediaGenerationHttpClient: options.httpClient ?? {
       send: async () => { throw new Error("fixture forbids external media HTTP"); },
     },
@@ -172,7 +176,7 @@ function fakeRouteDeps(
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
-  };
+  } satisfies Parameters<typeof buildMediaGenerationRegistrations>[0] & MediaImportToolDeps;
 
   return { captures, deps: deps as unknown as RegistryDepsWithoutLimiter, blobStore, assetBlobRepo, mediaContentTypeStore, mediaRepo, transformDefinitionRepo, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, authorizeCalls, generateCalls };
 }
@@ -264,17 +268,17 @@ test("generated assets stamp the acting principal independently of the model and
   assert.deepEqual(fixture.captures.map(([event]) => event), [{ name: "media_uploaded", userId: PRINCIPAL_ID }]);
 });
 
-test("a failed chat preview never loses the generated media result or its placeholder flag", async () => {
+test("a failed chat preview never loses the generated media result or its placeholder flag", async (t) => {
   const fixture = fakeRouteDeps();
   await seedOpenAiCredential(fixture);
-  const deps = { ...fixture.deps, imageCodec: {
-    inspect: async () => { throw new Error("unexpected inspect"); },
-    encode: async () => { throw new Error("cannot encode preview"); },
-    encodeTiles: async () => [],
-  } };
+  const imageCodec = new SharpImageTransformer();
+  const encode = t.mock.method(imageCodec, "encode", async () => { throw new Error("cannot encode preview"); });
+  const deps = { ...fixture.deps, imageCodec };
   const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "saved image" })) as { media: { id: string; placeholder: boolean } };
   assert.equal(result.media.placeholder, false);
-  assert.ok(await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id }));
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
+  assert.equal(stored?.source.sha256, createHash("sha256").update(FAKE_PNG_BYTES).digest("hex"));
+  assert.equal(encode.mock.callCount(), 1);
 });
 
 function catalogEntry(toolId: string): AgentToolDefinition {
@@ -869,8 +873,8 @@ test("a plugin vendor with no saved credential gets the same credential-setup di
 });
 
 test("construction over metadata-only deps (no registry) publishes the built-in enum", () => {
-  const { mediaProviderRegistry: _omitted, ...bare } = fakeRouteDeps().deps as unknown as Record<string, unknown>;
-  const registration = buildMediaGenerationRegistrations(bare as unknown as MediaGenerationToolDeps, { resolvePublicUrls: resolveMediaPublicUrls }).find((r) => r.descriptor.id === "media_generate_asset");
+  const deps = { ...fakeRouteDeps().deps, mediaProviderRegistry: undefined };
+  const registration = buildMediaGenerationRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }).find((r) => r.descriptor.id === "media_generate_asset");
   assert.ok(registration);
   assert.deepEqual(registration.descriptor.inputSchema, catalogEntry("media_generate_asset").inputSchema);
 });
@@ -880,8 +884,7 @@ for (const variant of ["rendition", "original", "no-transform"] as const) {
     const generated = fakeRouteDeps({ env: { OPENAI_API_KEY: "fixture-key" } });
     const imported = fakeRouteDeps();
     const bytes = variant === "original" ? Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') : FAKE_PNG_BYTES;
-    const generationDeps = generated.deps as unknown as MediaGenerationToolDeps;
-    generationDeps.generateMedia = async () => ({ bytes, providerNote: "fixture", providerId: "openai", usedStubFallback: false, warnings: [] });
+    generated.deps.generateMedia = async () => ({ bytes, providerNote: "fixture", providerId: "openai", usedStubFallback: false, warnings: [] });
     if (variant !== "no-transform") {
       await seedPublicTransform(generated.transformDefinitionRepo);
       await seedPublicTransform(imported.transformDefinitionRepo);
@@ -889,12 +892,15 @@ for (const variant of ["rendition", "original", "no-transform"] as const) {
     const generatedResult = await wired("media_generate_asset", generated.deps).handler(executionContext({ prompt: "Shared" })) as { media: { slug: string; sha256: string; publicUrl: string | null } };
     const importedResult = await persistImportedMedia({
       resolvePublicUrls: resolveMediaPublicUrls,
-      routeDeps: imported.deps as unknown as MediaImportToolDeps, actorId: PRINCIPAL_ID, sourceUrl: "",
+      routeDeps: imported.deps, actorId: PRINCIPAL_ID, sourceUrl: "",
       input: { workspaceId: WORKSPACE_ID, bytes, filename: "Shared.png", contentType: variant === "original" ? "image/svg+xml" : "image/png", createdByPrincipal: PRINCIPAL_ID },
     });
-    assert.equal(generatedResult.media.slug, importedResult.media.slug);
-    assert.equal(generatedResult.media.sha256, importedResult.media.sha256);
-    const expected = variant === "no-transform" ? null : `/m/${generatedResult.media.slug}/${variant === "original" ? "original.svg" : "public.v1/image.webp"}?v=${generatedResult.media.sha256.slice(0, 12)}`;
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    assert.equal(generatedResult.media.slug, "shared");
+    assert.equal(importedResult.media.slug, "shared");
+    assert.equal(generatedResult.media.sha256, sha256);
+    assert.equal(importedResult.media.sha256, sha256);
+    const expected = variant === "no-transform" ? null : `/m/shared/${variant === "original" ? "original.svg" : "public.v1/image.webp"}?v=${sha256.slice(0, 12)}`;
     assert.equal(generatedResult.media.publicUrl, expected);
     assert.equal(importedResult.media.publicUrl, expected);
   });
@@ -909,7 +915,7 @@ test("import and generation propagate public-URL lookup failure after saving", a
   await assert.rejects(wired("media_generate_asset", generated.deps).handler(executionContext({ prompt: "Shared" })), error => error === failure);
   await assert.rejects(persistImportedMedia({
     resolvePublicUrls: resolveMediaPublicUrls,
-    routeDeps: imported.deps as unknown as MediaImportToolDeps, actorId: PRINCIPAL_ID, sourceUrl: "",
+    routeDeps: imported.deps, actorId: PRINCIPAL_ID, sourceUrl: "",
     input: { workspaceId: WORKSPACE_ID, bytes: FAKE_PNG_BYTES, filename: "Shared.png", contentType: "image/png", createdByPrincipal: PRINCIPAL_ID },
   }), error => error === failure);
   assert.equal((await generated.mediaRepo.list({ workspaceId: WORKSPACE_ID })).length, 1);

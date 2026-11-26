@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES, VIDEO_UPLOAD_LIMIT_BYTES } from "@tovu/contracts/upload-limits";
-import { SCOPE_ATTACHMENT_LIMITS, openScopeAttachments } from "../agent-daemon-scope-attachments";
+import { SCOPE_ATTACHMENT_LIMITS, openScopeAttachments } from "../agent-daemon-scope-attachments.js";
 import { mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

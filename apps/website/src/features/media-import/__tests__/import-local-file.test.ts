@@ -47,6 +47,7 @@ async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?:
   let resolutions = 0;
   let ids = 0;
   const deps: MediaImportToolDeps = testSiteLayoutContext({ ...siteLayouts.deps,
+    createHash,
     siteBinding: { ...siteLayouts.deps.siteBinding, dir: rootPath },
     workspaceId: "ws-local", clock: createFakeClock({ startIso: "2026-10-01T00:00:00.000Z" }), idGen: { newId: () => `local-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),

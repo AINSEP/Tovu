@@ -11,7 +11,7 @@ import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability
 import type { SiteInspectionToolDeps } from "../deps.js";
 import { fetchPublishedPage } from "@jini-ai/diagnostics/web-evidence/published-page";
 import { trackFetch } from "@jini-ai/diagnostics/observability";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { buildSiteInspectionRegistrations } from "../tool-registrations.js";
 
 /**

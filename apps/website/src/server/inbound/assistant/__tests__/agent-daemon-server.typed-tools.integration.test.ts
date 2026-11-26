@@ -128,7 +128,15 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
     path: string; init: RequestInit; body: Record<string, unknown> | undefined; principalId: string;
   }) => {
     if (init.method === "GET") {
-      const result = await toolCatalogDescribeRoute.handle({ input: { id: decodeURIComponent(path.slice("/api/tools/".length)) }, deps: { catalog } });
+      const deps = { catalogFor: () => catalog };
+      const request = new Request(new URL(path, "http://127.0.0.1:4419"), init);
+      const raw = { body: undefined, params: { id: decodeURIComponent(path.slice("/api/tools/".length)) }, query: {} };
+      const authenticate = toolCatalogDescribeRoute.ports?.authenticate;
+      assert.ok(authenticate);
+      const context = await authenticate({ raw, request, locals: {}, deps });
+      const parsed = toolCatalogDescribeRoute.parse(raw);
+      assert.ok(parsed.ok);
+      const result = await toolCatalogDescribeRoute.handle({ context, input: parsed.value, deps });
       return result.ok ? Response.json(result.value) : Response.json({ error: result.error }, { status: 404 });
     }
     assert.equal(path, "/api/delegated-tool-calls");

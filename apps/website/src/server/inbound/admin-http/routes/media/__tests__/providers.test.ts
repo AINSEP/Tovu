@@ -13,6 +13,7 @@ import { registerAdminMediaPutProvidersRoute } from "#src/server/runtime/composi
 import { registerAdminMediaPatchProviderRoute, registerAdminMediaDeleteProviderRoute } from "#src/server/runtime/composition/modules/media";
 import type { MediaProviderRouteDeps } from "../deps.js";
 import { mediaProviderDefinition } from "@jini-ai/integrations/media-providers";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
 
 /**
@@ -79,7 +80,7 @@ async function put(t: import("node:test").TestContext, app: express.Express, bod
 for (const model of ["changed-model", "original-model"]) {
   test(`a pre-delete ETag cannot overwrite a same-tick recreated provider (${model})`, async (t) => {
     const base = createRouteDeps();
-    const clock = { nowMs: () => Date.parse("2026-11-26T00:00:00.000Z") };
+    const clock = createFakeClock({ startIso: "2026-11-26T00:00:00.000Z" });
     let nextId = 0;
     const app = buildApp({ mediaProviderCredentialRepo: base.mediaProviderCredentialRepo, clock,
       idGen: { newId: () => `fresh-vault-${++nextId}` } });

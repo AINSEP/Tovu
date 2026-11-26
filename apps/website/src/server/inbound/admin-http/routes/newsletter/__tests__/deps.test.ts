@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createMailSenderIdentityResolver } from "#src/platform/mail/index";
 
 import { toConfirmationDeps, toSendPipelineDeps, toSubscriptionsDeps, toUnsubscribeDeps, type NewsletterRouteDeps } from "../deps.js";
 
@@ -39,14 +40,25 @@ test("toUnsubscribeDeps forwards the subscription repo, the shared keyring, the 
   assert.equal(bundle.clock, deps.clock);
 });
 
-test("toConfirmationDeps hands confirmation mail the composed sender resolver, and leaves it unset when the root supplied none", () => {
-  const deps = routeDeps();
+test("confirmation and subscription bundles resolve the composed sender, or the newsletter fallback when none is supplied", async () => {
+  const mailer: NewsletterRouteDeps["mailer"] = {
+    capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
+    send: async () => assert.fail("resolving a sender must not deliver mail"),
+    sendBatch: async () => assert.fail("resolving a sender must not deliver mail"),
+  };
+  const reads: string[] = [];
+  const mailSenderIdentity = createMailSenderIdentityResolver({ mailer }, { readConfiguredSender: async ({ workspaceId }) => {
+    reads.push(workspaceId);
+    return { email: "sender@example.test", name: "Site Sender" };
+  } });
+  const deps = routeDeps({ mailer, mailSenderIdentity });
   const bundle = toConfirmationDeps(deps);
-  assert.equal(bundle.senderIdentity, deps.mailSenderIdentity);
-  assert.equal(bundle.mailer, deps.mailer);
-  assert.equal(toConfirmationDeps(routeDeps({ mailSenderIdentity: undefined })).senderIdentity, undefined);
-  // `saveSubscription` triggers a confirmation, so the nested bundle carries the same resolver.
-  assert.equal(toSubscriptionsDeps(deps).confirmationDeps.senderIdentity, deps.mailSenderIdentity);
+  assert.equal(bundle.mailer, mailer);
+  assert.deepEqual(await bundle.resolveFrom({ workspaceId: "confirmation-site" }), { email: "sender@example.test", name: "Site Sender" });
+  assert.deepEqual(await toSubscriptionsDeps(deps).confirmationDeps.resolveFrom({ workspaceId: "subscription-site" }), { email: "sender@example.test", name: "Site Sender" });
+  assert.deepEqual(reads, ["confirmation-site", "subscription-site"]);
+  assert.deepEqual(await toConfirmationDeps(routeDeps({ mailer, mailSenderIdentity: undefined })).resolveFrom({ workspaceId: "unconfigured-site" }),
+    { email: "no-reply@newsletter.local", name: "Newsletter" });
 });
 
 /** The send pipeline's production `sleep` port is a real timer wait (quota waits, review email#4). */

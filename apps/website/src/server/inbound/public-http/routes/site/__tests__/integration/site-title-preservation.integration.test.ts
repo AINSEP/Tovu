@@ -20,7 +20,6 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platfo
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { type SiteTitlePreservationStorePort, SqlSiteTitlePreservationStore } from "@jini-ai/cms/settings/site/site-title-preservation";
-import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
 import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
@@ -150,7 +149,7 @@ function publishPricingPage(deps: RouteDeps): void {
  */
 async function bootSiteDeps(t: TestContext, dir: string, beforeBootChain?: (store: SiteTitlePreservationStorePort) => void): Promise<CommerceSiteTestDeps> {
   if (beforeBootChain) {
-    const store = SqlSiteTitlePreservationStore.prototype as SiteTitlePreservationStorePort;
+    const store = SqlSiteTitlePreservationStore.prototype;
     const { listPendingWorkspaceIds, isPending } = store;
     t.after(() => {
       store.listPendingWorkspaceIds = listPendingWorkspaceIds;

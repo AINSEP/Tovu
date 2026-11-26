@@ -25,7 +25,8 @@ import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/pro
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
-import { buildMediaGenerationRegistrations, type MediaGenerationToolDeps } from '../tool-registrations.js';
+import { buildMediaGenerationRegistrations } from '../tool-registrations.js';
+import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { saveMediaCredential, buildMediaProviderRegistrations, contributeMediaProviderTools, mediaProvidersAgentToolCatalog, mediaProvidersDerivedRisk } from '@jini-ai/cms/media/site-generation/providers-tools';
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
 import { startMcpUiToolCallsServer } from "../../../assistant/__tests__/support/mcp-ui-tool-calls-server.js";
@@ -258,7 +259,7 @@ test('t10 media failed outcome emission still returns the persisted safe result'
 
 test('t10 media generation missing key names the human setup tool in its refusal', async () => {
   const f = fixture();
-  const deps = { ...f.deps, env: {}, generateMedia: async () => assert.fail('missing credential must not call a vendor') } as unknown as MediaGenerationToolDeps;
+  const deps = { ...createRouteDeps(), ...f.deps, createHash, env: {}, generateMedia: async () => assert.fail('missing credential must not call a vendor') };
   const registration = buildMediaGenerationRegistrations(deps, { resolvePublicUrls: resolveMediaPublicUrls }).find(r => r.descriptor.id === 'media_generate_asset'); assert.ok(registration);
   const result = await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
     input: { prompt: 'Cover image', model: 'gpt-image-2' }, signal: new AbortController().signal }) as { generated: boolean; credentialSetup: unknown };

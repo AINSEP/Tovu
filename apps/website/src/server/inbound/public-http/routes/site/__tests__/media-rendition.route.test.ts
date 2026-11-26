@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /** Pins public media serving outcomes not covered by the server-level media route suites:
  * featured-image gating, private library documents, and the saved-widget scan's skip rules. */
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -24,7 +25,7 @@ async function boot(t: TestContext) {
 
 async function upload(deps: Deps, input: { bytes: Uint8Array; filename: string; contentType: string; kind?: "document" }) {
   const { media } = await uploadMedia({
-    deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+    deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, createdByPrincipal: "user-1", ...input },
   });
   return media;
@@ -130,7 +131,7 @@ test("saved widgets are not listed when no live entry places a widget", async t 
 
 test('private submitted photos deny anonymous originals and renditions by id and slug', async t => {
   const { deps, baseUrl } = await boot(t);
-  const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore }, input: { workspaceId: deps.workspaceId, createdByPrincipal: 'system', filename: 's-photo.png', bytes: PNG, contentType: 'image/png', access: 'private' } });
+  const { media } = await uploadMedia({ deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore }, input: { workspaceId: deps.workspaceId, createdByPrincipal: 'system', filename: 's-photo.png', bytes: PNG, contentType: 'image/png', access: 'private' } });
   for (const alias of [media.id, media.slug]) for (const suffix of ['original', 'public.v1/photo.webp']) {
     const response = await fetch(`${baseUrl}/m/${alias}/${suffix}`);
     assert.equal(response.status, 404); assert.equal(response.headers.get('cache-control'), 'private, no-store');

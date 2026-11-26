@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
@@ -71,6 +72,7 @@ async function uploadRawBytes(
 async function storeRawBytes(deps: RouteDeps, input: { filename: string; bytes: Uint8Array }): Promise<string> {
   const { media } = await uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,
@@ -259,6 +261,7 @@ test("media original route: a media id belonging to a different workspace 404s â
   // cross-workspace row into the same underlying repos this test app's route reads from.
   const { media: foreignMedia } = await uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,

@@ -85,6 +85,7 @@ class FakeHttpClient implements HttpClientPort {
 
   async send(request: HttpRequest): Promise<HttpResponse> {
     this.calls.push(request);
+    assert.equal(request.method, "GET");
     const next = this.responses[Math.min(this.cursor, this.responses.length - 1)];
     this.cursor += 1;
     if (next instanceof Error) throw next;
@@ -143,6 +144,7 @@ function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | E
 
   let counter = 0;
   const deps = testSiteLayoutContext({
+    createHash,
     workspaceId: WORKSPACE_ID,
     tracker: { ...createNoopTracker({}), capture: (...args: Parameters<Tracker["capture"]>) => { captures.push(args); } },
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
@@ -194,7 +196,7 @@ test("the assistant URL tool sanitizes SVG, hashes stored bytes, and returns an 
 test("with the image codec wired, a URL import also returns a small titled WebP preview linked to the file, so the chat shows it inline", async () => {
   const fixture = fakeRouteDeps();
   await seedPublicTransform(fixture.transformDefinitionRepo);
-  const deps = { ...fixture.deps, imageCodec: new SharpImageTransformer() } as RegistryDepsWithoutLimiter;
+  const deps = { ...fixture.deps, imageCodec: new SharpImageTransformer() };
   const out = await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL })) as { content: Array<Record<string, string>> };
 
   assert.equal(out.content.length, 2);
@@ -209,13 +211,15 @@ test("with the image codec wired, a URL import also returns a small titled WebP 
   assert.ok(Math.max(preview.width!, preview.height!) <= 320, "a small preview, not the full image");
 });
 
-test("a preview the codec cannot make never fails the import: the plain media result comes back", async () => {
+test("a preview the codec cannot make never fails the import: the plain media result comes back", async (t) => {
   const fixture = fakeRouteDeps();
-  const failing = { inspect: async () => { throw new Error("x"); }, encode: async () => { throw new Error("cannot decode"); }, encodeTiles: async () => [] };
-  const deps = { ...fixture.deps, imageCodec: failing } as unknown as RegistryDepsWithoutLimiter;
+  const imageCodec = new SharpImageTransformer();
+  const encode = t.mock.method(imageCodec, "encode", async () => { throw new Error("cannot decode"); });
+  const deps = { ...fixture.deps, imageCodec };
   const out = await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL })) as ImportResult;
   assert.equal(out.media.sha256, sha256Hex(REAL_PNG));
   assert.equal(fixture.blobStore.writes.length, 1);
+  assert.equal(encode.mock.callCount(), 1);
 });
 
 test("both model-facing import descriptions advertise sanitized SVG and need no confirmation", () => {
