@@ -1,7 +1,8 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { SettingsUi } from "../SettingsUi";
+import { bindSettingsUi } from "@jini-ai/admin/screens/settings/SettingsUi";
+import { hooks as hostHooks, kit, deps } from "../SettingsUi";
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
@@ -32,13 +33,15 @@ const hooks = {
   }),
 };
 
+const SettingsUi = bindSettingsUi({ hooks: { ...hostHooks, ...hooks }, kit, deps });
+
 afterEach(() => { window.history.replaceState(null, "", "/"); });
 
 it("renders the bound tabs inline and keeps tab navigation in the current history entry", async () => {
   window.history.replaceState(null, "", "/admin/settings?tab=instructions");
   const length = window.history.length;
   const user = userEvent.setup();
-  const { container } = render(<SettingsUi tabId="instructions" {...hooks} />);
+  const { container } = render(<SettingsUi tabId="instructions" />);
   expect(container.querySelector(".settings-page")).toBeInTheDocument();
   expect(container.querySelector(".jini-tabbed-dialog--inline")).toBeInTheDocument();
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -59,7 +62,7 @@ it.each([
   window.history.replaceState(null, "", `/admin/settings?tab=${tabId}`);
   const length = window.history.length;
 
-  render(<SettingsUi tabId={tabId} {...hooks} />);
+  render(<SettingsUi tabId={tabId} />);
 
   expect(window.location.pathname).toBe(pathname);
   expect(window.location.search).toBe(search);

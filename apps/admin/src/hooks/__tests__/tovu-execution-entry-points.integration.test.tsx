@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { ExecutionConfig, ExecutionPort } from '@jini-ai/core/contracts/execution';
-import { SettingsUi } from '@/features/settings/SettingsUi';
+import { SettingsUi } from '@jini-ai/admin/screens/settings/SettingsUi';
+import { hooks as settingsHooks, kit as settingsKit, deps as settingsDeps } from '@/features/settings/SettingsUi';
 import type { SettingsUiController } from '@/features/settings/hooks/use-settings-ui.hooks';
 import { AdminExecutionMode } from '@/features/ai-assistant/AiAssistant';
 import type { AdminExecutionCredentialController } from '../use-admin-execution-credential.hooks';
@@ -62,7 +63,7 @@ it('Settings AI agent hides CLI, renders BYOK and preserves saved mode on provid
     language: slice('en'), interface: slice(DEFAULT_INTERFACE),
     loading: false, loadError: null, save: { status: 'idle' },
   } as SettingsUiController;
-  render(<SettingsUi useSettingsUiHook={() => controller} useAdminExecutionCredentialHook={credential} useExecutionPolicy={useDeployed} />);
+  render(<SettingsUi kit={settingsKit} deps={settingsDeps} hooks={{ ...settingsHooks, useSettingsUiHook: () => controller, useAdminExecutionCredentialHook: credential, useExecutionPolicy: useDeployed }} />);
   await screen.findByText(DEPLOYED_LOCAL_CLI_NOTE);
   expect(screen.queryByRole('tab', { name: /^Local CLI/ })).not.toBeInTheDocument();
   expect(screen.getByRole('tab', { name: /^BYOK/ })).toHaveAttribute('aria-selected', 'true');

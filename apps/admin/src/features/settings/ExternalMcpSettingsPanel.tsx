@@ -1,26 +1,11 @@
-import { buildAllowWritePatch, resolveExternalMcpCardHandles, useSavedAllowedToolNamesById } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel.hooks";
-import { grantWriteFieldValue } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
-import { buildExternalMcpCardHandles, resolveExternalMcpEffectiveTransport } from "@jini-ai/admin/screens/settings/rules";
-import { describeDriftHeadline } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { bindExternalMcpSettingsPanel, type ExternalMcpSettingsPanelProps } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel";
+import { useSavedAllowedToolNamesById } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel.hooks";
+import { grantWriteFieldValue, describeDriftHeadline, parseSavedToolNames } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
 import { EXTERNAL_MCP_DRIFT_COPY } from "@jini-ai/admin/screens/settings/external-mcp-drift-copy";
 import { ExternalMcpSharedChoice } from "@jini-ai/admin/screens/settings/ExternalMcpSharedChoice";
 import { useHostExternalMcpSharedChoice } from "../../integrations/jini-admin/settings-external-mcp-shared-choice.hooks";
-import { useState } from "react";
-import {
-  Icon,
-  SourceConfigAddForm,
-  SourceConfigItemCard,
-  sourceDisplayLabel,
-  useT,
-  useWiredSourceConfigAddForm,
-  useWiredSourceConfigList,
-  type SourceConfigDependencies,
-  type SourceConfigItem,
-} from "@jini-ai/ui";
-import { agentHandle } from "@jini-ai/core/agent-handles";
+import { Icon, SourceConfigAddForm, SourceConfigItemCard, sourceDisplayLabel, useT, useWiredSourceConfigList } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-
-import { ExternalMcpAdmissionsBanner } from "@jini-ai/mcp/react/external-mcp/ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
 import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
 import { useFocusTrap } from "@jini-ai/ui/panel-kit";
@@ -29,28 +14,11 @@ import { ExternalMcpToolsModal } from "@jini-ai/admin/screens/settings/ExternalM
 import { useExternalMcpToolsModalEscape } from "@jini-ai/admin/screens/settings/ExternalMcpToolsModal.hooks";
 import { useT as useKitT } from "@jini-ai/admin/react/kit";
 import { EXTERNAL_MCP_PICKER_COLLABORATORS } from "./hooks/use-external-mcp-tool-picker.hooks";
-import { parseSavedToolNames } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
-import {
-  useExternalMcpAddForm,
-  useExternalMcpDriftCopy,
-} from "./ExternalMcpSettingsPanel.hooks";
+import { useExternalMcpAddForm, useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
-
 import { EXTERNAL_MCP_PRODUCT_VARS } from "../../integrations/jini-admin/settings-external-mcp-copy";
 import { useHostExternalMcpOAuthConnect } from "../../integrations/jini-admin/settings-external-mcp-oauth-connect.hooks";
-import { buildExternalMcpRemoveConfirmCopy, isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "@jini-ai/admin/screens/settings/rules";
-
-import { type Translate } from '@jini-ai/core/text';
-/**
- * Mirrors `@jini-ai/ui`'s own `source-config-list/constants.ts`'s `DRAFT_TEST_SCOPE` — the pseudo-id
- * that feature's `useSourceConfigList().test`/`.isPending`/`.testResults` key a "test before save"
- * call on, for the add-form's still-unsaved draft. Not part of that package's public barrel (only
- * `MASK_CHAR` and its two siblings are re-exported from `constants.ts`), so it is restated here
- * rather than imported — same restatement `use-external-mcp.hooks.ts`'s own header describes for
- * `SourceUpdateInput`. Must keep matching the private constant it mirrors; `ExternalMcpTab.tsx` in
- * Jini is the source of truth for the literal value.
- */
-const DRAFT_TEST_SCOPE = "__draft__";
+import { buildExternalMcpRemoveConfirmCopy, isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode, buildExternalMcpCardHandles, resolveExternalMcpEffectiveTransport } from "@jini-ai/admin/screens/settings/rules";
 
 /**
  * @file Tovu's own replacement for `@jini-ai/ui`'s assembled `ExternalMcpTab`, mounted by
@@ -153,478 +121,32 @@ const DRAFT_TEST_SCOPE = "__draft__";
  * server's tools.
  */
 
-/** The "Add server" form, split out from `ExternalMcpSettingsPanel` purely to keep that
- *  component's own cognitive complexity under the gate — same conditional rendering, same two
- *  presence-only prop spreads (`submitError`, the draft's own `testResult`), just out of the
- *  parent's nesting scope. `null` while the form is closed, same as the inline ternary it replaces. */
-function ExternalMcpAddFormSection(props: {
-  t: (key: string) => string;
-  open: boolean;
-  fieldSpecs: ReturnType<typeof buildExternalMcpFieldSpecs>;
-  addForm: ReturnType<typeof useWiredSourceConfigAddForm<SourceConfigItem>>;
-  canTest: boolean;
-  testing: boolean;
-  testResult: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>["testResults"][string];
-  onTest: () => void;
-  onCancel: () => void;
-}) {
-  if (!props.open) return null;
-  const { t, fieldSpecs, addForm, canTest, testing, testResult, onTest, onCancel } = props;
-  return (
-    <SourceConfigAddForm
-      fieldSpecs={fieldSpecs}
-      values={addForm.values}
-      validation={addForm.validation}
-      submitAttempted={addForm.submitAttempted}
-      submitting={addForm.submitting}
-      {...(addForm.submitError ? { submitError: addForm.submitError } : {})}
-      onFieldChange={addForm.setField}
-      onSubmit={() => void addForm.submit()}
-      canTest={canTest}
-      testing={testing}
-      {...(testResult ? { testResult } : {})}
-      onTest={onTest}
-      addLabel="Add server"
-      agentHandle={EXTERNAL_MCP_ADD_FORM_HANDLE}
-      onCancel={onCancel}
-    />
-  );
-}
+export const hooks: ExternalMcpSettingsPanelProps["hooks"] = {
+  useTHook: useT,
+  useExternalMcpDriftCopyHook: useExternalMcpDriftCopy,
+  useWiredSourceConfigListHook: useWiredSourceConfigList,
+  useExternalMcpAddFormHook: useExternalMcpAddForm,
+  useSavedAllowedToolNamesByIdHook: useSavedAllowedToolNamesById,
+  useExternalMcpAdmissionsHook: useWiredExternalMcpAdmissions,
+  useConnect: useHostExternalMcpOAuthConnect,
+  useKitT, useFocusTrap, useExternalMcpToolsModalEscape,
+  useExternalMcpRemoveConfirm, useHostExternalMcpSharedChoice,
+};
 
-/** The unmodified `SourceConfigItemCard`, exactly as it rendered before the Connection/Tools tab
- *  split ever existed (and still does — see this file's "Per-server Tools modal" header, the modal
- *  replaced the TABS, not this card). Split into its own component so its `testResult`
- *  presence-spread is not a conditional expression NESTED inside {@link ExternalMcpSourceRow}'s own
- *  JSX — `sonarjs/no-nested-conditional`'s complaint about the shape, not about anything the values
- *  do. */
-function ExternalMcpConnectionCard({ useExternalMcpDriftCopyHook = useExternalMcpDriftCopy, ...props }: {
-  source: SourceConfigItem;
-  cardHandle: string;
-  fieldSpecs: ReturnType<typeof buildExternalMcpFieldSpecs>;
-  list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
-  onRequestRemove: (sourceId: string) => void; useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy;
-}) {
-  const { source, cardHandle, fieldSpecs, list, onRequestRemove } = props;
-  const testResult = list.testResults[source.id];
-  const tBuiltIn = useExternalMcpDriftCopyHook();
-  if (isBuiltInExternalMcpSource({ source })) {
-    // Same head-row shape as `SourceConfigItemCard` (toggle, name, then a small badge and ⓘ), minus
-    // Remove and the expandable fields: a built-in connection is the host's, not the operator's.
-    const label = sourceDisplayLabel({ source, fieldSpecs });
-    const enableLabel = tBuiltIn("Enable {name}").replace("{name}", () => label);
-    return (
-      <div className="source-config-item-card external-mcp-builtin-card" role="region" aria-label={label} {...agentHandle({ handle: cardHandle }, { role: "region", label })}>
-        <div className="source-config-item-card-head">
-          <label className="source-config-item-card-enabled-toggle" title={enableLabel}>
-            <input type="checkbox" aria-label={enableLabel} {...agentHandle({ handle: `${cardHandle}-enabled` }, { role: "checkbox", label: enableLabel })} checked={source.enabled} disabled={list.isPending(source.id, "update")} onChange={(event) => void list.update(source.id, { enabled: event.target.checked })} />
-          </label>
-          <span className="external-mcp-builtin-summary">
-            <span className="source-config-item-card-label">{label}</span>
-            <span className="external-mcp-builtin-badge">{tBuiltIn("Built-in")}</span>
-            <InfoTip
-              label={tBuiltIn("Lets this site's assistant list your other {productName} sites, add a site pointer, and reveal a site folder.").replace("{productName}", () => EXTERNAL_MCP_PRODUCT_VARS.productName)}
-              triggerLabel={tBuiltIn("About {name}").replace("{name}", () => label)}
-              agentHandle={`${cardHandle}-info`}
-            />
-          </span>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <SourceConfigItemCard
-      source={source}
-      agentHandle={cardHandle}
-      fieldSpecs={fieldSpecs}
-      capabilities={list.capabilities}
-      removing={list.isPending(source.id, "remove")}
-      refreshing={list.isPending(source.id, "refresh")}
-      settingTrust={list.isPending(source.id, "trust")}
-      testing={list.isPending(source.id, "test")}
-      updating={list.isPending(source.id, "update")}
-      onRefresh={() => void list.refresh(source.id)}
-      onRemove={() => onRequestRemove(source.id)}
-      onTest={() => void list.test(source.id)}
-      onUpdate={(patch) => void list.update(source.id, patch)}
-      {...(testResult ? { testResult } : {})}
-    />
-  );
-}
+export const kit: ExternalMcpSettingsPanelProps["kit"] = {
+  Icon, InfoTip, SourceConfigAddForm, SourceConfigItemCard,
+  ExternalMcpSharedChoice, ExternalMcpToolsModal, ExternalMcpRemoveConfirmDialog,
+  ConfirmActionDialog,
+};
 
-/** The "Connect" button for an OAuth row that isn't signed in (2026-10-23). It disappears once the
- *  roster re-reads the row as `connected` — see Jini's `useExternalMcpOAuthConnect` for the flow. While a
- *  sign-in is in flight it stays put, disabled, with the same label (no width jump); the line under
- *  the row says what it is waiting on. */
-function ExternalMcpConnectButton(props: { cardHandle: string; rowLabel: string; busy: boolean; tDrift: Translate; onConnect: () => void }) {
-  const { cardHandle, rowLabel, busy, tDrift, onConnect } = props;
-  const label = tDrift("Sign in to {name}").replace("{name}", () => rowLabel);
-  return (
-    <button
-      type="button"
-      className="external-mcp-source-connect"
-      onClick={onConnect}
-      disabled={busy}
-      aria-label={label}
-      {...agentHandle({ handle: `${cardHandle}-connect` }, { role: "button", label })}
-    >
-      {tDrift("Connect")}
-    </button>
-  );
-}
+export const deps: ExternalMcpSettingsPanelProps["deps"] = {
+  buildExternalMcpCardHandles, buildExternalMcpFieldSpecs, sourceDisplayLabel,
+  isBuiltInExternalMcpSource, externalMcpNeedsSignIn,
+  resolveExternalMcpEffectiveTransport, resolveExternalMcpEffectiveAuthMode,
+  parseSavedToolNames, grantWriteFieldValue, describeDriftHeadline,
+  buildExternalMcpRemoveConfirmCopy, EXTERNAL_MCP_DRIFT_COPY,
+  EXTERNAL_MCP_PICKER_COLLABORATORS, EXTERNAL_MCP_PRODUCT_VARS,
+  EXTERNAL_MCP_ADD_FORM_HANDLE,
+};
 
-/** The verification page's host, for the device-code line; the raw string if it won't parse. */
-function displayHost({ uri }: { uri: string }, _options = {}): string {
-  try { return new URL(uri).host; } catch { return uri; }
-}
-
-/** The line under a row while sign-in is in flight, or why it failed. `null` when there is
- *  nothing to say. */
-function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useHostExternalMcpOAuthConnect>["state"]; tDrift: Translate; onCancel: () => void }) {
-  const { state, tDrift, onCancel } = props;
-  if (state.phase === "idle") {
-    return state.error ? <p className="external-mcp-connect-status external-mcp-connect-status--error" role="alert">{state.error}</p> : null;
-  }
-  if (state.phase === "starting") return null;
-  return (
-    <p className="external-mcp-connect-status" role="status">
-      {state.phase === "device" ? (
-        <span>
-          {tDrift("Enter this code on the sign-in page:")} <code>{state.userCode}</code>{" "}
-          <a href={state.verificationUri} target="_blank" rel="noreferrer">{displayHost({ uri: state.verificationUri })}</a>
-        </span>
-      ) : (
-        <span>{tDrift("Finish signing in in the new window.")}</span>
-      )}
-      <button type="button" className="external-mcp-connect-cancel" onClick={onCancel}>{tDrift("Cancel")}</button>
-    </p>
-  );
-}
-
-/** One server's row: the (unmodified) card plus a Tovu-owned "Tools" button that opens
- *  {@link ExternalMcpToolsModal} — see this file's own "Per-server Tools modal" header. Split out of
- *  {@link ExternalMcpSourcesSection}'s own `.map()` for the same complexity-budget reason as
- *  {@link ExternalMcpAddFormSection} above. Owns its own modal-open state: whether an operator has
- *  THIS server's tools open has no bearing on any other server or on the rest of the panel. `tDrift`
- *  is still threaded through despite this row no longer rendering a `TabBar` itself — kept as a
- *  parameter (rather than dropped and re-added) because {@link ExternalMcpToolsModal} needs the same
- *  translator for its own "Tools" kicker and calls it itself; this row has no copy of its own left
- *  to translate. */
-function ExternalMcpSourceRow({ useConnect = useHostExternalMcpOAuthConnect, ...props }: {
-  source: SourceConfigItem;
-  cardHandle: string;
-  list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
-  tDrift: Translate;
-  /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
-   *  see this file's own "Remove asks first" header note. */
-  onRequestRemove: (sourceId: string) => void;
-  /** Test seam for the sign-in flow. */
-  useConnect?: typeof useHostExternalMcpOAuthConnect;
-}) {
-  const { source, cardHandle, list, tDrift, onRequestRemove } = props;
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, { t: tDrift });
-  // The SAVED count, not the picker's own draft — see this file's header on why.
-  const enabledToolCount = parseSavedToolNames({ value: source.fields["allowedToolNames"] }).length;
-  const rowLabel = sourceDisplayLabel({ source, fieldSpecs });
-  // Idle (no listeners, no timers) for every row until its Connect is pressed.
-  const signIn = useConnect(
-    { serverId: source.id, grant: source.fields["oauthGrant"] ?? "", onConnected: () => void list.reload() },
-    { fallbackError: tDrift("Sign-in could not start.") },
-  );
-  const showConnect = externalMcpNeedsSignIn({ source }) || signIn.state.phase !== "idle";
-
-  return (
-    <div className="external-mcp-source">
-      <div className="external-mcp-source-row">
-        <div className="external-mcp-source-card">
-          <ExternalMcpConnectionCard
-            source={source}
-            cardHandle={cardHandle}
-            fieldSpecs={fieldSpecs}
-            list={list}
-            onRequestRemove={onRequestRemove}
-          />
-        </div>
-        {showConnect ? (
-          <ExternalMcpConnectButton
-            cardHandle={cardHandle}
-            rowLabel={rowLabel}
-            busy={signIn.state.phase !== "idle"}
-            tDrift={tDrift}
-            onConnect={() => void signIn.connect()}
-          />
-        ) : null}
-        <button
-          type="button"
-          className="external-mcp-source-tools-open"
-          onClick={() => setToolsOpen(true)}
-          // A real `aria-label`, not just `agentHandle`'s own `label` (which only emits
-          // `data-agent-label` — agent-facing metadata, invisible to `getByRole`/screen readers, per
-          // `ToolPickerRowItem`'s own header note on the identical gap). This button's own visible
-          // text is just "Tools" plus the bare count badge, which names neither the server nor what
-          // the number means on its own — mirrors `SourceConfigItemCard`'s own enable-toggle
-          // (`enabledLabel` set as BOTH `aria-label` and the agentHandle `label`, from `@jini-ai/ui`'s
-          // own source) rather than inventing a new convention.
-          aria-label={`Open tool permissions for ${rowLabel} — ${enabledToolCount} enabled`}
-          {...agentHandle({ handle: `${cardHandle}-tools-open` }, {
-            role: "button",
-            label: `Open tool permissions for ${rowLabel} — ${enabledToolCount} enabled`,
-          })}
-        >
-          <span>{tDrift("Tools")}</span>
-          <span className="external-mcp-source-tools-count">{enabledToolCount}</span>
-        </button>
-      </div>
-      <ExternalMcpConnectStatus state={signIn.state} tDrift={tDrift} onCancel={signIn.cancel} />
-      {source.fields["authMode"] === "oauth" && source.fields["transport"] !== "stdio" && <ExternalMcpSharedChoice serverId={source.id} busy={signIn.state.phase !== "idle"}
-        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} t={tDrift} useExternalMcpSharedChoiceHook={useHostExternalMcpSharedChoice} />}
-
-      {toolsOpen ? (
-        <ExternalMcpToolsModal
-          name={rowLabel}
-          cardHandle={cardHandle}
-          onClose={() => setToolsOpen(false)}
-          serverId={source.id}
-          connectionEnabled={source.enabled ?? true}
-          allowedToolNames={source.fields["allowedToolNames"]}
-          writeAllowedToolNames={source.fields["writeAllowedToolNames"]}
-          saving={list.isPending(source.id, "update")}
-          onSave={(fields) => void list.update(source.id, { fields })}
-          useExternalMcpToolsModalEscapeHook={useExternalMcpToolsModalEscape}
-          useTHook={useKitT}
-          useExternalMcpDriftCopyHook={useExternalMcpDriftCopy}
-          pickerCollaborators={EXTERNAL_MCP_PICKER_COLLABORATORS}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-/** The loading / empty-state / configured-server-list body, split out for the same
- *  complexity-budget reason as {@link ExternalMcpAddFormSection} above — the triple-branch
- *  loading/empty/list ternary was the parent's deepest nesting. Each configured server is now one
- *  {@link ExternalMcpSourceRow}, which owns the per-card `testResult` presence-spread and its own
- *  Tools-modal-open state. */
-function ExternalMcpSourcesSection(props: {
-  list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
-  cardHandles: string[];
-  t: Translate;
-  tDrift: Translate;
-  /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
-   *  see this file's own "Remove asks first" header note. */
-  onRequestRemove: (sourceId: string) => void;
-}) {
-  const { list, cardHandles, t, tDrift, onRequestRemove } = props;
-
-  if (list.loading) {
-    return (
-      <div className="source-config-list-loading" role="status">
-        {t("Loading…")}
-      </div>
-    );
-  }
-
-  if (list.sources.length === 0) {
-    return (
-      <div className="external-mcp-empty">
-        <p className="external-mcp-empty-title">{t("No MCP servers configured.")}</p>
-        <p className="external-mcp-empty-hint">
-          {t('Click "Add server" to get started — pick a local command or a hosted server.')}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="source-config-list-items">
-      {list.sources.map((source, index) => (
-        <ExternalMcpSourceRow
-          key={source.id}
-          source={source}
-          cardHandle={cardHandles[index]}
-          list={list}
-          tDrift={tDrift}
-          onRequestRemove={onRequestRemove}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** The remove-confirmation dialog, split out for the same complexity-budget reason as
- *  {@link ExternalMcpAddFormSection}/{@link ExternalMcpSourcesSection} above. Renders nothing until
- *  `confirmRemoveId` names a still-configured source — cleared (by the panel) the instant Confirm
- *  or Cancel resolves, so a stale id from a source removed some other way (e.g. a second tab)
- *  degrades to "no dialog" rather than throwing on a missing source. */
-function ExternalMcpRemoveConfirmSection(props: {
-  confirmRemoveId: string | null;
-  sources: readonly SourceConfigItem[];
-  cardHandles: string[];
-  t: ReturnType<typeof useT>;
-  tDrift: Translate;
-  onConfirm: (sourceId: string) => void;
-  onCancel: () => void;
-}) {
-  const { confirmRemoveId, sources, cardHandles, tDrift, onConfirm, onCancel } = props;
-  if (confirmRemoveId === null) return null;
-  const index = sources.findIndex((source) => source.id === confirmRemoveId);
-  if (index === -1) return null;
-  const source = sources[index];
-
-  return (
-    <ExternalMcpRemoveConfirmDialog
-      name={sourceDisplayLabel({ source, fieldSpecs: buildExternalMcpFieldSpecs(source.fields, { t: tDrift }) })}
-      isOAuth={resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth"}
-      cardHandle={cardHandles[index]}
-      onConfirm={() => onConfirm(source.id)}
-      onCancel={onCancel}
-      t={tDrift}
-      ConfirmDialog={ConfirmActionDialog}
-      buildCopy={buildExternalMcpRemoveConfirmCopy}
-      useExternalMcpRemoveConfirmHook={useExternalMcpRemoveConfirm}
-      useFocusTrapHook={useFocusTrap}
-    />
-  );
-}
-
-export interface ExternalMcpSettingsPanelProps {
-  dependencies: SourceConfigDependencies<SourceConfigItem>;
-  /** Test seam for the admissions reads; removal still uses the panel's existing list port. */
-  useExternalMcpAdmissionsHook?: typeof useWiredExternalMcpAdmissions;
-  /** Footer save-status pill text (e.g. the restart notice). Omit to render no footer at all. */
-  saveStatusLabel?: string;
-  /** Whether to render the "External MCP servers" heading. Defaults to `true` (this panel's
-   *  original, standalone-tab rendering). `Providers.tsx` passes `false`: on that screen this panel
-   *  already mounts under a `TabBar` tab labelled "External MCP", so the heading directly under it
-   *  was a duplicate of the tab an operator just clicked, not new information. The subtitle
-   *  ("Third-party tools for your coding agent.") renders regardless of this prop — it is the only
-   *  place that explains what this specific tab configures; `Providers.tsx`'s own page-level
-   *  description covers all four of its tabs, not this one alone. */
-  showTitle?: boolean;
-  useTHook?: typeof useT;
-  useWiredSourceConfigListHook?: typeof useWiredSourceConfigList;
-  useExternalMcpAddFormHook?: typeof useExternalMcpAddForm;
-  useSavedAllowedToolNamesByIdHook?: typeof useSavedAllowedToolNamesById;
-  useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy;
-}
-
-export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true, useExternalMcpAdmissionsHook = useWiredExternalMcpAdmissions,
-  useTHook = useT,
-  useWiredSourceConfigListHook = useWiredSourceConfigList,
-  useExternalMcpAddFormHook = useExternalMcpAddForm,
-  useSavedAllowedToolNamesByIdHook = useSavedAllowedToolNamesById,
-  useExternalMcpDriftCopyHook = useExternalMcpDriftCopy }: ExternalMcpSettingsPanelProps) {
-  const t = useTHook();
-  // The id of the source Remove was pressed for, until Confirm or Cancel resolves it — see this
-  // file's own "Remove asks first" header note. `null` means no confirmation dialog is open.
-  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
-  const list = useWiredSourceConfigListHook<SourceConfigItem>({ dependencies });
-  // The "Add server" form: open state, draft, and the lagged field-spec sync this file's header
-  // describes — all owned by the hook.
-  const { formOpen, toggleForm, cancelForm, fieldSpecs: addFormFieldSpecs, addForm } = useExternalMcpAddFormHook({
-    dependencies,
-    list,
-  });
-
-  const banner = list.error;
-  const cardHandles = resolveExternalMcpCardHandles({ sources: list.sources, buildHandles: buildExternalMcpCardHandles });
-
-  // What the RUNNING assistant admitted, as opposed to what this tab saved — two different objects,
-  // because `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
-  // existed the gap was visible only in the daemon's boot terminal.
-  const savedAllowedToolNamesById = useSavedAllowedToolNamesByIdHook({ sources: list.sources, resolveTransport: resolveExternalMcpEffectiveTransport, needsSignIn: externalMcpNeedsSignIn });
-  const admissions = useExternalMcpAdmissionsHook(savedAllowedToolNamesById);
-  const tDrift = useExternalMcpDriftCopyHook();
-
-  return (
-    <section className="external-mcp-tab">
-      <ExternalMcpSettingsHeader showTitle={showTitle} t={t} tDrift={tDrift} toggleForm={toggleForm} formOpen={formOpen} banner={banner} />
-
-      <ExternalMcpAddFormSection
-        t={t}
-        open={formOpen}
-        fieldSpecs={addFormFieldSpecs}
-        addForm={addForm}
-        canTest={list.capabilities.canTest}
-        testing={list.isPending(DRAFT_TEST_SCOPE, "test")}
-        testResult={list.testResults[DRAFT_TEST_SCOPE]}
-        onTest={() => void list.test(undefined, addForm.values)}
-        // Cancel discards the draft, not just hides it — see `useExternalMcpAddForm`'s `cancelForm`.
-        onCancel={cancelForm}
-      />
-
-      <ExternalMcpAdmissionsBanner describeHeadline={(required) => describeDriftHeadline({ ...required, copy: EXTERNAL_MCP_DRIFT_COPY })}
-        controller={admissions}
-        t={tDrift}
-        onRequestRemove={setConfirmRemoveId}
-        onAllowWrite={(connectionId, remoteName) => {
-          const patch = buildAllowWritePatch({ sources: list.sources, connectionId, remoteName, grantWriteFieldValue });
-          if (patch) void list.update(connectionId, patch);
-        }}
-      />
-
-      <ExternalMcpSourcesSection
-        list={list}
-        cardHandles={cardHandles}
-        t={t}
-        tDrift={tDrift}
-        onRequestRemove={setConfirmRemoveId}
-      />
-
-      <ExternalMcpRemoveConfirmSection
-        confirmRemoveId={confirmRemoveId}
-        sources={list.sources}
-        cardHandles={cardHandles}
-        t={t}
-        tDrift={tDrift}
-        onConfirm={(sourceId) => {
-          setConfirmRemoveId(null);
-          void list.remove(sourceId);
-        }}
-        onCancel={() => setConfirmRemoveId(null)}
-      />
-
-      {saveStatusLabel ? (
-        <div className="external-mcp-footer">
-          <span className="external-mcp-save-pill">{t(saveStatusLabel)}</span>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function ExternalMcpSettingsHeader({ showTitle, t, tDrift, toggleForm, formOpen, banner }: {
-  showTitle: boolean; t: ReturnType<typeof useT>; tDrift: Translate;
-  toggleForm: ReturnType<typeof useExternalMcpAddForm>['toggleForm']; formOpen: boolean;
-  banner: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>['error'];
-}) {
-  return <>
-      <div className="external-mcp-head">
-        <div>
-          {showTitle ? <h3>{t("External MCP servers")}</h3> : null}
-          {/* i18n sweep 2026-09-22: this string has no key anywhere in `@jini-ai/ui`'s own
-              `SETTINGS_DIALOG_DICTIONARIES` (what `t` above resolves against via the nearest
-              `I18nProvider` in `Providers.tsx`), so it rendered English in every locale. It is
-              this file's own copy, not the package's, so it now reads through `tDrift`
-              (`external-mcp-i18n.ts`'s `EXTERNAL_MCP_DICT`, which carries all 21 translations)
-              instead of the package's translator. */}
-          <p className="external-mcp-subtitle">{tDrift("Third-party tools for your coding agent.")}</p>
-        </div>
-        <button
-          type="button"
-          className="external-mcp-add-button"
-          onClick={toggleForm}
-          aria-expanded={formOpen}
-        >
-          <Icon name="plus" size={14} />
-          <span>{t("Add server")}</span>
-        </button>
-      </div>
-
-      {banner ? (
-        <div className="external-mcp-banner" role="alert">
-          {t(banner)}
-        </div>
-      ) : null}
-  </>;
-}
+export const ExternalMcpSettingsPanel = bindExternalMcpSettingsPanel({ hooks, kit, deps });

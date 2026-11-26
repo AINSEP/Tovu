@@ -8,7 +8,8 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminRemoteToolSurfaceEntry } from "@jini-ai/core/contracts/hosted-mcp";
 
-import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
+import { ExternalMcpSettingsPanel } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel";
+import { hooks as panelHooks, kit as panelKit, deps as panelDeps } from "../ExternalMcpSettingsPanel";
 
 /**
  * @file Regression test for the property the whole External MCP agent-control feature rests on:
@@ -65,7 +66,7 @@ function renderPanel(sources: SourceConfigItem[] = []) {
   return {
     ...render(
       <FetchQueryProvider>
-        <ExternalMcpSettingsPanel dependencies={dependencies} />
+        <ExternalMcpSettingsPanel dependencies={dependencies} hooks={panelHooks} kit={panelKit} deps={panelDeps} />
       </FetchQueryProvider>,
     ),
     dependencies,

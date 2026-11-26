@@ -6,7 +6,8 @@ import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 
-import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
+import { ExternalMcpSettingsPanel } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel";
+import { hooks as panelHooks, kit as panelKit, deps as panelDeps } from "../ExternalMcpSettingsPanel";
 import type { ExternalMcpAdmissionsController } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
 import type { AdmissionDriftConnection } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 
@@ -32,7 +33,7 @@ function renderPanel() {
   // exactly the behaviour under test elsewhere and is invisible to the field assertions below.
   return render(
     <FetchQueryProvider>
-      <ExternalMcpSettingsPanel dependencies={dependencies} />
+      <ExternalMcpSettingsPanel dependencies={dependencies} hooks={panelHooks} kit={panelKit} deps={panelDeps} />
     </FetchQueryProvider>,
   );
 }
@@ -172,7 +173,7 @@ function renderPanelWithSources(sources: SourceConfigItem[]) {
   const removeSource = vi.spyOn(dependencies.port, "removeSource");
   const rendered = render(
     <FetchQueryProvider>
-      <ExternalMcpSettingsPanel dependencies={dependencies} />
+      <ExternalMcpSettingsPanel dependencies={dependencies} hooks={panelHooks} kit={panelKit} deps={panelDeps} />
     </FetchQueryProvider>,
   );
   return { ...rendered, removeSource };
@@ -349,7 +350,8 @@ describe("ExternalMcpSettingsPanel — card actions, draft test, failures and wr
           dependencies={dependencies}
           {...(input.showTitle === undefined ? {} : { showTitle: input.showTitle })}
           {...(input.saveStatusLabel === undefined ? {} : { saveStatusLabel: input.saveStatusLabel })}
-          useExternalMcpAdmissionsHook={(saved) => { savedIntents.push(saved); return idleAdmissions(input.connections); }}
+          kit={panelKit} deps={panelDeps}
+          hooks={{ ...panelHooks, useExternalMcpAdmissionsHook: (saved) => { savedIntents.push(saved); return idleAdmissions(input.connections); } }}
         />
       </FetchQueryProvider>,
     );
