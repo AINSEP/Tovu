@@ -1,4 +1,5 @@
 import { buildPublishContentRegistrations as build } from "@jini-ai/cms/publish/content/tool-registrations";
+import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan } from "#src/contracts/core/gated-mutations/gateway";
 import { publishContentDerivedRisk } from "@jini-ai/cms/publish/content/tool-helpers";
 import type { PublishContentToolDeps } from "./tool-deps.js";
 import type { ToolContributor } from "@jini-ai/core";
@@ -16,8 +17,11 @@ import { publishContentFromTool } from "./publish-tool.js";
 import { buildPublishContentCatalog, listPublishContentContributors } from "./type-registry.js";
 import type { PublishContentDeps } from "./type-registry.js";
 
+/** Tovu's gated-mutation gateway (its own token store and TTL), handed to Jini as the host gateway. */
+const TOVU_GATEWAY = { plan: gatewayPlan, confirm: gatewayConfirm, execute: gatewayExecute };
+
 export function buildPublishContentRegistrations({ routeDeps, surfaces }: { routeDeps: PublishContentToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}) {
-  return build({ routeDeps: { ...routeDeps, catalog: publishContentAgentToolCatalog, readinessCopy: PUBLISH_READINESS_COPY,
+  return build({ routeDeps: { ...routeDeps, catalog: publishContentAgentToolCatalog, gateway: TOVU_GATEWAY, readinessCopy: PUBLISH_READINESS_COPY,
     listPublishContentContributors, buildPublishContentCatalog, planHashOf, resolveActorClassIdentity, publishTrustProtocol: PUBLISH_TRUST_WIRE,
     humanConfirmedToolHandler, refuseUnexpectedKeys, isPluginHookFailedError: error => error instanceof PluginHookFailedError,
     toModelFacingPluginHookError: ({ err }) => toModelFacingPluginHookError({ err: err as PluginHookFailedError }),
