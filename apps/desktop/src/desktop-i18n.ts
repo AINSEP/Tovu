@@ -1,3 +1,5 @@
+import { resolveSystemLocale } from '@jini-ai/ui/core';
+
 /** Copy for this desktop feature, in every locale supported by Tovu's admin. */
 export interface DesktopCopy {
   settings: string;
@@ -156,14 +158,15 @@ export function runtimeLocale(
 }
 
 /** Preserve regional matching and Chinese-script fallback for this desktop's copy tables. */
+/** Exact (case-insensitive, `_` or `-`) row first, then the Chinese script/region mapping; any other
+ *  tag goes through the shared resolver, whose base-language match sends a region with no row of its own
+ *  to that language's row (`pt-PT` -> `pt-BR`) instead of a bare `pt` key that has none. */
 function desktopLocaleKey({ locale }: { locale: string }): string {
   const normalized = locale.replace(/_/g, '-');
-  let key = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase());
-  if (key === undefined) {
-    key = normalized.split('-')[0] ?? 'en';
-    if (normalized.toLowerCase().startsWith('zh')) key = /tw|hk|hant/i.test(normalized) ? 'zh-TW' : 'zh-CN';
-  }
-  return key;
+  const exact = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase());
+  if (exact !== undefined) return exact;
+  if (normalized.toLowerCase().startsWith('zh')) return /tw|hk|hant/i.test(normalized) ? 'zh-TW' : 'zh-CN';
+  return resolveSystemLocale({ languages: [normalized], supportedLocales: Object.keys(COPY) }, {}) ?? 'en';
 }
 
 export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}): DesktopCopy {
