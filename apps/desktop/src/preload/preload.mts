@@ -65,6 +65,7 @@ import {
 import type { RunnerSectionId } from '../contracts/sections.js';
 import { IMPORT_HANDOFF_CHANNELS, type ImportHandoffRequest } from '../contracts/import-handoff.js';
 import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from '../contracts/product-telemetry.js';
+import { STORAGE_SHEET_ENABLED, createStorageSheetBridge } from '../contracts/storage-sheet.js';
 
 /**
  * Jini's subscriber drops the raw IPC event and returns a cleanup that removes exactly this
@@ -87,6 +88,11 @@ const ownerStoreBridge: OwnerStoreBridge = {
   disconnect: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.disconnect, input),
 };
 contextBridge.exposeInMainWorld('tovuOwnerStore', Object.freeze(ownerStoreBridge));
+// P11 ST-18a.T desktop Storage sheet: three fixed channels, each payload rebuilt from its named fields
+// (no generic invoke). DARK — with STORAGE_SHEET_ENABLED off the page gets no `tovuStorageSheet` at all.
+if (STORAGE_SHEET_ENABLED) {
+  contextBridge.exposeInMainWorld('tovuStorageSheet', Object.freeze(createStorageSheetBridge({ invoke: (channel, payload) => ipcRenderer.invoke(channel, payload) })));
+}
 contextBridge.exposeInMainWorld('tovuTelemetry', Object.freeze({
   report: ({ payload }: { payload: ShellTelemetryPayload }, _options = {}) => ipcRenderer.send(PRODUCT_TELEMETRY_CHANNEL, payload),
 }));
