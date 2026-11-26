@@ -2,7 +2,8 @@ import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
@@ -11,7 +12,7 @@ import { createUserTrashAdapter } from "../adapters/user.js";
 /**
  * @file The user `TrashAdapter` on every dialect the storage kernel drives — ONE query body: hide
  * (disable + revoke sessions + trashed event), unhide (back to the prior status + restored event),
- * purge (refuses a live principal, then delegates to the real `SqlUserPurge`), and rollback of each
+ * purge (refuses a live principal, then delegates to the real `KernelUserPurge` (`@jini-ai/user-management/identity/sql/kernel-user-purge`)), and rollback of each
  * write when its outbox insert fails. The identity-service flows around it stay in
  * `user-adapter.test.ts` (SQLite).
  */
@@ -61,7 +62,7 @@ async function events(kernel: ContentKernel): Promise<{ name: string; actorId?: 
 }
 
 function adapterFor(kernel: ContentKernel, idGen: { next(): string } = counter()) {
-  return createUserTrashAdapter({ eventValues: outboxEventValues, db: kernel, purge: new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues }), idGen, clock: { nowIso: () => AT } });
+  return createUserTrashAdapter({ eventValues: outboxEventValues, db: kernel, purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues }), idGen, clock: { nowIso: () => AT } });
 }
 
 function counter(): { next(): string } {
@@ -115,7 +116,7 @@ describeEachDialect("user trash adapter", { tables: TABLES, make: (kernel: Conte
     );
   });
 
-  test("purge refuses a live principal, deletes a hidden one through SqlUserPurge, then reports already-gone", async () => {
+  test("purge refuses a live principal, deletes a hidden one through KernelUserPurge, then reports already-gone", async () => {
     const kernel = make();
     await seedUser(kernel, "u-1", "departing");
     const user = adapterFor(kernel);

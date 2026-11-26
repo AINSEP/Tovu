@@ -5,7 +5,8 @@ import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
@@ -105,7 +106,7 @@ export function composeTrashAdapters(required: ComposeTrashAdaptersRequired, _op
         // A fresh instance, not `identity.userPurge` (removed — see `wiring.ts`'s
         // `IdentityRouteDepsSlice.removeUser` doc): `purge`'s hard-delete is now reached only
         // through this adapter's own `purge()`, never directly from the route layer.
-        purge: new SqlUserPurge({ kernel, eventValues: outboxEventValues }),
+        purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues }),
         idGen: { next: () => randomUUID() },
         clock,
       }),

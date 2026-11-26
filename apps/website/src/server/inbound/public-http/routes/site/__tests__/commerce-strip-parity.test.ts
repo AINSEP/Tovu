@@ -17,7 +17,8 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildRouteManifest } from "#src/features/site-export/route-manifest";
 import { collectTransferTables } from "#src/features/database-transfer/table-catalog";
 import { classifyAllCoreColumns } from "#src/platform/db/migration/manifest";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
@@ -203,7 +204,7 @@ describeEachDialect("trash and purge on a database migrated past 0011", { tables
     const kernel = make();
     await seed(kernel);
     let n = 0;
-    const user = createUserTrashAdapter({ eventValues: outboxEventValues, db: kernel, purge: new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues }), idGen: { next: () => `evt-${++n}` }, clock: { nowIso: () => AT } });
+    const user = createUserTrashAdapter({ eventValues: outboxEventValues, db: kernel, purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues }), idGen: { next: () => `evt-${++n}` }, clock: { nowIso: () => AT } });
 
     assert.equal((await user.hide({ workspaceId: WS, entityId: "u-1", at: AT, expectedVersion: null })).ok, true);
     assert.equal(await user.purge({ workspaceId: WS, entityId: "u-1", expectedVersion: null }), "purged");

@@ -2,8 +2,9 @@
 
 ## Wiring
 
-- `user-purge.ts`'s `SqlUserPurge` is the `UserPurgePort` adapter; the host builds it from the
-  composed content kernel (`new SqlUserPurge({ kernel, eventValues })`) in
+- The `UserPurgePort` adapter is Jini's `KernelUserPurge` (`@jini-ai/user-management/identity/sql/kernel-user-purge`,
+  moved from this folder in merge-25); the host builds it from the composed content kernel
+  (`new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues })`) in
   `server/runtime/composition/site-deps/trash-adapters.ts`. There is no `Sqlite*` alias subclass.
 - `repo.sqlite.ts` binds Tovu's `contentKernel` / `ContentDb` handle to each `Sql*` repo.
 - `repo.sqlite.ts` also binds the role/principal assignment repos from `@jini-ai/user-management/server/sql` (kernel, `createIdentityTransactions`, table names).

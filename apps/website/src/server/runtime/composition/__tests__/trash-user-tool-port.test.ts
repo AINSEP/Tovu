@@ -1,4 +1,4 @@
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
@@ -9,7 +9,7 @@ import { createTrashService, type TrashPort } from "@jini-ai/cms/trash";
 import { assignRole, createUser } from "@jini-ai/user-management/server";
 
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
 import { bindRemoveEntity, createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, type TrashAdapter } from "#src/features/trash/index";
@@ -50,7 +50,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const nextTrashId = counter("trash-id");
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
   const trash: TrashPort = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),

@@ -9,8 +9,8 @@ import test from "node:test";
 import express from "express";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { assertUserAccountAction } from "@jini-ai/user-management/identity/delete-user-service";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createTrashService, bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createUserTrashAdapter, SqliteTrashRepo, createContentDbTransactionRunner } from "#src/features/trash/index";
@@ -38,7 +38,7 @@ async function setup() {
   const ownerId = await identity.ownerPrincipalId;
   const service = identityServiceDepsFrom({ ...identity, clock, idGen });
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: { next: idGen.newId }, clock,
+  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: { next: idGen.newId }, clock,
     assertAccountAction: (required, optional) => identity.transactions.run({ workspaceId, execute: () => assertUserAccountAction({ ...required, deps: service }, { ...optional, seededOwnerPrincipalId: ownerId }) }),
   });
   const trash = createTrashService({ repo: trashRepo, adapters: new Map([["user", adapter]]), idGen,

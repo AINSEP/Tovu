@@ -1,6 +1,6 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "@jini-ai/db/events";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -15,7 +15,7 @@ import {
   createSqliteIdentityRouteDeps,
   type IdentityRouteDepsSlice,
 } from "#src/features/identity/wiring";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
 import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
 import { bindRemoveEntity, createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, type TrashAdapter } from "#src/features/trash/index";
 import { createTrashService } from "@jini-ai/cms/trash";
@@ -88,7 +88,7 @@ async function buildApp(
   const callerId = principalId ?? ownerId;
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),

@@ -1,11 +1,11 @@
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { workspaces } from "../../schema.sqlite.js";
 import { mintToken } from "#src/contracts/core/gated-mutations/token";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
 
 import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
 import { openContentDb } from "../content-db.js";
@@ -148,7 +148,7 @@ test("user purge: the deletes and the audit event survive another caller's rollb
     sessions: db.$client.prepare("SELECT * FROM sessions WHERE principal_id = ?").all(principalId),
   });
   const neighborBefore = snapshot("principal-neighbor");
-  const purge = new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues });
+  const purge = new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues });
   const removed = await writeDuringOthersRollback(db, () =>
     purge.purgeUser({
       workspaceId: WORKSPACE,

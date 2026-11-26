@@ -1,4 +1,4 @@
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "@jini-ai/db/events";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
@@ -10,7 +10,7 @@ import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
 import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo } from "#src/features/trash/index";
 import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
-import { SqlUserPurge } from "#src/features/identity/user-purge";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard, userAccountProtection, SelfDeleteError, type DeleteUserDeps } from "@jini-ai/user-management/identity/delete-user-service";
@@ -82,7 +82,7 @@ async function setup(workspaceId: string): Promise<Fixture> {
   };
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
