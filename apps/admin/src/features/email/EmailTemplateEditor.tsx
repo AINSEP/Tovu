@@ -45,14 +45,14 @@ function Fields(props: { controller: EmailTemplateEditorController; locale: stri
   const missing = new Set(controller.preview.data?.missingFields ?? []);
   const undeclared = new Set(controller.preview.data?.undeclaredFields ?? []);
   return (
-    <details className="email-template-fields" open>
+    <details className="jini-admin-email-template-fields" open>
       <summary className="jini-field-label">{t({ locale, key: "Fill-in fields (preview values)" })}</summary>
       {controller.fieldNames.length === 0 ? (
         <p className="jini-field-hint">{t({ locale, key: "No fill-in fields. Add {{name}} to the HTML to make one." })}</p>
       ) : (
-        <div className="email-template-field-list">
+        <div className="jini-admin-email-template-field-list">
           {controller.fieldNames.map((name) => (
-            <div key={name} className="jini-field email-field">
+            <div key={name} className="jini-field jini-admin-email-field">
               <label className="jini-field-label" htmlFor={`email-template-field-${name}`}>
                 <code>{`{{${name}}}`}</code>
                 {undeclared.has(name) ? <Chip tone="warning">{t({ locale, key: "Not declared" })}</Chip> : null}
@@ -87,7 +87,7 @@ function Preview(props: { controller: EmailTemplateEditorController; view: Email
   const { controller, view, locale } = props;
   const { data, error, pending } = controller.preview;
   return (
-    <div className="email-template-preview">
+    <div className="jini-admin-email-template-preview">
       <Fields controller={controller} locale={locale} />
       {error ? <p className="jini-field-error" role="alert">{t({ locale, key: error })}</p> : null}
       {controller.mode === "sent" ? <p className="jini-field-hint">{t({ locale, key: "Mail apps don't run scripts, so they are removed when it sends." })}</p> : null}
@@ -101,7 +101,7 @@ function Preview(props: { controller: EmailTemplateEditorController; view: Email
             {...agentHandle({ handle: "email-template-preview" }, { role: "region", label: "Live preview of this email" })}
           />
         ) : (
-          <p className="jini-field-hint email-template-empty">{t({ locale, key: pending ? "Loading…" : "Write some HTML to see it here." })}</p>
+          <p className="jini-field-hint jini-admin-email-template-empty">{t({ locale, key: pending ? "Loading…" : "Write some HTML to see it here." })}</p>
         )}
       </DevicePreviewFrame>
     </div>
@@ -126,7 +126,7 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
       <label className="visually-hidden" htmlFor="email-template-name">{t({ locale, key: "Template name" })}</label>
       <input
         id="email-template-name"
-        className="editor-title content-editor-title email-template-name"
+        className="editor-title content-editor-title jini-admin-email-template-name"
         value={controller.name}
         maxLength={200}
         disabled={controller.view.kind !== "loaded"}
@@ -136,9 +136,9 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
         {...agentHandle({ handle: "email-template-name" }, { role: "field", label: "Template name" })}
       />
       {subject ? (
-        <div className="editor-slug email-template-subject">
+        <div className="editor-slug jini-admin-email-template-subject">
           <span>{t({ locale, key: "Subject" })}</span>
-          <span className="email-template-subject-text" title={subject}>{subject}</span>
+          <span className="jini-admin-email-template-subject-text" title={subject}>{subject}</span>
         </div>
       ) : null}
     </div>
@@ -276,7 +276,7 @@ export function EmailTemplateEditor({ useEditorHook = useWiredEmailTemplateEdito
   const view = useEmailTemplateViewHook();
   useEditorKeysHook({ controller, locale });
   return (
-    <div className="page content-editor-page email-template-page">
+    <div className="page content-editor-page jini-admin-email-template-page">
       <Header controller={controller} locale={locale} />
       {controller.renameError ? <p className="jini-field-error" role="alert">{t({ locale, key: controller.renameError })}</p> : null}
       {controller.saveError ? <div className="notice error" role="alert">{t({ locale, key: controller.saveError })}</div> : null}
@@ -287,7 +287,7 @@ export function EmailTemplateEditor({ useEditorHook = useWiredEmailTemplateEdito
             <Actions controller={controller} locale={locale} />
             {view.tab === "html" ? (
               <textarea
-                className="page-html-source email-template-source"
+                className="page-html-source jini-admin-email-template-source"
                 value={controller.html}
                 onChange={(e) => controller.setHtml(e.target.value)}
                 spellCheck={false}

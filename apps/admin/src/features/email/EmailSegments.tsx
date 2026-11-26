@@ -14,7 +14,7 @@ import { ChatSettingsSegmented } from "@jini-ai/chat/react";
  */
 export function Segments(props: { name: string; label: string; items: readonly { key: string; label: string }[]; active: string; onSelect: (key: string) => void }) {
   return (
-    <div className="email-segments" role="radiogroup" aria-label={props.label}>
+    <div className="jini-admin-email-segments" role="radiogroup" aria-label={props.label}>
       <ChatSettingsSegmented
         name={props.name}
         items={props.items.map((item) => ({ key: item.key, label: item.label, checked: item.key === props.active, change: () => props.onSelect(item.key) }))}

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -156,5 +158,23 @@ describe("provider segment URLs", () => {
 it("spreads the boundary attributes returned by the injected useAdminThemeBoundaryHook onto the page", () => {
   const useEmailHook = () => ({ view: { kind: "loaded" as const, status: LOCAL }, locale: "en", retry: vi.fn() });
   const { container } = render(<Email useEmailHook={useEmailHook} tabHooks={createTabHooks()} useAdminThemeBoundaryHook={() => ({ "data-theme": "dark" })} />);
-  expect(container.querySelector(".email-sections")).toHaveAttribute("data-theme", "dark");
+  expect(container.querySelector(".jini-admin-email-sections")).toHaveAttribute("data-theme", "dark");
+});
+
+/** Classes of `family` on rendered nodes, each of which must be a real selector in the exported stylesheet. */
+function unpaintedClasses(required: { root: Element; cssModule: string; family: RegExp }, _optional = {}): { found: readonly string[]; missing: readonly string[] } {
+  const css = readFileSync(createRequire(import.meta.url).resolve(required.cssModule), "utf8");
+  const found = [...new Set([...required.root.querySelectorAll("[class]")].flatMap((node) => [...node.classList]).filter((name) => required.family.test(name)))];
+  return { found, missing: found.filter((name) => !new RegExp(`\\.${name}(?![\\w-])`).test(css)) };
+}
+
+it("the exported stylesheet still paints the mounted host view", () => {
+  // Overview status rows and the Provider form layout are both painted by @jini-ai/admin's email.css.
+  for (const tabId of [undefined, "provider"]) {
+    const { container, unmount } = renderEmail({ view: { kind: "loaded", status: LOCAL }, ...(tabId ? { tabId } : {}) });
+    const { found, missing } = unpaintedClasses({ root: container, cssModule: "@jini-ai/admin/screens/email/email.css", family: /^(jini-admin-)?email-/ });
+    expect(found.length).toBeGreaterThan(0);
+    expect(missing).toEqual([]);
+    unmount();
+  }
 });

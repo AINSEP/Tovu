@@ -102,7 +102,7 @@ describe("Email tab components", () => {
     const group = screen.getByRole("radiogroup", { name: "Provider" });
     expect(within(group).getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual(["SMTP server", "Console", "Hosted Mail", "+ Add provider", "Capabilities"]);
     expect(screen.getByRole("radio", { name: "Hosted Mail" })).toBeChecked();
-    expect(Array.from(document.querySelectorAll(".email-provider .email-provider-name"), (name) => name.textContent)).toEqual(["Hosted Mail"]);
+    expect(Array.from(document.querySelectorAll(".jini-admin-email-provider .jini-admin-email-provider-name"), (name) => name.textContent)).toEqual(["Hosted Mail"]);
     expect(screen.getByText("Active")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: "Console" }));
     expect(onSelect).toHaveBeenCalledWith("local");

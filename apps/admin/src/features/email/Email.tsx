@@ -102,7 +102,7 @@ function StatusBody(props: { view: EmailStatusView; locale: string; retry: () =>
   if (view.kind === "forbidden") return <p className="jini-field-hint">{t({ locale, key: "You don't have permission to view email status." })}</p>;
   if (view.kind === "error") {
     return (
-      <div className="email-row" role="alert">
+      <div className="jini-admin-email-row" role="alert">
         <Chip tone="warning">{t({ locale, key: "Status unavailable" })}</Chip>
         <button type="button" className="btn-secondary" onClick={props.retry} {...agentHandle({ handle: "email-status-retry" }, { role: "button", label: "Retry the email status read" })}>
           {t({ locale, key: "Retry" })}
@@ -114,7 +114,7 @@ function StatusBody(props: { view: EmailStatusView; locale: string; retry: () =>
   const verification = view.status.senderDomainVerification;
   return (
     <>
-      <div className="email-row">
+      <div className="jini-admin-email-row">
         <Chip tone={summary.tone}>{t({ locale, key: summary.chip })}</Chip>
         <span className="jini-field-hint">{t({ locale, key: summary.line })}</span>
       </div>
@@ -205,7 +205,7 @@ export function Email({ useAdminThemeBoundaryHook = useAdminThemeBoundary, ...pr
   };
   const tabLabel = createEmailTabLabel({ locale, labels: TAB_LABELS });
   return (
-    <div className="page email-page">
+    <div className="page jini-admin-email-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{translateAdminNavLabel({ locale, key: "Administration" })}</p>
@@ -224,7 +224,7 @@ export function Email({ useAdminThemeBoundaryHook = useAdminThemeBoundary, ...pr
       />
       {/* Same wrapper classes as Authentication: `settings-ui-section` + the theme boundary is what
           gives `.jini-settings-section-card` its white Classic panel (styles/settings.css). */}
-      <div className="settings-ui-section settings-ui-section--page-flow email-sections" {...themeBoundary}>
+      <div className="settings-ui-section settings-ui-section--page-flow jini-admin-email-sections" {...themeBoundary}>
         {activeId === "overview" ? (
           <OverviewTab {...partProps} label={tabLabel("overview")} status={(
             <Section id="status" title={t({ locale, key: "Status" })} hideTitle>

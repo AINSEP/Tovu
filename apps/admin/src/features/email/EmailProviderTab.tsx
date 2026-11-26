@@ -37,11 +37,11 @@ function Lanes(props: { status: AdminMailStatus | null; providers: readonly Mail
   if (lanes.length === 0) return null;
   const label = createEmailProviderLabel({ locale, providers: props.providers });
   return (
-    <dl className="email-facts">
+    <dl className="jini-admin-email-facts">
       {lanes.map((lane) => {
         const state = LANE_STATE[lane.state] ?? { tone: "neutral" as const, label: lane.state };
         return (
-          <div key={lane.lane} className="email-fact">
+          <div key={lane.lane} className="jini-admin-email-fact">
             <dt className="jini-field-label">{t({ locale, key: LANE_LABEL[lane.lane] })}</dt>
             <dd>
               <span className="jini-field-hint">{label(lane.providerId)}</span>
@@ -76,9 +76,9 @@ function KeyField(props: { provider: MailProviderConfiguration; field: MailProvi
     ...agentHandle({ handle: `email-provider-${provider.id}-${agentHandleSegment({ value: field.key })}` }, { role: "field", label: `${provider.label} ${field.label}` }),
   };
   return (
-    <div className="jini-field email-field">
+    <div className="jini-field jini-admin-email-field">
       <label className="jini-field-label" htmlFor={id}>{field.label}</label>
-      <div className="email-input-row">
+      <div className="jini-admin-email-input-row">
         {secret ? (
           // `new-password`, not `off`, on the key: Chrome ignores `off` and silently filled the admin
           // sign-in into these fields (see `security/AccessTokensTab.tsx`'s token input).
@@ -98,8 +98,8 @@ function ProviderChips({ provider, locale }: CardProps) {
   const active = provider.lanes.length > 0;
   const saved = provider.credential.saved;
   return (
-    <div className="email-row">
-      <strong className="email-provider-name">{provider.label}</strong>
+    <div className="jini-admin-email-row">
+      <strong className="jini-admin-email-provider-name">{provider.label}</strong>
       {active ? <Chip tone="ok">{t({ locale, key: isFullyActive({ provider }) ? "Active" : "Active for one lane" })}</Chip> : null}
       {provider.credential.required ? <Chip tone={saved ? "ok" : "warning"}>{t({ locale, key: saved ? "Key saved" : "Key not saved" })}</Chip> : null}
       {provider.hosted ? null : <Chip tone="neutral">{t({ locale, key: "Local only" })}</Chip>}
@@ -112,10 +112,10 @@ function ProviderKeyForm({ provider, controller, locale }: CardProps) {
   if (fields.length === 0) return null;
   const updatedAt = provider.credential.saved ? provider.credential.updatedAt : undefined;
   return (
-    <form className="email-provider-form" onSubmit={(event) => { event.preventDefault(); void controller.saveKey(provider); }}>
+    <form className="jini-admin-email-provider-form" onSubmit={(event) => { event.preventDefault(); void controller.saveKey(provider); }}>
       {updatedAt ? <span className="jini-field-hint">{t({ locale, key: "Key updated {when}" }).replace("{when}", () => when({ iso: updatedAt, locale }))}</span> : null}
       {fields.map((field) => <KeyField key={field.key} provider={provider} field={field} controller={controller} locale={locale} />)}
-      <div className="email-row">
+      <div className="jini-admin-email-row">
         <button type="submit" className="btn-secondary" disabled={controller.busyId === provider.id}
           {...agentHandle({ handle: `email-provider-${provider.id}-save` }, { role: "button", label: `Save the ${provider.label} key` })}>
           {t({ locale, key: provider.credential.saved ? "Replace key" : "Save key" })}
@@ -132,7 +132,7 @@ function ProviderSwitch({ provider, controller, locale }: CardProps) {
     <>
       {/* MOVE: Credential presence is structured state; refusal text contains server internals. */}
       {provider.selectable || !provider.refusal ? null : <span className="jini-field-hint">{t({ locale, key: provider.credential.required && !provider.credential.saved ? "Add this provider's key first." : "Not set up" })}</span>}
-      <div className="email-row">
+      <div className="jini-admin-email-row">
         <button type="button" disabled={controller.busyId === provider.id || !provider.selectable} onClick={() => controller.askSwitch(provider)}
           {...agentHandle({ handle: `email-provider-${provider.id}-use` }, { role: "button", label: `Send all mail with ${provider.label}` })}>
           {t({ locale, key: "Use this provider" })}
@@ -151,7 +151,7 @@ function ProviderNoticeLine({ provider, controller, locale }: CardProps) {
 
 function ProviderCard(props: CardProps) {
   return (
-    <li className="email-provider" {...agentHandle({ handle: `email-provider-${props.provider.id}` }, { role: "region", label: `Mail provider ${props.provider.label}` })}>
+    <li className="jini-admin-email-provider" {...agentHandle({ handle: `email-provider-${props.provider.id}` }, { role: "region", label: `Mail provider ${props.provider.label}` })}>
       <ProviderChips {...props} />
       <ProviderKeyForm {...props} />
       <ProviderSwitch {...props} />
@@ -199,15 +199,15 @@ function AddProvider(props: { controller: EmailProviderController; locale: strin
   const select = createEmailProviderSelect({ props });
   return (
     <>
-      {controller.addError ? <div className="email-row" role="alert">
+      {controller.addError ? <div className="jini-admin-email-row" role="alert">
         <span className="jini-field-error">{t({ locale, key: controller.addError })}</span>
         <button type="button" className="btn-secondary" disabled={controller.adding !== null} onClick={() => void controller.retryAdd().then(select)}
           {...agentHandle({ handle: "email-add-provider-retry" }, { role: "button", label: "Retry adding an email provider" })}>{t({ locale, key: "Retry" })}</button>
       </div> : null}
       {controller.choices === null && !controller.addError ? <p className="jini-field-hint" role="status">{t({ locale, key: "Loading…" })}</p> : (
-        <ul className="email-list">
-          {controller.choices?.map((plugin) => <li key={plugin.pluginId} className="email-row">
-            <span className="email-provider-name">{agentPluginDisplayName(plugin)}</span>
+        <ul className="jini-admin-email-list">
+          {controller.choices?.map((plugin) => <li key={plugin.pluginId} className="jini-admin-email-row">
+            <span className="jini-admin-email-provider-name">{agentPluginDisplayName(plugin)}</span>
             <span className="jini-field-hint">{plugin.summary ?? plugin.description}</span>
             <button type="button" disabled={controller.adding !== null} onClick={() => void controller.addProvider({ pluginId: plugin.pluginId }).then(select)}
               {...agentHandle({ handle: `email-add-provider-${plugin.pluginId}` }, { role: "button", label: `Add ${agentPluginDisplayName(plugin)} as an email provider` })}>
@@ -231,7 +231,7 @@ function ProviderCards(props: { providers: readonly MailProviderConfiguration[];
       <Segments name="email-provider-pick" label={t({ locale, key: "Provider" })} active={shownId} onSelect={(id) => props.onSelect?.(id)} items={items} />
       {shownId === CAPABILITIES_PART ? <Lanes status={props.status} providers={providers} locale={locale} /> : null}
       {shownId === ADD_PROVIDER_PART ? <AddProvider controller={controller} locale={locale} onSelect={props.onSelect} /> : null}
-      <ul className="email-list email-providers">
+      <ul className="jini-admin-email-list jini-admin-email-providers">
         {providers.filter((p) => p.id === shownId).map((provider) => <ProviderCard key={provider.id} provider={provider} controller={controller} locale={locale} />)}
       </ul>
     </>
@@ -250,8 +250,8 @@ export function EmailProviderTab(props: { controller: EmailProviderController; s
             <ProviderCards providers={report.providers} controller={controller} status={props.status} locale={locale} selectedId={props.selectedId} onSelect={props.onSelect} />
             {report.refusals.length > 0 ? (
               <>
-                <h3 className="jini-field-label email-subhead">{t({ locale, key: "Not loaded" })}</h3>
-                <ul className="email-list">
+                <h3 className="jini-field-label jini-admin-email-subhead">{t({ locale, key: "Not loaded" })}</h3>
+                <ul className="jini-admin-email-list">
                   {report.refusals.map((reason) => <li key={reason} className="jini-field-hint">{reason}</li>)}
                 </ul>
               </>
