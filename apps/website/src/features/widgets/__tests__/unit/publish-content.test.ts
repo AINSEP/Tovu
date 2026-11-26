@@ -1,7 +1,5 @@
-import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
+import { widgetPublishPolicy } from "#src/server/runtime/composition/publish-content-manifest";
 import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
-import { findWidgetTypeRegistration } from "@jini-ai/cms/widgets";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -15,15 +13,7 @@ import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/c
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { createWidgetInstance } from "@jini-ai/cms/widgets";
-import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
-
-const widgetPublishPolicy = {
-  bindingTable: WIDGET_REGION_BINDINGS_TABLE,
-  buildWidgetHostPorts: () => buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
-  findWidgetTypeRegistration, configReferences: { formDefinitionId: "form", menuRef: "menu", categoryTermId: "term" },
-  formReference: { field: "formDefinitionId", widgetType: "contact-form" },
-};
-
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 
 function instance(name: string) {
   const ports = {
@@ -53,15 +43,15 @@ async function sites() {
   const dst = instance("dst");
   const actor = { principalId: "owner", kind: "user" as const };
   const text = (title: string, body: string) =>
-    createWidgetInstance({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor, widgetType: "text", title, config: { body }, slug: title.toLowerCase() } });
+    createWidgetInstance({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor, widgetType: "text", title, config: { body }, slug: title.toLowerCase() } });
   const a = (await text("About", "Hello")).instance;
   const b = (await text("Hours", "9-5")).instance;
-  const { areaEntry } = await bindWidgetArea({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
+  const { areaEntry } = await bindWidgetArea({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
   const placements = [
     { placementId: "p-1", widgetEntryId: b.id, enabled: true },
     { placementId: "p-2", widgetEntryId: a.id, enabled: false },
   ];
-  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor, areaEntryId: areaEntry.id, baseVersion: areaEntry.version, placements } });
+  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor, areaEntryId: areaEntry.id, baseVersion: areaEntry.version, placements } });
   return { src, dst, a, b, placements };
 }
 
@@ -96,7 +86,9 @@ test("widget: a config edit on the source updates the destination widget in plac
   const entities = await packAll(src.site);
   await applyReport(await plan(entities, dst.site, [`widget:${a.id}`]), entities, dst.site);
 
-  assert.match(JSON.stringify((await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id }))?.fieldsJson), /Changed/);
+  const saved = await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id });
+  assert.ok(saved);
+  assert.equal(parseWidgetInstancePayload({ fieldsJson: saved.fieldsJson }).config.body, "Changed");
   assert.deepEqual((await plan(await packAll(src.site), dst.site)).rows.map((r) => r.outcome), ["unchanged", "unchanged", "unchanged"]);
 });
 
@@ -116,7 +108,7 @@ test("widget: a trashed destination widget with the same id is refused at preche
 test("widget: a trashed destination widget holding the same slug under another id is refused at precheck", async () => {
   const { src, dst, a } = await sites();
   const { instance: old } = await createWidgetInstance({
-    deps: { host: buildWidgetHostPorts({}, {}), ...dst.service },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...dst.service },
     input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner", kind: "user" }, widgetType: "text", title: "Old", config: { body: "x" }, slug: "about" },
   });
   const row = await dst.ports.entries.findAnyById({ workspaceId: WORKSPACE_ID, id: old.id });
@@ -132,7 +124,7 @@ test("widget-area: a region the destination binds after the plan is a conflict",
   const { src, dst } = await sites();
   const entities = await packAll(src.site);
   const report = await plan(entities, dst.site);
-  await bindWidgetArea({ deps: { host: buildWidgetHostPorts({}, {}), ...dst.service }, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
+  await bindWidgetArea({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...dst.service }, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
   await assert.rejects(applyReport(report, entities, dst.site), (err: Error & { rowOutcome?: string }) => err.rowOutcome === "conflict");
 });
 
@@ -199,12 +191,15 @@ test("widget precheck refuses a widget type the destination lacks, and settings 
 test("widget references name configured form, menu and term references, and tolerate a widget with no config", async () => {
   const { src, a } = await sites();
   const handler = contributeWidgetPublish(widgetPublishPolicy).build(src.site);
-  const widget = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id)!;
-  const refs = await handler.references!({ entity: { ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } } });
+  const widget = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id);
+  assert.ok(widget);
+  const references = handler.references;
+  assert.ok(references);
+  const refs = await references({ entity: { ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } } });
   assert.deepEqual(refs.filter((r) => r.entityType !== "media"), [{ entityType: "form", key: "contact" }, { entityType: "menu", key: "main" }]);
-  assert.deepEqual(await handler.references!({ entity: { ...widget, state: { ...widget.state, config: undefined } } }), []);
-  const htmlRefs = await handler.references!({ entity: { ...widget, state: { ...widget.state, config: { body: "plain", html: '<img src="/media/html-key/original">' } } } });
-  assert.deepEqual(htmlRefs, [{ entityType: "media", key: "html-key" }], "media inside a raw-html config field is referenced too");
+  assert.deepEqual(await references({ entity: { ...widget, state: { ...widget.state, config: undefined } } }), []);
+  const htmlRefs = await references({ entity: { ...widget, state: { ...widget.state, config: { body: "plain", categoryTermId: "news", html: '<img src="/media/html-key/original">' } } } });
+  assert.deepEqual(htmlRefs, [{ entityType: "term", key: "news" }, { entityType: "media", key: "html-key" }], "media inside a raw-html config field is referenced too");
 });
 
 test("a contact-form reference to a form the source cannot find packs unchanged", async () => {
@@ -224,7 +219,7 @@ test("widget-area: a placement change on the source updates the destination's ex
   const area = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: binding.areaEntryId });
   assert.ok(area);
   const reordered = [{ placementId: "p-2", widgetEntryId: a.id, enabled: true }, { placementId: "p-1", widgetEntryId: b.id, enabled: true }];
-  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner", kind: "user" }, areaEntryId: area.id, baseVersion: area.version, placements: reordered } });
+  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner", kind: "user" }, areaEntryId: area.id, baseVersion: area.version, placements: reordered } });
 
   const entities = await packAll(src.site);
   await applyReport(await plan(entities, dst.site, ["widget-area:sidebar"]), entities, dst.site);

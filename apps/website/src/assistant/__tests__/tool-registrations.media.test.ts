@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -93,6 +94,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
+    createHash,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
@@ -289,22 +291,32 @@ test("media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for
   const out = (await wired("media_upload_asset", deps).handler(
     executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
   )) as { media: { id: string; slug: string; sha256: string; publicUrl: string | null } };
-  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp?v=${out.media.sha256.slice(0, 12)}`);
+  const sha256 = createHash("sha256").update(Buffer.from(ONE_PIXEL_PNG_BASE64, "base64")).digest("hex");
+  assert.equal(out.media.sha256, sha256);
+  assert.equal(out.media.slug, "logo");
+  assert.equal(out.media.publicUrl, `/m/logo/public.v1/image.webp?v=${sha256.slice(0, 12)}`);
 });
 
-test("media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch", async () => {
-  const { deps } = fakeRouteDeps();
+test("media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch", async (t) => {
+  const { deps, mediaContentTypeStore } = fakeRouteDeps();
   await seedPublicTransform(deps);
-  const uploaded = (await wired("media_upload_asset", deps).handler(
-    executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
-  )) as { media: { id: string; publicUrl: string | null } };
+  const upload = wired("media_upload_asset", deps);
+  const uploaded = [
+    await upload.handler(executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 })),
+    await upload.handler(executionContext({ filename: "icon.gif", contentType: "image/gif", dataBase64: "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" })),
+  ] as Array<{ media: { id: string; sha256: string; publicUrl: string | null } }>;
+  const getMany = t.mock.method(mediaContentTypeStore, "getMany");
 
   const listed = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as {
     media: Array<{ id: string; publicUrl: string | null }>;
   };
-  const found = listed.media.find((m) => m.id === uploaded.media.id);
-  assert.ok(found);
-  assert.equal(found.publicUrl, uploaded.media.publicUrl);
+  for (const { media } of uploaded) {
+    assert.ok(media.publicUrl);
+    assert.equal(listed.media.find((m) => m.id === media.id)?.publicUrl, media.publicUrl);
+  }
+  assert.deepEqual(getMany.mock.calls.map(({ arguments: [request] }) => ({
+    workspaceId: request.workspaceId, sha256s: [...request.sha256s].sort(),
+  })), [{ workspaceId: WORKSPACE_ID, sha256s: uploaded.map(({ media }) => media.sha256).sort() }]);
 });
 
 test("media_list_assets' publicUrl is the byte-passthrough /original URL for a video asset, keyed by its slug, resolved from the content-type store", async () => {

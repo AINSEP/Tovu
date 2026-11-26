@@ -205,8 +205,9 @@ test('a connection created after the card requires new approval and the old subm
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
   await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, { workspaceId: WORKSPACE_ID, serverId: 'changed-basis',
-    transport: 'streamable_http', url: 'https://current.example/mcp', authMode: 'none', enabled: true, principalId: PRINCIPAL });
+    transport: 'streamable_http', url: 'https://current.example/mcp', authMode: 'none', enabled: true, command: '', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: PRINCIPAL });
   const before = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'changed-basis' });
+  assert.equal(before?.url, 'https://current.example/mcp');
   const writes = t.mock.method(deps.externalMcpServerRepo, 'updateIfVersion');
   const app = express(); app.use(express.json());
   registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges }, errors: createRouteIncidentReporter().errors });

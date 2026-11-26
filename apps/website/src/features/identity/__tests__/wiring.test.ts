@@ -79,7 +79,7 @@ test("identity wiring rolls back a failed unit and serializes an ordinary writer
   const hold = new Promise<void>((resolve) => { release = resolve; });
   let entered!: () => void;
   const ready = new Promise<void>((resolve) => { entered = resolve; });
-  const row = { id: "rollback-role", workspaceId: WORKSPACE, name: "temporary", isBuiltin: false };
+  const row = { id: "rollback-role", workspaceId: WORKSPACE, name: "temporary", isBuiltin: false, version: 1 };
   const failed = deps.transactions.run({ workspaceId: WORKSPACE, execute: async () => {
     await deps.roleRepo.save(row);
     entered();
@@ -163,7 +163,7 @@ test("createInMemoryIdentityRouteDeps: identityReady also runs migrateDeprecated
     workspaceId: WORKSPACE,
     name: "legacy-policy",
     isBuiltin: false,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await deps.policyPermissionRepo.save({
     id: "grant-legacy-navigation",
@@ -232,7 +232,7 @@ test("createInMemoryIdentityRouteDeps: the wired authorize() closure grants the 
   assert.deepEqual(unknownDecision, { allowed: false, reason: "principal_disabled" });
 
   await deps.principalRepo.save({ id: "reader", workspaceId: WORKSPACE, kind: "user", displayName: "Reader", status: "active", createdAt: fixedClock.nowIso() });
-  await deps.policyRepo.save({ id: "reader-policy", workspaceId: WORKSPACE, name: "reader-policy", isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ id: "reader-policy", workspaceId: WORKSPACE, name: "reader-policy", isBuiltin: false, isFrozen: false, version: 1 });
   await deps.principalPolicyRepo.save({ id: "reader-assignment", workspaceId: WORKSPACE, principalId: "reader", policyId: "reader-policy" });
   await deps.policyPermissionRepo.save({ id: "reader-grant", workspaceId: WORKSPACE, policyId: "reader-policy", permission: "content.read", resourceType: "post" });
 
@@ -333,7 +333,7 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to a
     workspaceId,
     name: "theme-author-policy",
     isBuiltin: false,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await deps.policyPermissionRepo.save({
     id: "grant-theme-edit",
@@ -348,7 +348,7 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to a
     workspaceId,
     name: "content-author-policy",
     isBuiltin: false,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await deps.policyPermissionRepo.save({
     id: "grant-content-write",

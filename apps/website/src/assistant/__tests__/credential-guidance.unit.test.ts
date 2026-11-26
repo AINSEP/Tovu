@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CREDENTIAL_GUIDANCE } from "../credential-guidance.js";
 import { buildBaseSystemOverlay } from "../../server/inbound/assistant/assistant-system-overlay.js";
-import { SYSTEM_PREAMBLE } from "../../server/runtime/composition/modules/assistant-byok.js";
+import { SYSTEM_PREAMBLE } from "../../server/runtime/composition/modules/assistant-byok-preflight.js";
 
 test("daemon and BYOK pin the same credential-card policy", () => {
   for (const prompt of [buildBaseSystemOverlay({ bashProhibitionEnabled: false }), buildBaseSystemOverlay({ bashProhibitionEnabled: true }), SYSTEM_PREAMBLE]) {

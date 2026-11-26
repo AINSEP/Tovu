@@ -6,7 +6,7 @@ import { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } from '@jini-ai/cms/w
 import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from '#src/features/media/index';
 import { CORE_PUBLIC_TRANSFORM_NAME } from '@jini-ai/cms/media/site/bootstrap';
-import { buildWidgetHostPorts } from '#src/features/widgets/deps';
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { renderDocNode, renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { extractEntryRefs, widgetsAgentToolCatalog } from '@jini-ai/cms/widgets';
@@ -18,7 +18,7 @@ test('Gallery in a TipTap post uses the HTML gallery renderer and preserves data
   await entryRepo.save({ id: 'gallery-widget', workspaceId, type: 'widget', slug: 'gallery', title: 'Gallery', status: 'draft', bodyJson: null, fieldsJson: buildWidgetInstanceFieldsJson({ payload: { widgetType: 'gallery', status: 'active', config } }), publishedAt: null, createdAt: now, updatedAt: now, version: 1 });
   await mediaRepo.save({ id: 'one', workspaceId, slug: 'photo-one', title: 'One', alt: 'Stored', caption: '', credit: '', source: { sha256: 'a'.repeat(64) }, status: 'active', createdAt: now, updatedAt: now, version: 1, width: 1200, height: 800, cssClass: null, htmlAttributes: null });
   await transformRepo.insert({ id: 'public', workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME, version: 1, params: { format: 'webp' }, owner: 'core', createdAt: now });
-  const deps = { host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo };
+  const deps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }), entryRepo, mediaRepo, transformRepo };
   registerCoreResolver({ typeKey: 'gallery', resolver: createGalleryWidgetResolver({ resolveMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps }) }) });
   const node = { type: 'widgetEmbed', attrs: { placementId: 'p', widgetEntryId: 'gallery-widget', htmlAttributes: 'data-kui="carousel target photos" onclick="alert(1)" poster="javascript:alert(1)"' } };
   const widgets = await resolvePageWidgets({ deps: { entryRepo, bindingRepo: new InMemoryWidgetRegionBindingRepo() }, input: { workspaceId, pageBodyJson: { type: 'doc', content: [node] }, resolvedRegions: [] } });

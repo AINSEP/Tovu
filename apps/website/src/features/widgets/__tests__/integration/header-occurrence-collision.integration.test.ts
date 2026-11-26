@@ -1,4 +1,4 @@
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -51,7 +51,7 @@ test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIF
     `<section id="without-header"><main data-embed-config='{"type":"content","id":"entity-1","header":false}'></main></section>`;
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID, html },
   });
 

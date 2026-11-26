@@ -176,7 +176,7 @@ test("a submissions-only grant does not authorize creating or reading form defin
   const principalId = "forms-submissions-reader";
   const policyId = "forms-submissions-only-policy";
   await routeDeps.principalRepo.save({ id: principalId, workspaceId, kind: "user", displayName: "Submissions reader", status: "active", createdAt: routeDeps.clock.nowIso() });
-  await routeDeps.policyRepo.save({ id: policyId, workspaceId, name: "Submissions only", isBuiltin: false, isFrozen: false });
+  await routeDeps.policyRepo.save({ id: policyId, workspaceId, name: "Submissions only", isBuiltin: false, isFrozen: false, version: 1 });
   await routeDeps.policyPermissionRepo.save({ id: "forms-submissions-read-grant", workspaceId, policyId, permission: "admin.forms.submissions.read", resourceType: null, constraintJson: null });
   await routeDeps.principalPolicyRepo.save({ id: "forms-submissions-reader-binding", workspaceId, principalId, policyId });
   assert.equal((await routeDeps.authorize({ workspaceId, principalId, permission: "admin.forms.submissions.read", entityType: "form_submission" })).allowed, true);

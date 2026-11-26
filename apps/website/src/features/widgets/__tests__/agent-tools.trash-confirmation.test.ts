@@ -1,3 +1,6 @@
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -10,7 +13,7 @@ import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
-import { buildWidgetsDeps } from "../deps.js";
+import { buildWidgetsDeps, READ_ONLY_WIDGET_POST_WRITES } from "../deps.js";
 import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import type { WidgetInstanceEntry } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../tool-registrations.js";
@@ -33,18 +36,19 @@ function makeDeps(options: { allow?: boolean; entryRepo?: TrashAwareInMemoryEntr
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
-    outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
+    outbox: new InMemoryOutbox(),
     entryRepo: trash.entryRepo,
     removeWidget: trash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
-    postRepo: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["postRepo"],
+    postRepo: new InMemoryPostRepo({}),
+    widgetPostWrites: READ_ONLY_WIDGET_POST_WRITES,
     forgetRemovedPost: async () => {},
-    changeSets: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["changeSets"],
-    pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
+    changeSets: new InMemoryChangeSetRepo(),
+    pluginBeforeSaveHook: async () => ({}),
     authorize,
-  } as WidgetsToolDeps;
+  };
 }
 
 /** Seeds a real widget instance through the actual domain function, mirroring exactly what
@@ -56,7 +60,7 @@ async function seedWidgetInstance(deps: WidgetsToolDeps, overrides: { title?: st
     deps: buildWidgetsDeps(deps),
     input: {
       workspaceId: WORKSPACE_ID,
-      actor: { principalId: PRINCIPAL_ID },
+      actor: { principalId: PRINCIPAL_ID, kind: "user" },
       widgetType: "text",
       title: overrides.title ?? "Announcement Bar",
       config: { body: "hi" },

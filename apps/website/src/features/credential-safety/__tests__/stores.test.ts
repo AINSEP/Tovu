@@ -17,7 +17,7 @@ import { InMemoryCustomCredentialSetRepo } from '../../custom-credentials/repo.m
 import { createCustomCredential, updateCustomCredential, resolveCustomCredentialByLabel, listCustomCredentials } from '../../custom-credentials/store.js';
 import { InMemorySourceControlCredentialSetRepo } from '../../source-control/repo.memory.js';
 import { resolveDefaultForSourceControl, listSourceControlCredentials } from '@jini-ai/devops/source-control/site/store';
-import { createSourceControlCredential, updateSourceControlCredential } from '../../source-control/store.js';
+import { createSourceControlCredential, updateSourceControlCredential, SOURCE_CONTROL_CREDENTIAL_DEPS } from '../../source-control/store.js';
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createPublishCredential, updatePublishCredential, resolveForPublish, listPublishCredentials } from '../../deployments/publish-credentials/store.js';
 import type { DeployTargetRegistry } from '@jini-ai/devops/deploy/site/deploy-targets/types';
@@ -88,8 +88,8 @@ function sourceHarness(): Harness {
       const result = id ? await updateSourceControlCredential({ deps: deps, input: { workspaceId, id, connection } }) : await createSourceControlCredential({ deps: deps, input: { workspaceId, label: 'Fixture', connection } });
       id = result.id; return result;
     },
-    read: async () => (await resolveDefaultForSourceControl(deps, { workspaceId, providerId: 'github' }))?.connection.token,
-    hint: async () => (await listSourceControlCredentials(deps, { workspaceId }))[0]?.tokenHint,
+    read: async () => (await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId, providerId: 'github' }))?.connection.token,
+    hint: async () => (await listSourceControlCredentials({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId }))[0]?.tokenHint,
   };
 }
 function publishHarness(): Harness {
@@ -106,7 +106,8 @@ function publishHarness(): Harness {
   };
 }
 function mediaHarness(): Harness {
-  const deps = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }) };
+  const crypto = cryptoDeps();
+  const deps = { ...crypto, repo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, idGen: crypto.idGen, providerWrites: new TurnLock() }) };
   return {
     save: apiKey => saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId, providers: { openai: { apiKey: apiKey as string } } } }),
     read: async () => (await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId, providerId: 'openai' }))?.apiKey,
@@ -208,7 +209,8 @@ test('plaintext labels and URL credentials are refused by the stores, with value
   await assert.rejects(createSourceControlCredential({ deps: source, input: { workspaceId, label: secretLabel, connection: { providerId: 'github', token: 'safe-key-a9F2' } } }), exactError(CREDENTIAL_MESSAGES.plain));
   const publish = { ...cryptoDeps(), repo: new InMemoryVendorCredentialSetRepo({}), loadDeployTargets: async () => registry };
   await assert.rejects(createPublishCredential(publish, { workspaceId, label: secretLabel, connection: { providerId: 'fixture-host', apiKey: 'safe-key-a9F2' } }), exactError(CREDENTIAL_MESSAGES.plain));
-  const media = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }) };
+  const crypto = cryptoDeps();
+  const media = { ...crypto, repo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, idGen: crypto.idGen, providerWrites: new TurnLock() }) };
   await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...media }, input: { workspaceId, providers: { openai: { apiKey: 'safe-key-a9F2', baseUrl: 'https://example.test?token=never-echo' } } } }), exactError(CREDENTIAL_MESSAGES.plain));
 });
 

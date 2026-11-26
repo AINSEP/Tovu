@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { postPublicPath } from "#src/platform/routing/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { updatePost } from "@jini-ai/cms/posts/post-update";
@@ -39,7 +39,7 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 const WORKSPACE_ID = "ws-1";
 const OTHER_WORKSPACE_ID = "ws-other";
-const ACTOR = { principalId: "user-1", kind: "user" };
+const ACTOR = { principalId: "user-1", kind: "user" as const };
 const NOW = "2026-09-15T00:00:00.000Z";
 
 function makeSharedRepos() {
@@ -72,7 +72,7 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
 }
 
 function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetWriteServiceDeps {
-  return { host: buildWidgetHostPorts({}, {}),
+  return { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
     entryRepo: repos.entryRepo,
     contentTypeRepo: repos.contentTypeRepo,
     entryRefsRepo: repos.entryRefsRepo,
@@ -122,7 +122,7 @@ function embedsIn(bodyJson: unknown): Array<{ placementId: string; widgetEntryId
 
 async function makeWidgetAreaHost(repos: ReturnType<typeof makeSharedRepos>): Promise<string> {
   await ensureWidgetContentTypesRegistered({
-    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({

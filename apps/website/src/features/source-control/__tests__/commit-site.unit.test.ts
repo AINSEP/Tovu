@@ -8,6 +8,7 @@ import test from "node:test";
 import express from "express";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import type { ExportReport } from "@tovu/contracts/export-report";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
@@ -277,7 +278,7 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
   const aad = buildVaultAad({ workspaceId, id, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null });
   const sealed = await deps.siteAssistantSecretSealer.seal({
     plaintext: JSON.stringify({ providerId: "example-token", token: "evil-mismatched-token" }),
-    key: await deps.siteAssistantSecretKeyring.activeKey(),
+    key: await deps.siteAssistantSecretKeyring.activeKey({}),
     aad,
   });
   await deps.sourceControlCredentialSetRepo.insert({
@@ -357,7 +358,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   const deps = await withExampleGitCredential(testRouteDeps());
   const originalExport = deps.exportSiteBound;
   let exported: ExportReport | undefined;
-  deps.exportSiteBound = async (options) => { const report = await originalExport(options) as ExportReport; exported = report; return report; };
+  deps.exportSiteBound = async (options) => { const report = await originalExport(options); exported = report; return report; };
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },

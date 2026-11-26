@@ -76,7 +76,7 @@ for (const [id, currentId, purpose] of [
     // a mocked daemon response would hide the NOT_FOUND that agents currently receive.
     const parsed = toolCatalogDescribeRoute.parse({ body: {}, query: {}, params: { id } });
     assert.ok(parsed.ok);
-    const result = await toolCatalogDescribeRoute.handle({ input: parsed.value, deps: { catalog } });
+    const result = await toolCatalogDescribeRoute.handle({ input: parsed.value, deps: { catalog, unscoped: true } });
 
     assert.ok(result.ok, `describe_tool(${id}) must return actionable guidance, got ${JSON.stringify(result)}`);
     if (result.value.inputSchema != null) {

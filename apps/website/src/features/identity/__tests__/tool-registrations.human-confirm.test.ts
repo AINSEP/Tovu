@@ -118,9 +118,9 @@ async function raise(h: Harness, toolId: string, input: unknown, signal = new Ab
 /** A user plus a custom role and policy to grant — created straight through the repos. */
 async function seedTargets(h: Harness) {
   await h.repos.principals.save({ id: "p-ada", workspaceId: WORKSPACE_ID, kind: "user", displayName: "ada", status: "active", createdAt: "2026-09-24T00:00:00.000Z" });
-  await h.repos.users.save({ principalId: "p-ada", workspaceId: WORKSPACE_ID, username: "ada", passwordHash: "hash" });
-  await h.repos.roles.save({ id: "r-editor", workspaceId: WORKSPACE_ID, name: "Editors", isBuiltin: false });
-  await h.repos.policies.save({ id: "pol-review", workspaceId: WORKSPACE_ID, name: "Reviewers", isBuiltin: false, isFrozen: false });
+  await h.repos.users.save({ principalId: "p-ada", workspaceId: WORKSPACE_ID, username: "ada", passwordHash: "hash", version: 1 });
+  await h.repos.roles.save({ id: "r-editor", workspaceId: WORKSPACE_ID, name: "Editors", isBuiltin: false, version: 1 });
+  await h.repos.policies.save({ id: "pol-review", workspaceId: WORKSPACE_ID, name: "Reviewers", isBuiltin: false, isFrozen: false, version: 1 });
 }
 
 const NO_CHANNEL = (toolId: string) =>

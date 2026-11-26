@@ -117,7 +117,7 @@ test("C-002/INV-NEW-01: fans out a deprecated grant to every `to` string, keeps 
     workspaceId: WORKSPACE,
     name: "some-role-builtin-policy",
     isBuiltin: true,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await policyPermissions.save({
     id: idGen.newId(),
@@ -185,7 +185,7 @@ test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempote
     workspaceId: WORKSPACE,
     name: "some-role-builtin-policy",
     isBuiltin: true,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await policyPermissions.save({
     id: idGen.newId(),
@@ -230,7 +230,7 @@ test("C-002/INV-NEW-01: a policy that never held the deprecated permission is ne
     workspaceId: WORKSPACE,
     name: "unrelated-policy",
     isBuiltin: false,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await policyPermissions.save({
     id: idGen.newId(),
@@ -269,7 +269,7 @@ test("C-002: a `to` string already held by the policy is not duplicated", async 
     workspaceId: WORKSPACE,
     name: "partial-policy",
     isBuiltin: false,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await policyPermissions.save({
     id: idGen.newId(),
@@ -336,13 +336,13 @@ test("T012: a policy holding only navigation.manage is authorized for every new 
     status: "active",
     createdAt: "2026-07-13T00:00:00.000Z",
   });
-  await roles.save({ id: "role-1", workspaceId: ws, name: "menus-editor", isBuiltin: false });
+  await roles.save({ id: "role-1", workspaceId: ws, name: "menus-editor", isBuiltin: false, version: 1 });
   await policies.save({
     id: "policy-1",
     workspaceId: ws,
     name: "menus-editor-policy",
     isBuiltin: false,
-    isFrozen: false,
+    isFrozen: false, version: 1,
   });
   await rolePolicies.save({ id: "rp-1", workspaceId: ws, roleId: "role-1", policyId: "policy-1" });
   await principalRoles.save({ id: "pr-1", workspaceId: ws, principalId: "principal-1", roleId: "role-1" });

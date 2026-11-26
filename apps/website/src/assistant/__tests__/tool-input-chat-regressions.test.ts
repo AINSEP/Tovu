@@ -1,3 +1,5 @@
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
 /** @file Real 2026-10-19..21 chat inputs: keep normalization ahead of policy and I/O. */
 import assert from 'node:assert/strict';
@@ -125,11 +127,15 @@ test('raw page writers leave slug resolution to the shared host adapter', async 
   const registrations = buildPagesRegistrations({ deps: { workspaceId: 'ws', postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     authorize: async () => ({ allowed: true, reason: 'test' }),
     pagesHtmlStore: () => { reads++; throw new Error('no store should open'); },
+    executeCommand, clock: createFakeClock({ startIso: '2026-01-01T00:00:00Z' }),
+    idGen: { newId: () => 'page-write-id' }, changeSets: new InMemoryChangeSetRepo(), recordedHtmlWrites: 'enabled',
   }, host: bindPagesToolHost({}) });
-  for (const registration of registrations.filter(tool => tool.descriptor.id !== 'pages_read_html')) {
+  const writers = registrations.filter(tool => tool.descriptor.id !== 'pages_read_html');
+  assert.deepEqual(writers.map(tool => tool.descriptor.id).sort(), ['pages_move_region', 'pages_write_html', 'pages_write_region']);
+  for (const registration of writers) {
     const result = await executeRegisteredTool({ registration, input: { slug: '/', regionId: 'hero' } });
     assert.equal(result.errorKind, 'validation');
-    assert.match(result.error!, /Unknown input 'slug'.*Declared inputs:.*id/);
+    assert.match(result.error ?? '', /Unknown input 'slug'.*Declared inputs:.*id/);
   }
   assert.equal(reads, 0);
 });

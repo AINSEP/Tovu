@@ -1,3 +1,5 @@
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -25,9 +27,9 @@ import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
-import { buildWidgetsDeps } from "#src/features/widgets/deps";
+import { buildWidgetsDeps, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { createWidgetInstance } from "@jini-ai/cms/widgets";
-import { buildWidgetsRegistrations, type WidgetsToolDeps } from "#src/features/widgets/tool-registrations";
+import { buildWidgetsRegistrations } from "#src/features/widgets/tool-registrations";
 import { memoryWidgetTrash } from "#src/features/widgets/__tests__/support/memory-widget-trash";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
@@ -174,18 +176,19 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
     workspaceId,
     clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
-    outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
+    outbox: new InMemoryOutbox(),
     entryRepo: widgetTrash.entryRepo,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
-    postRepo: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["postRepo"],
+    postRepo: new InMemoryPostRepo({}),
+    widgetPostWrites: READ_ONLY_WIDGET_POST_WRITES,
     forgetRemovedPost: async () => { throw new Error("forgetRemovedPost is not needed by this suite"); },
-    changeSets: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["changeSets"],
-    pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
+    changeSets: new InMemoryChangeSetRepo(),
+    pluginBeforeSaveHook: async () => ({}),
     authorize: PRE_AUTHORIZED,
     removeWidget: widgetTrash.remove,
-  } as WidgetsToolDeps;
+  };
 
   const { instance } = await createWidgetInstance({
     deps: buildWidgetsDeps(deps),

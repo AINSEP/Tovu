@@ -1,4 +1,4 @@
-import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "@jini-ai/db/events";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
@@ -82,7 +82,8 @@ async function setup(workspaceId: string): Promise<Fixture> {
   };
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter: TrashAdapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const kernel = schemaErasedKernel({ store: db });
+  const adapter: TrashAdapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: kernel, purge: new KernelUserPurge({ kernel, eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
@@ -122,7 +123,7 @@ async function createBareUser(f: Fixture, username: string): Promise<string> {
  *  also holding the owner wildcard or the built-in admin role, a shape no built-in role produces. */
 async function grantDirectPermission(f: Fixture, principalId: string, permission: string, idPrefix: string): Promise<void> {
   const policyId = `${idPrefix}-policy`;
-  await f.identity.repos.policies.save({ id: policyId, workspaceId: f.workspaceId, name: idPrefix, isBuiltin: false, isFrozen: false });
+  await f.identity.repos.policies.save({ id: policyId, workspaceId: f.workspaceId, name: idPrefix, isBuiltin: false, isFrozen: false, version: 1 });
   await f.identity.repos.policyPermissions.save({ id: `${idPrefix}-grant`, workspaceId: f.workspaceId, policyId, permission });
   await f.identity.repos.principalPolicies.save({ id: `${idPrefix}-link`, workspaceId: f.workspaceId, principalId, policyId });
 }
@@ -441,7 +442,7 @@ test("owner classification rejects wildcard grants limited by resource or constr
   const target = await createBareUser(f, "limited");
   await grantDirectPermission(f, target, "content.read", "read-only");
   const policyId = "limited-policy";
-  await f.identity.repos.policies.save({ id: policyId, workspaceId: f.workspaceId, name: "limited", isBuiltin: false, isFrozen: false });
+  await f.identity.repos.policies.save({ id: policyId, workspaceId: f.workspaceId, name: "limited", isBuiltin: false, isFrozen: false, version: 1 });
   await f.identity.repos.principalPolicies.save({ id: "limited-link", workspaceId: f.workspaceId, principalId: target, policyId });
   await f.identity.repos.policyPermissions.save({ id: "resource-wildcard", workspaceId: f.workspaceId, policyId, permission: "*", resourceType: "post" });
   await f.identity.repos.policyPermissions.save({ id: "constraint-wildcard", workspaceId: f.workspaceId, policyId, permission: "*", constraintJson: '{"owner":"self"}' });
@@ -457,7 +458,7 @@ test("account protection distinguishes ordinary users, builtin admins and owners
   const required = { deps: f.identity, workspaceId: f.workspaceId, principalId: target };
   assert.deepEqual(await userAccountProtection(required, {}), { isOwner: false, isProtectedAccount: false });
   assert.equal(await principalHoldsBuiltinAdminRole(required, {}), false);
-  await f.identity.repos.roles.save({ id: "builtin-editor", workspaceId: f.workspaceId, name: "coverage-editor", isBuiltin: true });
+  await f.identity.repos.roles.save({ id: "builtin-editor", workspaceId: f.workspaceId, name: "coverage-editor", isBuiltin: true, version: 1 });
   await f.identity.repos.principalRoles.save({ id: "editor-link", workspaceId: f.workspaceId, principalId: target, roleId: "builtin-editor" });
   assert.equal(await principalHoldsBuiltinAdminRole(required), false);
   assert.deepEqual(await userAccountProtection(required), { isOwner: false, isProtectedAccount: false });

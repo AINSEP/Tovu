@@ -4,6 +4,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminDatabaseMigrateForwardRoutes } from "#src/server/runtime/composition/modules/database-migrate-forward";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -803,7 +804,7 @@ test("human confirmation does not turn an assistant migration into a user write"
 
   const admin = fakeRouteDeps();
   const app = express();
-  registerAdminDatabaseMigrateForwardRoutes({ app, deps: admin.deps as unknown as RouteDeps });
+  registerAdminDatabaseMigrateForwardRoutes({ app, errors: createRouteIncidentReporter().errors, deps: admin.deps as unknown as RouteDeps });
   let body = {};
   for (const step of ["plan", "confirm", "execute"]) {
     const handler = extractRouteHandler(app, "post", `/api/admin/v1/database/migrate-forward/${step}`);

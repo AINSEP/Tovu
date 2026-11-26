@@ -31,6 +31,8 @@ import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
+import { READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -66,6 +68,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     contentTypeRepo,
     entryRefsRepo,
     widgetBindingRepo,
+    postRepo: new InMemoryPostRepo({}),
+    widgetPostWrites: READ_ONLY_WIDGET_POST_WRITES,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -142,7 +146,7 @@ async function seedFixture(deps: RegistryDepsWithoutLimiter): Promise<{ widgetIn
   });
   const hostCreated = await createEntry({
     deps: { entryRepo, contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: { newId: () => "entry-seed" }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
-    input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, type: "article", slug: "host-seed", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [] } },
+    input: { actorId: PRINCIPAL_ID, actor: { id: PRINCIPAL_ID, kind: "user" }, workspaceId: WORKSPACE_ID, type: "article", slug: "host-seed", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [] } },
   });
   if (!hostCreated.ok) throw hostCreated.error;
 

@@ -70,9 +70,9 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
 
   test(`[${adapterName}] UserRepoPort: recordLogin sets only lastLoginAt, never reverts a concurrent password change, and spares other users (B262)`, async () => {
     const repo = makeRepo();
-    await repo.save({ principalId: "p-b262", workspaceId: WS, username: "b262", passwordHash: "old" });
-    await repo.save({ principalId: "p-other", workspaceId: WS, username: "other", passwordHash: "x" });
-    await repo.save({ principalId: "p-b262", workspaceId: WS, username: "b262", passwordHash: "reset" }); // a reset commits after login's read
+    await repo.save({ principalId: "p-b262", workspaceId: WS, username: "b262", passwordHash: "old", version: 1 });
+    await repo.save({ principalId: "p-other", workspaceId: WS, username: "other", passwordHash: "x", version: 1 });
+    await repo.save({ principalId: "p-b262", workspaceId: WS, username: "b262", passwordHash: "reset", version: 1 }); // a reset commits after login's read
     await repo.recordLogin({ workspaceId: WS, principalId: "p-b262", lastLoginAt: "2026-02-01T00:00:00.000Z" });
     const row = await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-b262" });
     assert.equal(row?.passwordHash, "reset");
@@ -84,13 +84,13 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
 
   test(`[${adapterName}] UserRepoPort: save + findByPrincipalId/findByUsername round-trip, save is upsert`, async () => {
     const repo = makeRepo();
-    await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h1" });
+    await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h1", version: 1 });
     assert.equal((await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-1" }))?.username, "ada");
     assert.equal((await repo.findByUsername({ workspaceId: WS, username: "ada" }))?.principalId, "p-1");
 
     assert.equal(await repo.findByPrincipalId({ workspaceId: WS2, principalId: "p-1" }), null);
     assert.equal(await repo.findByUsername({ workspaceId: WS2, username: "ada" }), null);
-    await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h2", email: "a@b.co" });
+    await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h2", email: "a@b.co", version: 1 });
     const found = await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-1" });
     assert.equal(found?.passwordHash, "h2");
     assert.equal(found?.email, "a@b.co");
@@ -98,8 +98,8 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
 
   test(`[${adapterName}] UserRepoPort: list scopes by workspace`, async () => {
     const repo = makeRepo();
-    await repo.save({ principalId: "p-1", workspaceId: WS, username: "a", passwordHash: "h" });
-    await repo.save({ principalId: "p-2", workspaceId: WS2, username: "b", passwordHash: "h" });
+    await repo.save({ principalId: "p-1", workspaceId: WS, username: "a", passwordHash: "h", version: 1 });
+    await repo.save({ principalId: "p-2", workspaceId: WS2, username: "b", passwordHash: "h", version: 1 });
     assert.deepEqual((await repo.list({ workspaceId: WS })).map((r) => r.principalId), ["p-1"]);
   });
 }
@@ -152,7 +152,7 @@ function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPor
 function runRoleRepoSuite(adapterName: string, makeRepo: () => RoleRepoPort) {
   test(`[${adapterName}] RoleRepoPort: save + findById/findByName round-trip`, async () => {
     const repo = makeRepo();
-    await repo.save({ id: "r-1", workspaceId: WS, name: "admin", isBuiltin: true });
+    await repo.save({ id: "r-1", workspaceId: WS, name: "admin", isBuiltin: true, version: 1 });
     assert.equal((await repo.findById({ workspaceId: WS, id: "r-1" }))?.name, "admin");
     assert.equal((await repo.findByName({ workspaceId: WS, name: "admin" }))?.id, "r-1");
     assert.equal((await repo.findById({ workspaceId: WS, id: "r-1" }))?.isBuiltin, true);
@@ -162,14 +162,14 @@ function runRoleRepoSuite(adapterName: string, makeRepo: () => RoleRepoPort) {
 
   test(`[${adapterName}] RoleRepoPort: list scopes by workspace`, async () => {
     const repo = makeRepo();
-    await repo.save({ id: "r-1", workspaceId: WS, name: "admin", isBuiltin: true });
-    await repo.save({ id: "r-2", workspaceId: WS2, name: "admin", isBuiltin: true });
+    await repo.save({ id: "r-1", workspaceId: WS, name: "admin", isBuiltin: true, version: 1 });
+    await repo.save({ id: "r-2", workspaceId: WS2, name: "admin", isBuiltin: true, version: 1 });
     assert.deepEqual((await repo.list({ workspaceId: WS })).map((r) => r.id), ["r-1"]);
   });
 
   test(`[${adapterName}] RoleRepoPort: delete removes the row, scoped by workspace (SPEC-006 0.6.0)`, async () => {
     const repo = makeRepo();
-    await repo.save({ id: "r-3", workspaceId: WS, name: "custom", isBuiltin: false });
+    await repo.save({ id: "r-3", workspaceId: WS, name: "custom", isBuiltin: false, version: 1 });
     await repo.delete({ workspaceId: WS2, id: "r-3" });
     assert.equal((await repo.findById({ workspaceId: WS, id: "r-3" }))?.name, "custom");
     await repo.delete({ workspaceId: WS, id: "r-3" });
@@ -180,7 +180,7 @@ function runRoleRepoSuite(adapterName: string, makeRepo: () => RoleRepoPort) {
 function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort) {
   test(`[${adapterName}] PolicyRepoPort: save + findById/findByName round-trip`, async () => {
     const repo = makeRepo();
-    await repo.save({ id: "pol-1", workspaceId: WS, name: "owner", description: "full access", isBuiltin: true, isFrozen: false });
+    await repo.save({ id: "pol-1", workspaceId: WS, name: "owner", description: "full access", isBuiltin: true, isFrozen: false, version: 1 });
     const found = await repo.findById({ workspaceId: WS, id: "pol-1" });
     assert.equal(await repo.findById({ workspaceId: WS2, id: "pol-1" }), null);
     assert.equal(await repo.findByName({ workspaceId: WS2, name: "owner" }), null);
@@ -192,7 +192,7 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
 
   test(`[${adapterName}] PolicyRepoPort: delete removes the row, scoped by workspace (SPEC-006 0.6.0)`, async () => {
     const repo = makeRepo();
-    await repo.save({ id: "pol-3", workspaceId: WS, name: "custom", isBuiltin: false, isFrozen: false });
+    await repo.save({ id: "pol-3", workspaceId: WS, name: "custom", isBuiltin: false, isFrozen: false, version: 1 });
     await repo.delete({ workspaceId: WS2, id: "pol-3" });
     assert.equal((await repo.findById({ workspaceId: WS, id: "pol-3" }))?.name, "custom");
     await repo.delete({ workspaceId: WS, id: "pol-3" });
@@ -204,7 +204,7 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
   // ever been read back, only written.
   test(`[${adapterName}] PolicyRepoPort: a policy saved without a description round-trips as undefined, not a stored empty/null value`, async () => {
     const repo = makeRepo();
-    await repo.save({ id: "pol-4", workspaceId: WS, name: "bare", isBuiltin: false, isFrozen: true });
+    await repo.save({ id: "pol-4", workspaceId: WS, name: "bare", isBuiltin: false, isFrozen: true, version: 1 });
 
     const byId = await repo.findById({ workspaceId: WS, id: "pol-4" });
     assert.equal(byId?.description, undefined);

@@ -8,8 +8,11 @@ import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { VersionConflictError } from "@jini-ai/cms/entries";
-import { buildWidgetHostPorts, buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "../../deps.js";
-import { PostNotFoundError, PostVersionConflictError, type PostRepoPort } from "@jini-ai/cms/posts/post";
+import { buildWidgetHostPorts, buildWidgetsDeps, buildWidgetsRegionDeps, READ_ONLY_WIDGET_POST_WRITES, type WidgetsRouteDeps } from "../../deps.js";
+import { PostNotFoundError, PostVersionConflictError, type PostRepoPort, type PublicPostRecord } from "@jini-ai/cms/posts/post";
+import { InMemoryPostRepo } from "../../../post/repo.memory.js";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { createPublicPostReader } from "@jini-ai/cms/posts/post-read";
 
 /**
  * @file `buildWidgetsDeps`/`buildWidgetsRegionDeps` — the shared write-path deps composer
@@ -111,36 +114,48 @@ test("widget composition retains one state per entry store across write, embed, 
 
 /** A live post row as `findPublishedPost*` reads it, served by whichever repo the host port picks. */
 function postLookupRepo(label: string, seen: string[]): PostRepoPort {
-  const row = { id: `${label}-post`, kind: "post", slug: `${label}-slug`, status: "published", publishedAt: "2026-01-01T00:00:00.000Z", trashedAt: null, deletedAt: null };
-  return {
-    findById: async ({ id }: { id: string }) => { seen.push(`${label}:findById:${id}`); return row; },
-    findBySlug: async ({ slug }: { slug: string }) => { seen.push(`${label}:findBySlug:${slug}`); return row; },
-    list: async () => { seen.push(`${label}:list`); return [row]; },
-  } as unknown as PostRepoPort;
+  const row: PublicPostRecord = {
+    id: `${label}-post`, workspaceId: "ws-1", title: "Post", slug: `${label}-slug`, status: "published",
+    kind: "post", bodyFormat: "doc", bodyJson: {}, bodyHtml: null, updatedAt: "2026-01-01T00:00:00.000Z", version: 1,
+  };
+  return Object.assign(new InMemoryPostRepo({}), {
+    findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) => {
+      seen.push(`${label}:findById:${id}`);
+      return workspaceId === row.workspaceId && id === "p-1" ? row : null;
+    },
+    findBySlug: async ({ workspaceId, slug }: { workspaceId: string; slug: string }) => {
+      seen.push(`${label}:findBySlug:${slug}`);
+      return workspaceId === row.workspaceId && slug === "s-1" ? row : null;
+    },
+    list: async ({ workspaceId }: { workspaceId: string }) => {
+      seen.push(`${label}:list`);
+      return workspaceId === row.workspaceId ? [row] : [];
+    },
+  });
 }
 
 test("buildWidgetHostPorts: published-post lookups use the bound postRepo, and fall back to the caller's repo when none is bound", async () => {
   const seen: string[] = [];
-  const bound = buildWidgetHostPorts({ postRepo: postLookupRepo("bound", seen) });
+  const bound = buildWidgetHostPorts({ postRepo: postLookupRepo("bound", seen), postWrites: READ_ONLY_WIDGET_POST_WRITES });
   const unbound = buildWidgetHostPorts({ postWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward } });
-  const callerRepo = postLookupRepo("caller", seen);
+  const callerRepo = createPublicPostReader({ repo: postLookupRepo("caller", seen) });
   const input = { workspaceId: "ws-1", id: "p-1", slug: "s-1" };
 
-  assert.equal((await bound.posts.findPublishedPostById({ deps: { repo: callerRepo }, input } as never))?.id, "bound-post");
-  assert.equal((await unbound.posts.findPublishedPostById({ deps: { repo: callerRepo }, input } as never))?.id, "caller-post");
-  assert.equal((await bound.posts.findPublishedPostBySlug({ deps: { repo: callerRepo }, input } as never))?.slug, "bound-slug");
-  assert.equal((await unbound.posts.findPublishedPostBySlug({ deps: { repo: callerRepo }, input } as never))?.slug, "caller-slug");
+  assert.equal((await bound.posts.findPublishedPostById({ deps: { repo: callerRepo }, input }))?.id, "bound-post");
+  assert.equal((await unbound.posts.findPublishedPostById({ deps: { repo: callerRepo }, input }))?.id, "caller-post");
+  assert.equal((await bound.posts.findPublishedPostBySlug({ deps: { repo: callerRepo }, input }))?.slug, "bound-slug");
+  assert.equal((await unbound.posts.findPublishedPostBySlug({ deps: { repo: callerRepo }, input }))?.slug, "caller-slug");
   assert.deepEqual(seen, ["bound:findById:p-1", "caller:findById:p-1", "bound:findBySlug:s-1", "caller:findBySlug:s-1"]);
 });
 
 test("buildWidgetHostPorts: slugify takes the plain title string Jini's write-service passes", () => {
   // Jini's `WidgetHostPorts.slugify(text: string)` is called positionally (`host.slugify(title)`);
   // Tovu's own `toSlug` takes `{ text }`, so the port must adapt at this boundary.
-  assert.equal(buildWidgetHostPorts({}).slugify("Hello World"), "hello-world");
+  assert.equal(buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }).slugify("Hello World"), "hello-world");
 });
 
 test("buildWidgetHostPorts: error classifiers recognise only their own error classes", () => {
-  const host = buildWidgetHostPorts({});
+  const host = buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES });
   assert.equal(host.entries.isVersionConflict(new VersionConflictError({ message: "stale" })), true);
   assert.equal(host.entries.isVersionConflict(new Error("other")), false);
   assert.equal(host.posts.isVersionConflict(new PostVersionConflictError({ message: "stale", expectedVersion: 1, currentVersion: 2 })), true);
@@ -153,7 +168,7 @@ test("buildWidgetHostPorts: error classifiers recognise only their own error cla
 });
 
 test("buildWidgetHostPorts: each index provisioner is a fresh no-op provisioner", () => {
-  const host = buildWidgetHostPorts({});
+  const host = buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES });
   const first = host.contentTypes.createIndexProvisioner();
   assert.ok(first instanceof NoopContentTypeIndexProvisioner);
   assert.notEqual(host.contentTypes.createIndexProvisioner(), first);
@@ -161,15 +176,23 @@ test("buildWidgetHostPorts: each index provisioner is a fresh no-op provisioner"
 
 test("buildWidgetHostPorts: updatePost and restorePostForward read through the bound postRepo, else the caller's repo", async () => {
   const seen: string[] = [];
-  const missingRepo = (label: string) => ({ findById: async ({ id }: { id: string }) => { seen.push(`${label}:${id}`); return null; } }) as unknown as PostRepoPort;
+  const missingRepo = (label: string) => Object.assign(new InMemoryPostRepo({}), {
+    findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) => {
+      assert.equal(workspaceId, "ws-1");
+      seen.push(`${label}:${id}`);
+      return null;
+    },
+  });
   const bound = buildWidgetHostPorts({ postRepo: missingRepo("bound"), postWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward } });
   const unbound = buildWidgetHostPorts({ postWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward } });
-  const caller = { repo: missingRepo("caller") };
+  const caller = { repo: createPublicPostReader({ repo: missingRepo("caller") }), clock: { nowMs: () => 0 }, outbox: new InMemoryOutbox() };
+  const row = { workspaceId: "ws-1", title: "Post", slug: "post", status: "draft" as const, bodyJson: {} };
 
   for (const host of [bound, unbound]) {
-    await assert.rejects(host.posts.updatePost({ deps: caller, input: { workspaceId: "ws-1", id: "p-up" } } as never), PostNotFoundError);
+    await assert.rejects(host.posts.updatePost({ deps: caller, input: { ...row, id: "p-up", expectedVersion: 1 } }), PostNotFoundError);
     // A row that no longer exists has nothing to roll forward: the restore is a no-op, not a throw.
-    assert.equal(await host.posts.restorePostForward({ deps: caller, input: { prior: { workspaceId: "ws-1", id: "p-re", version: 1 } } } as never), null);
+    assert.equal(await host.posts.restorePostForward({ deps: { ...caller, forgetRemoved: async () => assert.fail("a missing row cannot be removed") },
+      input: { prior: { ...row, id: "p-re", version: 1, kind: "post", bodyFormat: "doc", updatedAt: "2026-01-01T00:00:00.000Z" } } }), null);
   }
   assert.deepEqual(seen, ["bound:p-up", "bound:p-re", "caller:p-up", "caller:p-re"]);
 });

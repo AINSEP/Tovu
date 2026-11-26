@@ -2,6 +2,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { InMemoryMediaContentTypeStore } from '@jini-ai/cms/media/site/content-type-store';
 import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html';
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
@@ -59,7 +60,7 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   t.diagnostic('phase: imports');
   const { InMemoryEntryRepo } = await import('@jini-ai/cms/entries');
   const { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } = await import('#src/features/media/index');
-  const { buildWidgetHostPorts } = await import('#src/features/widgets/deps');
+  const { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } = await import('#src/features/widgets/deps');
   const { buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegionBindingRepo } = await import('@jini-ai/cms/widgets');
   const { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } = await import('@jini-ai/cms/widgets/html');
   const { registerCoreResolver, createGalleryWidgetResolver } = await import('@jini-ai/cms/widgets/resolvers');
@@ -72,7 +73,9 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   await transformRepo.insert({ id: 'public', workspaceId, name: 'public', version: 1, params: { format: 'webp' }, owner: 'core', createdAt: now });
   const config = { mode: 'media', items: [{ slug: 'saved' }], layout: 'grid', columns: 2 };
   await entryRepo.save({ id: 'media-widget', workspaceId, type: 'widget', slug: 'photos', title: 'Photos', status: 'draft', bodyJson: null, fieldsJson: buildWidgetInstanceFieldsJson({ payload: { widgetType: 'media', status: 'active', config } }), publishedAt: null, createdAt: now, updatedAt: now, version: 1 });
-  const deps = { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo, mediaContentTypeStore: { getMany: async () => new Map([['sound'.padEnd(64, 'a'), 'audio/mpeg']]) } };
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  await mediaContentTypeStore.set({ workspaceId, sha256: 'sound'.padEnd(64, 'a'), contentType: 'audio/mpeg' });
+  const deps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo, mediaContentTypeStore };
   const requested: string[] = [];
   registerCoreResolver({ typeKey: 'gallery', resolver: createGalleryWidgetResolver({ resolveMedia: ({ refs, context }) => { requested.push(...refs.map(ref => ref.slug ?? ref.id!)); return resolveGalleryWidgetMedia({ refs, context, deps }); } }) });
   const marker = (content: Record<string, unknown>) => `<div data-embed-config='${JSON.stringify({ type: 'widget', slug: 'photos', content })}'></div>`;

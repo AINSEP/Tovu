@@ -1,3 +1,4 @@
+import { READ_ONLY_WIDGET_POST_WRITES } from "../../deps.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -55,6 +56,7 @@ function makeDeps(): WidgetsToolDeps {
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: new InMemoryPostRepo({}),
+    widgetPostWrites: READ_ONLY_WIDGET_POST_WRITES,
     forgetRemovedPost: async () => {},
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
