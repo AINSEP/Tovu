@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { LocalFsBlobStore, computeBlobStorageKey, type BlobStorePort } from "../../media/index.js";
 import { blobStoreFromObjectStore } from "@jini-ai/cms/media";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { createDeployHostKit } from "../../deployments/deploy-targets/host-kit-binding.js";
 import { libraryFixture } from "../../media/__tests__/library.fixture.js";
 import { contributeMediaPublish } from "../../media/publish-content.js";
@@ -151,8 +152,9 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   }
   assert.equal(fs.existsSync(path.join(site.path, "uploads", trashed.storageKey)), false);
   const { deps: defaults } = libraryFixture();
-  const deps = { ...defaults, workspaceId, mediaRepo, assetBlobRepo, assetRenditionRepo: new SqliteAssetRenditionRepo({ store: imported }), blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }),
-    postRepo: new InMemoryPostRepo({}), memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
+  const mediaAccessEvidence = createMediaAccessEvidence();
+  const deps = { ...defaults, workspaceId, mediaAccessEvidence, mediaRepo, assetBlobRepo, assetRenditionRepo: new SqliteAssetRenditionRepo({ store: imported }), blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }),
+    postRepo: new InMemoryPostRepo({}, { mediaAccessEvidence }), memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
   } satisfies MediaRenditionRouteDeps;
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; next(); });
   registerAdminMediaListRoute({ errors: routeErrors, app, deps });
@@ -257,11 +259,12 @@ test("L3 forged ordinary rendition cannot expose a private document through anon
   const imported = openContentDb({ filePath: resolveSiteDatabasePaths({ dir: site.path }, { workspace: h.workspace }).contentDbPath });
   t.after(() => imported.$client.close());
   const { deps: defaults } = libraryFixture();
+  const mediaAccessEvidence = createMediaAccessEvidence();
   const app = express();
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
   await registerTransform({ deps: { transformRepo: defaults.transformDefinitionRepo, clock: defaults.clock, idGen: defaults.idGen },
     input: { workspaceId, name: "public", params: { format: "png" }, owner: "core" } });
-  registerMediaRenditionRoute({ app, deps: { ...defaults, workspaceId, postRepo: new InMemoryPostRepo({}),
+  registerMediaRenditionRoute({ app, deps: { ...defaults, workspaceId, mediaAccessEvidence, postRepo: new InMemoryPostRepo({}, { mediaAccessEvidence }),
     memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
     mediaRepo: new SqliteMediaRepo({ store: imported }), assetBlobRepo: new SqliteAssetBlobRepo({ store: imported }), assetRenditionRepo: new SqliteAssetRenditionRepo({ store: imported }),
     blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }) } satisfies MediaRenditionRouteDeps });

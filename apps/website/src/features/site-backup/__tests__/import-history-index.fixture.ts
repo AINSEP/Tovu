@@ -3,6 +3,7 @@ import { bindSiteImportBackfill } from "#src/server/runtime/composition/site-imp
 import fs from "node:fs";
 import path from "node:path";
 import type { TestContext } from "node:test";
+import type { SqliteSyncClient } from "@jini-ai/core/contracts/storage";
 import type { ImportHistoryPolicy } from "@jini-ai/core/contracts/site/site-import-history";
 import { createImportIndexIntegrityMemo, openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
 import { sweepExpired } from "@jini-ai/devops/backup/site/import-index/sweep";
@@ -83,7 +84,7 @@ export function hostBoundBackend({ h, cutoverPolicy = "rollback", clock = h.payl
   const policy: ImportHistoryPolicy = { cutoverPolicy, historyVisibleMs: 2_592_000_000, replayFenceMs: 31_536_000_000, legacyRetireMs: 2_592_000_000, sweepOnClockRollback: false };
   const file = path.join(directory, "site-imports.db");
   const open = ({ file, options }: { file: string; options: { readonly?: boolean; fileMustExist?: boolean } }, _optional: Record<string, never> = {}) => openNativeSqlite(file, options);
-  const checkIntegrity = ({ db }: { db: ReturnType<typeof openNativeSqlite>; file: string }, _optional: Record<string, never> = {}) => {
+  const checkIntegrity = ({ db }: { db: SqliteSyncClient; file: string }, _optional: Record<string, never> = {}) => {
     if (db.pragma("quick_check(1)", { simple: true }) !== "ok") throw Object.assign(new Error("Import history failed integrity check."), { code: "SQLITE_CORRUPT" });
   };
   const integrityMemo = createImportIndexIntegrityMemo({});

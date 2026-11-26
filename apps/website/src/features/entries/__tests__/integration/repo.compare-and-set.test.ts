@@ -123,7 +123,7 @@ function runCompareAndSetSuite(adapterName: string, make: () => Adapter): void {
     const events: string[] = [];
     const deps = { entryRepo: repo, contentTypeRepo: activeType, clock: { nowMs: () => Date.parse(NOW) }, authorize: async () => ({ allowed: true, reason: "ok" }), outbox: { enqueue: async (event: { name: string }) => void events.push(event.name) } };
     const create = (title: string) =>
-      importEntry({ deps, input: { workspaceId: WS, actorId: "user-1", id: "entry-1", type: "recipe", slug: "chili", title, status: "published", fieldsJson: { ext: { site: {} } }, publishedAt: NOW, expectedVersion: undefined } });
+      importEntry({ deps, input: { workspaceId: WS, actorId: "user-1", actor: { id: "user-1", kind: "user" }, id: "entry-1", type: "recipe", slug: "chili", title, status: "published", fieldsJson: { ext: { site: {} } }, publishedAt: NOW, expectedVersion: undefined } });
     const results = await Promise.all([create("First"), create("Second")]);
 
     assert.deepEqual(results.map((result) => result.ok).sort(), [false, true]);
@@ -139,7 +139,7 @@ function runCompareAndSetSuite(adapterName: string, make: () => Adapter): void {
     const { repo } = make();
     await repo.save(entry());
     const deps = { entryRepo: repo, contentTypeRepo: activeType, clock: { nowMs: () => Date.parse(NOW) }, authorize: async () => ({ allowed: true, reason: "ok" }), outbox: { enqueue: async () => {} } };
-    const edit = (title: string) => updateEntry({ deps, input: { workspaceId: WS, actorId: "user-1", id: "entry-1", title, expectedVersion: 1 } });
+    const edit = (title: string) => updateEntry({ deps, input: { workspaceId: WS, actorId: "user-1", actor: { id: "user-1", kind: "user" }, id: "entry-1", title, expectedVersion: 1 } });
     const results = await Promise.all([edit("First"), edit("Second")]);
 
     assert.deepEqual(results.map((result) => result.ok).sort(), [false, true]);

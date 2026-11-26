@@ -1,5 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test, { mock } from "node:test";
 import http, { IncomingMessage, ServerResponse, type RequestListener } from "node:http";
 import { syncBuiltinESMExports } from "node:module";
@@ -79,7 +80,7 @@ const { uploadMedia } = await import("#src/features/media/index");
 /** Use persisted CMS records and stored media bytes, including two URLs for one physical image. */
 async function contentFixture({ deps }: { deps: ReturnType<typeof createRouteDeps> }, _options = {}): Promise<string> {
   const { media } = await uploadMedia({
-    deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+    deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
       renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>'),
       filename: "static-export-cover.svg", contentType: "image/svg+xml", createdByPrincipal: "test" },

@@ -56,7 +56,7 @@ async function createPublishedEntry(params: {
   const created = await createEntry({
     deps,
     input: {
-      actorId: "user-1",
+      actorId: "user-1", actor: { id: "user-1", kind: "user" },
       workspaceId: params.workspaceId,
       type: params.type,
       slug: params.slug,
@@ -69,7 +69,7 @@ async function createPublishedEntry(params: {
 
   const published = await publishEntry({
     deps,
-    input: { actorId: "user-1", workspaceId: params.workspaceId, id: created.value.entry.id, expectedVersion: created.value.entry.version },
+    input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: params.workspaceId, id: created.value.entry.id, expectedVersion: created.value.entry.version },
   });
   assert.equal(published.ok, true, `publishEntry failed for slug "${params.slug}"`);
   if (!published.ok) throw new Error("unreachable — asserted above");
@@ -211,7 +211,7 @@ test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and 
       outbox: { enqueue: async () => {} },
     },
     input: {
-      actorId: "user-1",
+      actorId: "user-1", actor: { id: "user-1", kind: "user" },
       workspaceId: "ws-1",
       type: "recipe",
       slug: "draft-recipe",

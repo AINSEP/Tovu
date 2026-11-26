@@ -58,7 +58,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
         authorize: alwaysAllow(),
         outbox: { enqueue: async () => {} },
       },
-      input: { actorId: "user-1", workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
+      input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
     });
     assert.equal(created.ok, true);
 

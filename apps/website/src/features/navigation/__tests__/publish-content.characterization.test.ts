@@ -8,6 +8,8 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
+import { applyRunActor, createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
+import { updateMenuTree } from "@jini-ai/cms/navigation/node";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
@@ -19,7 +21,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const WORKSPACE_ID = "workspace-1";
 
-const ROWS = [
+const ROWS: NavMenuEntry[] = [
   {
     id: "menu-header-nav",
     workspaceId: WORKSPACE_ID,
@@ -40,7 +42,7 @@ const ROWS = [
   },
   { id: "menu-empty", workspaceId: WORKSPACE_ID, slug: "empty", title: "Empty", status: "draft", doc: { type: "menu", version: 1, items: [] }, locations: [], updatedAt: "2026-01-02T00:00:00.000Z", version: 1 },
   { id: "menu-trashed", workspaceId: WORKSPACE_ID, slug: "old", title: "Old", status: "trash", doc: { type: "menu", version: 1, items: [] }, locations: [], updatedAt: "2026-01-03T00:00:00.000Z", version: 2 },
-] as unknown as NavMenuEntry[];
+];
 
 const PINNED_HASHES: Record<string, string> = {
   "menu-header-nav": "03036fd7571988a38b09365f04c73acde5beb407388c7cc48f2fca8048368beb",
@@ -69,17 +71,18 @@ const entity = (id: string, state: Record<string, unknown>): PackedEntity => ({
 
 test("pack(): pinned contentHash and packed state per menu; trashed rows skipped", async () => {
   const packed: PackedEntity[] = [];
-  for await (const e of contributeMenusPublish().build(deps()).pack()) packed.push(e);
+  for await (const e of contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps()).pack()) packed.push(e);
   assert.deepEqual(
     packed.map((e) => [e.id, e.contentHash, e.schemaVersion, e.hashVersion, e.requiredBlobs]),
     Object.entries(PINNED_HASHES).map(([id, hash]) => [id, hash, 1, 1, []])
   );
   const { slug, title, status, doc, locations } = ROWS[0];
-  assert.deepEqual(packed[0].state, { slug, title, status, doc, locations });
+  assert.deepEqual(packed.find((e) => e.id === "menu-header-nav")?.state, { slug, title, status, doc, locations });
+  assert.deepEqual(packed.find((e) => e.id === "menu-empty")?.state, { slug: "empty", title: "Empty", status: "draft", doc: { type: "menu", version: 1, items: [] }, locations: [] });
 });
 
 test("inspect(): the destination's hash equals the pinned pack hash", async () => {
-  const handler = contributeMenusPublish().build(deps());
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps());
   for (const [id, hash] of Object.entries(PINNED_HASHES)) {
     assert.deepEqual(await handler.inspect({ id }), { version: ROWS.find((r) => r.id === id)!.version, hash });
   }
@@ -88,10 +91,10 @@ test("inspect(): the destination's hash equals the pinned pack hash", async () =
 test("precheck(): exact reason strings", async () => {
   const state = { slug: "fresh", title: "Fresh", status: "published", doc: { type: "menu", version: 1, items: [] }, locations: [] };
   assert.equal(
-    await contributeMenusPublish().build(deps(false)).precheck({ entity: entity("m", state) }),
+    await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps(false)).precheck({ entity: entity("m", state) }),
     "menu entity 'm' cannot be prechecked — no menu port wired for this deps bag"
   );
-  const handler = contributeMenusPublish().build(deps());
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps());
   assert.equal(await handler.precheck({ entity: entity("menu-new", state) }), null);
   assert.equal(await handler.precheck({ entity: entity("menu-empty", { ...state, slug: "empty" }) }), null);
   // The slug sentence drops "menu " and "at this destination" (plan §2.3); the owner-facing rewrite in
@@ -107,7 +110,7 @@ test("precheck(): exact reason strings", async () => {
 });
 
 test("apply(): exact blocked text, stale version is a conflict, unwired throws naming the port", async () => {
-  const handler = contributeMenusPublish().build(deps());
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps());
   const state = { slug: "fresh", title: "Fresh", status: "published", doc: { type: "menu", version: 1, items: [] }, locations: [] };
   const badDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
   await assert.rejects(
@@ -119,14 +122,14 @@ test("apply(): exact blocked text, stale version is a conflict, unwired throws n
     (err: unknown) => err instanceof PublishContentApplyRowError && err.rowOutcome === "conflict"
   );
   await assert.rejects(
-    () => contributeMenusPublish().build(deps(false)).apply({ entity: entity("m", state), expectedVersion: undefined, principalId: "op", idempotencyKey: "k3" }),
+    () => contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps(false)).apply({ entity: entity("m", state), expectedVersion: undefined, principalId: "op", idempotencyKey: "k3" }),
     /^Error: publish-content: menu\.apply\(\) requires PublishContentDeps\.ports\.menu/
   );
 });
 
 test("apply(): create keeps the source id, update bumps the version; changeSetId is the menu id", async () => {
   const d = deps();
-  const handler = contributeMenusPublish().build(d);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(d);
   const state = { slug: "fresh", title: "Fresh", status: "published", doc: { type: "menu", version: 1, items: [] }, locations: ["footer"] };
   assert.equal((await handler.apply({ entity: entity("menu-new", state), expectedVersion: undefined, principalId: "op", idempotencyKey: "k4" })).changeSetId, "menu-new");
   const { changeSetId } = await handler.apply({ entity: entity("menu-empty", { ...state, slug: "empty", locations: [] }), expectedVersion: 1, principalId: "op", idempotencyKey: "k5" });

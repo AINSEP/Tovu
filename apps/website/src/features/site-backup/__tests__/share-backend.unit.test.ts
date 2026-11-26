@@ -14,6 +14,7 @@ import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
+import type { ShareDelivery } from "@jini-ai/devops/backup/site/share-hosting";
 import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 
@@ -260,14 +261,19 @@ test("static options show installed display titles while keeping theme IDs", asy
   ] });
 });
 
-test("list offers expiry day choices only while new exports land in this server's own share folder", async () => {
-  const registry = {} as SiteShareRegistry;
-  const choicesFor = (delivery: () => Promise<{ provider: string; binding?: string } | undefined>) =>
-    createSiteShareBackend({ registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: delivery as never }).expiryChoices({});
-  assert.deepEqual(await choicesFor(async () => ({ provider: "tovu-server", binding: path.resolve("shares") })), [7, 30, 90]);
+test("list offers expiry day choices only while new exports land in this server's own share folder", async t => {
+  const registry = await registryIn(t);
+  const store: ShareDelivery["store"] = {
+    upload: async () => assert.fail("listing expiry choices must not upload"),
+    verify: async () => assert.fail("listing expiry choices must not verify an upload"),
+    delete: async () => assert.fail("listing expiry choices must not delete"),
+  };
+  const choicesFor = (delivery: Parameters<typeof createSiteShareBackend>[0]["delivery"]) =>
+    createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy, registry, site: "ws", prepare: async () => assert.fail("listing expiry choices must not prepare an export"), zip: zipFolderFiles, delivery }).expiryChoices({});
+  assert.deepEqual(await choicesFor(async () => ({ provider: "tovu-server", binding: registry.directory, store })), [7, 30, 90]);
   // Never stays the only choice wherever a date could not be honoured (owner rule (c)).
-  assert.deepEqual(await choicesFor(async () => ({ provider: "s3", binding: "bucket" })), []);
-  assert.deepEqual(await choicesFor(async () => ({ provider: "tovu-server", binding: "https://peer.example/" })), []);
+  assert.deepEqual(await choicesFor(async () => ({ provider: "s3", binding: "bucket", store })), []);
+  assert.deepEqual(await choicesFor(async () => ({ provider: "tovu-server", binding: "https://peer.example/", store })), []);
   assert.deepEqual(await choicesFor(async () => undefined), []);
   assert.deepEqual(await choicesFor(async () => { throw new Error("delivery settings unreadable"); }), []);
 });

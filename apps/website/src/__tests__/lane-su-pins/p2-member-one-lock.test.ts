@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { setMemberPassword } from "@jini-ai/user-management/members/password-auth";
@@ -38,6 +39,7 @@ function harness() {
   const sessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
   const digest = (value: string) => `test:${createHash("sha256").update(value).digest("hex")}`;
   const deps: MembersWriteServiceDeps = {
+    orFallbackSync,
     credentialLifecycle: kernel, clock, ids: { newId: () => `id-${++sequence}` }, members, sessions,
     magicLinks: new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel })), tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     principals: new InMemoryPrincipalRepo({}),

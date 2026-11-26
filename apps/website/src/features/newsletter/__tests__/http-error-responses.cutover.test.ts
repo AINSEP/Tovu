@@ -5,7 +5,9 @@ import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAdminNewsletterListListsRoute } from "#src/server/runtime/composition/modules/newsletter";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
+import { InMemoryNewsletterListRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import type { NewsletterErrorMapper } from "@jini-ai/cms/admin-http/http/newsletter";
 import {
   NewsletterCampaignNotEditableError,
@@ -46,26 +48,32 @@ test("unknown errors return undefined from the mapper", () => {
 });
 
 /** The same mapper as the mounted list route receives it: the route's repo read throws and the response is read. */
-async function mountedFailure(t: import("node:test").TestContext, thrown: unknown, tracked: unknown[][]) {
-  const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }),
-    newsletterListRepo: { list: async () => { throw thrown; } } } as unknown as NewsletterRouteDeps;
+async function mountedFailure(t: import("node:test").TestContext, thrown: Error, incidents: ReturnType<typeof createRouteIncidentReporter>) {
+  const newsletterListRepo = new InMemoryNewsletterListRepo();
+  newsletterListRepo.list = async (required) => {
+    assert.deepEqual(required, { workspaceId: "workspace-local" });
+    throw thrown;
+  };
+  const deps: NewsletterRouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }), newsletterListRepo };
   const app = express();
-  app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; res.locals.adminFailureTracker = { error: (...args: unknown[]) => { tracked.push(args); } }; next(); });
-  registerAdminNewsletterListListsRoute({ app, deps });
+  app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; next(); });
+  registerAdminNewsletterListListsRoute({ app, deps, errors: incidents.errors });
   const res = await fetch(`${await startTestServer(app, t)}/api/admin/v1/workspaces/workspace-local/newsletter/lists`);
   return { status: res.status, body: await res.json() as Record<string, unknown> };
 }
 
 test("unknown failure is left to the route failure reporter", async (t) => {
   const secret = "ghp_" + "x".repeat(36);
-  t.mock.method(console, "error", () => undefined);
-  const tracked: unknown[][] = [];
-  const { status, body } = await mountedFailure(t, new Error(`private ${secret}`), tracked);
+  const incidents = createRouteIncidentReporter();
+  const { status, body } = await mountedFailure(t, new Error(`private ${secret}`), incidents);
   assert.equal(status, 500);
   assert.equal(body.code, "INTERNAL_ERROR");
   assert.equal(JSON.stringify(body).includes(secret), false);
-  assert.equal(tracked.length, 1, "the route failure reporter, not the mapper, answered");
-  const conflict = await mountedFailure(t, new NewsletterConflictError({ message: "stale", entity: "campaign", id: "c", expectedVersion: 1, actualVersion: 2 }), tracked);
+  assert.deepEqual(incidents.entries.map(entry => entry.meta?.step), ["http/newsletter"], "the route failure reporter, not the mapper, answered");
+  assert.ok(typeof body.errorId === "string");
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+  assert.equal(body.errorId, incidents.entries[0]?.meta?.errorId);
+  const conflict = await mountedFailure(t, new NewsletterConflictError({ message: "stale", entity: "campaign", id: "c", expectedVersion: 1, actualVersion: 2 }), incidents);
   assert.deepEqual([conflict.status, conflict.body.code], [409, "NEWSLETTER_CONFLICT"]);
-  assert.equal(tracked.length, 1, "a mapped error is never reported as a failure");
+  assert.equal(incidents.entries.length, 1, "a mapped error is never reported as a failure");
 });

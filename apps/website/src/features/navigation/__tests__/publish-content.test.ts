@@ -9,6 +9,8 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 import { type MenuRepoPort, type NavLocationBindingRepoPort, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuDoc, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
+import { applyRunActor, createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
+import { updateMenuTree } from "@jini-ai/cms/navigation/node";
 
 /**
  * @file S3 (`menu` publish type) — `features/navigation/publish-content.ts`. Uses Jini's own
@@ -77,7 +79,7 @@ function menuState(overrides: Partial<MenuState> = {}): MenuState {
 // ---------------------------------------------------------------------------
 
 test("pack() yields nothing when menuRepo is absent", async () => {
-  const handler = contributeMenusPublish().build(makePublishDeps({}));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({}));
   const entities: PackedEntity[] = [];
   for await (const entity of handler.pack()) entities.push(entity);
   assert.deepEqual(entities, []);
@@ -88,10 +90,10 @@ test("pack() keeps both the page reference and last-known URL for a destination 
   const doc = { type: "menu" as const, version: 1 as const, items: [{ id: "about", target }] };
   const menuRepo = new InMemoryMenuRepo({}, { initialRows: [{ id: "footer", workspaceId: WORKSPACE_ID,
     ...menuState({ doc }), updatedAt: "2026-10-04", version: 1 } as NavMenuEntry] });
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo }));
   const entities: PackedEntity[] = [];
   for await (const entity of handler.pack()) entities.push(entity);
-  assert.deepEqual(entities[0].state.doc, doc);
+  assert.deepEqual(entities.find((entity) => entity.id === "footer")?.state.doc, doc);
 });
 
 test("pack() skips a trashed menu and packs a live one, keyed by the menu's own id", async () => {
@@ -105,7 +107,7 @@ test("pack() skips a trashed menu and packs a live one, keyed by the menu's own 
       version: 1,
     },
   ] as NavMenuEntry[] });
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo }));
 
   const entities: PackedEntity[] = [];
   for await (const entity of handler.pack()) entities.push(entity);
@@ -121,7 +123,7 @@ test("pack() skips a trashed menu and packs a live one, keyed by the menu's own 
 test("apply() creates a new menu under the SOURCE id (never mints its own, unlike createMenu)", async () => {
   const menuRepo = new InMemoryMenuRepo({});
   const bindingRepo = new InMemoryNavLocationBindingRepo({});
-  const handler = contributeMenusPublish().build(
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(
     makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, idGen: { newId: () => "generated-1" } })
   );
 
@@ -150,7 +152,7 @@ test("apply() updates an existing destination row under OCC, re-resolved by its 
     { ...other, locationKey: "stale", menuId: "menu-header-nav" }, other, unrelated,
   ] });
   const outbox = new InMemoryOutbox();
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox }));
 
   const { changeSetId } = await handler.apply({
     entity: packedEntity("menu-header-nav", menuState({ slug: "header-nav", title: "New Title", locations: ["primary"] })),
@@ -182,7 +184,7 @@ test("apply() rebinds a location away from whatever destination menu previously 
     { workspaceId: WORKSPACE_ID, locationKey: "primary", menuId: "menu-old-header", boundAt: "2026-01-01T00:00:00.000Z" },
   ] });
   const outbox = new InMemoryOutbox();
-  const handler = contributeMenusPublish().build(
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(
     makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox, idGen: sequentialIds() })
   );
 
@@ -210,7 +212,7 @@ test("apply() rebinds a location away from whatever destination menu previously 
 test("apply() accepts a doc item whose entryRef target does not exist at the destination — no precheck on refs", async () => {
   const menuRepo = new InMemoryMenuRepo({});
   const bindingRepo = new InMemoryNavLocationBindingRepo({});
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo }));
 
   const doc: NavMenuDoc = {
     type: "menu",
@@ -237,7 +239,7 @@ test("apply() round-trip (simulated rollback): publishing the prior record back 
   const bindingRepo = new InMemoryNavLocationBindingRepo({}, { initialRows: [
     { workspaceId: WORKSPACE_ID, locationKey: "primary", menuId: "menu-old-header", boundAt: "2026-01-01T00:00:00.000Z" },
   ] });
-  const handler = contributeMenusPublish().build(
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(
     makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, idGen: { newId: () => "evt" } })
   );
 
@@ -271,7 +273,7 @@ test("precheck() rejects a slug already held by a different menu", async () => {
   const menuRepo = new InMemoryMenuRepo({}, { initialRows: [
     { id: "menu-other", workspaceId: WORKSPACE_ID, ...menuState({ slug: "header-nav" }), updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
   ] as NavMenuEntry[] });
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo }));
 
   const reason = await handler.precheck({ entity: packedEntity("menu-incoming", menuState({ slug: "header-nav" })) });
   assert.ok(typeof reason === "string");
@@ -280,7 +282,7 @@ test("precheck() rejects a slug already held by a different menu", async () => {
 
 test("precheck() reports the tree validator's own message for an invalid doc", async () => {
   const menuRepo = new InMemoryMenuRepo({});
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo }));
 
   const badDoc: NavMenuDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
   const reason = await handler.precheck({ entity: packedEntity("menu-bad", menuState({ doc: badDoc })) });
@@ -383,7 +385,7 @@ test("referencesTo() finds a menu whose nested entryRef targets one of the given
       }),
     }),
   ] });
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo }));
 
   const holders = await handler.referencesTo!({ ids: ["post-about"] });
 
@@ -397,7 +399,7 @@ test("referencesTo() finds nothing for a menu whose only item is a url target", 
       ...menuState({ title: "Footer", doc: { type: "menu", version: 1, items: [{ id: "item-1", label: "Contact", target: { kind: "url", href: "/contact" } }] } }),
     }),
   ] });
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({ menuRepo }));
 
   const holders = await handler.referencesTo!({ ids: ["post-about"] });
   assert.deepEqual(holders, []);
@@ -408,7 +410,7 @@ test("repointReferences() rewrites a live menu's entryRef and records one revert
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }), version: 5 }),
   ] });
   const deps = makeRepointDeps({ menuRepo });
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
 
   const result = await handler.repointReferences!({
     replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
@@ -442,7 +444,7 @@ test("repointReferences() attributes the menu repoint to the apply run's actor, 
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }), version: 5 }),
   ] });
   const deps = { ...makeRepointDeps({ menuRepo }), mutationActor: { id: "operator-1", kind: "agent" as const } };
-  const result = await contributeMenusPublish().build(deps).repointReferences!({
+  const result = await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).repointReferences!({
     replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-agent",
   });
   const recorded = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: result.changeSetIds[0]! });
@@ -454,7 +456,7 @@ test("repointReferences() leaves a menu named in skipIds untouched", async () =>
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
   ] });
   const deps = makeRepointDeps({ menuRepo });
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
 
   const result = await handler.repointReferences!({
     replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
@@ -474,7 +476,7 @@ test("repointReferences() called a second time finds nothing left to repoint —
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
   ] });
   const deps = makeRepointDeps({ menuRepo });
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
   const replacements = [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }];
 
   const first = await handler.repointReferences!({ replacements, skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
@@ -490,7 +492,7 @@ test("repointReferences() reports a denied authorization without writing", async
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
   ] });
   const deps = makeRepointDeps({ menuRepo, authorize: async () => ({ allowed: false, reason: "grant excludes menus" }) });
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
 
   const result = await handler.repointReferences!({
     replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
@@ -510,7 +512,7 @@ test("repointReferences() skips a menu that keeps conflicting after one retry, w
     menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
   ]);
   const deps = makeRepointDeps({ menuRepo });
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
 
   const result = await handler.repointReferences!({
     replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
@@ -539,7 +541,7 @@ test("repointReferences() puts the prior tree back when the change-set record fa
   ] });
   const outbox = new InMemoryOutbox();
   const deps = { ...makeRepointDeps({ menuRepo }), outbox, changeSets: new FailingInsertChangeSetRepo([], [], outbox) };
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
 
   await assert.rejects(
     () =>
@@ -568,7 +570,7 @@ test("repointReferences continues after a denied menu and repairs the next menu"
   const repo = new InMemoryMenuRepo({}, { initialRows: [denied, allowed] });
   let checks = 0;
   const deps = makeRepointDeps({ menuRepo: repo, authorize: async () => ({ allowed: ++checks > 1, reason: "test" }) });
-  const result = await contributeMenusPublish().build(deps).repointReferences!({ replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
+  const result = await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).repointReferences!({ replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
   assert.equal(checks, 2);
   assert.equal(result.notUpdated.length, 1);
   assert.equal(result.linksUpdated, 1);
@@ -589,7 +591,7 @@ test("repointReferences retries a single conflict from fresh state, preserving t
     return read(request);
   };
   const deps = makeRepointDeps({ menuRepo: repo });
-  const result = await contributeMenusPublish().build(deps).repointReferences!({ replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
+  const result = await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).repointReferences!({ replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
   assert.equal(result.linksUpdated, 1);
   assert.deepEqual(result.notUpdated, []);
   assert.equal(result.changeSetIds.length, 1);
@@ -603,7 +605,7 @@ test("repointReferences retries a single conflict from fresh state, preserving t
 
 
 test("referencesTo returns no holders without a menu port", async () => {
-  assert.deepEqual(await contributeMenusPublish().build(makePublishDeps({})).referencesTo!({ ids: ["old"] }), []);
+  assert.deepEqual(await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(makePublishDeps({})).referencesTo!({ ids: ["old"] }), []);
 });
 
 for (const missing of ["menu", "changeSets", "authorize", "outbox"] as const) {
@@ -612,7 +614,7 @@ for (const missing of ["menu", "changeSets", "authorize", "outbox"] as const) {
     const repo = new InMemoryMenuRepo({}, { initialRows: [row] });
     const wired = makeRepointDeps({ menuRepo: repo });
     const deps: PublishContentDeps = missing === "menu" ? { ...wired, ports: {} } : { ...wired, [missing]: undefined };
-    await assert.rejects(contributeMenusPublish().build(deps).repointReferences!({
+    await assert.rejects(contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).repointReferences!({
       replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "op", runId: "run",
     }), { message: "publish-content: menu.repointReferences() requires PublishContentDeps.ports.menu.repo, .changeSets, .authorize and .outbox — wire them from the real apply-loop composition root (features/publish-content/apply-loop.ts)." });
     assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: row.id }), row);
@@ -631,8 +633,8 @@ for (const outcome of ["removed", "already-repaired"] as const) {
       return snapshot;
     };
     const deps = makeRepointDeps({ menuRepo: repo });
-    assert.deepEqual(await contributeMenusPublish().build(deps).repointReferences!({
-      replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "op", runId: "run",
+    assert.deepEqual(await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).repointReferences!({
+      replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run",
     }), { changeSetIds: [], linksUpdated: 0, notUpdated: [] });
     const stored = await repo.findById({ workspaceId: WORKSPACE_ID, id: row.id });
     if (outcome === "removed") assert.equal(stored, null);
@@ -644,7 +646,7 @@ for (const outcome of ["removed", "already-repaired"] as const) {
 test("apply refuses a missing outbox before writing a menu", async () => {
   const repo = new InMemoryMenuRepo({});
   const deps = { ...makePublishDeps({ menuRepo: repo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) }), outbox: undefined };
-  await assert.rejects(contributeMenusPublish().build(deps).apply({
+  await assert.rejects(contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).apply({
     entity: packedEntity("incoming", menuState()), expectedVersion: undefined, principalId: "op", idempotencyKey: "missing-outbox",
   }), /menu\.apply\(\) requires PublishContentDeps\.outbox/);
   assert.deepEqual(await repo.list({ workspaceId: WORKSPACE_ID }), []);
@@ -654,7 +656,7 @@ test("apply defaults omitted locations to an empty list", async () => {
   const repo = new InMemoryMenuRepo({});
   const deps = makePublishDeps({ menuRepo: repo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) });
   const { locations: _locations, ...state } = menuState();
-  await contributeMenusPublish().build(deps).apply({
+  await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).apply({
     entity: packedEntity("incoming", state), expectedVersion: undefined, principalId: "op", idempotencyKey: "no-locations",
   });
   assert.deepEqual((await repo.findById({ workspaceId: WORKSPACE_ID, id: "incoming" }))?.locations, []);
@@ -662,8 +664,8 @@ test("apply defaults omitted locations to an empty list", async () => {
 
 test("precheck reports a non-Error thrown while reading the doc as its string form", async () => {
   const deps = makePublishDeps({ menuRepo: new InMemoryMenuRepo({}), navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) });
-  const doc = { type: "menu", version: 1, get items(): never { throw "items unreadable"; } };
-  assert.equal(await contributeMenusPublish().build(deps).precheck({ entity: packedEntity("incoming", menuState({ doc: doc as unknown as NavMenuDoc })) }), "items unreadable");
+  const doc: NavMenuDoc = { type: "menu", version: 1, get items(): never { throw "items unreadable"; } };
+  assert.equal(await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).precheck({ entity: packedEntity("incoming", menuState({ doc })) }), "items unreadable");
 });
 
 const REPOINT_OLD_TO_NEW = { replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }], skipIds: new Set<string>(), principalId: "operator-1", runId: "run-1" };
@@ -674,7 +676,7 @@ test("repointReferences gives a menu exactly two attempts when every write confl
   ]);
   let authorizations = 0;
   const deps = makeRepointDeps({ menuRepo, authorize: async () => ({ allowed: ++authorizations > 0, reason: "test" }) });
-  await contributeMenusPublish().build(deps).repointReferences!(REPOINT_OLD_TO_NEW);
+  await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).repointReferences!(REPOINT_OLD_TO_NEW);
   // executeCommand authorizes once per attempt, so this counts attempts.
   assert.equal(authorizations, 2);
 });
@@ -685,7 +687,7 @@ test("repointReferences reports the grant line when the retry after a conflict i
   ]);
   let authorizations = 0;
   const deps = makeRepointDeps({ menuRepo, authorize: async () => ({ allowed: ++authorizations === 1, reason: "second attempt denied" }) });
-  const result = await contributeMenusPublish().build(deps).repointReferences!(REPOINT_OLD_TO_NEW);
+  const result = await contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps).repointReferences!(REPOINT_OLD_TO_NEW);
   assert.equal(authorizations, 2);
   assert.deepEqual(result, { changeSetIds: [], linksUpdated: 0, notUpdated: ["Menu links were not updated: this publishing grant doesn't cover menus."] });
 });

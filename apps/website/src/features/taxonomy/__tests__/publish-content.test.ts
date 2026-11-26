@@ -9,6 +9,7 @@ import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
+import { repoPublishBindings } from "#src/server/runtime/composition/publish-content-manifest";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 function ports(): TaxonomyPublishPorts & { taxonomies: SqlTaxonomyRepo; terms: SqlTermRepo } {
   const db = openContentDb(":memory:");
@@ -26,7 +27,7 @@ function ports(): TaxonomyPublishPorts & { taxonomies: SqlTaxonomyRepo; terms: S
 const at = "2026-09-01T00:00:00.000Z";
 
 async function sites() {
-  registerOnly([contributeTermPublish(), contributeTaxonomyPublish()]);
+  registerOnly([contributeTermPublish(repoPublishBindings), contributeTaxonomyPublish(repoPublishBindings)]);
   const src = ports();
   const dst = ports();
   await src.taxonomies.insert({ id: "tx-cat", name: "Category", hierarchical: true, status: "active", updatedAt: at, version: 2 });
