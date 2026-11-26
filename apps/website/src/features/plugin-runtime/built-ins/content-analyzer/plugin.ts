@@ -8,6 +8,13 @@
  * under `host-binding`) here: it pulls server modules into the sandboxed worker.
  */
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
-import { createContentAnalyzerPlugin } from "@jini-ai/cms/seo/content-analyzer-plugin/plugin";
+import { createContentAnalyzerPlugin, type ContentAnalyzerPluginBinding } from "@jini-ai/cms/seo/content-analyzer-plugin/plugin";
 
-export default createContentAnalyzerPlugin({ definePlugin, beforeSaveHook: HOOK_CONTENT_ENTRY_BEFORE_SAVE });
+// Type-only widening, not a runtime adapter: Jini's binding types `definePlugin` over an SDK whose
+// `addFilter` takes ANY hook name (and whose `plugins` rows carry Jini's full `PluginProvider`), while
+// `@tovu/sdk` narrows both, so the parameter check fails contravariantly. The factory only ever calls
+// `addFilter(beforeSaveHook, …)` with the `HOOK_CONTENT_ENTRY_BEFORE_SAVE` passed below, which
+// `@tovu/sdk` accepts. Remove once Jini makes the binding generic over the host's SDK.
+const bindDefinePlugin = definePlugin as unknown as ContentAnalyzerPluginBinding["definePlugin"];
+
+export default createContentAnalyzerPlugin({ definePlugin: bindDefinePlugin, beforeSaveHook: HOOK_CONTENT_ENTRY_BEFORE_SAVE });
