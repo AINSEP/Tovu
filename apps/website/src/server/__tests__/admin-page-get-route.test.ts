@@ -121,9 +121,9 @@ test("GET /pages by id and slug requires content.read, and that grant alone suff
   for (const allowed of [false, true]) {
     const id = allowed ? "page-reader" : "page-no-grants";
     await deps.principalRepo.save({ id, workspaceId: WS, kind: "user", displayName: id, status: "active", createdAt: deps.clock.nowIso() });
-    await deps.userRepo.save({ principalId: id, workspaceId: WS, username: id, passwordHash: await deps.passwordHasher.hash({ password: "page-test-password" }) });
+    await deps.userRepo.save({ version: 1, principalId: id, workspaceId: WS, username: id, passwordHash: await deps.passwordHasher.hash({ password: "page-test-password" }) });
     if (allowed) {
-      await deps.policyRepo.save({ id: "page-read-policy", workspaceId: WS, name: "Read only", isBuiltin: false, isFrozen: false });
+      await deps.policyRepo.save({ version: 1, id: "page-read-policy", workspaceId: WS, name: "Read only", isBuiltin: false, isFrozen: false });
       await deps.policyPermissionRepo.save({ id: "page-read-permission", workspaceId: WS, policyId: "page-read-policy", permission: "content.read", resourceType: null, constraintJson: null });
       await deps.principalPolicyRepo.save({ id: "page-read-link", workspaceId: WS, principalId: id, policyId: "page-read-policy" });
     }

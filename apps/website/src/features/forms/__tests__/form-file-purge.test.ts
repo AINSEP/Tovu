@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -32,15 +33,16 @@ test('private source metadata survives the durable media adapter', async () => {
   const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); let id = 0;
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w','now');
   const mediaRepo = new SqlMediaRepo(kernel);
-  const { media } = await uploadMedia({ deps: { mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => 0 }, idGen: { newId: () => `m${++id}` } }, input: { workspaceId: 'w', createdByPrincipal: 'system', filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), access: 'private' } });
+  const { media } = await uploadMedia({ deps: { createHash, mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => 0 }, idGen: { newId: () => `m${++id}` } }, input: { workspaceId: 'w', createdByPrincipal: 'system', filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), access: 'private' } });
   assert.equal((await mediaRepo.findById({ workspaceId: 'w', id: media.id }))!.source.private, true);
   db.$client.close();
 });
 
-test('filename-only legacy evidence keeps files unchanged and warns, including submissions in Trash', async () => {
+test('filename-only legacy evidence keeps files unchanged and warns, including submissions in Trash', async (t) => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-'));
   const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); const at = '2026-11-04T00:00:00.000Z';
+  t.after(async () => { db.$client.close(); await rm(siteDir, { recursive: true, force: true }); });
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
   db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,version) VALUES ('f','w','F','f','[]','{}','active',?,?,1)`).run(at,at);
   const dataJson = JSON.stringify({ photo: { mediaId: 'm', filename: 'photo.png', contentType: 'image/png', byteSize: 8 } });
@@ -53,13 +55,13 @@ test('filename-only legacy evidence keeps files unchanged and warns, including s
   assert.equal(await readFile(join(siteDir, '.form-files-protected-v1'), 'utf8'), 'complete\n');
   const row = await kernel.run(db => db.selectFrom('media').select('source_metadata_json').where('id', '=', 'm').executeTakeFirstOrThrow());
   assert.deepEqual(JSON.parse(row.source_metadata_json!), { contentType: 'image/png' });
-  await protectExistingFormFiles({ kernel: { run: () => assert.fail('completed attempt must not rescan permanent unknowns') } as never, workspaceId: 'w', siteDir });
+  const rescan = t.mock.method(kernel, 'run');
+  await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
+  assert.equal(rescan.mock.callCount(), 0);
   assert.equal(warnings.length, 1);
-  await rm(siteDir, { recursive: true, force: true });
-  db.$client.close();
 });
 
-test('protection keeps known-private files, warns for unknown legacy ownership and records the attempted pass', async () => {
+test('protection keeps known-private files, warns for unknown legacy ownership and records the attempted pass', async (t) => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db });
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-')); const warnings: string[] = [];
@@ -77,22 +79,27 @@ test('protection keeps known-private files, warns for unknown legacy ownership a
     assert.deepEqual(JSON.parse(source.source_metadata_json!), {});
     const good = await kernel.run(db => db.selectFrom('media').select('source_metadata_json').where('id', '=', 'good').executeTakeFirstOrThrow());
     assert.deepEqual(JSON.parse(good.source_metadata_json!), { private: true });
-    await protectExistingFormFiles({ kernel: { run: () => assert.fail('completed attempt must not rescan permanent unknowns') } as never, workspaceId: 'w', siteDir });
+    const rescan = t.mock.method(kernel, 'run');
+    await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
+    assert.equal(rescan.mock.callCount(), 0);
     assert.equal(warnings.length, 2);
   } finally { db.$client.close(); await rm(siteDir, { recursive: true, force: true }); }
 });
 
-test('unavailable protection storage warns and leaves completion absent for an automatic next-owner-start retry', async () => {
+test('unavailable protection storage warns and leaves completion absent for an automatic next-owner-start retry', async (t) => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-')); const warnings: string[] = [];
   try {
-    await protectExistingFormFiles({ kernel: { run: async () => { throw Object.assign(new Error('private credentials boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } } as never, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
+    const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db });
+    t.after(() => db.$client.close());
+    t.mock.method(kernel, 'run', async () => { throw Object.assign(new Error('private credentials boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); });
+    await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
     assert.equal(warnings.length, 1); assert.equal(warnings[0]!.includes('private credentials'), false);
     assert.match(warnings[0]!, /FORMS_LEGACY_FILE_PROTECTION_INCOMPLETE/);
     assert.match(warnings[0]!, /Error/);
     assert.match(warnings[0]!, /EIO/);
     assert.doesNotMatch(warnings[0]!, /SECRETSECRETSECRETSECRET/);
-    await assert.rejects(readFile(join(siteDir, '.form-files-protected-v1')));
+    await assert.rejects(readFile(join(siteDir, '.form-files-protected-v1')), { code: 'ENOENT' });
   } finally { await rm(siteDir, { recursive: true, force: true }); }
 });
 
@@ -123,7 +130,7 @@ test('form purge captures the attachment after submission 100 without truncation
   } finally { db.$client.close(); }
 });
 
-test('transient legacy stamp failures keep the marker absent and retry automatically on the next owner start', async () => {
+test('transient legacy stamp failures keep the marker absent and retry automatically on the next owner start', async (t) => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); const at = '2026-11-04T00:00:00.000Z';
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-')); const warnings: string[] = [];
@@ -132,14 +139,20 @@ test('transient legacy stamp failures keep the marker absent and retry automatic
     db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,version) VALUES ('f','w','F','f','[]','{}','active',?,?,1)`).run(at,at);
     db.$client.prepare(`INSERT INTO form_submissions (id,workspace_id,form_definition_id,data_json,submitted_at,version) VALUES ('s','w','f',?,?,1)`).run(JSON.stringify({ file: { mediaId: 'm' } }),at);
     await kernel.run(db => db.insertInto('media').values({ id: 'm', workspace_id: 'w', kind: 'media', original_filename: 's-photo.png', title: '', slug: 'photo', alt: '', caption: '', credit: '', source_sha256: 'hash', source_metadata_json: '{"private":true}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
-    const unavailable = new Proxy(kernel, { get: (target, key) => key === 'transaction' ? async () => { throw new Error('transient secret'); } : Reflect.get(target, key) });
-    await protectExistingFormFiles({ kernel: unavailable, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
-    assert.equal(warnings.length, 1); assert.equal(warnings[0]!.includes('transient secret'), false);
-    await assert.rejects(readFile(join(siteDir, '.form-files-protected-v1')));
+    db.$client.prepare("INSERT INTO asset_blobs (id,workspace_id,sha256,storage_key,created_by_principal,created_at,status,document_owned) VALUES ('blob','w','hash','private-key','system',?,'active',0)").run(at);
+    const transaction = t.mock.method(kernel, 'transaction', async () => { throw new Error('transient secret'); });
+    await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
+    transaction.mock.restore();
+    assert.equal(warnings.length, 1); assert.doesNotMatch(warnings[0] ?? '', /transient secret/);
+    assert.match(warnings[0] ?? '', /attachment-protection-failed/);
+    await assert.rejects(readFile(join(siteDir, '.form-files-protected-v1')), { code: 'ENOENT' });
     await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir });
     assert.equal(await readFile(join(siteDir, '.form-files-protected-v1'), 'utf8'), 'complete\n');
     const protectedRow = await kernel.run(db => db.selectFrom('media').select('source_metadata_json').where('id', '=', 'm').executeTakeFirstOrThrow());
     assert.equal(JSON.parse(protectedRow.source_metadata_json!).private, true);
-    await protectExistingFormFiles({ kernel: { run: () => assert.fail('third completed start must not query') } as never, workspaceId: 'w', siteDir });
+    assert.deepEqual(db.$client.prepare("SELECT document_owned FROM asset_blobs WHERE id = 'blob'").get(), { document_owned: 1 });
+    const rescan = t.mock.method(kernel, 'run');
+    await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir });
+    assert.equal(rescan.mock.callCount(), 0);
   } finally { db.$client.close(); await rm(siteDir, { recursive: true, force: true }); }
 });

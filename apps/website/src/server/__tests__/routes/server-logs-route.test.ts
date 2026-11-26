@@ -17,7 +17,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
   await deps.identityReady;
   const bareId = "bare-principal-server-logs";
   await deps.principalRepo.save({ id: bareId, workspaceId: deps.workspaceId, kind: "user", displayName: "No Grants", status: "active", createdAt: deps.clock.nowIso() });
-  await deps.userRepo.save({ principalId: bareId, workspaceId: deps.workspaceId, username: "bare-server-logs", passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }) });
+  await deps.userRepo.save({ version: 1, principalId: bareId, workspaceId: deps.workspaceId, username: "bare-server-logs", passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }) });
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },

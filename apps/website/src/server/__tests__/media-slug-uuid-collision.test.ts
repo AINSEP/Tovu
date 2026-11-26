@@ -1,5 +1,6 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -39,6 +40,7 @@ async function withServer(run: (baseUrl: string, deps: ReturnType<typeof createR
 async function uploadOne(deps: ReturnType<typeof createRouteDeps>, bytes: Uint8Array, filename: string, declaredContentType: string) {
   return uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,

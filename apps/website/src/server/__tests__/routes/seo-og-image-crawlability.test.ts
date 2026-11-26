@@ -1,6 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 import sharp from "sharp";
 import {
@@ -67,6 +67,7 @@ function configureCrawlerOrigin(deps: ReturnType<typeof createRouteDeps>) {
 async function uploadOne(deps: ReturnType<typeof createRouteDeps>, bytes: Uint8Array, filename: string) {
   return uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,

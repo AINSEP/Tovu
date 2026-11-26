@@ -127,8 +127,12 @@ test("a background taxonomy subscriber span is a descendant of the producing req
   }
   // Command path: the change-set write that co-persists its event, inside a producing span.
   const command = port.trackRequest({ method: "POST", path: "/command-path" });
-  const commandEvent = testEvent({ name: "test.command-path", workspaceId: deps.workspaceId });
-  await command.run(() => deps.changeSets.insert({ record: { id: randomUUID(), workspaceId: deps.workspaceId, status: "applied", summary: "trace witness", createdAt: commandEvent.occurredAt }, items: [] }, { event: commandEvent }));
+  const actor = { id: "command-operator", kind: "user" } as const;
+  const commandEvent = { ...testEvent({ name: "test.command-path", workspaceId: deps.workspaceId }), actor, actorId: actor.id };
+  const { changeSets } = deps;
+  assert.ok(changeSets.insert, "the durable root must support atomic change-set inserts");
+  const insert = changeSets.insert.bind(changeSets);
+  await command.run(() => insert({ record: { id: randomUUID(), workspaceId: deps.workspaceId, actor, actorId: actor.id, status: "applied", summary: "trace witness", createdAt: commandEvent.occurredAt }, items: [] }, { event: commandEvent }));
   command.end({ statusCode: 201, routePattern: "/command-path" });
   // A legacy row: enqueued outside any trace, so it carries no producer context at all.
   await deps.outbox.enqueue(testEvent({ name: "test.legacy-without-context", workspaceId: deps.workspaceId }));

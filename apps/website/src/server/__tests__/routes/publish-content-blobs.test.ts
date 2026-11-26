@@ -70,6 +70,7 @@ async function loginWithPermissions(
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: WORKSPACE,
     username: args.username,
@@ -77,7 +78,7 @@ async function loginWithPermissions(
   });
   if (args.permissions.length > 0) {
     const policyId = `${args.username}-policy`;
-    await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
+    await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
     for (const [index, permission] of args.permissions.entries()) {
       await deps.policyPermissionRepo.save({
         id: `${policyId}-perm-${index}`,

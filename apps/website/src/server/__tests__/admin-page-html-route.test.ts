@@ -96,7 +96,7 @@ test("HTML writes require pages.edit_html even when the caller holds content.wri
   const principal = await deps.userRepo.findByUsername({ workspaceId: WS, username: "html-editor" });
   assert.ok(principal);
   const policyId = "html-editor-policy";
-  await deps.policyRepo.save({ id: policyId, workspaceId: WS, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WS, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.principalPolicyRepo.save({ id: "html-editor-link", workspaceId: WS, principalId: principal.principalId, policyId });
   await deps.policyPermissionRepo.save({ id: "html-editor-write", workspaceId: WS, policyId, permission: "content.write", resourceType: null, constraintJson: null });
   assert.equal((await deps.authorize({ principalId: principal.principalId, workspaceId: WS, permission: "content.write" })).allowed, true);

@@ -5,13 +5,13 @@ import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { config, definition, harness, owner, workspaceId } from "../fixtures/plugin-exports.js";
 
 async function render(html: string, runtime = harness().runtime) {
   const port = runtime.forRender({ mode: "live" });
-  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo(), pluginExports: port }, input: { workspaceId, html } });
+  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES, postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo(), pluginExports: port }, input: { workspaceId, html } });
   return { html: renderHtmlPageBody({ html, resolved }), head: port.headHtml({}) };
 }
 function marker(overrides: Record<string, unknown> = {}) {
@@ -69,7 +69,7 @@ test("T1: host refusal, static template hrefs and template scripts cannot break 
 
 test("T1: legacy widget/media/content HTML is byte-identical with the optional plugin port", async () => {
   const html = '<div data-embed-config=\'{"type":"widget","id":"missing"}\'></div><div data-embed-config=\'{"type":"media","id":"missing"}\'></div><div data-embed-config=\'{"type":"content","id":"missing"}\'></div>';
-  const deps = { host: buildWidgetHostPorts({ postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo() };
+  const deps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES, postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo() };
   const baseline = await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html } });
   assert.equal((await render(html)).html, renderHtmlPageBody({ html, resolved: baseline }));
 });

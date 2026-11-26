@@ -1,3 +1,4 @@
+import { repoPublishBindings } from "#src/server/runtime/composition/publish-content-manifest";
 import { FORMS_TABLES } from '#src/platform/db/content-tables';
 import { createFormDefinition, updateFormDefinition, setFormDefinitionStatus } from '#src/features/forms/index';
 import { executeCommand } from '@jini-ai/cms/core/commands';
@@ -26,7 +27,7 @@ function form(overrides: Partial<FormDefinitionRecord> = {}): FormDefinitionReco
 }
 
 async function sites(sourceRows: FormDefinitionRecord[]) {
-  registerOnly([contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus })]);
+  registerOnly([contributeFormPublish({ ...repoPublishBindings, tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus })]);
   const sourceRepo = new InMemoryFormDefinitionRepo();
   for (const row of sourceRows) await sourceRepo.create(row);
   const destRepo = new InMemoryFormDefinitionRepo();
@@ -87,7 +88,10 @@ test("form: a changed source form updates the destination row in place (forced p
   assert.equal(after?.id, before?.id);
   assert.equal(after?.name, "Contact us");
   assert.equal(after?.status, "active");
-  assert.equal(after?.fields.length, 2);
+  assert.deepEqual(after?.fields, [
+    { id: "email", label: "Email", type: "email", required: true },
+    { id: "msg", label: "Message", type: "textarea", required: false },
+  ]);
   assert.deepEqual((await plan(await packAll(source), dest)).rows.map((r) => r.outcome), ["unchanged"]);
 });
 
@@ -143,6 +147,6 @@ test('an inbound notification payload cannot replace destination recipients', as
   await destRepo.create(form({ id: 'dest', notify: { enabled: true, recipients: ['destination@example.com'] } }));
   const [packed] = await packAll(source);
   const entity = { ...packed!, state: { ...packed!.state, notify: { enabled: true, recipients: ['source@example.com'] } } };
-  await contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }).build(dest).apply({ entity, expectedVersion: 1, principalId: 'operator-1', idempotencyKey: 'notify-local' });
+  await contributeFormPublish({ ...repoPublishBindings, tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }).build(dest).apply({ entity, expectedVersion: 1, principalId: 'operator-1', idempotencyKey: 'notify-local' });
   assert.deepEqual((await destRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'contact' }))!.notify.recipients, ['destination@example.com']);
 });

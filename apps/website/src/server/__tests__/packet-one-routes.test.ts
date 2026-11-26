@@ -779,6 +779,7 @@ async function loginAsBarePrincipal(
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: `bare-${usernameSuffix}`,

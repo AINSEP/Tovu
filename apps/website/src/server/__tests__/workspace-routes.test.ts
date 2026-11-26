@@ -119,6 +119,7 @@ test("AC-03: GET /api/admin/v1/workspaces returns exactly the caller's own works
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: "ws-viewer-1",
     workspaceId: deps.workspaceId,
     username: "wsviewer",
@@ -256,6 +257,7 @@ test("AC-06b: unauthenticated DELETE is 401, and a caller without workspace.mana
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: "ws-viewer-del",
     workspaceId: deps.workspaceId,
     username: "wsviewerdel",

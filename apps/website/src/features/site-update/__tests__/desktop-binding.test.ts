@@ -8,7 +8,7 @@ import { buildSiteUpdateRegistrations } from "../tools.js";
 
 const FEED = "https://api.github.com/repos/example-org/example-repo/releases/latest";
 const ENV = { TOVU_UPDATE_HOST: "desktop", TOVU_UPDATE_FEED_URL: FEED };
-const ids = createFakeSiteUpdate({ runningVersion: "1.2.0", latest: null }).ports.ids;
+const ids = createFakeSiteUpdate({ runningVersion: "1.2.0", latest: { version: "1.3.0", notes: "n" } }).ports.ids;
 const caps = { restorePoint: { costClass: "cheap", kind: "file-snapshot" } };
 
 function rig() {

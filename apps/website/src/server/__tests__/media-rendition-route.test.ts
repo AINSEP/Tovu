@@ -56,6 +56,7 @@ function bytesFrom(content: string): Uint8Array {
 async function uploadOne(deps: ReturnType<typeof createRouteDeps>, content: string | Uint8Array, filename = "a.png") {
   return uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,

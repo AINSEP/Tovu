@@ -1,6 +1,7 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import express from "express";
@@ -137,6 +138,7 @@ test("admin media list: unrecognized bytes are reported as application/octet-str
   // that check: written straight through `uploadMedia`, its type is sniffed when the list backfills.
   const { media } = await uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,
@@ -204,6 +206,7 @@ test("admin media list: backfills and persists the content type of a row that pr
 
   const { media } = await uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,

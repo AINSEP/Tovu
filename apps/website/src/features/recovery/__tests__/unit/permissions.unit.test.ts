@@ -62,7 +62,7 @@ test("AC-05: the real restore gateway requires backup.restore for confirm and ex
   let restored = 0;
   const pinnedClock = { nowMs: () => Date.parse(NOW) };
   const hooks = buildRestoreHooks({
-    workspaceId: "ws", actorId: "user-read-only", restorePointId: "rp-1", clock: pinnedClock, idGen: ids,
+    workspaceId: "ws", actorId: "user-read-only", actor: { id: "user-read-only", kind: "user" }, restorePointId: "rp-1", clock: pinnedClock, idGen: ids,
     restorePointsRepo: { list: async () => [{ id: "rp-1", createdAt: NOW, artifactRef: "/snapshot" }] },
     dbOps: { restoreFromArtifact: async () => { restored++; return { restartRequired: false }; } },
     databaseLedgerRepo: { append: async () => { throw new Error("denied restore must not record success"); } },

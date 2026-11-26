@@ -5,6 +5,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
 
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
@@ -74,14 +76,15 @@ function makeRouteDeps(entryRepo: WidgetsToolDeps["entryRepo"]): WidgetsToolDeps
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `id-${++counter}` },
-    outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
+    outbox: new InMemoryOutbox(),
     entryRepo,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: new InMemoryPostRepo({}),
     changeSets: new InMemoryChangeSetRepo(),
-    pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
+    pluginBeforeSaveHook: async () => assert.fail("widgets_get_instance must not run the write hook"),
+    widgetPostWrites: READ_ONLY_WIDGET_POST_WRITES,
     authorize: PRE_AUTHORIZED,
     // Only the read path (`widgets_get_instance`) is driven here; a trash call would be a contract change.
     removeWidget: async () => { throw new Error("widgets_get_instance is not expected to remove a widget"); },
@@ -98,8 +101,9 @@ function executionContext(input: unknown): ToolExecutionContext {
  *  `entryRepo.findById` unconditionally right after its permission check, so this seam is generic
  *  across every error class under test here, not specific to widget-instance lookups. */
 async function throwThroughRealRegistration(toThrow: Error): Promise<unknown> {
-  const entryRepo = new InMemoryEntryRepo() as unknown as WidgetsToolDeps["entryRepo"];
-  entryRepo.findById = async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  entryRepo.findById = async (input) => {
+    assert.deepEqual(input, { workspaceId: WORKSPACE_ID, id: "whatever" });
     throw toThrow;
   };
   const deps = makeRouteDeps(entryRepo);

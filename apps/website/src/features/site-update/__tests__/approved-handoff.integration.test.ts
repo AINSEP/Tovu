@@ -6,7 +6,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createFakeSiteUpdate, type FakeSiteUpdateOptions, type SiteRelease } from "@jini-ai/devops/deploy";
-import { buildSiteUpdateRegistrations, type SiteUpdateToolDeps } from "../tools.js";
+import { buildSiteUpdateRegistrations, type SiteUpdateRuntime, type SiteUpdateToolDeps } from "../tools.js";
 
 import type { PreparedSiteUpdate } from "@jini-ai/devops/deploy";
 
@@ -25,13 +25,13 @@ function setup({ abortDuringPreparation }: { abortDuringPreparation?: AbortContr
     submitPrepared: async ({ prepared }: { prepared: PreparedSiteUpdate }) => { supervisor.push(`submit:${prepared.plan.toVersion}`); return { operationId: "op-1" }; },
     readLastAttempt: async () => { supervisor.push("read"); return undefined; },
   };
-  const deps: SiteUpdateToolDeps = {
+  const deps: SiteUpdateToolDeps & { runtime: SiteUpdateRuntime } = {
     authorize: async () => {},
     readOwnerId: async () => OWNER,
     runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness, ids: fake.ports.ids, runningVersion: async () => fake.state.liveVersion, handoff,
       lock: { withLock: async ({ run }) => { lock.push("acquire"); try { return await run(); } finally { lock.push("release"); } } } },
   };
-  const tool = buildSiteUpdateRegistrations(deps, { surfaceExchanges } as never).find((r) => r.descriptor.id === APPLY)!;
+  const tool = buildSiteUpdateRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === APPLY)!;
   return { fake, surfaceExchanges, tool, supervisor, lock };
 }
 

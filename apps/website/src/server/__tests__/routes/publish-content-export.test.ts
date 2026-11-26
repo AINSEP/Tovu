@@ -77,6 +77,7 @@ async function loginWithPermissions(
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: WORKSPACE,
     username: args.username,
@@ -84,7 +85,7 @@ async function loginWithPermissions(
   });
   if (args.permissions.length > 0) {
     const policyId = `${args.username}-policy`;
-    await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
+    await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
     for (const [index, permission] of args.permissions.entries()) {
       await deps.policyPermissionRepo.save({
         id: `${policyId}-perm-${index}`,
@@ -220,7 +221,7 @@ test("GET .../publish-content/export includes deduplicated required blobs with d
   const mediaIds: string[] = [];
   for (const filename of ["export-one.png", "export-two.png"]) {
     const { media } = await uploadMedia({
-      deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+      deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
         renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
       input: { workspaceId: WORKSPACE, bytes, filename, contentType: "image/png", createdByPrincipal: "export-test" },
     });

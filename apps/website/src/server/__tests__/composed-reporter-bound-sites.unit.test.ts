@@ -227,7 +227,10 @@ test("routines store-open: a sidecar open failure records through the injected r
   assert.ok(parsed.ok);
   const refused = await spec.handle({ input: parsed.value, deps: {} as never, context: { id: "owner", workspaceId: "ws" } as never });
   assert.equal(refused.ok, false);
-  probe.assertOneIncident({ errorId: (refused as { error: { details: { errorId: string } } }).error.details.errorId, thrown });
+  const details = refused.error.details;
+  assert.ok(details && typeof details === "object" && "errorId" in details);
+  assert.ok(typeof details.errorId === "string");
+  probe.assertOneIncident({ errorId: details.errorId, thrown });
 });
 
 // FIX 4: the agent daemon's scope app never runs `createApp`, so no `res.locals.failureReporter` exists there.

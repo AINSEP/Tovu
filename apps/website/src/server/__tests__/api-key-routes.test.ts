@@ -107,6 +107,7 @@ async function loginBarePrincipal(deps: ReturnType<typeof createRouteDeps>, base
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: deps.workspaceId,
     username: "bare-apikeys",
@@ -529,6 +530,7 @@ test("INV-07: an issuer cannot snapshot a permission it does not hold unconstrai
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: issuerPrincipalId,
     workspaceId: WORKSPACE,
     username: "clamped-issuer",
@@ -536,6 +538,7 @@ test("INV-07: an issuer cannot snapshot a permission it does not hold unconstrai
   });
   const narrowPolicyId = "clamped-issuer-policy";
   await deps.policyRepo.save({
+    version: 1,
     id: narrowPolicyId,
     workspaceId: WORKSPACE,
     name: "clamped-issuer-policy",

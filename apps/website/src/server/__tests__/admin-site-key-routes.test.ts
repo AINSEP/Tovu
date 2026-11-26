@@ -654,7 +654,7 @@ test("all six endpoints stay 401 anonymously and 403 for a content.read-only ses
   const principal = await deps.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "token-reader" });
   assert.ok(principal);
   const policyId = "token-reader-policy";
-  await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.principalPolicyRepo.save({ id: "token-reader-link", workspaceId: WORKSPACE, principalId: principal.principalId, policyId });
   await deps.policyPermissionRepo.save({ id: "token-reader-read", workspaceId: WORKSPACE, policyId, permission: "content.read", resourceType: null, constraintJson: null });
 

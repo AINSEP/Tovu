@@ -192,7 +192,7 @@ async function withServer(run: (baseUrl: string, deps: ReturnType<typeof createR
 
 async function uploadOne(deps: ReturnType<typeof createRouteDeps>, bytes: Uint8Array, filename: string, contentType: string) {
   return uploadMedia({
-    deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+    deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, bytes, filename, contentType, createdByPrincipal: "user-1" },
   });
 }

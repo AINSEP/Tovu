@@ -15,7 +15,8 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { asyncRoute } from "#src/platform/express/async-route";
-import { PublishCredentialValidationError, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
+import { PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store-validation";
+import { PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import { registerAdminPublishCredentialsRoutes } from "#src/server/runtime/composition/modules/system-credentials";
 import {
   bootAuthenticated,
@@ -868,6 +869,7 @@ test('publish-credentials list writes JSON before triggering account-label heali
   const deps = createRouteDeps();
   const app = express();
   const order: string[] = [];
+  const { reporter } = createRouteIncidentReporter();
   registerPublishCredentialsListRoute({
     workspaceId: deps.workspaceId,
     mount: ({ path, handle }) => { app.get(path, asyncRoute({ handler: (req, res) => handle({
@@ -875,7 +877,7 @@ test('publish-credentials list writes JSON before triggering account-label heali
       principalId: () => getAuthedPrincipal(res).id,
       authorize: params => authorizeDirectOrRespond({ res, authorize: async () => ({ allowed: true, reason: 'fixture' }), params }),
       json: (body, status) => res.status(status).json(body),
-      failure: (error, options) => sendAdminFailure({ res, error }, options),
+      failure: (error, options) => sendAdminFailure({ res, error, reporter }, options),
     }) })); },
     list: () => listPublishCredentials({ repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deps.loadDeployTargets }, { workspaceId: deps.workspaceId }),
     executionMode: () => deps.publishExecutionMode,

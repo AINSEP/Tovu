@@ -2,17 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createFakeSiteUpdate } from "@jini-ai/devops/deploy";
-import { buildSiteUpdateRegistrations, type SiteUpdateToolDeps } from "../tools.js";
+import { buildSiteUpdateRegistrations, type SiteUpdateRuntime, type SiteUpdateToolDeps } from "../tools.js";
 
 /** @file `site_update_check`: read-only, plain words, feed injected, nothing is ever applied. */
 
 function deps(over: Partial<SiteUpdateToolDeps> & { running?: string; latest?: { version: string; notes: string } } = {}) {
   const fake = createFakeSiteUpdate({ runningVersion: over.running ?? "1.2.0", latest: over.latest ?? { version: "1.3.0", notes: "Faster pages." } });
   const authorized: string[] = [];
+  const runtime: SiteUpdateRuntime = { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => over.running ?? "1.2.0" };
   const toolDeps: SiteUpdateToolDeps = {
     authorize: async ({ permission }) => void authorized.push(permission),
     readOwnerId: async () => "owner-1",
-    runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => over.running ?? "1.2.0" },
+    runtime,
     ...over,
   };
   return { fake, toolDeps, authorized };

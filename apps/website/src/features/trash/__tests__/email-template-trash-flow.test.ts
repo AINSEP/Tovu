@@ -11,7 +11,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
-import { SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
+import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store";
 import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError } from "@jini-ai/platform/mail/email-template-operations";
 import { emailTemplateStore, type EmailTemplateDeps } from "@jini-ai/cms/posts/email-template-store";
 import { buildTrashRegistry } from "../registry.js";
@@ -36,7 +36,7 @@ function harness(_required = {}, _options = {}) {
   const clock = createFakeClock({ startIso: AT });
   const postRepo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
   let sequence = 0;
-  const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
+  const deps: EmailTemplateDeps = { EmailTemplateNotFoundError, PageConcurrentEditError,
     workspaceId: WS, clock, postRepo, idGen: { newId: () => `template-${++sequence}` },
     pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock, revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
   };

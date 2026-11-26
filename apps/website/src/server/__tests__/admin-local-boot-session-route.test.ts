@@ -390,7 +390,7 @@ async function makeUser(deps: RouteDeps, { username, admin }: { username: string
   await deps.identityReady;
   const id = `user-${username}`;
   await deps.principalRepo.save({ id, workspaceId: deps.workspaceId, kind: "user", displayName: username, status: "active", createdAt: deps.clock.nowIso() });
-  await deps.userRepo.save({ principalId: id, workspaceId: deps.workspaceId, username, passwordHash: await deps.passwordHasher.hash({ password: `${username}-pw` }) });
+  await deps.userRepo.save({ version: 1, principalId: id, workspaceId: deps.workspaceId, username, passwordHash: await deps.passwordHasher.hash({ password: `${username}-pw` }) });
   if (admin) {
     const role = await deps.roleRepo.findByName({ workspaceId: deps.workspaceId, name: "admin" });
     assert.ok(role?.isBuiltin, "seedIdentity creates the built-in admin role");

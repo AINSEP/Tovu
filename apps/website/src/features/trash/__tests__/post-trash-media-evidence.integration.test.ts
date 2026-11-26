@@ -3,6 +3,7 @@ import { MediaStillReferencedError } from "@jini-ai/cms/media";
 import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -64,7 +65,7 @@ test("a post save through the composed repo is seen by the public media-renditio
   await registerTransform({ deps: { clock: deps.clock, idGen: deps.idGen, transformRepo: deps.transformDefinitionRepo }, input: { workspaceId, name: "public", params: { format: "webp" }, owner: "core" } });
   const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>');
   const { media } = await uploadMedia({
-    deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+    deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId, createdByPrincipal: "user-1", bytes: svg, filename: "a.svg", contentType: "image/svg+xml" },
   });
   const url = `${baseUrl}/m/${media.id}/public.v1/image.webp`;
@@ -79,7 +80,7 @@ test("a post save through the composed repo is seen by the public media-renditio
 
 test("a restore wins over a stale purge without deleting blobs", async t => {
   const { deps, workspaceId } = await bootComposedSite(t);
-  const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+  const { media } = await uploadMedia({ deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId, filename: "photo.svg", contentType: "image/svg+xml", bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>'), createdByPrincipal: "owner" } });
   let purges = 0;
   const adapter = createMediaTrashAdapter({ isReferencedError: ({ error }) => error instanceof MediaStillReferencedError,  db: deps.contentKernel!, purgeAsset: async () => { purges++; } });

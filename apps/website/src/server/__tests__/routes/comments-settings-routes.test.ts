@@ -26,6 +26,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-comments-settings",
@@ -139,12 +140,13 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId,
     workspaceId: deps.workspaceId,
     username,
     passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }),
   });
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
   for (const permission of permissions) {
     await deps.policyPermissionRepo.save({
       id: `grant-pp-${suffix}-${permission}`,

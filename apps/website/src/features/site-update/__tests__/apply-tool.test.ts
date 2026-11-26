@@ -9,7 +9,7 @@ import { createFakeSiteUpdate, finishPreparedSiteUpdate, type FakeSiteUpdateOpti
 import { createOperationLock } from "@jini-ai/db/recovery/operation-lock";
 import { createOperationUpdateLock } from "../operation-update-lock.js";
 import type { ApprovedHandoffPorts } from "../approved-handoff.js";
-import { buildSiteUpdateRegistrations, type SiteUpdateToolDeps } from "../tools.js";
+import { buildSiteUpdateRegistrations, type SiteUpdateRuntime, type SiteUpdateToolDeps } from "../tools.js";
 
 /**
  * @file `site_update_apply`: never runs without the owner's card; the approval is for exactly the version shown.
@@ -39,12 +39,12 @@ function setup(options: FakeSiteUpdateOptions = {}, latest: SiteRelease = { vers
   const fake = createFakeSiteUpdate({ runningVersion: "1.2.0", latest }, options);
   const supervisor = createFakeSupervisor(fake);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const deps: SiteUpdateToolDeps = {
+  const deps: SiteUpdateToolDeps & { runtime: SiteUpdateRuntime } = {
     authorize: async () => {},
     readOwnerId: async () => OWNER,
     runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => fake.state.liveVersion, handoff: supervisor.handoff },
   };
-  const tool = buildSiteUpdateRegistrations(deps, { surfaceExchanges } as never).find((r) => r.descriptor.id === APPLY)!;
+  const tool = buildSiteUpdateRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === APPLY)!;
   assert.ok(tool, "site_update_apply must be registered");
   return { fake, surfaceExchanges, tool, deps, finished: supervisor.finished };
 }
@@ -205,10 +205,10 @@ test("the live version changing while the card is open voids the approval: nothi
 test("the version is re-read under the update lock, and the whole apply runs inside it", async () => {
   const { tool, fake, surfaceExchanges, deps } = setup();
   const events: string[] = [];
-  deps.runtime!.lock = { withLock: async ({ run }) => { events.push("lock-in"); try { return await run(); } finally { events.push("lock-out"); } } };
-  const registered = buildSiteUpdateRegistrations(deps, { surfaceExchanges } as never).find((r) => r.descriptor.id === APPLY)!;
-  const live = deps.runtime!.runningVersion;
-  deps.runtime!.runningVersion = async () => { events.push("read-version"); return live(); };
+  deps.runtime.lock = { withLock: async ({ run }) => { events.push("lock-in"); try { return await run(); } finally { events.push("lock-out"); } } };
+  const registered = buildSiteUpdateRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === APPLY)!;
+  const live = deps.runtime.runningVersion;
+  deps.runtime.runningVersion = async () => { events.push("read-version"); return live(); };
   const { ui, pending } = await raiseCard(registered, { toVersion: "1.3.0" });
   events.length = 0;
   answer(surfaceExchanges, ui!, "confirm");
@@ -234,7 +234,7 @@ test("a system writer who is not the installation owner cannot approve an update
 
 test("a second approved update cannot capture another backup while the first owns the site", async () => {
   const { tool, surfaceExchanges, deps } = setup();
-  const runtime = deps.runtime!;
+  const runtime = deps.runtime;
   const inner = runtime.backup;
   let captures = 0;
   let releaseFirst!: () => void;
@@ -254,8 +254,8 @@ test("a second approved update cannot capture another backup while the first own
 
 test("absent handoff exposes no apply operation: the runtime is check-only (FIX 16, M apply-without-handoff)", async () => {
   const { deps, fake, surfaceExchanges } = setup();
-  const { handoff: _dropped, ...inProcess } = deps.runtime as NonNullable<SiteUpdateToolDeps["runtime"]> & { handoff?: unknown };
-  const ids = buildSiteUpdateRegistrations({ ...deps, runtime: inProcess }, { surfaceExchanges } as never).map((r) => r.descriptor.id);
+  const { handoff: _dropped, ...inProcess } = deps.runtime;
+  const ids = buildSiteUpdateRegistrations({ ...deps, runtime: inProcess }, { surfaceExchanges }).map((r) => r.descriptor.id);
   assert.deepEqual(ids, ["site_update_check"], "site ports without a durable hand-off must not register site_update_apply");
   assert.deepEqual(fake.calls, []);
 });

@@ -264,7 +264,7 @@ test("an API key cannot answer a local or daemon-held approval", async (t) => {
     workspaceId: deps.workspaceId, callerPrincipalId, displayName: "Approval test machine",
   } });
   const policyId = deps.idGen.newId();
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: "Approval test empty policy", isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: "Approval test empty policy", isBuiltin: false, isFrozen: false });
   const { rawKey } = await issueApiKey({ deps: service, input: {
     workspaceId: deps.workspaceId, callerPrincipalId, principalId: principal.id, label: "Approval test key", policyIds: [policyId],
   } });

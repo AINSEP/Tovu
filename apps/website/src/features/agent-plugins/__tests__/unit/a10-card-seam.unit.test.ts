@@ -102,7 +102,7 @@ test('no portable A10 body imports Tovu code (value or type) or a non-core Jini 
   for (const name of files) {
     const source = readFileSync(join(dir, name), 'utf8');
     for (const spec of importedSpecifiers(source)) {
-      const ok = /^@jini-ai\/core(\/|$)/.test(spec!) || /^@jini-ai\/agent-plugins(\/|$)/.test(spec!) || /^\.\/[^/]+\.js$/.test(spec!) || spec === '../lifecycle/manifest.js';
+      const ok = /^@jini-ai\/core(\/|$)/.test(spec) || /^@jini-ai\/agent-plugins(\/|$)/.test(spec) || /^\.\/[^/]+\.js$/.test(spec) || spec === '../lifecycle/manifest.js' || spec === '../core/plugin-display-name.js' || spec === '../core/token-sign-in-list.js';
       assert.ok(ok, `${name} imports ${spec}`);
     }
     assert.doesNotMatch(source, /\bTovu\b|ui:\/\/tovu|'mcp-ui'/, name);

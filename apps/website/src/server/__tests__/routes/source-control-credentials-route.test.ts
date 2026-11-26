@@ -46,6 +46,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-source-control-credentials",
@@ -319,7 +320,7 @@ test("source-control-credentials: credential-only permission allows every verb a
   for (const [username, permission] of [["credential-only", "source-control.credentials.write"], ["publish-only", "system.publish"]]) {
     cookies.push(await loginWithoutGrants(deps, baseUrl, { username }));
     const policyId = `source-control-test-${username}`;
-    await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+    await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
     await deps.policyPermissionRepo.save({ id: `${policyId}-permission`, workspaceId: deps.workspaceId, policyId, permission, resourceType: null, constraintJson: null });
     await deps.principalPolicyRepo.save({ id: `${policyId}-link`, workspaceId: deps.workspaceId, principalId: `bare-${username}`, policyId });
   }

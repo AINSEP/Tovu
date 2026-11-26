@@ -1033,7 +1033,7 @@ test("publish-targets: an unauthorized principal gets 403 and a mismatched works
 });
 
 test("publish destinations: empty array, saved public destination, system.read gate and workspace isolation", async t => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const deps = { ...testRouteDeps(), publishHistoryStore: historyStore };
   // Prove listing needs only system.read, while the existing trigger still needs system.publish.
   const permissions: string[] = [];
@@ -1067,7 +1067,7 @@ test("publish destinations: empty array, saved public destination, system.read g
 
 
 test("publish destinations: peer rows and deploy links require publish_content.read; deleted peers disappear", async t => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const deps = { ...testRouteDeps(), publishHistoryStore: historyStore };
   let peerReadAllowed = true;
   const authorize = deps.authorize;
@@ -1144,7 +1144,7 @@ test("publish-site: a fresh site's default-off banner does not block a static pu
 
 
 test("auth denial writes once and records one blocked event, and a granted destination read still omits peers without peer capability", async t => {
-  const deps = { ...testRouteDeps(), publishHistoryStore: new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }) };
+  const deps = { ...testRouteDeps(), publishHistoryStore: new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit }) };
   const order: string[] = [];
   const permissions: string[] = [];
   deps.authorize = async input => { permissions.push(input.permission); return { allowed: input.permission === "system.read", reason: "fixture" }; };
