@@ -1,4 +1,3 @@
-import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
@@ -6,7 +5,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerAdminExternalMcpAdmissionsRoute, registerAdminExternalMcpDeleteRoute, registerAdminExternalMcpListRoute, registerAdminExternalMcpOAuthDisconnectRoute, registerAdminExternalMcpPutRoute, registerAdminExternalMcpToolApprovalsRoutes } from '#src/server/runtime/composition/modules/external-mcp';
-import { registerAdminExternalMcpProbeRoute } from '#src/server/runtime/composition/modules/external-mcp';
+import { createExternalMcpModule, registerAdminExternalMcpProbeRoute } from '#src/server/runtime/composition/modules/external-mcp';
 import { registerAdminExternalMcpOAuthConnectRoute, registerAdminExternalMcpOAuthDevicePollRoute } from '../oauth.js';
 import { EXTERNAL_MCP_SIGN_IN_PATH } from '#src/features/api-connections/browser-binding';
 import { OAuthError } from '@jini-ai/oauth';
@@ -43,15 +42,16 @@ test('MCP probe: repository failure is a private 500 rather than an unreachable-
 
 test('MCP probe limiter uses the shared outbound call budget and restores it after the window', async () => {
   let now = 0;
-  const probeLimiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: { nowMs: () => now } });
-  // The shared profile is deliberately read from its owner, so this pins the route's choice.
-  for (let index = 0; index < OUTBOUND_CALL_PER_IP.max + OUTBOUND_CALL_PER_IP.burst; index++) {
-    assert.deepEqual(await probeLimiter.check({ key: 'client' }), { allowed: true });
+  const { app } = fixture(({ app, deps, errors }) => createExternalMcpModule({
+    ...deps, clock: { ...deps.clock, nowMs: () => now },
+  }).registerRoutes?.({ app, errors }));
+  const path = `${BASE}/mcp-servers/ghost/probe`;
+  for (let index = 0; index < 12; index++) {
+    assert.equal((await dispatchJsonRequest(app, 'POST', path)).status, 400);
   }
-  assert.equal((await probeLimiter.check({ key: 'client' })).allowed, false);
-  assert.deepEqual(await probeLimiter.check({ key: 'another-client' }), { allowed: true });
-  now += OUTBOUND_CALL_PER_IP.windowSeconds * 1000;
-  assert.deepEqual(await probeLimiter.check({ key: 'client' }), { allowed: true });
+  assert.equal((await dispatchJsonRequest(app, 'POST', path)).status, 429);
+  now += 60_000;
+  assert.equal((await dispatchJsonRequest(app, 'POST', path)).status, 400);
 });
 
 for (const [name, register, method, suffix] of [

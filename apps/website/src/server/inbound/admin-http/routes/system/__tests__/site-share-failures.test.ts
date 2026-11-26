@@ -15,6 +15,8 @@ import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { sendSiteShareFailure, requireSavedKeysOwnerSession } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
+import { createTovuErrorReporter } from "#src/server/runtime/composition/error-reporter";
 
 type Sinks = ReturnType<typeof recordingComposedReporter>;
 /** The one host record's metadata (the composed reporter's log line, which replaced the console line). */
@@ -132,7 +134,11 @@ test("share refusals retain their public diagnosis and do not log an internal in
 });
 
 test("shared diagnostics remain correlated without a telemetry provider", t => {
-  const { reporter, records: logs } = recordingComposedReporter();
+  const logs: unknown[][] = [];
+  const reporter = createTovuErrorReporter({
+    logger: { warn: (...args: unknown[]) => { logs.push(args); }, error: (...args: unknown[]) => { logs.push(args); } },
+    tracker: createTracker({}), clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" },
+  });
   let status = 0, body: any;
   const res = { status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
   sendSiteShareFailure({ error: "storage unavailable", deps: {

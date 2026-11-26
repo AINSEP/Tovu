@@ -93,7 +93,7 @@ test("manual row planning keeps expected adapter refusals as public skips withou
     entityType: "raw-row", id: 'p_unsafe:{"id":"a"}', label: 'p_unsafe:{"id":"a"}',
     reason: "Column 'api_key' may hold a key or password; this row is never sent.",
   }] } });
-  assert.deepEqual([f.logs, f.reports], [[], []]);
+  assert.deepEqual([f.logs, f.incidents.entries, f.incidents.reports], [[], [], []]);
 });
 
 test("manual undo keeps typed file-size refusals at 409 without reporting an incident", async (t) => {
@@ -104,7 +104,7 @@ test("manual undo keeps typed file-size refusals at 409 without reporting an inc
   // Assert the owner's error contract as well as its HTTP mapping, so plain Errors cannot regress.
   await assert.rejects(createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir: f.dir }).read({ relPath: "large.txt" }), { name: "BackstopRefusal", message: TOO_LARGE });
   assert.deepEqual(await f.undo(), { status: 409, body: { error: TOO_LARGE } });
-  assert.deepEqual([f.logs, f.reports], [[], []]);
+  assert.deepEqual([f.logs, f.incidents.entries, f.incidents.reports], [[], [], []]);
 });
 
 test("manual planning preserves the aggregate file-size refusal at 409", async (t) => {

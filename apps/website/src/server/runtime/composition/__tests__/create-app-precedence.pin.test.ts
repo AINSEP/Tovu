@@ -48,18 +48,17 @@ test("an oversized public JSON body is answered by the closing handler as JSON 4
   assert.deepEqual(await response.json(), { error: "Request body is too large.", code: "PAYLOAD_TOO_LARGE" });
 });
 
-type LocalsLayer = { regexp: RegExp; handle: (req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => void };
-
-test("createApp binds the same reporter to its middleware and owning app", () => {
-  const { reporter } = recordingComposedReporter();
-  const app = createApp(createRouteDeps(), { errorReporter: reporter });
-  const stack = (app as unknown as { _router: { stack: LocalsLayer[] } })._router.stack;
-  const res = { locals: {} as Record<string, unknown> };
-  let nextCalls = 0;
-  const layer = stack.find(entry => entry.handle.toString().includes("res.locals.failureReporter"));
-  assert.ok(layer, "the reporter middleware is registered");
-  layer.handle({}, res, () => { nextCalls += 1; });
-  assert.equal(res.locals.failureReporter, reporter);
+test("createApp binds the same reporter to its middleware and owning app", async () => {
+  const { reporter, records } = recordingComposedReporter();
+  const deps = createRouteDeps();
+  deps.postRepo.list = async () => { throw new Error("post store unavailable"); };
+  const app = createApp(deps, { errorReporter: reporter });
   assert.equal(app.locals.failureReporter, reporter);
-  assert.equal(nextCalls, 1);
+  delete app.locals.failureReporter;
+  const response = await dispatchHttpRequest({ app, method: "GET", url: "/feed.xml" });
+  assert.equal(response.status, 500, response.body);
+  const reference = response.body.match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})$/)?.[1];
+  assert.ok(reference, response.body);
+  assert.equal(records.length, 1);
+  assert.equal((records[0]![1] as { meta: { errorId: string } }).meta.errorId, reference);
 });
