@@ -48,7 +48,7 @@ import type { AssistantToolContributions as GenericToolContributions } from "./t
 import type { ContentTypesToolDeps } from "@jini-ai/cms/content-types";
 import type { CustomCredentialsToolDeps } from "../features/custom-credentials/tool-registrations.js";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";
-import type { DeployOpsToolDeps } from "../features/deployments/deploy-ops/tool-registrations.js";
+import type { DeployOpsToolDeps } from "../features/deployments/deploy-ops/run-ops.js";
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
 import type { StaticPublishToolDeps } from "#src/features/deployments/publish-tool-deps";
 import type { EntriesToolDeps } from "@jini-ai/cms/entries/site/tool-registrations";

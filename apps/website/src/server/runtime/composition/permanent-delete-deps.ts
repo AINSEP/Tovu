@@ -10,7 +10,7 @@ import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { deleteCustomCredential, describeCredential as describeCustomCredential } from "#src/features/custom-credentials/index";
 import { deletePublishCredential } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import { findPublishCredentialRecord } from "@jini-ai/devops/deploy/site/publish-credentials/store-resolution";
-import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "#src/features/source-control/index";
+import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "@jini-ai/devops/source-control/site/store";
 import { deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
 import { mayActOnEntityType } from "#src/features/trash/index";
 import { type TrashItem } from "@jini-ai/cms/trash";

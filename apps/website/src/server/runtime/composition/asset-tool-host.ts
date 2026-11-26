@@ -7,7 +7,7 @@ import type { AssetHostPort, AssetToolDeps } from '#src/features/asset-transfer/
 import { persistImportedMedia, isImportShapeRejection, withCallerSafeEgressRefusal } from '#src/features/media-import/tool-registrations';
 import { fetchImage, validateImageBytes, MEDIA_IMPORT_POLICY } from '#src/features/media-import/fetch-image';
 import { adaptLegacyAuthorize } from '@jini-ai/cms/core';
-import { refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import { refuseUnexpectedKeysPort as refuseUnexpectedKeys } from '@jini-ai/core';
 import type { AssetDestinationDeps } from '@jini-ai/cms/asset-transfer/asset-destinations';
 import type { FilesCopyToolDeps } from '@jini-ai/cms/asset-transfer/copy-tool';
 import { inspectWriteTarget, prepareFileWrites, writePreparedFiles, FsWriteInputError } from '@jini-ai/cms/fs-files/write-files';
