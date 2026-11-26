@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { listTables, listColumns } from "@jini-ai/db/kernel";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import { sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "@jini-ai/db/kernel/sqlite";
@@ -23,11 +24,12 @@ const host: Parameters<typeof sanitize>[0]["host"] = {
     sqliteConnectionOf: required => sqliteConnectionOf(required as unknown as Parameters<typeof sqliteConnectionOf>[0]) as ReturnType<Parameters<typeof sanitize>[0]["host"]["deps"]["sqliteConnectionOf"]>,
     closeSqliteConnection,
   },
-  SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, CHAT_TABLE_NAMES, PUBLISHABLE_SETTINGS,
+  SHARE_TABLES: [...SHARE_TABLES], SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, CHAT_TABLE_NAMES: [...CHAT_TABLE_NAMES], PUBLISHABLE_SETTINGS,
   databaseCapMessage: "Database exceeds the 300 MiB cap.", insufficientStorageMessage: "Insufficient private staging space for this database share.",
   computeBlobStorageKey, documentContentType, redactSecretShapes,
   tempRoot: required => siteTempRoot({ prefix: SITE_TEMP_PREFIXES.shareProjection })(required),
-  openSqliteFileKernel, openContentDb, schemaErasedKernel, backfillPostSearchIndex,
+  openSqliteFileKernel, openContentDb, backfillPostSearchIndex, sql,
+  schemaErasedKernel: ({ store }) => schemaErasedKernel({ store: store as Parameters<typeof schemaErasedKernel>[0]["store"] }),
 };
 
 export function sanitizeShareDatabase(required: Omit<Parameters<typeof sanitize>[0], "host">, optional: Parameters<typeof sanitize>[1] = {}) {
