@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "#src/features/agent-plugins/identity-read-policy";
 
 import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
@@ -80,7 +81,8 @@ function manifestVocabulary({ file }: { file: string }, { io = fs }: Pick<DiskOp
   if (!io.existsSync(file)) return null;
   const manifest = JSON.parse(io.readFileSync(file, "utf8"));
   if (typeof manifest.name !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(manifest.name)) throw new TypeError(`Invalid plugin name: ${file}`);
-  const parsed = readAgentPluginMetadata({ value: manifest });
+  // Shipped manifests may still be legacy `extensions.tovu`; read them as Tovu's production entries do.
+  const parsed = readAgentPluginMetadata({ value: manifest }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
   if (parsed.warnings.some(warning => warning.includes("Invalid agent-plugin vendorAliases"))) throw new TypeError("vendorAliases must be an array of nonblank literal strings");
   return { id: manifest.name, aliases: [...(parsed.metadata.vendorAliases ?? [])] };
 }
