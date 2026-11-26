@@ -9,13 +9,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { withFileLock } from "@jini-ai/platform/fs";
-import { partitionDirName, runPartitionPass, type PartitionMaintenance, type PartitionPassFsPort } from "@jini-ai/desktop-host/electron/partitions";
+import { partitionDirName, removeAmbiguousPartition, runPartitionPass, type PartitionMaintenance, type PartitionPassFsPort } from "@jini-ai/desktop-host/electron/partitions";
 import { sitePartition } from "../../desktop-auth.ts";
 import { bindDesktopPartitions, nodePartitionFs } from "../../desktop-partition-lock.ts";
 import { desktopJsonFile } from "../../durable-json-file.ts";
 import { bindDesktopRetirement } from "../../site-retirement.ts";
 import { trackSite } from "../../tracked-sites.ts";
 import { nodePartitionPassFs, runDesktopPartitionPass, type DesktopPartitionPassLogEvent } from "./desktop-partition-pass.ts";
+import { bindStorageSignInRemoval } from "./storage-sheet-binding.ts";
 
 const sleep = ({ ms }: { ms: number }) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -194,4 +195,21 @@ test("the boot wait ends at bootWaitMs, but the writer keeps the fence until the
   assert.equal((await opening).state, "held");
   assert.equal(report.result, "done");
   assert.deepEqual(f.logs.map((entry) => entry.event), ["pass-continuing", "pass-done"]);
+});
+
+test("T6 confirmed sign-in removal: a site added back after the owner confirmed keeps its sign-in (real interlock)", async () => {
+  const f = fixture();
+  f.writeProjects([]);
+  const unclaimed = (name: string) => { const siteDir = path.join(f.base, name); fs.mkdirSync(siteDir); return { siteDir, partitionDir: f.partitionFor(siteDir) }; };
+  const raced = unclaimed("site-raced"), idle = unclaimed("site-idle");
+  const remove = (passFs: PartitionPassFsPort) => bindStorageSignInRemoval({ removeAmbiguousPartition, interlock: f.binding, ledger: f.retirement.ledger,
+    fs: passFs, root: { isManaged: f.binding.isManaged }, newToken: () => randomUUID().replace(/-/g, "") });
+  // The owner confirmed in the Storage sheet; while the removal is mid-rename the site is added back.
+  const racing = onAsideRename(nodePartitionPassFs({ fs }), () => trackSite({ projectsPath: f.projectsPath, siteDir: raced.siteDir, beforeAddedRows: f.binding.beforeAddedRows }));
+  const kept = await remove(racing)({ partition: path.basename(raced.partitionDir), confirmed: true, evidence: "owner-dialog" });
+  assert.notEqual(kept.state, "removed", "the post-rename claim recheck keeps a re-added site's sign-in");
+  assert.equal(fs.readFileSync(path.join(raced.partitionDir, "Cookies"), "utf8"), "session=owner", "its login bytes are untouched");
+  // Control: the same binding removes an unclaimed sign-in when nothing races it.
+  assert.deepEqual(await remove(nodePartitionPassFs({ fs }))({ partition: path.basename(idle.partitionDir), confirmed: true, evidence: "owner-dialog" }), { state: "removed" });
+  assert.equal(fs.existsSync(idle.partitionDir), false);
 });

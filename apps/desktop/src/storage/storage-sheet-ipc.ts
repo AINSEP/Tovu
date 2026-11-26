@@ -2,7 +2,8 @@
  * @file P11 ST-18a.T — the desktop Storage sheet's main-process side: inventory, confirmed sign-in
  * removal and OS Trash of dismissed site folders, over three NAMED channels.
  *
- * STAGED, NOT MOUNTED: nothing in `main/index.ts` registers this yet, so no renderer can reach it.
+ * DARK: `main/index.ts` mounts this only through `main/boot/storage-sheet-binding.ts`, and only while
+ * `STORAGE_SHEET_ENABLED` (contracts/storage-sheet.ts) is on — it is off, so nothing registers.
  *
  * Authority rules (why this file looks the way it does):
  *  - Renderer payloads are `unknown`; the only thing a renderer may send is a main-issued opaque ID
@@ -22,12 +23,8 @@ import type {
 } from "@tovu/contracts/desktop-storage";
 import type { StorageReportRead } from "./storage-report-cli.ts";
 import type { StorageItemIds } from "./storage-item-ids.ts";
+import { STORAGE_SHEET_CHANNELS } from "../contracts/storage-sheet.ts";
 
-export const STORAGE_SHEET_CHANNELS = {
-  list: "tovu:storage-sheet:list",
-  preview: "tovu:storage-sheet:preview",
-  act: "tovu:storage-sheet:act",
-} as const;
 
 export interface StorageSender { readonly id: number; readonly mainFrame: unknown; isDestroyed(): boolean; getURL(): string }
 export interface StorageIpcEvent { readonly sender: StorageSender; readonly senderFrame: unknown }
