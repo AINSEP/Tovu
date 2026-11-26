@@ -61,6 +61,7 @@ it("Media shows the owner's calendar date and preserves the upload instant", () 
     media: [item],
     lookupMedia: [item],
     counts: null,
+    retentionDays: null,
     hasUntypedActive: false,
     hasMore: false,
     loadingMore: false,

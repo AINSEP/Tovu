@@ -64,6 +64,7 @@ import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/
 import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { RouteRegistration, ServerModuleHandle } from "./types.js";
+import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
 const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
   parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
@@ -365,7 +366,7 @@ export const registerAdminMediaWhereUsedRoute = ({ errors, app, deps }: { errors
 export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
 
 /** The bounded grid queries; the durable SQL media repo provides them, in-memory doubles do not. */
-type MediaGridQueries = Pick<SqlMediaRepo, "listGridPage" | "findGridItem">;
+type MediaGridQueries = Pick<SqlMediaRepo, "listGridPage" | "findGridItem" | "listGridTrashDeadlines">;
 
 /** The repo's bounded grid queries, or a plain 501 when this store has none. Read per
  *  request so a test's later replacement of the repo or one of its methods is honoured.
@@ -397,6 +398,9 @@ async function enrichGridMedia({ deps, media }: { deps: MediaRouteDeps; media: r
 export const registerAdminMediaGridRoute = ({ errors, app, deps }: { errors: RouteErrorPorts; app: Express; deps: MediaRouteDeps }, _optional: Record<string, never> = {}): void => {
   mountAdminJsonRoute({ errors, app, spec: mediaGridRoute, deps: {
     ...mediaPortDeps({ deps }),
+    clock: deps.clock,
+    retentionDays: TRASH_RETENTION_DAYS,
+    readTrashDeadlines: (required, optional) => gridQueries({ repo: deps.mediaRepo }).listGridTrashDeadlines(required, optional),
     readPage: (required, optional) => gridQueries({ repo: deps.mediaRepo }).listGridPage(required, optional),
     findItem: (required) => gridQueries({ repo: deps.mediaRepo }).findGridItem(required),
     enrichMedia: ({ media }) => enrichGridMedia({ deps, media }),

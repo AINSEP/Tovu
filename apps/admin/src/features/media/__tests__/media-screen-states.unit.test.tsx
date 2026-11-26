@@ -8,7 +8,7 @@ import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-medi
 import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
 import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
-import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 
 import { cloneElement, Suspense } from "react";
@@ -16,10 +16,19 @@ import { renderMediaPanel } from "@/media-panel";
 import type { PanelRouteContext } from "@/panel-contracts";
 import { Media } from "@jini-ai/admin/screens/media/Media";
 import { MEDIA_PROPS } from "@/media-panel";
-import type { MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
-import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import { useMedia, type MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
+import type { MediaGridPage } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
+import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
+import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
+import { describeApiError } from "@/lib/admin-http/request";
+import { sizeRefusalFromError } from "../upload-size-copy";
+import { t as translateMediaCopy } from "../media-i18n";
+import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,
@@ -42,7 +51,7 @@ const requiredMediaHooks = {
  * Cancel clearing the editing target.
  */
 
-function item(overrides: Partial<AdminMedia> = {}): AdminMedia {
+function item(overrides: Partial<MediaGridPage["media"][number]> = {}): MediaGridPage["media"][number] {
   return {
     id: "media-1",
     workspaceId: "workspace-local",
@@ -62,13 +71,14 @@ function item(overrides: Partial<AdminMedia> = {}): AdminMedia {
     cssClass: null,
     htmlAttributes: null,
     ...overrides,
-  } as AdminMedia;
+  } as MediaGridPage["media"][number];
 }
 
 function mediaController(overrides: Partial<MediaController> = {}): MediaController {
   return {
     media: [],
     counts: null,
+    retentionDays: null,
     hasUntypedActive: false,
     hasMore: false,
     loadingMore: false,
@@ -121,6 +131,32 @@ function renderMedia(overrides: Partial<MediaController> = {}, tabId: string | n
 }
 
 describe("Media screen states", () => {
+  it("Media Trash explains retention and displays each supplied countdown", async () => {
+    const policy = "Items moved to Trash now are permanently deleted after 30 days. Items trashed earlier keep the date shown on their row.";
+    for (const scenario of [
+      { tab: "trash", media: [] },
+      { tab: "trash", media: [item({ status: "trashed", trashDaysRemaining: 44 })] },
+      { tab: "images", media: [item({ trashDaysRemaining: 44 })] },
+    ]) {
+      const port = createFakeMediaPort({ media: scenario.media });
+      const listMediaGrid = port.listMediaGrid;
+      port.listMediaGrid = async (view, page) => ({
+        ...await listMediaGrid(view, page), ...(view.tab === "trash" ? { retentionDays: 30 } : {}),
+      });
+      const { container } = render(<FetchQueryProvider><Media {...MEDIA_PROPS} tabId={scenario.tab} hooks={{ ...requiredMediaHooks,
+        useMediaHook: ({ tab, itemId }) => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription },
+          deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab, itemId, locale: "en", t: key => translateMediaCopy({ locale: "en", key }) }),
+      }} /></FetchQueryProvider>);
+      if (scenario.media.length === 0) await screen.findByText("Trash is empty.");
+      else await waitFor(() => expect(container.querySelector(".media-card")).not.toBeNull());
+      if (scenario.tab === "trash") expect(screen.getByText(policy)).toBeInTheDocument();
+      else expect(screen.queryByText(policy)).not.toBeInTheDocument();
+      if (scenario.tab === "trash" && scenario.media.length > 0) expect(screen.getByText("44 days left")).toBeInTheDocument();
+      else expect(screen.queryByText("44 days left")).not.toBeInTheDocument();
+      cleanup();
+    }
+  });
+
   it("replaces the whole screen with the error when the first load failed", () => {
     const { container } = renderMedia({ media: null, error: "Media is unavailable." });
     expect(container.textContent).toBe("Media is unavailable.");

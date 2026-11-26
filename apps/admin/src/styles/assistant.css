@@ -1484,6 +1484,32 @@ button.jini-composer-leading,
   max-width: calc(100% - 16px);
 }
 
+.admin-chat-dock .assistant-chat-cleanup__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  z-index: 40;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--tovu-admin-elevated-bg);
+  border: var(--jini-border-width, 1px) solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--jini-overlay-menu-shadow);
+}
+
+.admin-chat-dock .assistant-chat-cleanup__panel > label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .jini-conv-head {
   display: flex;
   align-items: center;
