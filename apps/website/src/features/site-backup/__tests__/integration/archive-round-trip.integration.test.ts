@@ -10,7 +10,8 @@ import { InMemoryKeyring } from "../../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { githubFromSource } from "../../../source-control/__tests__/fixtures/github-from-source.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
-import { planSiteBackup, pushSiteBackup, type PushResult, type SiteBackupToolDeps } from "../../backup-service.js";
+import { planSiteBackup, pushSiteBackup, type SiteBackupToolDeps } from "../../backup-service.js";
+import type { PushResult } from "@jini-ai/devops/backup/site/backup-service";
 import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
 import type { SiteBackupPlanContent } from "../../plan-content.js";
 import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
@@ -111,7 +112,9 @@ test(`repository backup plan and fake-provider push preserve every portable scop
   const planned = await planSiteBackup({ deps: f.deps, call: { ...call, input: { owner: "octo", repo: "backups", folder: "demo-site" } } }) as { planned: boolean; planId: string };
   assert.equal(planned.planned, true, "both clean and warned sources produce a backup plan");
   const tip = f.github.state.tip;
-  const pushed = await pushSiteBackup({ deps: f.deps, call: { ...call, input: { planId: planned.planId } } });
+  const pushSources = f.deps.siteBackupSources;
+  assert.ok(pushSources);
+  const pushed = await pushSiteBackup({ deps: { ...f.deps, siteBackupSources: { ...pushSources, tovuVersion: "push-version" } }, call: { ...call, input: { planId: planned.planId } } });
   if (warned) {
     assert.deepEqual(pushed, { pushed: false, cancelled: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." }, "warned backups are refused before upload");
     assert.deepEqual(f.github.writeRoutes(), [], "warned backups make no provider writes");

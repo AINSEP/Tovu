@@ -97,7 +97,7 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
     const response = await fetch(root + "/static", { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(input) });
     assert.equal(response.status, 200); return response.json() as Promise<Record<string, unknown>>;
   };
-  const tool = buildSiteBackupRegistrations({ workspaceId: deps.workspaceId, authorize: deps.authorize, siteShareBackend: deps.siteShareBackend } as import("#src/features/site-backup/backup-service").SiteBackupToolDeps, {} as never).find(tool => tool.descriptor.id === "site_export_static")!;
+  const tool = buildSiteBackupRegistrations({ deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, siteShareBackend: deps.siteShareBackend } as import("#src/features/site-backup/backup-service").SiteBackupToolDeps, surfaces: {} as never }, {}).find(tool => tool.descriptor.id === "site_export_static")!;
   const invoke = (input: unknown) => Promise.resolve(tool.handler({ executionId: "picker-export", principal: { id: ownerPrincipalId }, run: { id: "picker-run" }, input, signal: new AbortController().signal })) as Promise<Record<string, unknown>>;
   for (const start of [post, invoke]) {
     let result = await start({ themeIds: ["inactive-picker", activeThemeId] });
