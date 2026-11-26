@@ -1,3 +1,4 @@
+import { MEDIA_JSON_UPLOAD_MAX_BYTES } from "@tovu/contracts/upload-limits";
 import { t as translateMediaCopy } from "../media-i18n";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
@@ -107,7 +108,7 @@ describe("Media copy reaches the active locale", () => {
       await port.uploadMedia({ filename: "Sunset $&", contentType: "image/png", dataBase64: "aGk=" });
       const translate = (key: string) => t({ locale: copy.locale, key });
       render(createElement(FetchQueryProvider, {}, createElement(Media, { ...MEDIA_PROPS, hooks: { ...requiredMediaHooks,
-        useMediaHook: ({ tab, itemId }) => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab, itemId, locale: copy.locale, t: translate }),
+        useMediaHook: ({ tab, itemId }) => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab, itemId, locale: copy.locale, t: translate }),
       } })));
       return { port, translate };
     }

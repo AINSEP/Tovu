@@ -8,6 +8,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
+import { MEDIA_JSON_UPLOAD_MAX_BYTES } from "@tovu/contracts/upload-limits";
+import { useWiredMedia } from "../hooks/use-media.hooks";
+import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
@@ -73,7 +76,7 @@ describe("media error presentation", () => {
 describe("useMedia — injected port (no fetch stub)", () => {
   it("closing the upload dialog preserves the chosen file and alt for reopening", async () => {
     const port = createFakeMediaPort();
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "chosen.png", { type: "image/png" })] });
@@ -98,7 +101,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
 
   it("clears a previous filename when the chooser supplies no files or an empty list", async () => {
     const port = createFakeMediaPort();
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const chosen = document.createElement("input");
     Object.defineProperty(chosen, "files", { value: [new File(["pixel"], "chosen.png")] });
@@ -117,7 +120,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("prevents form submission but sends no upload when the input or chosen file is missing", async () => {
     const port = createFakeMediaPort();
     const upload = vi.spyOn(port, "uploadMedia");
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const preventDefault = vi.fn();
     await act(async () => { await result.current.upload({ preventDefault }); });
@@ -140,7 +143,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
     const pending = new Promise<void>(resolve => { release = resolve; });
     let received = false;
     port.uploadMedia = async (input, options) => { received = true; await pending; return uploadFile(input, options); };
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "chosen.png", { type: "image/png" })] });
@@ -162,7 +165,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("ignores purge when no item is selected for confirmation", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
     const remove = vi.spyOn(port, "deleteMedia");
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     await act(async () => { await result.current.purge(); });
     expect(remove).not.toHaveBeenCalled();
@@ -181,7 +184,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
       await pending;
       return uploadFile(input, options);
     };
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
@@ -212,7 +215,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
       if (++attempts === 1) throw new Error("Upload unavailable");
       return uploadFile(input, options);
     };
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
@@ -240,7 +243,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
       Object.defineProperty(this, "error", { value: new Error("File could not be read") });
       this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
     });
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toEqual([]));
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
@@ -249,6 +252,39 @@ describe("useMedia — injected port (no fetch stub)", () => {
     expect(result.current.uploadError).toBe("File could not be read");
     expect(result.current.uploading).toBe(false);
     expect(uploadSpy).not.toHaveBeenCalled();
+  });
+
+  it("An oversized video never reaches FileReader.", async () => {
+    const port = createFakeMediaPort();
+    vi.spyOn(mediaApi, "listMediaGrid").mockImplementation(port.listMediaGrid);
+    vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("en");
+    const upload = vi.spyOn(mediaApi, "uploadMedia").mockImplementation(port.uploadMedia);
+    const read = vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (this: FileReader) {
+      Object.defineProperty(this, "result", { value: "data:video/mp4;base64,dmlkZW8=" });
+      this.onload?.(new ProgressEvent("load") as ProgressEvent<FileReader>);
+    });
+    const { result } = renderHook(() => useWiredMedia({ tab: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const file = new File(["video"], "holiday.mp4", { type: "video/mp4" });
+    Object.defineProperty(file, "size", { value: MEDIA_JSON_UPLOAD_MAX_BYTES + 1, configurable: true });
+    const input = document.createElement("input");
+    Object.defineProperty(input, "files", { value: [file] });
+    result.current.fileInputRef.current = input;
+    act(() => result.current.openUpload({ currentTarget: document.createElement("button") }));
+    await act(async () => { await result.current.upload(); });
+    expect(read).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+    expect(result.current.uploadOpen).toBe(true);
+    expect(result.current.uploadError).toContain("192 MiB");
+    expect(result.current.uploading).toBe(false);
+    Object.defineProperty(file, "size", { value: MEDIA_JSON_UPLOAD_MAX_BYTES });
+    act(() => result.current.setAltDraft("Holiday"));
+    await act(async () => { await result.current.upload(); });
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledWith(file);
+    expect(upload).toHaveBeenCalledExactlyOnceWith({ filename: "holiday.mp4", contentType: "video/mp4", dataBase64: "dmlkZW8=" }, { alt: "Holiday" });
+    expect(result.current.uploadError).toBeNull();
+    expect(result.current.uploading).toBe(false);
   });
 
   it("loads the list from the injected port and never touches the real api client", async () => {
@@ -277,7 +313,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
 
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     expect(result.current.media?.[0]?.id).toBe("m1");
@@ -310,7 +346,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
       ],
     });
     const listMediaGrid = vi.spyOn(port, "listMediaGrid");
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     const readsBeforeTrash = listMediaGrid.mock.calls.length;
 
@@ -330,7 +366,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("restores a trashed item through the injected port, and the re-read Trash grid hands it back to All", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia({ id: "m1", status: "trashed" })] });
     const listMediaGrid = vi.spyOn(port, "listMediaGrid");
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "trash", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "trash", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     const readsBeforeRestore = listMediaGrid.mock.calls.length;
 
@@ -350,7 +386,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("shows the restore fallback when the Trash refuses the restore, and frees the row", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia({ id: "m1", status: "trashed" })] });
     port.restoreMedia = async () => ({ restored: false });
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "trash", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "trash", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     await act(async () => {
@@ -375,7 +411,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("does not resolve `media` while the injected port's list call is still pending", () => {
     const port = createFakeMediaPort();
     port.listMedia = () => new Promise(() => {});
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     expect(result.current.media).toBeNull();
   });
 });
@@ -393,7 +429,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
 describe("useMedia — edit toggle", () => {
   it("opens a row's editor, moves it to another row, closes it on a re-click, and closes it after a save", () => {
     const port = createFakeMediaPort();
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     const a = { id: "a" } as AdminMedia;
     const b = { id: "b" } as AdminMedia;
 
@@ -425,7 +461,7 @@ describe("useMedia — trash/purge shared rowSavingId race safety", () => {
     let trashStarted = false;
     port.deleteMedia = async id => { purgeStarted = true; await deleting; return deleteMedia(id); };
     port.trashMedia = async id => { trashStarted = true; await trashing; return trashMedia(id); };
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: k => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: k => k }), { wrapper });
     // The All tab holds only the active row; the two trashed ones are the server's Trash count.
     await waitFor(() => expect(result.current.media?.map(item => item.id)).toEqual(["new-trash"]));
     expect(result.current.counts?.trash).toBe(2);
@@ -470,7 +506,7 @@ describe("useMedia — trash/purge shared rowSavingId race safety", () => {
         })
     );
 
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     // All shows only the active B; the trashed C is counted under Trash by the server.
     await waitFor(() => expect(result.current.media?.map((item) => item.id)).toEqual(["mB"]));
     expect(result.current.counts?.trash).toBe(1);
@@ -548,7 +584,7 @@ describe("useMedia — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     // A write landing server-side outside this hook — the screen has no other way to know it happened.
@@ -562,7 +598,7 @@ describe("useMedia — content refresh bus", () => {
 
   it("refreshes on a notification that names media, and ignores one that names only other resources", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
-    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     port.items.push(fakeMedia({ id: "m2", title: "Second photo" }));
@@ -578,7 +614,7 @@ describe("useMedia — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
     const listSpy = vi.spyOn(port, "listMedia");
-    const { result, unmount } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const { result, unmount } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     const callsWhileMounted = listSpy.mock.calls.length;

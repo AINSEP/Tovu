@@ -1,3 +1,4 @@
+import { MEDIA_JSON_UPLOAD_MAX_BYTES } from "@tovu/contracts/upload-limits";
 import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
@@ -145,7 +146,7 @@ describe("Media screen states", () => {
       });
       const { container } = render(<FetchQueryProvider><Media {...MEDIA_PROPS} tabId={scenario.tab} hooks={{ ...requiredMediaHooks,
         useMediaHook: ({ tab, itemId }) => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription },
-          deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab, itemId, locale: "en", t: key => translateMediaCopy({ locale: "en", key }) }),
+          deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab, itemId, locale: "en", t: key => translateMediaCopy({ locale: "en", key }) }),
       }} /></FetchQueryProvider>);
       if (scenario.media.length === 0) await screen.findByText("Trash is empty.");
       else await waitFor(() => expect(container.querySelector(".media-card")).not.toBeNull());

@@ -2,6 +2,7 @@ import { readMediaStoreEnvChoice, selectMediaBlobStore, type BlobStorePort, type
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import { createLocalFsObjectStore, type ObjectStoreEnvDeclaration } from "@jini-ai/platform/object-store";
 import type { SiteObjectStoreProvider } from "@jini-ai/platform/object-store/site/registry";
+import type { fetch as sendStaged } from "undici";
 
 /**
  * @file Tovu's binding of `selectMediaBlobStore` (`@jini-ai/cms/media`): the one seam behind
@@ -21,6 +22,7 @@ const MEDIA_OBJECT_STORE_SETTING = "core.storage.mediaObjectStore";
 export interface ObjectStoreHost {
   readonly createSigV4Client: DeployHostKit["createSigV4Client"];
   readonly wrapFetch?: (fetchFn: typeof fetch) => typeof fetch;
+  readonly sendStaged?: typeof sendStaged;
 }
 
 export type TovuObjectStoreProvider = SiteObjectStoreProvider<ObjectStoreHost>;

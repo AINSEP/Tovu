@@ -222,3 +222,13 @@ export function openFsFileForRead(
 ): Promise<Uint8Array> {
   return createReader({ rootPath }, optional).readBytes({ relativePath, maxBytes });
 }
+
+export function withLocalStream<T>(
+  { rootPath, ...required }: { rootPath: string; relativePath: string; maxBytes: number;
+    consume: (source: { length: number; chunks: AsyncIterable<Uint8Array> }) => Promise<T> },
+  { filesystem = createNodeGuardedReaderFilesystem({}), ...optional }: { filesystem?: GuardedReaderFilesystem; signal?: AbortSignal } = {},
+): Promise<T> {
+  return createGuardedFileReader({ rootPath, denyRules: FS_FILES_DENYLIST, limits: READER_LIMITS, filesystem },
+    { excludedListingDirs: EXCLUDED_LISTING_DIR_NAMES, descriptorRead: { rejectGrowth: true } },
+  ).withGuardedBinaryStream(required, optional);
+}
