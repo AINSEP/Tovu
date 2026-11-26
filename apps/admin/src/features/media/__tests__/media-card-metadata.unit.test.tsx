@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Media } from "@jini-ai/admin/screens/media/Media";
 import { MEDIA_PROPS } from "@/media-panel";
+import { mediaFileName } from "@jini-ai/admin/media";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
@@ -34,6 +35,10 @@ const requiredMediaHooks = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("legacy media cards", () => {
+  it("supplies the original filename rule at the screen mount", () => {
+    expect(MEDIA_PROPS.deps.mediaFileName).toBe(mediaFileName);
+  });
+
   it("renders size and upload date beneath status with the original timestamp on time", async () => {
     const createdAt = "2026-10-03T23:30:00-02:00";
     const item = {

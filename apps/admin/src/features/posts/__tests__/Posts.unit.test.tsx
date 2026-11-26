@@ -1,4 +1,9 @@
 import { bindPosts, postsListNotice } from "@jini-ai/admin/posts/Posts";
+import { Posts as HostPosts } from "../Posts";
+import {
+  DEFAULT_ADMIN_POST_SORT, compareAdminPostsByTitle, compareAdminPostsBySlug,
+  compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel,
+} from "@jini-ai/admin/shell/lib/admin-post-list-sort";
 import { useWiredPosts } from "../hooks/use-posts.hooks";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { ServerLabel } from "@/components/status-labels";
@@ -26,6 +31,8 @@ const Posts = bindPosts({
   hooks: { usePostsHook: useWiredPosts, useLocaleHook: useWiredAdminLocale },
   kit: { ServerLabel, PublishSectionButton },
   deps: { translate: translateForPosts, siteUrl, postRowMenuItems, navigate,
+    sorting: { DEFAULT_ADMIN_POST_SORT, compareAdminPostsByTitle, compareAdminPostsBySlug,
+      compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel },
     postAdminPath: ({ slug }) => `/admin/posts/${slug}`,
     postEditorRoute: ({ slug }) => `/posts/${slug}`, viewerTimeZone: VIEWER_TIME_ZONE },
 });
@@ -78,6 +85,17 @@ function renderWith(overrides: Partial<PostsController> = {}) {
   render(<Posts usePostsHook={usePostsHook} />);
   return c;
 }
+
+it("binds every original Posts sorting value at the host", () => {
+  const { sorting } = HostPosts({}).props.deps;
+  expect(sorting.DEFAULT_ADMIN_POST_SORT).toBe(DEFAULT_ADMIN_POST_SORT);
+  expect(sorting.compareAdminPostsByTitle).toBe(compareAdminPostsByTitle);
+  expect(sorting.compareAdminPostsBySlug).toBe(compareAdminPostsBySlug);
+  expect(sorting.compareAdminPostsByStatus).toBe(compareAdminPostsByStatus);
+  expect(sorting.compareAdminPostsByUpdated).toBe(compareAdminPostsByUpdated);
+  expect(sorting.columnSortLabel).toBe(columnSortLabel);
+  expect(sorting.updatedColumnSortLabel).toBe(updatedColumnSortLabel);
+});
 
 describe("loading and error-before-load states", () => {
   it("shows a loading notice while posts is null and there is no error", () => {

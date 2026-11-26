@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { ownerPasskeySite } from '@jini-ai/user-management/admin-http/owner/passkey-routes';
+import { ownerPasskeySite } from '@jini-ai/user-management/admin-http/owner/passkey-route-deps';
 import { test } from 'node:test';
 import type { Express, Request, Response } from 'express';
 import type { RouteDeps } from '#src/server/routes/types';
@@ -81,4 +81,19 @@ test('no-store precedes origin refusal, and management admission follows the lim
   const login = fixture({ allowed: false });
   assert.equal((await login.invoke('/begin-login')).status, 429);
   assert.deepEqual(login.events, ['Cache-Control:no-store', 'rate', 'Retry-After:60', 'json']);
+});
+
+test('host-bound helpers retain trusted origin admission and map owner refusal', async () => {
+  const f = fixture();
+  assert.deepEqual(await f.invoke('/enroll', { origin: 'https://spoofed.test' }), {
+    status: 403,
+    body: { error: 'Open this site in your browser and start the passkey action there.', code: 'PASSKEY_ORIGIN_REFUSED' },
+  });
+  assert.deepEqual(await f.invoke('/enroll'), {
+    status: 403,
+    body: { error: 'Sign in as the site owner to manage passkeys.', code: 'PASSKEY_REFUSED', details: { operation: 'owner-passkey' } },
+  });
+  assert.equal(f.reads(), 0);
+  assert.equal(f.cookies(), 0);
+  assert.deepEqual(f.events, ['Cache-Control:no-store', 'json', 'Cache-Control:no-store', 'rate', 'authenticate', 'json']);
 });

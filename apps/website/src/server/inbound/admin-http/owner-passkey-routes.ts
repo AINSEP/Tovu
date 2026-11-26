@@ -1,4 +1,5 @@
 import { bindOwnerPasskeyRoutes } from '@jini-ai/user-management/admin-http/owner/passkey-routes';
+import { resolveOwnerPasskeyRouteDeps, answerOwnerPasskeyFailure } from '@jini-ai/user-management/admin-http/owner/passkey-route-deps';
 import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from 'express';
 import { beginOwnerPasskeyEnrollment, confirmOwnerPasskeyEnrollment, beginOwnerPasskeyLogin, completeOwnerPasskeyLogin,
@@ -12,6 +13,7 @@ type Admission = { app: Express; deps: RouteDeps; limiter: RateLimiter;
   authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ principal: { id: string }; kind: string } | null>;
   signedIn: (req: Request, res: Response, result: Awaited<ReturnType<typeof completeOwnerPasskeyLogin>>) => Promise<void> };
 export const registerOwnerPasskeyRoutes = bindOwnerPasskeyRoutes<Request, Response, Admission>({
+  resolveOwnerPasskeyRouteDeps, answerOwnerPasskeyFailure,
   root: '/api/admin/v1/auth/passkeys',
   mount: ({ host, method, path, handle }) => { host.app[method](path, handle); },
   workspaceId: ({ host }) => host.deps.workspaceId,

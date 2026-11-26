@@ -1,11 +1,12 @@
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 import { embedPolicy } from "@/integrations/jini-admin/embed-policy-ports";
+import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
 import { describeApiError } from "@/lib/admin-http/request";
 import { t as translate } from "../media-i18n";
 
 const hooks = { useFetchMutation, useFetchQuery };
-const deps = { embedMarkerSnippet, embedPolicy, describeApiError, translate,
+const deps = { embedMarkerSnippet, embedPolicy, parseMediaHtmlAttributes, describeApiError, translate,
   writeText: (value: string) => navigator.clipboard.writeText(value) };
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -16,6 +17,7 @@ import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
 import { useEditMediaPanel } from "@jini-ai/admin/screens/media/hooks/use-edit-media-panel.hooks";
+import { useWiredEditMediaPanel } from "../hooks/use-edit-media-panel.hooks";
 
 /**
  * @file `useEditMediaPanel` — the metadata-edit panel's `save()`, driven against the injected
@@ -59,6 +61,16 @@ afterEach(() => {
 });
 
 describe("useEditMediaPanel — injected port (no fetch stub)", () => {
+  it("parses invalid HTML attributes through the host-bound hook", () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: [] })));
+    const { result } = renderHook(() => useWiredEditMediaPanel({
+      item: ITEM, onSaved: vi.fn(), onCancel: vi.fn(),
+    }), { wrapper });
+    expect(result.current.htmlAttributesError).toBeNull();
+    act(() => { result.current.setHtmlAttributes('onerror="alert(1)"'); });
+    expect(result.current.htmlAttributesError).toMatch(/onerror/i);
+  });
+
   it("closes an unchanged panel without writing metadata or announcing a save", async () => {
     const port = createFakeMediaPort({ media: [ITEM] });
     const update = vi.spyOn(port, "updateMedia");

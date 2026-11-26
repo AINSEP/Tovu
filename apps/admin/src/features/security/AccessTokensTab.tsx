@@ -16,6 +16,8 @@ import { OtherCredentialEntry } from "@jini-ai/integrations/react/credentials/Ot
 import { useOtherCredentialRemoveDialog } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection.hooks";
 import { useWiredCopyKeys } from "./hooks/copy-keys-dependencies.hooks";
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import "../../styles/native-domain-dialogs.css";
 import "@jini-ai/admin/security/host/copy-keys-dialog.css";
 
@@ -36,11 +38,11 @@ export const AccessTokensTab = bindAccessTokensTab({
     useTabBarKeyboardHook: useTabBarKeyboard,
   },
   kit: {
-    CredentialHint, OnboardingChipField, ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon,
+    CredentialHint, OnboardingChipField, ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon, SecretInput,
     OtherCredentialEntry: props => <OtherCredentialEntry {...props} deps={{ useAdminLocaleHook: useAdminLocale, useOtherCredentialRemoveDialogHook: useOtherCredentialRemoveDialog, removeDialogTitle, otherCredentialRemoveDialogBody, VIEWER_TIME_ZONE, REMOVE_FROM_TOVU, removeHandleLabel: ({ name }) => `Remove ${name} from Tovu` }} />,
   },
   deps: {
-    ACCESS_TOKEN_CATEGORIES, ACCESS_TOKEN_PROVIDER_COPY,
+    ACCESS_TOKEN_CATEGORIES, ACCESS_TOKEN_PROVIDER_COPY, asciiSlug,
     showCopyKeysEntry: SHOW_COPY_KEYS_ENTRY,
     viewerTimeZone: VIEWER_TIME_ZONE,
     removeLabel: REMOVE_FROM_TOVU,
