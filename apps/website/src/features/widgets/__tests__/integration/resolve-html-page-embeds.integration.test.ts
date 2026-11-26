@@ -1,4 +1,4 @@
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -144,7 +144,7 @@ test('resolveHtmlPageEmbeds: a "widget" embed resolves to the referenced widget\
   await seedTextWidget(entryRepo, "widget-1", "Hello from a Page embed");
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<p>intro</p><div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`,
@@ -162,7 +162,7 @@ test('resolveHtmlPageEmbeds: a "widget" embed referencing a nonexistent id never
   const entryRepo = new InMemoryEntryRepo();
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","id":"does-not-exist"}'></div>` },
   });
 
@@ -177,7 +177,7 @@ test('resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>` },
   });
 
@@ -200,7 +200,7 @@ test('resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id 
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div data-embed-config='{"type":"form","id":"form-1"}'></div><div data-embed-config='{"type":"form","id":"contact-us"}'></div><div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>`,
@@ -223,7 +223,7 @@ test('resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form d
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","id":"cf-widget-disabled"}'></div>` },
   });
 
@@ -241,7 +241,7 @@ test("resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html:
@@ -267,7 +267,7 @@ test("resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE dist
   }
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html },
   });
 
@@ -283,7 +283,7 @@ test("resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, 
   const reads = (["listByWorkspace", "findById", "findBySlug"] as const).map((method) => t.mock.method(entryRepo, method));
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: "<p>just a paragraph, no embeds</p>" },
   });
 
@@ -295,7 +295,7 @@ test("resolveHtmlPageEmbeds: an unregistered/future embed type produces no entry
   const entryRepo = new InMemoryEntryRepo();
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"some-future-type","id":"x1"}'></div>` },
   });
 
@@ -325,7 +325,7 @@ test('resolveHtmlPageEmbeds: "menu"/"partial" markers — theme-structural types
 
   try {
     const resolved = await resolveHtmlPageEmbeds({
-      deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+      deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
       input: {
         workspaceId: WORKSPACE_ID,
         html:
@@ -350,7 +350,7 @@ test('resolveHtmlPageEmbeds: a "post-author" marker, filled later by static-rend
 
   try {
     const resolved = await resolveHtmlPageEmbeds({
-      deps: { host: buildWidgetHostPorts({}, {}), entryRepo: new InMemoryEntryRepo() },
+      deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo: new InMemoryEntryRepo() },
       input: { workspaceId: WORKSPACE_ID, html: `<span class="post-author" data-embed-config='{"type":"post-author"}'></span>` },
     });
 
@@ -369,7 +369,7 @@ test('resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs
 
   try {
     const resolved = await resolveHtmlPageEmbeds({
-      deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+      deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
       input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widgt","id":"x1"}'></div>` },
     });
 
@@ -386,7 +386,7 @@ test('resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and re
   const entryRepo = new InMemoryEntryRepo();
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget"}'></div>` },
   });
 
@@ -409,7 +409,7 @@ test('resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the 
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"contact-widget"}'></div>` },
   });
 
@@ -428,7 +428,7 @@ test('resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div class="live-example"><div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-widget&quot;}"></div></div>`,
@@ -443,7 +443,7 @@ test('resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never 
   const entryRepo = new InMemoryEntryRepo();
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"does-not-exist"}'></div>` },
   });
 
@@ -457,7 +457,7 @@ test('resolveHtmlPageEmbeds: "id" is authoritative over "slug" when a marker car
   // simply miss; asserting the RIGHT value resolves (not just "no crash") proves id truly wins.
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div data-embed-config='{"type":"widget","id":"widget-1","slug":"nonexistent-slug"}'></div>`,
@@ -490,7 +490,7 @@ test('resolveHtmlPageEmbeds: slug lookups are workspace+type scoped — a same-s
   });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"shared-slug-name"}'></div>` },
   });
 
@@ -503,7 +503,7 @@ test('resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same pa
   await seedTextWidget(entryRepo, "opaque-b", "B body", "widget-b");
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html:
@@ -535,7 +535,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CO
   ] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` },
   });
 
@@ -567,7 +567,7 @@ test('resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO res
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256, contentType: "video/mp4" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo, mediaContentTypeStore },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo, mediaContentTypeStore },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` },
   });
 
@@ -594,7 +594,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore(); // never `.set()` — a real "not sniffed yet" miss
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo, mediaContentTypeStore },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo, mediaContentTypeStore },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` },
   });
 
@@ -624,7 +624,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with an explicit variant resolves a
   ] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div data-embed-config='{"type":"media","id":"asset-1","variant":"thumb"}'></div>`,
@@ -642,7 +642,7 @@ test('resolveHtmlPageEmbeds: a "media" embed referencing a nonexistent asset nev
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"does-not-exist"}'></div>` },
   });
 
@@ -655,7 +655,7 @@ test('resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transf
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` },
   });
 
@@ -668,7 +668,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant neve
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ name: "evil/../../escape" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div data-embed-config='{"type":"media","id":"asset-1","variant":"evil/../../escape"}'></div>`,
@@ -683,7 +683,7 @@ test('resolveHtmlPageEmbeds: with NO mediaRepo/transformRepo dependency supplied
   await seedTextWidget(entryRepo, "widget-1", "still works");
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo }, // no mediaRepo/transformRepo — mirrors every pre-existing widget-only call site
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo }, // no mediaRepo/transformRepo — mirrors every pre-existing widget-only call site
     input: {
       workspaceId: WORKSPACE_ID,
       html:
@@ -707,7 +707,7 @@ test("resolveHtmlPageEmbeds: media and widget embeds on the same page all resolv
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html:
@@ -741,7 +741,7 @@ test('resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that as
   ] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","slug":"hero-video"}'></div>` },
   });
 
@@ -763,7 +763,7 @@ test("resolveHtmlPageEmbeds: a media marker with both id and slug uses id and ne
   // Only asset-a's own id key is populated; if this fell back to slug for a marker carrying both, it
   // would surface asset-b's data instead of asset-a's.
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div data-embed-config='{"type":"media","id":"asset-a","slug":"asset-b-slug"}'></div>`,
@@ -781,7 +781,7 @@ test("resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeho
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","slug":"does-not-exist"}'></div>` },
   });
 
@@ -799,7 +799,7 @@ test('resolveHtmlPageEmbeds: an asset whose stored slug is EMPTY (a pre-backfill
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo },
     input: {
       workspaceId: WORKSPACE_ID,
       html: `<div data-embed-config='{"type":"media","id":"asset-empty"}'></div><div data-embed-config='{"type":"media","id":"asset-named"}'></div>`,
@@ -843,7 +843,7 @@ test('resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-forma
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: {
       workspaceId: WORKSPACE_ID_POST,
       html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>`,
@@ -870,7 +870,7 @@ test('resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker 
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -882,7 +882,7 @@ test('resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1","header":false}'></div>` },
   });
 
@@ -894,7 +894,7 @@ test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT r
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "draft-1", status: "draft" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"draft-1"}'></div>` },
   });
 
@@ -908,7 +908,7 @@ test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED
   ] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"trashed-1"}'></div>` },
   });
 
@@ -920,7 +920,7 @@ test('resolveHtmlPageEmbeds: a "content" embed referencing an "html"-format row 
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "html-1", bodyFormat: "html", bodyHtml: "<p>hi</p>", kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"html-1"}'></div>` },
   });
 
@@ -931,7 +931,7 @@ test('resolveHtmlPageEmbeds: with NO postRepo dependency supplied, a "content" e
   const entryRepo = new InMemoryEntryRepo();
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -943,7 +943,7 @@ test('GUARD 2: resolveHtmlPageEmbeds — the legacy "post" embed type also refus
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "draft-2", status: "draft" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"draft-2"}'></div>` },
   });
 
@@ -958,7 +958,7 @@ test('GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" 
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "published-1" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: {
       workspaceId: WORKSPACE_ID_POST,
       html:
@@ -984,7 +984,7 @@ test('resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the sa
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"a-published-entity"}'></div>` },
   });
 
@@ -999,7 +999,7 @@ test('resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same 
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord()] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","slug":"a-published-entity"}'></div>` },
   });
 
@@ -1013,7 +1013,7 @@ test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "draft-1", slug: "draft-slug", status: "draft" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"draft-slug"}'></div>` },
   });
 
@@ -1027,7 +1027,7 @@ test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed
   ] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"trashed-slug"}'></div>` },
   });
 
@@ -1044,7 +1044,7 @@ test('resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and
   // Only entity-1's own id key is populated; if this fell back to slug for a marker carrying both, it
   // would surface entity-2's data instead of entity-1's.
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: {
       workspaceId: WORKSPACE_ID_POST,
       html: `<div data-embed-config='{"type":"content","id":"entity-1","slug":"entity-two-slug"}'></div>`,
@@ -1066,7 +1066,7 @@ test("resolveHtmlPageEmbeds: pendingContentOverride matches a slug-only ref by o
   };
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, pendingContentOverride: pending },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, pendingContentOverride: pending },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"a-published-entity"}'></div>` },
   });
 
@@ -1109,7 +1109,7 @@ test("collectMediaRefAssetIds resolves media at depth 10000 without truncating o
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 900, height: 600, cssClass: "deep-asset" })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })] });
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo: new InMemoryEntryRepo(), postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo: new InMemoryEntryRepo(), postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
   const ir = resolved.get("content")?.get("entity-1");
@@ -1128,7 +1128,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-base
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -1150,7 +1150,7 @@ test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME medi
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"entity-1"}'></div>` },
   });
 
@@ -1164,7 +1164,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson with a ref-based imag
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithImage()] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) }, // no mediaRepo/transformRepo
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) }, // no mediaRepo/transformRepo
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -1181,7 +1181,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const pending = postRecordWithImage({ id: "entity-1" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}),
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo,
       mediaRepo,
       transformRepo,
@@ -1231,7 +1231,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const pending = postRecordWithMediaNode({ id: "entity-1" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}),
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo,
       mediaRepo,
       transformRepo,
@@ -1261,7 +1261,7 @@ test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME medi
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"entity-1"}'></div>` },
   });
 
@@ -1299,7 +1299,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves contentType
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID_POST, sha256, contentType: "video/mp4" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo, mediaContentTypeStore },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo, mediaContentTypeStore },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -1330,7 +1330,7 @@ test('resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" D
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID_POST, sha256, contentType: "image/png" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo, mediaContentTypeStore },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }), mediaRepo, transformRepo, mediaContentTypeStore },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -1350,7 +1350,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const pending = postRecord({ id: "entity-1" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}),
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo,
       pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
     },
@@ -1365,7 +1365,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const pending = postRecord({ id: "entity-1" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}),
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo,
       pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
     },
@@ -1415,7 +1415,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves the post bo
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithWidgetEmbeds()] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -1431,7 +1431,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const pending = postRecordWithWidgetEmbeds();
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}),
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo,
       pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
     },
@@ -1448,7 +1448,7 @@ test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widget
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithWidgetEmbeds()] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"entity-1"}'></div>` },
   });
 
@@ -1464,7 +1464,7 @@ test('resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid c
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ workspaceId: WORKSPACE_ID, slug: "valid-content" })] });
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID, html:
       `<div data-embed-config='{"type":"widget","id":"missing-widget","slug":"valid-widget"}'></div>` +
       `<div data-embed-config='{"type":"media","id":"missing-media","slug":"valid-media"}'></div>` +
@@ -1487,7 +1487,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch dates a live post by
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ publishAt: "2026-08-01T12:00:00.000Z", updatedAt: "2026-08-11T12:00:00.000Z" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
@@ -1501,7 +1501,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const pending = postRecord({ id: "entity-1", updatedAt: "2026-10-05T12:00:00.000Z" });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}),
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo,
       pendingContentOverride: {
         id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt,
@@ -1521,7 +1521,7 @@ test('resolveHtmlPageEmbeds: a post with no publishAt keeps dating by updatedAt 
   const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ updatedAt: "2026-08-11T12:00:00.000Z" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
   });
 
