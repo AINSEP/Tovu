@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import sharp from "sharp";
@@ -9,11 +10,12 @@ import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 
 const WORKSPACE_ID = "ws-featured";
 
-async function seededDeps(contentTypes?: Map<string, string>): Promise<{ deps: FeaturedImageDeps; mediaRepo: InMemoryMediaRepo; asset: { id: string; slug: string; sha256: string } }> {
+async function seededDeps(contentType?: string): Promise<{ deps: FeaturedImageDeps; mediaRepo: InMemoryMediaRepo; asset: { id: string; slug: string } }> {
   const mediaRepo = new InMemoryMediaRepo({});
   const bytes = new Uint8Array(await sharp({ create: { width: 4, height: 4, channels: 3, background: { r: 1, g: 2, b: 3 } } }).png().toBuffer());
   const { media } = await uploadMedia({
     deps: {
+      createHash,
       clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z") },
       idGen: { newId: () => "asset-1" },
       mediaRepo,
@@ -23,8 +25,14 @@ async function seededDeps(contentTypes?: Map<string, string>): Promise<{ deps: F
     },
     input: { workspaceId: WORKSPACE_ID, bytes, filename: "hero.png", contentType: "image/png", createdByPrincipal: "owner" },
   });
-  const deps: FeaturedImageDeps = { mediaRepo, findMediaByIdOrSlug, ...(contentTypes ? { mediaContentTypeStore: { getMany: async () => contentTypes } } : {}) };
-  return { deps, mediaRepo, asset: { id: media.id, slug: media.slug, sha256: media.source.sha256 } };
+  const deps: FeaturedImageDeps = { mediaRepo, findMediaByIdOrSlug };
+  if (contentType !== undefined) {
+    deps.mediaContentTypeStore = { getMany: async (required) => {
+      assert.deepEqual(required, { workspaceId: WORKSPACE_ID, sha256s: [media.source.sha256] });
+      return new Map([[media.source.sha256, contentType]]);
+    } };
+  }
+  return { deps, mediaRepo, asset: { id: media.id, slug: media.slug } };
 }
 
 test("omitted, null and blank featuredMediaId values pass through untouched", async () => {
@@ -36,6 +44,7 @@ test("omitted, null and blank featuredMediaId values pass through untouched", as
 
 test("a media slug resolves to the canonical asset id that is stored", async () => {
   const { deps, asset } = await seededDeps();
+  assert.notEqual(asset.slug, asset.id);
   assert.equal(await resolveFeaturedMediaIdForWrite({ deps, input: { workspaceId: WORKSPACE_ID, featuredMediaId: ` ${asset.slug} ` } }), asset.id);
 });
 
@@ -50,7 +59,8 @@ test("an unknown reference is a PostValidationError naming the trimmed reference
 test("a trashed asset is refused with how to fix it", async () => {
   const { deps, mediaRepo, asset } = await seededDeps();
   const stored = await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
-  await mediaRepo.save({ ...stored!, status: "trashed" });
+  assert.ok(stored);
+  await mediaRepo.save({ ...stored, status: "trashed" });
   await assert.rejects(
     resolveFeaturedMediaIdForWrite({ deps, input: { workspaceId: WORKSPACE_ID, featuredMediaId: asset.id } }),
     (error: unknown) => error instanceof PostValidationError && error.message === `featuredMediaId: media asset '${asset.id}' is in Trash. Restore it first, or pick another image.`,
@@ -58,8 +68,7 @@ test("a trashed asset is refused with how to fix it", async () => {
 });
 
 test("an asset whose sniffed type is known and not an image is refused, naming that type", async () => {
-  const { asset } = await seededDeps();
-  const { deps } = await seededDeps(new Map([[asset.sha256, "application/pdf"]]));
+  const { deps, asset } = await seededDeps("application/pdf");
   await assert.rejects(
     resolveFeaturedMediaIdForWrite({ deps, input: { workspaceId: WORKSPACE_ID, featuredMediaId: asset.id } }),
     (error: unknown) => error instanceof PostValidationError && error.message === `featuredMediaId: media asset '${asset.id}' is application/pdf, not an image. A featured image must be an image.`,
@@ -68,14 +77,14 @@ test("an asset whose sniffed type is known and not an image is refused, naming t
 
 test("the lookup is the host-injected findMediaByIdOrSlug, called with the repo and the trimmed reference", async () => {
   const { deps, asset } = await seededDeps();
-  const calls: Array<{ idOrSlug: string; sameRepo: boolean }> = [];
+  const calls: Array<{ workspaceId: string; idOrSlug: string; sameRepo: boolean }> = [];
   const injected: FeaturedImageDeps = {
     ...deps,
     findMediaByIdOrSlug: async (required) => {
-      calls.push({ idOrSlug: required.input.idOrSlug, sameRepo: required.deps.mediaRepo === deps.mediaRepo });
+      calls.push({ ...required.input, sameRepo: required.deps.mediaRepo === deps.mediaRepo });
       return findMediaByIdOrSlug(required);
     },
   };
   assert.equal(await resolveFeaturedMediaIdForWrite({ deps: injected, input: { workspaceId: WORKSPACE_ID, featuredMediaId: ` ${asset.slug} ` } }), asset.id);
-  assert.deepEqual(calls, [{ idOrSlug: asset.slug, sameRepo: true }]);
+  assert.deepEqual(calls, [{ workspaceId: WORKSPACE_ID, idOrSlug: asset.slug, sameRepo: true }]);
 });

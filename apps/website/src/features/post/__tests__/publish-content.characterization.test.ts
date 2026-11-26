@@ -8,6 +8,12 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePagePublish, contributePostPublish } from "@jini-ai/cms/posts/publish-content";
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
+
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
 
 /**
  * @file Characterization pin for M-POST (`plan-publish-all-types-2026-09-25.md` §5, §7): the live site
@@ -76,8 +82,8 @@ const entity = (entityType: string, id: string, state: Record<string, unknown>):
 
 test("pack(): pinned contentHash per post and page (untagged, tagged), schemaVersion 2, trashed skipped", async () => {
   const { deps } = await site();
-  const posts = await packOf(contributePostPublish().build(deps));
-  const pages = await packOf(contributePagePublish().build(deps));
+  const posts = await packOf(contributePostPublish(postBindings).build(deps));
+  const pages = await packOf(contributePagePublish(postBindings).build(deps));
   assert.deepEqual(
     [...posts, ...pages].map((e) => [e.entityType, e.id, e.contentHash, e.schemaVersion, e.hashVersion, e.requiredBlobs]).sort(),
     [
@@ -111,8 +117,8 @@ test("pack(): pinned contentHash per post and page (untagged, tagged), schemaVer
 
 test("inspect(): the destination's hash equals the pinned pack hash; the other kind is invisible", async () => {
   const { deps } = await site();
-  const post = contributePostPublish().build(deps);
-  const page = contributePagePublish().build(deps);
+  const post = contributePostPublish(postBindings).build(deps);
+  const page = contributePagePublish(postBindings).build(deps);
   assert.deepEqual(await post.inspect({ id: "p-untagged" }), { version: 3, hash: PINNED["p-untagged"] });
   assert.deepEqual(await post.inspect({ id: "p-tagged" }), { version: 3, hash: PINNED["p-tagged"] });
   assert.deepEqual(await page.inspect({ id: "pg-about" }), { version: 3, hash: PINNED["pg-about"] });
@@ -123,8 +129,8 @@ test("inspect(): the destination's hash equals the pinned pack hash; the other k
 test("a published byline round trips and an absent source byline clears the destination", async () => {
   const source = await site();
   const destination = await site();
-  const from = contributePostPublish().build(source.deps);
-  const to = contributePostPublish().build(destination.deps);
+  const from = contributePostPublish(postBindings).build(source.deps);
+  const to = contributePostPublish(postBindings).build(destination.deps);
   await source.s.posts.save(row({ id: "p-byline", slug: "byline", author: "Ada", showAuthor: true }));
   const byline = (await packOf(from)).find(e => e.id === "p-byline")!;
   assert.equal(byline.state.author, "Ada");
@@ -150,11 +156,11 @@ test("a published byline round trips and an absent source byline clears the dest
 
 test("precheck(): exact reason strings", async () => {
   const { deps } = await site();
-  const post = contributePostPublish().build(deps);
-  const page = contributePagePublish().build(deps);
+  const post = contributePostPublish(postBindings).build(deps);
+  const page = contributePagePublish(postBindings).build(deps);
   const state = (slug: unknown) => ({ title: "X", slug, kind: "post", status: "published", bodyFormat: "doc" });
 
-  const unwiredRefusal = await contributePostPublish().build(makeSite({})).precheck({ entity: entity("post", "x", state("x")) });
+  const unwiredRefusal = await contributePostPublish(postBindings).build(makeSite({})).precheck({ entity: entity("post", "x", state("x")) });
   assert.ok(typeof unwiredRefusal === "string");
   assert.match(
     unwiredRefusal,
@@ -184,7 +190,7 @@ function classify(handler: PublishContentHandler, entityType: string, id: string
 
 test("apply(): a stale version is a conflict row; create and update land with terms synced", async () => {
   const { s, deps } = await site();
-  const post = contributePostPublish().build(deps);
+  const post = contributePostPublish(postBindings).build(deps);
   const packed = (await packOf(post)).find((e) => e.id === "p-tagged")!;
 
   const stale = await post.apply({ entity: packed, expectedVersion: 1, principalId: "op", idempotencyKey: "k1" }).then(

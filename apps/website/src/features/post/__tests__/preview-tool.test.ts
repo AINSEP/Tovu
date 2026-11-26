@@ -69,7 +69,8 @@ test("preview accepts id or legacy postId; id takes precedence and invalid id ne
   for (const id of ["", "  ", null, 123]) {
     await assert.rejects(registration.handler(context({ id, postId: "draft-1" })), error => error instanceof ToolInputError && /id must be a non-empty id or slug/.test(error.message));
   }
-  assert.deepEqual(postPreviewAgentToolCatalog[0]!.inputSchema.anyOf, [{ required: ["id"] }, { required: ["postId"] }]);
+  const definition = postPreviewAgentToolCatalog.find(({ name }) => name === "content_post_preview");
+  assert.deepEqual(definition?.inputSchema?.anyOf, [{ required: ["id"] }, { required: ["postId"] }]);
   assert.equal(writes(), 0);
 });
 
@@ -120,7 +121,9 @@ test("the preview contributor builds the same read-only preview tool with the re
 });
 
 test("W10 draft preview is by entry ID and public screenshots only show the served address", () => {
-  const description = postPreviewAgentToolCatalog[0].description;
+  const definition = postPreviewAgentToolCatalog.find(({ name }) => name === "content_post_preview");
+  assert.ok(definition);
+  const { description } = definition;
   assert.match(description, /Preview a draft by entry ID/, "draft checks use their entry ID");
   assert.match(description, /A public-route screenshot checks only the page served at that address/, "public screenshots never certify an unsaved draft");
   assert.doesNotMatch(description, /exactly as it would look once published/, "preview does not promise public parity");

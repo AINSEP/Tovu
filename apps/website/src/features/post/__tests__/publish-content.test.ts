@@ -33,6 +33,11 @@ import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import type { RetireTarget } from "@jini-ai/cms/publish/content/type-registry";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -117,22 +122,22 @@ function packedFrom(entityType: "post" | "page", post: PostRecord) {
 // ---------------------------------------------------------------------------
 
 test("contributePostPublish returns data only — entityType/dependsOn are plain values, build is deferred", () => {
-  const contributor = contributePostPublish();
+  const contributor = contributePostPublish(postBindings);
   assert.equal(contributor.entityType, "post");
   assert.deepEqual(contributor.dependsOn, ["media", "term"]);
   assert.equal(typeof contributor.build, "function");
 });
 
 test("contributePagePublish returns data only, distinguished from post only by entityType", () => {
-  const contributor = contributePagePublish();
+  const contributor = contributePagePublish(postBindings);
   assert.equal(contributor.entityType, "page");
   assert.deepEqual(contributor.dependsOn, ["media", "term"]);
 });
 
 test("both built handlers declare the resource's own content.write permission", () => {
   const deps = makeDeps([]);
-  assert.equal(contributePostPublish().build(deps).permission, "content.write");
-  assert.equal(contributePagePublish().build(deps).permission, "content.write");
+  assert.equal(contributePostPublish(postBindings).build(deps).permission, "content.write");
+  assert.equal(contributePagePublish(postBindings).build(deps).permission, "content.write");
 });
 
 // ---------------------------------------------------------------------------
@@ -142,7 +147,7 @@ test("both built handlers declare the resource's own content.write permission", 
 test("post.pack() yields only kind:'post' rows, each hashed with contentHash({ entityType: 'post', state: ... })", async () => {
   const post = makePost({ id: "post-1", kind: "post", title: "A Post" });
   const page = makePost({ id: "page-1", kind: "page", slug: "a-page", title: "A Page" });
-  const handler = contributePostPublish().build(makeDeps([post, page]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([post, page]));
 
   const packed = [];
   for await (const entity of handler.pack()) packed.push(entity);
@@ -178,7 +183,7 @@ test("post.pack() yields only kind:'post' rows, each hashed with contentHash({ e
 test("page.pack() yields only kind:'page' rows", async () => {
   const post = makePost({ id: "post-1", kind: "post" });
   const page = makePost({ id: "page-1", kind: "page", slug: "a-page" });
-  const handler = contributePagePublish().build(makeDeps([post, page]));
+  const handler = contributePagePublish(postBindings).build(makeDeps([post, page]));
 
   const packed = [];
   for await (const entity of handler.pack()) packed.push(entity);
@@ -191,7 +196,7 @@ test("page.pack() yields only kind:'page' rows", async () => {
 test("pack()'s contentHash is stable across two rows with identical content but different id/version/updatedAt", async () => {
   const rowA = makePost({ id: "post-a", version: 1, updatedAt: "2026-01-01T00:00:00.000Z" });
   const rowB = makePost({ id: "post-b", version: 9, updatedAt: "2026-09-01T00:00:00.000Z" });
-  const handler = contributePostPublish().build(makeDeps([rowA, rowB]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([rowA, rowB]));
 
   const packed = [];
   for await (const entity of handler.pack()) packed.push(entity);
@@ -206,7 +211,7 @@ test("pack()'s contentHash is stable across two rows with identical content but 
 
 test("inspect() returns {version, hash} for an existing row of the matching kind", async () => {
   const post = makePost({ id: "post-1", version: 3 });
-  const handler = contributePostPublish().build(makeDeps([post]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([post]));
 
   const packed = [];
   for await (const entity of handler.pack()) packed.push(entity);
@@ -221,13 +226,13 @@ test("inspect() returns {version, hash} for an existing row of the matching kind
 });
 
 test("inspect() returns null for a row that does not exist", async () => {
-  const handler = contributePostPublish().build(makeDeps([]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([]));
   assert.equal(await handler.inspect({ id: "missing" }), null);
 });
 
 test("inspect() returns null for a row that exists but is the WRONG kind — a page's id must not resolve through the post handler", async () => {
   const page = makePost({ id: "page-1", kind: "page", slug: "a-page" });
-  const handler = contributePostPublish().build(makeDeps([page]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([page]));
   assert.equal(await handler.inspect({ id: "page-1" }), null);
 });
 
@@ -236,7 +241,7 @@ test("inspect() returns null for a row that exists but is the WRONG kind — a p
 // ---------------------------------------------------------------------------
 
 test("precheck() allows an entity whose slug is free", async () => {
-  const handler = contributePostPublish().build(makeDeps([]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([]));
   const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "new-post",
@@ -251,7 +256,7 @@ test("precheck() allows an entity whose slug is free", async () => {
 
 test("precheck() allows an entity claiming ITS OWN current slug (updating in place is not a collision)", async () => {
   const existing = makePost({ id: "post-1", slug: "hello" });
-  const handler = contributePostPublish().build(makeDeps([existing]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([existing]));
   const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-1",
@@ -266,7 +271,7 @@ test("precheck() allows an entity claiming ITS OWN current slug (updating in pla
 
 test("precheck() blocks an entity whose slug is held by a DIFFERENT id — never auto-renames (plan §5 risk #4)", async () => {
   const existing = makePost({ id: "post-1", slug: "taken" });
-  const handler = contributePostPublish().build(makeDeps([existing]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([existing]));
   const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-2",
@@ -281,7 +286,7 @@ test("precheck() blocks an entity whose slug is held by a DIFFERENT id — never
 });
 
 test("precheck() blocks an entity with no usable slug rather than throwing", async () => {
-  const handler = contributePostPublish().build(makeDeps([]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([]));
   const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-1",
@@ -297,7 +302,7 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
 
 test("precheck() no longer blocks a body-format difference — D2 (2026-09-24 owner decision) lets publishing replace it instead of refusing", async () => {
   const existing = makePost({ id: "post-1", slug: "hello", bodyFormat: "html", bodyHtml: "<p>live</p>" });
-  const handler = contributePostPublish().build(makeDeps([existing]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([existing]));
   const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-1",
@@ -319,7 +324,7 @@ test("precheck() no longer blocks a body-format difference — D2 (2026-09-24 ow
 // ---------------------------------------------------------------------------
 
 test("apply() throws when changeSets/authorize/outbox are not wired — never silently no-ops", async () => {
-  const handler = contributePostPublish().build(makeDeps([]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([]));
   await assert.rejects(
     () =>
       handler.apply({
@@ -334,7 +339,7 @@ test("apply() throws when changeSets/authorize/outbox are not wired — never si
 
 test("apply() 'created' path: writes through createPost and copies the SOURCE author, never the operator's id (Task 15)", async () => {
   const deps = makeApplyDeps([]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const source = makePost({ id: "post-new", title: "Imported", slug: "imported", createdByPrincipalId: "source-author-1" });
 
   const { changeSetId } = await handler.apply({
@@ -351,7 +356,7 @@ test("apply() 'created' path: writes through createPost and copies the SOURCE au
 
 test("apply() 'created' path: a null source author imports as null, not the operator's id (Task 15)", async () => {
   const deps = makeApplyDeps([]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const source = makePost({ id: "post-new-2", slug: "imported-2", createdByPrincipalId: null });
 
   await handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-1" });
@@ -371,7 +376,7 @@ test("security cleanup pins source provenance defaults and destination local fie
       delete entity.state.createdAt;
     }
     Object.assign(entity.state, { version: 999, updatedAt: "untrusted-time", deletedAt: "untrusted-trash", ext: { plugin: { injected: true } } });
-    await contributePostPublish().build(deps).apply({ entity, expectedVersion: undefined, principalId: "operator", idempotencyKey: "create" });
+    await contributePostPublish(postBindings).build(deps).apply({ entity, expectedVersion: undefined, principalId: deps.mutationActor.id, idempotencyKey: "create" });
     const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
     assert.ok(saved);
     assert.equal(saved.createdByPrincipalId, provenance ?? null);
@@ -388,7 +393,7 @@ test("security cleanup pins source provenance defaults and destination local fie
       const source = makePost({ createdByPrincipalId: "untrusted-author", createdAt: "untrusted-time", ext: { plugin: { injected: true } } });
       const entity = packedFrom("post", source);
       Object.assign(entity.state, { version: 999, updatedAt: "untrusted-time", deletedAt: "untrusted-trash", ext: { plugin: { injected: true } } });
-      await contributePostPublish().build(deps).apply({ entity, expectedVersion: 3, principalId: "operator", idempotencyKey: "update" });
+      await contributePostPublish(postBindings).build(deps).apply({ entity, expectedVersion: 3, principalId: deps.mutationActor.id, idempotencyKey: "update" });
       const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: existing.id });
       assert.ok(saved);
       assert.equal(saved.createdByPrincipalId, provenance);
@@ -403,17 +408,19 @@ test("security cleanup pins source provenance defaults and destination local fie
 
 test("apply() 'created' path: a change-set failure removes the row outright — an undone create must leave nothing behind", async () => {
   const deps = makeApplyDeps([]);
+  const source = makePost({ id: "post-orphan", title: "Orphan", slug: "orphan" });
+  const failure = new Error("change-set store is down");
   // Fails only on the RECORD, after `createPost` has already written the row — the exact window
   // `CommandMutation.rollback` exists for.
   deps.changeSets.insert = async () => {
-    throw new Error("change-set store is down");
+    assert.equal((await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id }))?.title, "Orphan");
+    throw failure;
   };
-  const handler = contributePostPublish().build(deps);
-  const source = makePost({ id: "post-orphan", title: "Orphan", slug: "orphan" });
+  const handler = contributePostPublish(postBindings).build(deps);
 
   await assert.rejects(
     () => handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-2" }),
-    /change-set store is down/
+    (error) => error === failure
   );
 
   assert.equal(
@@ -436,7 +443,7 @@ test("apply() 'created' path: a change-set failure removes the row outright — 
 test("apply() 'applied' path: writes through updatePost with expectedVersion, actor is the OPERATOR", async () => {
   const existing = makePost({ id: "post-1", version: 3, title: "Old title", createdByPrincipalId: "source-author-1" });
   const deps = makeApplyDeps([existing]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const source = makePost({ ...existing, title: "New title from peer" });
 
   await handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1", idempotencyKey: "apply-3" });
@@ -460,7 +467,7 @@ test(`apply() restores an existing destination forward when change-set recording
   assert.ok(prior);
   const failure = new Error("change-set store is down");
   deps.changeSets.insert = async () => { throw failure; };
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const originalHash = (await handler.inspect({ id: prior.id }))!.hash;
   const source = makePost({ ...prior, author: "Failed credit", showAuthor: !byline.showAuthor, title: "Failed import", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } });
   await assert.rejects(() => handler.apply({ entity: packedFrom("post", source), expectedVersion: prior.version, principalId: "operator-1", idempotencyKey: "apply-4" }), error => error === failure);
@@ -481,7 +488,7 @@ test(`apply() restores an existing destination forward when change-set recording
 test("apply() 'applied' path: a stale expectedVersion rejects with a typed apply conflict, never overwrites", async () => {
   const existing = makePost({ id: "post-1", version: 5, title: "Someone else's edit" });
   const deps = makeApplyDeps([existing]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const source = makePost({ ...existing, title: "Stale import" });
 
   await assert.rejects(
@@ -500,7 +507,7 @@ test("apply() 'applied' path: a stale expectedVersion rejects with a typed apply
 test("planRetire() returns the live holder with the exact hash inspect() gives", async () => {
   const holder = makePost({ id: "post-1", slug: "about", title: "About (live)" });
   const deps = makeDeps([holder]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
 
   const target = await handler.planRetire!({ entity: {
     entityType: "post",
@@ -523,7 +530,7 @@ test("planRetire() returns the live holder with the exact hash inspect() gives",
 test("planRetire() returns null when the incoming id already exists at the destination — a same-id collision is not an address clash", async () => {
   const holder = makePost({ id: "post-1", slug: "about" });
   const existingHere = makePost({ id: "post-2", slug: "post-2-slug" });
-  const handler = contributePostPublish().build(makeDeps([holder, existingHere]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([holder, existingHere]));
 
   const target = await handler.planRetire!({ entity: {
     entityType: "post",
@@ -540,7 +547,7 @@ test("planRetire() returns null when the incoming id already exists at the desti
 
 test("planRetire() returns null for the home page slug — there is no other address to move it to", async () => {
   const home = makePost({ id: "home", slug: ROOT_SLUG, kind: "page" });
-  const handler = contributePostPublish().build(makeDeps([home]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([home]));
 
   const target = await handler.planRetire!({ entity: {
     entityType: "page",
@@ -558,7 +565,7 @@ test("planRetire() returns null for the home page slug — there is no other add
 test("retire() records a change set whose revert un-trashes the row", async () => {
   const holder = makePost({ id: "post-1", slug: "about", version: 3, status: "published" });
   const deps = makeApplyDeps([holder]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
 
   const target: RetireTarget = {
     entityType: "post",
@@ -581,7 +588,7 @@ test("retire() records a change set whose revert un-trashes the row", async () =
   });
   await revertChangeSet({
     deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen, transaction: ({ work }, _optional = {}) => deps.postRepo.transaction({ fn: work }) },
-    input: { workspaceId: WORKSPACE_ID, changeSetId },
+    input: { workspaceId: WORKSPACE_ID, changeSetId, actor: deps.mutationActor },
   });
 
   const reverted = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
@@ -591,7 +598,7 @@ test("retire() records a change set whose revert un-trashes the row", async () =
 test("T32: reverting a retirement from history restores the holder's original free slug", async () => {
   const holder = makePost({ slug: "about", version: 3, status: "published" });
   const deps = makeApplyDeps([holder]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const target: RetireTarget = {
     entityType: "post", entityId: holder.id, entityLabel: holder.title,
     hash: (await handler.inspect({ id: holder.id }))!.hash,
@@ -605,7 +612,7 @@ test("T32: reverting a retirement from history restores the holder's original fr
       transaction: ({ work }, _optional = {}) => deps.postRepo.transaction({ fn: work }),
       registry: createPostRevertRegistry({ postRepo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, forgetRemoved: deps.forgetRemovedPost }),
     },
-    input: { workspaceId: WORKSPACE_ID, changeSetId },
+    input: { workspaceId: WORKSPACE_ID, changeSetId, actor: deps.mutationActor },
   });
 
   const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: holder.id });
@@ -629,7 +636,7 @@ test("retire of an already-trashed holder: revert leaves it in the Trash", async
     forgetRemovedCalls += 1;
     return deps.forgetRemovedPost(input);
   };
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
 
   const target: RetireTarget = {
     entityType: "post",
@@ -652,7 +659,7 @@ test("retire of an already-trashed holder: revert leaves it in the Trash", async
   });
   await revertChangeSet({
     deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen, transaction: ({ work }, _optional = {}) => deps.postRepo.transaction({ fn: work }) },
-    input: { workspaceId: WORKSPACE_ID, changeSetId },
+    input: { workspaceId: WORKSPACE_ID, changeSetId, actor: deps.mutationActor },
   });
 
   const reverted = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
@@ -671,7 +678,7 @@ test("retire of an already-trashed holder: revert leaves it in the Trash", async
 test("retire()'s undo() restores the holder live, at its original slug — the address-clash rollback, not the standard revert", async () => {
   const holder = makePost({ id: "post-1", slug: "about", version: 3, status: "published" });
   const deps = makeApplyDeps([holder]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
 
   const target: RetireTarget = {
     entityType: "post",
@@ -691,7 +698,7 @@ test("retire()'s undo() restores the holder live, at its original slug — the a
 test("retire() refuses a target whose live content no longer matches the planned hash, and leaves the holder live", async () => {
   const holder = makePost({ id: "post-1", slug: "about", version: 3, status: "published" });
   const deps = makeApplyDeps([holder]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const target: RetireTarget = {
     entityType: "post",
     entityId: "post-1",
@@ -714,7 +721,7 @@ test("retire() throws when removePost is not wired — never silently no-ops", a
   const holder = makePost({ id: "post-1", slug: "about" });
   const base = makeApplyDeps([holder]);
   const deps = { ...base, ports: { post: { ...base.ports.post, remove: undefined } } };
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
 
   await assert.rejects(
     () =>
@@ -734,7 +741,7 @@ test("retire() throws when removePost is not wired — never silently no-ops", a
 // ---------------------------------------------------------------------------
 
 test("precheck() blocks a page entity whose packed kind is 'post'", async () => {
-  const handler = contributePagePublish().build(makeDeps([]));
+  const handler = contributePagePublish(postBindings).build(makeDeps([]));
   const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "post" });
   const reason = await handler.precheck({ entity: packedFrom("page", smuggled) });
   assert.equal(reason, "page entity 'smuggled' is packed as a 'post' — a page publish writes only pages");
@@ -742,7 +749,7 @@ test("precheck() blocks a page entity whose packed kind is 'post'", async () => 
 
 test("apply() refuses a page entity whose packed kind is 'post' and writes nothing", async () => {
   const deps = makeApplyDeps([]);
-  const handler = contributePagePublish().build(deps);
+  const handler = contributePagePublish(postBindings).build(deps);
   const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "post" });
   await assert.rejects(
     handler.apply({ entity: packedFrom("page", smuggled), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-6" }),
@@ -756,7 +763,7 @@ test("apply() refuses a page entity whose packed kind is 'post' and writes nothi
 
 test("apply() refuses a post entity whose packed kind is 'page'", async () => {
   const deps = makeApplyDeps([]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "page" });
   await assert.rejects(
     handler.apply({ entity: packedFrom("post", smuggled), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-7" }),
@@ -774,7 +781,7 @@ function packedState(state: Record<string, unknown>, id = "post-2") {
 }
 
 test("references() adds the featured image once, and adds nothing for a missing or empty featuredMediaId", async () => {
-  const handler = contributePostPublish().build(makeDeps([]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([]));
   const bodyWithMedia = { type: "doc", content: [{ type: "image", attrs: { assetId: "asset-1" } }] };
   const base = handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia }) });
   assert.deepEqual(handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "" }) }), base);
@@ -785,28 +792,28 @@ test("references() adds the featured image once, and adds nothing for a missing 
 });
 
 test("precheck() blocks publishing over a destination row that is in the Trash, even when that row is the other kind", async () => {
-  const handler = contributePostPublish().build(makeDeps([makePost({ id: "post-2", slug: "gone", deletedAt: "2026-09-10T00:00:00.000Z" })]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([makePost({ id: "post-2", slug: "gone", deletedAt: "2026-09-10T00:00:00.000Z" })]));
   const expected = "post 'post-2' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content";
   assert.equal(await handler.precheck({ entity: packedState({ kind: "post", slug: "fresh-slug" }) }), expected);
   // A trashed PAGE with this id is invisible to the post handler's kind-filtered lookup, so the
   // unfiltered slug/trash read in its own validation is what refuses it.
-  const otherKind = contributePostPublish().build(makeDeps([makePost({ id: "post-2", slug: "gone", kind: "page", deletedAt: "2026-09-10T00:00:00.000Z" })]));
+  const otherKind = contributePostPublish(postBindings).build(makeDeps([makePost({ id: "post-2", slug: "gone", kind: "page", deletedAt: "2026-09-10T00:00:00.000Z" })]));
   assert.equal(await otherKind.precheck({ entity: packedState({ kind: "post", slug: "fresh-slug" }) }), expected);
 });
 
 test("planRetire() returns null for a free slug, a slug the entity itself holds, a missing slug, and a handler with no post repo", async () => {
   const own = makePost({ id: "post-2", slug: "mine" });
-  const handler = contributePostPublish().build(makeDeps([own]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([own]));
   assert.equal(await handler.planRetire!({ entity: packedState({ slug: "free" }) }), null);
   assert.equal(await handler.planRetire!({ entity: packedState({ slug: "mine" }) }), null);
   assert.equal(await handler.planRetire!({ entity: packedState({}) }), null);
-  const noRepo = contributePostPublish().build({ ...makeDeps([own]), ports: {} });
+  const noRepo = contributePostPublish(postBindings).build({ ...makeDeps([own]), ports: {} });
   assert.equal(await noRepo.planRetire!({ entity: packedState({ slug: "mine" }, "post-3") }), null);
 });
 
 test("retire() of a target that no longer exists refuses with not-found and records nothing", async () => {
   const deps = makeApplyDeps([]);
-  const handler = contributePostPublish().build(deps);
+  const handler = contributePostPublish(postBindings).build(deps);
   await assert.rejects(
     () => handler.retire!({ target: { entityType: "post", entityId: "vanished", entityLabel: "Vanished", hash: "h" }, principalId: "operator-1", idempotencyKey: "retire-vanished" }),
     { message: "post 'vanished' was not found" },
@@ -816,7 +823,7 @@ test("retire() of a target that no longer exists refuses with not-found and reco
 
 test("apply() throws when ports.post.forgetRemoved is not wired even though the gateway deps are", async () => {
   const base = makeApplyDeps([]);
-  const handler = contributePostPublish().build({ ...base, ports: { post: { ...base.ports.post, forgetRemoved: undefined } } });
+  const handler = contributePostPublish(postBindings).build({ ...base, ports: { post: { ...base.ports.post, forgetRemoved: undefined } } });
   await assert.rejects(
     () => handler.apply({ entity: packedState({ kind: "post", slug: "x" }, "x"), expectedVersion: undefined, principalId: "p1", idempotencyKey: "apply-no-forget" }),
     /requires PublishContentDeps\.changeSets\/authorize\/outbox and ports\.post\.repo\/forgetRemoved/,
@@ -824,7 +831,7 @@ test("apply() throws when ports.post.forgetRemoved is not wired even though the 
 });
 
 test("isApplyConflict() treats the post domain's conflict and not-found errors as apply conflicts, and nothing else", () => {
-  const handler = contributePostPublish().build(makeDeps([]));
+  const handler = contributePostPublish(postBindings).build(makeDeps([]));
   assert.equal(handler.isApplyConflict!(new PostConflictError("moved on")), true);
   assert.equal(handler.isApplyConflict!(new PostNotFoundError("gone")), true);
   assert.equal(handler.isApplyConflict!(new Error("disk full")), false);

@@ -25,6 +25,12 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
+
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
 
 const at = "2026-09-01T00:00:00.000Z";
 
@@ -64,7 +70,7 @@ const assigned = async (site: ReturnType<typeof sqliteContentSite>, contentId: s
   (await site.entryTerms.listForContent({ contentType: "post", contentId })).map((r) => r.termId).sort();
 
 async function sites() {
-  registerOnly([contributeTaxonomyPublish(), contributeTermPublish(), contributePostPublish()]);
+  registerOnly([contributeTaxonomyPublish(repoPublishBindings), contributeTermPublish(repoPublishBindings), contributePostPublish(postBindings)]);
   const src = sqliteContentSite();
   const dst = sqliteContentSite();
   await seedTerms(src);
@@ -75,11 +81,11 @@ async function sites() {
 }
 
 test("an untagged post keeps its schemaVersion-1 hash byte-for-byte, with or without taxonomy ports", async () => {
-  registerOnly([contributePostPublish()]);
+  registerOnly([contributePostPublish(postBindings)]);
   const row = post({ id: "p-untagged", slug: "untagged" });
-  const bare = contributePostPublish().build(makeSite({ post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
+  const bare = contributePostPublish(postBindings).build(makeSite({ post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
   const withTerms = sqliteContentSite();
-  const tagged = contributePostPublish().build(makeSite({ ...withTerms.ports, post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
+  const tagged = contributePostPublish(postBindings).build(makeSite({ ...withTerms.ports, post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
 
   for (const handler of [bare, tagged]) {
     const packed: PackedEntity[] = [];
@@ -94,10 +100,11 @@ test("post termIds: packed sorted, applied after taxonomy and term, then everyth
   const { dst, source, dest } = await sites();
   const { first, second, entities, destinationPack } = await roundTrip(source, dest);
 
-  assert.deepEqual(first.applyOrder.indexOf("term") < first.applyOrder.indexOf("post"), true);
+  assert.deepEqual(first.applyOrder.filter((type) => type === "taxonomy" || type === "term" || type === "post"), ["taxonomy", "term", "post"]);
   assert.deepEqual(entities.find((e) => e.id === "p-tagged")?.state.termIds, ["t-a", "t-b"]);
   assert.deepEqual(await assigned(dst, "p-tagged"), ["t-a", "t-b"]);
-  assert.deepEqual(second.rows.map((r) => r.outcome), second.rows.map(() => "unchanged"));
+  assert.equal(second.rows.length, entities.length);
+  assert.deepEqual(second.rows.map((r) => r.outcome), entities.map(() => "unchanged"));
   assert.deepEqual(destinationPack.map((e) => e.contentHash).sort(), entities.map((e) => e.contentHash).sort());
 });
 
@@ -121,7 +128,7 @@ test("post termIds: a changed set syncs exactly — added assigned, removed unas
 
 test("post termIds: a term missing at the destination blocks the row before the post is written", async () => {
   const { dst, source, dest } = await sites();
-  const handler = contributePostPublish().build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
+  const handler = contributePostPublish(postBindings).build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
   const entity = (await packAll(source)).find((e) => e.id === "p-tagged")!;
 
   await assert.rejects(
@@ -149,7 +156,7 @@ test("T31: a term write failure after importing a post removes the unrecorded po
     };
 
     await assert.rejects(
-      contributePostPublish().build({ ...dest, mutationActor: { id: "owner", kind: "user" } }).apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "T31" }),
+      contributePostPublish(postBindings).build({ ...dest, mutationActor: { id: "owner", kind: "user" } }).apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "T31" }),
       (error: unknown) => error === failure,
     );
 
@@ -170,7 +177,7 @@ test("post termIds: without admin.taxonomy.manage a tag change is blocked and no
   const entity = (await packAll(source)).find((e) => e.id === "p-tagged")!;
 
   await assert.rejects(
-    contributePostPublish().build({ ...dest, mutationActor: { id: "editor", kind: "user" } }).apply({ entity, expectedVersion: undefined, principalId: "editor", idempotencyKey: "idem-perm" }),
+    contributePostPublish(postBindings).build({ ...dest, mutationActor: { id: "editor", kind: "user" } }).apply({ entity, expectedVersion: undefined, principalId: "editor", idempotencyKey: "idem-perm" }),
     (err: Error & { rowOutcome?: string }) => err.rowOutcome === "blocked" && /admin\.taxonomy\.manage/.test(err.message)
   );
   assert.equal(await dst.posts.findById({ workspaceId: WORKSPACE_ID, id: "p-tagged" }), null);
@@ -180,8 +187,8 @@ test("an instance still on post schemaVersion 1 refuses the whole bundle, writin
   const { source, dst } = await sites();
   const entities = await packAll(source);
   // The old live site: same types, but its post handler is the schemaVersion-1 one.
-  registerOnly([contributeTaxonomyPublish(), contributeTermPublish(), contributeMediaPublish()]);
-  const current = contributePostPublish();
+  registerOnly([contributeTaxonomyPublish(repoPublishBindings), contributeTermPublish(repoPublishBindings), contributeMediaPublish()]);
+  const current = contributePostPublish(postBindings);
   registerPublishContentContributor({ contributor: { ...current, build: (deps) => ({ ...current.build(deps), schemaVersion: 1 }) } });
 
   const report = await plan(entities, makeSite(dst.ports, "old-live"));
