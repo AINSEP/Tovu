@@ -6,7 +6,6 @@ import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import { defaultAgentPluginMemoryPort } from "../hooks/agent-plugin-memory-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
-import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 

@@ -8,7 +8,7 @@ import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { admissionRestartHelps } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
 import { describeAdmissionDrift } from "@jini-ai/admin/screens/settings/external-mcp-connection-drift";
-import { type SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
+import { type AdmissionDriftConnection, type SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 import { EXTERNAL_MCP_DRIFT_COPY } from "@jini-ai/admin/screens/settings/external-mcp-drift-copy";
 import { type Translate } from '@jini-ai/core/text';
@@ -27,7 +27,7 @@ export function useExternalMcpAdmissions(deps: {
   port: ExternalMcpAdmissionsPort;
   savedAllowedToolNamesById: Readonly<Record<string, SavedConnectionIntent>>;
   t?: Translate;
-}): ExternalMcpAdmissionsController {
+}): ExternalMcpAdmissionsController<AdmissionDriftConnection> {
   const { port, savedAllowedToolNamesById, t = (key) => key } = deps;
   return jiniUseExternalMcpAdmissions({ port, savedAllowedToolNamesById, t, useFetchQuery, useFetchMutation, hasPermission, describeAdmissionDrift, admissionRestartHelps, driftCopy: EXTERNAL_MCP_DRIFT_COPY, describeApiError, isApiError: (error): error is ApiError => error instanceof ApiError, apiUnreachableCode: API_UNREACHABLE_CODE, requestTimeoutCode: REQUEST_TIMEOUT_CODE, setTimeout, clearTimeout, reportRestartFailure: (error) => console.error("[external-mcp] Could not handle the restart result", describeErrorForLog({ err: error })) });
 }
@@ -36,7 +36,7 @@ export function useExternalMcpAdmissions(deps: {
  *  component composes the real ports and a test composes fakes. */
 export function useWiredExternalMcpAdmissions(
   savedAllowedToolNamesById: Readonly<Record<string, SavedConnectionIntent>>,
-): ExternalMcpAdmissionsController {
+): ExternalMcpAdmissionsController<AdmissionDriftConnection> {
   const t = useExternalMcpDriftCopy();
   return useExternalMcpAdmissions({ port: defaultExternalMcpAdmissionsPort, savedAllowedToolNamesById, t });
 }

@@ -8,6 +8,7 @@ import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 import type { ExternalMcpAdmissionsController } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
+import type { AdmissionDriftConnection } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 
 /**
  * @file Component-level coverage for `ExternalMcpSettingsPanel` — specifically the property
@@ -320,7 +321,7 @@ describe("ExternalMcpSettingsPanel — the Tools modal moves focus on open and r
 });
 
 describe("ExternalMcpSettingsPanel — card actions, draft test, failures and write grants", () => {
-  function idleAdmissions(connections: ExternalMcpAdmissionsController["connections"] = []): ExternalMcpAdmissionsController {
+  function idleAdmissions(connections: ExternalMcpAdmissionsController<AdmissionDriftConnection>["connections"] = []): ExternalMcpAdmissionsController<AdmissionDriftConnection> {
     return {
       loading: false,
       unavailable: null,
@@ -335,7 +336,7 @@ describe("ExternalMcpSettingsPanel — card actions, draft test, failures and wr
     };
   }
 
-  function renderWith(input: { sources: SourceConfigItem[]; connections?: ExternalMcpAdmissionsController["connections"]; fetchError?: Error; showTitle?: boolean; saveStatusLabel?: string }) {
+  function renderWith(input: { sources: SourceConfigItem[]; connections?: ExternalMcpAdmissionsController<AdmissionDriftConnection>["connections"]; fetchError?: Error; showTitle?: boolean; saveStatusLabel?: string }) {
     const dependencies = createFakeSourceConfigDependencies<SourceConfigItem>({
       sources: input.sources,
       createSource: (draft) => ({ id: draft.fields.id?.trim() || "new-server", fields: draft.fields }),

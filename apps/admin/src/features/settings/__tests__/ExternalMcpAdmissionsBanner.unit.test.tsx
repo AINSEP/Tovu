@@ -22,7 +22,7 @@ import type { ExternalMcpAdmissionsController } from "@jini-ai/mcp/react/externa
 
 const IDENTITY_T = (key: string) => key;
 
-function controller(overrides: Partial<ExternalMcpAdmissionsController> = {}): ExternalMcpAdmissionsController {
+function controller(overrides: Partial<ExternalMcpAdmissionsController<AdmissionDriftConnection>> = {}): ExternalMcpAdmissionsController<AdmissionDriftConnection> {
   return {
     loading: false,
     unavailable: null,
