@@ -842,7 +842,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   // why): each resource's "how do I copy myself" contribution, resolved into the cross-resource
   // `content_duplicate` tool `contributeContentDuplicationTools()` registered above already exposes.
   for (const contributor of [
-    ...contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })),
+    ...contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps: AssistantToolRegistryDeps, optional?: Record<string, never>) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })),
     ...contributeFormsDuplicateHandlers({ deriveDuplicateName }),
     ...contributeMediaDuplicateHandlers({ deriveDuplicateName, ...UPLOAD_CAPS }),
   ]) {

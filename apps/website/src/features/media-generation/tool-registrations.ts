@@ -95,7 +95,7 @@ export const buildMediaGenerationRegistrations = (routeDeps: MediaGenerationTool
     get authorize() { return adaptLegacyAuthorize({ authorize: routeDeps.authorize }); },
     get tracker() { return routeDeps.tracker; },
     get imageCodec() { return routeDeps.imageCodec; },
-    findModel: required => registry.findModel(required),
+    findModel: required => registry.findModel(required) ?? undefined,
     missingCredential: ({ providerId }) => ({ generated: false, message: buildNoCredentialError({ providerId, registry }).message,
       credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "media-provider", target: providerId } }, {}) }),
     storage: {
