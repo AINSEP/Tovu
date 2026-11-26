@@ -12,7 +12,7 @@ import { findTheme, renderStaticPage, renderStaticPartial, type DiscoveredTheme 
 import { listPublishedPosts } from "#src/features/post/index";
 import { authorizeThemeSetPermission } from "../../admin-http/routes/themes/explore.js";
 import { requireAdminSession } from "../../admin-http/dev-auth.js";
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
 import { renderSite } from "../http/site/render-site.js";
 import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender } from "../routes/site/pages/render-context/media-metadata.js";
@@ -88,7 +88,7 @@ async function renderTemplatedPreview(required: { req: Request; res: Response; d
     const templateId = String(req.params.templateId ?? "");
     sendPreview(res, await templatedThemePagePreview({ themeId, templateId, deps: templatedPreviewDeps(deps) }));
   } catch (error) {
-    const { errorId } = reportServerFailure({ error, operation: "theme-preview:render" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
+    const { errorId } = reportServerFailure({ error, operation: "theme-preview:render" }, { reporter: failureReporterOf({ res }) });
     sendPreview(res, templatedPreviewFailureResponse({ errorId }));
   }
 }

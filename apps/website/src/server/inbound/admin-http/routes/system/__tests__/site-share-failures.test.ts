@@ -132,14 +132,13 @@ test("share refusals retain their public diagnosis and do not log an internal in
 });
 
 test("shared diagnostics remain correlated without a telemetry provider", t => {
-  const logs: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
+  const { reporter, records: logs } = recordingComposedReporter();
   let status = 0, body: any;
   const res = { status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
   sendSiteShareFailure({ error: "storage unavailable", deps: {
     refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
     json: (body, status) => res.status(status).json(body),
-    failure: (error, options) => sendAdminFailure({ res, error }, options),
+    failure: (error, options) => sendAdminFailure({ res, error, reporter }, options),
   } });
   assert.equal(status, 500);
   assert.equal(body.code, "SHARE_FAILED");

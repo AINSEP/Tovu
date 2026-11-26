@@ -1,10 +1,11 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { adminFailureResponse, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 test("the shared admin fallback says what failed and what to do without disclosing backend text", t => {
   t.mock.method(console, "error", () => {});
-  const response = adminFailureResponse({ error: new Error("private SQL") });
+  const response = adminFailureResponse({ error: new Error("private SQL"), reporter: recordingComposedReporter().reporter });
   assert.equal(response.status, 500);
   assert.equal(response.body.error, `The request could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${response.body.errorId})`);
   assert.equal(response.body.details?.failure.action, "Check the result before repeating this operation. Copy details and report this problem.");
@@ -17,7 +18,7 @@ test("a call site can opt into copyable evidence while retaining its own details
   t.mock.method(console, "error", () => {});
   let body: any;
   const res = { status: () => ({ json: (value: unknown) => { body = value; } }) };
-  sendAdminFailure({ res, error: new Error("private SQL") }, { message: "Pages could not be loaded.",
+  sendAdminFailure({ res, reporter: recordingComposedReporter().reporter, error: new Error("private SQL") }, { message: "Pages could not be loaded.",
     failure: { action: "Reload Pages. If this continues, copy details and report this problem.", step: "pages.list" },
     details: { permission: "content.read" }, field: "message" });
   assert.equal(body.permission, "content.read");
@@ -30,10 +31,9 @@ test("a call site can opt into copyable evidence while retaining its own details
 test("Tovu API keys never reach either diagnostic sink or export copy text", t => {
   const secret = "SHARE_SECRET_CANARY_abcdefghijklmnop";
   const key = `tovu_ak_012345abcdef.${secret}`;
-  const logs: unknown[] = [], reports: unknown[] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const { reporter, records: logs, reports } = recordingComposedReporter();
   const error = new Error(`archive failed ${key}`);
-  const response = adminFailureResponse({ error, tracker: { error: (input: any) => { reports.push(input.error.message); } } }, {
+  const response = adminFailureResponse({ error, reporter }, {
     message: "The export stopped while building the ZIP.",
     failure: { action: "Copy details and report this problem.", step: "archive", cause: error },
   });
@@ -53,7 +53,7 @@ test("registered route templates supply safe default wording and copyable eviden
     locals: { principal: { id: "owner" } },
     status: () => ({ json: (value: unknown) => { body = value; } }),
   };
-  sendAdminFailure({ res, error: new Error("PRIVATE_BACKEND password=SECRET_CANARY") });
+  sendAdminFailure({ res, reporter: recordingComposedReporter().reporter, error: new Error("PRIVATE_BACKEND password=SECRET_CANARY") });
   assert.match(body.error, /page/i);
   assert.match(body.details.failure.action, /saved/);
   assert.equal(body.details.failure.errorId, body.errorId);
@@ -69,7 +69,7 @@ test("anonymous HTTP failures disclose only safe wording and an incident referen
     req: { method: "POST", route: { path: "/api/admin/v1/auth/login" }, baseUrl: "" },
     locals: {}, status: () => ({ json: (value: unknown) => { body = value; } }),
   };
-  sendAdminFailure({ res, error: new Error("PRIVATE_BACKEND SECRET_CANARY") }, {
+  sendAdminFailure({ res, reporter: recordingComposedReporter().reporter, error: new Error("PRIVATE_BACKEND SECRET_CANARY") }, {
     message: "PRIVATE_MESSAGE SECRET_CANARY", details: { privateFact: "SECRET_CANARY" },
     failure: { action: "PRIVATE_ACTION SECRET_CANARY", step: "PRIVATE_STEP SECRET_CANARY", cause: "PRIVATE_CAUSE SECRET_CANARY", metadata: { time: "PRIVATE_TIME SECRET_CANARY", errorId: "PRIVATE_ID SECRET_CANARY" } },
   });

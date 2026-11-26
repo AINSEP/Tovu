@@ -251,5 +251,5 @@ export const registerAdminExternalMcpProbeRoute = ({ app, deps, limiter, errors 
         json: (body, status) => res.status(status).json(body), message: "too many probe attempts",
       } }, async () => { await handler(req, res, next); }) })) } as unknown as Express,
       errors, spec, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, ...probe },
-    }, { authorization, failureWriter: ({ res, error }) => failure({ error, incident: (error, options) => sendAdminFailure({ res, error }, options) }) }),
+    }, { authorization, failureWriter: ({ res, error }) => failure({ error, incident: (error, options) => sendAdminFailure({ res, error, reporter: errors.reporter }, options) }) }),
   });

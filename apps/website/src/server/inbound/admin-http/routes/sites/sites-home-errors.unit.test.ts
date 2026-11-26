@@ -23,12 +23,12 @@ function fixture(t: TestContext, { failWrite = false, env = {} }: { failWrite?: 
   const ports = createNodeDurableJsonPorts({});
   if (failWrite) ports.filesystem.renameSync = () => { throw new Error(`storage failed ${KEY}`); };
   const workspace = createSitesWorkspace({}, { homeDir: root, env, platform: "linux", sourceRoots: [], ports });
-  const logs: unknown[][] = [], reports: Error[] = [];
+  const logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
   const app = express();
   app.use((_req, res, next) => {
     res.locals.principal = { id: "owner" };
-    res.locals.adminFailureTracker = { error: ({ error }: { error: Error }) => { reports.push(error); } }; next();
+    res.locals.failureReporter = recorded.reporter; next();
   });
   registerSitesHomeRoutes({ errors: routeErrors, app, workspace, deps: { workspaceId: "ws", isSiteSwitcherEnabled: () => true, authorize: async () => ({ allowed: true, reason: "owner" }) } });
   return { app, workspace, root, logs: recorded.records, reports: recorded.reports };

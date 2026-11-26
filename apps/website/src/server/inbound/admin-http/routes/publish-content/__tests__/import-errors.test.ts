@@ -34,30 +34,31 @@ function capturingResponse(): { res: { status(status: number): { json(body: unkn
 // is classified before anything is logged or reported, and carries no error ID that points nowhere.
 test("the shared backup-route failure sender returns a typed disk refusal as a plain 507, with no incident logged or reported", t => {
   const logged = t.mock.method(console, "error", () => {});
-  const tracked: unknown[] = [];
+  const { reporter, records, reports: tracked } = recordingComposedReporter();
   const error = new DatabaseDiskSpaceError({ freeBytes: 0, requiredBytes: 50 * 1024 * 1024 });
   const { res, replies } = capturingResponse();
-  sendAdminFailure({ res, error, tracker: { error: (...args: unknown[]) => { tracked.push(args); } } }, { code: "BACKUP_FAILED", field: "message" });
+  sendAdminFailure({ res, error, reporter }, { code: "BACKUP_FAILED", field: "message" });
   assert.deepEqual(replies, [{ status: 507, body: { code: "INSUFFICIENT_STORAGE", message: error.message } }]);
   assert.equal(logged.mock.callCount(), 0, "no incident in the local log");
+  assert.deepEqual(records, []);
   assert.deepEqual(tracked, [], "no incident in the tracker");
 });
 
 for (const order of [["disk", "crash"], ["crash", "disk"]] as const) {
   test(`disk refusal and a real failure through the same sender (${order.join(" then ")}): only the real failure is an incident`, t => {
     const logged = t.mock.method(console, "error", () => {});
-    const tracked: unknown[] = [];
-    const tracker = { error: (...args: unknown[]) => { tracked.push(args); } };
+    const { reporter, records, reports: tracked } = recordingComposedReporter();
     const { res, replies } = capturingResponse();
     const disk = new DatabaseDiskSpaceError({ freeBytes: 1024 * 1024, requiredBytes: 60 * 1024 * 1024 });
-    for (const kind of order) sendAdminFailure({ res, error: kind === "disk" ? disk : new Error("database is locked"), tracker });
+    for (const kind of order) sendAdminFailure({ res, error: kind === "disk" ? disk : new Error("database is locked"), reporter });
     const byKind = Object.fromEntries(order.map((kind, index) => [kind, replies[index]!]));
     assert.deepEqual(byKind.disk, { status: 507, body: { code: "INSUFFICIENT_STORAGE", error: disk.message } });
     assert.equal(byKind.crash!.status, 500);
     assert.match(String(byKind.crash!.body.errorId), /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
-    assert.equal(logged.mock.callCount(), 1, "exactly one incident logged: the real failure");
+    assert.equal(logged.mock.callCount(), 0);
+    assert.equal(records.length, 1, "exactly one incident logged: the real failure");
     assert.equal(tracked.length, 1, "exactly one incident reported: the real failure");
-    assert.match(JSON.stringify(logged.mock.calls[0]!.arguments), new RegExp(String(byKind.crash!.body.errorId)));
+    assert.match(JSON.stringify(records[0]), new RegExp(String(byKind.crash!.body.errorId)));
   });
 }
 
@@ -138,11 +139,12 @@ test("a non-Error throw is a 500 with the generic message, logged the same way",
 test("an explicit 503 override preserves default 507 behavior for other admin callers", t => {
   t.mock.method(console, "error", () => {});
   const error = new DatabaseDiskSpaceError({ freeBytes: 0, requiredBytes: 100 });
+  const { reporter } = recordingComposedReporter();
   let reply: { status: number; body: unknown } | undefined;
   const res = { status(status: number) { return { json(body: unknown) { reply = { status, body }; } }; } };
-  sendAdminFailure({ res, error }, { status: 503, code: "CONSENT_UNAVAILABLE", message: "Published enforcement remains in place." });
+  sendAdminFailure({ res, error, reporter }, { status: 503, code: "CONSENT_UNAVAILABLE", message: "Published enforcement remains in place." });
   assert.equal(reply?.status, 503);
   assert.equal((reply?.body as { code: string }).code, "CONSENT_UNAVAILABLE");
-  sendAdminFailure({ res, error });
+  sendAdminFailure({ res, error, reporter });
   assert.equal(reply?.status, 507);
 });

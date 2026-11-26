@@ -6,7 +6,7 @@ import { sitemapRoute, type SitemapRouteDeps } from "@jini-ai/cms/public-http/ro
 import { resolveSiteTitle } from "@jini-ai/cms/settings/site/site-title";
 import { siteTitleHostBindings } from "#src/features/settings/site-title-legacy";
 import { mountPublicRawRoute, type PublicRawFailureWriter } from "#src/server/inbound/admin-http/admin-raw-route-ports";
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { SeoRouteDeps, SeoRouteRegistrar } from "#src/server/runtime/composition/modules/seo";
 
 /**
@@ -27,7 +27,7 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  */
 function textFailure({ operation, subject }: { operation: string; subject: string }, _optional: Record<string, never> = {}): PublicRawFailureWriter {
   return ({ res, error }) => {
-    const { errorId } = reportServerFailure({ error, operation }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
+    const { errorId } = reportServerFailure({ error, operation }, { reporter: failureReporterOf({ res }) });
     res.status(500).type("text/plain").send(`The site couldn’t load ${subject}. Reload this page and report this error ID if it keeps happening. Error ID: ${errorId}`);
   };
 }

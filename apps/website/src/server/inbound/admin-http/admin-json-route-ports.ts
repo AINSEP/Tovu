@@ -9,7 +9,7 @@ import { wasAdmittedInRequest } from "#src/server/inbound/shared/request-admissi
 import type { RouteDeps } from "#src/server/routes/types";
 import { adminBrowserWriteOrigin, registeringThroughAsyncRoute, requireRouteErrors, routeAdapterFor } from "../shared/admin-route-mount-support.js";
 export { adminBrowserWriteOrigin, adminSameOriginWrites, requireRouteErrors, routeAdapterFor } from "../shared/admin-route-mount-support.js";
-import { adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { getAuthedPrincipal, type OperatorPrincipalRecord } from "./dev-auth.js";
 import { recordAdminRequestFacts, refuseUnlessSessionCredential, routeRequestFactsFor, type SessionCredentialGate } from "./admin-request-facts.js";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "./publish-trust-auth.js";
@@ -299,8 +299,8 @@ async function authorizeWithPorts(
 function writeAdminFailure({ res, error, options, authorized, reporter }: { res: Response; error: unknown; options: AdminJsonRouteMountOptions; authorized: boolean; reporter?: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
   const byPhase = options.failureByPhase && (authorized ? options.failureByPhase.afterAuthorize : options.failureByPhase.beforeAuthorize);
   const failure = options.failureFor?.(error) ?? byPhase ?? options.failure;
-  if (options.failureCopy !== "operation") { sendAdminFailure({ res, error, ...(reporter ? { reporter } : {}) }, failure); return; }
-  const { status, body } = adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: reporter ?? res.locals?.failureReporter, trackerAlreadyReported: wasAdmittedInRequest({ scope: res.locals?.adminFailureReportScope, error }) }, failure);
+  if (options.failureCopy !== "operation") { sendAdminFailure({ res, error, reporter: reporter ?? failureReporterOf({ res }) }, failure); return; }
+  const { status, body } = adminFailureResponse({ error, reporter: reporter ?? failureReporterOf({ res }), trackerAlreadyReported: wasAdmittedInRequest({ scope: res.locals?.adminFailureReportScope, error }) }, failure);
   res.status(status).json(body);
 }
 
@@ -407,7 +407,7 @@ export function createPublicJsonRoutePorts(
     } }),
     onError: ({ res, error }) => {
       if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
-      const { errorId } = reportServerFailure({ error, operation: required.operation }, { tracker: res.locals.adminFailureTracker, reporter: reporter ?? res.locals.failureReporter });
+      const { errorId } = reportServerFailure({ error, operation: required.operation }, { reporter: reporter ?? failureReporterOf({ res }) });
       res.status(required.status ?? 500).json({ error: required.visitorError, errorId });
     },
     onReturnedError: writeReturnedFailure,

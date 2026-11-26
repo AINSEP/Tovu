@@ -98,8 +98,11 @@ test("a request whose tracked operation already reported is not reported again a
 test("uncaught admin exceptions use one safe correlated incident, including anonymous failures", async t => {
   t.mock.method(console, "error", () => {});
   const { port, reports } = recording();
+  const tracker = createTracker({ observability: port });
+  const reporter = createTovuErrorReporter({ logger: { warn: () => {}, error: () => {} }, tracker, clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" } });
   const app = express();
-  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
+  app.locals.failureReporter = reporter;
+  applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.get("/api/admin/v1/pages/:id", (_req, res) => {
     res.locals.principal = { id: "owner" };
     throw new Error("PRIVATE_BACKEND password=SECRET_CANARY");
@@ -124,7 +127,7 @@ test("uncaught admin exceptions use one safe correlated incident, including anon
     assert.equal(JSON.stringify([body, anonymousBody]).includes(canary), false);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(reports.length, 2);
-  assert.deepEqual(reports.map(report => report.context.attributes?.errorId), [body.errorId, anonymousBody.errorId]);
+  assert.deepEqual(reports.map(report => report.context.attributes?.incidentId), [body.errorId, anonymousBody.errorId]);
 });
 
 test("admin error middleware preserves headers-sent delegation", () => {
@@ -139,7 +142,10 @@ test("an uncaught admin error already reported by a tracked operation is not rep
   const logged = t.mock.method(console, "error", () => {});
   const { port, reports } = recording();
   const tracker = createTracker({ observability: port });
+  const records: unknown[][] = [];
+  const reporter = createTovuErrorReporter({ logger: { warn: () => {}, error: (...args: unknown[]) => { records.push(args); } }, tracker, clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" } });
   const app = express();
+  app.locals.failureReporter = reporter;
   applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.get("/api/admin/v1/pages", (_req, res, next) => {
     res.locals.principal = { id: "owner" };
@@ -152,8 +158,9 @@ test("an uncaught admin error already reported by a tracked operation is not rep
   const body = await response.json() as any;
   assert.equal(body.details.failure.errorId, body.errorId);
   assert.equal(JSON.stringify(body).includes("SECRET_CANARY"), false);
-  assert.equal(logged.mock.callCount(), 1);
-  assert.equal((logged.mock.calls[0].arguments[1] as any).errorId, body.errorId);
+  assert.equal(logged.mock.callCount(), 0);
+  assert.equal(records.length, 1);
+  assert.ok(JSON.stringify(records[0]).includes(body.errorId));
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(reports.map(report => report.context.operation), ["pages.load"]);
 });

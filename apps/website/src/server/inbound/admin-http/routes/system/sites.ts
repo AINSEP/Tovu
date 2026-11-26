@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { warmSiteServerForHost } from "#src/server/runtime/lifecycle/local-site-host";
 import { servingAddressOf, sitePreviewTargets } from "@jini-ai/cms/admin-http/routes/sites/site-previews";
 import type { SitePreviewService } from "#src/features/sites/index";
@@ -238,7 +238,7 @@ async function authorizeSitesRoute({ res, deps, permission }: { res: Response; d
 }
 
 function sendSitesFailure({ res, err }: { res: Response; err: unknown }, _optional: Record<string, never> = {}): void {
-  sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err, reporter: failureReporterOf({ res }) }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
 }
 
 export async function handleListSites({ ports, req, res }: { ports: SitesPorts; req: Request; res: Response }, _optional: Record<string, never> = {}): Promise<void> {

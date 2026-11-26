@@ -1,3 +1,4 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { createRouteIncidentReporter } from "../../../__tests__/helpers/route-incident-reporter.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -25,8 +26,8 @@ for (const fault of ["identity", "session", "logout"] as const) {
     const app = express();
     registerAuthRoutes({ app, deps: failing, errors: createRouteIncidentReporter().errors });
     const { res, capture } = createCapturingResponse();
-    const tracked: Array<{ error: Error; options: unknown }> = [];
-    res.locals.adminFailureTracker = { error: ({ error }: { error: Error }, options: unknown) => tracked.push({ error, options }) };
+    const { reporter, records, reports: tracked } = recordingComposedReporter();
+    res.locals.failureReporter = reporter;
     const cookies: string[] = [];
     res.cookie = (name: string) => { cookies.push(name); return res; };
     res.clearCookie = (name: string) => { cookies.push(name); return res; };
@@ -43,11 +44,12 @@ for (const fault of ["identity", "session", "logout"] as const) {
     assert.equal(body.errorId, body.details.failure.errorId);
     assert.ok(body.details.failure.copyText.includes(body.errorId));
     assert.doesNotMatch(JSON.stringify(body), /AUTH_SECRET_CANARY|owner_482|private identity|tovu-dev/);
-    assert.equal(logs.mock.callCount(), 1);
-    assert.equal((logs.mock.calls[0].arguments[1] as { errorId: string }).errorId, body.errorId);
+    assert.equal(logs.mock.callCount(), 0);
+    assert.equal(records.length, 1);
+    assert.equal((records[0]![1] as { meta: { errorId: string } }).meta.errorId, body.errorId);
     assert.equal(tracked.length, 1);
-    assert.ok(JSON.stringify(tracked[0].options).includes(body.errorId));
-    assert.doesNotMatch(tracked[0].error.message, /AUTH_SECRET_CANARY/);
+    assert.ok(JSON.stringify(tracked[0]![1]).includes(body.errorId));
+    assert.doesNotMatch(tracked[0]![0].error.message, /AUTH_SECRET_CANARY/);
     assert.deepEqual(cookies, [], "no cookie is issued or cleared after a failed session operation");
   });
 }
@@ -60,10 +62,12 @@ test("boot owner and verification refusals disclose equivalent explanations and 
   let missingOwner = true;
   t.mock.method(deps.principalRepo, "findById", async (input: Parameters<typeof principal>[0]) => missingOwner ? null : principal(input));
   t.mock.method(deps.sessionRepo, "findByTokenHash", async () => null);
+  const { reporter, records } = recordingComposedReporter();
   const bodies: Array<{ error: string; errorId: string; code: string }> = [];
   for (const missing of [true, false]) {
     missingOwner = missing;
     const { res, capture } = createCapturingResponse();
+    res.locals.failureReporter = reporter;
     res.req = { method: "POST", route: { path: "/api/admin/v1/auth/boot-session" }, headers: {}, socket: { localPort: 408 } } as Request;
     res.cookie = () => { assert.fail("refused boot must not set cookies"); };
     assert.equal(await redeemOwnerBootSession({ deps, res, token: "BOOT_SECRET_CANARY" }, { redeem: () => true }), null);
@@ -75,9 +79,10 @@ test("boot owner and verification refusals disclose equivalent explanations and 
     assert.deepEqual(Object.keys(body).sort(), ["code", "error", "errorId"]);
     assert.equal(body.code, "INTERNAL_ERROR");
     assert.equal(body.error, `The sign-in operation could not be completed. Check the result before repeating this operation. Report this error ID. (error ${body.errorId})`);
-    assert.equal((logs.mock.calls[index]!.arguments[1] as { errorId: string }).errorId, body.errorId);
+    assert.equal((records[index]![1] as { meta: { errorId: string } }).meta.errorId, body.errorId);
   }
-  assert.equal(logs.mock.callCount(), 2);
+  assert.equal(logs.mock.callCount(), 0);
+  assert.equal(records.length, 2);
   assert.equal(bodies[0]!.error.replace(bodies[0]!.errorId, "ID"), bodies[1]!.error.replace(bodies[1]!.errorId, "ID"));
   assert.doesNotMatch(JSON.stringify(bodies), /BOOT_SECRET_CANARY|principal|mint|validat|owner_482/);
 });

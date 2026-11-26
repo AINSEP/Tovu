@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import { touchesProtectedNamespaces } from "@jini-ai/cms/admin-http/routes/settings/protected-namespaces";
 import type { SettingsWriteFence } from "@jini-ai/cms/admin-http/routes/settings/shared";
@@ -105,7 +105,7 @@ export async function resolveUserLayerReadTarget(
  */
 export function respondToSettingsError({ res, err, mappings }: { res: Response; err: unknown; mappings: readonly SettingsErrorMapping[] }, _optional = {}): void {
   if (!mappings.some(mapping => mapping.matches(err))) {
-    sendAdminFailure({ res, error: err }, { operation: "routes/settings", message: "The settings request could not finish." });
+    sendAdminFailure({ res, error: err, reporter: failureReporterOf({ res }) }, { operation: "routes/settings", message: "The settings request could not finish." });
     return;
   }
   respondToCmsSettingsError({ response: res, error: err, mappings });

@@ -1,3 +1,4 @@
+import { failureReporterOf } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
@@ -61,7 +62,7 @@ const widgetJsonRoutePorts: JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrinc
   onError: ({ res, error }) => {
     if (error instanceof RouteRefusalError) { res.status(error.response.status).json(error.response.body); return; }
     if (error instanceof WidgetToolPlacementFailedError) {
-      const { status, body } = widgetErrorToResponse({ err: error.cause }, { tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter });
+      const { status, body } = widgetErrorToResponse({ err: error.cause }, { reporter: failureReporterOf({ res }) });
       res.status(status).json(widgetToolPlacementFailedBody({ widget: error.widget, errorBody: body }));
       return;
     }

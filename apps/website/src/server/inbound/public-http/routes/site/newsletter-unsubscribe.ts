@@ -22,8 +22,8 @@ export function registerPublicNewsletterUnsubscribeRoute({ app, deps, errors }: 
   const failure = { operation: "public:newsletter-unsubscribe", visitorError: "The site couldn’t complete unsubscription." };
   for (const spec of [newsletterUnsubscribeGetRoute, newsletterUnsubscribePostRoute]) {
     mountPublicRawRoute({ errors, app, handlerName: "forwardRejection", spec, deps: routeDeps, failure }, {
-      requestDeps: ({ res, deps: base }) => ({ ...base,
-        reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-unsubscribe" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+      requestDeps: ({ deps: base }) => ({ ...base,
+        reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-unsubscribe" }, { reporter: errors.reporter }),
       }),
     });
   }

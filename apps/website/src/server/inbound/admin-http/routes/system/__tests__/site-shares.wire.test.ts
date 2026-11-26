@@ -58,6 +58,7 @@ async function serve(t: test.TestContext) {
   } as unknown as RouteDeps;
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => {
+    res.locals.failureReporter = sinks.reporter;
     if (state.principal) res.locals.principal = { id: "owner" };
     if (state.trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 };
     next();

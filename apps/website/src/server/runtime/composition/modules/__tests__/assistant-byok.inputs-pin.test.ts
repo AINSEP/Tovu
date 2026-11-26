@@ -24,7 +24,7 @@ import { BYOK_TURN_PATH, createAssistantByokModule } from "../assistant-byok.js"
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 test("BYOK automatic preflight keeps the prompt and logs a redacted cause", async (t) => {
-  const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
+  const source = ts.createSourceFile("assistant-byok-turn.ts", readFileSync(new URL("../assistant-byok-turn.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
   function find(node: ts.Node): ts.FunctionDeclaration | undefined {
     if (ts.isFunctionDeclaration(node) && node.name?.text === "appendAutomaticPluginGuidance") return node;
     return ts.forEachChild(node, find);

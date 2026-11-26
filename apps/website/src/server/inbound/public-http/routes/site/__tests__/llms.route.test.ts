@@ -1,3 +1,4 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
 import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/runtime/composition/modules/seo";
@@ -211,11 +212,11 @@ for (const description of ["Field notes from the garden.", undefined]) {
 
 test("unexpected site index failure keeps plain text and one redacted matching incident", async t => {
   const cause = new Error("site index storage context password=PUBLIC_CANARY");
-  const reports: unknown[] = [];
+  const { reporter, records, reports } = recordingComposedReporter();
   const logs = t.mock.method(console, "error", () => {});
   const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
   const app = express();
-  app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  app.use((_req, res, next) => { res.locals.failureReporter = reporter; next(); });
   registerLlmsTxtRoute({ errors: createRouteIncidentReporter().errors, app, deps });
   const base = await startTestServer(app, t);
   const res = await fetch(`${base}/llms.txt`);
@@ -226,8 +227,9 @@ test("unexpected site index failure keeps plain text and one redacted matching i
   const id = text.match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/)?.[1];
   assert.ok(id);
   assert.equal(reports.length, 1);
-  assert.equal(logs.mock.calls.length, 1);
+  assert.equal(logs.mock.calls.length, 0);
+  assert.equal(records.length, 1);
   assert.ok(JSON.stringify(reports).includes(id));
-  assert.ok(JSON.stringify(logs.mock.calls).includes(id));
-  assert.doesNotMatch(text + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /PUBLIC_CANARY/);
+  assert.ok(JSON.stringify(records).includes(id));
+  assert.doesNotMatch(text + JSON.stringify(reports) + JSON.stringify(records), /PUBLIC_CANARY/);
 });

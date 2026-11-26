@@ -1,4 +1,4 @@
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
@@ -22,7 +22,7 @@ export function reportMemberDeliveryFailure({ error, reporter }: { error: unknow
  */
 export const respondToSignInError = ({ error, res }: { error: unknown; res: Response }, _options = {}): void => sendMemberAuthError({ error, deps: {
   refusal: memberSignInRefusal,
-  report: input => reportServerFailure(input, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+  report: input => reportServerFailure(input, { reporter: failureReporterOf({ res }) }),
   json: (body, status) => { res.status(status).json(body); },
   copy: MEMBER_SIGN_IN_FAILURE,
 } });

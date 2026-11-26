@@ -462,9 +462,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, 
   // Request ID, ALS admission and the fallback 5xx marker stay with `applyRequestTracking`.
   const failureReporter = siteFailureReporter({ routeDeps }, options);
   const errors = { reporter: failureReporter, observability: NO_OPERATION_TRACKING };
+  app.locals.failureReporter = failureReporter;
   app.use((_req, res, next) => { res.locals.failureReporter = failureReporter; next(); });
-  // All admin error mappers share this request-scoped diagnostic port, including narrow route deps.
-  app.use("/api/admin", (_req, res, next) => { res.locals.adminFailureTracker = routeDeps.tracker; next(); });
   const internalRouter = express.Router();
   applyPublicMiddleware({ app, routeDeps, errors, internalRouter }, options);
   registerPluginContributionRoutes({ app, deps: routeDeps, auth: createPluginRouteAuthPorts({ deps: routeDeps }) });

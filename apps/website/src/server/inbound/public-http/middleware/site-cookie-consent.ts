@@ -7,7 +7,7 @@ import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { hasRequestRenderTheme } from "@jini-ai/cms/public-http/middleware/render-theme-override";
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 /** Public declared-script assets, published context, receipts and plugin admission.
  * Documents receive asset contributions during construction; public responses are never scanned. */
 import { createHash, randomBytes } from 'node:crypto';
@@ -112,7 +112,7 @@ const mountContext = ({ app, consent }: { app: Express; consent: SiteCookieConse
     clearLegacyCookie: () => http.clearLegacyCookie({ cookieHeader: req.get('cookie'), clearCookie: (name, options) => void res.clearCookie(name, options) }),
     setCache: value => void res.set('Cache-Control', value), json: body => void res.json(body), unavailable: () => new Error('Cookie preferences are not available.'),
     failure: {
-      report: error => reportServerFailure({ error, operation: 'consent:public-context' }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+      report: error => reportServerFailure({ error, operation: 'consent:public-context' }, { reporter: failureReporterOf({ res }) }),
       diagnosticFailure: () => console.error('[consent] public context unavailable', '[diagnostic unavailable]'),
       write: errorId => void res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.', ...(errorId ? { errorId } : {}) }),
     },
@@ -126,7 +126,7 @@ const mountStaticThemeLoader = ({ app, deps }: { app: Express; deps: RouteDeps }
     assets: scripts => siteConsentDocumentAssets({ deps, request: req, scripts }), exporting: () => isStaticExportRequest(req),
     write: body => void res.type('text/javascript').set('Cache-Control', 'public, max-age=60').set('Vary', 'X-Tovu-Static-Export').send(body),
     failure: {
-      report: error => reportServerFailure({ error, operation: 'consent:static-loader' }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+      report: error => reportServerFailure({ error, operation: 'consent:static-loader' }, { reporter: failureReporterOf({ res }) }),
       diagnosticFailure: () => console.error('[consent] static loader unavailable', '[diagnostic unavailable]'),
       write: errorId => void res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send(`/* Cookie preferences could not be loaded. Wait a minute, then reload to try again.${errorId ? ` Reference: ${errorId}` : ''} */`),
     },
@@ -141,7 +141,7 @@ const mountReceipts = ({ app, deps, store, limiter, bodyLimit }: { app: Express;
     allow: async () => (await limiter.check({ key: consentRateLimitKey({ address: resolveClientIp(req) }) })).allowed,
     write: response => void res.status(response.status).set(response.headers).send(response.body),
     failure: {
-      report: error => reportServerFailure({ error, operation: 'consent:save' }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+      report: error => reportServerFailure({ error, operation: 'consent:save' }, { reporter: failureReporterOf({ res }) }),
       diagnosticFailure: () => console.error('[consent] save failed', '[diagnostic unavailable]'),
       write: errorId => void res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.', ...(errorId ? { errorId } : {}) }),
     },

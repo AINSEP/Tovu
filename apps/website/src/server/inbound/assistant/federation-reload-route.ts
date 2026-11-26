@@ -1,4 +1,5 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { Express, Request, Response } from "express";
 
 /**
@@ -42,13 +43,13 @@ export interface FederationReloadRouteDeps {
  * `FederationReloadCoordinator.reload`).
  * @overallScore 100
  */
-export function registerFederationReloadRoute({ app, deps }: { app: Express; deps: FederationReloadRouteDeps }, _optional: Record<string, never> = {}): void {
+export function registerFederationReloadRoute({ app, deps, reporter }: { app: Express; deps: FederationReloadRouteDeps; reporter: Pick<ErrorReporter, "record"> }, _optional: Record<string, never> = {}): void {
   app.post(FEDERATION_RELOAD_PATH, async (_req: Request, res: Response) => {
     try {
       const result = await deps.reload();
       res.status(200).json({ ok: true, newlyAdmittedConnectionIds: result.newlyAdmittedConnectionIds });
     } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "agent-daemon:mcp-federation:reload" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
+      const { errorId } = reportServerFailure({ error, operation: "agent-daemon:mcp-federation:reload" }, { reporter });
       res.status(500).json({ ok: false, error: "The assistant connections could not be reloaded. Restart the site or app and report this error ID if it keeps happening.", errorId });
     }
   });

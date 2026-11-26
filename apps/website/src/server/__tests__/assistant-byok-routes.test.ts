@@ -26,11 +26,8 @@ import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import {
-  createAssistantByokModule,
-  FEDERATION_STILL_CONNECTING_NOTE,
-  SYSTEM_PREAMBLE,
-} from "../runtime/composition/modules/assistant-byok.js";
+import { createAssistantByokModule } from "../runtime/composition/modules/assistant-byok.js";
+import { FEDERATION_STILL_CONNECTING_NOTE, SYSTEM_PREAMBLE } from "../runtime/composition/modules/assistant-byok-preflight.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";

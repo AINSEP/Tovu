@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createByokUsageTimer } from "../assistant-byok.js";
+import { createByokUsageTimer } from "../assistant-byok-turn.js";
 
 /**
  * @file `createByokUsageTimer` — gives BYOK usage events the `durationMs` the chat's "Done" line

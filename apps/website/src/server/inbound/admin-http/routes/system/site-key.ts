@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -274,7 +274,7 @@ function registerAdminSiteKeyGenerateRoute({ app, deps, siteKey }: { app: Expres
         return;
       }
 
-      sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err, reporter: failureReporterOf({ res }) }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
     }
   } }));
 }
@@ -330,7 +330,7 @@ async function respondWithRecovery({ res, run }: { res: Response; run: () => Pro
     const result = await run();
     res.status(result.status).json({ ...result.body, runtimeMode: resolveRuntimeMode() });
   } catch (err) {
-    sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
+    sendAdminFailure({ res, error: err, reporter: failureReporterOf({ res }) }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
   }
 }
 

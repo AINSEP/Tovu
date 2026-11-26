@@ -32,13 +32,13 @@ function fixture(t: TestContext) {
   const kernel = contentKernel({ store: db });
   const reports: unknown[] = [], logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const incidents = createRouteIncidentReporter();
   const app = express();
   app.use((_req, res, next) => {
     res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
-    res.locals.adminFailureTracker = { error: (input: unknown) => { reports.push(input); } }; next();
+    res.locals.failureReporter = incidents.reporter; next();
   });
   // The site's bound reporter owns the incident record now (T-GATE), not the request-local tracker/console path.
-  const incidents = createRouteIncidentReporter();
   registerPublishBackstopRoutes({ errors: incidents.errors, app, deps: portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => ({ allowed: true, reason: "owner" }), contentKernel: kernel, siteBinding: { dir }, fileBlobIndex: new Map(),
     publishContentPeerRepo: { findById: async () => ({ baseUrl: "https://live.example" }) },

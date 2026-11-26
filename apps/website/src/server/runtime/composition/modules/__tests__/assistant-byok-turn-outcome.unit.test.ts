@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { byokTurnOutcome } from "../assistant-byok.js";
+import { byokTurnOutcome } from "../assistant-byok-turn.js";
 
 /**
  * @file `byokTurnOutcome` — the agent-run outcome a BYOK turn's span ends with. The route-level span

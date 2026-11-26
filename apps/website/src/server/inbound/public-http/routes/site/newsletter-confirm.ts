@@ -27,11 +27,11 @@ export function registerPublicNewsletterConfirmRoute({ app, deps, errors }: { ap
     },
     failure: { operation: "public:newsletter-confirm", visitorError: "The site couldn’t complete subscription confirmation." },
   }, {
-    requestDeps: ({ req, res, deps: base }) => ({ ...base,
+    requestDeps: ({ req, deps: base }) => ({ ...base,
       onSubscribed: ({ listId, eventId }) => {
         void captureVisitorEvent({ deps, request: req, name: "newsletter_subscribed", properties: { listId, method: "double_opt_in", eventId } });
       },
-      reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-confirm" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+      reportFailure: ({ error }) => reportServerFailure({ error, operation: "public:newsletter-confirm" }, { reporter: errors.reporter }),
     }),
   });
 }

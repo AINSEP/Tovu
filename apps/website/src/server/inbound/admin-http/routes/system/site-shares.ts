@@ -1,5 +1,5 @@
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { sendSiteShareFailure } from "@jini-ai/cms/admin-http/routes/system/site-share-password";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -93,7 +93,7 @@ export function registerAdminSiteShareDownloadRoute(required: { app: Express; de
   const fail: ShareFail = (res, error) => sendSiteShareFailure({ error, deps: {
     refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
     json: (body, status) => res.status(status).json(body),
-    failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker }, options),
+    failure: (error, options) => sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, options),
   } }, { step: DOWNLOAD_STEP });
   app.get("/api/admin/v1/workspaces/:workspaceId/site-shares/:shareId/download", async (req, res) => {
     try {
@@ -128,7 +128,7 @@ export function registerAdminSiteShareArtifactUploadRoute(required: { app: Expre
   const fail: ShareFail = (res, error) => sendSiteShareFailure({ error, deps: {
     refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
     json: (body, status) => res.status(status).json(body),
-    failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker }, options),
+    failure: (error, options) => sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, options),
   } }, { step: UPLOAD_STEP });
   app.put("/api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file", async (req, res, next) => {
     try { if (await shareGate({ req, res, deps, step: UPLOAD_STEP, artifact: true })) next(); }

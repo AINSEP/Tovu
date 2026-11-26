@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { decideMediaOriginalForAsset, lookupMediaOriginalBlob } from "@jini-ai/cms/media";
 import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -67,7 +67,7 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = ({ app, deps
       // (unlike the write routes, which call `media-service.ts` functions that throw
       // `MediaNotFoundError`). Anything reaching here is a genuine unexpected failure (e.g. the
       // blob store's `get()` rejecting, or the "data-integrity gap" throw in the lookup).
-      sendAdminFailure({ res, error }, { operation: "routes/media/original", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, { operation: "routes/media/original", code: "INTERNAL_ERROR" });
     }
   });
 };
