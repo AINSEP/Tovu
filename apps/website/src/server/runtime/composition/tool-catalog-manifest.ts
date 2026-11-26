@@ -650,7 +650,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // Pull planning/execution also use this domain. Inject the HTTP importer's complete projection
   // so registered content types see the same ports through either entry point.
   const publishContentContributor = contributePublishContentTools<AssistantToolRegistryDeps>({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }) });
-  contributions.contributors.register({ contribution: { ...publishContentContributor, build: (deps, surfaces) => publishContentContributor.build({ ...deps, publishTrustProvisioning: deps.publishTrustProvisioning ?? getPublishTrustProvisioning() }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...publishContentContributor, build: (deps, surfaces) => publishContentContributor.build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate(), publishTrustProvisioning: deps.publishTrustProvisioning ?? getPublishTrustProvisioning() }, surfaces) } });
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
   // this line the daemon's registry is empty and every publish answer is "nothing to publish".

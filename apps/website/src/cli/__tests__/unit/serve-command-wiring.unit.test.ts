@@ -133,15 +133,16 @@ test("program.ts registers --host and threads it into runServeCommand's input", 
 });
 
 test("the BR-07 shutdown uses the shared bounded store close with the composition and boot work", () => {
-  const body = readRunServeCommandBody(fs.readFileSync(SERVE_TS_PATH, "utf8"));
+  const source = fs.readFileSync(path.resolve(import.meta.dirname, "../../commands/serve-listen.ts"), "utf8");
+  const body = source.slice(source.indexOf("function installShutdown("), source.indexOf("async function onListening("));
   assert.ok(body.includes("closeStoreOnShutdown({"));
-  assert.ok(body.includes("close: () => closeSiteDirBoot(bootResult, owned.composedStore)"), "the shared close must close the composition and the CLI's borrowed content handle");
+  assert.ok(body.includes("close: () => closeSiteDirBoot(owned.bootResult, { composed: owned.composedStore })"), "the shared close must close the composition and the CLI's borrowed content handle");
   assert.ok(body.includes("bootWork: () => owned.bootWork"), "boot work must settle before the store closes");
-  assert.ok(body.includes("stopServing: () => stopServingWithinGrace({ server,"));
+  assert.ok(body.includes("await stopServingWithinGrace({ server, workers:"));
   assert.ok(body.includes("onShutdown: shutdownAssistantDaemon"));
 });
 
-test("runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting", async (t) => {
+test("SIGTERM and SIGINT stop routines once before storage closes", async (t) => {
   const { EventEmitter } = await import("node:events");
   const envBefore = { ...process.env };
   const signals = new Map<string, () => void>();
@@ -219,6 +220,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       } },
       // P3-T1a.T: createServingApp always returns the routines handle, and serve records it as the first worker.
       routines: { stop: async () => { stopped.push("routines"); } },
+      releaseOnShutdown: async () => {},
       outboxDrainer: { stop: async () => { stopped.push("outbox"); } },
       trashSweeper: { stop: async () => { stopped.push("trash"); } },
       themeWatcher: { stop: async () => { stopped.push("themes"); } },
@@ -357,7 +359,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       assert.ok(signals.has("SIGINT"));
       signals.get(scenario.host ? "SIGINT" : "SIGTERM")!();
       await new Promise(resolve => setImmediate(resolve));
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"], "shutdown must stop all workers before closing storage");
+      assert.deepEqual(stopped, ["routines", "outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"], "shutdown must stop all workers before closing storage");
       assert.equal(closeStarted, false, "the store close must wait for the boot work still running");
       legacyWork.resolve();
       await new Promise(resolve => setImmediate(resolve));
@@ -369,7 +371,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       releaseClose();
       await new Promise(resolve => setImmediate(resolve));
       assert.equal(exitCode, 0);
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"], "each worker stops exactly once");
+      assert.deepEqual(stopped, ["routines", "outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"], "each worker stops exactly once");
     }
 
     attached = true;

@@ -33,7 +33,7 @@ const contributions = {
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
 
-function deps(repo: InMemoryPublishContentPeerRepo): PublishContentToolDeps {
+function deps({ repo, handshakeOrigins }: { repo: InMemoryPublishContentPeerRepo; handshakeOrigins: string[] }): PublishContentToolDeps {
   return {
     ...createRouteDeps(),
     workspaceId: WORKSPACE_ID,
@@ -44,15 +44,18 @@ function deps(repo: InMemoryPublishContentPeerRepo): PublishContentToolDeps {
     outbox: null as never,
     workspaceRepo: { findById: async () => ({ name: "Test Site" }) },
     publishContentPeerRepo: repo,
-    publishContentPeerHttpClient: { send: async () => ({ status: 200, headers: {}, bodyText: JSON.stringify({
-      installationId: "remote-install", workspaceId: "remote-workspace", origin: "https://example.com",
-    }) }) },
+    publishContentPeerHttpClient: { send: async ({ url }: { url: string }) => {
+      handshakeOrigins.push(new URL(url).origin);
+      return { status: 200, headers: {}, bodyText: JSON.stringify({
+        installationId: "remote-install", workspaceId: "remote-workspace", origin: "https://example.com",
+      }) };
+    } },
     siteAssistantSecretSealer: null as never,
     siteAssistantSecretKeyring: { derive: async () => new Uint8Array(32).fill(7) } as never,
   } as unknown as PublishContentToolDeps;
 }
 
-async function connectThroughManifest(options: { repoRoot: string; cwd: string }): Promise<{ result: Record<string, unknown>; repo: InMemoryPublishContentPeerRepo }> {
+async function connectThroughManifest(options: { repoRoot: string; cwd: string; input: Record<string, unknown> }): Promise<{ result: Record<string, unknown>; repo: InMemoryPublishContentPeerRepo; handshakeOrigins: string[] }> {
   const previousRoot = process.env.TOVU_REPO_ROOT;
   const previousCwd = process.cwd();
   process.env.TOVU_REPO_ROOT = options.repoRoot;
@@ -66,12 +69,13 @@ async function connectThroughManifest(options: { repoRoot: string; cwd: string }
     const contributor = contributions.contributors.list({}).find((c) => c.domain === "publish-content");
     assert.ok(contributor, "publish-content contributor not installed");
     const repo = new InMemoryPublishContentPeerRepo();
-    const registration = contributor.build(deps(repo) as never, NO_SURFACES).find((r: ToolRegistration) => r.descriptor.id === PUBLISH_CONTENT_CONNECT_TOOL_ID);
+    const handshakeOrigins: string[] = [];
+    const registration = contributor.build(deps({ repo, handshakeOrigins }) as never, NO_SURFACES).find((r: ToolRegistration) => r.descriptor.id === PUBLISH_CONTENT_CONNECT_TOOL_ID);
     assert.ok(registration, "connect tool not built");
     const result = await registration.handler({
-      executionId: "exec-1", principal: { id: "principal" }, run: { id: "run-1" }, input: { siteUrl: "https://example.com" }, signal: new AbortController().signal,
+      executionId: "exec-1", principal: { id: "principal" }, run: { id: "run-1" }, input: options.input, signal: new AbortController().signal,
     } as unknown as ToolExecutionContext);
-    return { result: result as Record<string, unknown>, repo };
+    return { result: result as Record<string, unknown>, repo, handshakeOrigins };
   } finally {
     process.chdir(previousCwd);
     if (previousRoot === undefined) delete process.env.TOVU_REPO_ROOT; else process.env.TOVU_REPO_ROOT = previousRoot;
@@ -82,9 +86,39 @@ async function connectThroughManifest(options: { repoRoot: string; cwd: string }
 test("assistant connect provisions the committed config under TOVU_REPO_ROOT, not the working directory", async () => {
   const repoRoot = await mkdtemp(path.join(tmpdir(), "provision-root-"));
   const cwd = await mkdtemp(path.join(tmpdir(), "provision-cwd-"));
-  const { result, repo } = await connectThroughManifest({ repoRoot, cwd });
+  const { result, repo } = await connectThroughManifest({ repoRoot, cwd, input: { siteUrl: "https://example.com" } });
   assert.equal(result.connected, true);
   assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 1);
+  const written = JSON.parse(await readFile(path.join(repoRoot, PUBLISH_TRUST_CONFIG_PATH), "utf8"));
+  assert.ok(JSON.stringify(written).includes("remote-workspace"));
+  assert.deepEqual(await readdir(cwd), [], "nothing may be written under the working directory");
+});
+
+test("assistant connect without siteUrl uses the committed deploy candidate", async t => {
+  const repoRoot = await mkdtemp(path.join(tmpdir(), "provision-root-candidate-"));
+  const cwd = await mkdtemp(path.join(tmpdir(), "provision-cwd-candidate-"));
+  const sourceRoot = await mkdtemp(path.join(tmpdir(), "provision-candidate-bundle-"));
+  const pluginRoot = path.join(sourceRoot, "example-host");
+  await mkdir(pluginRoot);
+  await writeFile(path.join(pluginRoot, "plugin.json"), "{}");
+  await writeFile(path.join(pluginRoot, "jini-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{
+    id: "example-host", label: "Example host", module: "generator.mjs",
+    candidatePaths: [{ path: "example-deploy.yml", order: 1 }],
+  }] }));
+  await writeFile(path.join(repoRoot, "example-deploy.yml"), "TOVU_PUBLIC_URL: https://example.com\n");
+  const previousBundle = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
+  process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = sourceRoot;
+  t.after(() => {
+    if (previousBundle === undefined) delete process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = previousBundle;
+  });
+
+  const { result, repo, handshakeOrigins } = await connectThroughManifest({ repoRoot, cwd, input: {} });
+  assert.equal(result.connected, true);
+  assert.deepEqual(handshakeOrigins, ["https://example.com"]);
+  const peers = await repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
+  assert.equal(peers.length, 1);
+  assert.equal(peers[0]!.baseUrl, "https://example.com");
   const written = JSON.parse(await readFile(path.join(repoRoot, PUBLISH_TRUST_CONFIG_PATH), "utf8"));
   assert.ok(JSON.stringify(written).includes("remote-workspace"));
   assert.deepEqual(await readdir(cwd), [], "nothing may be written under the working directory");
@@ -96,7 +130,7 @@ test("assistant connect refuses a malformed committed config and writes nothing"
   const configFile = path.join(repoRoot, PUBLISH_TRUST_CONFIG_PATH);
   await mkdir(path.dirname(configFile), { recursive: true });
   await writeFile(configFile, "{broken config");
-  const { result, repo } = await connectThroughManifest({ repoRoot, cwd });
+  const { result, repo } = await connectThroughManifest({ repoRoot, cwd, input: { siteUrl: "https://example.com" } });
   assert.equal(result.connected, false);
   assert.equal(result.message, "This site's publishing settings could not be saved on this computer.");
   assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 0);

@@ -102,7 +102,7 @@ function launchAssistantDaemon({ context, siteApiOrigin, daemonCallback }: { con
 /** BR-07 shutdown: stop serving within a grace window, then close the store and the daemon. */
 function installShutdown({ context, server, daemonCallback }: { context: ServeListenContext; server: import("node:http").Server; daemonCallback: DaemonCallback }): void {
   const { owned, serving, stopRef } = context;
-  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, siteRetention } = serving;
+  const { outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, siteRetention, routines } = serving;
       // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
       // then close the db handle and exit 0.
       // First, so no new outbox drain or trash sweep starts while the grace window below runs
@@ -130,7 +130,7 @@ function installShutdown({ context, server, daemonCallback }: { context: ServeLi
     stopServing: async () => {
       await siteRetention?.stop();
       await stopServingWithinGrace({ server, workers: [
-      { stop: async () => serving.releaseOnShutdown() }, { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
+      { stop: async () => serving.releaseOnShutdown() }, routines, { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
     ] });
     },
     // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
