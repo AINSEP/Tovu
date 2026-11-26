@@ -10,8 +10,7 @@ import { InMemoryKeyring as PlatformInMemoryKeyring } from "@jini-ai/platform/se
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-import type { KeyringPort } from "@jini-ai/core/contracts/vault";
-import { type SiteKeySourceMaterial } from "@jini-ai/platform/secrets/root-key/material";
+import { bindSiteKeyrings } from "@jini-ai/platform/secrets/root-key/ordered-keyring";
 import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource } from "./site-key-read-bindings.js";
 
 // Validation/derivation rationale: Jini packages/platform/src/secrets/keyring.env.ts.
@@ -95,13 +94,6 @@ import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, 
 
 export const HKDF_EXTRACTION_SALT = "tovu-integrations-root-key-hkdf-v1"; // site-key-frozen: never change (every sealed row depends on these bytes)
 
-/** Ephemeral keyring with this host's frozen salt: hermetic route composition and tests run the real
- * signer/HKDF path over one random in-memory site key, never an env var or the filesystem. */
-export class InMemoryKeyring extends PlatformInMemoryKeyring {
-  constructor(_required: Record<string, never> = {}, optional: { keyId?: string } = {}) {
-    super({ hkdfSalt: HKDF_EXTRACTION_SALT }, optional);
-  }
-}
 const SITE_KEY_LENGTH_BYTES = 32;
 
 export interface EnvOrFileKeyringOptions {
@@ -115,147 +107,6 @@ export interface SiteKeyReaderDeps {
   env?: () => Record<string, string | undefined>;
 }
 
-/**
- * `KeyringPort` adapter resolving site-key material from an env var, or a generated file outside
- * the portable site folder. Thrown errors never carry a placeholder secret — a caller that
- * catches and swallows the error, then proceeds, is a bug in the caller, not this module.
- *
- * @overallScore 100
- */
-export class EnvOrFileKeyring implements KeyringPort {
-  private readonly keyId: string;
-  private readonly sources: readonly SiteKeySource[];
-  private readonly env: () => Record<string, string | undefined>;
-
-  constructor(options: EnvOrFileKeyringOptions, deps: SiteKeyReaderDeps = {}) {
-    this.keyId = options.keyId ?? "v1";
-    this.sources = options.sources;
-    // Reread on every derivation so recovery takes effect without a restart.
-    this.env = deps.env ?? (() => process.env);
-  }
-
-  async activeKey(): Promise<{ readonly keyId: string }> {
-    return { keyId: this.keyId };
-  }
-
-  async deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
-    try { return await this.resolveKeyring().deriveSigningSecret(input); }
-    catch (error) { return rethrowKeyringError({ error }); }
-  }
-
-  async derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
-    try { return await this.resolveKeyring().derive(input); }
-    catch (error) { return rethrowKeyringError({ error }); }
-  }
-
-  /** Ordered site sources are host policy. Reread them for each derive so recovery takes effect
-   * immediately; a present invalid source throws before trying any other source.
-   * @complexity O(sources), with one small env/file read per attempted source.
-   */
-  private resolveKeyring(): JiniFixedSiteKeyKeyring {
-    // Present-but-invalid wins and throws: falling through could seal data under a different
-    // key than the operator configured. Ordered sources are readers only; ensureSiteKey owns minting.
-    const present = firstPresentSiteKey({ sources: this.sources, env: this.env() });
-    if (present === undefined) {
-      throw new Error(`no site key: none of the configured sources resolved (${this.sources.map(describeSiteKeySource).join(", ")})`);
-    }
-    if (present.parsed.ok) return new JiniFixedSiteKeyKeyring({ hex: present.parsed.hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId: this.keyId });
-    throw unusableSiteKeyError({ source: present.source, rejection: present.parsed });
-  }
-}
-
-export function isNoSiteKeyError({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
-  return error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("));
-}
-
-/** Candidate-key adapter supplies Tovu's immutable HKDF salt; no root material is persisted. */
-// Recovery checks a pasted/retained site key against sealed rows BEFORE writing it anywhere;
-// the candidate must derive exactly what the installed keyring would derive.
-export class FixedSiteKeyKeyring implements KeyringPort {
-  private readonly keyring: JiniFixedSiteKeyKeyring;
-
-  constructor({ hex }: { hex: string }, { keyId = "v1" }: { keyId?: string } = {}) {
-    this.keyring = new JiniFixedSiteKeyKeyring({ hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId });
-  }
-
-  activeKey(): Promise<{ readonly keyId: string }> { return this.keyring.activeKey({}); }
-  deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
-    return this.keyring.deriveSigningSecret(input);
-  }
-  derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
-    return this.keyring.derive(input);
-  }
-}
-
-/** Jini owns key validation; Tovu retains its operator-facing refusal wording and error identity. */
-function rethrowKeyringError({ error }: { error: unknown }, _optional = {}): never {
-  if (error instanceof JiniUnusableSiteKeyError) {
-    throw new UnusableSiteKeyError({ source: error.source, reason: error.reason,
-      message: error.message.replace("The keyring refuses", "Tovu refuses"),
-    });
-  }
-  throw error;
-}
-
-/** A short, human-readable name for a {@link SiteKeySource} — error messages and the "none of the
- *  configured sources resolved" list only, never the material itself. */
-function describeSiteKeySource(source: SiteKeySource): string {
-  return source.kind === "env" ? `env var ${SITE_KEY_ENV_VAR_NAME}` : `the site key file at ${source.path}`;
-}
-
-/** Which status/error `source` a {@link SiteKeySource} reports as: every file kind is `"file"`. */
-function reportedSourceOf(source: SiteKeySource): "env" | "file" {
-  return source.kind === "env" ? "env" : "file";
-}
-
-/** The first source in the list holding ANY material, with that material's verdict. */
-interface PresentSiteKey {
-  readonly source: SiteKeySource;
-  readonly material: SiteKeySourceMaterial;
-  readonly parsed: ParsedSiteKeyHex;
-}
-
-/** Status/reveal share the first-present rule with derivation. Never mint, never cache, never
- * silently skip a broken source: that could select a key the operator did not intend.
- * @complexity O(sources), with one small env/file read per attempted source.
- */
-function firstPresentSiteKey(input: { sources: readonly SiteKeySource[]; env: Record<string, string | undefined> }): PresentSiteKey | undefined {
-  for (const source of input.sources) {
-    const material = readSiteKeySourceMaterial({ source, env: input.env });
-    if (material !== undefined) return { source, material, parsed: parseSiteKeyHex({ raw: material.raw }) };
-  }
-  return undefined;
-}
-
-/** {@link EnvOrFileKeyring}'s refusal for present-but-invalid material. The env source is named by
- *  its variable — the only name `readSiteKeySourceMaterial` ever reports for it is
- *  {@link SITE_KEY_ENV_VAR_NAME} — and a file by its path. */
-function unusableSiteKeyError(input: { source: SiteKeySource; rejection: { reason: SiteKeyRejection; hexDigits: number } }): UnusableSiteKeyError {
-  const isEnv = input.source.kind === "env";
-  return new UnusableSiteKeyError({
-    source: reportedSourceOf(input.source),
-    reason: input.rejection.reason,
-    message: unusableSiteKeyMessage({
-      subject: isEnv ? SITE_KEY_ENV_VAR_NAME : describeSiteKeySource(input.source),
-      detail: describeSiteKeyRejection(input.rejection),
-      sealedWarningSubject: sealedWarningSubjectFor({ isEnv, reason: input.rejection.reason }),
-    }),
-  });
-}
-
-/** The env source. Only a too-short value can have been accepted before 2026-09-16 (malformed hex
- *  always threw here), so only that case carries the already-sealed warning. The file source:
- *  every rejection carries it — before 2026-09-16 that branch accepted ANY file content, so an
- *  install may have been sealing under it. */
-function sealedWarningSubjectFor(input: { isEnv: boolean; reason: SiteKeyRejection }): string | undefined {
-  if (!input.isEnv) return "this file";
-  return input.reason === "too-short" ? "this value" : undefined;
-}
-
-/** Why present site-key material was refused. `"too-short"` means valid hex of fewer than
- *  {@link SITE_KEY_LENGTH_BYTES} bytes — the exact length this module itself generates, and the
- *  length of every secret HKDF derives from it, so anything shorter caps the derived key's entropy
- *  below its own size (a truncated copy or partial write lands here). */
 export type SiteKeyRejection = "empty" | "not-hex" | "odd-length" | "too-short";
 
 /** {@link parseSiteKeyHex}'s result. Exported so `site-key-ensure.ts` (site-key plan §A.2) can
@@ -265,20 +116,6 @@ export type ParsedSiteKeyHex =
   | { readonly ok: true; readonly hex: string }
   | { readonly ok: false; readonly reason: SiteKeyRejection; readonly hexDigits: number };
 
-/**
- * THE site-key validator — the one both {@link EnvOrFileKeyring}'s resolution (env and file
- * branches alike) and {@link inspectSiteKeyMaterial}/{@link revealSiteKeyMaterial} call, so no two
- * paths in this module can reach different verdicts on the same material. Trims surrounding
- * whitespace (a trailing newline from `echo >` is not a malformed key), nothing else.
- *
- * @complexity O(n) in the value's length.
- */
-export function parseSiteKeyHex({ raw }: { raw: string }, _optional = {}): ParsedSiteKeyHex {
-  return parseKeyHex({ raw });
-}
-
-/** Plain-language "what is wrong with it", per rejection. A `Record` over the union, so adding a
- *  rejection without a description is a compile error. Never echoes the value itself. */
 const SITE_KEY_REJECTION_DETAIL: Record<SiteKeyRejection, (required: { hexDigits: number }, optional?: Record<string, never>) => string> = {
   empty: () => "it is empty",
   "not-hex": () =>
@@ -289,206 +126,51 @@ const SITE_KEY_REJECTION_DETAIL: Record<SiteKeyRejection, (required: { hexDigits
     `it is ${hexDigits / 2} bytes (${hexDigits} hex digits); a site key must be at least ${SITE_KEY_LENGTH_BYTES} bytes (${SITE_KEY_LENGTH_BYTES * 2} hex digits) — usually a truncated copy`,
 };
 
-function describeSiteKeyRejection(parsed: { reason: SiteKeyRejection; hexDigits: number }): string {
-  return SITE_KEY_REJECTION_DETAIL[parsed.reason]({ hexDigits: parsed.hexDigits });
-}
+export const {
+  InMemoryKeyring, EnvOrFileKeyring, FixedSiteKeyKeyring, isNoSiteKeyError,
+  parseSiteKeyHex, UnusableSiteKeyError, fingerprintSiteKeyHex, inspectSiteKeyMaterial,
+  revealSiteKeyMaterial, SiteKeyFileAlreadyExistsError, generateFileSiteKey,
+} = bindSiteKeyrings({
+  hkdfSalt: HKDF_EXTRACTION_SALT,
+  defaultKeyId: "v1",
+  env: () => process.env,
+  readSourceMaterial: readSiteKeySourceMaterial,
+  siteKeyFilePathFrom,
+  describeSource: source => source.kind === "env" ? `env var ${SITE_KEY_ENV_VAR_NAME}` : `the site key file at ${source.path}`,
+  FixedSiteKeyKeyring: JiniFixedSiteKeyKeyring,
+  InMemoryKeyring: PlatformInMemoryKeyring,
+  UnusableSiteKeyError: JiniUnusableSiteKeyError,
+  SiteKeyFileAlreadyExistsError: JiniSiteKeyFileAlreadyExistsError,
+  parseSiteKeyHex: parseKeyHex,
+  fingerprintSiteKeyHex: fingerprintKeyHex,
+  generateFileSiteKey: generateKeyFile,
+  prepareDirectory: ({ keyFilePath }) => {
+    // Jini performs the exclusive create; this adapter retains Tovu's directory mode and error identity.
+    // 0700 like `ensureSiteKey`'s own writer (site-key plan §A.1) — only applies to directories this call creates.
+    mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
+  },
+  copy: {
+    envVarName: SITE_KEY_ENV_VAR_NAME,
+    fileWarningSubject: "this file",
+    envWarningSubject: "this value",
+    rejectionDetail: SITE_KEY_REJECTION_DETAIL,
+    refusal: ({ subject, detail }) => `${subject} is not usable as a site key: ${detail}. Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.`,
+    sealedWarning: ({ subject }) => ` IMPORTANT: anything this site sealed while ${subject} was in place was sealed under key material derived from these same bytes, ` +
+      `not from a real ${SITE_KEY_LENGTH_BYTES}-byte key, so those stored credentials are not protected as intended — with empty or very short material the derived key is computable from published constants. ` +
+      `Replacing or regenerating the key will NOT restore them; it will make them unreadable. ` +
+      `Do not overwrite, delete or regenerate this key until you have decided what to do with the credentials already stored.`,
+    alreadyExists: ({ keyFilePath }) => `a site key file already exists at ${keyFilePath} — generate never overwrites an existing key`,
+    rootRefusal: "The keyring refuses",
+    siteRefusal: "Tovu refuses",
+  },
+});
 
-/**
- * Builds the refusal message. `sealedWarningSubject` is set only where an install may already
- * have been sealing under this exact material (see the two call sites), and the warning it adds
- * deliberately does NOT suggest that replacing the key fixes anything: rows sealed under the old
- * bytes open only under those bytes, so a replacement makes them unreadable rather than safe.
- */
-function unusableSiteKeyMessage(input: { subject: string; detail: string; sealedWarningSubject: string | undefined }): string {
-  const refusal = `${input.subject} is not usable as a site key: ${input.detail}. Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.`;
-  if (input.sealedWarningSubject === undefined) return refusal;
-  return (
-    `${refusal} IMPORTANT: anything this site sealed while ${input.sealedWarningSubject} was in place was sealed under key material derived from these same bytes, ` +
-    `not from a real ${SITE_KEY_LENGTH_BYTES}-byte key, so those stored credentials are not protected as intended — with empty or very short material the derived key is computable from published constants. ` +
-    `Replacing or regenerating the key will NOT restore them; it will make them unreadable. ` +
-    `Do not overwrite, delete or regenerate this key until you have decided what to do with the credentials already stored.`
-  );
-}
-
-/**
- * Thrown by {@link EnvOrFileKeyring} when a site-key source IS present but fails
- * {@link parseSiteKeyHex}. Distinct from the plain "no site key" errors (nothing configured):
- * this one means something is configured and broken. Never carries the key material.
- */
-export class UnusableSiteKeyError extends Error {
-  readonly source: "env" | "file";
-  readonly reason: SiteKeyRejection;
-
-  constructor(input: { source: "env" | "file"; reason: SiteKeyRejection; message: string }) {
-    super(input.message);
-    this.name = "UnusableSiteKeyError";
-    this.source = input.source;
-    this.reason = input.reason;
-  }
-}
-
-/**
- * A short, one-way fingerprint of site-key material — safe to display in an admin UI, never
- * reversible to the key itself (`sha256`, truncated). Deliberately NOT `deriveSigningSecret`'s
- * HKDF (different salt, different purpose, different output length) — this must never be
- * confused with a real derived secret, it exists purely for a human to recognize "same key as
- * before" across a page reload.
- *
- * Exported so `site-key-ensure.ts` (site-key plan §A.2) stamps the SAME 12-hex fingerprint this
- * module's own status/reveal functions compute — one algorithm, not two independently-reasoned
- * ones that could silently diverge.
- */
-export function fingerprintSiteKeyHex({ hex }: { hex: string }, _optional = {}): string {
-  return fingerprintKeyHex({ hex });
-}
-
-/** {@link inspectSiteKeyMaterial}'s result — never carries the key value itself. */
-export interface SiteKeyStatus {
-  readonly active: boolean;
-  /** `"none"` when neither the env var nor the key file resolves to usable material. */
-  readonly source: "env" | "file" | "none";
-  /** Present iff `active` — see {@link fingerprintSiteKeyHex}. */
-  readonly fingerprint?: string;
-  readonly envVarName?: string;
-  /** `true` when a source was found (env var set, or file present) but its content fails
-   *  {@link parseSiteKeyHex} — `active` is `false` in this case too; surfaced separately so a caller
-   *  can tell "nothing is configured" apart from "something is configured but broken". */
-  readonly invalid?: boolean;
-  /** Present iff `invalid` — the same {@link SiteKeyRejection} {@link EnvOrFileKeyring} would throw
-   *  with for this material. */
-  readonly reason?: SiteKeyRejection;
-  /** The path a generated file lives (or would live) at — not secret, just a filesystem
-   *  convention. Empty when no safe per-site/new-volume target exists; legacy files are read-only. */
-  readonly keyFilePath: string;
-}
-
-export interface InspectSiteKeyMaterialOptions {
-  sources: readonly SiteKeySource[];
-}
-
-/**
- * Read-only snapshot over the same explicit sources derivation uses. Re-read on every call so
- * status and recovery never report cached material. A present invalid source refuses resolution;
- * it never falls through to another key. Nothing here generates, replaces or repairs a file.
- */
-export function inspectSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps = {}): SiteKeyStatus {
-  const { hex: _hex, ...status } = readSiteKeyReveal(options, deps);
-  return status;
-}
-
-/** One read behind both status functions; {@link inspectSiteKeyMaterial} drops `hex` from it. */
-function readSiteKeyReveal(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps): SiteKeyReveal {
-  // No write target for a local site with unreadable metadata; legacy shared files are read-only.
-  const keyFilePath = siteKeyFilePathFrom({ sources: options.sources }) ?? "";
-  const present = firstPresentSiteKey({ sources: options.sources, env: (deps.env ?? (() => process.env))() });
-  return siteKeyRevealOf({ present, keyFilePath });
-}
-
-/** The reveal shape (key order is part of the HTTP response) for whatever source is present;
- *  `envVarName` only for the env source. The `invalid`/`reason` pair both status functions spread
- *  onto an inactive result — present together or not at all. */
-function siteKeyRevealOf(input: { present: PresentSiteKey | undefined; keyFilePath: string }): SiteKeyReveal {
-  const { present, keyFilePath } = input;
-  if (present === undefined) return { active: false, source: "none", keyFilePath };
-  const source = reportedSourceOf(present.source);
-  const provenance = present.source.kind === "env" ? { envVarName: present.material.envVarName } : {};
-  if (present.parsed.ok) {
-    return { active: true, source, hex: present.parsed.hex, fingerprint: fingerprintSiteKeyHex({ hex: present.parsed.hex }), keyFilePath, ...provenance };
-  }
-  return { active: false, source, invalid: true, reason: present.parsed.reason, keyFilePath, ...provenance };
-}
-
-/** {@link revealSiteKeyMaterial}'s result. `hex` is present iff `active` — the ONLY other place in
- *  this module's admin-facing surface (besides {@link GeneratedFileSiteKey}) that ever carries root
- *  key material in the clear. A caller MUST treat every call as a fresh, sensitive disclosure, not
- *  something to cache or log. */
-export interface SiteKeyReveal extends SiteKeyStatus {
-  readonly hex?: string;
-}
-
-/**
- * Like {@link inspectSiteKeyMaterial}, but includes the raw key value when one is active — backs
- * the admin "site key" panel's explicit, permission-gated Reveal action (owner: "i want that
- * token to be visible to admins or else when it breaks they have no idea whats going on" —
- * fingerprint-only was the ORIGINAL brief; this supersedes it). Never called on page load, only
- * from a dedicated route the operator must click through — see `server/inbound/admin-http/routes/
- * system/site-key.ts`'s `POST .../reveal`.
- *
- * Reads whichever source is currently active (env or file, same precedence as `resolveSiteKey`),
- * so an admin can confirm the value in this UI matches what they set in their host's secrets/their shell,
- * not only the file-backed case.
- */
-export function revealSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps = {}): SiteKeyReveal {
-  return readSiteKeyReveal(options, deps);
-}
-
-/** Thrown by {@link generateFileSiteKey} when a key file already exists at the target path. */
-export class SiteKeyFileAlreadyExistsError extends Error {
-  constructor({ keyFilePath }: { keyFilePath: string }) {
-    super(`a site key file already exists at ${keyFilePath} — generate never overwrites an existing key`);
-    this.name = "SiteKeyFileAlreadyExistsError";
-  }
-}
-
-/** {@link generateFileSiteKey}'s result. `hex` is the raw key this call just wrote to disk, in
- *  the clear — but `server/inbound/admin-http/routes/system/site-key.ts`'s `POST .../generate`
- *  deliberately does NOT forward it in the HTTP response (sol finding 3-2, 2026-09-16): the admin
- *  controller never read it, so echoing it over the wire was pure exposure with no product
- *  behavior. `POST .../reveal` is the one route that discloses the value on purpose. Callers of
- *  this function itself must still never persist or log `hex` beyond what they need it for. */
-export interface GeneratedFileSiteKey {
-  readonly hex: string;
-  readonly fingerprint: string;
-  readonly keyFilePath: string;
-}
-
-/**
- * Generates a fresh site key and writes it to `keyFilePath` (default: the exact same
- * `~/.tovu/site-key.hex` `EnvOrFileKeyring` reads by default) — backs the admin
- * "site key" panel's Generate action.
- *
- * Uses the same `randomBytes(SITE_KEY_LENGTH_BYTES)` call and `0o600` file mode
- * `resolveSiteKey`'s own generated-file fallback above uses — not a second, independently-reasoned
- * source of randomness.
- *
- * Refuses (throws {@link SiteKeyFileAlreadyExistsError}) if anything already exists at that path —
- * this function only ever CREATES, it never overwrites. Silently replacing an existing key here
- * would orphan every credential already sealed under the old one with no confirmation at all;
- * a deliberate rotate/replace flow is out of scope for this function (and, as of this writing, not
- * built anywhere in this admin).
- *
- * That refusal is the WRITE ITSELF, via `O_CREAT | O_EXCL` (`flag: "wx"`), not a preceding
- * `existsSync` — a pre-check plus a separate write is a check-then-write race, and the thing it
- * races for is the key that every stored credential is sealed under. Two concurrent
- * `POST .../generate` calls (a double-clicked Generate button is enough) could both see "no key
- * here" and the second would replace the first, returning `201` either way. The exclusive create
- * also refuses a path that is a SYMLINK, dangling or not, which `existsSync` follows and reports
- * as absent.
- *
- * @throws {SiteKeyFileAlreadyExistsError} Anything already occupies `keyFilePath`.
- * @complexity One 32-byte random draw plus one exclusive file create.
- */
-export function generateFileSiteKey(options: { keyFilePath: string }, _optional = {}): GeneratedFileSiteKey {
-  const keyFilePath = options.keyFilePath;
-  // Jini performs the exclusive create; this adapter retains Tovu's directory mode and error identity.
-  // 0700 like `ensureSiteKey`'s own writer (site-key plan §A.1) — only applies to directories this call creates.
-  mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
-  try { return generateKeyFile({ keyFilePath }); }
-  catch (error) {
-    // Jini's own refusal is matched by identity, never by name; the raw errno check stays for a
-    // create that surfaces `EEXIST`/`ELOOP` without Jini's wrapper.
-    if (error instanceof JiniSiteKeyFileAlreadyExistsError || isAlreadyExistsError({ err: error })) {
-      throw new SiteKeyFileAlreadyExistsError({ keyFilePath });
-    }
-    throw error;
-  }
-}
-
-/** Whether a failed exclusive create failed BECAUSE the path was taken (`EEXIST`), as opposed to a
- *  genuine I/O or permission fault that must keep propagating. `ELOOP` is the same answer wearing a
- *  different errno: a symlink chain the kernel refused to follow is still "something is there". */
-function isAlreadyExistsError({ err }: { err: unknown }, _optional = {}): boolean {
-  if (typeof err !== "object" || err === null || !("code" in err)) return false;
-  const code = (err as { code?: unknown }).code;
-  return code === "EEXIST" || code === "ELOOP";
-}
+export type InMemoryKeyring = InstanceType<typeof InMemoryKeyring>;
+export type EnvOrFileKeyring = InstanceType<typeof EnvOrFileKeyring>;
+export type FixedSiteKeyKeyring = InstanceType<typeof FixedSiteKeyKeyring>;
+export type UnusableSiteKeyError = InstanceType<typeof UnusableSiteKeyError>;
+export type SiteKeyFileAlreadyExistsError = InstanceType<typeof SiteKeyFileAlreadyExistsError>;
+export type SiteKeyStatus = ReturnType<typeof inspectSiteKeyMaterial>;
+export type SiteKeyReveal = ReturnType<typeof revealSiteKeyMaterial>;
+export type GeneratedFileSiteKey = ReturnType<typeof generateFileSiteKey>;
+export type InspectSiteKeyMaterialOptions = Parameters<typeof inspectSiteKeyMaterial>[0];

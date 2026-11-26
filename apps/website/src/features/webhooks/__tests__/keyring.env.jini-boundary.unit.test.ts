@@ -139,6 +139,8 @@ test("the Tovu keyring imports no retired RootKey names", () => {
   const jiniImports = [...source.matchAll(/import\s*\{([^}]*)\}\s*from\s*"@jini-ai\/platform\/secrets"/g)].map((m) => m[1]).join(",");
   assert.ok(jiniImports.length > 0, "keyring.env.ts must import from @jini-ai/platform/secrets");
   assert.doesNotMatch(jiniImports, /RootKey/);
+  assert.match(source, /import \{ bindSiteKeyrings \} from "@jini-ai\/platform\/secrets\/root-key\/ordered-keyring"/);
+  assert.match(source, /\} = bindSiteKeyrings\(\{/);
   for (const name of ["FixedSiteKeyKeyring", "UnusableSiteKeyError", "parseSiteKeyHex", "fingerprintSiteKeyHex", "generateFileSiteKey", "SiteKeyFileAlreadyExistsError"]) {
     assert.match(jiniImports, new RegExp(`\\b${name}\\b`));
   }

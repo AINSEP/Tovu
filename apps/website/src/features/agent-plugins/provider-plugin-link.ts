@@ -9,7 +9,7 @@ import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgent
 
 /** The lifecycle owner's calls `bindProviderFacePorts` injects, so faces share its activation queue. */
 export const providerFaceLifecycle = {
-  activations: agentPluginActivations,
+  get activations() { return agentPluginActivations; },
   catalog: { list: listInstalledPlugins, bundled: readBundledAgentPluginDigests, preferBundled: preferBundledAgentPluginDigests, read: readTrustedPluginFile },
 };
 

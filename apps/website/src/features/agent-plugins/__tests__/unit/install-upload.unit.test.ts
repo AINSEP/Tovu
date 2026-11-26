@@ -1,3 +1,4 @@
+import { AgentPluginUploadError } from "@jini-ai/agent-plugins/site/install-upload";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -8,7 +9,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { AgentPluginInstallError } from "../../lifecycle.js";
-import { AgentPluginUploadError, installUploadedAgentPlugin, previewUploadedAgentPlugin } from "../../install-upload.js";
+import { installUploadedAgentPlugin, previewUploadedAgentPlugin } from "../../install-upload.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";
 import { forceRemove } from "../fixtures/force-remove.js";

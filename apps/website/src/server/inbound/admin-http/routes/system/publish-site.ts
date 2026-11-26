@@ -1,5 +1,5 @@
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
-import { readTargetConfig as jiniReadTargetConfig, publishPreviewFor as jiniPublishPreviewFor, describePublishTargets, credentialChoice } from "@jini-ai/devops/deploy/site/static-publish/admin-publish-read";
+import { createAdminPublishRead, publishTargetsFor as jiniPublishTargetsFor, credentialChoice } from "@jini-ai/devops/deploy/site/static-publish/admin-publish-read";
 import { staticPublishPorts } from '#src/features/deployments/static-publish/adapter';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
@@ -13,11 +13,8 @@ import { getPublishRunSnapshot, startPublishRun } from "#src/features/deployment
 import { listPublishDestinations } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, unknownTargetMessage } from "@jini-ai/devops/deploy/site/static-publish/adapter";
 import { type StaticPublishConfig, type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
-import type {
-  DeployTargetRegistry,
-} from "@jini-ai/devops/deploy/site/deploy-targets/types";
-import { createPublishTriggerRoute, type PublishTriggerDeps } from "@jini-ai/cms/admin-http/routes/system/publish-site/trigger";
-import { createPublishDestinationsRoute, type PublishDestinationsDeps } from "@jini-ai/cms/admin-http/routes/system/publish-site/destinations";
+import { registerPublishTriggerRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/trigger";
+import { registerPublishDestinationsRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/destinations";
 import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -97,14 +94,14 @@ export type AdminPublishSiteDeps = RouteDeps;
 
 async function readTargetConfig({ context, targetId, raw, blankAsAbsent }: { context: PublishSiteContext; targetId: string; raw: Record<string, unknown>; blankAsAbsent: boolean }, _optional = {}) {
   const { deps, credentialSource } = context;
-  return jiniReadTargetConfig({ deps: {
+  return createAdminPublishRead({ credentialSource, deps: {
     workspaceId: deps.workspaceId, loadDeployTargets: deps.loadDeployTargets,
     refusal: refusal => console.warn(`[publish-site] ${refusal}`), unknownTargetMessage, readStaticPublishConfig,
     missingRequiredFieldMessage, planStaticPublish,
     inspectStaticPublish: ({ input }) => inspectStaticPublish({
       deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, ...staticPublishPorts }, input,
     }),
-  }, targetId, raw, blankAsAbsent });
+  } }).readTargetConfig({ targetId, raw, blankAsAbsent });
 }
 
 export type PublishSiteContext = { deps: AdminPublishSiteDeps; credentialSource: PublishCredentialSource };
@@ -142,24 +139,22 @@ function startAdminPublish({ context, principal, parsed, config }: { context: Pu
 
 export function publishPreviewFor({ context }: { context: PublishSiteContext }, _optional: Record<string, never> = {}) {
   const { deps, credentialSource } = context;
-  return jiniPublishPreviewFor({ context: { credentialSource, deps: {
+  return createAdminPublishRead({ credentialSource, deps: {
     workspaceId: deps.workspaceId, loadDeployTargets: deps.loadDeployTargets,
     refusal: refusal => console.warn(`[publish-site] ${refusal}`), unknownTargetMessage, readStaticPublishConfig,
     missingRequiredFieldMessage, planStaticPublish,
     inspectStaticPublish: ({ input }) => inspectStaticPublish({
       deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, ...staticPublishPorts }, input,
     }),
-  } } });
+  } }).publishPreview;
 }
 
 /** The registry's public target descriptors for this workspace, bound into the `publish-targets` spec;
  *  registry refusals (a module that did not load) are logged, never returned. @complexity O(t). */
 export function publishTargetsFor({ deps }: { deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}) {
-  return async () => {
-    const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
-    for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
-    return describePublishTargets({ registry });
-  };
+  return jiniPublishTargetsFor({ deps: { workspaceId: deps.workspaceId, loadDeployTargets: deps.loadDeployTargets,
+    refusal: refusal => console.warn(`[publish-site] ${refusal}`),
+  } });
 }
 
 /** The per-registration publish context: built once per registrar call (a once-per-process composition
@@ -177,45 +172,39 @@ export function createPublishSiteContext({ deps }: { deps: AdminPublishSiteDeps 
 
 export function registerAdminPublishTriggerRoute({ app, context, errors }: { app: Express; context: PublishSiteContext; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   const { deps } = context;
-  const triggerDeps: PublishTriggerDeps<{ config: StaticPublishConfig; registry: DeployTargetRegistry }, ReturnType<typeof getPublishRunSnapshot>> = {
-    readConfig: async ({ targetId, raw }) => {
-      const read = await readTargetConfig({ context, targetId, raw, blankAsAbsent: false });
-      return read.ok ? { ok: true, config: { config: read.config, registry: read.registry } } : read;
-    },
-    plan: ({ config: read }) => planStaticPublish({ registry: read.registry, config: read.config }),
-    hasCustomDomain: ({ config: read }) => Boolean(read.config.customDomain),
-    domainConfirmationText: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation.",
-    deploymentCheck: async ({ principalId }) => (deps.siteConsent
-      ? await deps.siteConsent.deploymentCheck({ principalId, permission: 'system.publish' })
-      : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] })) ?? undefined,
+  return registerPublishTriggerRoute({
+    mount: route => mountAdminJsonRoute({ app, errors, spec: route.spec, deps: { ...route.deps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
+      refusalWriter: ({ res, error }) => route.refusal({ response: error.response,
+        json: (body, status) => { res.status(status).json(body); }, principalId: () => getAuthedPrincipal(res).id,
+      }),
+      failureWriter: ({ res, error }) => route.failure({ error, incident: (error, options) => { sendAdminFailure({ res, error }, options); } }),
+    }),
+    readConfig: required => readTargetConfig({ context, ...required }),
+    plan: planStaticPublish,
+    start: required => startAdminPublish({ context, ...required }),
     snapshot: () => getPublishRunSnapshot(),
-    start: ({ config: read, projectName, principalId, credentialId }) => startAdminPublish({ context, principal: { id: principalId }, config: read.config,
-      parsed: { projectName, ...(credentialId === undefined ? {} : { credentialId }) } }),
+    siteConsent: deps.siteConsent,
+    consentUnavailable: () => deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] }),
+    domainConfirmationText: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation.",
     onBlocked: ({ principalId, reasonClass }) => captureBlockedPublish({ deps, principal: { id: principalId }, reasonClass }),
-  };
-  mountAdminJsonRoute({ app, errors, spec: createPublishTriggerRoute({ deps: triggerDeps }), deps: { ...triggerDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
-    refusalWriter: ({ res, error }) => {
-      res.status(error.response.status).json(error.response.body);
-      if (error.response.status === 403) captureBlockedPublish({ deps, principal: getAuthedPrincipal(res), reasonClass: "auth" });
-    },
-    failureWriter: ({ res, error }) => sendAdminFailure({ res, error }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" }),
+    operation: "routes/system/publish-site",
   });
 }
 
 export function registerAdminPublishDestinationsRoute({ app, context, errors }: { app: Express; context: PublishSiteContext; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
   const { deps } = context;
-  const destinationsDeps: PublishDestinationsDeps<DeployTargetRegistry, Awaited<ReturnType<typeof listPublishContentPeers>>[number], Awaited<ReturnType<typeof listPublishDestinations>>> = {
+  return registerPublishDestinationsRoute({
+    mount: route => mountAdminJsonRoute({ app, errors, spec: route.spec,
+      depsForRequest: ({ res }) => ({ workspaceId: deps.workspaceId, authorize: deps.authorize,
+        ...route.requestDeps({ trustContext: () => getPublishTrustContext(res) ?? undefined }),
+      }),
+    }, { failureWriter: ({ res, error }) => route.failure({ error, incident: (error, options) => { sendAdminFailure({ res, error }, options); } }) }),
+    workspaceId: deps.workspaceId,
     loadRegistry: () => deps.loadDeployTargets({ workspaceId: deps.workspaceId }),
-    mayReadPeers: async (): Promise<boolean> => { throw new Error("bound per request"); },
     listPeers: () => listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input: { workspaceId: deps.workspaceId } }),
     listDestinations: ({ registry, peers }) => listPublishDestinations({ workspaceId: deps.workspaceId, historyStore: deps.publishHistoryStore, registry, peers }),
-  };
-  mountAdminJsonRoute({ app, errors, spec: createPublishDestinationsRoute({ deps: destinationsDeps }), deps: { ...destinationsDeps, workspaceId: deps.workspaceId, authorize: deps.authorize } }, {
-    requestDeps: ({ res, deps: base }) => ({ ...base, mayReadPeers: async ({ principalId }) => {
-      const trust = getPublishTrustContext(res);
-      const peerAuthorization = await (trust ? publishTrustAuthorizeFor(trust) : deps.authorize)({ principalId, permission: "publish_content.read", workspaceId: deps.workspaceId });
-      return peerAuthorization.allowed;
-    } }),
-    failureWriter: ({ res, error }) => sendAdminFailure({ res, error }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" }),
+    authorize: deps.authorize,
+    authorizeForTrust: publishTrustAuthorizeFor,
+    operation: "routes/system/publish-site",
   });
 }

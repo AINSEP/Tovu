@@ -14,10 +14,10 @@ import { registerAdminRecoveryRestoreRoutes } from "#src/server/runtime/composit
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
 import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
-import { mappedErrorResponse } from "../../routes/publish-content/route-helpers.js";
+import { createMappedErrorResponse } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
 import { installErrorResponse } from "../../routes/agent-plugins/install-response.js";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { adminFailureResponse, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 function fixture(error: unknown, tracked: unknown[], { recorded = recordingComposedReporter() } = {}) {
   const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
@@ -147,7 +147,10 @@ for (const broken of ["logger", "tracker"]) {
 for (const [name, map] of Object.entries({
   widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
-  peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => mappedErrorResponse({ err, table: [] }, options),
+  peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => createMappedErrorResponse({
+    incident: (error, facts) => adminFailureResponse({ error, tracker: options.tracker, reporter: options.reporter }, facts),
+    operation: "routes/publish-content/route-helpers",
+  })({ err, table: [] }),
   installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => installErrorResponse({ error: err }, options),
 })) {
   test(`${name}: the mapping fallback reports Error and non-Error exceptions without leaking details`, t => {

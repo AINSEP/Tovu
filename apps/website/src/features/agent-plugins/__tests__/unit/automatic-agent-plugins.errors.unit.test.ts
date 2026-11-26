@@ -10,7 +10,7 @@ const { createAutomaticPluginRuns } = await import('../../automatic-agent-plugin
 
 test('tool guidance failure leaves the run usable and logs a redacted cause', async (t) => {
   const warnings = t.mock.method(console, 'warn', () => undefined);
-  const deps = { workspaceId: 'ws', siteTitleReady: Promise.resolve(), preferences: { mode: async () => 'auto' } };
+  const deps = { agentPluginLayout: { forWorkspace: () => ({ root: '/ws', packages: '/ws/packages' }) }, workspaceId: 'ws', siteTitleReady: Promise.resolve(), preferences: { mode: async () => 'auto' } };
   const runs = createAutomaticPluginRuns({ deps, surfaces: {}, askAgentPluginChoice: async () => { throw new Error('unexpected prompt'); } } as unknown as Parameters<typeof createAutomaticPluginRuns>[0]);
   const signal = new AbortController().signal;
   const context = { principal: { id: 'owner' }, conversationId: 'chat', state: { decision: null, excluded: [] }, query: 'question', pinned: [], signal,

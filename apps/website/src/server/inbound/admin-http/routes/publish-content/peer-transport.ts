@@ -1,8 +1,7 @@
-import { type PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Response } from "express";
 
-import { peerPushPlanRoute, peerPushConfirmRoute, peerPushExecuteRoute, knownPeerActionRefusal, PEER_ACTION_ERRORS } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
+import { respondWithPeerActionError, createPeerCallResolver, registerPublishContentPeerPushRoutes as registerPushRoutes } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
 import { refuseUnlessSessionCredential } from "../../admin-request-facts.js";
 import { confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport-binding";
@@ -14,12 +13,8 @@ import {
 } from "@jini-ai/cms/publish/content/live-site-policy";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
-import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import {
-  mappedErrorResponse,
-  sendRefusal,
-} from "./route-helpers.js";
-import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -71,78 +66,43 @@ import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shar
  * whose message is derived from the PEER's response, never from the request.
  */
 
-/** Answers a peer action's failure. Manual publishing (`backstop.ts`) reuses it, so a live-site
- *  failure reaches the owner there as the same actionable answer; `message` names its private 500.
- *  @complexity O(1). */
 export function respondWithError({ res, err }: { res: Response; err: unknown }, { message }: { message?: string } = {}): void {
-  const known = knownPeerActionRefusal({ err });
-  if (known) { sendRefusal({ res, refusal: known }); return; }
-  // The mapper needs the registered template to distinguish preparation from an uncertain send.
-  // Concrete request paths and mounted base URLs can contain private IDs and never enter copy.
-  sendRefusal({ res, refusal: mappedErrorResponse({ err, table: PEER_ACTION_ERRORS }, {
-    tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter, message, method: res.req?.method,
+  return respondWithPeerActionError({ err,
+    json: (body, status) => { res.status(status).json(body); },
+    incident: (error, facts) => adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter }, facts),
+    operation: "routes/publish-content/route-helpers",
+    method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
     discloseDetails: !res.req || !!res.locals?.principal,
-  }) });
-}
-
-/** The per-request transport bag: the guarded client plus the opened credential.
- *  @complexity O(1) plus one repo read and one AEAD open. */
-async function openPeer({ deps, peerId }: { deps: PublishContentRouteDeps; peerId: string }, _options: Record<string, never> = {}): Promise<PeerCallDeps> {
-  const credential = await resolvePublishDestinationCredential({
-    deps: {
-      repo: deps.publishContentPeerRepo,
-      sealer: deps.siteAssistantSecretSealer,
-      keyring: deps.siteAssistantSecretKeyring,
-      httpClient: deps.publishContentPeerHttpClient,
-    },
-    input: { workspaceId: deps.workspaceId, id: peerId },
-  });
-  return { credential, httpClient: deps.publishContentPeerHttpClient,
-    publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock } };
-}
-
-function registerPushPlanRoute({ app, deps, errors }: Parameters<PublishContentRouteRegistrar>[0]): void {
-  mountAdminJsonRoute({ app, errors, spec: peerPushPlanRoute, deps: {
-    workspaceId: deps.workspaceId, authorize: deps.authorize,
-    requireOverwriteSession: (): void => { throw new Error("bound per request"); },
-    openPeer: ({ peerId }) => openPeer({ deps, peerId }),
-    plan: ({ peer, principalId, scope, selectedEntityKeys, overwriteEntityKeys }) => planPublishToPeer({ deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) }, peer, principalId }, { scope, selectedEntityKeys, overwriteEntityKeys }),
-  } }, {
-    preflight: { readHeaders: [], check: () => canPublishToLive({ resolveRuntimeMode }) ? undefined : { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE } } },
-    requestDeps: ({ res, deps: base }) => ({ ...base, requireOverwriteSession: () => refuseUnlessSessionCredential({ res, gate: { message: "'overwriteEntityKeys' can only be sent from a signed-in admin session", permission: "publish_content.apply" } }) }),
-    failureWriter: ({ res, error }) => respondWithError({ res, err: error }),
-  });
-}
-
-function registerPushConfirmRoute({ app, deps, errors }: Parameters<PublishContentRouteRegistrar>[0]): void {
-  mountAdminJsonRoute({ app, errors, spec: peerPushConfirmRoute, deps: {
-    workspaceId: deps.workspaceId, authorize: deps.authorize,
-    openPeer: ({ peerId }) => openPeer({ deps, peerId }),
-    confirm: ({ peer, planId, planHash }) => confirmPeerImport({ deps: peer, required: { planId, planHash } }),
-  } }, {
-    preflight: { readHeaders: [], check: () => canPublishToLive({ resolveRuntimeMode }) ? undefined : { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE } } },
-    failureWriter: ({ res, error }) => respondWithError({ res, err: error }),
-  });
-}
-
-function registerPushExecuteRoute({ app, deps, errors }: Parameters<PublishContentRouteRegistrar>[0]): void {
-  mountAdminJsonRoute({ app, errors, spec: peerPushExecuteRoute, deps: {
-    workspaceId: deps.workspaceId, authorize: deps.authorize,
-    openPeer: ({ peerId }) => openPeer({ deps, peerId }),
-    requireOverwriteSession: (): void => { throw new Error("bound per request"); },
-    execute: ({ peer, ...required }) => executePeerImport({ deps: peer, required }),
-  } }, {
-    preflight: { readHeaders: [], check: () => canPublishToLive({ resolveRuntimeMode }) ? undefined : { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE } } },
-    requestDeps: ({ res, deps: base }) => ({ ...base, requireOverwriteSession: () => refuseUnlessSessionCredential({ res, gate: { message: "'overwriteEntityKeys' can only be sent from a signed-in admin session", permission: "publish_content.apply" } }) }),
-    failureWriter: ({ res, error }) => respondWithError({ res, err: error }),
-  });
+  }, { message });
 }
 
 /** The three push routes, in their registered order; the pull spec follows them
  *  (`modules/publish-content-transport.ts`'s `registerPublishContentPeerTransportRoutes`). */
-export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
-  registerPushPlanRoute({ app, deps, errors });
-  registerPushConfirmRoute({ app, deps, errors });
-  registerPushExecuteRoute({ app, deps, errors });
-};
+export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => registerPushRoutes({
+  mount: route => mountAdminJsonRoute({ app, errors, spec: route.spec,
+    depsForRequest: ({ res }) => ({ workspaceId: deps.workspaceId, authorize: deps.authorize,
+      ...route.requestDeps({ requireOverwriteSession: () => refuseUnlessSessionCredential({ res, gate: { message: "'overwriteEntityKeys' can only be sent from a signed-in admin session", permission: "publish_content.apply" } }) } as Parameters<typeof route.requestDeps>[0]),
+    }),
+  }, { preflight: route.preflight, failureWriter: ({ res, error }) => route.failure({ err: error,
+    json: (body, status) => { res.status(status).json(body); },
+    incident: (error, facts) => adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter }, facts),
+    method: res.req?.method,
+    route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
+    discloseDetails: !res.req || !!res.locals?.principal,
+  }) }),
+  openPeer: createPeerCallResolver({
+    workspaceId: deps.workspaceId,
+    resolveCredential: input => resolvePublishDestinationCredential({
+      deps: { repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient }, input,
+    }),
+    httpClient: deps.publishContentPeerHttpClient,
+    publishHistory: { store: deps.publishHistoryStore, clock: deps.clock },
+  }),
+  plan: ({ peer, principalId, scope, selectedEntityKeys, overwriteEntityKeys }) => planPublishToPeer({ deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) }, peer, principalId }, { scope, selectedEntityKeys, overwriteEntityKeys }),
+  confirm: ({ peer, planId, planHash }) => confirmPeerImport({ deps: peer, required: { planId, planHash } }),
+  execute: ({ peer, ...required }) => executePeerImport({ deps: peer, required }),
+  canPublishToLive: () => canPublishToLive({ resolveRuntimeMode }),
+  liveSiteRefusal: { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE } },
+  operation: "routes/publish-content/route-helpers",
+});

@@ -1,6 +1,6 @@
 import type { Express, RequestHandler, Response } from "express";
 import type { OriginContext, RouteErrorPorts, RouteHostContext } from "@jini-ai/core/contracts/server";
-import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
+import { mountRawRoute, type RawRouteSpec, type RouteDepsSource } from "@jini-ai/http-kit";
 
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 
@@ -39,7 +39,7 @@ function adapterFor({ spec, origin, errors }: { spec: { path: string; requireSam
  * @example mountAdminRawRoute({ app, spec: pluginsInstallRoute, deps }, { failure: { operation: "routes/plugins/install" } });
  */
 export function mountAdminRawRoute<Deps>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext; errors: RouteErrorPorts; handlerName?: string },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; origin?: OriginContext; errors: RouteErrorPorts; handlerName?: string } & RouteDepsSource<Deps & AdminJsonRoutePortDeps>,
   optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
   const { bodyParsers, requestDeps, ...portOptions } = optional;
@@ -48,7 +48,7 @@ export function mountAdminRawRoute<Deps>(
   const app = required.handlerName === undefined ? required.app : registeringUnderName({ app: required.app, method: required.spec.method, name: required.handlerName });
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin }, { reporter: errors.reporter });
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor({ bodyParsers, requestDeps }), preserveHostErrorRouting: true });
+  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ ...required, app, spec: { ...required.spec, ...readHeaders, ports }, ...adapter }, { ...routeMountOptionsFor({ bodyParsers, requestDeps }), preserveHostErrorRouting: true });
 }
 
 /** The one-method app `mountRawRoute` registers on, naming the handler it is given. `mountRawRoute`

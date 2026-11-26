@@ -1,13 +1,14 @@
 import type { Express, RequestHandler, Response } from "express";
-import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec, type RouteMountOptions } from "@jini-ai/http-kit";
-import { isSameOriginBrowserWrite, type JsonRouteAuthorizeScope, type OriginContext, type RouteErrorPorts, type RouteHostContext, type RouteInputContext, type ServerApiError } from "@jini-ai/core/contracts/server";
+import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec, type RouteMountOptions, type RouteDepsSource } from "@jini-ai/http-kit";
+import { type JsonRouteAuthorizeScope, type OriginContext, type RouteErrorPorts, type RouteInputContext, type ServerApiError } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { wasAdmittedInRequest } from "#src/server/inbound/shared/request-admissions";
 
 import type { RouteDeps } from "#src/server/routes/types";
-import { asyncRoute, type AsyncRouteHandler } from "#src/platform/express/async-route";
+import { adminBrowserWriteOrigin, registeringThroughAsyncRoute, requireRouteErrors, routeAdapterFor } from "../shared/admin-route-mount-support.js";
+export { adminBrowserWriteOrigin, adminSameOriginWrites, requireRouteErrors, routeAdapterFor } from "../shared/admin-route-mount-support.js";
 import { adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { getAuthedPrincipal, type OperatorPrincipalRecord } from "./dev-auth.js";
 import { recordAdminRequestFacts, refuseUnlessSessionCredential, routeRequestFactsFor, type SessionCredentialGate } from "./admin-request-facts.js";
@@ -429,24 +430,6 @@ export function adminPortsFor(
   return reporter || customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...options, workspaceScoped, requireSameOrigin }, { ...(reporter ? { reporter } : {}) }) : adminJsonRoutePorts;
 }
 
-/** Header-only reads, because http-kit hands the policy the raw Node request (no Express `req.get`). */
-function headerText({ req, name }: { req: { headers?: Record<string, unknown> }; name: string }, _optional: Record<string, never> = {}): string | undefined {
-  const value = req.headers?.[name];
-  return typeof value === "string" ? value : undefined;
-}
-
-/** The admin's own same-origin rule for a guarded JSON write: the exact browser-write check the
- *  hand-written saved-keys write applies (`isSameOriginBrowserWrite` — an `Origin` naming this host, and
- *  `sec-fetch-site`, when sent, `same-origin`). A JSON admin route only ever serves the admin's own pages,
- *  so this is the mount's default; without one http-kit throws and a cross-origin write became a 500. */
-export const adminBrowserWriteOrigin: OriginContext = {
-  originPolicy: {
-    isSameOrigin: ({ req }) => isSameOriginBrowserWrite({
-      origin: headerText({ req, name: "origin" }), host: headerText({ req, name: "host" }), fetchSite: headerText({ req, name: "sec-fetch-site" }),
-    }),
-  },
-};
-
 /** Mount a Jini admin route spec behind the admin ports. `deps` is the route's own small deps type
  * plus the two port fields — built from `RouteDeps` at registration, never passed whole.
  * `origin` replaces {@link adminBrowserWriteOrigin} as the policy for a `requireSameOrigin` spec; a spec
@@ -455,7 +438,7 @@ export const adminBrowserWriteOrigin: OriginContext = {
  * @complexity O(1) setup; per request as `createAdminJsonRoutePorts`.
  */
 export function mountAdminJsonRoute<Input, Output, Deps>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext; errors: RouteErrorPorts },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; origin?: OriginContext; errors: RouteErrorPorts } & RouteDepsSource<Deps & AdminJsonRoutePortDeps>,
   optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
   const { forwardRejection, bodyParsers, requestDeps, ...portOptions } = optional;
@@ -464,38 +447,7 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin }, { reporter: errors.reporter });
   const app = forwardRejection || portOptions.forwardUncaughtErrors ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor({ bodyParsers, requestDeps }), preserveHostErrorRouting: true });
-}
-
-/**
- * The admin same-origin write policy: a browser write whose `Origin` is exactly this server's host
- * (and whose fetch metadata, when sent, agrees) — the rule `site-share-password.ts` applies by hand.
- * A request without `Origin` is refused, so a cross-site form or script can never reach the handler.
- */
-export const adminSameOriginWrites: OriginContext = {
-  originPolicy: {
-    isSameOrigin: ({ req }) => {
-      const headers = req.headers ?? {};
-      const text = (value: unknown): string | undefined => (typeof value === "string" ? value : Array.isArray(value) && typeof value[0] === "string" ? value[0] : undefined);
-      return isSameOriginBrowserWrite({ origin: text(headers.origin), host: text(headers.host), fetchSite: text(headers["sec-fetch-site"]) });
-    },
-  },
-};
-
-/** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
- *  `mountJsonRoute` only calls `app[spec.method](path, handler)`; a new use of `app` there fails
- *  loudly here (not a silent bypass), and `admin-json-route-ports.test.ts` pins the wrapped name.
- * @complexity O(1). */
-function registeringThroughAsyncRoute(
-  { app, method }: { app: Express; method: JsonRouteSpec<unknown, unknown, unknown>["method"] },
-  _optional: Record<string, never> = {},
-): Express {
-  // Any `bodyParsers` stay ahead of the handler, in the same registration; only the handler is wrapped.
-  const register = (path: string, ...handlers: RequestHandler[]) => {
-    const handler = handlers.pop() as unknown as AsyncRouteHandler;
-    return (app as unknown as Record<string, (path: string, ...registered: RequestHandler[]) => unknown>)[method](path, ...handlers, asyncRoute({ handler }));
-  };
-  return { [method]: register } as unknown as Express;
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ ...required, app, spec: { ...required.spec, ...readHeaders, ports }, ...adapter }, { ...routeMountOptionsFor({ bodyParsers, requestDeps }), preserveHostErrorRouting: true });
 }
 
 /** The public mounts' options: per-request host deps, and body parsers registered on THAT route only (http-kit's
@@ -516,32 +468,4 @@ export function mountPublicJsonRoute<Input, Output, Deps extends object>(
   if (required.spec.requireSameOrigin) throw new Error(`public JSON route ${required.spec.path}: requireSameOrigin needs the host's origin context`);
   const adapter = routeAdapterFor({ origin: undefined, errors });
   mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }, { reporter: errors.reporter }) }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor(optional), preserveHostErrorRouting: true });
-}
-
-
-/** The origin policy of a bound mount whose spec never consults one: refuses every request, so a
- *  later `requireSameOrigin` flag without the host's policy fails closed instead of open. */
-const denyUnboundOrigin: OriginContext = { originPolicy: { isSameOrigin: () => false } };
-
-/** Refuse, at registration, a wrapper mount without the site's route error reporter (T-GATE). The
- *  type already requires `errors`; this guards an untyped caller (JS, `as never`) before Express is
- *  touched, so an unbound mount can never fall back to the kit's own reporterless incident path.
- * @throws Error naming the path when `errors` is absent.
- * @complexity O(1). */
-export function requireRouteErrors(
-  { path, errors }: { path: string; errors: RouteErrorPorts | undefined },
-  _optional: Record<string, never> = {},
-): RouteErrorPorts {
-  if (!errors) throw new Error(`route ${path}: mount needs the site's route error reporter — pass \`errors\` (RouteErrorPorts) to the mount`);
-  return errors;
-}
-
-/** The kit adapter for a bound wrapper mount: the site's error ports, plus the given origin policy
- *  or the fail-closed {@link denyUnboundOrigin}.
- * @complexity O(1). */
-export function routeAdapterFor(
-  { origin, errors }: { origin: OriginContext | undefined; errors: RouteErrorPorts },
-  _optional: Record<string, never> = {},
-): { adapter: RouteHostContext & { errors: RouteErrorPorts } } {
-  return { adapter: { ...(origin ?? denyUnboundOrigin), errors } };
 }

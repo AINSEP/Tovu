@@ -1,7 +1,7 @@
 import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError } from "../../../../../features/agent-plugins/lifecycle.js";
-import { AgentPluginUploadError } from "#src/features/agent-plugins/install-upload";
+import { AgentPluginUploadError } from "@jini-ai/agent-plugins/site/install-upload";
 import {
   knownInstallRefusal as knownInstallRefusalFor, type InstallHostErrorClass, type InstallLifecycleErrorPredicates, type InstallRefusal,
 } from "@jini-ai/cms/admin-http/routes/agent-plugins/install-response";

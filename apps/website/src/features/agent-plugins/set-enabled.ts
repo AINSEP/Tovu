@@ -1,4 +1,4 @@
-import type { NotifyToolAccessChanged } from '@jini-ai/core/tool-access-change';
+import { createSetAgentPluginEnabled } from "@jini-ai/agent-plugins/site/set-enabled";
 
 /**
  * @file The ONE composition that turns "enable/disable this Agent Plugin" into a durable decision:
@@ -40,12 +40,8 @@ import type { NotifyToolAccessChanged } from '@jini-ai/core/tool-access-change';
 import { createTovuAgentPluginLifecycle, explicitRootSoonCatalog } from "./lifecycle.js";
 import { assertAgentPluginReady } from "@jini-ai/agent-plugins/site/soon-lock";
 import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
-import type { SetAgentPluginEnabledResult } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
-import { bindProviderFacePorts, linkedProviderOf, type ProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
+import { bindProviderFacePorts } from "@jini-ai/agent-plugins/site/provider-plugin-link";
 import { AgentPluginLinkedError, providerFaceLifecycle } from "./provider-plugin-link.js";
-export { AgentPluginLinkedError } from "./provider-plugin-link.js";
-export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
-import type { SetAgentPluginEnabledInput } from '@jini-ai/core/contracts/headless/plugin-host';
 import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
 
 /**
@@ -60,34 +56,9 @@ import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "./identity-read-policy.js";
  * @complexity O(d) in installed-digest count for the precondition, plus one whole-file rewrite of
  * the (small) activations record.
  */
-// A stable owner context per booted layout preserves its queues without selecting a site again.
-const lifecycles = new WeakMap<import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout, ReturnType<typeof createTovuAgentPluginLifecycle>>();
-
-export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, options: {
-  /** Serving hosts await Stop/cleanup after the durable OFF decision. */
-  readonly notifyRosterChanged?: NotifyToolAccessChanged;
-  readonly links?: Pick<ProviderFacePorts, "links">;
-  /** Reuse boot queues and tracking while retaining this host's linked-face guard. */
-  readonly lifecycle?: Pick<ReturnType<typeof createTovuAgentPluginLifecycle>, "setAgentPluginEnabled">;
-  /** A system enable (a sign-in's connect defaults): same checks, but an operator's own "off" stays (Jini's conditional write). */
-  readonly unlessOperatorDisabled?: boolean;
-} = {}): Promise<SetAgentPluginEnabledResult> {
-  // A provider plugin's assistant face has no switch of its own (`provider-plugin-link.ts`).
-  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
-  const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
-  if (providerPluginId !== undefined) {
-    // A Soon face says it isn't ready rather than pointing at a provider switch that can't help.
-    if (input.enabled) await assertAgentPluginReady({ catalog: explicitRootSoonCatalog, workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ);
-    throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
-  }
-  const conditional = options.unlessOperatorDisabled ? { unlessOperatorDisabled: true } : {};
-  let lifecycle = options.lifecycle ?? lifecycles.get(input.agentPluginLayout);
-  if (!lifecycle) {
-    const created = createTovuAgentPluginLifecycle({ layout: input.agentPluginLayout });
-    lifecycles.set(input.agentPluginLayout, created);
-    lifecycle = created;
-  }
-  const result = await lifecycle.setAgentPluginEnabled(input, conditional);
-  if (!result.enabled) await options.notifyRosterChanged?.({ lowered: { pluginIds: [input.pluginId] } });
-  return result;
-}
+export const setAgentPluginEnabled = createSetAgentPluginEnabled({
+  createLifecycle: createTovuAgentPluginLifecycle,
+  bindProviderFacePorts: required => bindProviderFacePorts({ ...required, ...providerFaceLifecycle }, TOVU_AGENT_PLUGIN_IDENTITY_READ),
+  assertAgentPluginReady: required => assertAgentPluginReady({ ...required, catalog: explicitRootSoonCatalog, hostSoonPluginIds: HOST_SOON_AGENT_PLUGINS }, TOVU_AGENT_PLUGIN_IDENTITY_READ),
+  AgentPluginLinkedError,
+});
