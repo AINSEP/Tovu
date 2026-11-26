@@ -3,7 +3,7 @@ import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo,
   InMemoryBlobStore, uploadMedia, registerTransform, replaceMediaFile } from '@jini-ai/cms/media';
 import { InMemoryPostRepo } from '#src/features/post/repo.memory';
@@ -24,7 +24,7 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
   const deps = { workspaceId: 'workspace', mediaAccessEvidence, mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), blobStore: new InMemoryBlobStore(),
-    clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() }, idGen: { newId: randomUUID },
+    createHash, clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() }, idGen: { newId: randomUUID },
     postRepo: db ? new SqlitePostRepo({ store: db, mediaAccessEvidence }) : new InMemoryPostRepo({}, { mediaAccessEvidence }), entryRepo: db ? entryRepoFor({ store: db, mediaAccessEvidence }) : trashAwareEntryRepo({ mediaAccessEvidence }), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
   };
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },

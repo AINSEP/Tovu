@@ -204,7 +204,8 @@ describeEachDialect("trash and purge on a database migrated past 0011", { tables
     const kernel = make();
     await seed(kernel);
     let n = 0;
-    const user = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: kernel, purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues }), idGen: { next: () => `evt-${++n}` }, clock: { nowIso: () => AT } });
+    const userKernel = schemaErasedKernel({ store: kernel });
+    const user = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: userKernel, purge: new KernelUserPurge({ kernel: userKernel, eventValues: outboxEventValues }), idGen: { next: () => `evt-${++n}` }, clock: { nowIso: () => AT } });
 
     assert.equal((await user.hide({ workspaceId: WS, entityId: "u-1", at: AT, expectedVersion: null })).ok, true);
     assert.equal(await user.purge({ workspaceId: WS, entityId: "u-1", expectedVersion: null }), "purged");

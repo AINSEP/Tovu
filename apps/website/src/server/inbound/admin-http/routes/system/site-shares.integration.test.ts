@@ -1,5 +1,10 @@
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import test from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -74,7 +79,7 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
   const activeThemeId = await deps.resolveActiveThemeId();
   const ownerPrincipalId = await deps.ownerPrincipalId;
   const before = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
-  const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+  const { media } = await uploadMedia({ deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, filename: "export-shared.svg", contentType: "image/svg+xml", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'), createdByPrincipal: ownerPrincipalId } });
   // The seeded Home Page claims "/" through the theme's "index" template, which needs a content slot.
   // Copy the active theme's manifest: the first valid catalog theme may declare no templates at all,
@@ -86,6 +91,7 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
   deps.themes = themes;
   let renders = 0;
   deps.siteShareBackend = createSiteShareBackend({ site: deps.workspaceId, registry: new SiteShareRegistry({ directory: path.join(directory, "shares"), now: () => Date.now() }), zip: zipFolderFiles,
+    createBundledFilePolicy: () => createBundledExportFilePolicy({ selection: SELECTED_AGENT_PLUGIN_PACKAGES }),
     prepare: async () => { throw new Error("A static export must not prepare a backup"); }, delivery: async () => { throw new Error("A static export must stay private"); },
     staticSite: { now: () => new Date("2026-10-30T17:15:00Z"), context: async () => ({ name: "Picker Test", slug: "picker-test", theme: "Active", themeId: activeThemeId }),
       themes: () => themes.map(theme => ({ themeId: theme.manifest.id, title: theme.manifest.id })),
@@ -97,7 +103,9 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
     const response = await fetch(root + "/static", { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(input) });
     assert.equal(response.status, 200); return response.json() as Promise<Record<string, unknown>>;
   };
-  const tool = buildSiteBackupRegistrations({ deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, siteShareBackend: deps.siteShareBackend } as import("#src/features/site-backup/backup-service").SiteBackupToolDeps, surfaces: {} as never }, {}).find(tool => tool.descriptor.id === "site_export_static")!;
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: deps.clock, idGenerator: deps.idGen, defaultChannel: "mcp-ui" });
+  const tool = buildSiteBackupRegistrations({ deps, surfaces: { surfaceExchanges } }, {}).find(tool => tool.descriptor.id === "site_export_static");
+  assert.ok(tool);
   const invoke = (input: unknown) => Promise.resolve(tool.handler({ executionId: "picker-export", principal: { id: ownerPrincipalId }, run: { id: "picker-run" }, input, signal: new AbortController().signal })) as Promise<Record<string, unknown>>;
   for (const start of [post, invoke]) {
     let result = await start({ themeIds: ["inactive-picker", activeThemeId] });

@@ -6,7 +6,7 @@ import test from "node:test";
 import { EgressRefusedError, type HttpRequest, type HttpResponse } from "#src/platform/http/index";
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { buildSiteInspectionRegistrations } from "../tool-registrations.js";
 import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 const origin = 'https://site.example';
@@ -72,7 +72,7 @@ test("the production publish-history adapter retains old live URLs beyond the li
 });
 test("old distinct publish URLs survive more than 200 later publishes and stay workspace-scoped", async () => {
   const { InMemoryPublishHistoryStore } = await import('@jini-ai/devops/deploy/site/static-publish/publish-history');
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const entry = { target: 'test', url: 'https://old.example', reachable: true, status: 'published', projectName: 'test', publishedAt: '2026-10-01', triggeredBy: 'agent_tool' as const };
   await history.recordSuccess({ workspaceId: 'w', entry });
   for (let i = 0; i < 205; i++) await history.recordSuccess({ workspaceId: 'w', entry: { ...entry, url: origin } });

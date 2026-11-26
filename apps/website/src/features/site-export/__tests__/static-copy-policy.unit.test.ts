@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -130,7 +131,7 @@ test("static publish pins about/index.html, media and theme paths, root links an
   let files: readonly DeployFile[] = [];
   const target: LoadedDeployTarget = { descriptor: { id: "fixture", label: "Fixture", module: "fixture.mjs", configFields: [] }, pluginId: "fixture", module: { create: () => ({ id: "fixture", publish: async (input: { files: readonly DeployFile[] }) => { files = input.files; return { targetId: "fixture", url: PUBLIC, status: "ready" }; }, checkReachability: async () => ({ reachable: true }) }) } };
   let receiverPrepared = false;
-  const outcome = await publishStaticSite({ credentialSource: { resolve: async () => ({ ok: true, token: "fixture" }), isConfigured: async () => ({ configured: true }) },
+  const outcome = await publishStaticSite({ credentialSource: { resolve: async () => ({ ok: true, token: "fixture", basis: { kind: "env" } }), isConfigured: async () => ({ configured: true, basis: { kind: "env" } }) },
     formDestination: { previewInput: async () => ({}), prepare: async () => { receiverPrepared = true; return { hosting: { forms: [{ slug: "contact", fields: [] }] } }; } },
     loadDeployTargets: async () => ({ refusals: [], get: () => target, list: () => [target] }),
   }, { workspaceId: deps.workspaceId, publishOutputRootDir: outputDir, idGen: deps.idGen,
@@ -197,7 +198,7 @@ test("static download excludes a saved private Library document and removes ever
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: document!.source.sha256 });
   assert.equal(blob?.documentOwned, true, "fixture must use assistant-only Library ingestion, not public media");
   const { media: publicImage } = await uploadMedia({
-    deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+    deps: { createHash, clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
       renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><circle r="2"/></svg>'),
       filename: "public-mark.svg", contentType: "image/svg+xml", createdByPrincipal: "owner" },

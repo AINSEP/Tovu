@@ -3,6 +3,7 @@ import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import type { HttpClientPort } from "#src/platform/http/index";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -24,7 +25,8 @@ async function fixture(t: test.TestContext) {
   let ids = 0;
   let fetches = 0;
   const permissions: unknown[] = [];
-  const deps: MediaImportToolDeps = {
+  const deps: Omit<MediaImportToolDeps, "mediaImportHttpClient"> & { mediaImportHttpClient: HttpClientPort } = {
+    createHash,
     workspaceId: "workspace-local", siteBinding: { dir: root },
     clock: { nowMs: () => Date.parse("2026-10-17T12:00:00Z") }, idGen: { newId: () => `id-${++ids}` },
     authorize: async input => { permissions.push(input); return { allowed: true, reason: "matched" }; },
@@ -32,14 +34,20 @@ async function fixture(t: test.TestContext) {
     mediaContentTypeStore: new SqliteMediaContentTypeStore({ store: db }), blobStore: new InMemoryBlobStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     resolveRoots: () => ({ repo: root, site: root, custom: root }),
-    mediaImportHttpClient: { send: async () => { fetches++; return { status: 200, headers: {}, bodyText: "", bodyBytes: replacement, bodyTruncated: false }; } },
+    mediaImportHttpClient: { send: async ({ method, url }) => {
+      fetches++;
+      assert.equal(method, "GET");
+      assert.ok(url === "https://cdn.example.com/new.png" || url === "https://origin.example.com/new.png?token=secret#private");
+      return { status: 200, headers: {}, bodyText: "", bodyBytes: replacement, bodyTruncated: false };
+    } },
   };
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, filename: "original.png", contentType: "image/png", bytes: png,
       alt: "keep alt", caption: "keep caption", credit: "keep credit", createdByPrincipal: "creator" } });
   await deps.assetRenditionRepo.save({ id: "old-preview", workspaceId: deps.workspaceId, assetId: media.id,
     transformName: "public", version: 1, storageKey: "old-preview-key", createdAt: media.createdAt });
-  const registration = buildMediaImportRegistrations({ deps, resolvePublicUrls: resolveMediaPublicUrls }, {}).find(tool => tool.descriptor.id === "media_replace_file")!;
+  const registration = buildMediaImportRegistrations({ deps, resolvePublicUrls: resolveMediaPublicUrls }, {}).find(tool => tool.descriptor.id === "media_replace_file");
+  assert.ok(registration);
   const run = async (input: Record<string, unknown>) => registration.handler({ input, executionId: "exec", run: { id: "run" },
     principal: { id: "owner" }, signal: new AbortController().signal } as ToolExecutionContext,
   { emitSurface: async () => { assert.fail("replacement must not ask for deletion approval"); } }) as Promise<{ media: { id: string; slug: string; version: number; sha256: string } }>;
@@ -50,8 +58,11 @@ for (const source of ["local", "url"]) test(`${source} replacement restamps JPEG
   const f = await fixture(t);
   fs.writeFileSync(path.join(f.root, "new.png"), replacement);
   const send = f.deps.mediaImportHttpClient.send;
-  f.deps.mediaImportHttpClient.send = async request => ({ ...await send(request), headers: { "Content-Type": "image/png" },
-    finalUrl: "https://user:secret@cdn.example.com/final.png?token=secret#private" });
+  f.deps.mediaImportHttpClient.send = async (request, optional) => {
+    assert.equal(request.url, "https://origin.example.com/new.png?token=secret#private");
+    return { ...await send(request, optional), headers: { "Content-Type": "image/png" },
+      finalUrl: "https://user:secret@cdn.example.com/final.png?token=secret#private" };
+  };
   const input = source === "local" ? { root: "site", path: "new.png" } : { url: "https://origin.example.com/new.png?token=secret#private" };
   const result = await f.run({ mediaId: f.media.id, ...input });
   const sha256 = createHash("sha256").update(replacement).digest("hex");
@@ -153,10 +164,10 @@ test('trashed media and adapters without atomic replacement refuse before any fe
 test('oversized and unsupported local replacement bytes leave the media unchanged', async t => {
   const f = await fixture(t);
   fs.writeFileSync(path.join(f.root, 'bad.png'), '<html>not an image</html>');
-  await assert.rejects(f.run({ mediaId: f.media.id, root: 'repo', path: 'bad.png' }));
+  await assert.rejects(f.run({ mediaId: f.media.id, root: 'site', path: 'bad.png' }), /'bad\.png' is not an importable file: its actual bytes are 'text\/html'/);
   fs.writeFileSync(path.join(f.root, 'large.png'), replacement);
   f.deps.mediaImportLocalMaxBytes = replacement.byteLength - 1;
-  await assert.rejects(f.run({ mediaId: f.media.id, root: 'repo', path: 'large.png' }));
+  await assert.rejects(f.run({ mediaId: f.media.id, root: 'site', path: 'large.png' }), /file 'large\.png' is 4 bytes and exceeds the 3-byte import limit/);
   assert.deepEqual(await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }), f.media);
   assert.equal((await f.deps.assetBlobRepo.list({ workspaceId: f.deps.workspaceId })).length, 1);
 });

@@ -2,7 +2,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { Server } from "node:http";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -765,6 +765,7 @@ test("exportSite: a post embedding a media image exports it under its readable /
   const routeDeps = createRouteDeps();
   const { media } = await uploadMedia({
     deps: {
+      createHash,
       clock: routeDeps.clock,
       idGen: routeDeps.idGen,
       mediaRepo: routeDeps.mediaRepo,

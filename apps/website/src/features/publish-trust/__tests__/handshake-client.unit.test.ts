@@ -10,9 +10,8 @@ import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import {
   fetchDestinationIdentity,
   openPublishSession,
-  PublishTrustHandshakeError,
-  type PublishTrustHandshakeFailure,
 } from "@jini-ai/cms/publish/trust/handshake-client";
+import { PublishTrustHandshakeError, type PublishTrustHandshakeFailure } from "@jini-ai/cms/publish/trust/handshake-error";
 import { deriveInstallationId, derivePublishSigningKey, verifyPublishSignature } from "@jini-ai/cms/publish/trust/keys";
 
 /**

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { downloadForms } from '@jini-ai/devops/backup/site/static-download-html';
-import * as sourceEdits from '@jini-ai/cms/html/site/source-edits';
+import { downloadHtmlSourceEdits as sourceEdits } from "#src/features/site-backup/download-html-source-edits";
 
 test('download forms cannot submit answers through native GET, implicit submit or external controls', () => {
   const html = '<form id="contact" action="/forms/contact/submit" method="post"><input name="secret"><button formaction="/leak">Send</button></form><input form="contact" name="outside"><button form="contact">Send</button>';
@@ -13,7 +13,7 @@ test('download forms cannot submit answers through native GET, implicit submit o
   assert.equal(document.forms[0]!.hasAttribute('action'), false);
   assert.equal(document.forms[0]!.id, 'contact');
   assert.match(document.body.textContent!, /needs a server/);
-  assert.equal(result.removed.length, 1);
+  assert.deepEqual(result.removed, [{ page: '/contact/', url: '/forms/contact/submit', attribute: 'action', reason: 'needs-server' }]);
 });
 
 test('explicit empty actions require a server; external receivers remain usable', () => {
@@ -32,5 +32,6 @@ test('downloaded backend forms retain form selectors and cannot override dialog 
   const result = downloadForms({ html: '<form id="f" action="/forms/contact/submit" method="post"><button formmethod="post" formaction="/leak">Send</button></form><button form="f" formmethod="get">Outside</button>', page: '/', sourceEdits });
   const document = new JSDOM(result.html).window.document;
   assert.equal(document.querySelectorAll('form').length, 1);
-  for (const control of document.querySelectorAll('[formmethod]')) assert.equal(control.getAttribute('formmethod'), 'dialog');
+  assert.equal(document.querySelector('form#f > button')?.getAttribute('formmethod'), 'dialog');
+  assert.equal(document.querySelector('button[form="f"]')?.getAttribute('formmethod'), 'dialog');
 });

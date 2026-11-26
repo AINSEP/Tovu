@@ -4,7 +4,7 @@ import test from "node:test";
 import { selectConnectedDestination, type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 import { listKnownLiveOrigins } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { fetchPublishedPage, type FetchPublishedPageDeps, type FetchPublishedPageOptions } from "@jini-ai/diagnostics/web-evidence/published-page";
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 

@@ -137,20 +137,22 @@ test("user projection preserves last-login metadata and grants without emitting 
   };
   const user = {
     principalId: "user-9", workspaceId: "ws-7", username: "admin-nine", email: "admin@example.org",
-    lastLoginAt: "2026-09-11T00:00:00Z", passwordHash: "never-expose",
+    lastLoginAt: "2026-09-11T00:00:00Z", passwordHash: "never-expose", version: 7,
   };
   assert.deepEqual(toAdminUserResponse({ principal, user, roleIds: ["role-3", "role-8"], policyIds: ["policy-5"] }), {
     principalId: "user-9", workspaceId: "ws-7", username: "admin-nine", email: "admin@example.org", status: "disabled",
-    createdAt: "2026-09-08T00:00:00Z", lastLoginAt: "2026-09-11T00:00:00Z", roleIds: ["role-3", "role-8"], policyIds: ["policy-5"],
+    createdAt: "2026-09-08T00:00:00Z", lastLoginAt: "2026-09-11T00:00:00Z", roleIds: ["role-3", "role-8"], policyIds: ["policy-5"], version: 7,
   });
 });
 
 test("role and policy projections retain built-in and frozen flags without internal fields", () => {
-  assert.deepEqual(toAdminRoleResponse({ id: "role-3", workspaceId: "ws-7", name: "Reviewer", isBuiltin: true, internal: "hidden" } as Parameters<typeof toAdminRoleResponse>[0]), {
-    id: "role-3", workspaceId: "ws-7", name: "Reviewer", isBuiltin: true,
+  const role = { id: "role-3", workspaceId: "ws-7", name: "Reviewer", isBuiltin: true, version: 3, internal: "hidden" };
+  const policy = { id: "policy-5", workspaceId: "ws-7", name: "Snapshot", description: "Issued grants", isBuiltin: false, isFrozen: true, version: 5, internal: "hidden" };
+  assert.deepEqual(toAdminRoleResponse(role), {
+    id: "role-3", workspaceId: "ws-7", name: "Reviewer", isBuiltin: true, version: 3,
   });
-  assert.deepEqual(toAdminPolicyResponse({ id: "policy-5", workspaceId: "ws-7", name: "Snapshot", description: "Issued grants", isBuiltin: false, isFrozen: true, internal: "hidden" } as Parameters<typeof toAdminPolicyResponse>[0]), {
-    id: "policy-5", workspaceId: "ws-7", name: "Snapshot", description: "Issued grants", isBuiltin: false, isFrozen: true,
+  assert.deepEqual(toAdminPolicyResponse(policy), {
+    id: "policy-5", workspaceId: "ws-7", name: "Snapshot", description: "Issued grants", isBuiltin: false, isFrozen: true, version: 5,
   });
 });
 

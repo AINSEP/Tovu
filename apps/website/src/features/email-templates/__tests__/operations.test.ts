@@ -37,7 +37,7 @@ function harness(options: { storeFactory?: (repo: InMemoryPostRepo, clock: { now
   let ms = Date.parse("2026-10-22T00:00:00.000Z");
   const clock = { nowMs: () => ms };
   let n = 0;
-  const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
+  const deps: EmailTemplateDeps = { EmailTemplateNotFoundError, PageConcurrentEditError,
     workspaceId: WS,
     postRepo: repo,
     clock,

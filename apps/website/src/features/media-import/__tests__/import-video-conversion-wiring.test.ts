@@ -11,7 +11,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { HttpResponse } from "#src/platform/http/index";
+import type { HttpClientPort, HttpResponse } from "#src/platform/http/index";
 import { buildMediaImportRegistrations, contributeMediaImportTools } from "../tool-registrations.js";
 import type { VideoImportOptions } from "../../media/import-video-conversion.js";
 import { createMediaBlobStore } from "../../object-storage/media-store.js";
@@ -32,13 +32,19 @@ function setup(t: test.TestContext, optional: { fail?: Error } = {}) {
   fs.mkdirSync(rootPath);
   t.after(() => siteLayouts.cleanup());
   let ids = 0;
-  const response: Partial<HttpResponse> = { status: 200, headers: { "content-type": "video/mp4" }, bodyText: "", bodyBytes: MP4 };
+  const response: HttpResponse = { status: 200, headers: { "content-type": "video/mp4" }, bodyText: "", bodyBytes: MP4, bodyTruncated: false };
+  const mediaImportHttpClient: HttpClientPort = { send: async ({ method, url }) => {
+    assert.equal(method, "GET");
+    assert.equal(url, "https://cdn.example/Holiday.mp4");
+    return response;
+  } };
   const deps: MediaImportToolDeps = testSiteLayoutContext({ ...siteLayouts.deps,
+    createHash,
     siteBinding: { ...siteLayouts.deps.siteBinding, dir: rootPath },
     workspaceId: WORKSPACE, clock: createFakeClock({ startIso: "2026-10-01T00:00:00.000Z" }), idGen: { newId: () => `conv-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
-    mediaImportHttpClient: { send: async () => response as HttpResponse },
+    mediaImportHttpClient,
     authorize: async () => ({ allowed: true, reason: "test" }),
     resolveRoots: () => ({ repo: rootPath, site: rootPath, custom: rootPath }),
   });
@@ -64,10 +70,15 @@ function setup(t: test.TestContext, optional: { fail?: Error } = {}) {
 
 async function assertOriginalKeptWithCopy(f: ReturnType<typeof setup>, originalId: string) {
   assert.equal(f.converted.length, 1, "the converter ran");
-  assert.deepEqual(Buffer.from(f.converted[0]!), MP4);
+  assert.deepEqual(f.converted.map(bytes => Buffer.from(bytes)), [MP4]);
   const all = await f.deps.mediaRepo.list({ workspaceId: WORKSPACE });
-  assert.ok(all.some((item) => item.id === originalId), "the original is kept and is what the tool returns");
-  assert.equal(all.filter((item) => item.id !== originalId).length, 1, "one converted copy next to the original");
+  const originalHash = createHash("sha256").update(MP4).digest("hex");
+  const convertedHash = createHash("sha256").update(CONVERTED).digest("hex");
+  assert.equal(all.find(item => item.id === originalId)?.source.sha256, originalHash);
+  assert.deepEqual(all.filter(item => item.id !== originalId).map(item => item.source.sha256), [convertedHash]);
+  const blob = await f.deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE, sha256: convertedHash });
+  assert.ok(blob);
+  assert.deepEqual(Buffer.from(await f.deps.blobStore.get({ storageKey: blob.storageKey })), Buffer.from(CONVERTED));
 }
 
 test("assistant URL import: a video over the import threshold is converted and the original is kept", async (t) => {
@@ -84,12 +95,16 @@ test("assistant local import: a video over the import threshold is converted and
 });
 
 test("assistant import: a failed conversion keeps the original, hands the raw cause only to the operator note, and the tool result carries no raw error text", async (t) => {
-  const f = setup(t, { fail: new Error("spawn /opt/secret/ffmpeg ENOENT") });
+  const failure = new Error("spawn /opt/secret/ffmpeg ENOENT");
+  const f = setup(t, { fail: failure });
   const result = await f.run("media_import_from_url", { url: "https://cdn.example/Holiday.mp4" });
-  assert.equal((await f.deps.mediaRepo.list({ workspaceId: WORKSPACE })).length, 1, "the original stays");
+  const all = await f.deps.mediaRepo.list({ workspaceId: WORKSPACE });
+  assert.deepEqual(all.map(item => [item.id, item.source.sha256]), [[result.media.id, createHash("sha256").update(MP4).digest("hex")]]);
   assert.equal(f.notes.length, 1);
-  assert.match(String((f.notes[0]!.cause as Error).message), /secret\/ffmpeg/, "the raw cause reaches the operator log");
-  assert.doesNotMatch(f.notes[0]!.note, /secret|ENOENT|spawn/, "the owner-facing sentence is plain words");
+  const [note] = f.notes;
+  assert.ok(note);
+  assert.equal(note.cause, failure, "the raw cause reaches the operator log");
+  assert.equal(note.note, "The video was saved as uploaded, but a web-playable copy could not be made.");
   assert.doesNotMatch(JSON.stringify(result), /secret|ENOENT|spawn/);
 });
 

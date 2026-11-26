@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { runThemeToggle, themeToggleScriptPath } from './theme-toggle-vm-harness.fixture.ts';
+import { runThemeToggle, themeToggleScriptPath } from './theme-toggle-vm-harness.fixture.js';
 
 const THEME_ID = 'tovu-starter';
 const ORIGINAL_KEY = 'tovu-starter:mode';

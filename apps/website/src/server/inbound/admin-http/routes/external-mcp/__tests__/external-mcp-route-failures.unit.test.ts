@@ -43,7 +43,7 @@ test('MCP probe: repository failure is a private 500 rather than an unreachable-
 
 test('MCP probe limiter uses the shared outbound call budget and restores it after the window', async () => {
   let now = 0;
-  const probeLimiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() } });
+  const probeLimiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: { nowMs: () => now } });
   // The shared profile is deliberately read from its owner, so this pins the route's choice.
   for (let index = 0; index < OUTBOUND_CALL_PER_IP.max + OUTBOUND_CALL_PER_IP.burst; index++) {
     assert.deepEqual(await probeLimiter.check({ key: 'client' }), { allowed: true });

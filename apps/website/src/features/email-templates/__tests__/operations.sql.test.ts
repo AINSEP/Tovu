@@ -10,7 +10,7 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
-import { SqlPagesHtmlDocumentStore, PageNotFoundError, PageKindMismatchError } from "@jini-ai/cms/pages/html-document-store";
+import { SqlPagesHtmlDocumentStore, PageNotFoundError, PageKindMismatchError, PageConcurrentEditError } from "@jini-ai/cms/pages/html-document-store";
 import { createEmailTemplate, editEmailTemplate, getEmailTemplate, listEmailTemplates } from "@jini-ai/platform/mail/email-template-operations";
 import { emailTemplateStore, type EmailTemplateDeps } from "@jini-ai/cms/posts/email-template-store";
 
@@ -29,7 +29,7 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
     const clock = createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" });
     const postRepo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
     let n = 0;
-    const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
+    const deps: EmailTemplateDeps = { EmailTemplateNotFoundError, PageConcurrentEditError,
       workspaceId: WS,
       postRepo,
       clock,
@@ -55,7 +55,7 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
     const clock = createFakeClock({ startIso: '2026-10-22T00:00:00.000Z' });
     const postRepo = postRepoFor({ kernel, mediaAccessEvidence: createMediaAccessEvidence() }, {});
     const fault = new Error('conversion failed');
-    const deps: EmailTemplateDeps = { EmailTemplateNotFoundError, workspaceId: WS, postRepo, clock, idGen: { newId: () => 'failed-template' },
+    const deps: EmailTemplateDeps = { EmailTemplateNotFoundError, PageConcurrentEditError, workspaceId: WS, postRepo, clock, idGen: { newId: () => 'failed-template' },
       pagesHtmlStore: (scope, options = {}) => {
         const store = new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock,
           revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });

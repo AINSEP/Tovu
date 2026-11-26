@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -95,6 +96,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
   let completed = false;
   let id = 0;
   const signIn = requestSignInLink({ deps: {
+    orFallbackSync,
     clock: createFakeClock({ startIso: now }), ids: { newId: () => `id-${++id}` },
     members: new InMemoryMemberRepo(), tiers: new InMemoryMemberTierRepo(),
     subscriptions: new InMemoryMemberSubscriptionRepo(), sessions: new InMemoryMemberSessionRepo(),

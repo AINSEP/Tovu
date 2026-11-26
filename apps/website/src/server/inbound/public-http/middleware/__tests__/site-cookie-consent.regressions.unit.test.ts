@@ -175,7 +175,7 @@ test('two app builds share one pending refresh and off-mode assets and consent d
   t.after(() => release());
   let reads = 0;
   const readPublished = f.store.readPublished.bind(f.store);
-  const consent = { regionResolvers: async () => [], scriptDeclarations: async () => ({ scripts: [] }) };
+  const consent = { regionResolvers: async () => [], scriptDeclarations: async () => ({ scripts: [], problems: [] }) };
   const deps = { consentStore: { ...f.store, readPublished: async () => { reads++; await held; return readPublished({}); } },
     siteConsentReady: Promise.resolve(), siteBinding: { dir: '/unused-consent-fixture' }, cookieConsent: consent,
     clock: { nowMs: () => 1_800_000_000_000, nowIso: () => '2027-01-15T08:00:00.000Z' },

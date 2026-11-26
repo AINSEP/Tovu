@@ -22,13 +22,13 @@ const plain = (res: { status(code: number): { type(kind: string): { send(body: s
 
 function rawSpec({ crash = false, method = "get" as "get" | "post" } = {}) {
   return defineRawRoute<Deps, { id: string }>({
-    method, path, maxBodyBytes: 64,
+    method, path,
     handle: async ({ raw, authorize }) => {
       await authorize?.({ permission: "probe.read" });
       if (crash) throw new Error("secret /var/db/site.sqlite");
       return new Response(JSON.stringify(raw.body ?? null), { headers: { "content-type": "application/json" } });
     },
-  });
+  }, { maxBodyBytes: 64 });
 }
 
 /** Registered handler names of the one route on `path`. */
@@ -40,9 +40,9 @@ test("payloadTooLarge writes the host 413 ahead of the workspace 404 and the han
   const writer = ({ res, maxBytes }: { res: express.Response; maxBytes: number }) => { res.status(413).json({ error: "Content too large to save.", code: "PAYLOAD_TOO_LARGE", maxBytes }); };
   const calls: string[] = [];
   const json = defineJsonRoute<unknown, { ok: true }, Deps, { id: string }>({
-    method: "post", path: "/api/admin/v1/workspaces/:workspaceId/optin-json", maxBodyBytes: 64,
+    method: "post", path: "/api/admin/v1/workspaces/:workspaceId/optin-json",
     parse: ({ body }) => ok({ value: body }), handle: async () => { calls.push("json"); return ok({ value: { ok: true } }); },
-  });
+  }, { maxBodyBytes: 64 });
   mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec: json, deps: deps() }, { payloadTooLarge: writer });
   mountAdminRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: rawSpec({ method: "post" }), deps: deps() }, { payloadTooLarge: writer });
   const server = await listen({ app });
@@ -130,7 +130,7 @@ test("requestDeps hands each request its own bound deps through the admin and pu
   type Bound = Deps & { who: () => string };
   const mounted: Bound = { ...deps(), who: () => "nobody" };
   const bind = ({ req, deps: base }: { req: express.Request; deps: Bound }): Bound => ({ ...base, who: () => String(req.headers["x-who"] ?? "") });
-  const jsonAt = (at: string) => defineJsonRoute<unknown, { who: string }, Bound, { id: string }>({ method: "get", path: at, parse: () => ok({ value: undefined }), handle: async ({ deps: d }) => ok({ value: { who: d.who() } }) });
+  const jsonAt = (at: string) => ({ method: "get" as const, path: at, parse: () => ok({ value: undefined }), handle: async ({ deps: d }: { deps: Bound }) => ok({ value: { who: d.who() } }) });
   const rawAt = (at: string) => defineRawRoute<Bound, { id: string }>({ method: "get", path: at, handle: async ({ deps: d }) => new Response(JSON.stringify({ who: d.who() })) });
   const { mountPublicJsonRoute } = await import("../admin-json-route-ports.js");
   const { mountPublicRawRoute } = await import("../admin-raw-route-ports.js");
