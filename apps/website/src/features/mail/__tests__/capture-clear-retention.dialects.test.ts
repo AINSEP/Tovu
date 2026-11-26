@@ -10,6 +10,7 @@ import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "#sr
 import { MAIL_CAPTURE_CLEAR_PERMISSION } from "@jini-ai/core/contracts/mail";
 import { planMailCaptureClear } from "@jini-ai/user-management/mail/site/capture-clear";
 import { MailActivityForbiddenError } from "@jini-ai/platform/mail";
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 
 /**
  * Owner decision 2026-11-23 (bt2-todos G7-6/847, G7-7/848): sent-email records are kept 30 days,
@@ -21,7 +22,8 @@ const NOW = Date.parse("2026-11-24T12:00:00Z");
 const iso = (n: number) => new Date(n).toISOString();
 const msg = (workspaceId: string) => ({ workspaceId, to: { email: "qa@example.com" }, from: { email: "s@example.com" }, subject: "Test", text: "body" });
 
-type Db = Parameters<typeof purgeExpiredMail>[0]["db"];
+/** The dialect matrix hands out the typed content kernel; the mail repos take it through their generic `DB`. */
+type Db = ContentKernel;
 async function seed(db: Db, { workspaceId, at, key }: { workspaceId: string; at: number; key: string }) {
   await createMailCaptureRepo({ db }, { nowIso: () => iso(at) }).capture({ message: msg(workspaceId), lane: "transactional", idempotencyKey: key });
   const ledger = createMailSendLedgerRepo({ db }, { nowIso: () => iso(at) });
