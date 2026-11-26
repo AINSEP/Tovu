@@ -9,7 +9,7 @@ import * as yauzl from 'yauzl';
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
 import { downloadDocuments } from '../../media/__tests__/download-documents.fixture.js';
 import { assetToolHarness } from './asset-tool-fixture.js';
-import { FS_FILES_READ_PERMISSION } from '../agent-tools.js';
+import { FS_FILES_READ_PERMISSION } from '@jini-ai/cms/fs-files/agent-tools';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
 const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };

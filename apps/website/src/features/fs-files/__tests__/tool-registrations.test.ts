@@ -6,9 +6,10 @@ import path from "node:path";
 import test from "node:test";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import { getFsFilesAgentToolCatalog, FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID, FS_WRITE_FILES_TOOL_ID } from "../agent-tools.js";
-import { FS_ROOT_IDS, type FsRootId } from "../layout.js";
-import { buildFsFilesRegistrations, fsFilesDerivedRisk, type FsFilesToolDeps, contributeFsFilesTools } from "../tool-registrations.js";
+import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID, FS_WRITE_FILES_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
+import { MAX_FS_FILE_BYTES } from "../fs-files.js";
+import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS, type FsRootId } from "../layout.js";
+import { buildFsFilesRegistrations, fsFilesDerivedRisk, getHostFsFilesAgentToolCatalog, type FsFilesToolDeps, contributeFsFilesTools } from "../tool-registrations.js";
 
 /**
  * @file The `fs_list_files`/`fs_read_file` registrations — their catalog shape, their permission
@@ -59,8 +60,8 @@ function handlerFor(registrations: ReturnType<typeof buildFsFilesRegistrations>,
 // ---------------------------------------------------------------------------
 
 test("the catalog declares exactly the two documented read tools, both read-only, both content.read-gated, plus the carded picked-folder write", () => {
-  const catalog = getFsFilesAgentToolCatalog().filter((d) => d.name !== FS_WRITE_FILES_TOOL_ID);
-  assert.equal(getFsFilesAgentToolCatalog().length, 3);
+  const catalog = getHostFsFilesAgentToolCatalog().filter((d) => d.name !== FS_WRITE_FILES_TOOL_ID);
+  assert.equal(getHostFsFilesAgentToolCatalog().length, 3);
   assert.equal(catalog.length, 2);
   for (const definition of catalog) {
     assert.equal(definition.sideEffects, "none");
@@ -73,16 +74,29 @@ test("the catalog declares exactly the two documented read tools, both read-only
   );
 });
 
+// The catalog is Jini's, bound in `tool-registrations.ts` to this host's roots and read ceiling: an
+// unbound or mis-bound call would publish a root enum the handlers refuse, or a byte cap they do not
+// enforce.
+test("the host binding publishes this host's root enum, root descriptions and read ceiling", () => {
+  const byId = new Map(getHostFsFilesAgentToolCatalog().map((d) => [d.name, d]));
+  for (const id of [FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID]) {
+    const root = (byId.get(id)?.inputSchema as { properties: { root: { enum: string[]; description: string } } }).properties.root;
+    assert.deepEqual(root.enum, [...FS_ROOT_IDS]);
+    for (const descriptor of FS_ROOT_DESCRIPTORS) assert.ok(root.description.includes(`'${descriptor.id}': ${descriptor.description}`), descriptor.id);
+  }
+  assert.ok(byId.get(FS_READ_FILE_TOOL_ID)?.description.includes(`larger than ${MAX_FS_FILE_BYTES} bytes`));
+});
+
 // Owner 2026-10-27: `fs_write_files` (picked folder only, one card per batch) is the one write.
 test("the catalog exposes no other write/edit/delete/rename tool", () => {
-  const names = getFsFilesAgentToolCatalog().map((d) => d.name);
+  const names = getHostFsFilesAgentToolCatalog().map((d) => d.name);
   for (const forbidden of ["fs_write_file", "fs_edit_file", "fs_delete_file", "fs_rename_file"]) {
     assert.ok(!names.includes(forbidden), `'${forbidden}' must not exist in this domain`);
   }
 });
 
 test("fs_read_file's schema requires both root and path; fs_list_files requires only root", () => {
-  const byId = new Map(getFsFilesAgentToolCatalog().map((d) => [d.name, d]));
+  const byId = new Map(getHostFsFilesAgentToolCatalog().map((d) => [d.name, d]));
   const readSchema = byId.get(FS_READ_FILE_TOOL_ID)?.inputSchema as Record<string, unknown>;
   const listSchema = byId.get(FS_LIST_FILES_TOOL_ID)?.inputSchema as Record<string, unknown>;
   assert.deepEqual(readSchema.required, ["root", "path"]);

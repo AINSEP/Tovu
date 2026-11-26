@@ -39,7 +39,7 @@ import { publishContentAgentToolCatalog } from "@jini-ai/cms/publish/content/age
 import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
-import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
+import { getHostFsFilesAgentToolCatalog } from "../../features/fs-files/tool-registrations.js";
 import { externalMcpAgentToolCatalog, externalMcpOperationsToolCatalog } from "../../features/external-mcp/external-mcp-host-copy.js";
 import { askAgentPluginChoice, askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
@@ -357,7 +357,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // external-mcp differs from the single re-auth notice in external-mcp-reauth.
   "external-mcp": externalMcpAgentToolCatalog as unknown as AgentToolDefinition[],
   "external-mcp-operations": externalMcpOperationsToolCatalog as unknown as AgentToolDefinition[],
-  "fs-files": getFsFilesAgentToolCatalog() as unknown as AgentToolDefinition[],
+  "fs-files": getHostFsFilesAgentToolCatalog() as unknown as AgentToolDefinition[],
   "publish-content": publishContentAgentToolCatalog as unknown as AgentToolDefinition[],
   // Permanent deletes have their own confirmed-call contributor; trash owns list/restore.
   // The catalog enum must match the fixture's reachable kinds: fakeRouteDeps has no registry,

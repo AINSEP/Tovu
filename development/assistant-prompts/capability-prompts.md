@@ -635,8 +635,8 @@ packages are shown by their source path. `publish_content_publish` is uncommitte
 | `forms_list_submissions` | R | `apps/website/src/features/forms/agent-tools.ts:262` |
 | `forms_set_definition_status` | W | `apps/website/src/features/forms/tool-registrations.ts:334` |
 | `forms_update_definition` | W | `apps/website/src/features/forms/tool-registrations.ts:314` |
-| `fs_list_files` | R | `apps/website/src/features/fs-files/agent-tools.ts:124` |
-| `fs_read_file` | R | `apps/website/src/features/fs-files/agent-tools.ts:125` |
+| `fs_list_files` | R | `@jini-ai/cms/src/fs-files/agent-tools.ts:43` |
+| `fs_read_file` | R | `@jini-ai/cms/src/fs-files/agent-tools.ts:44` |
 | `identity_policy_attach` | W | `@jini-ai/user-management/src/server/agent-tools.ts:313` |
 | `identity_policy_create` | W | `@jini-ai/user-management/src/server/agent-tools.ts:267` |
 | `identity_policy_delete` | W | `apps/website/src/features/identity/tool-registrations.ts` |

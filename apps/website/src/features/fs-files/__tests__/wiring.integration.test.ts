@@ -14,7 +14,7 @@ import { installFirstPartyToolContributors } from "../../../server/runtime/compo
 
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID } from "../agent-tools.js";
+import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor<ReturnType<typeof toAssistantRegistryDeps>, AssistantSurfaceDeps> }) => contribution.domain }),

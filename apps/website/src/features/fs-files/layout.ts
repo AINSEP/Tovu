@@ -6,7 +6,7 @@ import { getCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 
 /**
  * @file Filesystem layout for the `fs_list_files`/`fs_read_file` agent-tool domain
- * (`agent-tools.ts`/`fs-files.ts`) — THREE broad roots, resolved without any `server/**` import
+ * (`tool-registrations.ts`/`fs-files.ts`; catalog in `@jini-ai/cms/fs-files/agent-tools`) — THREE broad roots, resolved without any `server/**` import
  * (`.dependency-cruiser.mjs`'s `feature-no-server-or-framework-imports` forbids that from
  * `features/**`). Mirrors `features/skills/layout.ts`/`features/agent-plugins/layout.ts`, which solve
  * the identical "a feature needs a real site-relative directory but must not import the composition

@@ -12,7 +12,7 @@ import { fetchImage, MEDIA_IMPORT_POLICY } from "../media-import/fetch-image.js"
 import { isImportShapeRejection, withCallerSafeEgressRefusal } from "../media-import/tool-registrations.js";
 import { ASSET_SOURCE_SCHEMA, readAssetSource, readLocalFile, resolveAssetSource } from "./asset-sources.js";
 import { prepareAssetWrites, requireAssetDestination, writeAssetFiles, type AssetFile, type AssetHostPort, type AssetToolDeps, type OverwritePolicy, type PreparedAssets } from "./asset-destinations.js";
-import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
+import { FS_FILES_READ_PERMISSION } from "@jini-ai/cms/fs-files/agent-tools";
 import { listFsFiles } from "../fs-files/fs-files.js";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FsWriteInputError } from "@jini-ai/cms/fs-files/write-files";
