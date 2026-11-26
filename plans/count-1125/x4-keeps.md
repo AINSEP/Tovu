@@ -7,8 +7,11 @@ Appendix B was not supplied. This is not the 177-path STAYS-HOST ledger and is n
 - `apps/admin/src/components/AssistantDock/hooks/runtime-access.hooks.ts`
 - `apps/admin/src/components/AssistantDock/hooks/composer-discovery.hooks.ts`
 - `apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx`
+- `apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx`
 - `apps/admin/src/features/deployment/deployment-panel.tsx`
 - `apps/admin/src/features/import-export/ImportExport.tsx`
+- `apps/admin/src/features/plugins/hooks/use-agent-plugins.hooks.ts`
+- `apps/admin/src/features/settings/ExternalMcpSettingsPanel.hooks.tsx`
 - `apps/admin/src/features/security/RecoveryCodesCard.tsx`
 - `apps/admin/src/features/security/other-credential-stores.ts`
 - `apps/admin/src/features/storage/api/storage-api.ts`

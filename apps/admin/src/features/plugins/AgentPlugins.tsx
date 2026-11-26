@@ -11,8 +11,13 @@ import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import "@jini-ai/admin/shell/components/InstallTabCard/install-tab-card.css";
 import { AddAgentPluginPanel } from "@jini-ai/admin/screens/plugins/AddAgentPluginPanel";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
-import type { AgentPluginDetailsModalProps } from "./AgentPluginDetailsModal";
-import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
+import type { AgentPluginDetailsModalProps } from "@jini-ai/agent-plugins/react/AgentPluginDetailsModal";
+import { AgentPluginDetailsModal } from "@jini-ai/agent-plugins/react/AgentPluginDetailsModal";
+import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
+import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
+import { PackageFilesModal } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
+import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
+import { useHostAdminSurfaceFrame } from "./hooks/use-host-admin-surface-frame.hooks";
 import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
 import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
@@ -504,7 +509,7 @@ function AgentPluginsScreen(props: AgentPluginsProps) {
           fullscreenEnabled={false}
           labels={{ kicker: t("Plugins") }}
         />
-        {inspectedPlugin ? <AgentPluginDetailsModal useDetails={props.useDetails} useAgentPluginMemoryHook={props.useAgentPluginMemoryHook} useAgentPluginDetailsViewHook={props.useAgentPluginDetailsViewHook} useAgentPluginSurfacesHook={props.useAgentPluginSurfacesHook} plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
+        {inspectedPlugin ? <AgentPluginDetailsModal kit={{ AgentPluginMemoryPanel, AgentPluginMaturity, PackageFilesModal, AgentPluginSurfaceFrame }} useHostAdminSurfaceFrame={useHostAdminSurfaceFrame} surfacesPort={defaultAgentPluginSurfacesPort} useDetails={props.useDetails} useAgentPluginMemoryHook={props.useAgentPluginMemoryHook} useAgentPluginDetailsViewHook={props.useAgentPluginDetailsViewHook} useAgentPluginSurfacesHook={props.useAgentPluginSurfacesHook} plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
         {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
             rules={pluginRules}

@@ -1,4 +1,4 @@
-import { PublishContentReportRow } from "./PublishContentDialog.hooks";
+import { PublishContentReportRow } from "@jini-ai/cms/react/publish-content/PublishContentDialog.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";

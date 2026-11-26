@@ -1,4 +1,4 @@
-import { useAgentPlugins as jiniUseAgentPlugins, type AgentPluginsController } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
+import { useAgentPlugins as jiniUseAgentPlugins, useWiredAgentPlugins as jiniUseWiredAgentPlugins, type AgentPluginsController } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -33,7 +33,5 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
  * `createFakeAgentPluginsPort`.
  */
 export function useWiredAgentPlugins(): AgentPluginsController {
-  const locale = useAdminLocale();
-  const t = (key: string): string => translatePlugins({ locale: locale, key: key });
-  return useAgentPlugins({ port: defaultAgentPluginsPort, locale, t });
+  return jiniUseWiredAgentPlugins({ useAdminLocaleHook: useAdminLocale, port: defaultAgentPluginsPort, useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate, useContentRefreshSubscription, resource: AGENT_PLUGINS_RESOURCE, toggleRefusalKeys: TOGGLE_REFUSAL_KEYS, translatePlugins, describeApiError, isApiError: (error): error is ApiError => error instanceof ApiError });
 }

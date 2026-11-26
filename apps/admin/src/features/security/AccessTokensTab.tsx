@@ -12,7 +12,7 @@ import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { fieldHelpText } from "@jini-ai/devops/deploy/react/rules";
-import { removeDialogBody, removeDialogTitle } from "@/lib/i18n-common";
+import { removeDialogBody, removeDialogTitle, otherCredentialRemoveDialogBody } from "@/lib/i18n-common";
 import { removeDialogLastRowNote, sharedKeyReplaceWarning } from "@jini-ai/admin/security/security-i18n";
 import { ACCESS_TOKEN_CATEGORIES } from "./rules";
 import type { AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
@@ -33,7 +33,8 @@ import type {
 } from "./hooks/use-access-tokens.hooks";
 import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
-import { OtherCredentialEntry } from "./OtherCredentialsSection";
+import { OtherCredentialEntry } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection";
+import { useOtherCredentialRemoveDialog } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection.hooks";
 import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsOrder } from "./AccessTokensTab.hooks";
 import { CopyKeysDialog } from "@jini-ai/admin/security/host/CopyKeysDialog";
 import { useWiredCopyKeys } from "./hooks/copy-keys-dependencies.hooks";
@@ -185,7 +186,7 @@ function AccessTokensBody({ controller, otherController,
           entry.kind === "provider" ? (
             <ProviderGroup key={entry.key} group={entry.group} controller={controller} />
           ) : (
-            <OtherCredentialEntry key={entry.key} store={entry.store} row={entry.row} controller={otherController} />
+            <OtherCredentialEntry key={entry.key} store={entry.store} row={entry.row} controller={otherController} deps={{ useAdminLocaleHook: useAdminLocale, useOtherCredentialRemoveDialogHook: useOtherCredentialRemoveDialog, removeDialogTitle, otherCredentialRemoveDialogBody, VIEWER_TIME_ZONE, REMOVE_FROM_TOVU, removeHandleLabel: ({ name }) => `Remove ${name} from Tovu` }} />
           )
         )}
       </div>

@@ -1,3 +1,7 @@
+import { defaultAgentPluginSurfacesPort } from "../hooks/agent-plugin-surfaces-dependencies.hooks";
+import { PackageFilesModal } from "@jini-ai/admin/screens/plugins/PackageFilesModal";
+import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
+import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
 import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
 import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
@@ -7,12 +11,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
 import { AgentPluginSurfaceFrame } from "@jini-ai/admin/screens/plugins/AgentPluginSurfaceFrame";
 import { useHostAdminSurfaceFrame } from "../hooks/use-host-admin-surface-frame.hooks";
-import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
+import { AgentPluginDetailsModal } from "@jini-ai/agent-plugins/react/AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import type { InspectedAgentPlugin } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 
 const requiredAgentPluginDetailsModalHooks = {
+  kit: { AgentPluginMemoryPanel, AgentPluginMaturity, PackageFilesModal, AgentPluginSurfaceFrame },
+  useHostAdminSurfaceFrame,
+  surfacesPort: defaultAgentPluginSurfacesPort,
   useAgentPluginMemoryHook: useWiredAgentPluginMemory,
   useAgentPluginDetailsViewHook: useAgentPluginDetailsView,
   useAgentPluginSurfacesHook: useAgentPluginSurfaces,
@@ -294,6 +301,22 @@ describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
 describe("AgentPluginDetailsModal admin surfaces", () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
+  it("selecting package files does not open an Admin surface", () => {
+    const port = fakePort();
+    const selectFile = vi.fn();
+    const file = { relativePath: "README.md", content: "Package documentation" };
+    render(<AgentPluginDetailsModal {...requiredAgentPluginDetailsModalHooks}
+      useAgentPluginSurfacesHook={() => [SURFACE]}
+      plugin={{ id: "acme-office", displayName: "Acme Office" }} t={identity} onClose={vi.fn()}
+      useDetails={() => ({ files: [file], selectedFile: null, selectFile })} surfacesPort={port} />);
+
+    expect(screen.getByRole("tab", { name: "Package files" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("treeitem", { name: "README.md" }));
+    expect(selectFile).toHaveBeenCalledWith("README.md");
+    expect(port.bootstrap).not.toHaveBeenCalled();
+    expect(screen.queryByTitle("Manage connection")).toBeNull();
+  });
+
   it("adds one view per contributed surface after Memory, titled by the plugin", async () => {
     const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
     const useDetails = (): AgentPluginDetailsModalController => ({ files: [], selectedFile: null, selectFile: vi.fn() });
@@ -301,7 +324,7 @@ describe("AgentPluginDetailsModal admin surfaces", () => {
     await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
   });
 
-  it("lists surfaces through the admin API when no port is injected", async () => {
+  it("lists surfaces through the bound admin API port", async () => {
     // Recording fetch stub: the surfaces route answers one surface, the Memory tab its empty listing.
     vi.stubGlobal("fetch", async (url: string) => {
       const body = String(url).endsWith("/agent-plugins/acme-office/surfaces")

@@ -5,6 +5,7 @@ import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-re
 import { useExecutionConfig as useAdminExecutionConfig, useStoredAdminKey } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config.hooks";
 import type { DockExecutionConfigPort, ExecutionWrite, UseExecutionConfig } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config.hooks";
 import { useExecutionConfigLedger } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config-ledger.hooks";
+import { subscribeExecutionConfigRefresh as subscribeJiniExecutionConfigRefresh } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config-refresh";
 import { retryWhileUnreachable } from "@/lib/retry-unreachable";
 import { DEFAULT_EXECUTION_CONFIG, loadAdminExecutionCredential, loadExecutionConfig } from "@/lib/execution-settings";
 import { EXECUTION_NAMESPACE } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
@@ -63,21 +64,7 @@ function subscribeExecutionConfigRefresh(
   { revalidate }: { revalidate: () => void },
   _options: Record<string, never> = {},
 ): () => void {
-  // Another window/desktop can save execution config while this dock stays mounted. Settings
-  // already publishes this namespace on save; focus/visible also catch changes outside the tab.
-  const onVisible = () => { if (document.visibilityState === "visible") revalidate(); };
-  window.addEventListener("focus", revalidate);
-  document.addEventListener("visibilitychange", onVisible);
-  const unsubscribe = subscribeToSettingsRefresh((scope) => {
-    if (!scope || scope.includes(EXECUTION_NAMESPACE)) {
-      revalidate();
-    }
-  });
-  return () => {
-    window.removeEventListener("focus", revalidate);
-    document.removeEventListener("visibilitychange", onVisible);
-    unsubscribe();
-  };
+  return subscribeJiniExecutionConfigRefresh({ revalidate, deps: { window, document, subscribeToSettingsRefresh, EXECUTION_NAMESPACE } });
 }
 
 const ledgerIo = {

@@ -26,19 +26,19 @@ export function useExistingInstances(
 export function useWidgetPickerDialog(props: WidgetPickerDialogProps,
   deps: { port?: WidgetPickerPort; locale?: string } = {},
 ) {
-  return useJiniWidgetPickerDialog({ props, deps: { port: deps.port ?? defaultWidgetPickerPort, locale: deps.locale ?? DEFAULT_LOCALE, useFetchQuery, describeApiError, sharedComponentsT, defaultWidgetConfig, WIDGET_TYPE_OPTIONS, widgetTypeLabel, translateWidgets } }, {});
+  return useJiniWidgetPickerDialog({ props, deps: { port: deps.port ?? defaultWidgetPickerPort, useAdminLocaleHook: () => deps.locale ?? DEFAULT_LOCALE, useFetchQuery, describeApiError, sharedComponentsT, defaultWidgetConfig, WIDGET_TYPE_OPTIONS, widgetTypeLabel, translateWidgets } }, {});
 }
 
 export function useWidgetAddControl(props: WidgetAddControlProps,
   deps: { port?: WidgetPickerPort; locale?: string } = {},
 ) {
-  return useJiniWidgetAddControl({ props, deps: { port: deps.port ?? defaultWidgetPickerPort, locale: deps.locale ?? DEFAULT_LOCALE, sharedComponentsT, describeApiError } }, {});
+  return useJiniWidgetAddControl({ props, deps: { port: deps.port ?? defaultWidgetPickerPort, useAdminLocaleHook: () => deps.locale ?? DEFAULT_LOCALE, sharedComponentsT, describeApiError } }, {});
 }
 
 export function useWiredWidgetPickerDialog(props: WidgetPickerDialogProps) {
-  return useWidgetPickerDialog(props, { port: defaultWidgetPickerPort, locale: useAdminLocale() });
+  return useJiniWidgetPickerDialog({ props, deps: { port: defaultWidgetPickerPort, useAdminLocaleHook: useAdminLocale, useFetchQuery, describeApiError, sharedComponentsT, defaultWidgetConfig, WIDGET_TYPE_OPTIONS, widgetTypeLabel, translateWidgets } }, {});
 }
 
 export function useWiredWidgetAddControl(props: WidgetAddControlProps) {
-  return useWidgetAddControl(props, { port: defaultWidgetPickerPort, locale: useAdminLocale() });
+  return useJiniWidgetAddControl({ props, deps: { port: defaultWidgetPickerPort, useAdminLocaleHook: useAdminLocale, sharedComponentsT, describeApiError } }, {});
 }

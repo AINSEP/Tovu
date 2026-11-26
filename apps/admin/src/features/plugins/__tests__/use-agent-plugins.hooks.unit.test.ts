@@ -6,6 +6,7 @@ import { integrationsApi } from "@/features/integrations/integrations-host-ports
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 
 /**
@@ -49,7 +50,7 @@ it("a late list read cannot revert a confirmed toggle", async () => {
     .mockImplementation(() => new Promise(() => {}));
   const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key) => key }));
   await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
-  await act(async () => { await result.current.reload(); });
+  act(() => publishContentRefresh({ resources: ["agent-plugins"] }));
   await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
   await act(async () => { await result.current.onToggleEnabled(SITE_COMPLIANCE); });
   expect(result.current.agentPlugins?.[0]?.enabled).toBe(false);

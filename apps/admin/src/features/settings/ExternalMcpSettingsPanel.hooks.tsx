@@ -1,5 +1,4 @@
-import { useExternalMcpAddForm as jiniUseExternalMcpAddForm } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel.hooks";
-import { useCallback } from "react";
+import { useExternalMcpAddForm as jiniUseExternalMcpAddForm, useExternalMcpDriftCopy as jiniUseExternalMcpDriftCopy } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel.hooks";
 import { useWiredSourceConfigAddForm, type SourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -24,8 +23,7 @@ import { type Translate } from '@jini-ai/core/text';
  *  the drift copy lives in the former because it was authored there (Phase 2C) alongside its 21
  *  translations. */
 export function useExternalMcpDriftCopy(): Translate {
-  const locale = useAdminLocale();
-  return useCallback((key: string) => tExternalMcp({ locale: locale, key: key }), [locale]);
+  return jiniUseExternalMcpDriftCopy({ useLocaleHook: useAdminLocale, translate: tExternalMcp });
 }
 
 /** Everything `ExternalMcpSettingsPanel` renders its "Add server" button and form from. */
