@@ -104,7 +104,9 @@ test('admin routes pass an undefined principal id when the admin port set no pri
   const auth: PluginRouteAuthPorts = { ...passAuth, admin: (_req, _res, next) => next() };
   const h = await harness(t, { auth, routes: [route({ access: 'admin', handler: async ({ auth: context }) => { auths.push(context); return undefined; } })] });
   await h.call('/echo');
-  assert.deepEqual(auths, [{ access: 'admin', workspaceId, principalId: undefined }]);
+  // The context now omits an absent principal rather than carrying an own `undefined` key (exact optional); either way it reads undefined.
+  assert.deepEqual(auths, [{ access: 'admin', workspaceId }]);
+  assert.equal((auths[0] as { principalId?: string }).principalId, undefined);
 });
 
 test('member routes pass the member id resolved by the member port', async t => {

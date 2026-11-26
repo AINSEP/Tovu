@@ -16,6 +16,10 @@ import { BACKSTOP_RAW_FILE_POLICY } from '#src/features/publish-content/backstop
 import { contentHash } from '@jini-ai/cms/publish/content/content-hash';
 import { MAX_SECRET_SCAN_BYTES } from '@jini-ai/cms/publish/content/file-tree-policy';
 import type { PackedEntity, PublishContentDeps } from '#src/features/publish-content/type-registry';
+
+/** An apply run's handler deps carry the ceremony's trusted actor (production: `features/publish-content/apply-port.ts`
+ * -> Jini `applyPublishContentReport`); a handler called directly refuses a write without one (`applyRunActor`). */
+const OWNER_ACTOR = { id: 'owner', kind: 'user' } as const;
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { createFileBlobIndex } from '@jini-ai/cms/publish/transfer';
 import { contributeRawRowPublish } from '#src/features/publish-content/raw-row-contributor';
@@ -80,7 +84,7 @@ test('Library forged raw-file/theme apply refuses private hashes before blob I/O
     let reads = 0; const get = deps.blobStore.get.bind(deps.blobStore);
     deps.blobStore.get = async input => { reads++; return get(input); };
     const outbox = new InMemoryOutbox();
-    const publishDeps: PublishContentDeps = { ...deps, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    const publishDeps: PublishContentDeps = { ...deps, mutationActor: OWNER_ACTOR, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
       ports: { media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore },
         'theme-files': { themesDir } },
       backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir }), blobs: deps.blobStore } };
@@ -137,7 +141,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
   const storedBytes = Buffer.from(await deps.blobStore.get({ storageKey: retained.storageKey }));
   // Cover both the pending-GC tombstone and an orphan already present on a destination.
   const outbox = new InMemoryOutbox();
-  const publishDeps: PublishContentDeps = { ...deps, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
+  const publishDeps: PublishContentDeps = { ...deps, mutationActor: OWNER_ACTOR, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
     ports: { media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore },
       'theme-files': { themesDir } },
     backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ ...BACKSTOP_RAW_FILE_POLICY, siteDir }), blobs: deps.blobStore } };
