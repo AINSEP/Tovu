@@ -11,6 +11,7 @@ import type { PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { registerPluginInstallRoutes, type PluginInstallRouteDeps } from "../../install.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 // Route-level tests for the input/option/error-mapping branches. The integration tests
 // (install.integration.test.ts, install-zip.integration.test.ts) cover the real installer and

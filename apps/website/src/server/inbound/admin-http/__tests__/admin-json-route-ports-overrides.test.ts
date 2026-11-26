@@ -6,6 +6,7 @@ import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import { rejectUnlessSessionCredential } from "../dev-auth.js";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions } from "../admin-json-route-ports.js";
 import { captureRes, fakeAdminApp, listen } from "./fixtures/port-harness.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * w3-rtfnd T3/T5/T7: per-mount port options that let the routes the rt-* lanes STOPPED on answer

@@ -7,6 +7,7 @@ import { defineRawRoute } from "@jini-ai/http-kit";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminMountPreflight } from "../admin-json-route-ports.js";
 import { mountAdminRawRoute } from "../admin-raw-route-ports.js";
 import { fakeAdminApp, listen } from "./fixtures/port-harness.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * w4-routes batch K: the two opt-in mount options that reproduce a hand-written admin route's legacy

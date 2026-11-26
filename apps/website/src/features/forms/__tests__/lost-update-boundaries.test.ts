@@ -11,6 +11,7 @@ import { toAdminFormDefinitionDto } from "@jini-ai/cms/admin-http/http/forms";
 import { registerAdminFormsAuthoringRoute, registerAdminFormsUpdateRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
 import { buildFormsRegistrations } from "../tool-registrations.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const record = { id: "form", workspaceId: "ws", name: "Contact", slug: "contact", fields: [],
   notify: { enabled: false, recipients: [] }, status: "active" as const, createdAt: "t0", updatedAt: "t0", version: 1 };

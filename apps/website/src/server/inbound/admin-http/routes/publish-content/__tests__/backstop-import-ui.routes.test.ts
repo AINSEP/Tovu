@@ -16,6 +16,7 @@ import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/tr
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { registerPublishContentImportRoutes } from "#src/server/runtime/composition/modules/publish-content-import";
 import type { PublishContentRouteDeps } from "../deps.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test("real import plan returns safe before/after values for raw rows without requiring report.backstop", async (t) => {
   const db = new Database(":memory:"); t.after(() => db.close());

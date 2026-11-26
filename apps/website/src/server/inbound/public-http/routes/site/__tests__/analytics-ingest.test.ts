@@ -12,6 +12,7 @@ import { registerAnalyticsIngestRoute } from "../analytics-ingest.js";
 import type { AnalyticsIngestRouteDeps } from "@jini-ai/analytics/site/jini-adapters";
 import { analyticsSaltContext } from "#src/features/analytics/salt-context";
 import { reportAnalyticsForwardFailure } from "#src/features/analytics/warn";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Unit-tier coverage for `POST /_analytics/e` (`registerAnalyticsIngestRoute`) — a PUBLIC,

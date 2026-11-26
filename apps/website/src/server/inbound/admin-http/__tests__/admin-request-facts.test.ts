@@ -6,6 +6,7 @@ import { mountAdminJsonRoute } from "../admin-json-route-ports.js";
 import { adminPublishTrustFor, adminRequestFactsFor, type AdminRequestFacts } from "../admin-request-facts.js";
 import type { OperatorPrincipalRecord } from "../dev-auth.js";
 import { PROBE_GRANT, fakeAdminApp, listen } from "./fixtures/port-harness.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * w3-rtfnd T4: a spec reads HOW its request authenticated (credential kind, publish-trust grant)

@@ -5,6 +5,7 @@ import express from "express";
 import { defineJsonRoute, ok, type RouteHostContext } from "@jini-ai/core/contracts/server";
 
 import { mountAdminJsonRoute } from "../admin-json-route-ports.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * P3-T1a.T: a JSON admin spec with `requireSameOrigin: true` (the Jini routine writes) must reach

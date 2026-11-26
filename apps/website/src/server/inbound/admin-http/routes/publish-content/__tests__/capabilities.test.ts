@@ -9,6 +9,7 @@ import { registerPublishContentContributor, resetPublishContentContributorsForTe
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { PublishContentRouteDeps } from "../deps.js";
 import { registerPublishContentCapabilitiesRoute } from "#src/server/runtime/composition/modules/publish-content-ingest";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file S-F1 of `ADS-memory/.local-artifacts/publish-files-plan-2026-09-24.md` §5/§6.

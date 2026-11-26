@@ -13,6 +13,7 @@ import { registerAdminFormsListRoute } from '#src/server/runtime/composition/mod
 import { registerAdminFormsUpdateRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import { DuplicateCommandError } from '@jini-ai/cms/core';
 import { WS, BASE, INTERNAL_CODE, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const routes: RouteFailureCase[] = [
   { name: 'forms authoring', register: registerAdminFormsAuthoringRoute, method: 'PUT', path: `${BASE}/forms/form/authoring`, coded: true , failure: {"message":"The form save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save form"} },

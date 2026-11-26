@@ -4,6 +4,7 @@ import { defineJsonRoute, ok } from "@jini-ai/core/contracts/server";
 
 import { createAdminJsonRoutePorts, mountAdminJsonRoute } from "../admin-json-route-ports.js";
 import { fakeAdminApp } from "./fixtures/port-harness.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * rv1123l T6: `deferMissingPrincipal` lets a sessionless request reach `parse`; `sessionCredentialOnly`

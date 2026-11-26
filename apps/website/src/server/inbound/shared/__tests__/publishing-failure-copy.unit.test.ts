@@ -4,6 +4,7 @@ import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerPublishContentPeerTransportRoutes } from "../../../runtime/composition/modules/publish-content-transport.js";
 import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";
 const cases = [

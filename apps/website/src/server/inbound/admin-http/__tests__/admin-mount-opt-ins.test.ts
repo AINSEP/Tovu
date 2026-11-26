@@ -8,6 +8,7 @@ import { defineRawRoute } from "@jini-ai/http-kit";
 import { mountAdminJsonRoute } from "../admin-json-route-ports.js";
 import { mountAdminRawRoute } from "../admin-raw-route-ports.js";
 import { fakeAdminApp, listen } from "./fixtures/port-harness.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * Mount opt-ins that let a hand-written route's wire survive its move onto a spec: the host's body-cap 413,

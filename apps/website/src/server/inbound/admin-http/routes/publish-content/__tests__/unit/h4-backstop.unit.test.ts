@@ -6,6 +6,7 @@ import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { BACKSTOP_FORBIDDEN } from '@jini-ai/cms/publish/content/backstop-service';
 import type { PublishContentRouteDeps } from '../../deps.js';
 import { registerPublishBackstopRoutes } from '#src/server/runtime/composition/modules/publish-content-backstop';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 for (const [role, allowed] of [[null, false], [{ name: 'admin', isBuiltin: false }, false],
   [{ name: 'viewer', isBuiltin: true }, false], [{ name: 'admin', isBuiltin: true }, true], [{ name: 'owner', isBuiltin: true }, true]] as const) {

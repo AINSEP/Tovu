@@ -5,6 +5,7 @@ import { createCapturingResponse, extractRouteHandler } from '#src/server/__test
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { IntegrationsRouteDeps } from '#src/server/runtime/composition/modules/integrations-admin';
 import { registerAdminIntegrationsListRoute } from '#src/server/runtime/composition/modules/integrations-admin';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test('integration list handles equal timestamps and empty histories independently for each subscription', async () => {
   const app = express();

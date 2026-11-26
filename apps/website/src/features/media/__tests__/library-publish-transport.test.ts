@@ -24,6 +24,7 @@ import { registerPublishContentBlobGetRoute, registerPublishContentBlobPutRoute 
 import type { PublishContentRouteDeps } from '#src/server/inbound/admin-http/routes/publish-content/deps';
 import { contributeMediaPublish } from '../publish-content.js';
 import { libraryFixture } from './library.fixture.js';
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test('Library document-only blob hashes cannot be downloaded through publish peer transport', async t => {
   const { deps } = libraryFixture();

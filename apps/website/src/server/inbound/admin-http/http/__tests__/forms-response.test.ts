@@ -11,6 +11,7 @@ import {
   toAdminFormDefinitionResponse, toAdminFormDefinitionListResponse,
   toAdminFormSubmissionResponse, toAdminFormSubmissionListResponse,
 } from "@jini-ai/cms/admin-http/http/forms";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 // F4.1/F4.3: independent, non-default data. Mutation: return the original fields/notify/data
 // rather than copies; changing the response would then corrupt the read model.

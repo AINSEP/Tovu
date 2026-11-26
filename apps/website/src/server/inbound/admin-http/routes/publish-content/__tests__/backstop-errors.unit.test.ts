@@ -16,6 +16,7 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";
 const TOO_LARGE = "Choose files totaling at most 50 MB per send.";

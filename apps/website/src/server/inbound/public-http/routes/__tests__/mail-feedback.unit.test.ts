@@ -6,6 +6,7 @@ import type { MailFeedbackRequest, MailFeedbackRoute } from "@jini-ai/platform/m
 import { parsePublicJsonBody } from "../../../shared/json-body-parsers.js";
 import { startTestServer } from "../../../../__tests__/helpers/http-test-server.js";
 import { MAIL_FEEDBACK_PATH, registerMailFeedbackRoute } from "../mail-feedback.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file The Express mount of `POST /hooks/mail/:providerId`: the handler sees the exact request

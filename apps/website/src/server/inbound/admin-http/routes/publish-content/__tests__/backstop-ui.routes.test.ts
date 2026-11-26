@@ -9,6 +9,7 @@ import { tableExists } from "@jini-ai/db/kernel";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublishBackstopRoutes } from "#src/server/runtime/composition/modules/publish-content-backstop";
 import type { PublishContentRouteDeps } from "../deps.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 test("UI status is owner/built-in-admin and session only, even when a custom admin has the permission", async (t) => {
   const app = express();

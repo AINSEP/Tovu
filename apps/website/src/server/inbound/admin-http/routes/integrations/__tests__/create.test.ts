@@ -14,6 +14,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminIntegrationsCreateRoute } from "#src/server/runtime/composition/modules/integrations-admin";
 import type { IntegrationsRouteDeps } from "#src/server/runtime/composition/modules/integrations-admin";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 /**
  * @file Unit-tier coverage for `POST .../integrations/subscriptions` (`registerAdminIntegrationsCreateRoute`).
