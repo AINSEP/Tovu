@@ -34,3 +34,11 @@ test('locale lookup: case-insensitive exact key, underscore spelling, region fal
   assert.equal(desktopCopy({ locale: 'fr-CA' }).siteErrors.empty, desktopCopy({ locale: 'fr' }).siteErrors.empty);
   for (const locale of ['', 'xx', 'xx-YY']) assert.deepEqual(desktopCopy({ locale }), desktopCopy({ locale: 'en' }), JSON.stringify(locale));
 });
+
+test('pt-PT (a region the copy has no row for) falls back to the pt-BR copy, not English', () => {
+  // The bare base-key fallback turned 'pt-PT' into 'pt', which has no row, so Portuguese users got English.
+  const ptPT = desktopCopy({ locale: 'pt-PT' });
+  assert.deepEqual(ptPT, desktopCopy({ locale: 'pt-BR' }));
+  assert.notDeepEqual(ptPT, desktopCopy({ locale: 'en' }));
+  assert.deepEqual(desktopCopy({ locale: 'pt' }), desktopCopy({ locale: 'pt-BR' }));
+});
