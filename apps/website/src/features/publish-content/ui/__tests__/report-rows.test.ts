@@ -98,7 +98,7 @@ test("a refused report produces no rows at all", () => {
     refused: true,
     refusalReason: "these two instances are on different content-hash versions",
     applyOrder: [],
-    rows: [],
+    rows: [row({ outcome: "created", entityId: "stale" })],
   } });
   assert.deepEqual(rows, []);
 });

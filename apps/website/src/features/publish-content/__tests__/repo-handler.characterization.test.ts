@@ -137,11 +137,18 @@ test("the contributor carries coversTables, coversRoots and dependsOn (default [
 });
 
 test("extend receives the deps and a ports reader that reads the bag when it is called", async () => {
+  const deps = makeDeps(undefined);
+  let seenDeps: typeof deps | undefined;
   let reader: (() => Ports | undefined) | undefined;
   const handler = createRepoPublishHandler(config({
-    extend: (ctx) => { reader = ctx.ports; return { seedHash: async () => "seed" }; },
-  })).build(makeDeps(undefined));
-  assert.equal(reader?.(), undefined);
+    extend: (ctx) => { seenDeps = ctx.deps; reader = ctx.ports; return { seedHash: async () => "seed" }; },
+  })).build(deps);
+  assert.equal(seenDeps, deps);
+  assert.ok(reader, "extend must receive a ports reader");
+  assert.equal(reader(), undefined);
+  const ports = { rows: new Map<string, Row>() };
+  deps.ports.holder = ports;
+  assert.equal(reader(), ports);
   assert.equal(await handler.seedHash?.({ id: "w1" }), "seed");
 });
 

@@ -48,13 +48,13 @@ interface Script {
   builtWith: PublishContentDeps[];
 }
 
-function harness() {
+function harness(overrides: Partial<PublishContentDeps> = {}) {
   const bundleRepo = new InMemoryPublishContentBundleRepo();
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const runRepo = new SpyRunRepo();
   let n = 0;
   const idGen = { newId: () => `id-${++n}` };
-  const publishContentDeps: PublishContentDeps = { workspaceId: WS, clock, idGen, ports: {} };
+  const publishContentDeps: PublishContentDeps = { workspaceId: WS, clock, idGen, ports: {}, ...overrides };
   const scripts = new Map<string, Script>();
   const register = (type: string, overrides: Partial<Script> = {}): Script => {
     const script: Script = { current: new Map(), apply: async ({ entity }) => ({ changeSetId: `cs-${entity.id}` }), extra: {}, builtWith: [], ...overrides };
@@ -90,22 +90,30 @@ test("a missing or expired bundle is refused with the exact words, before any ru
   await assert.rejects(h.port().applyReport({ report: reportOf([]), principalId: OP, actor: actorForMutation({ principalId: OP, origin: "admin" }), bundleId: "nope", restorePointId: "rp" }),
     (err: Error) => err.message === `publish-content: bundle 'nope' was not found, or has expired, for workspace '${WS}'`);
   assert.equal(h.runRepo.saved.length, 0);
+  const bundleId = await h.stage([]);
+  assert.equal((await h.bundleRepo.findById({ workspaceId: WS, id: bundleId }))?.id, bundleId);
+  await assert.rejects(h.port({ clock: { nowMs: () => Date.parse("2099-01-01T00:00:00Z") } }).applyReport({
+    report: reportOf([]), principalId: OP, actor: actorForMutation({ principalId: OP, origin: "admin" }), bundleId, restorePointId: "rp",
+  }), (err: Error) => err.message === `publish-content: bundle '${bundleId}' was not found, or has expired, for workspace '${WS}'`);
+  assert.equal(h.runRepo.saved.length, 0);
 });
 
-test("the caller's authorize and backstop replace the port's own in the bag every handler is built with", async () => {
-  const h = harness();
+test("the caller's authorize and backstop replace the port's own in the bag every handler is built with", async (t) => {
+  const factoryBackstop = { coveredTables: ["factory"], coveredRoots: [] };
+  const h = harness({ backstop: factoryBackstop });
   const script = h.register("thing");
-  const authorize = async () => ({ allowed: true, reason: "attenuated" });
+  const authorize = t.mock.fn(async () => ({ allowed: true, reason: "attenuated" }));
   const backstop = { coveredTables: ["x"], coveredRoots: [] };
   await h.apply([pack("thing", "a")], reportOf([row("thing", "a", "created")]), { authorize, backstop });
   const built = script.builtWith.at(-1);
   assert.ok(built?.authorize);
-  assert.deepEqual(await built.authorize({ workspaceId: WS, principalId: OP, permission: "content.write", entityType: "thing", entityId: "a" }),
+  const authorization = { workspaceId: WS, principalId: OP, permission: "content.write", entityType: "thing", entityId: "a" };
+  assert.deepEqual(await built.authorize(authorization),
     { allowed: true, reason: "attenuated" }, "the caller's authorize answers for the handlers");
-  assert.equal(built.authorize, authorize);
+  assert.deepEqual(authorize.mock.calls.map((call) => call.arguments), [[{ ...authorization, publishType: "thing" }]]);
   assert.equal(built.backstop, backstop);
   await h.apply([pack("thing", "a")], reportOf([row("thing", "a", "created")]));
-  assert.equal(script.builtWith.at(-1)!.backstop, undefined, "no backstop is invented when the caller gives none");
+  assert.equal(script.builtWith.at(-1)!.backstop, factoryBackstop, "the factory backstop is used when the caller gives none");
 });
 
 test("the run row is saved as applying with every item pending BEFORE the first write, then as applied with the run's identity", async () => {
@@ -278,11 +286,17 @@ test("send by hand: the audit row is saved pending with each item's hash before 
   const a = audited(h);
   const entity = raw("raw-row", 'p_widgets:{"id":"a"}', { table: "p_widgets", pk: { id: "a" }, columns: [], values: { id: "a" } });
   const before = { table: "p_widgets", columns: [], pk: { id: "a" }, values: { id: "a", title: "old" } };
+  let savedAtWrite: unknown[] | undefined;
   h.register("raw-row", {
     current: new Map([[entity.id, { version: 1, hash: "hash-before" }]]),
-    apply: async () => { a.inverses.push({ kind: "raw-row", entity, before, afterHash: entity.contentHash }); return { changeSetId: "cs-raw" }; },
+    apply: async () => {
+      savedAtWrite = a.saves.map((record) => record.result);
+      a.inverses.push({ kind: "raw-row", entity, before, afterHash: entity.contentHash });
+      return { changeSetId: "cs-raw" };
+    },
   });
   const result = await h.apply([entity], reportOf([row("raw-row", entity.id, "forced")]), { backstop: a.backstop });
+  assert.deepEqual(savedAtWrite, ["pending"]);
   assert.equal(a.saves.length, 2);
   assert.deepEqual([a.saves[0]!.result, a.saves[0]!.direction, a.saves[0]!.actorId, a.saves[0]!.destination, a.saves[0]!.reason, a.saves[0]!.runId],
     ["pending", "destination", "admin-1", "live.example", metadata.reason, result.runId]);

@@ -20,7 +20,7 @@ test("the projected backup database rebuilds search with the host's tovu_search 
   t.after(() => source.$client.close());
   source.$client.prepare("INSERT INTO workspaces(id,slug,name,created_at) VALUES ('ws','site','Site',?)").run(stamp);
   source.$client.prepare("INSERT INTO posts(id,workspace_id,title,slug,body_json,status,kind,updated_at,version) VALUES ('search-pin','ws','Portable astronomy','portable-astronomy',?,'published','post',?,1)")
-    .run('{"type":"doc","content":[]}', stamp);
+    .run('{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"quasarcanary"}]}]}', stamp);
   // The live site's own projection marker is private runtime state: a share never carries it.
   source.$client.prepare("INSERT INTO setting_values_global(setting_id,value_json,state,def_version,seq,updated_by,updated_at,origin_plugin_id) VALUES (?,?,?,?,?,?,?,NULL)")
     .run(markerId, "99", "set", 0, 0, "system:post-search-reindex", stamp);
@@ -35,4 +35,6 @@ test("the projected backup database rebuilds search with the host's tovu_search 
   assert.equal(shared.prepare("SELECT name FROM sqlite_master WHERE name = 'site_assistant_credentials'").get(), undefined);
   assert.deepEqual(shared.prepare("SELECT post_id, title FROM post_search_document WHERE post_id = ?").get("search-pin"),
     { post_id: "search-pin", title: "Portable astronomy" });
+  assert.deepEqual(shared.prepare("SELECT d.post_id FROM post_search_fts JOIN post_search_document d ON d.rowid = post_search_fts.rowid WHERE post_search_fts MATCH ?")
+    .all("quasarcanary"), [{ post_id: "search-pin" }]);
 });

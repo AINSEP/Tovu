@@ -39,13 +39,24 @@ for (const adapter of adapters) {
     await deps.members.save(member);
     await deps.sessions.save({ id: "old", workspaceId: "ws", memberId: member.id, tokenHash: "old-hash", createdAt: now, expiresAt: "2026-11-24T12:00:00.000Z" });
     const failingSessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
-    const save = t.mock.method(failingSessions, "save", async () => { throw new Error("mint-failure-canary"); });
+    const oldSession = { workspaceId: "ws", tokenHash: "old-hash" };
+    const seen: unknown[] = [];
+    const save = t.mock.method(failingSessions, "save", async () => {
+      const linked = await deps.identities.findBySubject({ workspaceId: "ws", issuer: provider.issuer, subject: "subject" });
+      const active = await deps.members.findById({ workspaceId: "ws", id: member.id });
+      const revoked = await deps.sessions.findByTokenHash(oldSession);
+      seen.push([linked?.memberId, active?.status, revoked?.id, revoked?.revokedAt]);
+      throw new Error("mint-failure-canary");
+    });
     await assert.rejects(resolveFederatedIdentity({ deps: { ...deps, sessions: failingSessions }, input: { workspaceId: "ws", startedAt: now,
       identity: { providerId: provider.id, issuer: provider.issuer, subject: "subject", email: member.email, emailAuthoritative: true } } }), MemberLoginError);
     assert.equal(save.mock.callCount(), 1);
+    assert.deepEqual(seen, [[member.id, "active", "old", now]]);
     assert.deepEqual(await deps.identities.listByMember({ workspaceId: "ws", memberId: member.id }), []);
     assert.equal((await deps.members.findById({ workspaceId: "ws", id: member.id }))?.status, "pending");
-    assert.equal((await deps.sessions.findByTokenHash({ workspaceId: "ws", tokenHash: "old-hash" }))?.revokedAt, undefined);
+    const restored = await deps.sessions.findByTokenHash(oldSession);
+    assert.equal(restored?.id, "old");
+    assert.equal(restored?.revokedAt, undefined);
   });
   test(`[${adapter.name}] new member/principal/link/session commit together`, async t => {
     const kernel = adapter.make();

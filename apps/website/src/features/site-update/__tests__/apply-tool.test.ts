@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -203,17 +204,22 @@ test("the live version changing while the card is open voids the approval: nothi
 });
 
 test("the version is re-read under the update lock, and the whole apply runs inside it", async () => {
-  const { tool, fake, surfaceExchanges, deps } = setup();
+  const { fake, surfaceExchanges, deps } = setup();
   const events: string[] = [];
-  deps.runtime.lock = { withLock: async ({ run }) => { events.push("lock-in"); try { return await run(); } finally { events.push("lock-out"); } } };
+  const runtime = deps.runtime;
+  const { backup, readiness, handoff, runningVersion } = runtime;
+  assert.ok(handoff, "the apply fixture needs a supervisor handoff");
+  runtime.lock = { withLock: async ({ run }) => { events.push("lock-in"); try { return await run(); } finally { events.push("lock-out"); } } };
+  runtime.runningVersion = async () => { events.push("read-version"); return runningVersion(); };
+  runtime.backup = { createBackup: async (required, optional) => { events.push("backup"); return backup.createBackup(required, optional); } };
+  runtime.readiness = { check: async (required, optional) => { events.push("readiness"); return readiness.check(required, optional); } };
+  runtime.handoff = { ...handoff, submitPrepared: async (required, optional) => { events.push("submit"); return handoff.submitPrepared(required, optional); } };
   const registered = buildSiteUpdateRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === APPLY)!;
-  const live = deps.runtime.runningVersion;
-  deps.runtime.runningVersion = async () => { events.push("read-version"); return live(); };
   const { ui, pending } = await raiseCard(registered, { toVersion: "1.3.0" });
   events.length = 0;
   answer(surfaceExchanges, ui!, "confirm");
   await pending;
-  assert.deepEqual(events, ["lock-in", "read-version", "lock-out"]);
+  assert.deepEqual(events, ["lock-in", "read-version", "backup", "readiness", "submit", "lock-out"]);
   assert.equal(fake.calls.some((c) => c.startsWith("applyUpdate")), true);
 });
 
@@ -237,17 +243,33 @@ test("a second approved update cannot capture another backup while the first own
   const runtime = deps.runtime;
   const inner = runtime.backup;
   let captures = 0;
-  let releaseFirst!: () => void;
-  const firstHeld = new Promise<void>((resolve) => { releaseFirst = resolve; });
-  runtime.backup = { createBackup: async (required, optional) => { captures += 1; if (captures === 1) await firstHeld; return inner.createBackup(required, optional); } };
+  const { promise: firstHeld, resolve: releaseFirst } = Promise.withResolvers<void>();
+  const { promise: firstEntered, resolve: enterFirst } = Promise.withResolvers<void>();
+  runtime.backup = { createBackup: async (required, optional) => {
+    if (++captures === 1) { enterFirst(); await firstHeld; }
+    return inner.createBackup(required, optional);
+  } };
   runtime.lock = createOperationUpdateLock({ lock: createOperationLock({}, {}), siteId: "site-1", clock: createSystemClock() });
   const first = await raiseCard(tool);
-  const second = await raiseCard(tool);
-  answer(surfaceExchanges, first.ui!, "confirm");
-  while (captures === 0) await new Promise((resolve) => setImmediate(resolve));
-  answer(surfaceExchanges, second.ui!, "confirm");
-  await assert.rejects(second.pending, /Another update, migration or restore is running on this site\. Nothing was changed\./);
-  releaseFirst();
+  let second: Awaited<ReturnType<typeof raiseCard>> | undefined;
+  const timer = new AbortController();
+  const deadline = delay(5_000, undefined, { signal: timer.signal }).then(() => {
+    throw new Error("Timed out waiting for the first backup to start or the second approval to be refused");
+  });
+  try {
+    answer(surfaceExchanges, first.ui!, "confirm");
+    await Promise.race([firstEntered, deadline]);
+    second = await raiseCard(tool);
+    answer(surfaceExchanges, second.ui!, "confirm");
+    await Promise.race([
+      assert.rejects(second.pending, /Another update, migration or restore is running on this site\. Nothing was changed\./),
+      deadline,
+    ]);
+  } finally {
+    releaseFirst();
+    timer.abort();
+    await Promise.allSettled([deadline, first.pending, second?.pending]);
+  }
   assert.equal(((await first.pending) as { outcome: string }).outcome, "updating");
   assert.equal(captures, 1, "only the update that owns the site may capture a backup");
 });
