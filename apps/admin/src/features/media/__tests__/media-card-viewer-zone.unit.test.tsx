@@ -16,7 +16,7 @@ import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-medi
 import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
 import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
-import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/media-dependencies.hooks";
 
 // Every screen hook is a required prop; the test overrides only the controller.
 const requiredMediaHooks = {

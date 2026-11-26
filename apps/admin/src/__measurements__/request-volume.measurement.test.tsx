@@ -20,7 +20,7 @@ import { RedirectsControllerContext } from "@jini-ai/admin/redirects/react";
 import { Media } from "@jini-ai/admin/screens/media/Media";
 import { MEDIA_PROPS } from "@/media-panel";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
-import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/media-dependencies.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,

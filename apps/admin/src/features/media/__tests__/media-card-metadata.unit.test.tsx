@@ -14,7 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Media } from "@jini-ai/admin/screens/media/Media";
 import { MEDIA_PROPS } from "@/media-panel";
-import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/media-dependencies.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,

@@ -20,7 +20,7 @@ import { MEDIA_PROPS } from "@/media-panel";
 import { useMedia, type MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import type { MediaGridPage } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/media-dependencies.hooks";
 import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
 import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";

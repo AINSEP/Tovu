@@ -31,7 +31,7 @@ import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hook
 import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/media-dependencies.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,

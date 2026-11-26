@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import type { MediaProviderOption } from "@jini-ai/core";
+import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 import type { AdminMedia, MediaGridPage } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { createFakeMediaPort as createJiniFakeMediaPort, type FakeMediaPortOptions } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
 import { mediaApi } from "@/features/media/api/media-api";
@@ -69,4 +72,18 @@ export function fakeGridPage({ items, tab, orderBy, itemId }: { items: AdminMedi
     counts: { all: count("all"), images: count("images"), videos: count("videos"), trash: count("trash") },
     hasUntypedActive: items.some((item) => item.status !== "trashed" && item.contentType === null),
   };
+}
+
+/**
+ * `@jini-ai/cms`'s provider-catalog read bound to React's own hooks, in the `{ port }` shape the Media
+ * screen calls it with. The cms hook takes `useEffect`/`useState` as required injected props; handing
+ * `Media` the raw cms hook made every Media render throw (merge-27, 2026-11-26).
+ *
+ * @complexity O(1) per render plus one request per mount.
+ */
+export function useWiredMediaProviderCatalog(
+  { port }: { port: Parameters<typeof useMediaProviderCatalog>[0]["port"] },
+  _optional: Record<string, never> = {},
+): readonly MediaProviderOption[] | null {
+  return useMediaProviderCatalog({ port, useEffect, useState });
 }

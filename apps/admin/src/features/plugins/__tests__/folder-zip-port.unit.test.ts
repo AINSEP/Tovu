@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useFolderUpload } from "@jini-ai/admin/shell/components/InstallTabCard/use-folder-upload.hooks";
 import { FOLDER_EMPTY, FOLDER_UNREADABLE } from "@jini-ai/agent-plugins/folder-zip";
 import { FolderZipError } from "@jini-ai/agent-plugins/core/folder-zip-error";
-import { folderZipPort } from "../folder-zip-port";
+import { folderZipPort } from "../hooks/use-plugins.hooks";
 
 function pick({ files }: { files: File[] }) {
   const onError = vi.fn(); const onZipped = vi.fn();

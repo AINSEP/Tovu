@@ -18,7 +18,7 @@ import { Media } from "@jini-ai/admin/screens/media/Media";
 import { MEDIA_PROPS } from "@/media-panel";
 import { renderMediaPanel } from "../../../media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/media-dependencies.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,

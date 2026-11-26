@@ -16,7 +16,7 @@ import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
 // import { ModulePanel } from "./integrations/jini-admin/ModulePanel";
 import type { PanelRouteContext } from "./panel-contracts";
-import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/media-dependencies.hooks";
 import { MAX_UPLOAD_BYTES } from "@tovu/contracts/upload-limits";
 import { mediaProvidersPort, mediaProviderCatalogPort } from "./features/media/media-providers-port";
 import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
