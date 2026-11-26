@@ -7,9 +7,16 @@ import type { PublishContentReport, PublishCriteria, PublishRequestResult, Publi
 import { ApiError } from "@/lib/admin-http/request";
 import { t as dashboardT } from "../../dashboard/dashboard-i18n";
 
-import { PublishContentDialog } from "../PublishContentDialog";
+import { bindPublishContentDialog } from "@jini-ai/cms/react/publish-content/PublishContentDialog";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "../../../styles/native-domain-dialogs.css";
 import { createFakePublishContentPort } from "../hooks/publish-content-dependencies.hooks";
 import { usePublishContentConfirm } from "../hooks/use-publish-content-confirm.hooks";
+
+const PublishContentDialog = bindPublishContentDialog({
+  kit: { Dialog }, hooks: { usePublishContentConfirmHook: usePublishContentConfirm },
+  deps: { formRecipientNotice: "Form notification recipients stay local on each site; copying a form does not copy them." },
+});
 
 /**
  * @file `PublishContentDialog` — plan §4 task 11's two acceptance criteria, asserted against the

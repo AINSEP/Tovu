@@ -14,7 +14,7 @@ import {
   type RequestEditHtml,
 } from "@jini-ai/ui/html-editor";
 
-import { PagePreview, type PreviewEmbeds } from "./PageEditorPreview";
+import { PagePreview } from "@jini-ai/admin/pages/PageEditorPreview";
 import type { UsePreviewEmbedIds } from "@jini-ai/cms/react/pages/hooks/use-preview-embed-ids.hooks";
 
 import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placeholder";
@@ -1013,7 +1013,7 @@ function PageEditorPane({
   /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
   templatePreviewUrl: string;
   /** Threaded straight through to `PagePreview` (embed inspection); this dispatcher does not use it. */
-  previewEmbeds: PreviewEmbeds;
+  previewEmbeds: { pageId: string; templateChoice: string | null; usePreviewEmbedIds: UsePreviewEmbedIds };
   previewFormRef: (node: HTMLFormElement | null) => void;
   previewFormTarget: string;
   frameRef: (node: HTMLDivElement | null) => void;
@@ -1050,7 +1050,9 @@ function PageEditorPane({
   if (surface.kind === "preview") {
     return (
       <PagePreview
-        useThemePreviewFrameHook={useThemePreviewFrameHook}
+        hooks={{ useThemePreviewFrameHook, usePreviewEmbedIds: previewEmbeds.usePreviewEmbedIds }}
+        kit={{ DevicePreviewFrame }}
+        deps={{ videoLink: ({ id }) => `https://www.youtube.com/watch?v=${id}` }}
         html={html}
         bodyJson={bodyJson}
         width={DEVICE_PREVIEW_WIDTHS[device]}

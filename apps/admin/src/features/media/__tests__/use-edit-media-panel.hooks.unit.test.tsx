@@ -1,3 +1,13 @@
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
+import { embedPolicy } from "@/integrations/jini-admin/embed-policy-ports";
+import { describeApiError } from "@/lib/admin-http/request";
+import { t as translate } from "../media-i18n";
+
+const hooks = { useFetchMutation, useFetchQuery };
+const deps = { embedMarkerSnippet, embedPolicy, describeApiError, translate,
+  writeText: (value: string) => navigator.clipboard.writeText(value) };
+
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -5,7 +15,7 @@ import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeMediaPort } from "@jini-ai/admin/screens/media/hooks/fake-media-port";
-import { useEditMediaPanel } from "../hooks/use-edit-media-panel.hooks";
+import { useEditMediaPanel } from "@jini-ai/admin/screens/media/hooks/use-edit-media-panel.hooks";
 
 /**
  * @file `useEditMediaPanel` — the metadata-edit panel's `save()`, driven against the injected
@@ -54,7 +64,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     const update = vi.spyOn(port, "updateMedia");
     const onSaved = vi.fn();
     const onCancel = vi.fn();
-    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved, onCancel }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved, onCancel , hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
     await act(async () => { await result.current.save(); });
     expect(onCancel).toHaveBeenCalledExactlyOnceWith();
     expect(onSaved).not.toHaveBeenCalled();
@@ -65,7 +75,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
   it("persists independent metadata fields, including nonblank CSS and parsed pixel sizes", async () => {
     const port = createFakeMediaPort({ media: [ITEM] });
     const onSaved = vi.fn();
-    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
     act(() => {
       result.current.setSlug("edited-slug");
       result.current.setAlt("Accessible description");
@@ -85,7 +95,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     const item = { ...ITEM, description: "A red barn in snow." };
     const port = createFakeMediaPort({ media: [item] });
     const update = vi.spyOn(port, "updateMedia");
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
     expect(result.current.description).toBe("A red barn in snow.");
     act(() => { result.current.setTitle("Barn"); });
     await act(async () => { await result.current.save(); });
@@ -99,7 +109,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     const port = createFakeMediaPort({ media: [ITEM] });
     const update = vi.spyOn(port, "updateMedia");
     const onCancel = vi.fn();
-    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel , hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
     expect(result.current.description).toBe("");
     act(() => { result.current.setDescription(" "); });
     await act(async () => { await result.current.save(); });
@@ -113,7 +123,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
   it("clears stored CSS, HTML attributes and dimensions when their inputs are blank", async () => {
     const item = { ...ITEM, cssClass: "framed", htmlAttributes: 'data-motion="fade-in"', width: 640, height: 480 };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
     act(() => {
       result.current.setCssClass("  ");
       result.current.setHtmlAttributes("  ");
@@ -128,7 +138,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
   it("retains the creator principal when the injected port has no user-list capability", async () => {
     const item = { ...ITEM, createdBy: "legacy-principal" };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
     await act(async () => {});
     expect(result.current.createdByLabel).toBe("legacy-principal");
     expect(result.current.error).toBeNull();
@@ -143,7 +153,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     const mediaOriginalUrlSpy = vi.spyOn(mediaApi, "mediaOriginalUrl");
     const item: AdminMedia = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), {
       wrapper,
     });
 
@@ -154,7 +164,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
   it("publicUrl is null when the server has none to offer (trashed asset, or no public transform registered)", () => {
     const item: AdminMedia = { ...ITEM, publicUrl: null };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), {
       wrapper,
     });
 
@@ -166,7 +176,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const item: AdminMedia = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), {
       wrapper,
     });
 
@@ -188,7 +198,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const item: AdminMedia = { ...ITEM, publicUrl: null };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), {
       wrapper,
     });
 
@@ -207,7 +217,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const port = createFakeMediaPort({ media: [ITEM] });
-    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), {
       wrapper,
     });
 
@@ -225,7 +235,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     const port = createFakeMediaPort({ media: [ITEM] });
     const onSaved = vi.fn();
     const { result } = renderHook(
-      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }),
+      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }),
       { wrapper }
     );
 
@@ -252,7 +262,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const item = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
 
     let copying!: Promise<void>;
     await act(async () => { copying = result.current[method](); });
@@ -272,7 +282,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const item = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
     const port = createFakeMediaPort({ media: [item] });
-    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }), { wrapper });
 
     let copying!: Promise<void>;
     await act(async () => { copying = result.current[method](); });
@@ -297,7 +307,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
     port.updateMedia = () => Promise.reject(new Error("save route down"));
     const onSaved = vi.fn();
     const { result } = renderHook(
-      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }),
+      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }),
       { wrapper }
     );
 
@@ -316,7 +326,7 @@ describe("htmlAttributes — live hint must never gate save() (regression pin fo
   it("htmlAttributesError reflects the live draft (null when empty/valid, a specific message when rejected)", () => {
     const port = createFakeMediaPort({ media: [ITEM] });
     const { result } = renderHook(
-      () => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }),
+      () => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }),
       { wrapper }
     );
 
@@ -338,7 +348,7 @@ describe("htmlAttributes — live hint must never gate save() (regression pin fo
     const port = createFakeMediaPort({ media: [ITEM] });
     const onSaved = vi.fn();
     const { result } = renderHook(
-      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }),
+      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }),
       { wrapper }
     );
 
@@ -365,7 +375,7 @@ describe("htmlAttributes — live hint must never gate save() (regression pin fo
     const port = createFakeMediaPort({ media: [ITEM] });
     const onSaved = vi.fn();
     const { result } = renderHook(
-      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }),
+      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }),
       { wrapper }
     );
 
@@ -394,7 +404,7 @@ describe("save() diffs against a frozen baseline, not the live `item` prop", () 
     const port = createFakeMediaPort({ media: [ITEM] });
     const onSaved = vi.fn();
     const { result, rerender } = renderHook(
-      ({ item }: { item: AdminMedia }) => useEditMediaPanel({ item, onSaved, onCancel: vi.fn() }, { port, locale: "en" }),
+      ({ item }: { item: AdminMedia }) => useEditMediaPanel({ item, onSaved, onCancel: vi.fn(), hooks, deps: { ...deps, setTimeout, port, locale: "en" } }),
       { initialProps: { item: ITEM }, wrapper }
     );
 

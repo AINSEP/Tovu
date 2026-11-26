@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 
 import { Media } from "../Media";
-import type { MediaController } from "../hooks/use-media.hooks";
+import type { MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
 import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";

@@ -20,7 +20,7 @@ import type {
   AccessTokenProviderGroupState,
   AccessTokensController,
 } from "../hooks/use-access-tokens.hooks";
-import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
+import type { OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 
 /**
  * @file (2026-09-04 coverage pass) `AccessTokensTab.tsx` was at 55% line / 52% branch coverage —

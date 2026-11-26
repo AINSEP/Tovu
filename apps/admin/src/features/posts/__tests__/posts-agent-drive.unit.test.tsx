@@ -1,13 +1,30 @@
+import { bindPosts } from "@jini-ai/admin/posts/Posts";
+import { useWiredPosts } from "../hooks/use-posts.hooks";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { ServerLabel } from "@/components/status-labels";
+import { PublishSectionButton } from "@/features/publish-content/publish-section-button-binding";
+import { siteUrl } from "@/lib/site-url";
+import { postRowMenuItems } from "@jini-ai/cms/react/posts/posts-list-rules";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
+import { t as translateForPosts } from "../posts-i18n";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import { Posts } from "../Posts";
 import type { PostsController } from "@jini-ai/admin/posts/hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "@jini-ai/cms/react/posts/posts-list-rules";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { currentRoutePath, installInternalLinkInterceptor } from "@jini-ai/admin/shell/lib/router";
+
+const Posts = bindPosts({
+  hooks: { usePostsHook: useWiredPosts, useLocaleHook: useWiredAdminLocale },
+  kit: { ServerLabel, PublishSectionButton },
+  deps: { translate: translateForPosts, siteUrl, postRowMenuItems, navigate,
+    postAdminPath: ({ slug }) => `/admin/posts/${slug}`,
+    postEditorRoute: ({ slug }) => `/posts/${slug}`, viewerTimeZone: VIEWER_TIME_ZONE },
+});
 
 /**
  * @file Regression test for this batch's RowMenu wiring on `Posts.tsx` — representative test for

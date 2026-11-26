@@ -55,7 +55,7 @@ const WIRED_HOOKS: readonly string[] = [
   "features/pages/hooks/use-pages.hooks.ts",
   "features/plugins/hooks/use-plugins.hooks.ts",
   "features/plugins/hooks/use-agent-plugins.hooks.ts",
-  "features/media/hooks/use-media.hooks.ts",
+  "../node_modules/@jini-ai/admin/src/screens/media/hooks/use-media.hooks.ts",
   // Jini owns Forms list invalidation; the host port retains its filtered bus subscription.
   "integrations/jini-admin/forms-ports.ts",
   "features/security/hooks/use-access-tokens.hooks.ts",
@@ -99,7 +99,7 @@ describe("content-refresh coverage (staleness-bug guard)", () => {
     const tree = ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true);
     const calls: ts.CallExpression[] = [];
     const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && SUBSCRIPTION_NAMES.has(node.expression.text)) calls.push(node);
+      if (ts.isCallExpression(node) && (ts.isIdentifier(node.expression) || ts.isPropertyAccessExpression(node.expression)) && SUBSCRIPTION_NAMES.has(ts.isIdentifier(node.expression) ? node.expression.text : node.expression.name.text)) calls.push(node);
       ts.forEachChild(node, visit);
     };
     visit(tree);

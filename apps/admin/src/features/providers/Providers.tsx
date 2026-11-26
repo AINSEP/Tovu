@@ -19,7 +19,8 @@ import { Integrations } from "@jini-ai/integrations/react/webhooks/Integrations"
 import { useWiredIntegrations } from "../integrations/hooks/integrations-dependencies.hooks";
 import { tProviders as t, tIntegrations } from "../../lib/i18n-common";
 import { useProviders, type ProvidersController as JiniProvidersController } from "@jini-ai/admin/screens/providers/hooks/use-providers.hooks";
-import { useExternalMcp, type ExternalMcpController } from "../settings/hooks/use-external-mcp.hooks";
+import { useExternalMcp } from "../settings/hooks/use-external-mcp.hooks";
+import type { ExternalMcpController } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
@@ -209,7 +210,7 @@ export type ProvidersController = JiniProvidersController<ExternalMcpController>
 
 /** The real controller: Jini's composition over the host's own External MCP hook. */
 function useWiredProviders(): ProvidersController {
-  return useProviders({ useExternalMcp });
+  return useProviders({ useExternalMcp: () => useExternalMcp({}) });
 }
 
 export function Providers({ useProvidersHook = useWiredProviders, hooks = defaultProvidersHooks, ...props }: ProvidersProps & { hooks?: ProvidersHooks | undefined }) {

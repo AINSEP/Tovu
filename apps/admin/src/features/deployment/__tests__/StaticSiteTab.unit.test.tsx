@@ -1,3 +1,14 @@
+import { classifyCredentialSubmitError } from "@/lib/shell-collaborators";
+import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { publishCredentialSaveErrorMessage, publishCredentialsLoadErrorMessage, publishCredentialSelectErrorMessage, publishCredentialVerifyErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
+
+const hooks = { useFetchQuery };
+const deps = { classifyCredentialSubmitError, translateCredentialMessage, credentialDraftError, describeApiError,
+  publishCredentialSaveErrorMessage, publishCredentialsLoadErrorMessage, publishCredentialSelectErrorMessage, publishCredentialVerifyErrorMessage };
+
 import { STATIC_SITE_CAPABILITIES } from "@/features/deployment/deployment-host-policy";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
@@ -5,8 +16,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StaticSiteTab } from "../StaticSiteTab";
 import type { StaticExportController } from "@jini-ai/devops/deploy/react/hooks/use-static-export.hooks";
-import type { StaticPublishController } from "../hooks/use-static-publish.hooks";
-import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
+import type { StaticPublishController } from "@jini-ai/devops/deploy/react/hooks/use-static-publish.hooks";
+import type { PublishCredentialRowState, PublishCredentialsController } from "@jini-ai/devops/deploy/react/hooks/use-publish-credentials.hooks";
 import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
 import {
   publishTargetById,
@@ -15,7 +26,7 @@ import {
   staticPublishProjectNameCopy,
 } from "@jini-ai/devops/deploy/react/rules";
 import { CREDENTIAL_TARGET_IDS, NETLIFY_TARGET, PLAIN_TARGET, PUBLISH_TARGETS } from "./publish-targets.fixture";
-import { usePublishCredentials } from "../hooks/use-publish-credentials.hooks";
+import { usePublishCredentials } from "@jini-ai/devops/deploy/react/hooks/use-publish-credentials.hooks";
 import { createFakePublishCredentialsPort } from "../hooks/publish-credentials-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
@@ -1309,7 +1320,7 @@ describe("StaticSiteTab — Publish waits for a credential switch to land (terra
         <StaticSiteTab
           useStaticExportHook={() => exportControllerFixture()}
           useStaticPublishHook={() => publishControllerFixture({ configValues: { owner: "octo", repo: "demo-repo" }, projectName: "deploy", publish })}
-          usePublishCredentialsHook={() => usePublishCredentials({ port, t: fakeT, locale: "en", targets: PUBLISH_TARGETS })}
+          usePublishCredentialsHook={() => usePublishCredentials({ hooks, deps, port, t: fakeT, locale: "en", targets: PUBLISH_TARGETS })}
         />
       </FetchQueryProvider>,
     );

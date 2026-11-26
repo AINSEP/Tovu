@@ -26,7 +26,7 @@ function stubTransport() {
 describe("useProviders — composed sub-controllers are present", () => {
   it("wires externalMcp as a real controller, not a stub", async () => {
     const fetchMock = stubTransport();
-    const { result } = renderHook(() => useProviders({ useExternalMcp }));
+    const { result } = renderHook(() => useProviders({ useExternalMcp: () => useExternalMcp({}) }));
     expect(result.current.externalMcp).toHaveProperty("dependencies");
     expect(result.current.externalMcp).toHaveProperty("restartRequired");
     await act(async () => {
@@ -48,7 +48,7 @@ describe("useProviders — mounts ONLY what the Providers page reads", () => {
     // would have made opening Providers fetch five namespaces it never shows AND gated the render
     // on `areAnySlicesLoading`, so one slow unrelated namespace would hold the External MCP panel
     // blank. This asserts that separation rather than trusting the comment.
-    const { result } = renderHook(() => useProviders({ useExternalMcp }));
+    const { result } = renderHook(() => useProviders({ useExternalMcp: () => useExternalMcp({}) }));
 
     expect(Object.keys(result.current).sort()).toEqual(["externalMcp"]);
     for (const sliceField of ["execution", "instructions", "notifications", "privacy", "appearance", "language", "save", "loading"]) {

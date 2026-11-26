@@ -264,20 +264,6 @@
       "text": "YouTube"
     },
     {
-      "file": "features/posts/Posts.tsx",
-      "line": 206,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/posts/Posts.tsx",
-      "line": 206,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
       "file": "features/security/AccessTokensTab.tsx",
       "line": 808,
       "kind": "aria-label",

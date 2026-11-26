@@ -1,10 +1,17 @@
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
+import { describeApiError } from "@/lib/admin-http/request";
+import { isVersionConflict } from "@/lib/shell-collaborators";
+import { useSerialWrites } from "@jini-ai/ui/panel-kit";
+import { t as tExternalMcp } from "@jini-ai/admin/screens/settings/external-mcp-i18n";
+import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "@jini-ai/admin/screens/settings/rules";
 import { renderHook } from "@/__tests__/fetch-query-render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import { ApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
-import { useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
+import { useExternalMcp as useExternalMcpHook } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp.hooks";
 
 /**
  * @file Lost updates on the External MCP tab (design S1): every save of a server sends the `version`
@@ -13,7 +20,12 @@ import { useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks"
  */
 
 const port = { listExternalMcpServers: vi.fn(), saveExternalMcpServer: vi.fn(), deleteExternalMcpServer: vi.fn(), probeExternalMcpServer: vi.fn() };
-const useExternalMcp = () => useExternalMcpHook({ port, useAdminLocaleHook: () => "en" });
+const deps = { port, credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage,
+  credentialDraftError, describeApiError, VERSION_CONFLICT_MESSAGE, isVersionConflict, translate: tExternalMcp,
+  mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport,
+  validateExternalMcpOAuthIdentity, now: Date.now };
+
+const useExternalMcp = () => useExternalMcpHook({ deps, hooks: { useAdminLocaleHook: () => "en", useSerialWrites } });
 
 function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalMcpServer {
   return { serverId: "linear", label: "Linear", transport: "streamable_http", authMode: "none", enabled: true, command: "", url: "https://mcp.example/mcp", args: [],

@@ -1,10 +1,16 @@
+import { t as translateMediaCopy } from "../media-i18n";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
+import { sizeRefusalFromError } from "../upload-size-copy";
+import { describeApiError } from "@/lib/admin-http/request";
 import { render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Media } from "../Media";
-import { useMedia } from "../hooks/use-media.hooks";
+import { useMedia } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { MEDIA_DICT, t as translate } from "../media-i18n";
 import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
@@ -51,7 +57,7 @@ function renderWithPort(port: ReturnType<typeof createFakeMediaPort>) {
   const t = (key: string) => translate({ locale: "en", key });
   return render(
     <FetchQueryProvider>
-      <Media {...requiredMediaHooks} useMediaHook={() => useMedia({ port, useGridPages, useMediaWrites, tab: "all", locale: "en", t })} />
+      <Media {...requiredMediaHooks} useMediaHook={() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t })} />
     </FetchQueryProvider>,
   );
 }

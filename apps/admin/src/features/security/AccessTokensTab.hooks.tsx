@@ -6,7 +6,7 @@ import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "@jin
 import { sortAccessTokenGroups, type AccessTokenGroupSortInput } from "@jini-ai/admin/security/access-token-categories";
 import { ACCESS_TOKEN_CATEGORIES } from "./rules";
 import type { AccessTokensController, AccessTokenProviderGroupState } from "./hooks/use-access-tokens.hooks";
-import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
+import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 
 /**
  * @file `AccessTokensTab.tsx`'s two `forwardRef` `<dialog>` sub-components' own state and

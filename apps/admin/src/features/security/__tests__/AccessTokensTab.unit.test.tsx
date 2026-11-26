@@ -9,7 +9,7 @@ import { createFakeAccessTokensPort } from "../hooks/access-tokens-dependencies.
 import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
 import { useAccessTokens } from "../hooks/use-access-tokens.hooks";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
-import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
+import type { OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { useCopyKeys } from "@jini-ai/admin/security/host/hooks/use-copy-keys.hooks";
 import { copyKeysHostPolicy } from "../hooks/copy-keys-dependencies.hooks";
 import { accessTokenProviderInfo, accessTokenProviders } from "@jini-ai/admin/security/access-token-providers";

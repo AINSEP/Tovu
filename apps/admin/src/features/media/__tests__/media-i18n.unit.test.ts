@@ -1,3 +1,9 @@
+import { t as translateMediaCopy } from "../media-i18n";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
+import { sizeRefusalFromError } from "../upload-size-copy";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { useWiredMediaPreview } from "@/features/media/hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "@/features/media/hooks/use-edit-media-panel.hooks";
@@ -18,7 +24,7 @@ import { COMMON_I18N } from "@/lib/i18n-common";
 import { MEDIA_DICT, t } from "../media-i18n";
 import { MEDIA_ORDER_OPTIONS } from "@jini-ai/admin/screens/media/rules";
 import { Media } from "../Media";
-import { useMedia } from "../hooks/use-media.hooks";
+import { useMedia } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
 import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
@@ -82,7 +88,7 @@ describe("Media copy reaches the active locale", () => {
       await port.uploadMedia({ filename: "Sunset $&", contentType: "image/png", dataBase64: "aGk=" });
       const translate = (key: string) => t({ locale: copy.locale, key });
       render(createElement(FetchQueryProvider, {}, createElement(Media, { ...requiredMediaHooks,
-        useMediaHook: ({ tab, itemId }) => useMedia({ port, useGridPages, useMediaWrites, tab, itemId, locale: copy.locale, t: translate }),
+        useMediaHook: ({ tab, itemId }) => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab, itemId, locale: copy.locale, t: translate }),
       })));
       return { port, translate };
     }
