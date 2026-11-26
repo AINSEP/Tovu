@@ -10,6 +10,7 @@ function fixture() {
   const handlers = new Map<string, (event: { senderFrame: { url: string; parent: unknown } | null }, input: unknown) => unknown>();
   const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => 100_000,
     totalMem: () => 1000, openSites: () => [],
+    samplePrivateMemory: async () => ({ metric: 'unavailable', readings: [] }),
     listUsage: async () => [{ pid: 1, ppid: 0, rssBytes: 100, cpuSeconds: 0, name: 'Electron' }] });
   registerResourcesIpc({ ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
     allowed: ({ url }) => url === 'file:///sites-home.html', monitor: { get: (input) => { calls.push(input); return monitor.get(input); } } });
