@@ -12,7 +12,6 @@ import { accessTokensCountText, otherCredentialMatchesQuery } from "@jini-ai/int
 import { providerGroupHandleLabel, tokenRowHandleLabel, ACCESS_TOKEN_PROVIDER_COPY } from "./access-token-copy";
 import { ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon } from "../../integrations/jini-admin/security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
-import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import { OtherCredentialEntry } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection";
 import { useOtherCredentialRemoveDialog } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection.hooks";
 import { useWiredCopyKeys } from "./hooks/copy-keys-dependencies.hooks";
@@ -30,7 +29,6 @@ export const AccessTokensTab = bindAccessTokensTab({
   hooks: {
     useAdminLocaleHook: useAdminLocale,
     useAccessTokensHook: useWiredAccessTokens,
-    useOtherCredentialsHook: useWiredOtherCredentials,
     useCopyKeysHook: useWiredCopyKeys,
     useMergedSecretsOrderHook: useMergedSecretsOrder,
     useRemoveConfirmDialogHook: useRemoveConfirmDialog,

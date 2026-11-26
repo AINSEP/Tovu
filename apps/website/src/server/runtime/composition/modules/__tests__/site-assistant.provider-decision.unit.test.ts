@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveProviderFromCredential, type SiteAssistantCredentialChoice } from "../site-assistant.js";
+import { resolveProviderFromCredential, type SiteAssistantCredentialChoice } from "../site-assistant-preflight.js";
 
 /** The provider decision for a visitor chat turn, without a repo or sealer: each refusal answers 503
  * with its code and an operator-facing diagnostic; a usable choice resolves key, model and endpoint. */

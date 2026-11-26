@@ -109,7 +109,7 @@ describe("Security — page shell", () => {
 
   it("renders the AccessTokensTab body underneath, not just the tab bar", () => {
     renderPage({ canManageSiteKey: false });
-    // `useOtherCredentialsHook` is left at its real default here (unmocked lib/api, degrades to an
+    // `Security` supplies the real `useOtherCredentialsHook` here (unmocked lib/api, degrades to an
     // empty/loading state in a test environment) — this only proves `Security` mounts
     // `AccessTokensTab` at all, which `AccessTokensTab.unit.test.tsx` covers in full.
     expect(screen.getByText("Loading access tokens…")).toBeInTheDocument();

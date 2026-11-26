@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ProviderProtocol } from "@jini-ai/agent-runtime/providers/tool-turn";
-import { siteAssistantEnvFallbacks } from "../runtime/composition/modules/site-assistant.js";
+import { siteAssistantEnvFallbacks } from "../runtime/composition/modules/site-assistant-preflight.js";
 
 /**
  * @file `siteAssistantEnvFallbacks` (t91 F3.1) is the single gate every env-sourced value for a
