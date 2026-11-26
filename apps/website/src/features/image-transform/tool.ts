@@ -3,7 +3,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, withSch
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
+import { FS_FILES_READ_PERMISSION } from "@jini-ai/cms/fs-files/agent-tools";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FsWriteInputError } from "@jini-ai/cms/fs-files/write-files";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";

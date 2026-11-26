@@ -18,11 +18,12 @@ import {
   FS_READ_FILE_TOOL_ID,
   FS_WRITE_FILES_TOOL_ID,
   getFsFilesAgentToolCatalog,
-} from "./agent-tools.js";
+  type AgentToolDefinition,
+} from "@jini-ai/cms/fs-files/agent-tools";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
-import { listFsFiles, readFsFile, resolveFsFilePath } from "./fs-files.js";
-import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
+import { listFsFiles, MAX_FS_FILE_BYTES, readFsFile, resolveFsFilePath } from "./fs-files.js";
+import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
 import { FsRootNotFoundError, resolveSiteFileRequest } from "./site-file-request.js";
 import { FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles, type PreparedFileWrite } from "@jini-ai/cms/fs-files/write-files";
 
@@ -41,7 +42,20 @@ import { FsWriteInputError, prepareFileWrites, requirePickedFolder, writePrepare
  * files into the picked folder after the human approves the exact batch on one card.
  */
 
-const CATALOG_BY_ID = indexCatalogById({ catalog: getFsFilesAgentToolCatalog() });
+/**
+ * This host's `fs-files` catalog: Jini's catalog bound to Tovu's three roots (`repo`/`site`/`custom`,
+ * see `layout.ts` for why they are broad and the denylist in `fs-files.ts` is the primary gate) and
+ * to the same byte ceiling `readFsFile` enforces, so the published schema and description cannot
+ * drift from what the handlers below accept. The read-only-except-one-carded-batch rationale lives in
+ * the catalog's own header in `@jini-ai/cms/fs-files/agent-tools`.
+ *
+ * @complexity O(r) in the number of host roots.
+ */
+export function getHostFsFilesAgentToolCatalog(): AgentToolDefinition[] {
+  return getFsFilesAgentToolCatalog({ rootIds: FS_ROOT_IDS, rootDescriptors: FS_ROOT_DESCRIPTORS, maxFileBytes: MAX_FS_FILE_BYTES });
+}
+
+const CATALOG_BY_ID = indexCatalogById({ catalog: getHostFsFilesAgentToolCatalog() });
 
 export interface FsFilesToolDeps {
   authorize: AuthorizeFn;
@@ -214,7 +228,7 @@ export function buildFsFilesRegistrations(
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "fs-files",
-    catalogModule: "features/fs-files/agent-tools.ts",
+    catalogModule: "@jini-ai/cms/fs-files/agent-tools",
     catalog: CATALOG_BY_ID,
     handlers,
     inputNormalizers: { [FS_READ_FILE_TOOL_ID]: normalizeFsReadInput },

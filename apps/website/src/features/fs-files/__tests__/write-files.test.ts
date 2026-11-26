@@ -8,9 +8,9 @@ import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
-import { FS_WRITE_FILES_TOOL_ID, getFsFilesAgentToolCatalog } from "../agent-tools.js";
+import { FS_WRITE_FILES_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
-import { buildFsFilesRegistrations, fsFilesDerivedRisk } from "../tool-registrations.js";
+import { buildFsFilesRegistrations, fsFilesDerivedRisk, getHostFsFilesAgentToolCatalog } from "../tool-registrations.js";
 import { FS_WRITE_LIMITS, FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles } from "@jini-ai/cms/fs-files/write-files";
 import { resolveFsFilePath } from "../fs-files.js";
 
@@ -139,7 +139,7 @@ function toolHarness(t: TestContext, { folder, site, allowed = true }: { folder:
 }
 
 test("catalog: fs_write_files mutates durable state under the folder-manage permission; reads stay read-only", () => {
-  const byId = new Map(getFsFilesAgentToolCatalog().map((d) => [d.name, d]));
+  const byId = new Map(getHostFsFilesAgentToolCatalog().map((d) => [d.name, d]));
   const write = byId.get(FS_WRITE_FILES_TOOL_ID);
   assert.equal(write?.sideEffects, "mutates-durable-state");
   assert.equal(write?.authorization.permission, FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION);

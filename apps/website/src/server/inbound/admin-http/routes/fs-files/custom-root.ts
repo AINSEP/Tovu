@@ -1,7 +1,7 @@
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
-import { FS_FILES_READ_PERMISSION } from "#src/features/fs-files/agent-tools";
+import { FS_FILES_READ_PERMISSION } from "@jini-ai/cms/fs-files/agent-tools";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import {
   CustomFsRootError,

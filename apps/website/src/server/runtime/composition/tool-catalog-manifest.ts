@@ -379,8 +379,10 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * bundled `references/*.template.*` files were unreachable. Read-only, and scoped to a fixed, named
  * five-directory allowlist (`features/fs-files/layout.ts`) resolved off `platform/site-dir`'s own
  * `resolveSiteRoot`/`resolveProductRoot` — never the site directory itself (which holds `chat.db`) and
- * never anything server-internal. See `features/fs-files/agent-tools.ts`'s own header for the full
- * allowlist argument and why no write/edit/delete tool exists in this domain. Adds no new module edge
+ * never anything server-internal. The catalog itself now lives in `@jini-ai/cms/fs-files/agent-tools`
+ * (bound to this host's roots by `features/fs-files/tool-registrations.ts`'s
+ * `getHostFsFilesAgentToolCatalog`); see that module's header for why the only write is the carded
+ * picked-folder batch, and `features/fs-files/layout.ts` for today's broad roots. Adds no new module edge
  * for the identical reason `site-evidence`/`custom-credentials` above do not.
  *
  * `contributeContentDuplicationTools()` (2026-09-07) is a NEW domain, one tool: `content_duplicate`,

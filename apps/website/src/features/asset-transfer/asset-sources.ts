@@ -7,7 +7,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { findMediaByIdOrSlug } from "../media/index.js";
 import { readStoredBytes } from "@jini-ai/cms/media/site/original-bytes";
-import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
+import { FS_FILES_READ_PERMISSION } from "@jini-ai/cms/fs-files/agent-tools";
 import { inspectWriteTarget } from "@jini-ai/cms/fs-files/write-files";
 import { openFsFileForRead, resolveFsFilePath } from "../fs-files/fs-files.js";
 import { resolvePickedFolder } from "../fs-files/tool-registrations.js";
