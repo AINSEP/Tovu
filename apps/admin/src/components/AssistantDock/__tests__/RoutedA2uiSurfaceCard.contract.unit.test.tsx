@@ -17,6 +17,15 @@ import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@jini
 // A test supplies its own clock port; the system clock lives in the platform package.
 const testClock: Clock = { nowMs: () => Date.now() };
 
+/**
+ * Absence on one side of the portal only means something while the selector still matches the
+ * table on the other side; a retired class left behind here would otherwise pass vacuously.
+ */
+function expectLiveSelectorAbsentFrom(root: ParentNode, selector: string) {
+  expect(document.querySelector(selector)).not.toBeNull();
+  expect(root.querySelector(selector)).toBeNull();
+}
+
 afterEach(() => {
   cleanup();
   resetPlaygroundRenderTargetBus();
@@ -40,10 +49,10 @@ it.each(["shadcn", "native"])("renders the real %s table with its styling frame 
     />);
     await waitFor(() => expect(target.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada"));
     expect(target.querySelector(".jini-ui-data-table-frame")).toHaveAttribute("data-table-provider", provider);
-    expect(container.querySelector(".jini-ui-data-table")).toBeNull();
+    expectLiveSelectorAbsentFrom(container, ".jini-ui-data-table");
     act(() => setPlaygroundRenderTarget({ node: null }));
     await waitFor(() => expect(container.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada"));
-    expect(target.querySelector(".jini-ui-data-table")).toBeNull();
+    expectLiveSelectorAbsentFrom(target, ".jini-ui-data-table");
   } finally {
     target.remove();
   }
@@ -68,11 +77,11 @@ it.each(["shadcn", "native"])("the table keeps its provider marker when moved in
     act(() => setPlaygroundRenderTarget({ node: target }));
     await waitFor(() => expect(target.querySelector(".jini-ui-data-table-frame")).toHaveAttribute("data-table-provider", provider));
     expect(target.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada");
-    expect(container.querySelector(".jini-ui-data-table-frame")).toBeNull();
+    expectLiveSelectorAbsentFrom(container, ".jini-ui-data-table-frame");
     act(() => setPlaygroundRenderTarget({ node: null }));
     await waitFor(() => expect(container.querySelector(".jini-ui-data-table-frame")).toHaveAttribute("data-table-provider", provider));
     expect(container.querySelector(".jini-ui-data-table")).toHaveTextContent("Ada");
-    expect(target.querySelector(".jini-ui-data-table-frame")).toBeNull();
+    expectLiveSelectorAbsentFrom(target, ".jini-ui-data-table-frame");
   } finally {
     target.remove();
   }
