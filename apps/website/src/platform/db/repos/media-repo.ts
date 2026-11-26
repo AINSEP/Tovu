@@ -11,7 +11,7 @@ import { MediaConflictError } from "@jini-ai/cms/media";
 import type { VersionedMediaRepoPort, AssetBlobRepoPort, AssetRenditionRepoPort, TransformDefinitionRepoPort, AssetBlobRecord, AssetBlobStatus, AssetRenditionRecord, TransformDefinitionRecord } from "@jini-ai/cms/media";
 import type { TransformParams } from "@jini-ai/core/contracts/site/cms-media";
 import { toMediaRecord } from "./media-record-row.js";
-import { readMediaGridItem, readMediaGridPage, type MediaGridAfter, type MediaGridItemQuery, type MediaGridPageQuery } from "./media-grid-query.js";
+import { listGridTrashDeadlines, readMediaGridItem, readMediaGridPage, type MediaGridAfter, type MediaGridItemQuery, type MediaGridPageQuery } from "./media-grid-query.js";
 
 /**
  * @file ADR-046 Phase 1 — THE durable adapters for the `media` library's four route-consumed repo
@@ -248,6 +248,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
   readonly listGridPage = (required: MediaGridPageQuery, optional: MediaGridAfter = {}) => readMediaGridPage({ kernel: this.kernel, ...required }, optional);
   /** The one ordinary asset with `id` inside `tab`, or `null`, with the workspace summary; never a page scan. */
   readonly findGridItem = (required: MediaGridItemQuery, _optional: Record<string, never> = {}) => readMediaGridItem({ kernel: this.kernel, ...required });
+  readonly listGridTrashDeadlines = (required: { workspaceId: UUID; ids: readonly UUID[] }, _optional: Record<string, never> = {}) => listGridTrashDeadlines({ kernel: this.kernel, ...required });
 
   /**
    * S2a (readable slugs, 2026-09-23): the read, the retired-slug conflict check, the write, and the

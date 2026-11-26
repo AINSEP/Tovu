@@ -119,7 +119,7 @@ test("publisher-ID upgrades are reported in plain words, and an explained plugin
   assert.deepEqual(calls, [
     "seed",
     "info:[bundled-agent-plugins] 'cloudflare' moved to its new publisher ID 'jini/cloudflare'; its on/off switch, settings, data and memory are kept. The previous copy is saved in /ws/.bundled-id-upgrade/cloudflare/a",
-    "warn:[bundled-agent-plugins] 'github' stays on its current version because its installed files were changed after install, so Tovu will not replace it with 'jini/github'. It keeps working. To get the new version, uninstall 'github' and install it again from Agent Plugins; if another publisher made it, ask them for an update.",
+    "warn:[bundled-agent-plugins] 'github' stays on its current version because its installed files were changed after install, so Tovu will not replace it with 'jini/github'. Some features from this copy may be unavailable. To get the new version, uninstall 'github' and install it again from Agent Plugins; if another publisher made it, ask them for an update.",
     "warn:[bundled-agent-plugins] 'fly' could not move to 'jini/fly' because the new version did not install; the previous version was put back and stays in use. Restart Tovu to try again.",
     "faces", "soon-lock", "tokens", "renames", "grants",
   ]);

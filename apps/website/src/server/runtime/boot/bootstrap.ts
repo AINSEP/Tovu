@@ -408,7 +408,7 @@ function logBundledIdUpgrade(upgrade: BundledIdUpgradeOutcome): void {
   if (upgrade.status === "upgraded") {
     consoleLogger.info({ message: `[bundled-agent-plugins] '${id}' moved to its new publisher ID '${upgrade.to}'; its on/off switch, settings, data and memory are kept. The previous copy is saved in ${upgrade.moved.map(revision => revision.savedAt).join(", ")}` });
   } else if (upgrade.status === "held") {
-    consoleLogger.warn({ message: `[bundled-agent-plugins] '${id}' stays on its current version because ${upgrade.reason}, so Tovu will not replace it with '${upgrade.to}'. It keeps working. To get the new version, uninstall '${id}' and install it again from Agent Plugins; if another publisher made it, ask them for an update.` });
+    consoleLogger.warn({ message: `[bundled-agent-plugins] '${id}' stays on its current version because ${upgrade.reason}, so Tovu will not replace it with '${upgrade.to}'. Some features from this copy may be unavailable. To get the new version, uninstall '${id}' and install it again from Agent Plugins; if another publisher made it, ask them for an update.` });
   } else {
     consoleLogger.warn({ message: `[bundled-agent-plugins] '${id}' could not move to '${upgrade.to}' because the new version did not install; the previous version was put back and stays in use. Restart Tovu to try again.` });
   }

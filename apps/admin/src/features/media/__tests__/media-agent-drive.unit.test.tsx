@@ -80,6 +80,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
   return {
     media: [],
     counts: null,
+    retentionDays: null,
     hasUntypedActive: false,
     hasMore: false,
     loadingMore: false,

@@ -7,6 +7,9 @@ import type { ScreenshotCleanupClient } from "@jini-ai/admin/screens/storage/api
 import { StorageScreen } from "@jini-ai/admin/screens/storage/StorageScreen";
 import { useWiredStorage } from "@jini-ai/admin/screens/storage/hooks/use-storage.hooks";
 import { useScreenshotCleanup } from "@jini-ai/admin/screens/storage/hooks/use-screenshot-cleanup.hooks";
+import { render as renderWithKits } from "@/__tests__/render-with-jini-kits";
+import { Storage } from "../Storage";
+import { storageClient } from "../api/storage-api";
 
 const AMOUNT = { bytes: 2048, knownBytes: 2048, files: 1 };
 
@@ -37,7 +40,7 @@ function harness() {
     }),
   };
   const screenshotClient: ScreenshotCleanupClient = { preview: vi.fn(), apply: vi.fn() };
-  render(<StorageScreen client={client} screenshotClient={screenshotClient} reportErrors={({ error }) => String(error)} now={() => 0} locale="en" useWiredStorageHook={useWiredStorage} useScreenshotCleanupHook={useScreenshotCleanup}
+  render(<StorageScreen client={client} screenshotClient={screenshotClient} reportErrors={({ error }) => String(error)} now={() => 0} locale="en" setDocumentTitle={vi.fn(() => () => {})} useWiredStorageHook={useWiredStorage} useScreenshotCleanupHook={useScreenshotCleanup}
     kit={{ Button: "button" }}
     links={[{ label: "Chats", href: "/admin/ai-assistant", categories: ["chat-database"] }, { label: "Trash", href: "/admin/trash", categories: [] }]}
     copy={{ automatic: "Cleaned automatically", yours: "Yours", shown: "Shown only", dryRun: "Clean up now", confirm: "Review and confirm", clean: "Clean up", lastAutomaticPass: "Last automatic clean-up", freed: "Freed", failures: "Could not clean" }}
@@ -49,6 +52,36 @@ function harness() {
 afterEach(() => { cleanup(); });
 
 describe("StorageScreen", () => {
+  it("Storage names its tab and distinguishes categories without repeating destinations", async () => {
+    const previousTitle = document.title;
+    document.title = "Previous page";
+    const request = vi.spyOn(storageClient, "report").mockResolvedValue({
+      categories: {
+        "content-database": { ...AMOUNT, class: "yours" },
+        screenshots: { ...AMOUNT, class: "yours" },
+        "database-wal": { ...AMOUNT, class: "report-only" },
+        "database-shm": { ...AMOUNT, class: "report-only" },
+      },
+      lastPass: null,
+    });
+    try {
+      const view = renderWithKits(<Storage useAdminLocaleHook={() => "en"} />);
+      for (const label of ["Content database", "Screenshots", "Database write-ahead log", "Database shared-memory files"]) {
+        expect(await screen.findByText(`${label}: 2 kB`)).toBeTruthy();
+      }
+      expect(screen.queryByText(/Content database \(Database\)|Screenshots \(Screenshots\)/)).toBeNull();
+      expect(screen.getByRole("link", { name: "Database" }).getAttribute("href")).toBe("/admin/database");
+      expect(screen.getByRole("link", { name: "Screenshots" }).getAttribute("href")).toBe("#storage-screenshots");
+      expect(document.title).toBe("Storage — Tovu Admin");
+      view.unmount();
+      expect(document.title).toBe("Previous page");
+    } finally {
+      cleanup();
+      request.mockRestore();
+      document.title = previousTitle;
+    }
+  });
+
   it("shows the page title and styles every section heading like its sibling screens (live-found bare headings, 2026-11-25)", async () => {
     harness();
     const title = screen.getByRole("heading", { level: 1, name: "Storage" });

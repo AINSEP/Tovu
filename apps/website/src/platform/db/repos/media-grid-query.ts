@@ -169,3 +169,17 @@ export async function readMediaGridItem(
     return { row: row ? toMediaRecord(row) : null, ...(await readGridSummary({ db, workspaceId: required.workspaceId })) };
   });
 }
+
+export async function listGridTrashDeadlines(
+  required: GridReadPorts & { workspaceId: UUID; ids: readonly UUID[] },
+  _optional: Record<string, never> = {},
+): Promise<ReadonlyMap<string, string>> {
+  const { kernel, workspaceId, ids } = required;
+  if (ids.length === 0) return new Map();
+  const rows = await kernel.run(db => db.selectFrom("trashed_items")
+    .select(["entity_id", "purge_after"])
+    .where("workspace_id", "=", workspaceId)
+    .where("entity_type", "=", "media")
+    .where("entity_id", "in", ids).execute());
+  return new Map(rows.map(row => [row.entity_id, row.purge_after]));
+}

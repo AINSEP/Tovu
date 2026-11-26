@@ -43,6 +43,18 @@ function lastDeclaration(rule: string, property: string): string | undefined {
  * Check the more-specific capture-wrapper rule too: its shorthand wins over the pane rule.
  * These are declaration guards; jsdom cannot prove desktop/375px scroll geometry. */
 describe("chat dock composer stays at the bottom", () => {
+  it("the cleanup panel is anchored to the dock header and its controls can wrap", () => {
+    expect(lastDeclaration(ruleFor(".admin-chat-dock .jini-chat-pane__header"), "position")).toBe("relative");
+    const panel = ruleFor(".admin-chat-dock .assistant-chat-cleanup__panel");
+    expect(lastDeclaration(panel, "position")).toBe("absolute");
+    expect(lastDeclaration(panel, "top")).toBe("calc(100% + 4px)");
+    expect(lastDeclaration(panel, "right")).toBe("8px");
+    expect(lastDeclaration(panel, "max-width")).toBe("calc(100% - 16px)");
+    expect(lastDeclaration(panel, "display")).toBe("flex");
+    expect(lastDeclaration(panel, "flex-wrap")).toBe("wrap");
+    expect(lastDeclaration(ruleFor(".admin-chat-dock .assistant-chat-cleanup__panel > label"), "flex-wrap")).toBe("wrap");
+  });
+
   it("keeps a zero length flex basis through the capture wrapper instead of overriding it with flex: 1", () => {
     const pane = ruleFor(".admin-chat-dock .jini-chat-pane");
     const capturedPane = ruleFor(".admin-chat-dock > .admin-chat-dock-drop > .jini-chat-pane");

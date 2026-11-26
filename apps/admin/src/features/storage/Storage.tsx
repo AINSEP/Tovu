@@ -10,8 +10,8 @@ import { useScreenshotCleanup } from "@jini-ai/admin/screens/storage/hooks/use-s
 import { t } from "./storage-i18n";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  "content-database": "Content database", "chat-database": "Chat database", "database-wal": "Database working files",
-  "database-shm": "Database working files", uploads: "Uploads", themes: "Themes", plugins: "Plugins",
+  "content-database": "Content database", "chat-database": "Chat database", "database-wal": "Database write-ahead log",
+  "database-shm": "Database shared-memory files", uploads: "Uploads", themes: "Themes", plugins: "Plugins",
   "agent-plugins": "Agent plugins", "theme-rollbacks": "Theme rollbacks", screenshots: "Screenshots", shares: "Shared files",
   "pre-migration-copies": "Pre-migration copies", "restore-points": "Restore points", logs: "Logs", exports: "Exports",
   temporary: "Temporary files", other: "Other",
@@ -36,6 +36,11 @@ export const Storage = bindStorageScreen({
   deps: {
     client: storageClient, screenshotClient: screenshotCleanupClient,
     reportErrors: reportStorageError, now: () => Date.now(), t,
+    setDocumentTitle: ({ title }, _optional = {}) => {
+      const previousTitle = document.title;
+      document.title = `${title} — Tovu Admin`;
+      return () => { document.title = previousTitle; };
+    },
     categoryLabels: CATEGORY_LABELS, kindLabels: KIND_LABELS,
     screenshotAgeDays: SCREENSHOT_AGE_DAYS, screenshotsAnchor: SCREENSHOTS_ANCHOR,
     screenshotHeading: "Delete screenshots older than 90 days",
@@ -43,9 +48,9 @@ export const Storage = bindStorageScreen({
       { key: "Chats", href: "/admin/ai-assistant", categories: ["chat-database"] },
       { key: "Trash", href: "/admin/trash", categories: [] },
       { key: "Recovery", href: "/admin/recovery", categories: ["restore-points", "pre-migration-copies"] },
-      { key: "Database", href: "/admin/database", categories: ["content-database"] },
+      { key: "Database", href: "/admin/database", categories: [] },
       { key: "Exports", href: "/admin/import-export", categories: [] },
-      { key: "Screenshots", href: `#${SCREENSHOTS_ANCHOR}`, categories: ["screenshots"] },
+      { key: "Screenshots", href: `#${SCREENSHOTS_ANCHOR}`, categories: [] },
       { key: "Revisions", href: "/admin/pages", categories: [] },
     ],
     copy: {
