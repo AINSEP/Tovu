@@ -250,41 +250,6 @@
       "text": "YouTube"
     },
     {
-      "file": "features/security/AccessTokensTab.tsx",
-      "line": 808,
-      "kind": "aria-label",
-      "text": "adding this",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
-      "file": "features/security/AccessTokensTab.tsx",
-      "line": 808,
-      "kind": "aria-label",
-      "text": "token",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
-      "file": "features/security/AccessTokensTab.tsx",
-      "line": 889,
-      "kind": "aria-label",
-      "text": "required",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
-      "file": "features/security/AccessTokensTab.tsx",
-      "line": 911,
-      "kind": "placeholder",
-      "text": "https://secondary-api.example.test",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
-      "file": "features/security/AccessTokensTab.tsx",
-      "line": 993,
-      "kind": "placeholder",
-      "text": "https://api.example.com",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
       "file": "features/settings/ExternalMcpSettingsPanel.tsx",
       "line": 356,
       "kind": "aria-label",

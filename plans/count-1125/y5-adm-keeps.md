@@ -21,6 +21,9 @@
 ^apps/admin/src/features/publish-content/PublishContentDialog\.tsx$
 ^apps/admin/src/features/pages/PageEditor\.tsx$
 ^apps/admin/src/features/pages/hooks/use-page-editor\.hooks\.ts$
+^apps/admin/src/features/security/AccessTokensTab\.tsx$
+^apps/admin/src/features/security/Security\.tsx$
+^apps/admin/src/features/security/hooks/use-access-tokens\.hooks\.ts$
 ```
 
 ## Round 2 status

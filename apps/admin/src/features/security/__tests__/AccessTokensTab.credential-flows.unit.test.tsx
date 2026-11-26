@@ -19,7 +19,7 @@ import type {
   AccessTokenExistingRowState,
   AccessTokenProviderGroupState,
   AccessTokensController,
-} from "../hooks/use-access-tokens.hooks";
+} from "@jini-ai/admin/security/host/hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 
 /**
