@@ -25,7 +25,7 @@ test('rendition journal and row removal roll back together and survive a databas
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w','now');
     const mediaRepo = new SqlMediaRepo(kernel), blobRepo = new SqlAssetBlobRepo(kernel), renditionRepo = new SqlAssetRenditionRepo(kernel);
     const outbox = outboxOn({ kernel }), clock = { nowMs: () => 0 };
-    const base = { mediaRepo, blobRepo, renditionRepo, blobStore, clock, idGen: { newId: () => `m-${++id}` } };
+    const base = { createHash, mediaRepo, blobRepo, renditionRepo, blobStore, clock, idGen: { newId: () => `m-${++id}` } };
     const { media } = await uploadMedia({ deps: base, input: { workspaceId: 'w', filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), createdByPrincipal: 'system', access: 'private' } });
     const originalKey = (await blobRepo.findByHash({ workspaceId: 'w', sha256: media.source.sha256 }))!.storageKey;
     const { storageKey: thumbKey } = await blobStore.put({ workspaceId: 'w', sha256: createHash('sha256').update(Uint8Array.of(1,2,3)).digest('hex'), bytes: Uint8Array.of(1,2,3) });
@@ -102,7 +102,7 @@ test('SQLite compensation commits before a same-hash upload waiting for its data
   try {
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w','now');
     const mediaRepo = new SqlMediaRepo(kernel), blobRepo = new SqlAssetBlobRepo(kernel), renditionRepo = new SqlAssetRenditionRepo(kernel), blobStore = new InMemoryBlobStore();
-    const base = { mediaRepo, blobRepo, renditionRepo, blobStore, clock: { nowMs: () => 0 }, idGen: { newId: () => `race-${++id}` } };
+    const base = { createHash, mediaRepo, blobRepo, renditionRepo, blobStore, clock: { nowMs: () => 0 }, idGen: { newId: () => `race-${++id}` } };
     const input = { workspaceId: 'w', filename: 'private.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), createdByPrincipal: 'system', access: 'private' as const };
     const { media } = await uploadMedia({ deps: base, input });
     let hashHeld!: () => void, releaseWriter!: () => void;

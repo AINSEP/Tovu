@@ -62,7 +62,7 @@ async function events(kernel: ContentKernel): Promise<{ name: string; actorId?: 
 }
 
 function adapterFor(kernel: ContentKernel, idGen: { next(): string } = counter()) {
-  return createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: kernel, purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues }), idGen, clock: { nowIso: () => AT } });
+  return createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: schemaErasedKernel({ store: kernel }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues }), idGen, clock: { nowIso: () => AT } });
 }
 
 function counter(): { next(): string } {

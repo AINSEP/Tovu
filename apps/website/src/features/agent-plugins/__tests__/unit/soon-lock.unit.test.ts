@@ -59,7 +59,7 @@ async function installed(t: TestContext, fixture: Fixture = {}) {
 test("the admin switch, plugins_set_enabled and connect defaults refuse to turn a Soon plugin on, in plain words, and write nothing; off always works", async t => {
   const { layout, lifecycle, isActive } = await installed(t, { maturity: "soon" });
   // The lifecycle owner's own guarded enable refuses with the public Jini error class (`@jini-ai/agent-plugins/site/soon-lock`).
-  await assert.rejects(lifecycle.setAgentPluginEnabled({ layout, workspaceId: WORKSPACE, pluginId: "notes", enabled: true, actor: "owner" }),
+  await assert.rejects(lifecycle.setAgentPluginEnabled({ workspaceId: WORKSPACE, pluginId: "notes", enabled: true, actor: "owner" }),
     (error: unknown) => error instanceof AgentPluginNotReadyError && NOT_READY.test(error.message));
   await assert.rejects(setAgentPluginEnabled({ agentPluginLayout: layout, workspaceId: WORKSPACE, pluginId: "notes", enabled: true, actor: "owner" }),
     (error: unknown) => error instanceof AgentPluginNotReadyError && NOT_READY.test(error.message) && error.code === "AGENT_PLUGIN_NOT_READY");

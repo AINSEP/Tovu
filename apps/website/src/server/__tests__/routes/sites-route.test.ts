@@ -49,6 +49,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-sites",
@@ -104,7 +105,7 @@ test("sites: read and write grants gate each handler before its dependencies are
   await deps.principalRepo.save({ id: "bare-principal-sites", workspaceId: deps.workspaceId, kind: "user",
     displayName: "No Grants", status: "active", createdAt: deps.clock.nowIso() });
   const policyId = "sites-test-policy";
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
   await deps.principalPolicyRepo.save({ id: "sites-test-link", workspaceId: deps.workspaceId, principalId: "bare-principal-sites", policyId });
   for (const grant of [null, "system.read", "system.write"]) {
     if (grant) await deps.policyPermissionRepo.save({ id: grant, workspaceId: deps.workspaceId, policyId,

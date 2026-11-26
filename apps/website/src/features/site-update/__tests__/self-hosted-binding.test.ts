@@ -4,7 +4,7 @@ import * as realFs from "node:fs/promises";
 import { createFakeSiteUpdate } from "@jini-ai/devops/deploy";
 import { createRestorePointBackup, createUpdateBackupRegistry } from "../restore-point-backup.js";
 import { createCandidateReadiness, rehearsalUnavailable } from "../candidate-readiness.js";
-import { buildSiteUpdateRegistrations } from "../tools.js";
+import { buildSiteUpdateRegistrations, type SiteUpdateToolDeps } from "../tools.js";
 
 /** @file The self-hosted binding: opt-in by environment, no default feed, check-only (no driver this wave), backups over restore points. */
 
@@ -15,7 +15,7 @@ const { bindSiteUpdateRuntime, createHttpJsonGetter } = await import("#src/serve
 
 const FEED = "https://api.github.com/repos/example-org/example-repo/releases/latest";
 const ENV = { TOVU_UPDATE_HOST: "self-hosted", TOVU_UPDATE_FEED_URL: FEED, TOVU_IMAGE_TAG: "v1.2.0" };
-const ids = createFakeSiteUpdate({ runningVersion: "1.2.0", latest: null }).ports.ids;
+const ids = createFakeSiteUpdate({ runningVersion: "1.2.0", latest: { version: "1.3.0", notes: "n" } }).ports.ids;
 const snapshotCaps = { restorePoint: { costClass: "cheap", kind: "file-snapshot" } };
 function dbOpsFake(calls: string[] = [], artifactRef = "rp-1") {
   return {
@@ -54,7 +54,7 @@ test("a check-only self-hosted installation never writes a target tag or restart
   const runtime = bindSiteUpdateRuntime(base(ENV), { restart: async ({ tag }: { tag: string }) => { restarts.push(tag); } } as never);
   assert.ok(runtime);
   assert.equal("site" in runtime, false, "no apply ports are bound without a driver");
-  const deps = (siteUpdateRuntime: typeof runtime) => ({ authorize: async () => undefined, readOwnerId: async () => "owner-1", runtime: siteUpdateRuntime });
+  const deps = (siteUpdateRuntime: SiteUpdateToolDeps["runtime"]) => ({ authorize: async () => undefined, readOwnerId: async () => "owner-1", runtime: siteUpdateRuntime });
   const registrations = buildSiteUpdateRegistrations(deps(runtime), { surfaceExchanges: {} } as never);
   assert.deepEqual(registrations.map((r) => r.descriptor.id), ["site_update_check"]);
   const checked = await registrations[0]!.handler({ executionId: "e", principal: { id: "owner-1" }, run: { id: "r" }, input: {}, signal: new AbortController().signal } as never, {} as never) as { available: boolean; latest?: string };

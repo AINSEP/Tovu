@@ -19,7 +19,8 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { TrashEntityType, TrashItem, TrashPort } from "@jini-ai/cms/trash";
-import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
+import { InMemoryUserRepo } from "@jini-ai/user-management/server";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { TrashRegistry } from "@jini-ai/cms/trash";
@@ -81,18 +82,9 @@ function makeFixture(options: { granted?: readonly string[]; items?: TrashItem[]
       throw new Error("purgeSelected must never be reached from a tool handler");
     },
   };
-  const userRepo: UserRepoPort = {
-    async findByPrincipalId() {
-      return null;
-    },
-    async findByUsername() {
-      return null;
-    },
-    async list() {
-      return [{ principalId: "principal-1", workspaceId: WORKSPACE_ID, username: "alice", passwordHash: "unused" }];
-    },
-    async save() {},
-  };
+  const userRepo = new InMemoryUserRepo({ assertVersionedWrite }, { initialRows: [
+    { principalId: "principal-1", workspaceId: WORKSPACE_ID, username: "alice", passwordHash: "unused", version: 1 },
+  ] });
   const deps: TrashToolDeps = {
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: options.clockIso ?? NOW }),

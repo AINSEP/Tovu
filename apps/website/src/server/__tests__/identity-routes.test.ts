@@ -102,6 +102,7 @@ test("AC-03/AC-04: a viewer principal is denied content.write with a typed 403, 
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: viewerPrincipalId,
     workspaceId: deps.workspaceId,
     username: "viewer1",
@@ -162,6 +163,7 @@ test("delete-user plan v2, Slice 4: AUTH_ME's canManageUserTrash is false for a 
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: "viewer-principal-2",
     workspaceId: deps.workspaceId,
     username: "viewer2",
@@ -183,6 +185,7 @@ test("delete-user plan v2, Slice 4: AUTH_ME's canManageUserTrash is false for a 
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: "admin-role-principal-1",
     workspaceId: deps.workspaceId,
     username: "admin-role-1",
@@ -228,6 +231,7 @@ test("AC-05/EC-02: disabling a principal mid-session invalidates its existing se
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: editorPrincipalId,
     workspaceId: deps.workspaceId,
     username: "editor1",
@@ -280,6 +284,7 @@ test("AC-03: an editor CAN create a post through the gateway, and the change-set
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: editorPrincipalId,
     workspaceId: deps.workspaceId,
     username: "editor2",

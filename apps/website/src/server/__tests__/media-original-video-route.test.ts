@@ -42,6 +42,7 @@ async function withServer(run: (baseUrl: string, deps: ReturnType<typeof createR
 async function uploadOne(deps: ReturnType<typeof createRouteDeps>, bytes: Uint8Array, filename: string, declaredContentType: string) {
   return uploadMedia({
     deps: {
+      createHash,
       clock: deps.clock,
       idGen: deps.idGen,
       mediaRepo: deps.mediaRepo,

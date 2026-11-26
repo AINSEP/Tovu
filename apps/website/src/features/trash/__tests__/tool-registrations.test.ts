@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { requireString, ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
-import type { UserRepoPort, UserRecord } from "@jini-ai/core/contracts/site/user-management";
+import { InMemoryUserRepo } from "@jini-ai/user-management/server";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 
 import * as schema from "#src/platform/db/schema.sqlite";
 
@@ -62,31 +63,6 @@ interface Harness {
   userListCalls: { workspaceId: string }[];
 }
 
-/** Minimal `UserRepoPort` double — only `list` is ever called from `tool-registrations.ts`'s
- *  username resolution; the rest exist to satisfy the port's full shape. */
-function fakeUserRepo(users: readonly { principalId: string; username: string }[]): UserRepoPort {
-  const toRecord = (u: { principalId: string; username: string }): UserRecord => ({
-    principalId: u.principalId,
-    workspaceId: WS,
-    username: u.username,
-    passwordHash: "unused-in-tests",
-  });
-  return {
-    async findByPrincipalId(required) {
-      const found = users.find((u) => u.principalId === required.principalId);
-      return found ? toRecord(found) : null;
-    },
-    async findByUsername(required) {
-      const found = users.find((u) => u.username === required.username);
-      return found ? toRecord(found) : null;
-    },
-    async list() {
-      return users.map(toRecord);
-    },
-    async save() {},
-  };
-}
-
 function harness(
   optional: {
     items?: TrashItem[];
@@ -130,17 +106,16 @@ function harness(
     },
   };
 
+  const users = optional.users ?? [{ principalId: "principal-1", username: "alice" }];
+  const userRepo = new InMemoryUserRepo({ assertVersionedWrite }, { initialRows: users.map(({ principalId, username }) =>
+    ({ principalId, username, workspaceId: WS, passwordHash: "unused-in-tests", version: 1 })) });
+  const listUsers = userRepo.list.bind(userRepo);
+  userRepo.list = async (required) => { userListCalls.push(required); return listUsers(required); };
   const deps: TrashToolDeps = {
     workspaceId: WS,
     clock: createFakeClock({ startIso: NOW }),
     trash,
-    userRepo: {
-      ...fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]),
-      async list(required) {
-        userListCalls.push(required);
-        return fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]).list(required);
-      },
-    },
+    userRepo,
     authorize: async (params) => {
       authorizeCalls.push({ permission: params.permission, entityType: params.entityType });
       return granted.has(params.permission)

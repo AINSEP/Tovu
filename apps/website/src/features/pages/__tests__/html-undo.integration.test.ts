@@ -26,7 +26,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createPageHtmlReverter } from "@jini-ai/cms/pages/html-reverter";
-import type { PagesHtmlDocumentStorePort } from "@jini-ai/core/contracts/site/page-html-store";
+import type { PagesHtmlDocumentStoreFactory } from "@jini-ai/core/contracts/site/page-html-store";
 
 /**
  * @file P1-T2.T — every real assistant HTML write earns exactly one scoped `page-html` change set,
@@ -189,12 +189,16 @@ for (const [label, makeRoot] of ROOTS) {
     const set = await deps.changeSets.findById({ workspaceId: deps.workspaceId, id: written.changeSetId as string });
     const item = set?.items[0];
     assert.ok(item);
-    const racingStore = (scope: Parameters<typeof deps.pagesHtmlStore>[0]) => {
-      const real = deps.pagesHtmlStore(scope);
-      return { restore: async (required: Parameters<NonNullable<PagesHtmlDocumentStorePort["restore"]>>[0]) => {
+    const realStore: PagesHtmlDocumentStoreFactory = deps.pagesHtmlStore;
+    const racingStore: PagesHtmlDocumentStoreFactory = (scope, options) => {
+      const store = realStore(scope, options);
+      assert.ok(store.restore);
+      const restore = store.restore.bind(store);
+      store.restore = async (required, optional) => {
         await humanSave(deps, "p-race", NEWER);
-        return real.restore!(required);
-      } } as unknown as PagesHtmlDocumentStorePort;
+        return restore(required, optional);
+      };
+      return store;
     };
     const reverter = createPageHtmlReverter({ editPermission: PAGES_EDIT_HTML_PERMISSION, store: racingStore, postRepo: deps.postRepo });
     await assert.rejects(reverter.applyInverse({ workspaceId: deps.workspaceId, item }, { actorId: PRINCIPAL }), (err: unknown) => {
@@ -293,15 +297,16 @@ test("sqlite root: a failure after the HTML write leaves page, revisions, events
   const revisionsBefore = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "p-sql-after" });
   const drain = () => deps.outbox.claimPending({ batchSize: 1000, nowIso: "2999-01-01T00:00:00.000Z" });
   await drain();
-  const realStore = deps.pagesHtmlStore;
+  const realStore: PagesHtmlDocumentStoreFactory = deps.pagesHtmlStore;
   let landed = false;
   // The store's write (row, revision, events) completes, then the operation fails inside the transaction.
-  deps.pagesHtmlStore = (scope, options) => {
+  const failingStore: PagesHtmlDocumentStoreFactory = (scope, options) => {
     const store = realStore(scope, options);
     const write = store.write.bind(store);
     store.write = async (...args: Parameters<typeof write>) => { await write(...args); landed = true; throw new Error("injected failure after the HTML write"); };
     return store;
   };
+  deps.pagesHtmlStore = failingStore;
   t.after(() => { deps.pagesHtmlStore = realStore; });
 
   await assert.rejects(call(deps, "pages_write_html", { id: "p-sql-after", html: NEXT, expectedVersion: version }), /injected failure after the HTML write/);

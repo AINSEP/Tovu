@@ -1,5 +1,5 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chmod, cp, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
@@ -148,15 +148,15 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
   },
   widget: async (s) => {
     await createWidgetInstance({
-      deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) },
+      deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...widgetService(s) },
       input: { workspaceId: s.workspaceId, actor: { principalId: "owner", kind: "user" }, widgetType: "text", title: "About", config: { body: "Hi" }, slug: "cov-widget" },
     });
   },
   "widget-area": async (s) => {
     const widget = await s.entryRepo.findBySlug?.({ workspaceId: s.workspaceId, type: "widget", slug: "cov-widget" } as never);
-    const { areaEntry } = await bindWidgetArea({ deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) }, input: { workspaceId: s.workspaceId, regionKey: "sidebar" } });
+    const { areaEntry } = await bindWidgetArea({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...widgetService(s) }, input: { workspaceId: s.workspaceId, regionKey: "sidebar" } });
     await mutateWidgetAreaPlacements({
-      deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) },
+      deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...widgetService(s) },
       input: {
         workspaceId: s.workspaceId, actor: { principalId: "owner", kind: "user" }, areaEntryId: areaEntry.id, baseVersion: areaEntry.version,
         placements: widget ? [{ placementId: "p-1", widgetEntryId: (widget as { id: string }).id, enabled: true }] : [],

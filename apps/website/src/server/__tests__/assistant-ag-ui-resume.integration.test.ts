@@ -375,8 +375,13 @@ test("admin AG-UI golden wire: the segments the admin client replays are the liv
   const post = (body: string) => fetch(`${baseUrl}${RUN_PATH}`, { method: "POST", headers: { "content-type": "application/json", cookie }, body });
   const firstSegment = await record(await post(JSON.stringify({ threadId: "client-thread", runId: "seg-1", messages: [{ role: "user", content: "delete it" }],
     forwardedProps: { agentId: "claude", durableRun: { conversationId, assistantMessageId: `msg-${randomUUID()}` } } })));
-  const finished = parse(firstSegment.body).at(-1) as { runId: string; outcome?: { interrupts: Array<{ id: string }> } };
-  const body = resumeBody({ conversationId, parentRunId: finished.runId, interruptId: finished.outcome!.interrupts[0]!.id });
+  const finished = parse(firstSegment.body).at(-1);
+  assert.ok(finished && finished.type === "RUN_FINISHED" && typeof finished.runId === "string");
+  const { outcome } = finished;
+  assert.ok(outcome && typeof outcome === "object" && "interrupts" in outcome && Array.isArray(outcome.interrupts));
+  const [interrupt]: object[] = outcome.interrupts;
+  assert.ok(interrupt && typeof interrupt === "object" && "id" in interrupt && typeof interrupt.id === "string");
+  const body = resumeBody({ conversationId, parentRunId: finished.runId, interruptId: interrupt.id });
   const resumeSegment = await record(await post(body));
   const refusal = await record(await post(body));
   const seen = new Map<string, string>();
@@ -432,7 +437,7 @@ async function parkVisitorApproval({ baseUrl }: { baseUrl: string }) {
 test("server shutdown abandons every parked visitor and admin approval once", { timeout: 60_000 }, async (t) => {
   await boot(t);
   const { createApp, createRouteDeps } = await import("../runtime/composition/app.js");
-  const deps = Object.assign(createRouteDeps(), { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }) as RouteDeps;
+  const deps = Object.assign(createRouteDeps(), { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } });
   await deps.siteTitleReady;
   let siteOrigin: URL | undefined;
   const { providerRequests } = await enableVisitorAsk({ t, deps, siteOrigin: () => siteOrigin! });

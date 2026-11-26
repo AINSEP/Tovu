@@ -69,7 +69,7 @@ test("mail-status: a signed-in user without admin.forms.manage is refused", asyn
   const { baseUrl } = await bootAuthenticated(createApp(deps), t);
   const id = "mail-status-no-grants";
   await deps.principalRepo.save({ id, workspaceId: deps.workspaceId, kind: "user", displayName: "No grants", status: "active", createdAt: deps.clock.nowIso() });
-  await deps.userRepo.save({ principalId: id, workspaceId: deps.workspaceId, username: id, passwordHash: await deps.passwordHasher.hash({ password: "mail-status-test-password" }) });
+  await deps.userRepo.save({ version: 1, principalId: id, workspaceId: deps.workspaceId, username: id, passwordHash: await deps.passwordHasher.hash({ password: "mail-status-test-password" }) });
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: id, password: "mail-status-test-password" }) });
   assert.equal(login.status, 200);
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";

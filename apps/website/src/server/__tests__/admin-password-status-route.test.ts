@@ -95,7 +95,7 @@ test("password-status is specific to the authenticated user rather than the owne
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const id = "password-status-other";
   await deps.principalRepo.save({ id, workspaceId: deps.workspaceId, kind: "user", displayName: "Other user", status: "active", createdAt: deps.clock.nowIso() });
-  await deps.userRepo.save({ principalId: id, workspaceId: deps.workspaceId, username: "status-other", passwordHash: await deps.passwordHasher.hash({ password: "other-non-default-password" }) });
+  await deps.userRepo.save({ version: 1, principalId: id, workspaceId: deps.workspaceId, username: "status-other", passwordHash: await deps.passwordHasher.hash({ password: "other-non-default-password" }) });
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "status-other", password: "other-non-default-password" }) });
   assert.equal(login.status, 200);
   const otherCookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";

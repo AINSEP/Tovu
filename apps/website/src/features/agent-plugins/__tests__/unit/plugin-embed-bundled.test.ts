@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { parseAgentPluginManifest, validateAgentPluginExportProps } from "@jini-ai/agent-plugins/manifest";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/manifest";
+import { validateAgentPluginExportProps } from "@jini-ai/agent-plugins/core/export-props";
 import { fillPluginExportTemplate } from "@jini-ai/cms/widgets/html";
 import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 

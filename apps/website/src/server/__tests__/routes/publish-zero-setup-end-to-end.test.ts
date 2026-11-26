@@ -20,7 +20,7 @@ import { connectDestination, disconnectDestination } from "@jini-ai/cms/publish/
 import { findCandidateDestination } from "@jini-ai/devops/deploy/site/publish-candidate";
 import { PUBLISH_CANDIDATE_ORIGIN_KEY } from "#src/features/publish-trust/candidate-policy";
 import { nowIso } from "@jini-ai/core/primitives";
-import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-error";
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,

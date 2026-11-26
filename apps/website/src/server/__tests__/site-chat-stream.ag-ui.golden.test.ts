@@ -64,11 +64,11 @@ function chat(baseUrl: string): Promise<Response> {
 }
 
 /** Every `data:` frame, parsed and validated against the official AG-UI event schemas. */
-function officialEvents(body: string): { type: string }[] {
+function officialEvents(body: string) {
   return [...body.matchAll(/^data: (.+)$/gm)].map((match) => {
     const parsed = EventSchemas.safeParse(JSON.parse(match[1]!));
     assert.ok(parsed.success, `not an official AG-UI event: ${match[1]}`);
-    return parsed.data as { type: string };
+    return parsed.data;
   });
 }
 
@@ -104,9 +104,10 @@ test("a no-reply visitor turn ends once with a plain error", async (t) => {
   const { baseUrl } = await boot({ t, respond: () => openAiText("  \n "), provider: { provider: "openai", model: "gpt-x" } });
   const response = await chat(baseUrl);
   const body = await response.text();
-  const types = officialEvents(body).map((event) => event.type);
-  assert.deepEqual(types, ["RUN_STARTED", "RUN_ERROR"], "one RUN_ERROR, no success terminal, no empty message");
-  const error = officialEvents(body).at(-1) as { message: string };
+  const events = officialEvents(body);
+  assert.deepEqual(events.map((event) => event.type), ["RUN_STARTED", "RUN_ERROR"], "one RUN_ERROR, no success terminal, no empty message");
+  const error = events.at(-1);
+  assert.ok(error && error.type === "RUN_ERROR");
   // The widget renders this reason as its existing no-reply sentence (`site-assistant-errors.ts`).
   assert.equal(error.message, "the assistant sent no reply");
   check("no reply", { status: response.status, body: pin(body) });

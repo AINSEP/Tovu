@@ -404,25 +404,29 @@ test('overlapping newsletter requests retain their own incident reporter and sub
   const started = new Promise<void>(resolve => { entered = resolve; }), held = new Promise<void>(resolve => { release = resolve; });
   t.after(() => release());
   const read = deps.newsletterConfirmationTokenRepo.findByTokenHash.bind(deps.newsletterConfirmationTokenRepo);
-  t.mock.method(deps.newsletterConfirmationTokenRepo, 'findByTokenHash', async input => {
+  t.mock.method(deps.newsletterConfirmationTokenRepo, 'findByTokenHash', async (input: Parameters<typeof read>[0]) => {
     if (input.tokenHash !== tokenHash) throw new Error('second request storage failure');
     entered(); await held; return read(input);
   });
-  const app = express();
-  app.use((req, res, next) => { res.locals.failureReporter = (req.query.token === rawToken ? firstReporter : secondReporter).reporter; next(); });
-  registerPublicNewsletterConfirmRoute({ app, deps: { ...deps,
+  const firstApp = express(), secondApp = express();
+  const publicDeps: NewsletterPublicRouteDeps = { ...deps,
     membersConsentCapability: { request: async () => ({ requested: true }), confirm: async () => ({ status: 'granted', consentRevisionId: 'confirmed-revision' }), revoke: async () => ({ status: 'revoked' }) },
     visitorAnalyticsProof: async ({ request }) => { facts.push(request.query.token); return { receiptId: 'receipt-fixture', policyVersion: 'policy' }; },
     visitorAnalyticsDeliveryAllowed: async () => true,
     visitorTracker: { ...deps.tracker, capture: async event => { events.push(event.name); } },
-  } });
-  const base = await startTestServer(app, t);
-  const first = fetch(`${base}/newsletter/confirm?token=${rawToken}`);
+  };
+  registerPublicNewsletterConfirmRoute({ app: firstApp, deps: publicDeps, errors: firstReporter.errors });
+  registerPublicNewsletterConfirmRoute({ app: secondApp, deps: publicDeps, errors: secondReporter.errors });
+  const firstBase = await startTestServer(firstApp, t), secondBase = await startTestServer(secondApp, t);
+  const first = fetch(`${firstBase}/newsletter/confirm?token=${rawToken}`);
   await started;
-  const second = await fetch(`${base}/newsletter/confirm?token=broken`);
+  const second = await fetch(`${secondBase}/newsletter/confirm?token=broken`);
   assert.equal(second.status, 500); assert.equal(secondReporter.entries.length, 1); assert.equal(firstReporter.entries.length, 0);
   release();
   assert.equal((await first).status, 200);
   assert.deepEqual(facts, [rawToken]); assert.deepEqual(events, ['newsletter_subscribed']);
+  const confirmed = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  assert.equal(confirmed?.status, 'subscribed');
+  assert.equal(confirmed?.consentRevisionIdAtSubscribe, 'confirmed-revision');
   assert.equal(firstReporter.entries.length, 0); assert.equal(secondReporter.entries.length, 1);
 });

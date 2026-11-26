@@ -416,7 +416,7 @@ test("publish-content import: grantless sessions cannot plan and read-only sessi
     const cookie = await loginAsBarePrincipal(deps, baseUrl, { username });
     if (username === "read-only-import") {
       const policyId = "read-only-import-policy";
-      await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
+      await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
       await deps.policyPermissionRepo.save({ id: "read-only-import-grant", workspaceId: WORKSPACE, policyId, permission: "publish_content.read", resourceType: null, constraintJson: null });
       await deps.principalPolicyRepo.save({ id: "read-only-import-link", workspaceId: WORKSPACE, principalId: `bare-${username}`, policyId });
     }

@@ -23,7 +23,6 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, createSettingsPrincipalLookup } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions } from "@jini-ai/cms/comments/site/settings";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { InMemorySettingsRepo } from "../../settings/index.js";
 import { contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 

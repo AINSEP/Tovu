@@ -5,7 +5,7 @@ import test from "node:test";
 import { ToolInputError, ToolPermissionDeniedError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 
-import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashItemDelegate } from "#src/features/trash/trash-item-tool";
+import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import type { TrashUserPort } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "../registry.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -121,9 +121,9 @@ test("a missing entityId is refused before the port is called", async () => {
 test("delegate indexing skips absent tools, preserves delegate precedence and forwards execution options", async () => {
   const [template] = derive(routeDeps(), async () => ({ noop: false }));
   const events: unknown[] = [];
-  const delegates = new Map<string, TrashItemDelegate>([
+  const delegates = new Map([
     ["form", { entityType: "form", toolId: "l128-delete", permission: "l128.delete",
-      toDelegateInput: async ({ entityId: id }) => ({ resolved: id }) }],
+      toDelegateInput: async ({ entityId: id }: { entityId: string }) => ({ resolved: id }) }],
     ["missing", { entityType: "missing", toolId: "not-registered", permission: "missing.delete",
       toDelegateInput: async () => { throw new Error("unregistered delegate must not resolve"); } }],
   ]);

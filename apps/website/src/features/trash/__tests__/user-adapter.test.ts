@@ -77,7 +77,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   };
 
   const registry = buildTrashRegistry();
-  const adapter: TrashAdapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: schemaErasedKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({
     repo: new SqliteTrashRepo({ store: db.$client }),
@@ -113,7 +113,7 @@ async function createBareUser(f: Fixture, username: string): Promise<string> {
 /** Grants `permission` directly, bypassing role assignment — used to build a caller who holds
  *  `user.manage` WITHOUT the owner wildcard (a shape no built-in role produces). */
 async function grantDirectPermission(f: Fixture, principalId: string, permission: string, idPrefix: string): Promise<void> {
-  await f.identity.repos.policies.save({ id: `${idPrefix}-policy`, workspaceId: WS, name: idPrefix, isBuiltin: false, isFrozen: false });
+  await f.identity.repos.policies.save({ version: 1, id: `${idPrefix}-policy`, workspaceId: WS, name: idPrefix, isBuiltin: false, isFrozen: false });
   await f.identity.repos.policyPermissions.save({ id: `${idPrefix}-grant`, workspaceId: WS, policyId: `${idPrefix}-policy`, permission });
   await f.identity.repos.principalPolicies.save({ id: `${idPrefix}-link`, workspaceId: WS, principalId, policyId: `${idPrefix}-policy` });
 }
@@ -294,7 +294,7 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: contentKernel({ store: f.db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: f.db }) }), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues, db: schemaErasedKernel({ store: f.db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: f.db }) }), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo({ store: f.db.$client }),
     adapters,
@@ -410,7 +410,7 @@ test("hide: a status change committed between the read and the write reports ver
   const f = await setup(WS);
   const targetId = await createBareUser(f, "racing");
   const adapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues,
-    db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)) }),
+    db: schemaErasedKernel({ store: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)) }),
     purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: f.db }) }), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
     clock: createFakeClock({ startIso: AT }),
@@ -427,7 +427,7 @@ test("unhide: a re-enable committed between the read and the write is not overwr
   const targetId = await createBareUser(f, "racing");
   f.db.$client.prepare(`UPDATE principals SET status = 'disabled', disabled_at = ? WHERE id = ?`).run(AT, targetId);
   const adapter = createUserTrashAdapter({ assertAccountAction: async () => {}, eventValues: outboxEventValues,
-    db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () =>
+    db: schemaErasedKernel({ store: kernelWithWriterAfterFirstRead(f.db, () =>
       f.db.$client.prepare(`UPDATE principals SET status = 'active', disabled_at = NULL WHERE id = ?`).run(targetId)
     ) }),
     purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: f.db }) }), eventValues: outboxEventValues }),

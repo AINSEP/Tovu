@@ -92,7 +92,7 @@ function forwardingPeerClient(source: { baseUrl: string }, envelope: unknown): H
 
 async function issueSourceReadKey(source: Awaited<ReturnType<typeof startServer>>, cookie: string): Promise<string> {
   const policyId = "pull-reader-policy";
-  await source.deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: "Pull reader", isBuiltin: false, isFrozen: false });
+  await source.deps.policyRepo.save({ version: 1, id: policyId, workspaceId: WORKSPACE, name: "Pull reader", isBuiltin: false, isFrozen: false });
   await source.deps.policyPermissionRepo.save({ id: "pull-reader-grant", workspaceId: WORKSPACE, policyId, permission: "publish_content.read", resourceType: null, constraintJson: null });
   const principalRes = await fetch(`${source.baseUrl}/api/admin/v1/api-keys/principals`, {
     method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ displayName: "Pull reader" }),

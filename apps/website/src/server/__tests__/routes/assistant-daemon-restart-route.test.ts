@@ -33,6 +33,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string, permission
     createdAt: deps.clock.nowIso(),
   });
   await deps.userRepo.save({
+    version: 1,
     principalId: bareId,
     workspaceId: deps.workspaceId,
     username: "bare-assistant-daemon-restart",
@@ -40,7 +41,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string, permission
   });
 
   const policyId = "restart-policy";
-  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
   for (const permission of permissions) {
     await deps.policyPermissionRepo.save({ id: `restart-${permission}`, workspaceId: deps.workspaceId, policyId, permission, resourceType: null, constraintJson: null });
   }

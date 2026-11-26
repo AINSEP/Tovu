@@ -60,7 +60,7 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
     links: { ...toPublicMembersWriteServiceDeps(members), identities,
       transaction: async body => { inTransaction = true; try { return await body(); } finally { inTransaction = false; } },
       lockKey: async value => { assert.equal(inTransaction, true); locks.push(value); },
-      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } },
+      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }, { reporter: routeErrors.reporter }); } },
     protocol: { ...crypto, ...oidcOperationsFixture, origin: originFixture(),
       resolveProvider: async () => enabled ? provider : null,
       resolveClient: async () => ({ clientId: "client", clientSecret: "secret-never-returned", authMethod: "client_secret_post" }),
@@ -473,15 +473,19 @@ test('S3 a session lost after the unlink lock refuses without a replacement cook
   const f = fixture(), member = await f.seed(), base = await startTestServer(f.app, t);
   const start = await f.start(base), login = await callback(base, start.params, start.binding);
   const currentCookie = cookie(login, 'tovu_member_session');
-  const lock = f.deps.links.lockKey;
-  f.deps.links.lockKey = async value => {
+  assert.equal(login.status, 303);
+  assert.match(currentCookie, /^tovu_member_session=.+/);
+  const lock = f.deps.links.lockKey.bind(f.deps.links);
+  t.mock.method(f.deps.links, 'lockKey', async (value: Parameters<typeof lock>[0]) => {
     await lock(value);
-    if (value.startsWith('trash:member:')) await f.members.memberSessionRepo.revokeAllForMember({ workspaceId: 'ws', memberId: member.id, revokedAt: f.clock.nowIso() });
-  };
+    if (value === `trash:member:ws:${member.id}`) await f.members.memberSessionRepo.revokeAllForMember({ workspaceId: 'ws', memberId: member.id, revokedAt: f.clock.nowIso() });
+  });
   const response = await post(base, `${BASE}/identities/google/unlink`, {}, currentCookie);
   assert.equal(response.status, 401);
   assert.ok(!cookie(response, 'tovu_member_session'));
-  assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: 'ws', memberId: member.id, providerId: 'google' }))?.unlinkedAt);
+  const link = await f.identities.findByMemberAndProvider({ workspaceId: 'ws', memberId: member.id, providerId: 'google' });
+  assert.ok(link, 'the original identity link still exists');
+  assert.equal(link.unlinkedAt ?? null, null);
 });
 
 test('S3 failed callback and continuation protocols never read the identity-link binding', async t => {

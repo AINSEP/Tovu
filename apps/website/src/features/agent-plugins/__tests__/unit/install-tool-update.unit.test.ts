@@ -10,6 +10,8 @@ import test from "node:test";
 
 import { ToolInputError, createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { approvalClassAsks } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
@@ -19,6 +21,7 @@ import { agentPluginsToolMetadata as toolMetadata } from "../../../../contracts/
 import { AGENT_PLUGINS_UPDATE_TOOL_ID, derivedRisk } from "@jini-ai/agent-plugins/site/install-tool";
 import { buildRegistrations, catalog } from "../../install-tool.js";
 import { installUploadedAgentPlugin } from "../../install-upload.js";
+import { listInstalledPlugins } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -98,12 +101,17 @@ test("agent_plugins_update: without a human confirmation an enabled plugin is no
     const zip = path.join(dir, "notes-2.0.0.zip");
     await writeFile(zip, await packageZip("2.0.0"));
     const registry = createToolRegistry({});
-    registry.register(applyToolApprovalPolicy({ registration: updateTool({ agentPluginLayout: layout, ...mcpDeps(), snapshotAgentPluginSettings: async () => ({ keys: [] }) }), surfaces: {} as never }));
+    const surfaceExchanges = createSurfaceExchangeStore({ clock: { nowMs: () => 0 }, idGenerator: { newId: () => "update-exchange" }, scheduler: createTimeoutScheduler({}), defaultChannel: "mcp-ui" });
+    registry.register(applyToolApprovalPolicy({ registration: updateTool({ agentPluginLayout: layout, ...mcpDeps(), snapshotAgentPluginSettings: async () => ({ keys: [] }) }), surfaces: { surfaceExchanges } }));
     const result = await createToolExecutor({ registry }).execute({ toolId: AGENT_PLUGINS_UPDATE_TOOL_ID, principal: { id: "owner" }, run: { id: "run" },
       input: { source: { kind: "zip", path: zip }, pluginId: PLUGIN, expectedOldDigest: oldDigest } });
     assert.equal(result.status, "failed");
-    const after = await installUploadedAgentPlugin({ archive: await packageZip("1.0.0"), expectedSha256: oldDigest, workspaceId: WORKSPACE, actor: "owner" }, { layout });
-    assert.equal(after.alreadyInstalled, true, "the installed bytes are still the 1.0.0 package");
+    assert.equal(result.errorKind, "validation");
+    assert.match(result.error ?? "", /^TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: agent_plugins_update:/);
+    const installed = await listInstalledPlugins({ workspaceRoot });
+    assert.deepEqual(installed.filter(plugin => plugin.pluginId === PLUGIN).map(({ version, archiveDigest }) => ({ version, archiveDigest })),
+      [{ version: "1.0.0", archiveDigest: oldDigest }]);
+    assert.equal((await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN })).verdict, "active");
   });
 });
 

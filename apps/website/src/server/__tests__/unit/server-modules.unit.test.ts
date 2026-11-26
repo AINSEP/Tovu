@@ -1,4 +1,5 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
@@ -122,6 +123,7 @@ for (const mode of ["local", "production"] as const) {
     assert.equal(mailer.capabilities().driver, "console");
     const sent: OutboundEmail[] = [];
     const deps: MembersWriteServiceDeps = {
+      orFallbackSync,
       clock: route.clock, ids: route.idGen, members: route.memberRepo, tiers: route.memberTierRepo,
       subscriptions: route.memberSubscriptionRepo, sessions: route.memberSessionRepo,
       magicLinks: route.magicLinkRepo, principals: route.principalRepo, origin: route.originRegistry,
