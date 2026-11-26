@@ -2,7 +2,8 @@ import { render } from "@/__tests__/render-with-jini-kits";
 import { expect, it, vi } from "vitest";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import type { MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import { useWiredMedia } from "@/features/media/hooks/use-media.hooks";
 import { useMediaTabs } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
@@ -19,6 +20,7 @@ import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-prov
 
 // Every screen hook is a required prop; the test overrides only the controller.
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -97,7 +99,7 @@ it("Media shows the owner's calendar date and preserves the upload instant", () 
     locale: "en-US",
   };
   const { container } = render(
-    <Media {...requiredMediaHooks} useMediaHook={() => controller} viewerTimeZone="America/Los_Angeles" />,
+    <Media {...MEDIA_PROPS} hooks={{ ...requiredMediaHooks, useMediaHook: () => controller }} viewerTimeZone="America/Los_Angeles" />,
   );
   const time = container.querySelector(".media-card time");
   expect(time).toHaveTextContent("Nov 24, 2026");

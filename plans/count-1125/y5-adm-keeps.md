@@ -27,6 +27,7 @@
 ^apps/admin/src/lib/settings-tabs\.ts$
 ^apps/admin/src/features/settings/ExternalMcpSettingsPanel\.tsx$
 ^apps/admin/src/features/settings/SettingsUi\.tsx$
+^apps/admin/src/features/deployment/StaticSiteTab\.tsx$
 ```
 
 ## Round 2 status

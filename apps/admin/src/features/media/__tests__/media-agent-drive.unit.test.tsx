@@ -13,13 +13,15 @@ import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import type { MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
   useEditMediaPanelHook: useWiredEditMediaPanel,
@@ -127,7 +129,7 @@ function renderMedia(overrides: Partial<MediaController> = {}) {
   // edit-panel tests, keeps this helper one shape for the whole file.
   const { container } = render(
     <FetchQueryProvider>
-      <Media {...requiredMediaHooks} useMediaHook={() => controller} />
+      <Media {...MEDIA_PROPS} hooks={{ ...requiredMediaHooks, useMediaHook: () => controller }} />
     </FetchQueryProvider>,
   );
   return { controller, container };

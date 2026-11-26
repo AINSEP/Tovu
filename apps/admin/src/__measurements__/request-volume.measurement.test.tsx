@@ -17,11 +17,13 @@ import { useWiredRedirects } from "./redirects-harness";
 import { reactModuleUi } from "@jini-ai/admin/core/react";
 import { FormsControllerContext } from "@jini-ai/admin/forms/react";
 import { RedirectsControllerContext } from "@jini-ai/admin/redirects/react";
-import { Media } from "../features/media/Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -517,7 +519,7 @@ describe("media", () => {
     vi.stubGlobal("fetch", fn);
     render(
       <FetchQueryProvider>
-        <Media {...requiredMediaHooks} />
+        <Media {...MEDIA_PROPS} hooks={requiredMediaHooks} />
       </FetchQueryProvider>
     );
     await screen.findByText("Old title");
@@ -536,7 +538,7 @@ describe("media", () => {
     const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <FetchQueryProvider>
-        <Media {...requiredMediaHooks} />
+        <Media {...MEDIA_PROPS} hooks={requiredMediaHooks} />
       </FetchQueryProvider>
     );
     await screen.findByText("Old title");
@@ -745,7 +747,7 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <FetchQueryProvider>
-        <Media {...requiredMediaHooks} />
+        <Media {...MEDIA_PROPS} hooks={requiredMediaHooks} />
       </FetchQueryProvider>
     );
     await screen.findByText("T");

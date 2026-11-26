@@ -14,12 +14,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { renderMediaPanel } from "../../../media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -79,7 +81,7 @@ afterEach(() => {
 function renderScreen(props: Partial<React.ComponentProps<typeof Media>> = {}) {
   return render(
     <FetchQueryProvider>
-      <Media {...requiredMediaHooks} {...props} />
+      <Media {...MEDIA_PROPS} hooks={requiredMediaHooks} {...props} />
     </FetchQueryProvider>,
   );
 }
@@ -118,7 +120,7 @@ describe("/admin/media?id= deep link", () => {
     expect(editDialog().hasAttribute("open")).toBe(false);
     view.rerender(
       <FetchQueryProvider>
-        <Media {...requiredMediaHooks} itemId="media-1" />
+        <Media {...MEDIA_PROPS} hooks={requiredMediaHooks} itemId="media-1" />
       </FetchQueryProvider>,
     );
     await waitFor(() => expect(editDialog().hasAttribute("open")).toBe(true));

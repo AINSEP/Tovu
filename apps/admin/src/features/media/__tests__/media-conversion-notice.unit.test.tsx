@@ -9,7 +9,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Media } from "../Media";
+import { Media } from "@jini-ai/admin/screens/media/Media";
+import { MEDIA_PROPS } from "@/media-panel";
 import { useMedia } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { MEDIA_DICT, t as translate } from "../media-i18n";
@@ -30,6 +31,7 @@ import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.
 
 // Every screen hook is a required prop; the test overrides only the controller.
 const requiredMediaHooks = {
+  ...MEDIA_PROPS.hooks,
   useMediaHook: useWiredMedia,
   useMediaTabsHook: useMediaTabs,
   useMediaPreviewHook: useWiredMediaPreview,
@@ -57,7 +59,7 @@ function renderWithPort(port: ReturnType<typeof createFakeMediaPort>) {
   const t = (key: string) => translate({ locale: "en", key });
   return render(
     <FetchQueryProvider>
-      <Media {...requiredMediaHooks} useMediaHook={() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t })} />
+      <Media {...MEDIA_PROPS} hooks={{ ...requiredMediaHooks, useMediaHook: () => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t }) }} />
     </FetchQueryProvider>,
   );
 }

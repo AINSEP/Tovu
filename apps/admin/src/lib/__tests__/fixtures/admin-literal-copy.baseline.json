@@ -43,20 +43,6 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/media/Media.tsx",
-      "line": 951,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/media/Media.tsx",
-      "line": 951,
-      "kind": "text",
-      "text": "&quot;?",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
       "file": "features/media/RemoteImageImport.tsx",
       "line": 21,
       "kind": "placeholder",

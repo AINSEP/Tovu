@@ -66,5 +66,5 @@ export { WorkspaceRedirect } from "./features/workspace/WorkspaceRedirect";
 export const AiAssistant = lazy(() => import("./features/ai-assistant").then(module => ({ default: module.AiAssistant })));
 export const Playground = lazy(() => import("./features/playground").then(module => ({ default: module.Playground })));
 export const Sites = lazy(() => import("./features/sites").then(module => ({ default: module.Sites })));
-export const Media = lazy(() => import("./features/media").then(module => ({ default: module.Media })));
+export const Media = lazy(() => import("@jini-ai/admin/screens/media/Media").then(module => ({ default: module.Media })));
 export const Routines = lazy(() => import("./features/routines").then(module => ({ default: module.Routines })));
