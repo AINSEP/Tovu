@@ -6,6 +6,8 @@ import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-them
 import { resolveTemplateBranchChoice } from "#src/features/theme/static-template-choice";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
+import type { DiscoveredTheme } from "#src/features/theme/theme";
+import { renderVirtualPage } from "@jini-ai/cms/public-http/routes/site/pages/handlers/virtual-page";
 import type { RouteDeps } from "#src/server/routes/types";
 import { withListingBatch } from "../listing/listing-batch.js";
 import { resolveSiteAssistantWidgetForRequest } from "../render-context/widgets.js";
@@ -61,30 +63,22 @@ export function reportSiteRenderFault({ detail, err }: { detail: string; err: un
   console.error(`[site/pages] ${detail}`, err);
 }
 
-/**
- * Serve a page that has no row of its own (core's member sign-in pages, `member-pages.ts`) through
- * the same path an html-format Page takes, so it wears the active theme's page template, header and
- * footer on every tier. `post` lives only in memory: on the template branch its body reaches the
- * content slot through `renderViaTemplate`'s pending-body override (keyed to its id, the one the
- * admin preview uses), so no repo lookup runs for it. Errors propagate to the caller.
- */
 export async function serveVirtualPage({ req, res, deps, post }: {
   req: Request; res: Response; deps: RouteDeps; post: PostRecord;
 }): Promise<void> {
-  deps = withListingBatch({ deps, req });
-  const [activeThemeId, siteAssistantEnabled] = await Promise.all([
-    resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
-    resolveSiteAssistantWidgetForRequest({ request: req, deps }),
-  ]);
-  const resolved = resolveActiveTheme({ deps, activeThemeId });
-  if (resolved === null) return sendNoThemesInstalled(res);
-  const theme = resolved === NO_THEME_ID ? null : resolved;
-  const branch = theme ? resolveTemplateBranchChoice({ theme, post }) : { kind: "ineligible" as const };
-  const perVisitor = resolvePerVisitorResponse({ req, res });
-  const previewPost = branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post;
-  const html = theme && branch.kind !== "ineligible"
-    ? await renderViaTemplate({ deps, theme, post: previewPost, staticMenus: await resolveStaticMenusForRender({ deps, theme, currentPath: req.path }) }, { pendingBodyJson: undefined, pendingBodyHtml: post.bodyHtml ?? "", extraHead: undefined, siteAssistantEnabled })
-    : await renderGenericPostPage({ deps, theme, post, posts: [], siteAssistantEnabled });
-  await sendPublicPage({ req, res, deps, html, perVisitor });
-  return undefined;
+  return renderVirtualPage({ post, currentPath: () => req.path, deps: {
+    withListingBatch: () => (deps = withListingBatch({ deps, req })),
+    resolveRenderThemeId: ({ resolveStoredThemeId }) => resolveRenderThemeId({ response: res, resolveStoredThemeId }),
+    resolveActiveThemeId: () => resolveActiveThemeId(deps),
+    resolveSiteAssistantWidgetForRequest: () => resolveSiteAssistantWidgetForRequest({ request: req, deps }),
+    resolveActiveTheme: ({ activeThemeId }) => resolveActiveTheme({ deps, activeThemeId }),
+    NO_THEME_ID,
+    resolveTemplateBranchChoice: ({ theme, post }) => resolveTemplateBranchChoice({ theme: theme as DiscoveredTheme, post }),
+    resolvePerVisitorResponse: () => resolvePerVisitorResponse({ req, res }),
+    renderViaTemplate: ({ theme, post, staticMenus }, optional) => renderViaTemplate({ deps, theme: theme as DiscoveredTheme, post, staticMenus }, optional),
+    resolveStaticMenusForRender: ({ theme, currentPath }) => resolveStaticMenusForRender({ deps, theme: theme as DiscoveredTheme, currentPath }),
+    renderGenericPostPage: ({ theme, post, posts, siteAssistantEnabled }) => renderGenericPostPage({ deps, theme: theme as DiscoveredTheme | null, post, posts, siteAssistantEnabled }),
+    sendPublicPage: ({ html, perVisitor }) => sendPublicPage({ req, res, deps, html, perVisitor }),
+    sendNoThemesInstalled: () => sendNoThemesInstalled(res),
+  } });
 }

@@ -15,4 +15,9 @@ Partial K0: Appendix B and the five input reports are unavailable. These exact p
 ^apps/website/src/server/inbound/public\-http/routes/site/comments\-submit\.ts$
 ^apps/website/src/server/inbound/public\-http/routes/site/pages/handlers/marketing\.ts$
 ^apps/website/src/server/inbound/public\-http/routes/commerce/purchase\.ts$
+^apps/website/src/server/inbound/public\-http/routes/site/pages/render\-context/media\-metadata\.ts$
+^apps/website/src/server/inbound/public\-http/routes/site/pages/render\-context/post\-previews\.ts$
+^apps/website/src/server/inbound/public\-http/routes/site/pages/template\-render\.ts$
+^apps/website/src/server/inbound/public\-http/routes/site/pages/handlers/post\.ts$
+^apps/website/src/server/inbound/public\-http/routes/site/pages/handlers/virtual\-page\.ts$
 ```

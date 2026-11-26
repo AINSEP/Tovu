@@ -26,7 +26,8 @@ import { tryRedirectPhase } from "@jini-ai/cms/public-http/routes/site/pages/red
 import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 import { buildExtraHead } from "../extra-head.js";
 import { resolvePerVisitorResponse, sendPublicPage } from "../response.js";
-import { isStaticThemeWithIndex, serveStaticThemeIndex } from "../static-tier.js";
+import { serveStaticThemeIndex } from "../static-tier.js";
+import { hasStaticThemeIndex as isStaticThemeWithIndex } from "@jini-ai/cms/public-http/routes/site/pages/static-tier";
 import { listingBatchNotFound } from "./listing.js";
 import { renderTemplateBranchIfEligible, renderGenericPostPage } from "./post.js";
 import { sendNoThemesInstalled, reportSiteRenderFault } from "./virtual-page.js";

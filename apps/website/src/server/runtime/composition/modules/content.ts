@@ -7,7 +7,7 @@ import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { registerAdminPostTemplatePreviewRoute, renderAuthorizedTemplatePreview } from "#src/server/inbound/admin-http/routes/posts/template-preview";
-import { TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
+import { TemplatePreviewRenderError } from "@jini-ai/cms/admin-http/routes/posts/template-preview-render";
 import { projectPreviewYoutubeIds } from "@jini-ai/cms/admin-http/routes/posts/template-preview-embeds";
 import { createTemplatePreviewEmbedsRoute, type PreviewEmbedsInput } from "@jini-ai/cms/admin-http/routes/posts/template-preview-embeds";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
