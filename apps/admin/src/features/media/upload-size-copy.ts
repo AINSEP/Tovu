@@ -18,11 +18,11 @@ export function fileSizeRefusal(
   return limitBytes === MAX_UPLOAD_BYTES ? t(FILE_TOO_LARGE_COPY) : fallback;
 }
 
-/** The size refusal copy for a server error, or `undefined` when it is not a typed size refusal
+/** The size refusal copy for a server error, or `null` (the Jini media contract) when it is not a typed size refusal
  *  (empty input, forbidden types and other validation failures keep their own messages). @complexity O(1). */
-export function sizeRefusalFromError({ t, error }: { t: (key: string) => string; error: unknown }, _optional: Record<string, never> = {}): string | undefined {
+export function sizeRefusalFromError({ t, error }: { t: (key: string) => string; error: unknown }, _optional: Record<string, never> = {}): string | null {
   // Matched on the typed code and fields, never on the wording of the message.
-  if (!(error instanceof ApiError) || error.code !== "MEDIA_UPLOAD_TOO_LARGE") return undefined;
+  if (!(error instanceof ApiError) || error.code !== "MEDIA_UPLOAD_TOO_LARGE") return null;
   const limitBytes = error.body?.["limitBytes"];
-  return typeof limitBytes === "number" ? fileSizeRefusal({ t, limitBytes, fallback: error.message }) : undefined;
+  return typeof limitBytes === "number" ? fileSizeRefusal({ t, limitBytes, fallback: error.message }) : null;
 }

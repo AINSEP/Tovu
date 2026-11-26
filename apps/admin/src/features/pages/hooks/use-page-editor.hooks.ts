@@ -46,6 +46,7 @@ export const { usePageEditor, useWiredPageEditor } = bindPageEditorHooks({
     PAGES_RESOURCE,
     pageAdminPath,
     resolveCanvasTemplateChoice,
+    isDevMode: import.meta.env.DEV,
     writePage,
     PageBodyWriteError,
     applySavedPage,

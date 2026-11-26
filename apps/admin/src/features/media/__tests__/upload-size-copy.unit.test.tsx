@@ -17,8 +17,8 @@ describe("file size refusal copy", () => {
     expect(sizeRefusalFromError({ t: en, error: sizeError(VIDEO_UPLOAD_LIMIT_BYTES, "That video is over 500 MB.") })).toBe("That video is over 500 MB.");
     expect(fileSizeRefusal({ t: en, limitBytes: MAX_UPLOAD_BATCH_BYTES, fallback: "Too much at once." })).toBe("Too much at once.");
     // Unrelated validation failures and an untyped message that merely mentions size are not size refusals.
-    expect(sizeRefusalFromError({ t: en, error: new ApiError({ message: "That file is 51 MB; the limit is 50 MB.", status: 400 }, { code: "VALIDATION_ERROR" }) })).toBeUndefined();
-    expect(sizeRefusalFromError({ t: en, error: new Error("too large") })).toBeUndefined();
+    expect(sizeRefusalFromError({ t: en, error: new ApiError({ message: "That file is 51 MB; the limit is 50 MB.", status: 400 }, { code: "VALIDATION_ERROR" }) })).toBeNull();
+    expect(sizeRefusalFromError({ t: en, error: new Error("too large") })).toBeNull();
     for (const locale of Object.keys(COMMON_I18N)) {
       for (const key of [FILE_TOO_LARGE_COPY, "This video may not play in Chrome."]) {
         const translated = MEDIA_DICT[locale]?.[key];

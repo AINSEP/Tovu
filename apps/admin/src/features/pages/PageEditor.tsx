@@ -54,5 +54,6 @@ export const PageEditor = bindPageEditor({
     pageExternalChangeBindings,
     pageEditorSurface,
     videoLink: ({ id }) => `https://www.youtube.com/watch?v=${id}`,
+    isDevMode: import.meta.env.DEV,
   },
 });
