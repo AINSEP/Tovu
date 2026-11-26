@@ -14,7 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Media } from "@jini-ai/admin/screens/media/Media";
 import { MEDIA_PROPS } from "@/media-panel";
-import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,
@@ -28,7 +28,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useWiredMediaProviderCatalog,
 };
 
 afterEach(() => vi.unstubAllGlobals());

@@ -347,7 +347,7 @@ describe("installed Jini credential components (source checkout not required)", 
     container.innerHTML = renderToStaticMarkup(createElement(UiKitProvider, { kit: uiKit, children:
       createElement(MEDIA_PROPS.kit.ExternalProvidersPanel, {
         locale: "en", catalog: [{ id: "fixture", label: "Fixture" }],
-        useAdminThemeBoundaryHook: () => ({ "data-theme": "light" }),
+        useAdminThemeBoundaryHook: () => ({ "data-theme": "light" as const }),
       }),
     }));
     const passwords = container.querySelectorAll('input[type="password"]');

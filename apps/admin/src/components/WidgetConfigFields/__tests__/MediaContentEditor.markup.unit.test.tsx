@@ -9,7 +9,8 @@ import { acceptsMedia } from "@jini-ai/admin/media";
 import { HtmlAttributeRows } from "../HtmlAttributeRows";
 import { useWiredMediaPickerItems, defaultMediaPickerPort } from "../../MediaPickerDialog/media-picker-dependencies.hooks";
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { acceptedMediaItems } from "@jini-ai/cms/react/media/MediaPickerDialog/MediaPickerDialog.hooks";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HtmlPreviewPort } from "@jini-ai/ui/admin-widgets";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
@@ -21,7 +22,7 @@ import { useWidgetPreview } from "../WidgetPreview.hooks";
 it("preserves HTML and media attributes across mode switches", () => {
   const { result } = renderHook(() => {
     const [config, onChange] = useState<Record<string, unknown>>({ mode: "media", items: [], htmlAttributes: 'data-test="kept"' });
-    return useMediaContentEditor({ config, onChange, widgetType: "media", port: { listMedia: async () => ({ media: [] }), mediaOriginalUrl: () => "" }, locale: "en", useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia });
+    return useMediaContentEditor({ useEffect, useMemo, useRef, useState, acceptedMediaItems, config, onChange, widgetType: "media", port: { listMedia: async () => ({ media: [] }), mediaOriginalUrl: () => "" }, locale: "en", useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia });
   });
   act(() => result.current.setMode({ mode: "html" }));
   act(() => result.current.setHtml({ html: "<p>kept</p>" }));
@@ -80,9 +81,9 @@ function renderEditor(vm: MediaContentEditorController, options: { agentHandle?:
   const port = options.preview ?? instantPreview;
   return render(
     <MediaContentEditor widgetType="media" config={{}} onChange={() => {}} agentHandle={options.agentHandle}
-      hooks={{ useEditor: () => vm, usePreview: (input) => useWidgetPreview(input, { render: port }), useMediaPickerItems: useWiredMediaPickerItems, useTabBarKeyboard }}
+      hooks={{ useEditor: () => vm, usePreview: (input) => useWidgetPreview(input, { render: port }), useMediaPickerItems: useWiredMediaPickerItems, useTabBarKeyboard, useEffect, useMemo, useRef, useState }}
       kit={{ Dialog, Icon, InfoTip, DockHeaderTip, DevicePreviewFrame, HtmlAttributeRows }}
-      deps={{ port: defaultMediaPickerPort, locale: "en", acceptsMedia, resolveTabBarTabIndex }} />,
+      deps={{ port: defaultMediaPickerPort, locale: "en", acceptsMedia, acceptedMediaItems, resolveTabBarTabIndex }} />,
   );
 }
 

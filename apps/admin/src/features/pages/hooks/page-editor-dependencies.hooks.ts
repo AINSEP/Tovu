@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
@@ -272,4 +273,4 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
 const loadPreviewEmbedIds = createPreviewEmbedIdsLoader({ path: previewEmbedIdsPath, workspaceId: WORKSPACE_ID, request: authenticatedAdminRequest });
 
 /** `usePreviewEmbedIds` bound to the live port, for `panels.tsx` to hand `PageEditor`. */
-export const useLivePreviewEmbedIds: UsePreviewEmbedIds = (args) => usePreviewEmbedIds({ ...args, load: loadPreviewEmbedIds });
+export const useLivePreviewEmbedIds: UsePreviewEmbedIds = (args) => usePreviewEmbedIds({ ...args, load: loadPreviewEmbedIds, useEffect, useState });

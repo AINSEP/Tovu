@@ -55,6 +55,7 @@ export const AccessTokensTab = bindAccessTokensTab({
     showCopyKeysEntry: SHOW_COPY_KEYS_ENTRY,
     viewerTimeZone: VIEWER_TIME_ZONE,
     removeLabel: REMOVE_FROM_TOVU,
+    customCredentialBaseUrlPlaceholder: "https://api.example.com",
     removeTokenHandleLabel: ({ provider }) => `Open the confirm dialog to remove this ${provider} token from Tovu`,
     storedTokenNotice: "Stored encrypted on the server. Once saved, Tovu never displays it again.",
     hostingPluginsHref: "/admin/addons/agent-plugins",

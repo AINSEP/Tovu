@@ -20,7 +20,7 @@ import { MEDIA_PROPS } from "@/media-panel";
 import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
 import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,
@@ -34,7 +34,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useWiredMediaProviderCatalog,
 };
 
 /**
@@ -175,13 +175,16 @@ function openUploadDialog() {
 }
 
 it("uses the returned provider catalog for both rows and count", async () => {
-  routeFetch([{ match: "/media/providers", handler: async () => jsonResponse({}) }]);
+  fetchMock.mockImplementation(routeFetch([
+    { match: "/media/providers", handler: async () => jsonResponse({}) },
+    { match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) },
+  ]));
   const catalog = [{ id: "openai", label: "OpenAI" }];
   renderScreen({ tabId: "external-providers", hooks: { ...requiredMediaHooks, useMediaProviderCatalogHook: () => catalog } });
   expect(await screen.findByLabelText("OpenAI API key")).toBeTruthy();
   expect(screen.queryByLabelText("Nano Banana API key")).toBeNull();
   const tab = screen.getByRole("tab", { name: /External Providers/ });
-  expect(tab.querySelector(".tab-bar-count")?.textContent).toBe("1");
+  expect(tab.querySelector(".jini-ui-tab-bar-count")?.textContent).toBe("1");
 });
 
 function cardFor(container: HTMLElement, title: string): HTMLElement {
@@ -1218,11 +1221,11 @@ describe("EditMediaModal — eye-icon trigger", () => {
     expect(titleTrigger).toHaveAttribute("aria-expanded", "false");
     await user.click(titleTrigger);
     expect(titleTrigger).toHaveAttribute("aria-expanded", "true");
-    expect(document.querySelector(".info-tip-bubble")).toHaveTextContent("Sunset Photo.png");
+    expect(document.querySelector(".jini-ui-info-tip-bubble")).toHaveTextContent("Sunset Photo.png");
     expect(document.querySelector("dialog.media-edit-dialog")?.hasAttribute("open")).toBe(false);
     await user.keyboard("{Escape}");
     expect(titleTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(document.querySelector(".info-tip-bubble")).toBeNull();
+    expect(document.querySelector(".jini-ui-info-tip-bubble")).toBeNull();
     expect(document.querySelector("dialog.media-edit-dialog")?.hasAttribute("open")).toBe(false);
     expect(within(card).getByRole("button", { name: 'Edit "Sunset Photo"' })).toBeInTheDocument();
   });

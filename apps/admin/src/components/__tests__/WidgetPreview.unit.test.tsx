@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMediaContentEditor } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor.hooks";
+import { acceptedMediaItems } from "@jini-ai/cms/react/media/MediaPickerDialog/MediaPickerDialog.hooks";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import { Icon } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
@@ -59,9 +61,9 @@ it('renders the shared frame with an empty sandbox and short loading/error lines
   let reject: (reason: Error) => void = () => {};
   const port: HtmlPreviewPort = () => new Promise((_resolve, fail) => { reject = fail; });
   render(<MediaContentEditor widgetType="media" config={{ mode: 'html', html: '<b>Draft</b>' }} onChange={() => {}} port={library}
-    hooks={{ useEditor: useMediaContentEditor, usePreview: (input) => useWidgetPreview(input, { render: port }), useMediaPickerItems: useWiredMediaPickerItems, useTabBarKeyboard }}
+    hooks={{ useEditor: useMediaContentEditor, usePreview: (input) => useWidgetPreview(input, { render: port }), useMediaPickerItems: useWiredMediaPickerItems, useTabBarKeyboard, useEffect, useMemo, useRef, useState }}
     kit={{ Dialog, Icon, InfoTip, DockHeaderTip, DevicePreviewFrame, HtmlAttributeRows }}
-    deps={{ port: library, locale: "en", acceptsMedia, resolveTabBarTabIndex }} />);
+    deps={{ port: library, locale: "en", acceptsMedia, acceptedMediaItems, resolveTabBarTabIndex }} />);
   const frame = screen.getByTitle('Preview');
   expect(frame.getAttribute('sandbox')).toBe('');
   expect(frame.getAttribute('srcdoc')).toBe('');
@@ -76,9 +78,9 @@ it('displays the server document verbatim in the sandboxed frame', async () => {
   const document = '<html><head><link rel="stylesheet" href="/theme-assets/active/css/theme.css"></head><body><img src="/m/photo/public.v1/image.jpg"></body></html>';
   const port: HtmlPreviewPort = async () => document;
   render(<MediaContentEditor widgetType="media" config={{ mode: 'html', html: '<img src="{{media:photo}}">' }} onChange={() => {}} port={library}
-    hooks={{ useEditor: useMediaContentEditor, usePreview: (input) => useWidgetPreview(input, { render: port }), useMediaPickerItems: useWiredMediaPickerItems, useTabBarKeyboard }}
+    hooks={{ useEditor: useMediaContentEditor, usePreview: (input) => useWidgetPreview(input, { render: port }), useMediaPickerItems: useWiredMediaPickerItems, useTabBarKeyboard, useEffect, useMemo, useRef, useState }}
     kit={{ Dialog, Icon, InfoTip, DockHeaderTip, DevicePreviewFrame, HtmlAttributeRows }}
-    deps={{ port: library, locale: "en", acceptsMedia, resolveTabBarTabIndex }} />);
+    deps={{ port: library, locale: "en", acceptsMedia, acceptedMediaItems, resolveTabBarTabIndex }} />);
   await act(() => vi.advanceTimersByTimeAsync(400));
   expect(screen.getByTitle('Preview').getAttribute('srcdoc')).toBe(document);
 });

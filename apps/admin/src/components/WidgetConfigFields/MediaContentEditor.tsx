@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { bindMediaContentEditor } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor";
+import { acceptedMediaItems } from "@jini-ai/cms/react/media/MediaPickerDialog/MediaPickerDialog.hooks";
 import { useMediaContentEditor } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor.hooks";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import { Icon } from "@jini-ai/ui";
@@ -20,7 +22,8 @@ export const MediaContentEditor = bindMediaContentEditor({
     usePreview: useWidgetPreview,
     useMediaPickerItems: useWiredMediaPickerItems,
     useTabBarKeyboard,
+    useEffect, useMemo, useRef, useState,
   },
   kit: { Dialog, Icon, InfoTip, DockHeaderTip, DevicePreviewFrame, HtmlAttributeRows },
-  deps: { port: defaultMediaPickerPort, locale: DEFAULT_LOCALE, acceptsMedia, resolveTabBarTabIndex },
+  deps: { port: defaultMediaPickerPort, locale: DEFAULT_LOCALE, acceptsMedia, acceptedMediaItems, resolveTabBarTabIndex },
 });

@@ -69,18 +69,26 @@ async function buyerPage({ req, res, deps }: Pick<RequestContext, "req" | "res" 
   return html;
 }
 
+/** Commerce defines its routes with core's `defineJsonRoute`, whose optional `ports` contract (authenticate gets
+ *  `request`/`locals`) differs from http-kit's (authenticate gets `res`). These specs declare no ports, so the
+ *  slot is dropped before mounting rather than claiming one contract satisfies the other. */
+function withoutCorePorts<TSpec extends { ports?: unknown }>({ spec }: { spec: TSpec }, _optional = {}): Omit<TSpec, "ports"> {
+  const { ports: _ports, ...portless } = spec;
+  return portless;
+}
+
 /** Purchase/resume and read-only return routes. One limiter per mounted app, never per request.
  * @complexity O(1) setup and bounded point I/O per request; domain effects are delegated to Jini.
  */
 export function registerCommerceRoutes({ app, deps }: { app: IRouter; deps: CommerceHttpDeps }, _optional = {}): void {
   const limiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
-  mountJsonRoute({ app: app as Express, spec: createOrderRoute, deps: {} as ReturnType<typeof requestCommerce> }, {
+  mountJsonRoute({ app: app as Express, spec: withoutCorePorts({ spec: createOrderRoute }), deps: {} as ReturnType<typeof requestCommerce> }, {
     requestDeps: ({ req, res }) => requestCommerce({ req, res, deps, limiter }),
   });
-  mountJsonRoute({ app: app as Express, spec: payOrderRoute, deps: {} as ReturnType<typeof requestCommerce> }, {
+  mountJsonRoute({ app: app as Express, spec: withoutCorePorts({ spec: payOrderRoute }), deps: {} as ReturnType<typeof requestCommerce> }, {
     requestDeps: ({ req, res }) => requestCommerce({ req, res, deps, limiter }),
   });
-  mountJsonRoute({ app: app as Express, spec: readOrderRoute, deps: {} as ReturnType<typeof requestCommerce> }, {
+  mountJsonRoute({ app: app as Express, spec: withoutCorePorts({ spec: readOrderRoute }), deps: {} as ReturnType<typeof requestCommerce> }, {
     requestDeps: ({ req, res }) => requestCommerce({ req, res, deps, limiter }),
   });
   app.get(commerceReturnRoute.path, asyncRoute({ handler: (req, res) => commerceReturnRoute.handle({ query: req.query, deps: requestCommerce({ req, res, deps, limiter }) })

@@ -12,7 +12,8 @@ export interface MailProviderToolDeps extends Omit<Deps, "category" | "loadAgent
 
 export function buildMailProviderRegistrations(deps: MailProviderToolDeps, _options: AssistantSurfaceDeps | Record<string, never> = {}) {
   return build({ ...deps, category: "ops", issueCredentialSetup,
-    ...(deps.agentPluginLayout ? { loadAgentPluginSearchCandidates: ({ workspaceId }: { workspaceId: string }) => loadAgentPluginSearchCandidates({ workspaceId, agentPluginLayout: deps.agentPluginLayout! }) } : {}),
+    ...(deps.agentPluginLayout ? { loadAgentPluginSearchCandidates: async ({ workspaceId }: { workspaceId: string }) =>
+      (await loadAgentPluginSearchCandidates({ workspaceId, agentPluginLayout: deps.agentPluginLayout! })).map(candidate => ({ ...candidate, description: candidate.description ?? "" })) } : {}),
     loadPluginCredentialCardsSafely: ({ workspaceId }) => loadPluginCredentialCardsSafely({ loadCards: deps.loadPluginCredentialCards, workspaceId }),
   }, _options);
 }

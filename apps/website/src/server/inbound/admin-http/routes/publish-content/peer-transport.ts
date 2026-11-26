@@ -82,7 +82,7 @@ export function respondWithError({ res, err }: { res: Response; err: unknown }, 
 export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar = ({ app, deps, errors }, _options = {}) => registerPushRoutes({
   mount: route => mountAdminJsonRoute({ app, errors, spec: route.spec,
     depsForRequest: ({ res }) => ({ workspaceId: deps.workspaceId, authorize: deps.authorize,
-      ...route.requestDeps({ requireOverwriteSession: () => refuseUnlessSessionCredential({ res, gate: { message: "'overwriteEntityKeys' can only be sent from a signed-in admin session", permission: "publish_content.apply" } }) } as Parameters<typeof route.requestDeps>[0]),
+      ...route.requestDeps({ requireOverwriteSession: () => refuseUnlessSessionCredential({ res, gate: { message: "'overwriteEntityKeys' can only be sent from a signed-in admin session", permission: "publish_content.apply" } }) }),
     }),
   }, { preflight: route.preflight, failureWriter: ({ res, error }) => route.failure({ err: error,
     json: (body, status) => { res.status(status).json(body); },

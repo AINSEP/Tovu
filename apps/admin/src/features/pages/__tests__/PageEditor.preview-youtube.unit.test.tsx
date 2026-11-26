@@ -4,6 +4,7 @@
  * inspection port; these tests drive the real `PageEditor` + `usePageEditor` over the fake page port
  * and the real `usePreviewEmbedIds` over a fake `load`.
  */
+import { useEffect, useState } from "react";
 import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useThemePreviewFrame } from "@/features/themes/hooks/use-theme-preview-refresh.hooks";
 import { cleanup, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
@@ -34,7 +35,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 function renderEditor({ load, page = PAGE }: { load: LoadPreviewEmbedIds; page?: AdminPost }) {
   const port = createFakePageEditorPort({ page, activeThemeTemplates: ["pages-default.html"] });
   const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
-  return render(<PageEditor useTabBarKeyboardHook={useTabBarKeyboard} useThemePreviewFrameHook={useThemePreviewFrame} slug={page.slug} usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} usePreviewEmbedIds={(args) => usePreviewEmbedIds({ ...args, load })} />);
+  return render(<PageEditor useTabBarKeyboardHook={useTabBarKeyboard} useThemePreviewFrameHook={useThemePreviewFrame} slug={page.slug} usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} usePreviewEmbedIds={(args) => usePreviewEmbedIds({ ...args, load, useEffect, useState })} />);
 }
 
 const links = () => screen.queryAllByText("Watch on YouTube").map((a) => a as HTMLAnchorElement);
@@ -66,7 +67,7 @@ describe("Page Preview — template-rendered video links", () => {
 
   it("a theme refresh rechecks links without changing the iframe sandbox", async () => {
     const load = vi.fn<LoadPreviewEmbedIds>(async () => ({ youtubeIds: [] }));
-    const args: PreviewEmbedIdsArgs = { id: "pg1", templateChoice: null, version: 1, previewRevision: "r1", pendingHtml: null, load };
+    const args: PreviewEmbedIdsArgs = { id: "pg1", templateChoice: null, version: 1, previewRevision: "r1", pendingHtml: null, load, useEffect, useState };
     const { rerender } = renderHook((p: PreviewEmbedIdsArgs) => usePreviewEmbedIds(p), { initialProps: args });
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1), { timeout: 3000 });
     rerender({ ...args, previewRevision: "r2" });
@@ -80,7 +81,7 @@ describe("Page Preview — template-rendered video links", () => {
 describe("usePreviewEmbedIds", () => {
   it("a late embed response for the previous template cannot replace the active links", async () => {
     const { load, pending } = deferredLoad();
-    const args: PreviewEmbedIdsArgs = { id: "pg1", templateChoice: "a.html", version: 1, previewRevision: 0, pendingHtml: null, load };
+    const args: PreviewEmbedIdsArgs = { id: "pg1", templateChoice: "a.html", version: 1, previewRevision: 0, pendingHtml: null, load, useEffect, useState };
     const { result, rerender } = renderHook((p: PreviewEmbedIdsArgs) => usePreviewEmbedIds(p), { initialProps: args });
     await waitFor(() => expect(pending).toHaveLength(1), { timeout: 3000 });
     pending[0]!.resolve({ youtubeIds: ["AAAAAAAAAAA"] });

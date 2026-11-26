@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Media } from "@jini-ai/admin/screens/media/Media";
 import { MEDIA_PROPS } from "@/media-panel";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
+import { useWiredMediaProviderCatalog } from "@/features/media/hooks/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   ...MEDIA_PROPS.hooks,
@@ -32,7 +32,7 @@ const requiredMediaHooks = {
   useMediaCardDetailsHook: useMediaCardDetails,
   useMediaGridSizeHook: useMediaGridSize,
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useMediaProviderCatalog,
+  useMediaItemLinkHook: useMediaItemLink, useMediaProviderCatalogHook: useWiredMediaProviderCatalog,
 };
 
 /**
@@ -194,7 +194,7 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     const user = userEvent.setup();
     render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} tabId="videos" /></FetchQueryProvider>);
     const upload = await screen.findByRole("button", { name: "Upload video" });
-    const bubble = () => document.querySelector(".info-tip-bubble");
+    const bubble = () => document.querySelector(".jini-ui-info-tip-bubble");
     expect(bubble()).toBeNull();
     await user.hover(upload);
     await waitFor(() => expect(bubble()).toHaveTextContent("Upload video"));

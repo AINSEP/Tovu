@@ -1,6 +1,6 @@
 import { KEYS } from "@jini-ai/admin/screens/media/rules";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
 import type { AdminMedia, MediaGridPage } from "@jini-ai/core/contracts/site/cms-admin-media";
@@ -41,7 +41,7 @@ const answer = (ids: string[], nextCursor: string | null): MediaGridPage => ({ m
 describe("media grid cursor paging", () => {
   it("changing tabs during load more drops the stale response and keeps exact counts", async () => {
     const { port, waiting } = deferredPort();
-    const { result, rerender } = renderHook(({ tab }) => useGridPages({ port, tab, orderBy: "created", useFetchQuery, listKey: KEYS.list }), { wrapper, initialProps: { tab: "all" as const } as { tab: "all" | "videos" } });
+    const { result, rerender } = renderHook(({ tab }) => useGridPages({ port, tab, orderBy: "created", useFetchQuery, listKey: KEYS.list, useCallback, useState }), { wrapper, initialProps: { tab: "all" as const } as { tab: "all" | "videos" } });
     await waitFor(() => expect(waiting.length).toBe(1));
     await act(async () => waiting[0].resolve(answer(["a1", "a2"], "cursor-1")));
     await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["a1", "a2"]));
@@ -66,7 +66,7 @@ describe("media grid cursor paging", () => {
 
   it("a direct link opens an asset beyond page one without scanning pages", async () => {
     const { port, calls, waiting } = deferredPort();
-    const { result } = renderHook(() => useGridPages({ port, tab: "all", orderBy: "created", useFetchQuery, listKey: KEYS.list }, { itemId: "deep" }), { wrapper });
+    const { result } = renderHook(() => useGridPages({ port, tab: "all", orderBy: "created", useFetchQuery, listKey: KEYS.list, useCallback, useState }, { itemId: "deep" }), { wrapper });
     await waitFor(() => expect(waiting.length).toBe(1));
     await act(async () => waiting[0].resolve(answer(["p1", "p2"], "cursor-1")));
 

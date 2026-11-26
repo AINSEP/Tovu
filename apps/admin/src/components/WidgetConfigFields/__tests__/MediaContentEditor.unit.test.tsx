@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { acceptedMediaItems } from "@jini-ai/cms/react/media/MediaPickerDialog/MediaPickerDialog.hooks";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
@@ -220,7 +221,7 @@ describe("MediaContentEditor", () => {
 function useControlledMedia(initial: Record<string, unknown>) {
   const [config, setConfig] = useState(initial);
   const [emissions, setEmissions] = useState<Record<string, unknown>[]>([]);
-  const controller = useMediaContentEditor({ port, locale: DEFAULT_LOCALE, useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia, config, widgetType: "media", onChange: next => {
+  const controller = useMediaContentEditor({ useEffect, useMemo, useRef, useState, acceptedMediaItems, port, locale: DEFAULT_LOCALE, useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia, config, widgetType: "media", onChange: next => {
     setConfig(next);
     setEmissions(current => [...current, next]);
   } });
@@ -328,7 +329,7 @@ it("the controller's default port loads media through the real API adapter", asy
     return new Response(JSON.stringify({ media: LIBRARY }), { status: 200, headers: { "content-type": "application/json" } });
   });
   try {
-    const { result, unmount } = renderHook(() => useMediaContentEditor({ port: defaultMediaPickerPort, locale: DEFAULT_LOCALE, useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia, config: { mode: "media", items: [{ slug: "sl-a" }] },
+    const { result, unmount } = renderHook(() => useMediaContentEditor({ useEffect, useMemo, useRef, useState, acceptedMediaItems, port: defaultMediaPickerPort, locale: DEFAULT_LOCALE, useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia, config: { mode: "media", items: [{ slug: "sl-a" }] },
       widgetType: "media", onChange: () => { throw new Error("loading must not change the config"); } }));
     await waitFor(() => expect(result.current.library).toEqual(LIBRARY));
     expect(result.current.rows[0].asset).toEqual(LIBRARY[0]);

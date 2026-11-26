@@ -863,7 +863,7 @@ describe("useExternalMcp — hosted token validation characterization (L294)", (
     const typedPort = {
       listExternalMcpServers: vi.fn<ExternalMcpPort["listExternalMcpServers"]>(),
       saveExternalMcpServer: vi.fn<ExternalMcpPort["saveExternalMcpServer"]>()
-        .mockResolvedValue({ server: server(), restartRequired: true }),
+        .mockResolvedValue({ server: server() }),
       deleteExternalMcpServer: vi.fn<ExternalMcpPort["deleteExternalMcpServer"]>(),
       probeExternalMcpServer: vi.fn<ExternalMcpPort["probeExternalMcpServer"]>(),
     };
