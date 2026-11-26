@@ -1,0 +1,2 @@
+src/features/trash/__tests__/use-trash.unit.test.tsx > useTrash > ignores selection and batch actions before the first page arrives
+src/lib/__tests__/api-request-shapes.characterization.test.ts > request-shape table: what every fetching member sends > the table covers every member of every client, once
