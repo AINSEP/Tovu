@@ -43,8 +43,9 @@ it("binds the failure cards' provider and the original pane components and prefe
 });
 
 it("prebinds the original DockHeader without forwarding its binding field", () => {
-  const { kit: { DockCleanupHeader } } = vi.mocked(bindDockChatPane).mock.calls[0][0];
-  render(<DockCleanupHeader ChatCleanupPanel={ChatCleanupPanel}
+  // The production kit's cleanup panel: it adapts the dock's cleanup controller to the chat package's panel props.
+  const { kit: { DockCleanupHeader, ChatCleanupPanel: BoundCleanupPanel } } = vi.mocked(bindDockChatPane).mock.calls[0][0];
+  render(<DockCleanupHeader ChatCleanupPanel={BoundCleanupPanel}
     chats={{ conversations: [], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
     activeTitle="Tovu assistant" mode="local-cli" agentId="claude" locale="en" t={({ key }) => key}
     chatI18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: "en" })} conversationDelete={{ confirm: vi.fn(async () => true) }}

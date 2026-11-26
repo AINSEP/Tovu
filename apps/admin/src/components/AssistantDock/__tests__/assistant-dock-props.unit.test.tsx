@@ -69,12 +69,12 @@ describe("composerFooterLeading", () => {
   const mic = <span>mic</span>;
 
   it("passes only the mic (or nothing) through while the folder dialog is unavailable here", () => {
-    expect(composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, available: false }, voice: mic })).toBe(mic);
-    expect(composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, available: false }, voice: undefined })).toBeUndefined();
+    expect(composerFooterLeading({ kit: { FolderPathButton, chat: { useT } }, folderPicker: { ...picker, available: false }, voice: mic })).toBe(mic);
+    expect(composerFooterLeading({ kit: { FolderPathButton, chat: { useT } }, folderPicker: { ...picker, available: false }, voice: undefined })).toBeUndefined();
   });
 
   it("puts the folder button first, right after +, wired to the picker, then the mic", () => {
-    const slot = composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, picking: true }, voice: mic });
+    const slot = composerFooterLeading({ kit: { FolderPathButton, chat: { useT } }, folderPicker: { ...picker, picking: true }, voice: mic });
     const children = isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : [];
     const [button, voice] = children as [unknown, unknown];
     expect(isValidElement(button) && button.type).toBe(FolderPathButton);
@@ -85,7 +85,7 @@ describe("composerFooterLeading", () => {
   // Owner bug 11-01 (ui-look-4): the note floated over the composer's text area from the footer row.
   // The footer only carries the button now; the note is DockLeadingAccessory's in-flow row.
   it("puts no folder-window note in the footer row, even while a browser tab's dialog is open", () => {
-    render(<>{composerFooterLeading({ kit: { chat: { useT } }, folderPicker: { ...picker, picking: true }, voice: mic })}</>);
+    render(<>{composerFooterLeading({ kit: { FolderPathButton, chat: { useT } }, folderPicker: { ...picker, picking: true }, voice: mic })}</>);
     expect(screen.queryByRole("status")).toBeNull();
   });
 
