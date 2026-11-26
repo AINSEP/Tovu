@@ -455,16 +455,16 @@ export const adminBrowserWriteOrigin: OriginContext = {
  * @complexity O(1) setup; per request as `createAdminJsonRoutePorts`.
  */
 export function mountAdminJsonRoute<Input, Output, Deps>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext; errors?: RouteErrorPorts },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: OriginContext; errors: RouteErrorPorts },
   optional: AdminJsonRouteMountOptions & RequestDepsMountOption<Deps & AdminJsonRoutePortDeps> = {},
 ): void {
   const { forwardRejection, bodyParsers, requestDeps, ...portOptions } = optional;
-  const errors = required.errors;
+  const errors = requireRouteErrors({ path: required.spec.path, errors: required.errors });
   const adapter = routeAdapterFor({ origin: required.spec.requireSameOrigin ? required.origin ?? adminBrowserWriteOrigin : undefined, errors });
-  const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin }, { ...(errors ? { reporter: errors.reporter } : {}) });
+  const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin }, { reporter: errors.reporter });
   const app = forwardRejection || portOptions.forwardUncaughtErrors ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
   const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor({ bodyParsers, requestDeps }), ...(errors ? { preserveHostErrorRouting: true as const } : {}) });
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor({ bodyParsers, requestDeps }), preserveHostErrorRouting: true });
 }
 
 /**
@@ -507,24 +507,41 @@ export type PublicRouteMountOptions<Deps> = RequestDepsMountOption<Deps> & Pick<
  * @complexity O(1) setup.
  */
 export function mountPublicJsonRoute<Input, Output, Deps extends object>(
-  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; errors?: RouteErrorPorts; failure: PublicRouteFailure; workspaceId?: string },
+  required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps>, "ports">; deps: Deps; errors: RouteErrorPorts; failure: PublicRouteFailure; workspaceId?: string },
   optional: PublicRouteMountOptions<Deps> = {},
 ): void {
   // Only a `:workspaceId` path can name a foreign workspace; elsewhere the option is inert.
+  const errors = requireRouteErrors({ path: required.spec.path, errors: required.errors });
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
-  const errors = required.errors;
   if (required.spec.requireSameOrigin) throw new Error(`public JSON route ${required.spec.path}: requireSameOrigin needs the host's origin context`);
   const adapter = routeAdapterFor({ origin: undefined, errors });
-  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }, { ...(errors ? { reporter: errors.reporter } : {}) }) }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor(optional), ...(errors ? { preserveHostErrorRouting: true as const } : {}) });
+  mountJsonRoute<Input, Output, Deps>({ app: required.app, spec: { ...required.spec, ports: createPublicJsonRoutePorts({ ...required.failure, workspaceId }, { reporter: errors.reporter }) }, deps: required.deps, ...adapter }, { ...routeMountOptionsFor(optional), preserveHostErrorRouting: true });
 }
 
 
+/** The origin policy of a bound mount whose spec never consults one: refuses every request, so a
+ *  later `requireSameOrigin` flag without the host's policy fails closed instead of open. */
 const denyUnboundOrigin: OriginContext = { originPolicy: { isSameOrigin: () => false } };
 
-export function routeAdapterFor(
-  { origin, errors }: { origin: OriginContext | undefined; errors: RouteErrorPorts | undefined },
+/** Refuse, at registration, a wrapper mount without the site's route error reporter (T-GATE). The
+ *  type already requires `errors`; this guards an untyped caller (JS, `as never`) before Express is
+ *  touched, so an unbound mount can never fall back to the kit's own reporterless incident path.
+ * @throws Error naming the path when `errors` is absent.
+ * @complexity O(1). */
+export function requireRouteErrors(
+  { path, errors }: { path: string; errors: RouteErrorPorts | undefined },
   _optional: Record<string, never> = {},
-): { adapter?: RouteHostContext } {
-  if (!errors) return origin ? { adapter: origin } : {};
+): RouteErrorPorts {
+  if (!errors) throw new Error(`route ${path}: mount needs the site's route error reporter — pass \`errors\` (RouteErrorPorts) to the mount`);
+  return errors;
+}
+
+/** The kit adapter for a bound wrapper mount: the site's error ports, plus the given origin policy
+ *  or the fail-closed {@link denyUnboundOrigin}.
+ * @complexity O(1). */
+export function routeAdapterFor(
+  { origin, errors }: { origin: OriginContext | undefined; errors: RouteErrorPorts },
+  _optional: Record<string, never> = {},
+): { adapter: RouteHostContext & { errors: RouteErrorPorts } } {
   return { adapter: { ...(origin ?? denyUnboundOrigin), errors } };
 }

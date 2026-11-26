@@ -17,7 +17,8 @@ import { ROUTINE_ROUTE_BASE } from "#src/server/runtime/composition/modules/assi
 import { registerOwnerRecoveryRoutes } from "../owner-recovery-routes.js";
 import { registerPublicMemberSignOutRoute } from "#src/server/runtime/composition/modules/public-members";
 import { registerHealthRoute } from "#src/server/runtime/composition/modules/core";
-import { adminSameOriginWrites, mountAdminJsonRoute } from "../admin-json-route-ports.js";
+import { adminSameOriginWrites, mountAdminJsonRoute, mountPublicJsonRoute } from "../admin-json-route-ports.js";
+import { mountAdminRawRoute, mountPublicRawRoute } from "../admin-raw-route-ports.js";
 import { fakeAdminApp, listen } from "./fixtures/port-harness.js";
 
 test("post create rejects over-cap before starting a route operation, and admits the same binding below cap", async (t) => {
@@ -179,3 +180,23 @@ test("member raw refusal does not record an incident", async (t) => {
   assert.equal(fixture.entries.length, 0);
 });
 
+
+test("unbound Tovu wrapper registrations fail at startup before touching Express", () => {
+  const touched: PropertyKey[] = [];
+  // Any read of the app (a method lookup, `use`, a route registration) is recorded: an unbound mount must refuse first.
+  const app = new Proxy({}, { get: (_target, key) => { touched.push(key); return () => undefined; } }) as never;
+  const deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never;
+  const json = { method: "get", path: "/api/probe/json", parse: () => ({}), handle: async () => ({ ok: true }) } as never;
+  const raw = { method: "get", path: "/api/probe/raw", handle: async () => undefined } as never;
+  const visitor = { operation: "probe", visitorError: "Probe failed." };
+  const unbound = [
+    ["mountAdminJsonRoute", () => mountAdminJsonRoute({ app, spec: json, deps } as never)],
+    ["mountPublicJsonRoute", () => mountPublicJsonRoute({ app, spec: json, deps, failure: visitor } as never)],
+    ["mountAdminRawRoute", () => mountAdminRawRoute({ app, spec: raw, deps } as never)],
+    ["mountPublicRawRoute", () => mountPublicRawRoute({ app, spec: raw, deps, failure: visitor } as never)],
+  ] as const;
+  for (const [name, mount] of unbound) {
+    assert.throws(mount, (error: unknown) => error instanceof Error && /route error reporter/.test(error.message) && error.message.includes("/api/probe/"), name);
+  }
+  assert.deepEqual(touched, []);
+});
