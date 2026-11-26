@@ -68,17 +68,17 @@ function formWriteDeps({ deps }: { deps: FormsRouteDeps }, _options: Record<stri
   };
 }
 
-export const registerAdminFormsListRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: formsListRoute, deps: { ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo } }, directMountOptions("routes/forms/list"));
+export const registerAdminFormsListRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: formsListRoute, deps: { ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo } }, directMountOptions("routes/forms/list"));
 };
 
 /** Reads `deps.authorize`'s decision itself (its own 403 copy), never the publishing-credential override. */
-export const registerAdminFormsProvidersRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: formsProvidersRoute, deps: { ...formsPortDeps({ deps }), formCollectionProviders: deps.formCollectionProviders } }, directMountOptions("routes/forms/_providers"));
+export const registerAdminFormsProvidersRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: formsProvidersRoute, deps: { ...formsPortDeps({ deps }), formCollectionProviders: deps.formCollectionProviders } }, directMountOptions("routes/forms/_providers"));
 };
 
-export const registerAdminFormsGetRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: formsGetRoute, deps: { ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo } }, directMountOptions("routes/forms/get-by-id"));
+export const registerAdminFormsGetRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: formsGetRoute, deps: { ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo } }, directMountOptions("routes/forms/get-by-id"));
 };
 
 /** Plain-words copy for the ordinary PUT's versioned refusals. */
@@ -89,8 +89,8 @@ const FORMS_VERSIONED_UPDATE_MESSAGES = {
 };
 
 /** Guarded (`authorizeOrRespond`): a publishing credential answers from its grant. */
-export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: formsUpdateRoute, deps: {
+export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: formsUpdateRoute, deps: {
     ...formsPortDeps({ deps }),
     formDefinitionRepo: deps.formDefinitionRepo,
     outwardErrorMessage,
@@ -103,8 +103,8 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }
 };
 
 /** Authoring write: guarded, like the hand-written route's `authorizeOrRespond`. */
-export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: { ...formsAuthoringRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: { ...formsAuthoringRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...formsPortDeps({ deps }),
     outwardErrorMessage,
     updateFormDefinition: ({ input }, optional) => updateFormDefinition({ deps: formWriteDeps({ deps }), input }, optional),
@@ -112,27 +112,27 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, dep
 };
 
 /** The command gateway authorizes `admin.forms.manage` inside the write, so the spec makes no `authorize` call. */
-export const registerAdminFormsCreateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: { ...formsCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+export const registerAdminFormsCreateRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: { ...formsCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
     ...formsPortDeps({ deps }),
     outwardErrorMessage,
     createFormDefinition: ({ input }) => createFormDefinition({ deps: formWriteDeps({ deps }), input }),
   } }, { failure: { operation: "routes/forms/create", code: "INTERNAL_ERROR" } });
 };
 
-export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: formsListSubmissionsRoute, deps: { ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo, formSubmissionRepo: deps.formSubmissionRepo } }, directMountOptions("routes/forms/list-submissions"));
+export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: formsListSubmissionsRoute, deps: { ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo, formSubmissionRepo: deps.formSubmissionRepo } }, directMountOptions("routes/forms/list-submissions"));
 };
 
-export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: formsGetSubmissionRoute, deps: {
+export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: formsGetSubmissionRoute, deps: {
     ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo, formSubmissionRepo: deps.formSubmissionRepo, formDeliveryStatus: deps.formDeliveryStatus,
   } }, directMountOptions("routes/forms/get-submission"));
 };
 
 /** `authorizeDirectOrRespond`: RBAC only, never the publishing-credential override. */
-export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: formsDeleteSubmissionRoute, deps: {
+export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: formsDeleteSubmissionRoute, deps: {
     ...formsPortDeps({ deps }),
     formDefinitionRepo: deps.formDefinitionRepo,
     formSubmissionRepo: deps.formSubmissionRepo,
@@ -184,15 +184,15 @@ export function createFormsAdminModule({ deps, errors }: { deps: FormsRouteDeps;
   return {
     name: "forms-admin",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminFormsListRoute({ app, deps });
-      registerAdminFormsCreateRoute({ app, deps });
-      registerAdminFormsProvidersRoute({ app, deps });
-      registerAdminFormsGetRoute({ app, deps });
-      registerAdminFormsUpdateRoute({ app, deps });
-      registerAdminFormsAuthoringRoute({ app, deps });
-      registerAdminFormsListSubmissionsRoute({ app, deps });
-      registerAdminFormsGetSubmissionRoute({ app, deps });
-      registerAdminFormsDeleteSubmissionRoute({ app, deps });
+      registerAdminFormsListRoute({ app, deps, errors });
+      registerAdminFormsCreateRoute({ app, deps, errors });
+      registerAdminFormsProvidersRoute({ app, deps, errors });
+      registerAdminFormsGetRoute({ app, deps, errors });
+      registerAdminFormsUpdateRoute({ app, deps, errors });
+      registerAdminFormsAuthoringRoute({ app, deps, errors });
+      registerAdminFormsListSubmissionsRoute({ app, deps, errors });
+      registerAdminFormsGetSubmissionRoute({ app, deps, errors });
+      registerAdminFormsDeleteSubmissionRoute({ app, deps, errors });
       registerAdminFormsPullSubmissionsRoute({ app, deps, errors });
     },
   };

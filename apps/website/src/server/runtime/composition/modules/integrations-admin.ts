@@ -1,3 +1,4 @@
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import { integrationsCreateRoute } from "@jini-ai/cms/admin-http/routes/integrations/create";
@@ -15,7 +16,7 @@ import {
 } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps, WebhooksDeps } from "#src/server/routes/types";
-import type { ServerModuleHandle } from "./types.js";
+import type { RouteRegistration, ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `integrations-admin` server module.
@@ -48,7 +49,7 @@ import type { ServerModuleHandle } from "./types.js";
  */
 export type IntegrationsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "originRegistry"> & WebhooksDeps;
 
-export type IntegrationsRouteRegistrar = (required: { app: Express; deps: IntegrationsRouteDeps }, optional?: Record<string, never>) => void;
+export type IntegrationsRouteRegistrar = (required: { app: Express; deps: IntegrationsRouteDeps; errors: RouteErrorPorts }, optional?: Record<string, never>) => void;
 
 /**
  * The subscription-lifecycle deps every service bound below hands `#src/features/webhooks`
@@ -90,11 +91,11 @@ function integrationsReadDeps({ deps }: { deps: IntegrationsRouteDeps }, _option
   return { ...integrationsPortDeps({ deps }), webhookSubscriptionRepo: deps.webhookSubscriptionRepo, webhookDeliveryRepo: deps.webhookDeliveryRepo };
 }
 
-export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: integrationsListRoute, deps: integrationsReadDeps({ deps }) }, mountOptions("routes/integrations/list", "direct"));
+export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: integrationsListRoute, deps: integrationsReadDeps({ deps }) }, mountOptions("routes/integrations/list", "direct"));
 };
 
-export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const createDeps = {
     ...integrationsPortDeps({ deps }),
     // ADR-PIPE-015 GAP-06: the real core/origin egress oracle (see `toWebhookSubscriptionDeps`); built per request.
@@ -110,10 +111,10 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
     }),
     isValidationError,
   };
-  mountAdminJsonRoute({ app, spec: integrationsCreateRoute, deps: createDeps }, mountOptions("routes/integrations/create", "guarded"));
+  mountAdminJsonRoute({ app, errors, spec: integrationsCreateRoute, deps: createDeps }, mountOptions("routes/integrations/create", "guarded"));
 };
 
-export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const pauseDeps = {
     ...integrationsPortDeps({ deps }),
     // The shared egress policy is not exercised here: pause never re-validates targetUrl.
@@ -122,10 +123,10 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
     isNotFoundError,
     isValidationError,
   };
-  mountAdminJsonRoute({ app, spec: integrationsPauseRoute, deps: pauseDeps }, mountOptions("routes/integrations/pause", "guarded"));
+  mountAdminJsonRoute({ app, errors, spec: integrationsPauseRoute, deps: pauseDeps }, mountOptions("routes/integrations/pause", "guarded"));
 };
 
-export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
+export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
   const deleteDeps = {
     ...integrationsPortDeps({ deps }),
     // The shared egress policy is not exercised here: delete never re-validates targetUrl.
@@ -133,22 +134,22 @@ export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = 
       deleteSubscription({ deps: toWebhookSubscriptionDeps(deps), input: { workspaceId, id: subscriptionId } }),
     isNotFoundError,
   };
-  mountAdminJsonRoute({ app, spec: integrationsDeleteRoute, deps: deleteDeps }, mountOptions("routes/integrations/delete", "direct"));
+  mountAdminJsonRoute({ app, errors, spec: integrationsDeleteRoute, deps: deleteDeps }, mountOptions("routes/integrations/delete", "direct"));
 };
 
-export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: integrationsDeliveriesRoute, deps: integrationsReadDeps({ deps }) }, mountOptions("routes/integrations/deliveries", "direct"));
+export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistrar = ({ app, deps, errors }, _options = {}) => {
+  mountAdminJsonRoute({ app, errors, spec: integrationsDeliveriesRoute, deps: integrationsReadDeps({ deps }) }, mountOptions("routes/integrations/deliveries", "direct"));
 };
 
-export function createIntegrationsAdminModule(deps: IntegrationsRouteDeps): ServerModuleHandle {
+export function createIntegrationsAdminModule(deps: IntegrationsRouteDeps): ServerModuleHandle<RouteRegistration> {
   return {
     name: "integrations-admin",
-    registerRoutes: ({ app }, _options = {}) => {
-      registerAdminIntegrationsListRoute({ app, deps });
-      registerAdminIntegrationsCreateRoute({ app, deps });
-      registerAdminIntegrationsPauseRoute({ app, deps });
-      registerAdminIntegrationsDeleteRoute({ app, deps });
-      registerAdminIntegrationsDeliveriesRoute({ app, deps });
+    registerRoutes: ({ app, errors }, _options = {}) => {
+      registerAdminIntegrationsListRoute({ app, deps, errors });
+      registerAdminIntegrationsCreateRoute({ app, deps, errors });
+      registerAdminIntegrationsPauseRoute({ app, deps, errors });
+      registerAdminIntegrationsDeleteRoute({ app, deps, errors });
+      registerAdminIntegrationsDeliveriesRoute({ app, deps, errors });
     },
   };
 }

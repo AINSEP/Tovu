@@ -1,5 +1,6 @@
 import type { FormCommandExecutorPort } from "@jini-ai/cms/forms";
 import type { Clock } from "@jini-ai/core/primitives";
+import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
 import type { FormsDeps, RouteDeps } from "#src/server/routes/types";
@@ -18,4 +19,5 @@ export type FormsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "idGe
   executeCommand: FormCommandExecutorPort;
 };
 
-export type FormsRouteRegistrar = (required: { app: Express; deps: FormsRouteDeps }, optional?: Record<string, never>) => void;
+/** `errors` is the owning site's route error ports, bound to every forms mount (T-GATE). */
+export type FormsRouteRegistrar = (required: { app: Express; deps: FormsRouteDeps; errors: RouteErrorPorts }, optional?: Record<string, never>) => void;
