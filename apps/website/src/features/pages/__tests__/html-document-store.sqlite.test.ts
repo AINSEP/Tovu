@@ -86,7 +86,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const statements = createPageHtmlStatements({ kernel });
     assert.equal((await statements.readBody({ scope: { workspaceId: WS, postId: "scoped" } }))?.body_html, "<p>Owned</p>");
     assert.equal(await statements.readBody({ scope: { workspaceId: OTHER_WS, postId: "scoped" } }), undefined);
-    assert.equal(await statements.update({ scope: { workspaceId: OTHER_WS, postId: "scoped" }, allowedKinds: new Set(["page"]), set: { body_html: "foreign", version: 2, updated_at: clock.nowIso() }, guard: { version: 1, liveHtmlOnly: true } }), 0);
+    assert.equal(await statements.update({ scope: { workspaceId: OTHER_WS, postId: "scoped" }, allowedKinds: new Set(["page"]), set: { body_html: "foreign", version: 2, updated_at: new Date(clock.nowMs()).toISOString() }, guard: { version: 1, liveHtmlOnly: true } }), 0);
     assert.equal((await readRow(kernel, "scoped")).bodyHtml, "<p>Owned</p>");
   });
 

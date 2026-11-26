@@ -96,7 +96,7 @@ test("revertChangeSet undoes a repoint change set, restoring the prior entryRef"
 
   await revertChangeSet({
     deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
-    input: { workspaceId: WORKSPACE_ID, changeSetId },
+    input: { workspaceId: WORKSPACE_ID, changeSetId, actor: { id: "operator", kind: "user" } },
   });
 
   const reverted = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
@@ -134,7 +134,7 @@ test("revertChangeSet refuses a repoint change set whose menu changed since — 
     () =>
       revertChangeSet({
         deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
-        input: { workspaceId: WORKSPACE_ID, changeSetId },
+        input: { workspaceId: WORKSPACE_ID, changeSetId, actor: { id: "operator", kind: "user" } },
       }),
     (err: unknown) => err instanceof RevertConflictError
   );

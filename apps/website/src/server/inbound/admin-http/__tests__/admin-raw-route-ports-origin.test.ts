@@ -14,7 +14,7 @@ import { fakeAdminApp, listen } from "./fixtures/port-harness.js";
  */
 type Deps = { workspaceId: string; authorize: (input: unknown) => Promise<{ allowed: boolean; reason: string }> };
 const SITE = "http://site.test";
-const origin: RouteHostContext = { originPolicy: { isSameOrigin: ({ req }) => req.headers.origin === undefined || req.headers.origin === SITE } };
+const origin: RouteHostContext = { originPolicy: { isSameOrigin: ({ req }) => req.headers?.origin === undefined || req.headers?.origin === SITE } };
 const visitor = { operation: "probe:public-raw-origin", visitorError: "The site couldn’t load the probe." };
 
 function guardedSpec(path: string, calls: string[]) {
