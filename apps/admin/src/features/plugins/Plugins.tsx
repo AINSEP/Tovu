@@ -1,4 +1,10 @@
 import { bindPlugins } from "@jini-ai/admin/screens/plugins/Plugins";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
+import { PluginRemoveConfirmDialog } from "@jini-ai/admin/screens/plugins/PluginRemoveConfirmDialog";
+import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
+import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
+import { InstalledTabIcon, DownloadedTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "@jini-ai/admin/screens/plugins/plugins-visuals";
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
 import { ProviderSettingField } from "@jini-ai/admin/screens/plugins/PluginProviderSettingField";
 import { Toast } from "@jini-ai/ui";
@@ -15,6 +21,15 @@ import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginRules, pluginToggleAr
 
 export const Plugins = bindPlugins({
   kit: {
+    PluginRulesProvider,
+    PluginPackageFilesModal,
+    PluginRemoveConfirmDialog,
+    PluginRow,
+    AddPluginPanel,
+    InstalledTabIcon,
+    DownloadedTabIcon,
+    MarketplaceTabIcon,
+    PluginTrashIcon,
     TabBar,
     Toast,
     PluginProviderSettingsDialog: (props) => <PluginProviderSettingsDialog {...props} kit={{ Button, Dialog, ProviderSettingField }} providerSettingRequiredHere={providerSettingRequiredHere} legacyCredentialKey="A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save." />,

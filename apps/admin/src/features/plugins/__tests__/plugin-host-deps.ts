@@ -5,6 +5,17 @@ import { isApiError, pluginRules, agentPluginDisplayName, updatableAgentPluginDi
 import { createElement, type ComponentProps } from "react";
 import type { AgentPluginsProps } from "@jini-ai/admin/screens/plugins/AgentPlugins";
 import type { PluginsProps } from "@jini-ai/admin/screens/plugins/Plugins";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
+import { AddAgentPluginPanel } from "@jini-ai/admin/screens/plugins/AddAgentPluginPanel";
+import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
+import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
+import { AgentPluginUpdateSlot } from "@jini-ai/admin/screens/plugins/AgentPluginUpdateControl";
+import { PluginPackageFilesModal } from "@jini-ai/admin/screens/plugins/PluginPackageFilesModal";
+import { PluginRemoveConfirmDialog } from "@jini-ai/admin/screens/plugins/PluginRemoveConfirmDialog";
+import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
+import { AddPluginPanel } from "@jini-ai/admin/screens/plugins/AddPluginPanel";
+import { InstalledTabIcon, DownloadedTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "@jini-ai/admin/screens/plugins/plugins-visuals";
 import { AgentPluginDetailsModal } from "@jini-ai/agent-plugins/react/AgentPluginDetailsModal";
 import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
 import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
@@ -32,6 +43,12 @@ export const HOST_PLUGINS = { ...HOST_INSTALL, translate: tPlugins, installPort:
 
 export const HOST_AGENT_PLUGIN_SCREEN = {
   kit: {
+    PluginRulesProvider,
+    AgentPluginDisableConfirmDialog,
+    AddAgentPluginPanel,
+    AgentPluginRow,
+    AgentPluginManageButton,
+    AgentPluginUpdateSlot,
     AgentPluginDetailsModal: (props: ComponentProps<AgentPluginsProps["kit"]["AgentPluginDetailsModal"]>) => createElement(AgentPluginDetailsModal, { ...props, kit: { AgentPluginMemoryPanel, AgentPluginMaturity, PackageFilesModal, AgentPluginSurfaceFrame }, useHostAdminSurfaceFrame, surfacesPort: defaultAgentPluginSurfacesPort }),
   },
   deps: {
@@ -46,6 +63,15 @@ export const HOST_AGENT_PLUGIN_SCREEN = {
 
 export const HOST_PLUGIN_SCREEN = {
   kit: {
+    PluginRulesProvider,
+    PluginPackageFilesModal,
+    PluginRemoveConfirmDialog,
+    PluginRow,
+    AddPluginPanel,
+    InstalledTabIcon,
+    DownloadedTabIcon,
+    MarketplaceTabIcon,
+    PluginTrashIcon,
     TabBar, Toast,
     PluginProviderSettingsDialog: (props: ComponentProps<PluginsProps["kit"]["PluginProviderSettingsDialog"]>) => createElement(PluginProviderSettingsDialog, { ...props, kit: { Button, Dialog, ProviderSettingField }, providerSettingRequiredHere, legacyCredentialKey: "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save." }),
   },

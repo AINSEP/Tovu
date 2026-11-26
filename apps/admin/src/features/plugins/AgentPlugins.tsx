@@ -1,5 +1,11 @@
 import { bindAgentPlugins } from "@jini-ai/admin/screens/plugins/AgentPlugins";
 import { folderZipPort as folderZip } from "./hooks/use-plugins.hooks";
+import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-context";
+import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
+import { AddAgentPluginPanel } from "@jini-ai/admin/screens/plugins/AddAgentPluginPanel";
+import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
+import { AgentPluginManageButton } from "@jini-ai/admin/screens/plugins/AgentPluginManageButton";
+import { AgentPluginUpdateSlot } from "@jini-ai/admin/screens/plugins/AgentPluginUpdateControl";
 import { AgentPluginDetailsModal } from "@jini-ai/agent-plugins/react/AgentPluginDetailsModal";
 import { AgentPluginMemoryPanel } from "@jini-ai/admin/screens/plugins/AgentPluginMemoryPanel";
 import { AgentPluginMaturity } from "@jini-ai/admin/screens/plugins/AgentPluginMaturity";
@@ -26,6 +32,12 @@ import { agentPluginDisplayName, isApiError, pluginRules, updatableAgentPluginDi
 
 export const AgentPlugins = bindAgentPlugins({
   kit: {
+    PluginRulesProvider,
+    AgentPluginDisableConfirmDialog,
+    AddAgentPluginPanel,
+    AgentPluginRow,
+    AgentPluginManageButton,
+    AgentPluginUpdateSlot,
     AgentPluginDetailsModal: (props) => <AgentPluginDetailsModal {...props} kit={{ AgentPluginMemoryPanel, AgentPluginMaturity, PackageFilesModal, AgentPluginSurfaceFrame }} useHostAdminSurfaceFrame={useHostAdminSurfaceFrame} surfacesPort={defaultAgentPluginSurfacesPort} />,
   },
   hooks: {
