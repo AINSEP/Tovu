@@ -13,7 +13,7 @@
  * Modeled on `apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts`:
  * scan every production `.ts`/`.tsx` under `server/inbound/`, extract every import specifier
  * (`import`, `import type`, dynamic `import()`, and `require()`), and flag any that name
- * `site-key-ensure` — relative, or via the `#src/features/webhooks/site-key-ensure` subpath map.
+ * `site-key-ensure` — relative, or via the `#src/server/runtime/composition/site-key-write-bindings` subpath map.
  * `__tests__/` is excluded, same reasoning as the features boundary test: an integration test that
  * boots a real route against a controlled writer call is orthogonal to this production-layering
  * concern.
@@ -34,7 +34,7 @@ const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
  *  segment — matches both a relative import and the `#src/...` subpath-map form without also
  *  matching an unrelated module that merely contains the substring (e.g. a hypothetical
  *  `site-key-ensure-utils`). */
-const SITE_KEY_ENSURE_SPECIFIER = /(?:^|\/)site-key-ensure(?:\.(?:js|ts))?$/;
+const SITE_KEY_ENSURE_SPECIFIER = /(?:^|\/)(?:site-key-write-bindings|site-key-ensure)(?:\.(?:js|ts))?$|^@jini-ai\/platform\/secrets\/root-key\/(?:ensure|reconcile|files)$/;
 
 function collectProductionFiles(dir: string, out: string[]): void {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -75,7 +75,7 @@ test("no production file under server/inbound/ imports site-key-ensure (the one 
 
 test("the boundary scanner sees every supported import syntax and ignores comments and ordinary strings", () => {
   const specifiers = importSpecifiers({ source: `
-    import "#src/features/webhooks/site-key-ensure";
+    import "#src/server/runtime/composition/site-key-write-bindings";
     import { ensure } from "./site-key-ensure.js";
     import type { Key } from "../site-key-ensure.ts";
     export { ensure } from "../../site-key-ensure";
@@ -83,13 +83,17 @@ test("the boundary scanner sees every supported import syntax and ignores commen
     const dynamic = import("../../../../site-key-ensure.ts");
     const cjs = require("../../../../../site-key-ensure");
     import legacy = require("../../../../../../site-key-ensure.js");
+    import "@jini-ai/platform/secrets/root-key/ensure";
+    import "@jini-ai/platform/secrets/root-key/reconcile";
+    import "@jini-ai/platform/secrets/root-key/files";
     // import "ignored/site-key-ensure";
     const text = 'from "ignored/site-key-ensure"';
     import "./site-key-ensure-utils";
   ` }, { fileName: "fixture.tsx" });
   assert.deepEqual(specifiers.filter((specifier) => SITE_KEY_ENSURE_SPECIFIER.test(specifier)), [
-    "#src/features/webhooks/site-key-ensure", "./site-key-ensure.js", "../site-key-ensure.ts", "../../site-key-ensure",
+    "#src/server/runtime/composition/site-key-write-bindings", "./site-key-ensure.js", "../site-key-ensure.ts", "../../site-key-ensure",
     "../../../site-key-ensure.js", "../../../../site-key-ensure.ts", "../../../../../site-key-ensure", "../../../../../../site-key-ensure.js",
+    "@jini-ai/platform/secrets/root-key/ensure", "@jini-ai/platform/secrets/root-key/reconcile", "@jini-ai/platform/secrets/root-key/files",
   ]);
-  assert.equal(specifiers.length, 9);
+  assert.equal(specifiers.length, 12);
 });

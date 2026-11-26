@@ -48,7 +48,7 @@ import type { InstallAttachmentReader } from "@jini-ai/core/contracts/headless/p
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
-import type { AutomaticPluginRun, createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
+import type { AutomaticPluginRun, createAutomaticPluginRuns } from "@jini-ai/agent-plugins/site/automatic-agent-plugins";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 /** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */

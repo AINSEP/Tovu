@@ -3,7 +3,7 @@ import path from "node:path";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
-import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
+import { ensureSiteKey } from "#src/server/runtime/composition/site-key-write-bindings";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 import { siteSecretSealer, type SiteSecretSealer } from "./storage-secret.js";

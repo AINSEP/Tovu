@@ -23,7 +23,7 @@ import { ensureAgentDaemonToken, ensureToolExecToken } from "../../assistant/ind
 import { initializeStartupSecrets } from '../../platform/secrets/startup-secrets.js';
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "../../server/runtime/boot/site-key-boot-notice.js";
-import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";
+import { ensureSiteKeyForBoot } from "../../server/runtime/composition/site-key-write-bindings.js";
 import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";

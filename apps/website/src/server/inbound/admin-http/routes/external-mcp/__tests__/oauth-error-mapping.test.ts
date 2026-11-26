@@ -16,8 +16,8 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import {
   registerAdminExternalMcpOAuthConnectRoute,
   registerAdminExternalMcpOAuthDevicePollRoute,
-  type ExternalMcpOAuthRouteDeps,
 } from "../oauth.js";
+import type { ExternalMcpOAuthRouteDeps } from "../deps.js";
 import { registerAdminExternalMcpOAuthDisconnectRoute } from "#src/server/runtime/composition/modules/external-mcp";
 
 /**

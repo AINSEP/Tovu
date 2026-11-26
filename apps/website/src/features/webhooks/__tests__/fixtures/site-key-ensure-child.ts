@@ -1,7 +1,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { ensureSiteKey } from "../../site-key-ensure.js";
+import { ensureSiteKey } from "#src/server/runtime/composition/site-key-write-bindings";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
 
 /**

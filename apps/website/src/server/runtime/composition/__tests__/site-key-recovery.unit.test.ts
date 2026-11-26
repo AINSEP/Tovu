@@ -11,7 +11,7 @@ import { type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { installSiteKey, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
+import { installSiteKey, mintSiteKeyHex } from "#src/server/runtime/composition/site-key-write-bindings";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { seedPrincipals } from "#src/platform/db/kernel/__tests__/content-seeds";

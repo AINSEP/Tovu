@@ -9,7 +9,7 @@ import { discardVaultCredentialsNotOpening, resealVaultCredentialsOpeningUnder }
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { installSiteKey, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
+import { installSiteKey, mintSiteKeyHex } from "#src/server/runtime/composition/site-key-write-bindings";
 import { readSealedConnectionString, writeSealedConnectionString } from "./storage-secret.js";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";

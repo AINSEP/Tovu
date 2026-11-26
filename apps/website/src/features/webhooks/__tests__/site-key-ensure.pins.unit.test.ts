@@ -7,8 +7,8 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { fingerprintSiteKeyHex } from "../keyring.env.js";
-import { ensureSiteKey, ensureSiteKeyForBoot, ensureSiteKeyForSite, installSiteKey } from "../site-key-ensure.js";
+import { fingerprintSiteKeyHex } from "@jini-ai/platform/secrets";
+import { ensureSiteKey, ensureSiteKeyForBoot, ensureSiteKeyForSite, installSiteKey } from "#src/server/runtime/composition/site-key-write-bindings";
 import { LEGACY_SITE_KEY_FILENAME } from "../site-key-read-bindings.js";
 
 /**

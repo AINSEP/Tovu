@@ -15,7 +15,7 @@ import { initSite } from "#src/server/runtime/composition/site-dir";
 import { readSiteDir } from "../../read-site-dir.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { ensureSiteKeyForBoot } from "#src/features/webhooks/site-key-ensure";
+import { ensureSiteKeyForBoot } from "#src/server/runtime/composition/site-key-write-bindings";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
 import { siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 

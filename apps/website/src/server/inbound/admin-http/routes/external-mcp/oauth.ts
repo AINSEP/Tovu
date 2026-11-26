@@ -14,13 +14,12 @@ import { rejectUnlessSessionCredential } from '#src/server/inbound/admin-http/de
 
 import { ExternalMcpReauthRequiredError } from "../../../../../features/external-mcp/external-mcp-oauth.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
-import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { externalMcpOAuthCallbackUrl } from "@jini-ai/cms/public-http/routes/external-mcp/oauth-callback-url";
 import { resolvePublicOrigin } from "#src/platform/express/public-origin";
-import type { ExternalMcpRouteDeps } from "./deps.js";
+import type { ExternalMcpOAuthRouteDeps } from "./deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 const SHARED_MCP_PERMISSION = 'admin.integrations.manage';
@@ -49,11 +48,6 @@ const SHARED_MCP_PERMISSION = 'admin.integrations.manage';
  * does not, because an authorization code is single-use and the first response may have been lost
  * after the provider already redeemed it. `@jini-ai/oauth`'s `errors.ts` carries the full argument.
  */
-
-/** OAuth-specific route dependencies, on top of the roster slice the other three routes use.
- *  `externalMcpOAuth` is `RouteDeps`' own optional field, narrowed to required here — a route family
- *  that cannot run without the service should not be able to compile without it. */
-export type ExternalMcpOAuthRouteDeps = ExternalMcpRouteDeps & { readonly externalMcpOAuth: ExternalMcpOAuthService };
 
 function sendExternalMcpOAuthError({ res, error }: { res: import("express").Response; error: unknown }, _optional = {}): void {
   const reply = externalMcpErrorStatus({ error, deps: {

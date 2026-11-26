@@ -27,7 +27,8 @@ import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpe
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { rankInstalledAgentPlugins, resolveAgentPluginRefs, resolveAgentPluginGuidance } from '../../features/agent-plugins/lifecycle.js';
 import { setAgentPluginEnabled } from '../../features/agent-plugins/set-enabled.js';
-import { bindAutomaticGuidanceResolver, createAutomaticPluginRuns, type AutomaticPluginRun } from '../../features/agent-plugins/automatic-agent-plugins.js';
+import { createAutomaticPluginRuns } from '../../features/agent-plugins/automatic-agent-plugins.js';
+import { bindAutomaticGuidanceResolver, type AutomaticPluginRun } from '@jini-ai/agent-plugins/site/automatic-agent-plugins';
 import { loadAgentPluginSearchCandidates } from '../../features/agent-plugins/tool-registrations.js';
 import { createAutomaticAgentPluginUse } from '@jini-ai/agent-plugins/lifecycle';
 import { agentPluginSourceDir } from '../../../../../development/test-support/agent-plugin-source.mjs';

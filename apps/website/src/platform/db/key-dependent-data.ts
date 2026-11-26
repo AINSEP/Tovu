@@ -10,7 +10,7 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
  * @file The "does this site hold data only the current site key can open?" scan (site-key plan
  * §A.2/§A.6), on the storage kernel.
  *
- * Two callers need it: `features/webhooks/site-key-ensure.ts`'s `ensureSiteKey` (refuse to mint a
+ * Two callers need it: `server/runtime/composition/site-key-write-bindings.ts`'s `ensureSiteKey` (refuse to mint a
  * fresh key over sealed data) and the admin site key route's `"missing-with-data"` state. The
  * feature side never imports this module (`platform/db` is composition-built); the boot callers
  * (`src/index.ts`, `cli/commands/serve.ts`) inject `platform/site-dir/site-key-dependent-data.ts`'s

@@ -10,7 +10,7 @@ import type { AgentPluginGuidanceAttempt, AgentPluginGuidanceOffer } from "@jini
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { DurableRunHead } from "@jini-ai/chat/server/durable-runs";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
-import type { AutomaticPluginRun, createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
+import type { AutomaticPluginRun, createAutomaticPluginRuns } from "@jini-ai/agent-plugins/site/automatic-agent-plugins";
 
 type Runs = ReturnType<typeof createAutomaticPluginRuns>;
 type OwnedRun = { head: DurableRunHead & { principalId: string }; scope: AgentPluginGuidanceAttempt; context: ReturnType<typeof parseRunStartContextRef> };

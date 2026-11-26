@@ -8,7 +8,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { ensureSiteKeyForBoot } from "#src/features/webhooks/site-key-ensure";
+import { ensureSiteKeyForBoot } from "#src/server/runtime/composition/site-key-write-bindings";
 import { openContentDb } from "../../../db/sqlite/content-db.js";
 import { workspaces } from "../../../db/schema.sqlite.js";
 import { closeSiteDirBoot } from "../../boot-site-dir.js";

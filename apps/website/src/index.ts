@@ -17,7 +17,7 @@ import { defaultContentDbPath, siteDir } from "./server/runtime/composition/site
 import type { SiteStore } from "./server/runtime/composition/open-site-store.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "./server/runtime/boot/site-key-boot-notice.js";
-import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
+import { ensureSiteKeyForBoot } from "./server/runtime/composition/site-key-write-bindings.js";
 import { findSiteKeyDependentData } from "./platform/site-dir/site-key-dependent-data.js";
 import { completeKeyOnlySiteMeta } from "./platform/site-dir/key-only-site-meta.js";
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";

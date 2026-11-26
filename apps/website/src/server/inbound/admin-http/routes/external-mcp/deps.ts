@@ -1,3 +1,4 @@
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express } from "express";
 
@@ -21,3 +22,8 @@ export type ExternalMcpRouteDeps = Pick<
 >;
 
 export type ExternalMcpRouteRegistrar = (required: { errors: RouteErrorPorts; app: Express; deps: ExternalMcpRouteDeps }, optional?: Record<string, never>) => void;
+
+/** OAuth-specific route dependencies, on top of the roster slice the other three routes use.
+ *  `externalMcpOAuth` is `RouteDeps`' own optional field, narrowed to required here — a route family
+ *  that cannot run without the service should not be able to compile without it. */
+export type ExternalMcpOAuthRouteDeps = ExternalMcpRouteDeps & { readonly externalMcpOAuth: ExternalMcpOAuthService };

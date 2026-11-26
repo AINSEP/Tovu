@@ -241,7 +241,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   module("../../../platform/secrets/startup-secrets.ts", { initializeStartupSecrets: async () => {} });
   module("../../../server/runtime/boot/site-daemon-listener.ts", { startSiteDaemonListener: async () => ({ origin: "http://127.0.0.1:4568", close: async () => {} }) });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
-  module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });
+  module("../../../server/runtime/composition/site-key-write-bindings.ts", { ensureSiteKeyForBoot: async () => {} });
   module("../../../server/runtime/boot/bootstrap.ts", { buildBootModules: () => [], logCriticalBootFailures: (result: unknown) => { criticalFailureLogs.push(result); } });
   module("../../../server/runtime/lifecycle/boot-lifecycle.ts", { runBootLifecycle: async () => lifecycle });
   module("../../../server/runtime/lifecycle/readiness-state.ts", { setReadinessSnapshot: () => {} });

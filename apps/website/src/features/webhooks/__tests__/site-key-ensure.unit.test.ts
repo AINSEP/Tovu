@@ -13,11 +13,11 @@ import test from "node:test";
 
 import { sql } from "kysely";
 
-import { fingerprintSiteKeyHex } from "../keyring.env.js";
+import { fingerprintSiteKeyHex } from "@jini-ai/platform/secrets";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import { type SiteKeyMaterialCheck } from "@jini-ai/platform/secrets/root-key/decide";
-import { ensureSiteKey, ensureSiteKeyForBoot, installSiteKey, mintSiteKeyHex, planSiteKeyEnsure } from "../site-key-ensure.js";
+import { planSiteKeyEnsure, type SiteKeyMaterialCheck } from "@jini-ai/platform/secrets/root-key/decide";
+import { ensureSiteKey, ensureSiteKeyForBoot, installSiteKey, mintSiteKeyHex } from "#src/server/runtime/composition/site-key-write-bindings";
 
 /** Site-key plan §A.4 additions to this suite start at "ensureSiteKey: fingerprint stamp" below —
  *  everything above is unchanged from A2/A3a. */

@@ -20,11 +20,10 @@ import { ExternalMcpReauthRequiredError } from "#src/features/external-mcp/exter
 import { deleteExternalMcpServer, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { listExternalMcpServerViews, saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ExternalMcpRouteDeps, ExternalMcpRouteRegistrar } from "#src/server/inbound/admin-http/routes/external-mcp/deps";
+import type { ExternalMcpRouteDeps, ExternalMcpRouteRegistrar, ExternalMcpOAuthRouteDeps } from "#src/server/inbound/admin-http/routes/external-mcp/deps";
 import {
   registerAdminExternalMcpOAuthConnectRoute,
   registerAdminExternalMcpOAuthDevicePollRoute,
-  type ExternalMcpOAuthRouteDeps,
 } from "#src/server/inbound/admin-http/routes/external-mcp/oauth";
 import { registerExternalMcpProbeRoute } from "@jini-ai/cms/admin-http/routes/external-mcp/probe";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";

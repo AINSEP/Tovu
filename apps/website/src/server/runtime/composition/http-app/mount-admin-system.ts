@@ -22,7 +22,7 @@ import { registerAdminSiteBackupRoutes } from "#src/server/runtime/composition/m
 import { toolGapsRoute } from "@jini-ai/cms/admin-http/routes/system/tool-gaps";
 import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { ensureSiteKeyForSite } from "#src/features/webhooks/site-key-ensure";
+import { ensureSiteKeyForSite } from "#src/server/runtime/composition/site-key-write-bindings";
 import { createAnalyticsModule } from "../modules/analytics.js";
 import type { Express } from "express";
 import { moduleStatusRoute } from "@jini-ai/cms/admin-http/routes/system/module-status";

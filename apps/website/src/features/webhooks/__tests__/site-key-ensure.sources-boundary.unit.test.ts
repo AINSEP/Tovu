@@ -21,7 +21,7 @@ mock.module(new URL("../site-key-read-bindings.ts", import.meta.url).href, {
   namedExports: { ...realSources, siteKeySources: (input: realSources.SiteKeySourcesInput) => sourcesOverride ?? realSources.siteKeySources(input) },
 });
 
-const { installSiteKey } = await import("../site-key-ensure.js");
+const { installSiteKey } = await import("#src/server/runtime/composition/site-key-write-bindings");
 
 const HEX = "ab".repeat(32);
 const siteDir = mkdtempSync(path.join(tmpdir(), "tovu-site-key-sources-boundary-"));

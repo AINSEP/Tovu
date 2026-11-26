@@ -9,7 +9,7 @@ import { createRouteDeps } from "../../app.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { registerAssistantToolExecRoutes } from "../assistant-tool-exec.js";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { AutomaticPluginRun } from "#src/features/agent-plugins/automatic-agent-plugins";
+import type { AutomaticPluginRun } from "@jini-ai/agent-plugins/site/automatic-agent-plugins";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";

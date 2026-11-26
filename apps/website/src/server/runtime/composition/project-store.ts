@@ -19,7 +19,7 @@ import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
+import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/server/runtime/composition/site-key-write-bindings";
 import { closeSqliteConnection, openNativeSqlite, sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
 import { createVaultProviderConfigSource } from "./provider-config-source.js";

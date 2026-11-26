@@ -8,7 +8,7 @@ import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import type { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
+import type { ensureSiteKey } from "#src/server/runtime/composition/site-key-write-bindings";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-read-bindings";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
@@ -99,7 +99,7 @@ export async function sealConnectionStringForNewSite(
   // `ensure` is imported on first use: only `tovu init` mints a key, and the module's graph reaches the
   // migration runner, which a reader of the connection string (the agent daemon's DB client) must not load.
   {
-    ensure = async (input) => (await import("#src/features/webhooks/site-key-ensure")).ensureSiteKey(input),
+    ensure = async (input) => (await import("#src/server/runtime/composition/site-key-write-bindings")).ensureSiteKey(input),
     sealerFor = (siteKeyIdForSite: string) => siteSecretSealer({ siteDir: required.siteDir }, { env: process.env, siteKeyId: siteKeyIdForSite }),
   }: { ensure?: typeof ensureSiteKey; sealerFor?: (siteKeyId: string) => SiteSecretSealer } = {},
 ): Promise<SiteSecretSealer> {
