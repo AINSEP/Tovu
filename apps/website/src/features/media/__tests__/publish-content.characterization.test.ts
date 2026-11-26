@@ -71,6 +71,7 @@ async function deps(opts: { wired?: boolean; staged?: boolean } = {}): Promise<P
   let n = 0;
   return {
     workspaceId: WORKSPACE_ID,
+    mutationActor: { id: "op", kind: "user" },
     clock: createFakeClock({ startIso: "2026-09-18T12:00:00.000Z" }),
     idGen: { newId: () => `generated-${++n}` },
     outbox,
