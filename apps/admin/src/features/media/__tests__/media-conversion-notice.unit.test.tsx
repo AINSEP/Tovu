@@ -18,8 +18,8 @@ import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-medi
 import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
 import { useAdminThemeBoundary } from "@/admin-themes/use-admin-theme.hooks";
 import { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";
-import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
-import { useGridPages } from "../hooks/use-grid-pages.hooks";
+import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
+import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
 import { useMediaWrites } from "../hooks/use-media-writes.hooks";
 
 // Every screen hook is a required prop; the test overrides only the controller.

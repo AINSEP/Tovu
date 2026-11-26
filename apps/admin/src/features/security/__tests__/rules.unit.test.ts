@@ -5,9 +5,10 @@ import { tSecurity as translateSecurity } from "../../../lib/i18n-common";
 import { accessTokenProviderInfo, accessTokenRowProviderInfo, providerGroupSubtitleKeys, type AccessTokenFormFields } from "@jini-ai/admin/security/access-token-providers";
 import { providerGroupHandleLabel, tokenRowHandleLabel, ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { ACCESS_TOKEN_CATEGORIES } from "../rules";
-import { OTHER_CREDENTIAL_STORES, accessTokensCountText, envNamesFact, maskedTailFact, mediaProviderCatalogFrom, mediaProviderLabel, otherCredentialMatchesQuery, otherCredentialStoreInfo } from "../other-credential-stores";
+import { OTHER_CREDENTIAL_STORES } from "../other-credential-stores";
+import { accessTokensCountText, envNamesFact, maskedTailFact, mediaProviderCatalogFrom, mediaProviderLabel, otherCredentialMatchesQuery, otherCredentialStoreInfo } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 import { buildCustomCredentialRows, type RawCustomCredentialSummary } from "@jini-ai/admin/security/access-token-rows";
-import { accessTokenReplaceReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, accessTokenExistingRowReadyToSave } from "../access-token-forms";
+import { accessTokenReplaceReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, accessTokenExistingRowReadyToSave } from "@jini-ai/integrations/react/credentials/access-token-forms";
 import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS } from "./access-token-providers.fixture";
 
 
@@ -17,6 +18,11 @@ import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS } from "./access-token-provide
 function blankFields(overrides: Partial<AccessTokenFormFields> = {}): AccessTokenFormFields {
   return { ref: { kind: "publish", providerId: "github-pages" }, name: "", token: "", values: {}, username: "", ...overrides };
 }
+
+it("omits blank replacement material from a rename patch", () => {
+  const patch = buildAccessTokenUpdatePatch({ fields: blankFields({ name: "Renamed", token: "" }), nameChanged: true, hasToken: false, info: GITHUB_PAGES_INFO });
+  expect(patch).toEqual({ label: "Renamed" });
+});
 
 /** The provider entry a form's `ref` names, as the hook passes it alongside the fields. */
 function infoFor(ref: AccessTokenFormFields["ref"]) {
@@ -51,28 +57,28 @@ describe("OTHER_CREDENTIAL_STORES / otherCredentialStoreInfo", () => {
   });
 
   it("links media provider credentials to the Media screen's External Providers tab", () => {
-    expect(otherCredentialStoreInfo({ id: "media-provider" }).screenLabel).toBe("Media · External Providers");
-    expect(otherCredentialStoreInfo({ id: "media-provider" }).screenPath).toBe("/media?tab=external-providers");
+    expect(otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: "media-provider" }).screenLabel).toBe("Media · External Providers");
+    expect(otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: "media-provider" }).screenPath).toBe("/media?tab=external-providers");
   });
 
   it("marks external-mcp as NOT supporting inline Replace", () => {
-    expect(otherCredentialStoreInfo({ id: "external-mcp" }).supportsReplace).toBe(false);
+    expect(otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: "external-mcp" }).supportsReplace).toBe(false);
   });
 
   it("marks the three single-apiKey stores as supporting inline Replace", () => {
     for (const id of ["site-assistant", "admin-byok", "media-provider"] as const) {
-      expect(otherCredentialStoreInfo({ id }).supportsReplace).toBe(true);
+      expect(otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id }).supportsReplace).toBe(true);
     }
   });
 
   it("falls back to the first store for an unknown id — same defensive-fallback guarantee as accessTokenProviderInfo", () => {
     // @ts-expect-error deliberately passing an id outside the union to exercise the fallback
-    expect(otherCredentialStoreInfo({ id: "not-a-real-store" }).id).toBe("site-assistant");
+    expect(otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: "not-a-real-store" }).id).toBe("site-assistant");
   });
 });
 
 describe("otherCredentialMatchesQuery", () => {
-  const store = otherCredentialStoreInfo({ id: "media-provider" });
+  const store = otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: "media-provider" });
 
   it("matches everything when the query is blank", () => {
     expect(otherCredentialMatchesQuery({ store, itemName: undefined, query: "" })).toBe(true);
@@ -259,28 +265,28 @@ describe("buildAccessTokenUpdatePatch", () => {
 
 describe("classifyAccessTokenSubmitError", () => {
   it("recognizes a legacy duplicate marker in the message when the code is absent", () => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "DUPLICATE_LABEL", status: 409 }) })).toEqual({ kind: "duplicate-label" });
+    expect(classifyAccessTokenSubmitError({ isApiError: (error): error is ApiError => error instanceof ApiError, e: new ApiError({ message: "DUPLICATE_LABEL", status: 409 }) })).toEqual({ kind: "duplicate-label" });
   });
 
   it.each([undefined, {}, { detail: 42 }])("uses the validation message when no string detail exists in %j", (body) => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "Token rejected", status: 400 }, { code: "VALIDATION", body }) })).toEqual({ kind: "validation", detail: "Token rejected" });
+    expect(classifyAccessTokenSubmitError({ isApiError: (error): error is ApiError => error instanceof ApiError, e: new ApiError({ message: "Token rejected", status: 400 }, { code: "VALIDATION", body }) })).toEqual({ kind: "validation", detail: "Token rejected" });
   });
 
   it("classifies a DUPLICATE_LABEL ApiError", () => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "dup", status: 409 }, { code: "DUPLICATE_LABEL" }) })).toEqual({ kind: "duplicate-label" });
+    expect(classifyAccessTokenSubmitError({ isApiError: (error): error is ApiError => error instanceof ApiError, e: new ApiError({ message: "dup", status: 409 }, { code: "DUPLICATE_LABEL" }) })).toEqual({ kind: "duplicate-label" });
   });
 
   it("classifies a VALIDATION ApiError, preferring body.detail over the message", () => {
     const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } });
-    expect(classifyAccessTokenSubmitError({ e: err })).toEqual({ kind: "validation", detail: "token is required" });
+    expect(classifyAccessTokenSubmitError({ isApiError: (error): error is ApiError => error instanceof ApiError, e: err })).toEqual({ kind: "validation", detail: "token is required" });
   });
 
   it("falls back to generic for a non-ApiError", () => {
-    expect(classifyAccessTokenSubmitError({ e: new Error("network down") })).toEqual({ kind: "generic" });
+    expect(classifyAccessTokenSubmitError({ isApiError: (error): error is ApiError => error instanceof ApiError, e: new Error("network down") })).toEqual({ kind: "generic" });
   });
 
   it("falls back to generic for an ApiError whose code matches neither known marker", () => {
-    expect(classifyAccessTokenSubmitError({ e: new ApiError({ message: "internal error", status: 500 }, { code: "SECRET_STORE_UNCONFIGURED" }) })).toEqual({ kind: "generic" });
+    expect(classifyAccessTokenSubmitError({ isApiError: (error): error is ApiError => error instanceof ApiError, e: new ApiError({ message: "internal error", status: 500 }, { code: "SECRET_STORE_UNCONFIGURED" }) })).toEqual({ kind: "generic" });
   });
 });
 
@@ -336,14 +342,14 @@ describe("accessTokenExistingRowReadyToSave — the Replace form's gate, picked 
   const CUSTOM_INFO = infoFor({ kind: "custom", providerId: "name.com" });
 
   it("a custom row uses the custom gate: a username-only change is ready", () => {
-    expect(accessTokenExistingRowReadyToSave({ fields: blankCustomRowFields({ name: "name.com", username: "new-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(true);
-    expect(accessTokenExistingRowReadyToSave({ fields: blankCustomRowFields({ name: "name.com", username: "old-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(false);
+    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: blankCustomRowFields({ name: "name.com", username: "new-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(true);
+    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: blankCustomRowFields({ name: "name.com", username: "old-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(false);
   });
 
   it("a catalog row keeps the catalog gate: a username with no token and no rename is NOT ready", () => {
     const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", values: { username: "bb-user" }, username: "" };
     const info = infoFor(fields.ref);
-    expect(accessTokenExistingRowReadyToSave({ fields, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(false);
-    expect(accessTokenExistingRowReadyToSave({ fields: { ...fields, name: "Team 2" }, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(true);
+    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(false);
+    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: { ...fields, name: "Team 2" }, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(true);
   });
 });

@@ -177,6 +177,7 @@ describe("Security — page shell", () => {
       // (`agentHandle` — a plain data attribute, NOT a real ARIA role/label). Its absence proves the
       // panel itself never mounted, not just that its tab button is hidden.
       expect(container.querySelector('[data-agent-element="security-site-key"]')).not.toBeInTheDocument();
+      expect(screen.queryByRole("tab", { name: "Site key" })).not.toBeInTheDocument();
     });
 
     it("still resolves an absent or unrecognized ?tab= value to Access Tokens regardless of permission", () => {

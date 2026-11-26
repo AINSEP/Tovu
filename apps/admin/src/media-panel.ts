@@ -15,7 +15,7 @@ import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
 // import { ModulePanel } from "./integrations/jini-admin/ModulePanel";
 import type { PanelRouteContext } from "./panel-contracts";
-import { useMediaProviderCatalog } from "./features/media/use-media-provider-catalog.hooks";
+import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 // Keep render dispatch outside the JSX-only panel registry. Both screens use App's host chrome.
 export function renderMediaPanel(ctx: PanelRouteContext, _optional: Record<string, never> = {}) {

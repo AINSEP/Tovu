@@ -15,7 +15,7 @@ import {
 } from "@jini-ai/ui/html-editor";
 
 import { PagePreview, type PreviewEmbeds } from "./PageEditorPreview";
-import type { UsePreviewEmbedIds } from "./hooks/use-preview-embed-ids.hooks";
+import type { UsePreviewEmbedIds } from "@jini-ai/cms/react/pages/hooks/use-preview-embed-ids.hooks";
 
 import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placeholder";
 
@@ -38,12 +38,8 @@ import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
 import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useWiredTermPicker } from "../taxonomy/taxonomy-wired.hooks";
-import {
-  pageEditorSurface,
-  pagePickerValue,
-  pagePublicPath,
-  type PageSaveConflict,
-} from "./rules";
+import { pagePickerValue, pagePublicPath, type PageSaveConflict } from "./rules";
+import { pageEditorSurface } from "@jini-ai/cms/react/pages/page-editor-rules";
 import {
   pageAutosaveStaleBasisMessage,
   PAGE_PREVIEW_IFRAME_SANDBOX,

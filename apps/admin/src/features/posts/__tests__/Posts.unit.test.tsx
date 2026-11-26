@@ -6,7 +6,7 @@ import { usePosts } from "../hooks/use-posts.hooks";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
-import { buildPostRowMenuHandleMap } from "../rules";
+import { buildPostRowMenuHandleMap } from "@jini-ai/cms/react/posts/posts-list-rules";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 

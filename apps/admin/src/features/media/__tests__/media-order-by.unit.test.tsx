@@ -20,7 +20,7 @@ import { sortMediaByOrder } from "@jini-ai/admin/screens/media/rules";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { gridResponseBody, isGridUrl } from "./media-grid-fetch.test-helper";
-import { useMediaProviderCatalog } from "../use-media-provider-catalog.hooks";
+import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";
 
 const requiredMediaHooks = {
   useMediaHook: useWiredMedia,

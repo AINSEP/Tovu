@@ -4,7 +4,7 @@ import { mediaApi } from "@/features/media/api/media-api";
 import { usersApi } from "@/features/users/api/users-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
-import type { MediaGridPort, MediaGridView } from "./use-grid-pages.hooks";
+import type { MediaGridPort, MediaGridView } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
 
 /**
  * @file The only place under `features/media` that reaches `lib/api` for the five `MediaPort`

@@ -4,7 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
 import { usePluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-install.hooks";
-import { createFakePluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
+import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 const preview: PluginInstallPreview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-3", capabilities: [], hooks: [], hasCode: true, contentTypes: [], conflicts: [], digest: "sha256-" + "a".repeat(64) };

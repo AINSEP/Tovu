@@ -23,7 +23,8 @@ import { buildAdminAgentPages } from "@/lib/agent-pages";
 import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 
 import { AgentPlugins } from "../AgentPlugins";
-import { useWiredAgentPlugins, type AgentPluginsController, type InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
+import { useWiredAgentPlugins } from "../hooks/use-agent-plugins.hooks";
+import { type AgentPluginsController, type InspectedAgentPlugin } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 
 const requiredAgentPluginsHooks = {

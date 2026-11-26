@@ -41,10 +41,12 @@ describe('owner recovery card', () => {
     fireEvent.change(screen.getByLabelText('Current owner password'), { target: { value: 'private-password' } });
     fireEvent.click(screen.getByText('Generate recovery codes'));
     await screen.findByText('Download codes');
+    expect(document.querySelector('pre')?.textContent).toContain('a'.repeat(63));
     expect(p.issue).toHaveBeenCalledWith({ password: 'private-password' });
     expect(screen.queryByDisplayValue('private-password')).toBeNull();
     fireEvent.click(screen.getByText('I saved these codes'));
     expect(screen.queryByText('Download codes')).toBeNull();
+    expect(document.querySelector('pre')).toBeNull();
   });
 });
 

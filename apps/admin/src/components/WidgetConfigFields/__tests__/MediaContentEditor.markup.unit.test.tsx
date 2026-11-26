@@ -1,11 +1,26 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
+import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HtmlPreviewPort } from "@jini-ai/ui/admin-widgets";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { MediaContentEditor } from "../MediaContentEditor";
-import type { MediaContentEditorController, MediaItemRow } from "../MediaContentEditor.hooks";
+import type { MediaContentEditorController, MediaItemRow } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor.hooks";
 import type { MediaSlugProblem } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { useWidgetPreview } from "../WidgetPreview.hooks";
+import { useMediaContentEditor } from "../MediaContentEditor";
+
+it("preserves HTML and media attributes across mode switches", () => {
+  const { result } = renderHook(() => {
+    const [config, onChange] = useState<Record<string, unknown>>({ mode: "media", items: [], htmlAttributes: 'data-test="kept"' });
+    return useMediaContentEditor({ config, onChange, widgetType: "media" }, { port: { listMedia: async () => ({ media: [] }), mediaOriginalUrl: () => "" } });
+  });
+  act(() => result.current.setMode({ mode: "html" }));
+  act(() => result.current.setHtml({ html: "<p>kept</p>" }));
+  act(() => result.current.setMode({ mode: "media" }));
+  expect(result.current.media.htmlAttributes).toBe('data-test="kept"');
+  act(() => result.current.setMode({ mode: "html" }));
+  expect(result.current.html).toBe("<p>kept</p>");
+});
 
 /**
  * @file Every rendering branch of `MediaContentEditor` against a typed fake controller (the

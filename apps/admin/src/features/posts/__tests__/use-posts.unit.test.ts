@@ -6,7 +6,7 @@ import { settingsApi } from "@/lib/admin-http/settings-api";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { usePosts, usePostRowMenuHandleMap, useWiredPosts } from "../hooks/use-posts.hooks";
-import { POSTS_RESOURCE } from "../rules";
+import { POSTS_RESOURCE } from "@jini-ai/cms/react/posts/posts-list-rules";
 
 /**
  * @file `usePosts` — everything the Posts LIST screen does. No hook-level test file existed for

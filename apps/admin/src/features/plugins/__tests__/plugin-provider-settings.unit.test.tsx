@@ -1,9 +1,12 @@
-import { useProviderSettingsFocus } from "@/features/plugins/PluginProviderSettingsDialog";
+import { Button, Dialog } from "@jini-ai/ui-kit/react";
+import { ProviderSettingField } from "@jini-ai/admin/screens/plugins/PluginProviderSettingField";
+import { providerSettingRequiredHere } from "../rules";
+import { useProviderSettingsFocus } from "@jini-ai/plugins/react/PluginProviderSettingsDialog";
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
-import { PluginProviderSettingsDialog } from "../PluginProviderSettingsDialog";
+import { PluginProviderSettingsDialog } from "@jini-ai/plugins/react/PluginProviderSettingsDialog";
 import { PluginRow } from "@jini-ai/admin/screens/plugins/PluginRow";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePluginProviderSettings } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-provider-settings.hooks";
@@ -12,7 +15,8 @@ import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-contex
 import { pluginRules } from "../rules";
 
 const requiredPluginProviderSettingsDialogHooks = {
-  useProviderSettingsFocusHook: useProviderSettingsFocus,
+  useProviderSettingsFocusHook: (required: Omit<Parameters<typeof useProviderSettingsFocus>[0], "document">) => useProviderSettingsFocus({ ...required, document }),
+  kit: { Button, Dialog, ProviderSettingField }, providerSettingRequiredHere, legacyCredentialKey: "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.",
 };
 
 /**

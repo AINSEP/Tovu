@@ -24,7 +24,7 @@ import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';
 import { useCachedLoader, useFetchMutation, useFetchQuery, useFetchQueryScope, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { ConfirmDialog as AdminConfirmDialog, RowMenu, DataTable } from '@jini-ai/admin/react';
-import type { RoutinesKit } from '../features/routines/Routines';
+import type { RoutinesKit } from '@jini-ai/admin/screens/routines/Routines';
 import { ChatPane, ChatSettingsDialog, JiniChatProvider, ConversationList as ChatConversationList, defaultConversationListHooks, ChatSettingsSegmented, McpUiSurfaceCard, A2uiSurfaceCard, createDaemonAttachmentUploader,
   useT as useChatT, createExtEventRendererRegistry, createLastConversationStore, createAssistantChatsClient, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection,
   mcpUiSurfaceSlotKey, midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME } from '@jini-ai/chat/react';

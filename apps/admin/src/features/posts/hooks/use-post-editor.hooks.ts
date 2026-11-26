@@ -43,20 +43,9 @@ import {
   type StandingDraftAutosaveSnapshot,
   type StandingDraftStaleBasis,
 } from "@/hooks/use-standing-draft-autosave.hooks";
-import {
-  buildPostAutosaveDraft,
-  isoToLocalDateTimeInput,
-  isScheduledPost,
-  postSlugForTitle,
-  postSlugFollowsTitle,
-  localDateTimeInputToIso,
-  handleImageDrop,
-  titleNodeText,
-  withTitleNode,
-  type PostSaveConflict,
-  resolvePostPreviewBranches,
-  POSTS_RESOURCE,
-} from "../rules";
+import { handleImageDrop, titleNodeText, withTitleNode } from "../rules";
+import { POSTS_RESOURCE } from "@jini-ai/cms/react/posts/posts-list-rules";
+import { buildPostAutosaveDraft, isoToLocalDateTimeInput, isScheduledPost, postSlugForTitle, postSlugFollowsTitle, localDateTimeInputToIso, type PostSaveConflict, resolvePostPreviewBranches } from "@jini-ai/cms/react/posts/post-editor-rules";
 import { t as translate } from "../posts-i18n";
 import { t as translatePageEditor } from "../../pages/page-editor-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";

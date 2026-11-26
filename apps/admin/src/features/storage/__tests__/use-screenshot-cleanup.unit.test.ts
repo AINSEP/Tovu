@@ -1,8 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { createScreenshotCleanupClient, type ScreenshotCleanupClient } from "../api/screenshot-cleanup-api";
-import { useScreenshotCleanup } from "../hooks/use-screenshot-cleanup.hooks";
+import { createScreenshotCleanupClient, type ScreenshotCleanupClient } from "@jini-ai/admin/screens/storage/api/screenshot-cleanup-api";
+import { useScreenshotCleanup } from "@jini-ai/admin/screens/storage/hooks/use-screenshot-cleanup.hooks";
 
 const PREVIEW = { previewToken: "t1", deadline: 1, count: 1, bytes: 3, items: ["2026-01-01/old.jpg"] };
 
@@ -17,6 +17,7 @@ describe("useScreenshotCleanup", () => {
     expect(client.apply).not.toHaveBeenCalled();
     await act(async () => { await result.current.confirm(); });
     expect(client.apply).toHaveBeenCalledWith({ previewToken: "t1" });
+    expect(client.apply).toHaveBeenCalledTimes(1);
     expect(result.current.state).toEqual({ status: "done", result: { deleted: ["2026-01-01/old.jpg"], kept: [] } });
   });
 
@@ -31,7 +32,7 @@ describe("useScreenshotCleanup", () => {
 describe("createScreenshotCleanupClient", () => {
   it("posts the preview cutoff and a confirmed apply to the workspace routes", async () => {
     const request = vi.fn(async () => ({}));
-    const client = createScreenshotCleanupClient({ request: request as never, workspaceId: "ws" });
+    const client = createScreenshotCleanupClient({ request: request as never, workspaceId: "ws", path: ({ workspaceId }) => `/workspaces/${workspaceId}/storage/screenshots` });
     await client.preview({ before: 7 });
     await client.apply({ previewToken: "t" });
     expect(request.mock.calls).toEqual([

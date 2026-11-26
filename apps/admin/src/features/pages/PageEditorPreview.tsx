@@ -5,7 +5,7 @@ import { pagePreviewYoutubeIds } from "@jini-ai/admin/pages/lib/page-preview-you
 import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 import { type Translate } from "@jini-ai/core/text";
-import type { UsePreviewEmbedIds } from "./hooks/use-preview-embed-ids.hooks";
+import type { UsePreviewEmbedIds } from "@jini-ai/cms/react/pages/hooks/use-preview-embed-ids.hooks";
 
 /**
  * @file The Page editor's Preview surface — `PagePreview`, its fullscreen fab and its two-branch

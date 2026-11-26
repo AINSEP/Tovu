@@ -22,7 +22,7 @@ import type { AssistantChatsPort } from "@jini-ai/admin/shell/hooks/assistant-ch
 import {
   cleanupErrorText, useChatListOverlay, useCleanupPreview, useSelectedDeletion,
   type ChatCleanupClient, type ChatCleanupKit, type WiredChatCleanup,
-} from "@/components/AssistantDock/hooks/chat-cleanup.hooks";
+} from "@jini-ai/chat/react/chat-cleanup/chat-cleanup.hooks";
 import { chatCleanupCopy, type ChatCleanupCopy, type DockTranslate } from "@/components/AssistantDock/chat-cleanup-copy";
 import { DOCK_CHAT_CLEANUP_KIT } from "@/components/AssistantDock/chat-cleanup-kit";
 

@@ -15,9 +15,9 @@ import { removeDialogLastRowNote, sharedKeyReplaceWarning } from "@jini-ai/admin
 import { ACCESS_TOKEN_CATEGORIES } from "./rules";
 import type { AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
 import type { AccessTokenRowCategoryId } from "@jini-ai/admin/security/access-token-rows";
-import { accessTokenExtraFieldIdSuffix } from "./access-token-forms";
+import { accessTokenExtraFieldIdSuffix } from "@jini-ai/integrations/react/credentials/access-token-forms";
 import { invalidAdditionalHostsEntries } from "@jini-ai/admin/security/custom-credential-forms";
-import { accessTokensCountText } from "./other-credential-stores";
+import { accessTokensCountText } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 import { extraFieldsAroundToken, providerGroupSubtitleKeys, type AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { providerGroupHandleLabel, tokenRowHandleLabel, ACCESS_TOKEN_PROVIDER_COPY } from "./access-token-copy";
 import type { AccessTokenProviderRef, AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";

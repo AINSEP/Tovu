@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenuEditor } from "../menu-editor-panel";
 import { useWiredMenuEditor } from "../hooks/use-menu-editor.hooks";
-import { useRouteGuardedMenuEditor } from "../hooks/use-route-guarded-menu-editor.hooks";
+import { useRouteGuardedMenuEditor } from "../hooks/use-menu-editor.hooks";
 import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 import type { MenuEditorController } from "@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks";
 import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";

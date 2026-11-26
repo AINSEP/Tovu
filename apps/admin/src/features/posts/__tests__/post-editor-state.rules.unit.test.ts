@@ -1,4 +1,4 @@
-import { isoToLocalDateTimeInput, localDateTimeInputToIso, postSlugForTitle, postSlugFollowsTitle, isScheduledPost } from "../rules";
+import { isoToLocalDateTimeInput, localDateTimeInputToIso, postSlugForTitle, postSlugFollowsTitle, isScheduledPost } from "@jini-ai/cms/react/posts/post-editor-rules";
 import { describe, expect, it } from "vitest";
 
 import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";

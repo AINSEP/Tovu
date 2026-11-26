@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/admin-http/request";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 
+
 /**
  * @file `useAgentPlugins` driven against the injected `AgentPluginsPort`, no `fetch` stub and no
  * `vi.spyOn(api, ...)` for the load path — mirrors `use-plugins.hooks.unit.test.ts`'s identical
@@ -38,6 +39,23 @@ const OTHER_PLUGIN: AgentPluginListRow = {
   skills: [{ name: "tovu-deploy-example", summary: "Deploys to example-host.io." }],
   mcpServerIds: [],
 };
+
+it("a late list read cannot revert a confirmed toggle", async () => {
+  const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE] });
+  let finish!: (value: { agentPlugins: AgentPluginListRow[] }) => void;
+  const read = vi.spyOn(port, "listAgentPlugins")
+    .mockResolvedValueOnce({ agentPlugins: [SITE_COMPLIANCE] })
+    .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+    .mockImplementation(() => new Promise(() => {}));
+  const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key) => key }));
+  await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
+  await act(async () => { await result.current.reload(); });
+  await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+  await act(async () => { await result.current.onToggleEnabled(SITE_COMPLIANCE); });
+  expect(result.current.agentPlugins?.[0]?.enabled).toBe(false);
+  await act(async () => { finish({ agentPlugins: [SITE_COMPLIANCE] }); });
+  expect(result.current.agentPlugins?.[0]?.enabled).toBe(false);
+});
 
 describe("useAgentPlugins — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {

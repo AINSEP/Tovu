@@ -6,7 +6,7 @@ import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPostCreateInput, AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/posts-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
-import { postSlugForTitle, POST_VERSION_CONFLICT_CODE } from "../rules";
+import { postSlugForTitle, POST_VERSION_CONFLICT_CODE } from "@jini-ai/cms/react/posts/post-editor-rules";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PostEditorPort as CorePostEditorPort } from "@jini-ai/core/contracts/site/content-editor-ports";
 

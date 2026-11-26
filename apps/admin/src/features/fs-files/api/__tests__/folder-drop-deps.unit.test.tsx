@@ -6,7 +6,19 @@ import type { ChatTransport } from "@jini-ai/chat/core";
 import type { FolderDropPort } from "@jini-ai/admin/screens/fs-files/folder-drop-port";
 import { useFolderDrop } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
 
-import { folderDropDeps } from "../fs-files-api";
+import { folderDropDeps, nativeFolderPickerDeps } from "../fs-files-api";
+import { ApiError } from "@/lib/admin-http/request";
+
+it("reads the host tovuFiles bridge at render and recognizes the existing picker 409", () => {
+  const readBridge = vi.fn(() => ({ getPathForFile: () => "/site" }));
+  Object.defineProperty(window, "tovuFiles", { configurable: true, get: readBridge });
+  const { unmount } = renderHook(() => useFolderDrop({ composerHandle: fakeComposerHandle() }, folderDropDeps));
+  expect(readBridge).toHaveBeenCalled();
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "open", status: 409 }))).toBe(true);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "refused", status: 403 }))).toBe(false);
+  unmount();
+  Reflect.deleteProperty(window, "tovuFiles");
+});
 
 /**
  * @file Wire tests of the host's `folderDropDeps` binding of `@jini-ai/admin`'s `useFolderDrop`: the

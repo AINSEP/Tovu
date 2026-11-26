@@ -1,22 +1,10 @@
+import { t as translate } from "../posts-i18n";
 import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "@jini-ai/admin/shell/lib/admin-post-list-sort";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  postSlugFollowsTitle,
-  postSlugForTitle,
-  buildPostAutosaveDraft,
-  buildPostRowMenuHandleMap,
-  postAutosaveStaleBasisMessage,
-  postVersionConflictMessage,
-  resolvePostPreviewBranches,
-  droppedUri,
-  handleImageDrop,
-  postRowMenuItems,
-  readFileAsDataUrl,
-  titleNodeText,
-  toolbarBtnClass,
-  withTitleNode,
-} from "../rules";
+import { droppedUri, handleImageDrop, readFileAsDataUrl, titleNodeText, toolbarBtnClass, withTitleNode } from "../rules";
+import { buildPostRowMenuHandleMap, postRowMenuItems } from "@jini-ai/cms/react/posts/posts-list-rules";
+import { postSlugFollowsTitle, postSlugForTitle, buildPostAutosaveDraft, postAutosaveStaleBasisMessage, postVersionConflictMessage, resolvePostPreviewBranches } from "@jini-ai/cms/react/posts/post-editor-rules";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 /** Identity translator — same convention `pages/__tests__/rules.unit.test.ts` uses for its
@@ -51,33 +39,33 @@ describe("postRowMenuItems", () => {
   const handlers = { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() };
 
   it("always includes Edit and Delete", () => {
-    const items = postRowMenuItems({ post: post({ status: "draft" }), handlers: handlers, locale: "en" });
+    const items = postRowMenuItems({ translate, post: post({ status: "draft" }), handlers: handlers, locale: "en" });
     const keys = items.map((i) => i.key);
     expect(keys).toContain("edit");
     expect(keys).toContain("delete");
   });
 
   it("offers Unpublish for a published post", () => {
-    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "en" });
+    const items = postRowMenuItems({ translate, post: post({ status: "published" }), handlers: handlers, locale: "en" });
     expect(items.map((i) => i.key)).toContain("unpublish");
   });
 
   it("offers Publish for a draft post — the toggle flips rather than being omitted", () => {
-    const items = postRowMenuItems({ post: post({ status: "draft" }), handlers: handlers, locale: "en" });
+    const items = postRowMenuItems({ translate, post: post({ status: "draft" }), handlers: handlers, locale: "en" });
     const keys = items.map((i) => i.key);
     expect(keys).toContain("publish");
     expect(keys).not.toContain("unpublish");
   });
 
   it("Delete is marked destructive; Edit/Unpublish are not", () => {
-    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "en" });
+    const items = postRowMenuItems({ translate, post: post({ status: "published" }), handlers: handlers, locale: "en" });
     expect(items.find((i) => i.key === "delete")?.destructive).toBe(true);
     expect(items.find((i) => i.key === "edit")?.destructive).toBeFalsy();
     expect(items.find((i) => i.key === "unpublish")?.destructive).toBeFalsy();
   });
 
   it("preserves order: edit, [unpublish|publish], delete", () => {
-    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "en" });
+    const items = postRowMenuItems({ translate, post: post({ status: "published" }), handlers: handlers, locale: "en" });
     expect(items.map((i) => i.key)).toEqual(["edit", "unpublish", "delete"]);
   });
 
@@ -86,7 +74,7 @@ describe("postRowMenuItems", () => {
     const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
     const p = post({ status: "published" });
-    const items = postRowMenuItems({ post: p, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
+    const items = postRowMenuItems({ translate, post: p, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
     items.find((i) => i.key === "edit")!.onSelect();
     items.find((i) => i.key === "unpublish")!.onSelect();
     items.find((i) => i.key === "delete")!.onSelect();
@@ -96,7 +84,7 @@ describe("postRowMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = postRowMenuItems({ post: post({ status: "published" }), handlers: handlers, locale: "es" });
+    const items = postRowMenuItems({ translate, post: post({ status: "published" }), handlers: handlers, locale: "es" });
     expect(items.map((i) => i.label)).toEqual(["Editar", "Anular publicación", "Eliminar"]);
   });
 });

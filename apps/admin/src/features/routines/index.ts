@@ -1,12 +1,14 @@
+import { t, UNAVAILABLE_KEY } from "./routines-i18n";
 import { createElement } from "react";
 import { useRecurringSchedulePicker } from "@jini-ai/ui";
 import { useHostAdminLocale } from "../../hooks/admin-locale-dependencies.hooks";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { routinesKit } from "../../integrations/jini-kits";
-import { RoutinesMount } from "./RoutinesMount";
-import { useRoutinesController, type RoutinesFocus, type RoutinesTimers } from "./Routines.hooks";
-import { createRoutinesApi } from "./routines-api";
+import { RoutinesMount } from "@jini-ai/admin/screens/routines/RoutinesMount";
+import { useRoutinesController, type RoutinesFocus, type RoutinesTimers } from "@jini-ai/admin/screens/routines/Routines.hooks";
+import { createRoutinesApi } from "@jini-ai/admin/screens/routines/routines-api";
 import { useConversationLinkBuilder } from "./use-conversation-deep-link";
+
 
 /**
  * @file Host binding for the Routines screen: the one place that picks the live session request,
@@ -25,6 +27,6 @@ const useBoundRoutinesController = ({ visible }: { visible: boolean }) => useRou
 export function Routines({ releaseEnabled }: { releaseEnabled: boolean }) {
   return createElement(RoutinesMount, {
     useAdminLocaleHook: useHostAdminLocale, useRoutinesController: useBoundRoutinesController, useSchedulePicker: useRecurringSchedulePicker,
-    useConversationDeepLink: useConversationLinkBuilder, kit: routinesKit, releaseEnabled, theme: "light", visible: true,
+    useConversationDeepLink: useConversationLinkBuilder, kit: routinesKit, releaseEnabled, theme: "light", visible: true, t, unavailableKeys: UNAVAILABLE_KEY, desktopNoticeKey: "Routines run only while Tovu desktop is open and your computer is awake.",
   });
 }

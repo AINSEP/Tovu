@@ -1,3 +1,8 @@
+import { buildAllowWritePatch, resolveExternalMcpCardHandles, useSavedAllowedToolNamesById } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel.hooks";
+import { grantWriteFieldValue } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { buildExternalMcpCardHandles, resolveExternalMcpEffectiveTransport } from "@jini-ai/admin/screens/settings/rules";
+import { describeDriftHeadline } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { EXTERNAL_MCP_DRIFT_COPY } from "@jini-ai/admin/screens/settings/external-mcp-drift-copy";
 import { ExternalMcpSharedChoice } from "@jini-ai/admin/screens/settings/ExternalMcpSharedChoice";
 import { useHostExternalMcpSharedChoice } from "../../integrations/jini-admin/settings-external-mcp-shared-choice.hooks";
 import { useState } from "react";
@@ -15,7 +20,7 @@ import {
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
+import { ExternalMcpAdmissionsBanner } from "@jini-ai/mcp/react/external-mcp/ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
 import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
 import { useFocusTrap } from "@jini-ai/ui/panel-kit";
@@ -26,13 +31,11 @@ import { useT as useKitT } from "@jini-ai/admin/react/kit";
 import { EXTERNAL_MCP_PICKER_COLLABORATORS } from "./hooks/use-external-mcp-tool-picker.hooks";
 import { parseSavedToolNames } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
 import {
-  buildAllowWritePatch,
-  resolveExternalMcpCardHandles,
   useExternalMcpAddForm,
   useExternalMcpDriftCopy,
-  useSavedAllowedToolNamesById,
 } from "./ExternalMcpSettingsPanel.hooks";
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
+
 import { EXTERNAL_MCP_PRODUCT_VARS } from "../../integrations/jini-admin/settings-external-mcp-copy";
 import { useHostExternalMcpOAuthConnect } from "../../integrations/jini-admin/settings-external-mcp-oauth-connect.hooks";
 import { buildExternalMcpRemoveConfirmCopy, isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "@jini-ai/admin/screens/settings/rules";
@@ -524,12 +527,12 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
   });
 
   const banner = list.error;
-  const cardHandles = resolveExternalMcpCardHandles({ sources: list.sources });
+  const cardHandles = resolveExternalMcpCardHandles({ sources: list.sources, buildHandles: buildExternalMcpCardHandles });
 
   // What the RUNNING assistant admitted, as opposed to what this tab saved — two different objects,
   // because `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
   // existed the gap was visible only in the daemon's boot terminal.
-  const savedAllowedToolNamesById = useSavedAllowedToolNamesByIdHook(list.sources);
+  const savedAllowedToolNamesById = useSavedAllowedToolNamesByIdHook({ sources: list.sources, resolveTransport: resolveExternalMcpEffectiveTransport, needsSignIn: externalMcpNeedsSignIn });
   const admissions = useExternalMcpAdmissionsHook(savedAllowedToolNamesById);
   const tDrift = useExternalMcpDriftCopyHook();
 
@@ -550,12 +553,12 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
         onCancel={cancelForm}
       />
 
-      <ExternalMcpAdmissionsBanner
+      <ExternalMcpAdmissionsBanner describeHeadline={(required) => describeDriftHeadline({ ...required, copy: EXTERNAL_MCP_DRIFT_COPY })}
         controller={admissions}
         t={tDrift}
         onRequestRemove={setConfirmRemoveId}
         onAllowWrite={(connectionId, remoteName) => {
-          const patch = buildAllowWritePatch({ sources: list.sources, connectionId, remoteName });
+          const patch = buildAllowWritePatch({ sources: list.sources, connectionId, remoteName, grantWriteFieldValue });
           if (patch) void list.update(connectionId, patch);
         }}
       />

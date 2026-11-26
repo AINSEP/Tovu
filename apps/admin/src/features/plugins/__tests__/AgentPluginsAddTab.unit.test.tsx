@@ -12,9 +12,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentPlugins } from "../AgentPlugins";
-import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
+import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
+import { createFakeAgentPluginInstallPort } from "./agent-plugin-install-port.fixture";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
-import { useAgentPlugins, type AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
+import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
+import { type AgentPluginsController } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
 

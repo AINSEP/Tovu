@@ -8,6 +8,16 @@ import { displayTimestamp } from "@jini-ai/integrations/react/webhooks/rules";
 import { IntegrationDeliveries } from "@jini-ai/integrations/react/webhooks/IntegrationDeliveries";
 import type { IntegrationDeliveriesController } from "@jini-ai/integrations/react/webhooks/hooks/use-integration-deliveries.hooks";
 import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
+import { IntegrationDeliveries as BoundIntegrationDeliveries } from "../integration-deliveries-panel";
+
+vi.mock("@jini-ai/admin/shell/lib/viewer-time-zone", () => ({ VIEWER_TIME_ZONE: "Pacific/Honolulu" }));
+
+it("renders an injected delivery in the bound viewer timezone", () => {
+  const useIntegrationDeliveriesHook = vi.fn(() => baseController());
+  render(<BoundIntegrationDeliveries subscriptionId="sub1" useIntegrationDeliveriesHook={useIntegrationDeliveriesHook} />);
+  expect(useIntegrationDeliveriesHook).toHaveBeenCalledWith({ subscriptionId: "sub1" });
+  expect(screen.getAllByRole("cell").at(-1)?.textContent).toBe(displayTimestamp({ delivery: DELIVERY, viewerTimeZone: VIEWER_TIME_ZONE }, {}));
+});
 
 /**
  * @file `IntegrationDeliveries` — the webhook delivery-log screen, driven through the

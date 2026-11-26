@@ -439,6 +439,8 @@ describe("ceremony: idle -> planned -> confirmed -> done", () => {
 
     await waitFor(() => expect(screen.getByText("plan1")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Confirm restore" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/recovery/restore/plan"))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/recovery/restore/execute"))).toHaveLength(0);
   });
 
   it("shows the ceremony error inline and stays on idle when planning fails", async () => {

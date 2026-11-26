@@ -2,11 +2,11 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RetentionPassResult } from "@jini-ai/platform/retention";
 
-import type { StorageClient, StorageReport } from "../api/storage-api";
-import type { ScreenshotCleanupClient } from "../api/screenshot-cleanup-api";
+import type { StorageClient, StorageReport } from "@jini-ai/admin/screens/storage/api/storage-api";
+import type { ScreenshotCleanupClient } from "@jini-ai/admin/screens/storage/api/screenshot-cleanup-api";
 import { StorageScreen } from "../Storage";
-import { useWiredStorage } from "../hooks/use-storage.hooks";
-import { useScreenshotCleanup } from "../hooks/use-screenshot-cleanup.hooks";
+import { useWiredStorage } from "@jini-ai/admin/screens/storage/hooks/use-storage.hooks";
+import { useScreenshotCleanup } from "@jini-ai/admin/screens/storage/hooks/use-screenshot-cleanup.hooks";
 
 const AMOUNT = { bytes: 2048, knownBytes: 2048, files: 1 };
 
@@ -79,6 +79,7 @@ describe("StorageScreen", () => {
     // The live pass only ever runs the automatic kinds the owner was shown, and only after the list.
     // The confirm spends the single-use grant of the preview on screen (Codex FIX 5); without it the website refuses.
     expect(client.cleanup).toHaveBeenLastCalledWith({ dryRun: false, classes: ["old-copy"], previewToken: "grant-1" }, {});
+    expect(client.cleanup).toHaveBeenCalledTimes(2);
     expect(seen).toEqual([{ dryRun: true, listShown: false }, { dryRun: false, listShown: true }]);
     expect(await screen.findByText(/Freed: 1 kB/)).toBeTruthy();
   });

@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useExternalMcpAddForm as jiniUseExternalMcpAddForm } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel.hooks";
+import { useCallback } from "react";
 import { useWiredSourceConfigAddForm, type SourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { grantWriteFieldValue } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
-import type { SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import { t as tExternalMcp } from "@jini-ai/admin/screens/settings/external-mcp-i18n";
 import {
-  buildExternalMcpCardHandles,
   buildExternalMcpFieldSpecs,
-  externalMcpNeedsSignIn,
   resolveExternalMcpEffectiveAuthMode,
   resolveExternalMcpEffectiveTransport,
 } from "@jini-ai/admin/screens/settings/rules";
@@ -22,44 +19,6 @@ import { type Translate } from '@jini-ai/core/text';
  * logic of its own.
  */
 
-/** `ExternalMcpSettingsPanel`'s own per-card agent handles. Not `useMemo`'d: an O(n) pass (see
- *  `buildAgentListHandles`'s own `@complexity` doc, which `buildExternalMcpCardHandles` wraps) over
- *  one workspace's own configured external MCP servers — small and cheap enough next to the render
- *  it feeds that memoizing it was not judged worth the added indirection. That is a decision about
- *  memoization, separate from why this now lives outside the component body at all (the
- *  `.tsx` bodies carry no derived logic). */
-export function resolveExternalMcpCardHandles({ sources }: { sources: readonly SourceConfigItem[] }, _optional: Record<string, never> = {}): string[] {
-  return buildExternalMcpCardHandles({ sourceIds: sources.map((source) => source.id) });
-}
-
-/** Each card's saved intent, keyed by server id — the "saved" half of the saved-vs-live comparison
- *  the admissions banner states. Memoized because it is the dependency of a `useMemo` inside
- *  `useExternalMcpAdmissions`: rebuilding the object every render would make that memo useless.
- *
- *  `enabled` joined `allowedToolNames` here for ADM-001 (2026-09-07): the banner now reports a saved
- *  connection the daemon is not running, and without the toggle it would report every server the
- *  operator deliberately switched off as a fault. `SourceConfigItem.enabled` is optional in
- *  `@jini-ai/ui`'s type; `toItem` in `use-external-mcp.hooks.ts` always sets it from the stored
- *  record, so `?? true` only ever covers a source that came from somewhere else — and "on" is the
- *  right reading of a missing flag, since a card with no toggle state is not one the operator
- *  turned off. Saved transport/command identify missing stdio launchers; the existing transport
- *  rule also supplies the legacy stdio default for cards without an explicit transport. */
-export function useSavedAllowedToolNamesById(sources: readonly SourceConfigItem[]): Record<string, SavedConnectionIntent> {
-  return useMemo(() => {
-    const byId: Record<string, SavedConnectionIntent> = {};
-    for (const source of sources) {
-      byId[source.id] = {
-        allowedToolNames: source.fields["allowedToolNames"] ?? "",
-        enabled: source.enabled ?? true,
-        transport: resolveExternalMcpEffectiveTransport(source.fields),
-        command: source.fields["command"] ?? "",
-        needsSignIn: externalMcpNeedsSignIn({ source }),
-      };
-    }
-    return byId;
-  }, [sources]);
-}
-
 /** Binds `external-mcp-i18n.ts`'s dictionary to the operator's locale. That dictionary is Tovu's
  *  own, separate from the `useT()` this tab uses for the chrome it inherits from `@jini-ai/ui` —
  *  the drift copy lives in the former because it was authored there (Phase 2C) alongside its 21
@@ -67,29 +26,6 @@ export function useSavedAllowedToolNamesById(sources: readonly SourceConfigItem[
 export function useExternalMcpDriftCopy(): Translate {
   const locale = useAdminLocale();
   return useCallback((key: string) => tExternalMcp({ locale: locale, key: key }), [locale]);
-}
-
-/**
- * The banner's one-click fix, as the panel's `updateSource` patch.
- *
- * Written through the SAME port the card's own edit form uses, so `mergeSourceUpdate` fills in
- * every field this patch does not mention and `toWriteBody`'s omit-when-blank rules keep `env` and
- * `oauthClientSecret` from being wiped — the asymmetry `use-external-mcp.hooks.ts`'s header calls
- * the safe direction. Reaching for `api.saveExternalMcpServer` directly here would bypass both.
- *
- * @returns The patch, or `null` when the id names no configured card (nothing to write).
- */
-export function buildAllowWritePatch(
-  { sources, connectionId, remoteName }: {
-    sources: readonly SourceConfigItem[];
-    connectionId: string;
-    remoteName: string;
-  },
-  _options = {},
-): { fields: Record<string, string> } | null {
-  const source = sources.find((candidate) => candidate.id === connectionId);
-  if (!source) return null;
-  return { fields: { writeAllowedToolNames: grantWriteFieldValue({ currentWriteAllowedToolNames: source.fields["writeAllowedToolNames"], remoteName }) } };
 }
 
 /** Everything `ExternalMcpSettingsPanel` renders its "Add server" button and form from. */
@@ -128,48 +64,9 @@ export function useExternalMcpAddForm(input: {
   dependencies: SourceConfigDependencies<SourceConfigItem>;
   list: { addSourceToList: (source: SourceConfigItem) => void };
 }): ExternalMcpAddFormController {
-  const { dependencies, list } = input;
-  const t = useExternalMcpDriftCopy();
-  const [formOpen, setFormOpen] = useState(false);
-  const [transportGuess, setTransportGuess] = useState<string>("stdio");
-  const [authModeGuess, setAuthModeGuess] = useState<string>("static_env");
-  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess }, { t });
-
-  const addForm = useWiredSourceConfigAddForm<SourceConfigItem>({
-    dependencies,
-    fieldSpecs,
-    onAdded: (source) => {
-      list.addSourceToList(source);
-      setFormOpen(false);
-    },
-  });
-
   // Pre-select sensible defaults the instant the form opens, so the two `select` fields never show
   // Jini's placeholder "Select…" state for a choice Tovu already has a real default for (matching
   // the server's own default-to-stdio/static_env behavior — see `rules.ts`'s
   // `resolveExternalMcpEffective*`). Guarded on "still blank" so it only ever runs on a fresh draft.
-  useEffect(() => {
-    if (!formOpen) return;
-    if (addForm.values.transport === "") addForm.setField("transport", "stdio");
-    if (addForm.values.authMode === "") addForm.setField("authMode", "static_env");
-  }, [formOpen, addForm.values.transport, addForm.values.authMode, addForm.setField]);
-
-  // The lagged sync `ExternalMcpSettingsPanel.tsx`'s header describes.
-  useEffect(() => {
-    const nextTransport = resolveExternalMcpEffectiveTransport(addForm.values);
-    const nextAuthMode = resolveExternalMcpEffectiveAuthMode(addForm.values);
-    if (nextTransport !== transportGuess) setTransportGuess(nextTransport);
-    if (nextAuthMode !== authModeGuess) setAuthModeGuess(nextAuthMode);
-  }, [addForm.values, transportGuess, authModeGuess]);
-
-  return {
-    formOpen,
-    toggleForm: () => setFormOpen((open) => !open),
-    cancelForm: () => {
-      addForm.reset();
-      setFormOpen(false);
-    },
-    fieldSpecs,
-    addForm,
-  };
+  return jiniUseExternalMcpAddForm({ ...input, useDriftCopyHook: useExternalMcpDriftCopy, useSourceConfigAddFormHook: useWiredSourceConfigAddForm<SourceConfigItem>, buildFieldSpecs: buildExternalMcpFieldSpecs, resolveTransport: resolveExternalMcpEffectiveTransport, resolveAuthMode: resolveExternalMcpEffectiveAuthMode });
 }

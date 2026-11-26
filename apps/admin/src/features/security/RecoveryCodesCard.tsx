@@ -1,11 +1,8 @@
+import { RecoveryCodesCard as JiniRecoveryCodesCard } from '@jini-ai/user-management/react';
 import { createRecoveryKitDownload, useDesktopOwnerReset, useRecoveryKit } from './RecoveryCodesCard.hooks';
 import { ErrorNotice } from '@jini-ai/ui/panel-kit';
-import { useEffect, useMemo, useState } from 'react';
-import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/core/agent-handles';
-import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
-import type { OwnerRecoveryPort, OwnerRecoveryStatus } from '@jini-ai/user-management/react/auth/owner-recovery-api';
+import type { OwnerRecoveryPort } from '@jini-ai/user-management/react/auth/owner-recovery-api';
 import { ownerRecoveryPort, ownerRecoveryFailure } from '../../lib/owner-clients';
-
 import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = text => text;
 
@@ -13,79 +10,5 @@ const identityTranslate: Translate = text => text;
  * @complexity O(1), one small status read on mount; one ten-code write per explicit rotation.
  */
 export function RecoveryCodesCard({ port = ownerRecoveryPort, t = identityTranslate }: { port?: OwnerRecoveryPort; t?: Translate }) {
-  const [status, setStatus] = useState<OwnerRecoveryStatus>();
-  const [loadError, setLoadError] = useState<{ cause: unknown } | null>(null);
-  useEffect(() => {
-    let active = true;
-    void port.status().then(value => { if (active) setStatus(value); }).catch(error => {
-      if (active) setLoadError({ cause: error });
-    });
-    return () => { active = false; };
-  }, [port]);
-  const error = useMemo(() => loadError ? ownerRecoveryFailure({ error: loadError.cause,
-    message: 'Owner recovery settings could not load.',
-    action: 'Reload this page after resolving the server explanation. Ask the host operator to check the identity database if it continues.',
-    step: 'owner-recovery-status', t }) : null, [loadError, t]);
-  if (error) return <ErrorNotice failure={error} t={t} />;
-  if (!status) return <p>{t('Loading owner recovery…')}</p>;
-  if (!status.isOwner || !status.available) return null;
-  return <section className="card">
-    <h3>{t('Recovery codes')}</h3>
-    <p>{t('Save ten single-use codes somewhere private. Using one resets your owner password, removes authenticators and passkeys, signs out all sessions and invalidates every code in the set.')}</p>
-    <RecoveryKit port={port} t={t} />
-    {status.desktopOwnerReset ? <DesktopOwnerReset port={port} t={t} /> : null}
-  </section>;
-}
-
-/** Issue only after password proof; never persist raw codes or leave the submitted password in state.
- * @complexity O(1), one rotation per submit and at most ten codes in memory.
- */
-function RecoveryKit({ port, t,
-  useRecoveryKitHook = useRecoveryKit }: { port: OwnerRecoveryPort; t: Translate;
-  useRecoveryKitHook?: typeof useRecoveryKit; }) {
-  const { password, setPassword, code, setCode, codes, setCodes, busy, error, submit } = useRecoveryKitHook({ port, t });
-  return <div>
-    <form onSubmit={submit}>
-      <label htmlFor="recovery-current-password">{t('Current owner password')}</label>
-      <SecretInput id="recovery-current-password" label={t('Current owner password')} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
-      <label>{t('Authenticator code (if enabled)')}<input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} data-agent-private="" value={code} onChange={event => setCode(event.target.value)} /></label>
-      <button className="btn-primary" disabled={busy || !password}>{t('Generate recovery codes')}</button>
-      <p>{t('Generating a new set invalidates all previous codes. Codes are shown only now.')}</p>
-    </form>
-    {error ? <ErrorNotice failure={error} t={t} /> : null}
-    {codes.length ? <RecoveryKitOutput codes={codes} dismiss={() => setCodes([])} t={t} /> : null}
-  </div>;
-}
-
-/** Download the currently displayed kit once, then erase it from this view. No server read.
- * @complexity O(1), one local blob of ten codes (~650 bytes), immediately released.
- */
-function RecoveryKitOutput({ codes, dismiss, t }: { codes: string[]; dismiss: () => void; t: Translate }) {
-  const download = createRecoveryKitDownload({ codes, dismiss });
-  return <div {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }}>
-    <pre>{codes.join('\n')}</pre>
-    <button type="button" className="btn-secondary" onClick={download}>{t('Download codes')}</button>
-    <button type="button" className="btn-secondary" onClick={dismiss}>{t('I saved these codes')}</button>
-  </div>;
-}
-
-/** Desktop proof restores the ordinary owner session before this action is offered by the server.
- * @complexity O(1) UI state, one reset request per explicit submit; no staff promotion.
- */
-function DesktopOwnerReset({ port, t,
-  useDesktopOwnerResetHook = useDesktopOwnerReset }: { port: OwnerRecoveryPort; t: Translate;
-  useDesktopOwnerResetHook?: typeof useDesktopOwnerReset; }) {
-  const { password, setPassword, confirmation, setConfirmation, busy, message, failure, submit } = useDesktopOwnerResetHook({ port, t });
-  return <details><summary>{t('Reset owner password')}</summary>
-    <p>{t('Your desktop launch restored your owner session. Choose a new password; this signs out all sessions and invalidates recovery codes.')}</p>
-    <form onSubmit={submit}>
-      <label htmlFor="desktop-owner-password">{t('New owner password')}</label>
-      <SecretInput id="desktop-owner-password" label={t('New owner password')} autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
-      <label htmlFor="desktop-owner-confirm">{t('Confirm new owner password')}</label>
-      <SecretInput id="desktop-owner-confirm" label={t('Confirm new owner password')} autoComplete="new-password" value={confirmation} onChange={event => setConfirmation(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
-      <button className="btn-primary" disabled={busy || !password}>{t('Reset password and sign out sessions')}</button>
-    </form>
-    {failure ? <ErrorNotice failure={failure} t={t} /> : null}
-    {message ? <p className="notice" role="status">{message}</p> : null}
-  </details>;
+  return <JiniRecoveryCodesCard port={port} t={t} describeFailure={ownerRecoveryFailure} FailureNotice={ErrorNotice} filename="tovu-owner-recovery-codes.txt" createDownloadHook={createRecoveryKitDownload} useRecoveryKitHook={useRecoveryKit} useDesktopOwnerResetHook={useDesktopOwnerReset} />;
 }

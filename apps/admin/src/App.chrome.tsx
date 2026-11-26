@@ -1,7 +1,7 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useState } from "react";
 import { t as routinesT } from "./features/routines/routines-i18n";
-import type { useApplyConversationDeepLink } from "./features/routines/use-conversation-deep-link";
+import type { useApplyConversationDeepLink } from "@jini-ai/admin/shell/hooks/use-conversation-deep-link";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { Toast } from "@jini-ai/ui";
 import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";

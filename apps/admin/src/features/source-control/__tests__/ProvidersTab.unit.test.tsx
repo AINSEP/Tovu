@@ -41,7 +41,7 @@ it("masks extra secret fields and routes edits by provider and declared field na
     loadError: null, providersNotice: null, t: (key) => key,
     setToken: vi.fn(), setField, save: vi.fn().mockResolvedValue(undefined),
   };
-  render(<ProvidersTab useAdminLocaleHook={useAdminLocale} navigate={navigate} viewerTimeZone={VIEWER_TIME_ZONE} CredentialHint={CredentialHint} kit={{ SecretInput, Icon }} lineIcon={LINE_ICON} fieldHelpText={fieldHelpText} fieldNameHandleSegment={({ fieldName }) => fieldNameHandleSegment({ fieldName, asciiSlug })} copy={{ providersRegionLabel: "Connect a source-control account so Tovu can read and later push to your repositories", storedTokenHint: "Stored encrypted on the server. Once saved, Tovu never displays it again." }} useSourceControlCredentialsHook={() => controller} />);
+  render(<SourceControl useSourceControlCredentialsHook={() => controller} />);
   const row = screen.getByRole("heading", { name: "Connect Atlas" }).closest("details")!;
   const secret = within(row).getByLabelText("Client secret");
   const account = within(row).getByRole("textbox", { name: "Account" });

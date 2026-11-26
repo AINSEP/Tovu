@@ -8,7 +8,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
-import { useGridPages } from "../hooks/use-grid-pages.hooks";
+import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
 import { useMediaWrites } from "../hooks/use-media-writes.hooks";
 import { MEDIA_RESOURCE, visibleMediaError as visibleMediaErrorRule } from "@jini-ai/admin/screens/media/rules";
 

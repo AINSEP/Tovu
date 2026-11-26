@@ -1,5 +1,5 @@
 import "@jini-ai/chat/react/styles/chat-settings.css";
-import type { useApplyConversationDeepLink, DeepLinkPorts } from "../../features/routines/use-conversation-deep-link";
+import type { useApplyConversationDeepLink, DeepLinkPorts } from "@jini-ai/admin/shell/hooks/use-conversation-deep-link";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
 import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";

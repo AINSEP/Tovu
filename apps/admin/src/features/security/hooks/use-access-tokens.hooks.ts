@@ -17,7 +17,7 @@ import { accessTokenDuplicateNameMessage, accessTokenMakeDefaultErrorMessage, ac
 import { ACCESS_TOKENS_RESOURCE, ACCESS_TOKEN_CATEGORIES } from "../rules";
 import { accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
 import { type AccessTokenKind, type AccessTokenRowCategoryId, accessTokenNameTaken, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow, type AccessTokenProviderRef } from "@jini-ai/admin/security/access-token-rows";
-import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError } from "../access-token-forms";
+import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError } from "@jini-ai/integrations/react/credentials/access-token-forms";
 import { type AccessTokenFormFields as CredentialAccessTokenFormFields, accessTokenProviderInfo, accessTokenProviders, accessTokenProvidersWithSavedRows, accessTokenRowProviderInfo, type AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "@jini-ai/admin/security/custom-credential-forms";
 import { sourceControlProviderInfoFromDescriptor } from "@jini-ai/devops/source-control/react/rules";
@@ -194,7 +194,7 @@ function existingRowState(
 ): AccessTokenExistingRowState {
   const d = existingTokenDraft({ row, draft });
   const b = busy ?? IDLE;
-  const readyToSave = accessTokenExistingRowReadyToSave({ fields: { ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info });
+  const readyToSave = accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: { ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info });
   return { row, name: d.name, token: d.token, values: d.values, username: d.username, worksFor: d.worksFor, readyToSave, saving: b.saving, error: b.error };
 }
 
@@ -294,7 +294,7 @@ function accessTokenSubmitErrorMessage(
   },
   _optional: Record<string, never> = {},
 ): string {
-  const classified = classifyAccessTokenSubmitError({ e: err });
+  const classified = classifyAccessTokenSubmitError({ isApiError: (error): error is ApiError => error instanceof ApiError, e: err });
   if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage({ locale, name: attemptedName, provider: providerLabel });
   if (classified.kind === "validation") return accessTokenSaveErrorMessage({ locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
   return accessTokenSaveErrorMessage({ locale, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) });
@@ -600,7 +600,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const fields: CredentialAccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenExistingRowReadyToSave({ fields, row, info: accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row }) })) return;
+    if (!accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields, row, info: accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row }) })) return;
     if (customCredentialNameTaken({ rows: (rows ?? []).filter(candidate => candidate.scope === row.scope), name: fields.name }, { excludeId: row.id })) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: t("this workspace") }) } }));
       return;
@@ -643,7 +643,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const info = accessTokenProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, ref });
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenExistingRowReadyToSave({ fields, row, info })) return;
+    if (!accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields, row, info })) return;
     const providerLabel = info.label;
     if (accessTokenNameTaken({ rows: rows ?? [], ref, name: fields.name }, { excludeId: row.id })) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: providerLabel }) } }));

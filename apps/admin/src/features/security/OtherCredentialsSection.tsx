@@ -3,7 +3,7 @@ import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
-import type { OtherCredentialStoreInfo } from "./other-credential-stores";
+import type { OtherCredentialStoreInfo } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 import { otherCredentialRemoveDialogBody, removeDialogTitle } from "@/lib/i18n-common";
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";

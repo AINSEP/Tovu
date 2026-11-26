@@ -1,5 +1,5 @@
 import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
-import { useApplyConversationDeepLink } from "./features/routines/use-conversation-deep-link";
+import { useApplyConversationDeepLink } from "@jini-ai/admin/shell/hooks/use-conversation-deep-link";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { siteUpdateNoticeSlot } from "./integrations/jini-admin/site-update-notice";
 import { useTovuSiteUpdateStatus } from "./integrations/jini-admin/site-update-notice.hooks";

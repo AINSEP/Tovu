@@ -1,7 +1,7 @@
 import { act, render, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SKILLS_CHANGED_EVENT } from "../api";
+import { installSkill, SKILLS_CHANGED_EVENT } from "../api";
 import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
 import { useSkills } from "../skills-host.hooks";
 
@@ -14,6 +14,26 @@ const skill: InstalledSkill = {
   enabled: true, source: "uploaded",
 };
 const base = "/api/admin/v1/workspaces/workspace-local/skills";
+
+it("fires the host change event only after an accepted installation", async () => {
+  let accept!: (response: Response) => void;
+  const changed = vi.fn();
+  window.addEventListener(SKILLS_CHANGED_EVENT, changed);
+  vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { accept = resolve; })));
+  try {
+    const pending = installSkill({ files: [] });
+    expect(changed).not.toHaveBeenCalled();
+    await waitFor(() => expect(accept).toBeTypeOf("function"));
+    accept(Response.json({}));
+    await pending;
+    expect(changed).toHaveBeenCalledTimes(1);
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: "refused" }, { status: 403 })));
+    await expect(installSkill({ files: [] })).rejects.toThrow();
+    expect(changed).toHaveBeenCalledTimes(1);
+  } finally {
+    window.removeEventListener(SKILLS_CHANGED_EVENT, changed);
+  }
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

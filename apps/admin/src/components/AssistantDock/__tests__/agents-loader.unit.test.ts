@@ -3,9 +3,11 @@ import { renderHook } from "@/__tests__/fetch-query-render";
 import type { CreateTovuAssistantTransportOptions } from "@/lib/assistant-transport";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import type { CachedLoader } from "@jini-ai/core/fetch";
+import { useAgentsLoader } from "../hooks/agents-inventory.hooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAgentsLoader, replaceAgents, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
+import { createAgentsLoader, resetResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
+import { replaceAgents } from "../hooks/agents-inventory.hooks";
 import { useTovuAssistantTransport as useAssistantTransport } from "../hooks/assistant-transport.binding";
 
 /**
@@ -24,9 +26,17 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   resetResumeCapableAgentIds();
   localStorage.clear();
   vi.useRealTimers();
+});
+
+it("does not cache an empty inventory during restart", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ agents: [] })));
+  const { result } = renderHook(() => useAgentsLoader({}));
+  await expect(result.current.load()).rejects.toThrow("answered with no agents");
+  expect(result.current.peek()).toBeUndefined();
 });
 
 function agentsList(): ChatPaneAgent[] {
@@ -40,7 +50,7 @@ function fakeLoader(snapshot: () => ChatPaneAgent[] | undefined, load: CachedLoa
 
 /** The refresh deadline recorded for `agents`, read the way the pane reads it. */
 function deadlineOf(agents: ChatPaneAgent[]): number | undefined {
-  return createAgentsLoader(fakeLoader(() => agents)).refreshAt();
+  return createAgentsLoader({ loader: fakeLoader(() => agents), clock: Date.now }).refreshAt();
 }
 
 describe("replaceAgents", () => {
@@ -77,7 +87,7 @@ describe("createAgentsLoader", () => {
   it("accepts the transport's own array when the cache answers nothing after a read", async () => {
     const agents = agentsList();
     const load = vi.fn<CachedLoader<ChatPaneAgent[]>["load"]>().mockResolvedValue(agents);
-    const loader = createAgentsLoader(fakeLoader(() => undefined, load));
+    const loader = createAgentsLoader({ loader: fakeLoader(() => undefined, load), clock: Date.now });
 
     await expect(loader.load()).resolves.toBe(agents);
 
@@ -91,7 +101,7 @@ describe("createAgentsLoader", () => {
     const cached = agentsList();
     const failure = new Error("GET /api/agents answered 503");
     const load = vi.fn<CachedLoader<ChatPaneAgent[]>["load"]>().mockRejectedValue(failure);
-    const loader = createAgentsLoader(fakeLoader(() => cached, load));
+    const loader = createAgentsLoader({ loader: fakeLoader(() => cached, load), clock: Date.now });
     expect(loader.refreshAt()).toBeUndefined();
 
     await expect(loader.load()).rejects.toBe(failure);

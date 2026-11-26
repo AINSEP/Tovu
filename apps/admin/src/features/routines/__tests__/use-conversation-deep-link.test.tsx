@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { useApplyConversationDeepLink, CONVERSATION_GONE_KEY } from "../use-conversation-deep-link";
+import { useApplyConversationDeepLink, CONVERSATION_GONE_KEY } from "@jini-ai/admin/shell/hooks/use-conversation-deep-link";
 
 /**
  * @file The dock's `?conversation=` link: it may only SELECT an existing, owner-visible conversation.

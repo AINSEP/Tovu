@@ -4,10 +4,11 @@ import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AccessTokensTab } from "../AccessTokensTab";
-import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave } from "../access-token-forms";
+import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave } from "@jini-ai/integrations/react/credentials/access-token-forms";
 import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "@jini-ai/admin/security/access-token-providers";
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
-import { otherCredentialStoreInfo } from "../other-credential-stores";
+import { OTHER_CREDENTIAL_STORES } from "../other-credential-stores";
+import { otherCredentialStoreInfo } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokenKind } from "@jini-ai/admin/security/access-token-rows";
 import type { AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
@@ -150,7 +151,7 @@ function groupFor(
   const ref = { kind: info.kind, providerId: info.providerId };
   return {
     info,
-    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ fields: { ref, ...state }, row: state.row, info }) })),
+    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: { ref, ...state }, row: state.row, info }) })),
     addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ fields: { ref, ...addFormState }, info }) },
   };
 }
@@ -957,7 +958,7 @@ describe("AccessTokensTab remaining field and row states", () => {
   });
 
   it("lists a saved Tier 2 credential alongside the providers", () => {
-    const store = otherCredentialStoreInfo({ id: "site-assistant" });
+    const store = otherCredentialStoreInfo({ stores: OTHER_CREDENTIAL_STORES, id: "site-assistant" });
     renderTab({}, {
       groups: [{ store, rows: [{ key: "site-assistant:site-assistant", store, itemId: "site-assistant", name: store.label, valueFact: "••••abcd", updatedAt: null, token: "", saving: false, error: null }] }],
     });

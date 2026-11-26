@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
-import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
+import type { InspectedAgentPlugin } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 
 const requiredAgentPluginDetailsModalHooks = {
   useAgentPluginMemoryHook: useWiredAgentPluginMemory,

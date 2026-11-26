@@ -5,7 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { Posts } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
-import { buildPostRowMenuHandleMap } from "../rules";
+import { buildPostRowMenuHandleMap } from "@jini-ai/cms/react/posts/posts-list-rules";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { currentRoutePath, installInternalLinkInterceptor } from "@jini-ai/admin/shell/lib/router";
 

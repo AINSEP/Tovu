@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StaticSiteTab } from "../StaticSiteTab";
-import type { StaticExportController } from "../hooks/use-static-export.hooks";
+import type { StaticExportController } from "@jini-ai/devops/deploy/react/hooks/use-static-export.hooks";
 import type { StaticPublishController } from "../hooks/use-static-publish.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
 import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";

@@ -6,14 +6,8 @@ import { ApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
-import {
-  isAssistantStartingError,
-  UNAVAILABLE_RETRY_ATTEMPTS,
-  UNAVAILABLE_RETRY_INTERVAL_MS,
-  useExternalMcpAdmissions,
-  useWiredExternalMcpAdmissions,
-  type ExternalMcpAdmissionsPort,
-} from "../use-external-mcp-admissions.hooks";
+import { isAssistantStartingError, useExternalMcpAdmissions, useWiredExternalMcpAdmissions } from "../use-external-mcp-admissions.hooks";
+import { UNAVAILABLE_RETRY_ATTEMPTS, UNAVAILABLE_RETRY_INTERVAL_MS, type ExternalMcpAdmissionsPort } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
 import type { SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 
 /**

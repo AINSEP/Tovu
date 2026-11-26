@@ -1,3 +1,4 @@
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { act, waitFor } from "@testing-library/react";
 import { renderHook } from "@/__tests__/chat-surfaces-render";
 import { StrictMode, type ReactNode, type SetStateAction } from "react";
@@ -97,7 +98,7 @@ vi.mock("@jini-ai/admin/screens/fs-files/use-folder-drop.hooks", () => ({
   useFolderDrop: mockUseFolderDrop,
 }));
 
-import { shouldPublishContentOnToolProgress, shouldPublishOnMessagesChange, useMessagesChangeHandler } from "../AssistantDock/hooks/messages-change.hooks";
+import { shouldPublishContentOnToolProgress, shouldPublishOnMessagesChange, useMessagesChangeHandler } from "@jini-ai/admin/shell/components/AssistantDock/hooks/messages-change.hooks";
 import { useAssistantDockChrome, useChatI18n, useChatsSeam } from "../AssistantDock/hooks/dock-chrome.hooks";
 import { useAttachmentUploader, useWorkingDirectoryAccess, useWorkingDirectoryAccessSeam, useFolderDropBridge } from "../AssistantDock/hooks/composer-files.hooks";
 import { useComposerDiscoverySelect } from "../AssistantDock/hooks/composer-discovery.hooks";
@@ -105,7 +106,7 @@ import { useSelectedAgentPlugins, useSelectedPluginChips } from "@jini-ai/admin/
 import { useLocalCliDaemonPrewarm } from "@jini-ai/admin/shell/components/AssistantDock/hooks/assistant-transport.hooks";
 import { useTovuAssistantTransport as useAssistantTransport } from "../AssistantDock/hooks/assistant-transport.binding";
 import { useAgentsPlaceholder, useRuntimeAccess } from "../AssistantDock/hooks/runtime-access.hooks";
-import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventory.hooks";
+import { getResumeCapableAgentIds } from "@jini-ai/admin/shell/components/AssistantDock/hooks/agents-inventory.hooks";
 import { useByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
 import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
 import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
@@ -1945,7 +1946,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("mirrors every messages-change delta onto window.__tovuAssistantMessages", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [{ id: "m1", role: "user", content: [] }] as unknown as ChatMessage[];
 
     act(() => result.current(messages));
@@ -1955,7 +1956,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("forwards every delta to chats.onMessagesChange", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [{ id: "m1", role: "user", content: [] }] as unknown as ChatMessage[];
 
     act(() => result.current(messages));
@@ -1965,7 +1966,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("publishes a settings refresh once a run reaches a terminal status", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [
       { id: "run-1", role: "assistant", runStatus: "succeeded", content: [] },
     ] as unknown as ChatMessage[];
@@ -1977,7 +1978,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("does not publish while a run is still streaming (non-terminal status)", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [
       { id: "run-1", role: "assistant", runStatus: "running", content: [] },
     ] as unknown as ChatMessage[];
@@ -1989,7 +1990,7 @@ describe("useMessagesChangeHandler", () => {
 
   it("does not re-publish for the same settled run across repeated deltas", () => {
     const chats = fakeChats();
-    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats }));
     const messages = [
       { id: "run-1", role: "assistant", runStatus: "succeeded", content: [] },
     ] as unknown as ChatMessage[];

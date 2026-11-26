@@ -21,7 +21,8 @@ import { PluginRulesProvider } from "@jini-ai/admin/screens/plugins/rules-contex
 import { agentPluginDisplayName, isApiError, pluginRules, updatableAgentPluginDigest } from "./rules";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import { AgentPluginUpdateControl } from "@jini-ai/admin/screens/plugins/AgentPluginUpdateControl";
-import type { useWiredAgentPlugins, AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
+import type { useWiredAgentPlugins } from "./hooks/use-agent-plugins.hooks";
+import type { AgentPluginsController } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
 import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 import type { useAgentPluginInstall } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-install.hooks";

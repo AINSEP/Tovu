@@ -33,7 +33,7 @@
 import { HttpAgent } from "@ag-ui/client";
 import type { RunAgentInput } from "@ag-ui/core";
 import { createAgUiRunClient, type AcceptedAgUiRun, type AgUiClient, type AgUiDurableLocalCliBinding, type AgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
-import { createAgUiApprovalRelay, type AgUiApprovalPoster, type AgUiApprovalRelay } from "./ag-ui-approval-relay";
+import { createAgUiApprovalRelay, type AgUiApprovalPoster, type AgUiApprovalRelay } from "@jini-ai/chat/transports/ag-ui/approval-relay";
 import type { RunHandlers } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun } from "./durable-run-subscription";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
@@ -156,6 +156,7 @@ export function createAdminAgUiRunClient({ durable }: { durable: AdminAgUiDurabl
   // agents report their events to the relay.
   const relay: AgUiApprovalRelay = createAgUiApprovalRelay({ ports: {
     resume: (required, optional) => shared.resumeAgUiRun(required, optional),
+    copy: { expired: "This request expired. Ask again.", unsent: "Your answer could not be sent. Ask again." },
     isAccepted: ({ runId }) => shared.isAcceptedAgUiRun?.({ runId }, {}) ?? false,
   } }, {});
   const shared = createSharedAdminAgUiRunClient({ durable, observe: (required) => relay.observe(required, {}) }, {});

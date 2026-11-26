@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { Security as JiniSecurity } from "@jini-ai/admin/security/react/live/Security";
 import { useWiredSiteKeyRecovery } from "./hooks/site-key-dependencies.hooks";
 import { useRevealedKeyCopy } from "@jini-ai/admin/security/host/SiteKeyTab.hooks";
 import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
@@ -9,11 +11,10 @@ import { ownerPasskeySettingsPort } from '../../lib/owner-clients';
 import { TotpSettings } from "@jini-ai/user-management/react";
 import { ownerMfaPort } from "../../lib/owner-clients";
 import { RecoveryCodesCard } from "./RecoveryCodesCard";
-import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
-import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
+import { TabBar } from "@jini-ai/ui/tab-strip";
 import { tSecurity as t } from "../../lib/i18n-common";
 import { AccessTokensTab } from "./AccessTokensTab";
 import { SiteKeyTab } from "@jini-ai/integrations/react/site-key/SiteKeyTab";
@@ -22,8 +23,6 @@ import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteKey } from "./hooks/site-key-dependencies.hooks";
 import { useWiredSecurityPermissions } from "./hooks/security-permissions-dependencies.hooks";
 
-import { resolveActiveTabId } from '@jini-ai/core/text';
-const ACCESS_TOKENS_TAB = "access-tokens";
 
 /**
  * @file The Security page (`/admin/access-tokens`) — a consolidation, not a new store: every token
@@ -103,25 +102,6 @@ const ACCESS_TOKENS_TAB = "access-tokens";
  * empty/absent permissions), so the tab never flashes into view before disappearing.
  */
 
-const SECURITY_TAB_IDS = [ACCESS_TOKENS_TAB, "site-key"] as const;
-type SecurityTabId = (typeof SECURITY_TAB_IDS)[number];
-
-/** The tab-id list for a principal WITHOUT `admin.security.site-key.manage` — see this file's header
- *  ("The site key tab is affordance-hidden") for why {@link resolveSecurityTabId} needs a second,
- *  narrower list rather than only ever validating against {@link SECURITY_TAB_IDS}. */
-const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = [ACCESS_TOKENS_TAB];
-
-/** Falls back to the Access Tokens tab for an absent or unrecognized `?tab=` value, delegating to
- *  the shared `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`SourceControl.tsx`/
- *  `Database.tsx`/`Themes.tsx` all use — AND, since 2026-09-10, for a `?tab=site-key` link
- *  followed by a principal who does not hold `admin.security.site-key.manage`: `validIds` narrows to
- *  {@link ACCESS_TOKENS_ONLY_TAB_IDS} for them, so `site-key` reads as just as "unrecognized" as a
- *  typo would, and they land on Access Tokens instead of an empty panel. */
-function resolveSecurityTabId({ tabId, canManageSiteKey }: { tabId: string | null | undefined; canManageSiteKey: boolean }, _optional: Record<string, never> = {}): SecurityTabId {
-  const validIds: readonly SecurityTabId[] = canManageSiteKey ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
-  return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: ACCESS_TOKENS_TAB });
-}
-
 export interface SecurityProps {
   /** The `?tab=` query value from `panels.tsx`'s `security` route. See {@link resolveSecurityTabId}. */
   tabId?: string | null;
@@ -140,69 +120,21 @@ export interface SecurityProps {
 
 export function Security({ useAdminLocaleHook = useAdminLocale,
   useSecurityPermissionsHook = useWiredSecurityPermissions, ...props }: SecurityProps) {
-  const locale = useAdminLocaleHook();
-
-  const { canManageSiteKey } = useSecurityPermissionsHook();
-  const activeTabId = resolveSecurityTabId({ tabId: props.tabId, canManageSiteKey });
-
-  const tabs: TabBarTab[] = [
-    {
-      id: ACCESS_TOKENS_TAB,
-      label: t({ locale: locale, key: "Access Tokens" }),
-      icon: <AccessTokensIcon size={16} />,
-      handle: "security-tab-access-tokens",
-      handleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place",
-    },
-    ...(canManageSiteKey
-      ? [
-          {
-            id: "site-key",
-            label: t({ locale: locale, key: "Site key" }),
-            icon: <SiteKeyIcon size={16} />,
-            handle: "security-tab-site-key",
-            handleLabel: t({ locale: locale, key: "Switch to the site key tab" }),
-          } satisfies TabBarTab,
-        ]
-      : []),
-  ];
-
-  return (
-    <div className="page">
-      <div
-        className="page-header"
-        {...agentHandle({ handle: "security-header" }, {
-          role: "region",
-          label: "Secrets panel header — every saved access token and the site key that protects them, in one place",
-        })}
-      >
-        <div className="page-header-text">
-          <p className="page-kicker">{t({ locale: locale, key: "Operations" })}</p>
-          <h1 className="page-title">{t({ locale: locale, key: "Secrets" })}</h1>
-          <p className="page-description">
-            {t({ locale: locale, key: "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it." }
-            )}
-          </p>
-        </div>
-      </div>
-      <TotpSettings port={ownerMfaPort} translate={key => t({ locale, key })} />
-      <RecoveryCodesCard t={key => t({ locale, key })} />
-      <PasskeySettings port={ownerPasskeySettingsPort} translate={key => t({ locale, key })} />
-      <TabBar
-        ariaLabel={t({ locale: locale, key: "Secrets" })}
-        tabs={tabs}
-        activeId={activeTabId}
-        onChange={(nextTabId) => navigateSecurityTab({ nextTabId })}
-        containerHandle="security-tab-bar"
-      />
-      {activeTabId === ACCESS_TOKENS_TAB ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}
-      {activeTabId === "site-key" ? <SiteKeyTab useSiteKeyHook={props.useSiteKeyHook ?? useWiredSiteKey} useSiteKeyRecoveryHook={useWiredSiteKeyRecovery} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocaleHook} kit={{ SecretInput }} copy={{
-          siteKeyEnvVarName: "TOVU_SITE_KEY",
-          scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",
-          invalidEnv: "A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.",
-          invalidFileSuffix: "isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.",
-          siteKeyStatusBadgeLabel,
-          siteKeyGenerateErrorMessage,
-      }} /> : null}
-    </div>
-  );
+  const panels = useMemo(() => ({
+    AccessTokens: () => <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} />,
+    SiteKey: () => <SiteKeyTab useSiteKeyHook={props.useSiteKeyHook ?? useWiredSiteKey} useSiteKeyRecoveryHook={useWiredSiteKeyRecovery} useRevealedKeyCopyHook={useRevealedKeyCopy} useAdminLocaleHook={useAdminLocaleHook} kit={{ SecretInput }} copy={{
+      siteKeyEnvVarName: "TOVU_SITE_KEY",
+      scope: "This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.",
+      invalidEnv: "A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.",
+      invalidFileSuffix: "isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.",
+      siteKeyStatusBadgeLabel,
+      siteKeyGenerateErrorMessage,
+    }} />,
+    Totp: ({ translate }: { translate: (key: string) => string }) => <TotpSettings port={ownerMfaPort} translate={translate} />,
+    RecoveryCodes: RecoveryCodesCard,
+    Passkeys: ({ translate }: { translate: (key: string) => string }) => <PasskeySettings port={ownerPasskeySettingsPort} translate={translate} />,
+  }), [props.useAccessTokensHook, props.useSiteKeyHook, useAdminLocaleHook]);
+  return <JiniSecurity {...(props.tabId === undefined ? {} : { tabId: props.tabId })} useAdminLocaleHook={useAdminLocaleHook} useSecurityPermissionsHook={useSecurityPermissionsHook} kit={{ TabBar, AccessTokensIcon, SiteKeyIcon }} panels={panels}
+    copy={{ t, headerHandleLabel: "Secrets panel header — every saved access token and the site key that protects them, in one place", accessTokensHandleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place" }}
+    onTabChange={({ nextTabId }) => navigateSecurityTab({ nextTabId })} />;
 }

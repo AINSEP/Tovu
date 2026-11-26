@@ -4,7 +4,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/_
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPickerDialog/media-picker-port.hooks";
 import { MediaContentEditor } from "../MediaContentEditor";
-import { useMediaContentEditor } from "../MediaContentEditor.hooks";
+import { useMediaContentEditor } from "../MediaContentEditor";
 import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
 import { htmlAttributesToRows, isDroppedAttributeRow as isDroppedRow, rowsToHtmlAttributes } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { embedPolicy } from "@/integrations/jini-admin/embed-policy-ports";

@@ -3,12 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { useRecurringSchedulePicker } from "@jini-ai/ui";
 import type { RoutineRow, RoutineRunSummary } from "@jini-ai/core/contracts/site/routines";
-import { RoutinesMount } from "../RoutinesMount";
-import { useRoutinesController } from "../Routines.hooks";
-import { RoutinesApiError, type RoutinesApi, type RoutinesListResult } from "../routines-api";
+import { RoutinesMount } from "@jini-ai/admin/screens/routines/RoutinesMount";
+import { useRoutinesController } from "@jini-ai/admin/screens/routines/Routines.hooks";
+import { RoutinesApiError, type RoutinesApi, type RoutinesListResult } from "@jini-ai/admin/screens/routines/routines-api";
 import { routinesKit } from "../../../integrations/jini-kits";
 import { useConversationLinkBuilder } from "../use-conversation-deep-link";
-import { t, ROUTINES_KEYS } from "../routines-i18n";
+
+import { t, ROUTINES_KEYS, UNAVAILABLE_KEY } from "../routines-i18n";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 
 /**
@@ -39,7 +40,7 @@ function mount({ api, visible = true, releaseEnabled = true }: { api: RoutinesAp
   const timers = { setInterval: vi.fn(() => 7), clearInterval: vi.fn() };
   const focus = { subscribe: vi.fn(() => () => undefined) };
   const view = (isVisible: boolean) => (
-    <RoutinesMount useAdminLocaleHook={() => "en"} useRoutinesController={({ visible: v }) => useRoutinesController({ api, visible: v, focus, timers })}
+    <RoutinesMount t={t} unavailableKeys={UNAVAILABLE_KEY} desktopNoticeKey="Routines run only while Tovu desktop is open and your computer is awake." useAdminLocaleHook={() => "en"} useRoutinesController={({ visible: v }) => useRoutinesController({ api, visible: v, focus, timers })}
       useSchedulePicker={useRecurringSchedulePicker} useConversationDeepLink={useConversationLinkBuilder} kit={routinesKit}
       releaseEnabled={releaseEnabled} theme="light" visible={isVisible} />
   );

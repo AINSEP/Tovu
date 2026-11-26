@@ -1,9 +1,11 @@
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { useMessagesChangeHandler } from "../hooks/messages-change.hooks";
+import { useMessagesChangeHandler } from "@jini-ai/admin/shell/components/AssistantDock/hooks/messages-change.hooks";
 import { resetContentRefreshBus, subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { resetSettingsRefreshBus, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
@@ -52,7 +54,7 @@ it("mirrors before persistence and advances both publication markers before sync
     expect(window.__tovuAssistantMessages).toBe(messages);
     order.push("persist");
   });
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange } }));
   const settings = vi.fn(() => {
     order.push("settings");
     if (settings.mock.calls.length === 1) result.current(messages);
@@ -75,7 +77,7 @@ it("announces a content refresh when a run finishes, not only a settings refresh
   subscribeToContentRefresh({ listener: content });
   subscribeToSettingsRefresh(settings);
 
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange: vi.fn() } }));
   result.current([settledAssistantMessage("m1")]);
 
   // `null` scope, not a resource list: this publisher does not know what the run touched, and
@@ -89,7 +91,7 @@ it("publishes once per finished run, not once per streaming delta", () => {
   const content = vi.fn();
   subscribeToContentRefresh({ listener: content });
 
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange: vi.fn() } }));
 
   // A reply still streaming is not terminal, so nothing is announced yet.
   result.current([{ id: "m1", role: "assistant", content: "Creat", runStatus: "running" }]);
@@ -110,7 +112,7 @@ it("still forwards the transcript to the chat store when the run is not terminal
   const content = vi.fn();
   subscribeToContentRefresh({ listener: content });
 
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange } }));
   const messages: ChatMessage[] = [{ id: "m1", role: "user", content: "make a Seasons taxonomy" }];
   result.current(messages);
 
@@ -121,11 +123,12 @@ it("still forwards the transcript to the chat store when the run is not terminal
 it("announces a content refresh as soon as a tool call returns, not only when the run ends", () => {
   const content = vi.fn();
   subscribeToContentRefresh({ listener: content });
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange: vi.fn() } }));
 
   // The 2026-09-15 bug: `content_post_create` returned, and the assistant then navigated to Posts
   // and read the list — all inside one run. Nothing had been published yet, so the mounted list was
   // still showing what it fetched at mount.
+  result.current([runningWithToolResults("m1", 1)]);
   result.current([runningWithToolResults("m1", 1)]);
 
   expect(content).toHaveBeenCalledTimes(1);
@@ -135,7 +138,7 @@ it("announces a content refresh as soon as a tool call returns, not only when th
 it("announces once per returned tool call, not once per streaming delta", () => {
   const content = vi.fn();
   subscribeToContentRefresh({ listener: content });
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange: vi.fn() } }));
 
   result.current([runningWithToolResults("m1", 1)]);
   result.current([runningWithToolResults("m1", 1)]); // text deltas, same tool results
@@ -148,7 +151,7 @@ it("announces once per returned tool call, not once per streaming delta", () => 
 it("does not announce a settings refresh mid-run", () => {
   const settings = vi.fn();
   subscribeToSettingsRefresh(settings);
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange: vi.fn() } }));
 
   result.current([runningWithToolResults("m1", 1)]);
 
@@ -158,7 +161,7 @@ it("does not announce a settings refresh mid-run", () => {
 it("does not announce twice when the terminal delta also carries a new tool result", () => {
   const content = vi.fn();
   subscribeToContentRefresh({ listener: content });
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange: vi.fn() } }));
 
   result.current([{ ...runningWithToolResults("m1", 1), runStatus: "succeeded" }]);
 
@@ -171,7 +174,7 @@ it("a freshly opened pane with no stored history still announces its first finis
   const onMessagesChange = vi.fn();
 
   // A pane key but no `initialMessages`: a brand-new conversation, nothing settled to skip.
-  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange, paneKey: "pane-new" } }));
+  const { result } = renderHook(() => useMessagesChangeHandler({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats: { onMessagesChange, paneKey: "pane-new" } }));
   result.current([settledAssistantMessage("m1")]);
 
   expect(onMessagesChange).toHaveBeenCalledWith({ messages: [settledAssistantMessage("m1")] });

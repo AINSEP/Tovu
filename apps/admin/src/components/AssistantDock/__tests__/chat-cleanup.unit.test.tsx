@@ -5,15 +5,15 @@ import { ConversationTitle, defaultConversationListHooks } from "@jini-ai/chat/r
 
 import { useDockChatCleanup, useWiredChatCleanup } from "@/hooks/assistant-chats-dependencies.hooks";
 import { DOCK_CHAT_CLEANUP_KIT } from "../chat-cleanup-kit";
-import type { ChatCleanupClient, WiredChatCleanup } from "../hooks/chat-cleanup.hooks";
+import type { ChatCleanupClient, WiredChatCleanup } from "@jini-ai/chat/react/chat-cleanup/chat-cleanup.hooks";
 import { HttpError } from "@/lib/assistant-chats";
 import { createChatI18nAdapter } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 import { CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
 import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
-import { ChatCleanupPanel } from "../ChatCleanupPanel";
+import { ChatCleanupPanel } from "@jini-ai/chat/react/chat-cleanup/ChatCleanupPanel";
 import { chatCleanupCopy } from "../chat-cleanup-copy";
-import { DockCleanupHeader } from "../DockCleanupHeader";
+import { DockCleanupHeader } from "@jini-ai/admin/shell/components/AssistantDock/DockCleanupHeader";
 
 /**
  * @file The dock's chat cleanup: the age chooser's server-counted preview, the token-bound apply,
@@ -98,6 +98,7 @@ describe("chat cleanup", () => {
     expect(client.deleteSelected).not.toHaveBeenCalled();
     confirm.mockResolvedValueOnce(true);
     await user.click(screen.getByRole("button", { name: "Delete selected (2)" }));
+    expect(client.deleteSelected).toHaveBeenCalledTimes(1);
     expect(client.deleteSelected).toHaveBeenCalledWith({ ids: ["a", "b"], confirm: true });
   });
 
@@ -112,7 +113,7 @@ describe("chat cleanup", () => {
       deleteSelected: vi.fn(), error: null,
     };
     const useChatCleanup = vi.fn(() => fake);
-    render(<DockCleanupHeader chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
+    render(<DockCleanupHeader ChatCleanupPanel={ChatCleanupPanel} chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
       activeTitle="Tovu assistant" mode="local-cli" agentId="claude" locale="en" t={({ key }) => key}
       chatI18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: "en" })} conversationDelete={{ confirm: vi.fn(async () => true) }}
       chatDisplay={{ preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn(), saveFailed: false }} agentPlugins={{ mode: "auto", update: vi.fn(), saveFailed: false }}
@@ -132,7 +133,7 @@ describe("chat cleanup", () => {
   // test above hands the panel a native `"button"`; the app hands it `@jini-ai/ui-kit`'s `Button`, whose
   // contract is `onPress`, so the panel's `onClick` was dropped. These two mount the kit the app mounts.
   it("the dock's own cleanup hook opens the panel from the header, as DockChatPane mounts it", async () => {
-    render(<DockCleanupHeader chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
+    render(<DockCleanupHeader ChatCleanupPanel={ChatCleanupPanel} chats={{ conversations: [{ id: "c1", title: "Plan", pinned: false } as never], activeId: null, select: vi.fn(), create: vi.fn(), remove: vi.fn(), rename: vi.fn() }}
       activeTitle="Tovu assistant" mode="local-cli" agentId="claude" locale="en" t={({ key }) => key}
       chatI18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: "en" })} conversationDelete={{ confirm: vi.fn(async () => true) }}
       chatDisplay={{ preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn(), saveFailed: false }} agentPlugins={{ mode: "auto", update: vi.fn(), saveFailed: false }}

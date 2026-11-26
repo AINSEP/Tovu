@@ -6,7 +6,7 @@ import { postsApi } from "@/features/posts/posts-host-ports";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
-import { createPreviewEmbedIdsLoader, usePreviewEmbedIds, type UsePreviewEmbedIds } from "./use-preview-embed-ids.hooks";
+import { createPreviewEmbedIdsLoader, previewEmbedIdsPath, usePreviewEmbedIds, type UsePreviewEmbedIds } from "@jini-ai/cms/react/pages/hooks/use-preview-embed-ids.hooks";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PageEditorPort as CorePageEditorPort } from "@jini-ai/core/contracts/site/content-editor-ports";
 import type { AdminPagePluginEmbed } from "@jini-ai/admin/pages/api/pages-api.types";
@@ -269,7 +269,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
 
 /** The live embed-inspection port: the shared authenticated adapter (cookies, deadlines, session
  *  invalidation) against this workspace's posts. Built once — a stable `load` identity. */
-const loadPreviewEmbedIds = createPreviewEmbedIdsLoader({ workspaceId: WORKSPACE_ID, request: authenticatedAdminRequest });
+const loadPreviewEmbedIds = createPreviewEmbedIdsLoader({ path: previewEmbedIdsPath, workspaceId: WORKSPACE_ID, request: authenticatedAdminRequest });
 
 /** `usePreviewEmbedIds` bound to the live port, for `panels.tsx` to hand `PageEditor`. */
 export const useLivePreviewEmbedIds: UsePreviewEmbedIds = (args) => usePreviewEmbedIds({ ...args, load: loadPreviewEmbedIds });

@@ -2,7 +2,8 @@ import "@jini-ai/chat/react/styles/chat-settings.css";
 import { onTovuSecretRedacted } from "../../lib/shell-collaborators";
 import { subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { DockCleanupHeader } from "./DockCleanupHeader";
+import { ChatCleanupPanel } from "@jini-ai/chat/react/chat-cleanup/ChatCleanupPanel";
+import { DockCleanupHeader } from "@jini-ai/admin/shell/components/AssistantDock/DockCleanupHeader";
 import { useDockChatCleanup } from "../../hooks/assistant-chats-dependencies.hooks";
 import { t as translateAiAssistant } from "../../features/ai-assistant/ai-assistant-i18n";
 import { useWiredAssistantSubagentsSettings } from "../../features/ai-assistant/hooks/use-admin-subagents.hooks";
@@ -112,7 +113,7 @@ function chatPaneChromeProps(dock: DockState) {
          * slot sits above the composer, so the dropdown opened over the input instead of below
          * the title where a history control is looked for.
          */
-        header: <DockCleanupHeader chats={chats} activeTitle={activeTitle} mode={executionConfig.mode} agentId={localCliSelection.agentId}
+        header: <DockCleanupHeader ChatCleanupPanel={ChatCleanupPanel} chats={chats} activeTitle={activeTitle} mode={executionConfig.mode} agentId={localCliSelection.agentId}
             locale={locale} t={t} chatI18n={chatI18n} conversationDelete={conversationDelete} chatDisplay={chatDisplay}
             agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty}
             toolCallOptions={CHAT_TOOL_CALL_OPTIONS} replyLengthOptions={REPLY_LENGTH_OPTIONS}
