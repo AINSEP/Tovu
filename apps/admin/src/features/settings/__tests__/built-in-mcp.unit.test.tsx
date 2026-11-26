@@ -19,7 +19,8 @@ import { expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
-import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
+import { ExternalMcpSettingsPanel } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel";
+import { hooks as panelHooks, kit as panelKit, deps as panelDeps } from "../ExternalMcpSettingsPanel";
 import { useOtherCredentials } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../../security/hooks/other-credentials-dependencies.hooks";
 import { COMMON_I18N } from "../../../lib/i18n-common";
@@ -27,7 +28,7 @@ import { COMMON_I18N } from "../../../lib/i18n-common";
 it("a renamed built-in connection has a badge and Tools, and no Remove control", async () => {
   const source: SourceConfigItem = { id: "host-tools", label: "Renamed host", enabled: true, fields: { builtIn: "true", transport: "stdio", authMode: "none", command: "host-launcher", allowedToolNames: "host_tool" } };
   const dependencies = createFakeSourceConfigDependencies<SourceConfigItem>({ sources: [source], createSource: input => ({ id: "new", fields: input.fields }) });
-  render(<FetchQueryProvider><ExternalMcpSettingsPanel dependencies={dependencies} /></FetchQueryProvider>);
+  render(<FetchQueryProvider><ExternalMcpSettingsPanel dependencies={dependencies} hooks={panelHooks} kit={panelKit} deps={panelDeps} /></FetchQueryProvider>);
   await screen.findByText("Built-in");
   const card = screen.getByRole("region", { name: "Renamed host" });
   expect(within(card).queryByRole("button", { name: "Remove" })).toBeNull();

@@ -7,12 +7,16 @@ import { createFakeMediaProvidersPort, createFakeSourceConfigDependencies, type 
 import type { ByokConfig, ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
-import { SettingsUi as RealSettingsUi } from "../SettingsUi";
-import type { ComponentProps } from "react";
+import { SettingsUi as JiniSettingsUi, type SettingsUiProps } from "@jini-ai/admin/screens/settings/SettingsUi";
+import { hooks, kit, deps } from "../SettingsUi";
 import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
 
 // These existing scenarios exercise a local host; runtime IO remains behind the policy seam.
-function SettingsUi(props: ComponentProps<typeof RealSettingsUi>) {
+function RealSettingsUi({ tabId, ...overrides }: Partial<SettingsUiProps["hooks"]> & Pick<SettingsUiProps, "tabId">) {
+  return <JiniSettingsUi {...(tabId === undefined ? {} : { tabId })} kit={kit} deps={deps} hooks={{ ...hooks, ...overrides }} />;
+}
+
+function SettingsUi(props: Partial<SettingsUiProps["hooks"]> & Pick<SettingsUiProps, "tabId">) {
   return <RealSettingsUi useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })} {...props} />;
 }
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";

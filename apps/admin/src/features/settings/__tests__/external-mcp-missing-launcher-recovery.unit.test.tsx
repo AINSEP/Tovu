@@ -18,7 +18,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
-import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
+import { ExternalMcpSettingsPanel } from "@jini-ai/mcp/react/external-mcp/ExternalMcpSettingsPanel";
+import { hooks as panelHooks, kit as panelKit, deps as panelDeps } from "../ExternalMcpSettingsPanel";
 import type { SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import { useExternalMcpAdmissions } from "../hooks/use-external-mcp-admissions.hooks";
 import { type ExternalMcpAdmissionsPort } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
@@ -63,7 +64,7 @@ function setup() {
   function useAdmissions(saved: Readonly<Record<string, SavedConnectionIntent>>) {
     return useExternalMcpAdmissions({ port, savedAllowedToolNamesById: saved });
   }
-  const rendered = render(<ExternalMcpSettingsPanel dependencies={dependencies} useExternalMcpAdmissionsHook={useAdmissions} />);
+  const rendered = render(<ExternalMcpSettingsPanel dependencies={dependencies} hooks={{ ...panelHooks, useExternalMcpAdmissionsHook: useAdmissions }} kit={panelKit} deps={panelDeps} />);
   return { ...rendered, dependencies, removeSource };
 }
 

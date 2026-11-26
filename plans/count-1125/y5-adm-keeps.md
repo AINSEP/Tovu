@@ -24,6 +24,9 @@
 ^apps/admin/src/features/security/AccessTokensTab\.tsx$
 ^apps/admin/src/features/security/Security\.tsx$
 ^apps/admin/src/features/security/hooks/use-access-tokens\.hooks\.ts$
+^apps/admin/src/lib/settings-tabs\.ts$
+^apps/admin/src/features/settings/ExternalMcpSettingsPanel\.tsx$
+^apps/admin/src/features/settings/SettingsUi\.tsx$
 ```
 
 ## Round 2 status

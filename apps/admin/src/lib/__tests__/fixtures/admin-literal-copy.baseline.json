@@ -250,34 +250,6 @@
       "text": "YouTube"
     },
     {
-      "file": "features/settings/ExternalMcpSettingsPanel.tsx",
-      "line": 356,
-      "kind": "aria-label",
-      "text": "Open tool permissions for",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
-      "file": "features/settings/ExternalMcpSettingsPanel.tsx",
-      "line": 356,
-      "kind": "aria-label",
-      "text": "enabled",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
-      "file": "features/settings/SettingsUi.tsx",
-      "line": 214,
-      "kind": "expression",
-      "text": "Tovu Admin",
-      "reason": "Exact brand, protocol, unit or editor notation."
-    },
-    {
-      "file": "features/settings/SettingsUi.tsx",
-      "line": 438,
-      "kind": "description",
-      "text": "Extra instructions applied to every conversation in this workspace, in addition to any per-request instructions.",
-      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
-    },
-    {
       "file": "features/sites/CreateSiteOnboarding.tsx",
       "line": 129,
       "kind": "placeholder",
@@ -320,7 +292,6 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-
       "file": "components/DevicePreview/DevicePreviewToggle.tsx",
       "line": 48,
       "kind": "text",

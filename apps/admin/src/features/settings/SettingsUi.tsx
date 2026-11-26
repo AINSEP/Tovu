@@ -1,13 +1,35 @@
+import { bindSettingsUi, type SettingsUiProps } from "@jini-ai/admin/screens/settings/SettingsUi";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
-import { resolveAdminByokFooterStatusLine } from "@/hooks/use-admin-execution-credential.hooks";
-import { createSettingsTabChange, createSettingsUiTranslators } from "@jini-ai/admin/screens/settings/SettingsUi.hooks";
+import { resolveAdminByokFooterStatusLine, useWiredAdminExecutionCredential } from "@/hooks/use-admin-execution-credential.hooks";
+import { createSettingsTabChange } from "@jini-ai/admin/screens/settings/SettingsUi.hooks";
 import { t as tApp } from "../../app-i18n";
 import { tSettingsCapabilities as tCapability } from "../../lib/i18n-common";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
-import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
-import { useEffect } from "react";
+import { useTovuSettingsExecution } from "../../hooks/use-tovu-execution-adapters.hooks";
+import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";
+import { ExecutionTab, InstructionsTab, LanguageTab, MemorySettingsPanel, NotificationsTab, PrivacyTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell } from "@jini-ai/admin/react/kit";
+import "@jini-ai/ui/settings-dialog.css";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
+import { Workspace } from "../workspace";
+import { t as tWorkspace } from "../workspace/workspace-i18n";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { useWiredSettingsLocaleSync } from "../../integrations/jini-admin/settings-locale-sync.hooks";
+import { useSettingsUi } from "./hooks/use-settings-ui.hooks";
+import { useSettingsActiveTabScroll } from "@jini-ai/admin/screens/settings/hooks/use-settings-active-tab-scroll.hooks";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "@jini-ai/integrations/react/admin-credentials/AdminByokKeyPanel";
+import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
+import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
+import { SETTINGS_EXECUTION_PRODUCT_VARS } from "../../integrations/jini-admin/settings-execution-copy";
+import { useAiAgentPresentation } from "@jini-ai/chat/react/admin-execution/hooks/use-ai-agent-presentation.hooks";
+import { isDesktopAdmin, scopeKeys } from "./ai-agent-presentation";
+import "@jini-ai/admin/screens/settings/user-interface-settings.css";
+import { useUserInterfaceTab } from "./hooks/use-user-interface-tab.hooks";
+import { useAdminBrowserAgentSettings, webMcpT } from "../webmcp/browser-agent-settings.hooks";
+
 /**
  * @file Admin "Settings (New)" screen — the Open Design settings-dialog port. Markup only.
  *
@@ -110,67 +132,27 @@ import { useEffect } from "react";
  * the shell mounts.
  */
 
-import { ExecutionTab, InstructionsTab, LanguageTab, MemorySettingsPanel, NotificationsTab, PrivacyTab, SETTINGS_DIALOG_DICTIONARIES, type MemoryConfigFlagKey, type MemoryEntrySummary, type MemoryExtractionRecord, type NotificationsPreferences, type PrivacyConsentState } from "@jini-ai/ui";
-import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
-import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
-import "@jini-ai/ui/settings-dialog.css";
-import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
-import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { Workspace } from "../workspace";
-import { t as tWorkspace } from "../workspace/workspace-i18n";
-import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
-import { describeSaveStatus, resolveByokConfig } from "@jini-ai/admin/screens/settings/rules";
-import { useWiredSettingsLocaleSync } from "../../integrations/jini-admin/settings-locale-sync.hooks";
-import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
-import { useSettingsActiveTabScroll } from "@jini-ai/admin/screens/settings/hooks/use-settings-active-tab-scroll.hooks";
-
-import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
-import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "@jini-ai/integrations/react/admin-credentials/AdminByokKeyPanel";
-import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
-import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
-import { aiAgentPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
-import { SETTINGS_EXECUTION_PRODUCT_VARS } from "../../integrations/jini-admin/settings-execution-copy";
-import { useAiAgentPresentation } from "@jini-ai/chat/react/admin-execution/hooks/use-ai-agent-presentation.hooks";
-import { isDesktopAdmin, scopeKeys } from "./ai-agent-presentation";
-import { t as translateAgentPresentation } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
-import { t as tInterfaceCopy } from "@jini-ai/admin/screens/settings/settings-interface-i18n";
-import { agentHandle } from "@jini-ai/core/agent-handles";
-import { UserInterfaceSettingsPanel } from "@jini-ai/admin/screens/settings/UserInterfaceSettingsPanel";
-import "@jini-ai/admin/screens/settings/user-interface-settings.css";
-import { useUserInterfaceTab } from "./hooks/use-user-interface-tab.hooks";
-import { memoryPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-memory-i18n";
-import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
-import { useAdminBrowserAgentSettings, webMcpT } from "../webmcp/browser-agent-settings.hooks";
-
-import { interpolate, type Translate } from '@jini-ai/core/text';
-/** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
-function TabIcon({ children }: { children: React.ReactNode }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-      {children}
-    </svg>
-  );
-}
-
-/** Stable empty lists for the inert-wrapped `MemorySettingsPanel` mount below
- *  — Tovu's assistant doesn't extract or persist standing facts yet, so an
- *  empty saved-memory list is the honest state, not a stand-in. Module-level
- *  so `MemoryList` sees the same array reference across renders. */
-const EMPTY_MEMORY_ENTRIES: MemoryEntrySummary[] = [];
-const EMPTY_MEMORY_EXTRACTIONS: MemoryExtractionRecord[] = [];
-
-/** Every hook shown "on" — matches OD's own default state
- *  (`od-settings-memory-howitworks.png`). Never actually toggled: the whole
- *  panel is `inert`-wrapped below, so this is reference-only, not a claim
- *  that Tovu runs any of these hooks. */
-const MEMORY_HOOK_FLAGS: Record<MemoryConfigFlagKey, boolean> = {
-  chatExtractionEnabled: true,
-  profileEnabled: true,
-  rewriteEnabled: true,
-  verifyEnabled: true,
+export const hooks: SettingsUiProps["hooks"] = {
+  useAdminThemeBoundaryHook: useAdminThemeBoundary,
+  useSettingsUiHook: useSettingsUi,
+  useSettingsActiveTabScrollHook: useSettingsActiveTabScroll,
+  useSettingsLocaleSyncHook: useWiredSettingsLocaleSync,
+  useSettingsExecutionHook: useTovuSettingsExecution,
+  useExecutionPolicy: useTovuExecutionPolicy,
+  useAiAgentPresentationHook: useAiAgentPresentation,
+  useAdminExecutionCredentialHook: useWiredAdminExecutionCredential,
+  useAdminLocale, useUserInterfaceTab, useAdminBrowserAgentSettings,
 };
 
+const aboutVersion = `Tovu Admin ${TOVU_ADMIN_VERSION}`;
+
+export const kit: SettingsUiProps["kit"] = {
+  I18nProvider,
+  SettingsDialogShell: ({ activeTabId, ...props }) => <SettingsDialogShell {...props} {...(activeTabId === undefined ? {} : { activeTabId })} />,
+  ExecutionTab: ({ localCliUnavailableReason, apiKeyPlaceholder, ...props }) => <ExecutionTab {...props}
+    {...(localCliUnavailableReason === undefined ? {} : { localCliUnavailableReason })}
+    {...(apiKeyPlaceholder === undefined ? {} : { apiKeyPlaceholder })} />,
+  InstructionsTab, NotificationsTab, PrivacyTab, LanguageTab, MemorySettingsPanel, Workspace,
 /**
  * About tab body: version only, no updater surface.
  *
@@ -199,562 +181,33 @@ const MEMORY_HOOK_FLAGS: Record<MemoryConfigFlagKey, boolean> = {
  * @complexity O(1) — fixed-shape render, no iteration, no branching.
  * @overallScore 100 — no branches, no I/O, no state.
  */
-function AboutPanel({ t, tCap }: { t: Translate; tCap: (input: { key: string }, options?: Record<string, never>) => string }) {
-  return (
+  AboutPanel: ({ t, tCap }) => (
     <section className="jini-settings-section">
       <div className="jini-settings-section-card">
         <div className="jini-field">
           <span className="jini-field-label">{t("Version")}</span>
-          <strong>{`Tovu Admin ${TOVU_ADMIN_VERSION}`}</strong>
+          <strong>{aboutVersion}</strong>
         </div>
         <p className="jini-hint">
           {tCap({ key: "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater." })}
         </p>
       </div>
     </section>
-  );
-}
+  ),
+  AdminByokMigrationPrompt, AdminByokKeyFooter, AdminByokSettingsFooter,
+};
 
-/**
- * Bridges the `core.language.locale` setting to the mounted `I18nProvider`'s active locale.
- * Renders nothing; see `hooks/use-settings-locale-sync.hooks.ts` for the full rationale (an
- * uncontrolled `initialLocale` prop that only applies at mount).
- *
- * @complexity O(1) — one equality check per render, no iteration.
- * @overallScore 100
- */
-function SettingsLocaleSync({
-  locale,
-  useSettingsLocaleSyncHook = useWiredSettingsLocaleSync,
-}: {
-  locale: string;
-  /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
-  useSettingsLocaleSyncHook?: typeof useWiredSettingsLocaleSync;
-}) {
-  useSettingsLocaleSyncHook({ locale });
-  return null;
-}
+export const deps: SettingsUiProps["deps"] = {
+  SETTINGS_DIALOG_DICTIONARIES, ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, DEFAULT_EXECUTION_CONFIG,
+  tApp, tCapability, tWorkspace, navigate, createSettingsTabChange, DEFAULT_PROVIDER_PRESETS,
+  isDesktopAdmin, defaultLocalAgentId: "claude", scopeKeys,
+  SETTINGS_EXECUTION_PRODUCT_VARS, createProbeErrorDescriber, resolveAdminByokFooterStatusLine,
+  webMcpT,
+  memoryUnavailableNote: "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.",
+  localCliDataAttribute: "data-tovu-local-cli",
+  legacySkillsPath: "/addons/skills",
+  legacyAppearancePath: "/admin-ui?tab=appearance",
+  now: () => Date.now(),
+};
 
-export interface SettingsUiProps {
-  useExecutionPolicy?: typeof useTovuExecutionPolicy;
-  /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
-  useSettingsUiHook?: typeof useSettingsUi;
-  /**
-   * Dependency injection seam for tests — same convention as `useSettingsLocaleSyncHook` just above.
-   * Was an inline `useWiredAdminExecutionCredential({...})` call in the body until this pass; a prop
-   * lets a test drive the Execution tab's migration prompt and "Save key" footer (which read straight
-   * off this controller) without a real `/api/.../execution-credential` round trip.
-   */
-  useAdminExecutionCredentialHook?: typeof useWiredAdminExecutionCredential;
-  /**
-   * The `?tab=` query value from `panels.tsx`'s `settings` route (`URLSearchParams.get` returns
-   * `null` when the param is absent). Drives which tab the inline shell opens on — see the
-   * `requestedTabId` computation below for why this can't be passed straight through as
-   * `SettingsDialogShell`'s `activeTabId`.
-   */
-  tabId?: string | null;
-  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
-  useSettingsActiveTabScrollHook?: typeof useSettingsActiveTabScroll;
-  useTovuSettingsExecutionHook?: typeof useTovuSettingsExecution;
-  useAiAgentPresentationHook?: typeof useAiAgentPresentation;
-}
-
-/** Every action slot of the embedded Memory panel. That panel is display-only on this screen (no
- *  memory store is wired here: entries and extractions are always the empty constants), so a
- *  toggle, filter, refresh or clear changes nothing and calls nothing. One shared no-op instead of
- *  nine inline ones, so the read-only intent is stated once. */
-const READ_ONLY_MEMORY_ACTION = (): void => {};
-
-/**
- * Resolves each of `SettingsUi`'s three seam/value props to its default when a caller passes
- * none — same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s
- * resolver groups use (2026-08-14, DI migration sweep's complexity follow-up): ESLint's
- * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
- * of that function's own branches — a call out to a separately-scoped resolver does not.
- */
-
-
-function resolveTabId({ override }: { override: string | null | undefined }, _options = {}): string | null {
-  return override ?? null;
-}
-
-export function SettingsUi({
-  useAdminThemeBoundaryHook = useAdminThemeBoundary,
-  useSettingsUiHook = useSettingsUi,
-  useSettingsActiveTabScrollHook = useSettingsActiveTabScroll,
-  useTovuSettingsExecutionHook = useTovuSettingsExecution,
-  useAiAgentPresentationHook = useAiAgentPresentation,
-  useAdminExecutionCredentialHook = useWiredAdminExecutionCredential, ...props }: SettingsUiProps) {
-  const themeBoundary = useAdminThemeBoundaryHook({}, {});
-  // No `SettingsUiProps = {}` default on the parameter itself (2026-08-14, same reasoning as
-  // `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual props
-  // object — `{}` when no attributes are given, never `undefined` — and every field here is
-  // optional, so `{}` still satisfies the type.
-
-
-  const tabId = resolveTabId({ override: props.tabId });
-  useEffect(() => {
-    if (props.tabId === "skills") navigate({ routePath: "/addons/skills" }, { replace: true });
-    if (props.tabId === "appearance") navigate({ routePath: "/admin-ui?tab=appearance" }, { replace: true });
-  }, [props.tabId]);
-  const s: SettingsUiController = useSettingsUiHook();
-  const settingsRootRef = useSettingsActiveTabScrollHook({ ready: !s.loading, tabId });
-
-  const settingsLocale = s.language.value as string;
-  const { t, tCap, tExecution } = createSettingsUiTranslators({
-    settingsLocale, dialogDictionaries: SETTINGS_DIALOG_DICTIONARIES, translateApp: tApp, translateCapability: tCapability,
-  });
-
-  const executionPolicy = useTovuSettingsExecutionHook({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
-
-  const agentPresentation = useAiAgentPresentationHook({
-    port: s.port, config: executionPolicy.config, locale: settingsLocale,
-    desktop: isDesktopAdmin({}), defaultLocalAgentId: "claude", translate: translateAgentPresentation, scopeKeys,
-  });
-
-  // Called unconditionally, ahead of the loading gate below (rules of hooks) — `resolveByokConfig`
-  // falls back to `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which
-  // is harmless: the credential hook's own effects don't read `byok` until an explicit Save/migrate
-  // press, and the tab this feeds isn't rendered until past the gate anyway. Pulled out to `rules.ts`
-  // (2026-09-04, complexity-ceiling pass) — see `resolveByokConfig`'s own doc comment.
-  const adminCredential = useAdminExecutionCredentialHook({
-    byok: resolveByokConfig({ executionConfig: s.execution.value as ExecutionConfig | null, defaultByok: DEFAULT_EXECUTION_CONFIG.byok }),
-    onByokChange: (byok) => s.execution.onChange({ ...(s.execution.value as ExecutionConfig), byok }),
-  });
-
-  // Every slice starts `null` and settles independently. Gate on the whole set
-  // so tabs don't pop in one at a time as their namespaces resolve.
-  if (s.loading) {
-    return (
-      <div className="settings-ui-section">
-        <p className="muted">{t("Loading settings…")}</p>
-      </div>
-    );
-  }
-
-  const tabs: SettingsDialogTab[] = [
-    {
-      id: "execution",
-      label: tExecution("AI agent"),
-      title: tExecution("AI agent"),
-      subtitle: t(executionPolicy.subtitleKey),
-      icon: (
-        <TabIcon>
-          {/* Robot = the AI agent; adapted from lucide `bot`, ISC. */}
-          <path d="M9 6V3H6" />
-          <rect x="3" y="6" width="12" height="9" rx="1.5" />
-          <path d="M1.5 10.5h1.5" />
-          <path d="M15 10.5h1.5" />
-          <path d="M6.75 9.75v1.5" />
-          <path d="M11.25 9.75v1.5" />
-        </TabIcon>
-      ),
-      panel: <SettingsExecutionPanel adminCredential={adminCredential} agentPresentation={agentPresentation} executionPolicy={executionPolicy} tExecution={tExecution} />,
-    },
-    {
-      id: "instructions",
-      label: t("Instructions"),
-      title: t("Custom instructions"),
-      subtitle: t("Applied to every assistant conversation in this workspace."),
-      icon: (
-        <TabIcon>
-          <path d="M4 3h10v12H4z" />
-          <path d="M6.5 6.5h5M6.5 9h5M6.5 11.5h3" />
-        </TabIcon>
-      ),
-      panel: (
-        <InstructionsTab
-          value={s.instructions.value as string}
-          // The tab reports an all-empty textarea as `undefined` rather than
-          // `''`; the slice is typed on the stored shape, which is a string.
-          onChange={(next) => s.instructions.onChange(next ?? DEFAULT_INSTRUCTIONS)}
-          description="Extra instructions applied to every conversation in this workspace, in addition to any per-request instructions."
-          agentHandle="settings-instructions"
-        />
-      ),
-    },
-    {
-      id: "notifications",
-      label: t("Notifications"),
-      title: t("Notifications"),
-      subtitle: t("How you're told a task finished. Saved per operator, not per workspace."),
-      icon: (
-        <TabIcon>
-          <path d="M9 3a4 4 0 0 0-4 4v3l-1.5 2.5h11L13 10V7a4 4 0 0 0-4-4z" />
-          <path d="M7.5 13.5a1.5 1.5 0 0 0 3 0" />
-        </TabIcon>
-      ),
-      panel: (
-        <NotificationsTab
-          preferences={s.notifications.value as NotificationsPreferences}
-          // This tab emits a PATCH, not a whole object (unlike `PrivacyTab`
-          // next door, which emits full state). Merging here rather than
-          // teaching the slice about patches keeps the slice's diff base and
-          // the stored shape the same type.
-          onChange={(patch) =>
-            s.notifications.onChange({ ...(s.notifications.value as NotificationsPreferences), ...patch })
-          }
-          agentHandle="settings-notifications"
-        />
-      ),
-    },
-    {
-      id: "privacy",
-      label: t("Privacy"),
-      title: t("Privacy"),
-      subtitle: tCap({ key: "Product analytics consent." }),
-      icon: (
-        <TabIcon>
-          <path d="M9 2.5 14 4.5v4c0 3.2-2.1 6-5 7-2.9-1-5-3.8-5-7v-4z" />
-          <path d="M6.75 8.75 8.5 10.5l3-3.25" />
-        </TabIcon>
-      ),
-      // These controls were inert while no collection path existed, so they could not imply that
-      // consent affected nonexistent delivery. Product analytics now needs that metrics decision.
-      // Operational errors follow their provider plugin; the separate core.analytics privacy
-      // controls govern site analytics rather than this operator's product-analytics consent.
-      panel: (
-        <div className="settings-ui-inert-wrap">
-          <BrowserAgentSettingsPanel locale={settingsLocale} t={webMcpT} useBrowserAgentSettingsHook={useAdminBrowserAgentSettings} />
-          {/* The policy is said once, in PrivacyTab's footer; a second note above it said the same. */}
-          <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} agentHandle="settings-privacy"
-            labels={{ metricsLabel: t("Product analytics"), metricsHint: t("Usage events sent to your configured analytics provider."),
-              consentFooter: t("Product analytics requires metrics consent. Error reporting follows its provider plugin.") }} />
-        </div>
-      ),
-    },
-    {
-      id: "language",
-      label: t("Language"),
-      title: t("Language"),
-      // Real translation as of this pass: picking Español actually switches
-      // this settings panel's tab content (see `SettingsLocaleSync` and the
-      // `I18nProvider` mount below). Scoped honestly in the subtitle itself —
-      // see `ADMIN_LOCALES`'s doc comment for exactly what is and isn't
-      // covered.
-      subtitle: t("Admin interface language. Applies to this settings panel's tab content only."),
-      icon: (
-        <TabIcon>
-          <circle cx="9" cy="9" r="6.5" />
-          <path d="M2.5 9h13M9 2.5c1.8 2 2.7 4.2 2.7 6.5S10.8 13.5 9 15.5c-1.8-2-2.7-4.2-2.7-6.5S7.2 4.5 9 2.5z" />
-        </TabIcon>
-      ),
-      panel: (
-        <LanguageTab
-          locales={ADMIN_LOCALES}
-          selectedLocale={s.language.value as string}
-          onSelectLocale={s.language.onChange}
-          agentHandle="settings-language"
-        />
-      ),
-    },
-    {
-      // Owner, 2026-10-06: per-operator admin chrome preferences (`core.interface`). Copy lives in
-      // `settings-interface-i18n.ts`; the panel's own doc covers what the one switch controls.
-      id: "interface",
-      label: tInterfaceCopy({ locale: settingsLocale, key: "User Interface" }),
-      title: tInterfaceCopy({ locale: settingsLocale, key: "User Interface" }),
-      subtitle: tInterfaceCopy({ locale: settingsLocale, key: "How the admin's controls behave for you. Saved per operator." }),
-      icon: (
-        <TabIcon>
-          <rect x="2.5" y="3" width="13" height="12" rx="2" />
-          <path d="M2.5 6.5h13" />
-          <circle cx="12" cy="11.5" r="1.5" />
-        </TabIcon>
-      ),
-      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} useUserInterfaceTabHook={useUserInterfaceTab} agentHandle={agentHandle} />,
-    },
-    {
-      id: "memory",
-      label: t("Memory"),
-      title: t("Memory"),
-      subtitle: t("Saved facts and context for future chats."),
-      icon: (
-        <TabIcon>
-          <circle cx="9" cy="9" r="6.5" />
-          <path d="M9 5.5V9l3 2" />
-        </TabIcon>
-      ),
-      /**
-       * `MemorySettingsPanel` (new upstream component — see its own doc
-       * comment) composes the header + segmented control with the two
-       * already-existing body panels (`MemoryList`/`MemoryHowPanel`). Every
-       * list below is one of the stable empty fixtures above: Tovu's
-       * assistant doesn't extract or persist standing facts across
-       * conversations yet, distinct from chat *history*, which does persist.
-       * `onFilterChange`/`onOpenPreview`/etc. are no-ops — `inert` means none
-       * of them can fire anyway.
-       */
-      panel: (
-        <div className="settings-ui-inert-wrap">
-          <p className="settings-ui-inert-note" role="note">
-            {tCap({
-              key: "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.",
-            })}
-          </p>
-          <div className="settings-ui-inert-control" inert>
-            {/* Nested provider: the outer one's dictionaries lack every memory-panel key (see
-                `settings-memory-i18n.ts`). Keyed on the locale so a change remounts it with the new
-                `initialLocale`. */}
-            <I18nProvider
-              key={settingsLocale}
-              initialLocale={settingsLocale}
-              dictionaries={memoryPanelDictionaries({ locale: settingsLocale })}
-              syncDocumentAttributes={false}
-            >
-            <MemorySettingsPanel
-              enabled
-              onToggleEnabled={READ_ONLY_MEMORY_ACTION}
-              topTab={s.memoryTopTab}
-              onTopTabChange={s.setMemoryTopTab}
-              agentHandle="settings-memory"
-              savedMemory={{
-                entries: EMPTY_MEMORY_ENTRIES,
-                filtered: EMPTY_MEMORY_ENTRIES,
-                visibleExtractions: EMPTY_MEMORY_EXTRACTIONS,
-                filter: "all",
-                onFilterChange: READ_ONLY_MEMORY_ACTION,
-                unifiedMemoryCount: 0,
-                onClearExtractions: READ_ONLY_MEMORY_ACTION,
-                onRefreshExtractions: READ_ONLY_MEMORY_ACTION,
-                isRefreshing: false,
-                previewId: null,
-                previewBody: null,
-                nowClock: Date.now(),
-                onOpenPreview: READ_ONLY_MEMORY_ACTION,
-                onStartEdit: READ_ONLY_MEMORY_ACTION,
-                onDeleteEntry: READ_ONLY_MEMORY_ACTION,
-                onDeleteExtraction: READ_ONLY_MEMORY_ACTION,
-              }}
-              howItWorks={{
-                enabled: true,
-                hookFlags: MEMORY_HOOK_FLAGS,
-                onToggleHook: READ_ONLY_MEMORY_ACTION,
-              }}
-            />
-            </I18nProvider>
-          </div>
-        </div>
-      ),
-    },
-    {
-      // SPEC-044's OQ-04, resolved 2026-09-10 (owner call): folded in from a standalone top-level
-      // nav row — see this file's own header (the "One tab ARRIVED here" section) and
-      // `panels.tsx`'s comment on the retired `workspace` panel for the full history and the
-      // `/admin/workspace` -> `/admin/settings?tab=workspace` redirect that keeps old links
-      // working.
-      //
-      // Placed last, immediately before About: every other tab here configures how the ASSISTANT
-      // behaves or how this OPERATOR experiences the dialog (execution, instructions,
-      // notifications, privacy, language, interface, memory) — this one is the only tab
-      // that is about the INSTALL's own identity, closer in kind to About's version/runtime facts
-      // than to any operator preference above it. Not inserted earlier in that run (e.g. ahead of
-      // Language) for the same reason: nothing about Workspace configures another tab's behavior,
-      // so there is no ordering dependency forcing it earlier, only this one thematic affinity to
-      // the tab already at the end.
-      //
-      // Label/title/subtitle reuse `workspace-i18n.ts`'s own `t(locale, key)` translator
-      // (`tWorkspace`) rather than re-translating the same three strings into
-      // `settings-capabilities-i18n.ts`: `"Workspace"` and its identity-summary subtitle are
-      // already translated there, across the same 21 admin locales `admin-nav-i18n.ts` covers, from
-      // when this screen's own `<h1>`/`<p className="page-description">` used them as a standalone
-      // page. Two dictionaries carrying the same three English source strings would drift the
-      // moment either changed.
-      id: "workspace",
-      label: tWorkspace({ locale: settingsLocale, key: "Workspace" }),
-      title: tWorkspace({ locale: settingsLocale, key: "Workspace" }),
-      subtitle: tWorkspace({ locale: settingsLocale, key: "This site's identity — its name, URL slug, and creation date." }),
-      // Unchanged from the retired nav row's own icon — a card/panel with a header bar, read as
-      // "this install's own identity card", distinct from every `TabIcon` glyph around it.
-      icon: (
-        <TabIcon>
-          <rect x="2.5" y="2.5" width="13" height="13" rx="2" />
-          <path d="M2.5 7h13" />
-        </TabIcon>
-      ),
-      // `useWorkspaceHook` unset — production callers get the real `useWiredWorkspace()`
-      // (`WorkspaceProps.useWorkspaceHook`'s own default), the same as every other mount of this
-      // component. Self-contained: it manages its own fetch/save/error state and does not read from
-      // or write into `s` (`SettingsUiController`) — see this file's header for why it isn't one of
-      // the `useSettingsSlice` tabs.
-      //
-      // `showPageHeader={false}`: this tab's own `title`/`subtitle` above ARE `Workspace.tsx`'s
-      // kicker-free header content (same "Workspace" title, same identity-summary sentence, by
-      // construction — both come from the one `tWorkspace(...)` call above), so
-      // `SettingsDialogShell` already renders that content once, in its own chrome, before this
-      // panel mounts at all. See `WorkspaceProps.showPageHeader`'s own doc for why the fix is a
-      // prop rather than a CSS rule, and why it drops the whole header block rather than only the
-      // title.
-      panel: <Workspace showPageHeader={false} />,
-    },
-    {
-      id: "about",
-      label: t("Info"),
-      title: t("Info"),
-      subtitle: t("Version and runtime details."),
-      icon: (
-        <TabIcon>
-          <circle cx="9" cy="9" r="6.5" />
-          <path d="M9 6.2h.01M8.3 8.5h1v4h1" />
-        </TabIcon>
-      ),
-      panel: <AboutPanel t={t} tCap={tCap} />,
-    },
-  ];
-
-  /**
-   * The tab the inline shell should actually open on, or `undefined` to leave it uncontrolled.
-   *
-   * Can't pass `tabId` straight through as `SettingsDialogShell`'s `activeTabId`: that prop's own
-   * controlled/uncontrolled switch is `!== undefined`, not truthiness (see
-   * `useSettingsDialogShell.ts`), so a literal `null` — what `URLSearchParams.get("tab")` returns
-   * for every URL with no `?tab=` at all, i.e. most of them — would still count as "controlled,
-   * active tab is null" and blank the panel instead of falling back to the first tab. A `?tab=`
-   * naming an id that isn't one of the 9 above (typo, stale link, or a deliberately bogus value)
-   * would do the same, so this checks membership, not just presence — same "don't trust a raw
-   * query value" instinct `WidgetInstanceEditor`'s own `?type=` guard applies for the same reason.
-   */
-
-  /*
-   * Classic's `data-theme="light"` on the wrapper below is PINNED — the owner's call,
-   * 2026-09-06: "take dark mode off the Settings page entirely; Settings
-   * renders light, like every other admin screen." This page has no
-   * appearance of its own any more, so its chrome can come off too
-   * (`styles/settings.css`, "Take Settings out of the card") and the surface
-   * sits flush in the admin column with every other screen.
-   *
-   * History, because this attribute has flipped twice and the next reader
-   * deserves to know it was deliberate each time: it was first a literal
-   * `"light"` (a workaround for `core.appearance.theme` getting stuck on
-   * `"system"` on installs that predated the source default); then, once
-   * `reconcileDefinitionDefault` fixed the stuck default upstream, it followed
-   * the stored choice through `resolveDialogDataTheme` — picking Dark or
-   * System genuinely rendered a dark panel inside the light admin. That
-   * per-panel theming is what the owner has now removed, and the resolver
-   * went with it.
-   *
-   * Appearance now lives under Admin UI; Classic keeps its light pin. Glass follows the
-   * document scheme through the shared controller without adding a per-screen setting.
-   */
-  return (
-    /**
-     * `initialLocale` is safe to read straight from the slice here: this
-     * whole function already returned the "Loading settings…" placeholder
-     * above until every slice (including `language`) resolved, so
-     * `language.value` is never null at this point — no detection race.
-     * `dictionaries` is upstream's shipped EN+ES pair (`@jini-ai/ui`'s
-     * `SETTINGS_DIALOG_DICTIONARIES`); `fallbackLocale="en"` is already the
-     * default, named here for clarity since it's load-bearing (a key missing
-     * from `es` renders real English, never a raw key — see
-     * `dictionaries.test.tsx` upstream). `syncDocumentAttributes={false}`:
-     * the admin shell owns `<html lang/dir>` via `useAdminDocumentLocale` and
-     * its live `core.language` subscription. Keeping this nested provider
-     * from writing the document avoids competing locale owners.
-     */
-    <I18nProvider
-      initialLocale={s.language.value as string}
-      dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES, locales: ADMIN_LOCALES })}
-      fallbackLocale="en"
-      syncDocumentAttributes={false}
-    >
-      <SettingsLocaleSync locale={s.language.value as string} />
-      {/* `settings-page` is THIS screen's own hook for `styles/settings.css` — five screens share
-          `settings-ui-section` (Agent Plugins, Authentication, AI Assistant, the placeholder tabs,
-          and this one), so anything meant for the Settings page alone must not select on the
-          shared class. Classic is pinned; Glass follows the document — see above `return`. */}
-      <div ref={settingsRootRef} className="settings-ui-section settings-page" {...themeBoundary} data-tovu-local-cli={executionPolicy.visibility}>
-        {s.loadError ? (
-          <p className="settings-ui-load-error" role="alert">
-            {t("Could not load saved settings (")}{s.loadError}{t("). Showing defaults — edits will still save.")}
-          </p>
-        ) : null}
-
-        {/* Inline is the only render mode now: two sidebars (admin, then
-            settings) and the panel, in the admin's own content column. The
-            modal render this page used to also mount on `s.modalOpen` is
-            gone — see the "Top-right chrome" comment above `saveStatus`. */}
-        <SettingsUiShell tabs={tabs} tabId={tabId} save={s.save} t={t} />
-      </div>
-    </I18nProvider>
-  );
-}
-
-function SettingsExecutionPanel({ adminCredential, agentPresentation, executionPolicy, tExecution }: {
-  adminCredential: ReturnType<typeof useWiredAdminExecutionCredential>; agentPresentation: ReturnType<typeof useAiAgentPresentation>;
-  executionPolicy: ReturnType<typeof useTovuSettingsExecution>; tExecution: ReturnType<typeof createSettingsUiTranslators>["tExecution"];
-}) {
-  return (
-<>
-          <AdminByokMigrationPrompt useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={adminCredential} />
-          {agentPresentation.warning && <p className="notice warning" role="status" aria-live="polite">{agentPresentation.warning}</p>}
-          {executionPolicy.note && <p className="jini-field-hint" role="status">{executionPolicy.note}</p>}
-          <ExecutionTab
-            presets={DEFAULT_PROVIDER_PRESETS}
-            config={executionPolicy.config}
-            onConfigChange={executionPolicy.onConfigChange}
-            localCliUnavailableReason={executionPolicy.unavailableReason}
-            port={agentPresentation.port}
-            // Bridge presence identifies the desktop host; a deployed server runs elsewhere.
-            localCliScopeLabel={interpolate({ template: tExecution(agentPresentation.scopeCopy), vars: SETTINGS_EXECUTION_PRODUCT_VARS })}
-            ariaLabel={tExecution("AI agent")}
-            // The admin's own BYOK credential is encrypted server-side and write-only
-            // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about
-            // that: an empty key field is not a missing value when one is already stored,
-            // the masked placeholder answers "which key", and the two footers are the ONLY
-            // controls that can persist anything. They write DISJOINT patches — the key
-            // footer writes the key, the form footer writes protocol/base URL/model/max
-            // tokens — so neither can claim the other's work. See
-            // `hooks/use-admin-execution-credential.hooks.ts`. The next two match
-            // `AiAssistant.tsx`'s `AdminExecutionMode` mount: `canDiscoverModels` keeps a provider
-            // switch from probing with a key saved for another endpoint, and `describeProbeError`
-            // words the server's endpoint-pin refusals in plain language.
-            apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
-            apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
-            canDiscoverModels={adminCredential.canDiscoverModels}
-            describeProbeError={createProbeErrorDescriber({ t: tExecution })}
-            apiKeyFooter={<AdminByokKeyFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} resolveByokFooterStatusLine={resolveAdminByokFooterStatusLine} controller={adminCredential} t={tExecution} />}
-            formFooter={<AdminByokSettingsFooter useAdminLocaleHook={useAdminLocale} createTranslator={createAdminByokKeyPanelTranslator} controller={adminCredential} t={tExecution} />}
-            agentHandle="settings-ai-agent"
-          />
-        </>
-  );
-}
-
-function SettingsUiShell({ tabs, tabId, save, t }: { tabs: SettingsDialogTab[]; tabId: string | null; save: SettingsUiController["save"]; t: ReturnType<typeof createSettingsUiTranslators>["t"] }) {
-  const requestedTabId = tabId && tabs.some((tab) => tab.id === tabId) ? tabId : undefined;
-
-  const handleTabChange = createSettingsTabChange({});
-
-  /**
-   * Top-right chrome. Lives in the shell's own `chromeExtra` slot rather than
-   * in a banner above it, so the page is exactly what it looks like: the admin
-   * sidebar, the settings sidebar, and the panel — no third strip of header
-   * competing with the shell's own title.
-   *
-   * This used to also carry an "Open as dialog" button that mounted a second,
-   * modal `SettingsDialogShell` over this same page (removed 2026-09-19 —
-   * owner's call: the modal overlay was never wanted, only the inline page
-   * is). `s.modalOpen`/`s.setModalOpen` went with it — see
-   * `use-settings-ui.hooks.ts`'s header.
-   */
-  const saveStatus = (
-    <span
-      className={`settings-ui-save is-${save.status}`}
-      role={save.status === "error" ? "alert" : "status"}
-    >
-      {t(describeSaveStatus(save))}
-    </span>
-  );
-
-  return (
-        <SettingsDialogShell
-          tabs={tabs}
-          presentation="inline"
-          className="jini-tabbed-dialog--inline"
-          fullscreenEnabled={false}
-          chromeExtra={saveStatus}
-          activeTabId={requestedTabId}
-          onActiveTabIdChange={handleTabChange}
-        />
-  );
-}
+export const SettingsUi = bindSettingsUi({ hooks, kit, deps });
