@@ -103,12 +103,18 @@ export function EmailPanel(props: { tabId?: string | null; part?: string | null 
   );
 }
 
+/** The template editor's bindings, module-level so the hooks and kit keep one identity across renders. */
+export const EDITOR_HOOKS = {
+  useEditorHook: useWiredEmailTemplateEditor, useAdminLocaleHook: useAdminLocale, useEmailTemplateViewHook: useEmailTemplateView,
+  useTabBarKeyboardHook: useTabBarKeyboard, useDirtyGuardHook: useDirtyGuard,
+};
+export const EDITOR_KIT = {
+  Icon, Chip, Loaded, DevicePreviewFrame, DevicePreviewToggle, devicePreviewWidths: DEVICE_PREVIEW_WIDTHS,
+  previewSandbox: PAGE_PREVIEW_IFRAME_SANDBOX, adminBase: ADMIN_BASE, adminHref,
+};
+export const EDITOR_COPY = { t, pageEditorT };
+
 /** The `/email/templates/:id` page. */
 export function EmailTemplateEditorPanel(props: { id: string; locale?: string }) {
-  return (
-    <EmailTemplateEditor id={props.id} locale={props.locale}
-      hooks={{ useEditorHook: useWiredEmailTemplateEditor, useAdminLocaleHook: useAdminLocale, useEmailTemplateViewHook: useEmailTemplateView, useTabBarKeyboardHook: useTabBarKeyboard, useDirtyGuardHook: useDirtyGuard }}
-      kit={{ Icon, Chip, Loaded, DevicePreviewFrame, DevicePreviewToggle, devicePreviewWidths: DEVICE_PREVIEW_WIDTHS, previewSandbox: PAGE_PREVIEW_IFRAME_SANDBOX, adminBase: ADMIN_BASE, adminHref }}
-      copy={{ t, pageEditorT }} resolveTabIndex={resolveTabBarTabIndex} />
-  );
+  return <EmailTemplateEditor id={props.id} locale={props.locale} hooks={EDITOR_HOOKS} kit={EDITOR_KIT} copy={EDITOR_COPY} resolveTabIndex={resolveTabBarTabIndex} />;
 }

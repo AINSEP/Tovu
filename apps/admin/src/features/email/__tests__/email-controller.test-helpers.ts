@@ -1,7 +1,12 @@
 import { vi } from "vitest";
-import type { EmailTabHooks } from "../Email";
-import type { EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
+import type { EmailTabHooks as JiniEmailTabHooks } from "@jini-ai/user-management/react/mail/email-view.types";
+import type { EmailTemplateEditorControl } from "@jini-ai/user-management/react/mail/EmailTemplateEditor";
+import type { EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
+import type { HostEmailTypes } from "../email-panel";
 import { DNS, PREVIEW, TEMPLATE } from "./email.test-helpers";
+
+/** The screen's tab-hook port, with the provider fake typed as this app's (mutable) controller so a test can swap its fields between renders. */
+type EmailTabHooks = Omit<JiniEmailTabHooks<HostEmailTypes>, "provider"> & { readonly provider: (optional: { onChanged?: () => void }) => EmailProviderController };
 
 /** @file Static controller fakes for markup tests. Hook behavior is tested against fake API ports. */
 export function createTabHooks(_required = {}, _optional = {}): EmailTabHooks {
@@ -48,7 +53,7 @@ export function createTabHooks(_required = {}, _optional = {}): EmailTabHooks {
 }
 
 /** A loaded editor whose actions can be inspected without starting locale or template reads. */
-export function createEditorController(required: { overrides?: Partial<EmailTemplateEditorController> } = {}, _optional = {}): EmailTemplateEditorController {
+export function createEditorController(required: { overrides?: Partial<EmailTemplateEditorControl> } = {}, _optional = {}): EmailTemplateEditorControl {
   return {
     view: { kind: "loaded", data: TEMPLATE }, html: TEMPLATE.html, setHtml: vi.fn(), dirty: false,
     values: { name: "Ada" }, setValue: vi.fn(), fieldNames: ["name"], mode: "admin", setMode: vi.fn(),
