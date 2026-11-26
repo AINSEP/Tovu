@@ -6,7 +6,7 @@ import type { JsonObject } from '@jini-ai/core/primitives';
 import express from 'express';
 import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from '#src/features/media/index';
-import { buildWidgetHostPorts } from '#src/features/widgets/deps';
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from '#src/features/widgets/deps';
 import { InMemoryPresentationSettingsRepo } from '#src/features/presentation/index';
 import { buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegionBindingRepo } from '@jini-ai/cms/widgets';
 import { CORE_RESOLVERS, registerCoreResolver, createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
@@ -79,7 +79,7 @@ test('unsaved structured media, tokens, sanitizer and missing slugs match the pu
   const entryRepo = new InMemoryEntryRepo(), mediaRepo = new InMemoryMediaRepo({}), transformRepo = new InMemoryTransformDefinitionRepo({});
   await mediaRepo.save({ id: 'photo-id', workspaceId: 'ws', title: 'Photo', slug: 'photo', alt: 'Stored alt', caption: '', credit: '', source: { sha256: 'a'.repeat(64) }, status: 'active', createdAt: now, updatedAt: now, version: 1, width: 1200, height: 800, cssClass: null, htmlAttributes: null });
   await transformRepo.insert({ id: 'public', workspaceId: 'ws', name: 'public', version: 1, params: { format: 'webp' }, owner: 'core', createdAt: now });
-  const mediaDeps = { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo };
+  const mediaDeps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo, mediaRepo, transformRepo };
   const previous = CORE_RESOLVERS.gallery;
   const resolver = createGalleryWidgetResolver({ resolveMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: mediaDeps }) });
   registerCoreResolver({ typeKey: 'gallery', resolver });

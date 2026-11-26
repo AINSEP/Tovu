@@ -4,7 +4,7 @@ import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import assert from "node:assert/strict";
@@ -81,7 +81,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { retentionDays: TRASH_RETENTION_DAYS, onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   const entries = entryRepoFor({ store: db, mediaAccessEvidence: createMediaAccessEvidence() });
-  const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
+  const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
     entryRepo: entries,
     contentTypeRepo: contentTypeRepoFor({ store: db }),
     entryRefsRepo: new SqliteEntryRefsRepo({ store: db }),

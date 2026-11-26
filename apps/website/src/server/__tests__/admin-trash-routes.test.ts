@@ -1,3 +1,4 @@
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -23,6 +24,11 @@ import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/d
 import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import type { RouteDeps } from "../routes/types.js";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
+
+/** Production wiring (site-deps/trash-adapters.ts): the post adapter's table probe runs on the same kernel it stores through. */
+function postTrashAdapterOn(store: ContentKernel) {
+  return createPostTrashAdapter({ store, tableExists: ({ table }) => tableExists({ kernel: store, table }) });
+}
 
 /**
  * @file Route-level tests for the local admin Trash HTTP surface (list / restore / purge). Design
@@ -186,7 +192,7 @@ function buildTrashHarness(): TrashHarness {
   const registry = buildTrashRegistry();
   const sqliteTrashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })],
+    [POST_ENTITY_TYPE, postTrashAdapterOn(contentKernel({ store: client }))],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
     // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
     // registry-derived kind G1c registers.

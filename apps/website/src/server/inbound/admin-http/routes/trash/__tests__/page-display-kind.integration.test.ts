@@ -1,3 +1,4 @@
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
@@ -19,6 +20,11 @@ import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/tra
 import { registerAdminTrashListRoute } from "#src/server/runtime/composition/modules/trash";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 
+/** Production wiring (site-deps/trash-adapters.ts): the post adapter's table probe runs on the same kernel it stores through. */
+function postTrashAdapterOn(store: ContentKernel) {
+  return createPostTrashAdapter({ store, tableExists: ({ table }) => tableExists({ kernel: store, table }) });
+}
+
 const WS = "workspace-1";
 const AT = "2026-11-01T12:00:00.000Z";
 const clock = { nowMs: () => Date.parse(AT), nowIso: () => AT };
@@ -37,7 +43,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
   let seq = 0;
   const trash = createTrashService({
     repo: trashRepo,
-    adapters: new Map([["post", createPostTrashAdapter({ store: kernel, tableExists })]]),
+    adapters: new Map([["post", postTrashAdapterOn(kernel)]]),
     idGen: { newId: () => `trash-${++seq}` },
     transaction: ({ work }) => createContentDbTransactionRunner({ store: db })(work),
     entityPolicy: ({ entityType }) => entityType === "post",

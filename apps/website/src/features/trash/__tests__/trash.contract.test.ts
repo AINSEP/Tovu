@@ -1,3 +1,4 @@
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { tableExists } from "@jini-ai/db/kernel";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
@@ -13,6 +14,11 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { bindRemoveEntity, createTrashService, TrashAdapterMissingError } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
+
+/** Production wiring (site-deps/trash-adapters.ts): the post adapter's table probe runs on the same kernel it stores through. */
+function postTrashAdapterOn(store: ContentKernel) {
+  return createPostTrashAdapter({ store, tableExists: ({ table }) => tableExists({ kernel: store, table }) });
+}
 
 /**
  * @file The two contract clauses the trash design (§2.1) names, plus the atomicity clause the owner
@@ -59,7 +65,7 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })],
+    [POST_ENTITY_TYPE, postTrashAdapterOn(contentKernel({ store: client }))],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
   ]);
   const repo = new SqliteTrashRepo({ store: client });
@@ -284,7 +290,7 @@ test("adapters resolve at CALL time, not at registration time", async () => {
   );
 
   // Registered AFTER the service was built — a registration-time snapshot would miss this.
-  h.adapters.set(POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: h.client }), tableExists }));
+  h.adapters.set(POST_ENTITY_TYPE, postTrashAdapterOn(contentKernel({ store: h.client })));
   const result = await h.trash.trash({
     workspaceId: WS,
     entityType: POST_ENTITY_TYPE,

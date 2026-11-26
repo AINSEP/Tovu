@@ -12,7 +12,7 @@ import { zipFolderFiles } from '@jini-ai/agent-plugins/folder-zip';
 import { exportHtml } from "@jini-ai/cms/html/site/export-html-policy";
 import { withoutNativeFormTools as stripNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 import { downloadForms } from '@jini-ai/devops/backup/site/static-download-html';
-import * as sourceEdits from '@jini-ai/cms/html/site/source-edits';
+import { downloadHtmlSourceEdits as sourceEdits } from '#src/features/site-backup/download-html-source-edits';
 import { buildStaticSiteZip } from '../../site-backup/share-zip.js';
 import { createShareArchiveReader } from '../../site-backup/import-archive-reader.js';
 

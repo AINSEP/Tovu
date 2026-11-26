@@ -10,6 +10,11 @@ import { MediaStillReferencedError } from "../../media/index.js";
 import { createPostTrashAdapter } from "@jini-ai/cms/trash/site/adapters/post";
 import { createRedirectTrashAdapter } from "../adapters/redirect.js";
 
+/** Production wiring (site-deps/trash-adapters.ts): the post adapter's table probe runs on the same kernel it stores through. */
+function postTrashAdapterOn(store: ContentKernel) {
+  return createPostTrashAdapter({ store, tableExists: ({ table }) => tableExists({ kernel: store, table }) });
+}
+
 /**
  * @file The bespoke marker adapters (`marker-sql.ts`'s `flipMarker`/`compareAndDelete`) on every
  * dialect the storage kernel drives — ONE query body: post (timestamp marker, revisions cascade),
@@ -96,7 +101,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
   test("post: hide/unhide flip deleted_at under the version CAS; re-hide is idempotent; purge takes the revisions", async () => {
     const kernel = make();
     await seedPost(kernel, "p-1");
-    const post = createPostTrashAdapter({ store: kernel, tableExists });
+    const post = postTrashAdapterOn(kernel);
 
     assert.deepEqual(await post.hide({ workspaceId: WS, entityId: "p-1", at: AT, expectedVersion: 1 }), { ok: true, version: 2 });
     assert.deepEqual(await post.hide({ workspaceId: WS, entityId: "p-1", at: AT, expectedVersion: null }), { ok: true, version: 2 });
@@ -130,7 +135,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
         return kernel.query(...args);
       } },
     });
-    const post = createPostTrashAdapter({ store: flaky, tableExists });
+    const post = postTrashAdapterOn(flaky);
 
     await assert.rejects(post.purge({ workspaceId: WS, entityId: "p-probe", expectedVersion: 1 }), (caught) => caught === probeError);
     assert.equal(await post.purge({ workspaceId: WS, entityId: "p-probe", expectedVersion: 1 }), "purged", "the failed probe was not cached as an answer");
@@ -168,7 +173,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
         return result;
       }) as ContentKernel["run"],
     };
-    await assert.rejects(() => createPostTrashAdapter({ store: failing, tableExists }).purge({ workspaceId: WS, entityId: "p-1", expectedVersion: 1 }), /cascade failed/);
+    await assert.rejects(() => postTrashAdapterOn(failing).purge({ workspaceId: WS, entityId: "p-1", expectedVersion: 1 }), /cascade failed/);
     assert.equal(await count(kernel, "posts"), 1, "the row delete rolled back with the failed cascade");
     assert.equal(await count(kernel, "post_revisions"), 1);
   });

@@ -1,3 +1,4 @@
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -17,6 +18,11 @@ import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "@
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import type { TrashAdapter, TrashItem } from "@jini-ai/cms/trash";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
+
+/** Production wiring (site-deps/trash-adapters.ts): the post adapter's table probe runs on the same kernel it stores through. */
+function postTrashAdapterOn(store: ContentKernel) {
+  return createPostTrashAdapter({ store, tableExists: ({ table }) => tableExists({ kernel: store, table }) });
+}
 
 /**
  * @file The Trash index row's fate when a post delete is UNDONE.
@@ -72,7 +78,7 @@ function harness(): Harness {
 
   const trashRepo = new SqliteTrashRepo({ store: client });
   let seq = 0;
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter({ store: contentKernel({ store: client }), tableExists })]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, postTrashAdapterOn(contentKernel({ store: client }))]]);
   const trash = createTrashService({
     repo: trashRepo,
     adapters,

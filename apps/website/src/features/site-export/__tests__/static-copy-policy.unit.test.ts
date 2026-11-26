@@ -21,7 +21,7 @@ import { exportPublicOrigin, rewriteRenderOrigins } from "@jini-ai/devops/static
 import { exportHtml } from "@jini-ai/cms/html/site/export-html-policy";
 import { withoutNativeFormTools as stripNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 import { downloadForms } from "@jini-ai/devops/backup/site/static-download-html";
-import * as sourceEdits from "@jini-ai/cms/html/site/source-edits";
+import { downloadHtmlSourceEdits as sourceEdits } from "#src/features/site-backup/download-html-source-edits";
 
 const PUBLIC = "https://public.example.test";
 const MEDIA = "/m/cover/public.v1/image.webp";
