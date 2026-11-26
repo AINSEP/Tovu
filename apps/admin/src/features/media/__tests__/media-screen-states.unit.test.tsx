@@ -136,7 +136,10 @@ describe("Media screen states", () => {
     const policy = "Items moved to Trash now are permanently deleted after 30 days. Items trashed earlier keep the date shown on their row.";
     for (const scenario of [
       { tab: "trash", media: [] },
-      { tab: "trash", media: [item({ status: "trashed", trashDaysRemaining: 44 })] },
+      { tab: "trash", media: [
+        item({ id: "old", title: "Old photo", status: "trashed", trashDaysRemaining: 44 }),
+        item({ id: "older", title: "Older photo", status: "trashed", trashDaysRemaining: 12 }),
+      ] },
       { tab: "images", media: [item({ trashDaysRemaining: 44 })] },
     ]) {
       const port = createFakeMediaPort({ media: scenario.media });
@@ -152,8 +155,12 @@ describe("Media screen states", () => {
       else await waitFor(() => expect(container.querySelector(".media-card")).not.toBeNull());
       if (scenario.tab === "trash") expect(screen.getByText(policy)).toBeInTheDocument();
       else expect(screen.queryByText(policy)).not.toBeInTheDocument();
-      if (scenario.tab === "trash" && scenario.media.length > 0) expect(screen.getByText("44 days left")).toBeInTheDocument();
-      else expect(screen.queryByText("44 days left")).not.toBeInTheDocument();
+      if (scenario.tab === "trash" && scenario.media.length > 0) {
+        const old = screen.getByRole("button", { name: "Old photo.png" }).closest<HTMLElement>(".media-card")!;
+        const older = screen.getByRole("button", { name: "Older photo.png" }).closest<HTMLElement>(".media-card")!;
+        expect(within(old).getByText("44 days left")).toBeInTheDocument();
+        expect(within(older).getByText("12 days left")).toBeInTheDocument();
+      } else expect(screen.queryByText("44 days left")).not.toBeInTheDocument();
       cleanup();
     }
   });

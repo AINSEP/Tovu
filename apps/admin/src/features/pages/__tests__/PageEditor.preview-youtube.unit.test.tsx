@@ -7,7 +7,8 @@
 import { useEffect, useState } from "react";
 import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useThemePreviewFrame } from "@/features/themes/hooks/use-theme-preview-refresh.hooks";
-import { cleanup, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
+import { publishThemePreviewRefresh, resetThemePreviewRefresh } from "@/features/themes/theme-preview-refresh";
+import { act, cleanup, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";
@@ -15,7 +16,6 @@ import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import { createPreviewEmbedIdsLoader, previewEmbedIdsPath, usePreviewEmbedIds, type LoadPreviewEmbedIds, type PreviewEmbedIdsArgs } from "@jini-ai/cms/react/pages/hooks/use-preview-embed-ids.hooks";
-import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
@@ -66,15 +66,25 @@ describe("Page Preview — template-rendered video links", () => {
   });
 
   it("a theme refresh rechecks links without changing the iframe sandbox", async () => {
-    const load = vi.fn<LoadPreviewEmbedIds>(async () => ({ youtubeIds: [] }));
-    const args: PreviewEmbedIdsArgs = { id: "pg1", templateChoice: null, version: 1, previewRevision: "r1", pendingHtml: null, load, useEffect, useState };
-    const { rerender } = renderHook((p: PreviewEmbedIdsArgs) => usePreviewEmbedIds(p), { initialProps: args });
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(1), { timeout: 3000 });
-    rerender({ ...args, previewRevision: "r2" });
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(2), { timeout: 3000 });
-    cleanup();
+    const load = vi.fn<LoadPreviewEmbedIds>()
+      .mockResolvedValueOnce({ youtubeIds: [TEMPLATE] })
+      .mockResolvedValueOnce({ youtubeIds: ["BBBBBBBBBBB"] });
     renderEditor({ load });
-    await waitFor(() => expect(screen.getByTitle("Page preview").getAttribute("sandbox")).toBe(PAGE_PREVIEW_IFRAME_SANDBOX));
+    try {
+      await waitFor(() => expect(links().map((link) => link.href)).toEqual([`https://www.youtube.com/watch?v=${TEMPLATE}`]), { timeout: 3000 });
+      expect(load).toHaveBeenCalledTimes(1);
+      const sandbox = screen.getByTitle("Page preview").getAttribute("sandbox");
+      expect(sandbox).toBe("allow-scripts allow-forms allow-popups");
+
+      act(() => publishThemePreviewRefresh({ revision: "r2" }));
+
+      await waitFor(() => expect(links().map((link) => link.href)).toEqual(["https://www.youtube.com/watch?v=BBBBBBBBBBB"]), { timeout: 3000 });
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(screen.getByTitle("Page preview").getAttribute("sandbox")).toBe(sandbox);
+    } finally {
+      cleanup();
+      resetThemePreviewRefresh();
+    }
   });
 });
 

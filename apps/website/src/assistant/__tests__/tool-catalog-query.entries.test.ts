@@ -74,9 +74,15 @@ for (const [id, currentId, purpose] of [
 
     // MCP describe_tool calls this GET route. Keep its parser and the host's real catalog;
     // a mocked daemon response would hide the NOT_FOUND that agents currently receive.
-    const parsed = toolCatalogDescribeRoute.parse({ body: {}, query: {}, params: { id } });
+    const raw = { body: undefined, query: {}, params: { id } };
+    const request = new Request(`http://127.0.0.1:4419/api/tools/${id}`, { method: "GET" });
+    const deps = { catalogFor: () => catalog };
+    const authenticate = toolCatalogDescribeRoute.ports?.authenticate;
+    assert.ok(authenticate);
+    const context = await authenticate({ raw, request, locals: {}, deps });
+    const parsed = toolCatalogDescribeRoute.parse(raw);
     assert.ok(parsed.ok);
-    const result = await toolCatalogDescribeRoute.handle({ input: parsed.value, deps: { catalog, unscoped: true } });
+    const result = await toolCatalogDescribeRoute.handle({ input: parsed.value, deps, context });
 
     assert.ok(result.ok, `describe_tool(${id}) must return actionable guidance, got ${JSON.stringify(result)}`);
     if (result.value.inputSchema != null) {

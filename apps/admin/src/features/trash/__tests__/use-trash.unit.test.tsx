@@ -86,8 +86,9 @@ describe("useTrash", () => {
   it("ignores selection and batch actions before the first page arrives", async () => {
     const port = createFakeTrashPort();
     let resolvePage!: (page: AdminTrashPageDto) => void;
-    port.listTrash = () => new Promise(resolve => { resolvePage = resolve; });
+    port.listTrash = vi.fn(() => new Promise<AdminTrashPageDto>(resolve => { resolvePage = resolve; }));
     const { result } = renderHook(() => useTrash({ port, locale: "en", ...trashHostDeps }), { wrapper });
+    await waitFor(() => expect(port.listTrash).toHaveBeenCalledExactlyOnceWith({}));
     expect(result.current.items).toBeNull();
     act(() => result.current.toggleAll());
     await act(async () => { await result.current.onRestoreSelected(); await result.current.onPurgeConfirmed(); });
@@ -96,7 +97,7 @@ describe("useTrash", () => {
     expect(port.restoreCalls).toEqual([]);
     expect(port.purgeCalls).toEqual([]);
     await act(async () => resolvePage({ items: [item()], nextCursor: null, retentionDays: 30 }));
-    expect(result.current.items).toEqual([item()]);
+    await waitFor(() => expect(result.current.items).toEqual([item()]));
   });
 
   it("ignores a purge while a selected restore is pending", async () => {

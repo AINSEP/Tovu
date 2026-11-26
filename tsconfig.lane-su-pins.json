@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.tests.json",
+  "include": ["apps/website/src/__tests__/lane-su-pins/p6-p7-table-and-kind-shapes.typecheck.ts"]
+}

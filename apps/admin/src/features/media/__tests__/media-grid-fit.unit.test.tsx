@@ -194,19 +194,22 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     const user = userEvent.setup();
     render(<FetchQueryProvider><Media {...MEDIA_PROPS} hooks={requiredMediaHooks} tabId="videos" /></FetchQueryProvider>);
     const upload = await screen.findByRole("button", { name: "Upload video" });
+    const importFromUrl = screen.getByRole("button", { name: "Import from URL" });
     const bubble = () => document.querySelector(".jini-ui-info-tip-bubble");
     expect(bubble()).toBeNull();
     await user.hover(upload);
     await waitFor(() => expect(bubble()).toHaveTextContent("Upload video"));
     await user.unhover(upload);
     await waitFor(() => expect(bubble()).toBeNull());
-    await user.hover(screen.getByRole("button", { name: "Import from URL" }));
+    await user.hover(importFromUrl);
     await waitFor(() => expect(bubble()).toHaveTextContent("Import from URL"));
-    await user.unhover(screen.getByRole("button", { name: "Import from URL" }));
+    await user.unhover(importFromUrl);
     await waitFor(() => expect(bubble()).toBeNull());
-    await user.tab(); // focus moves through the page; reach the upload button by keyboard
-    upload.focus();
-    await waitFor(() => expect(bubble()).toHaveTextContent("Upload video"));
+    for (const [trigger, label] of [[upload, "Upload video"], [importFromUrl, "Import from URL"]] as const) {
+      for (let steps = 0; steps < 20 && document.activeElement !== trigger; steps++) await user.tab();
+      expect(document.activeElement).toBe(trigger);
+      await waitFor(() => expect(bubble()).toHaveTextContent(label));
+    }
   });
 });
 

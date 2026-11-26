@@ -57,7 +57,7 @@ async function installed(t: TestContext, fixture: Fixture = {}) {
 }
 
 test("the admin switch, plugins_set_enabled and connect defaults refuse to turn a Soon plugin on, in plain words, and write nothing; off always works", async t => {
-  const { layout, lifecycle, isActive } = await installed(t, { maturity: "soon" });
+  const { layout, lifecycle, workspaceRoot, isActive } = await installed(t, { maturity: "soon" });
   // The lifecycle owner's own guarded enable refuses with the public Jini error class (`@jini-ai/agent-plugins/site/soon-lock`).
   await assert.rejects(lifecycle.setAgentPluginEnabled({ workspaceId: WORKSPACE, pluginId: "notes", enabled: true, actor: "owner" }),
     (error: unknown) => error instanceof AgentPluginNotReadyError && NOT_READY.test(error.message));
@@ -67,7 +67,10 @@ test("the admin switch, plugins_set_enabled and connect defaults refuse to turn 
   // A sign-in's connect defaults take the same switch with the conditional write.
   await assert.rejects(setAgentPluginEnabled({ agentPluginLayout: layout, workspaceId: WORKSPACE, pluginId: "notes", enabled: true, actor: "system:connect" }, { unlessOperatorDisabled: true }), AgentPluginNotReadyError);
   assert.equal(await isActive(), false);
+  await explicitRootAgentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: "notes", enabled: true, actor: "owner" });
+  assert.equal(await isActive(), true);
   assert.equal((await setAgentPluginEnabled({ agentPluginLayout: layout, workspaceId: WORKSPACE, pluginId: "notes", enabled: false, actor: "owner" })).enabled, false);
+  assert.equal(await isActive(), false);
 });
 
 test("a Soon provider face says it isn't ready, not that its provider's switch decides", async t => {

@@ -13,6 +13,8 @@ describe("file size refusal copy", () => {
     const en = (key: string) => key;
     expect(FILE_TOO_LARGE_COPY).toBe("This file is larger than 50 MB. Choose a smaller file or ask the assistant to convert it.");
     expect(sizeRefusalFromError({ t: en, error: sizeError(MAX_UPLOAD_BYTES) })).toBe(FILE_TOO_LARGE_COPY);
+    expect(sizeRefusalFromError({ t: (key) => mediaT({ locale: "es", key }), error: sizeError(MAX_UPLOAD_BYTES) }))
+      .toBe("Este archivo supera los 50 MB. Elige un archivo más pequeño o pide al asistente que lo convierta.");
     // The larger ceilings keep their own message: converting cannot bring a file under them.
     expect(sizeRefusalFromError({ t: en, error: sizeError(VIDEO_UPLOAD_LIMIT_BYTES, "That video is over 500 MB.") })).toBe("That video is over 500 MB.");
     expect(fileSizeRefusal({ t: en, limitBytes: MAX_UPLOAD_BATCH_BYTES, fallback: "Too much at once." })).toBe("Too much at once.");

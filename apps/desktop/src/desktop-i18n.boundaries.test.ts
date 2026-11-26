@@ -40,5 +40,7 @@ test('pt-PT (a region the copy has no row for) falls back to the pt-BR copy, not
   const ptPT = desktopCopy({ locale: 'pt-PT' });
   assert.deepEqual(ptPT, desktopCopy({ locale: 'pt-BR' }));
   assert.notDeepEqual(ptPT, desktopCopy({ locale: 'en' }));
+  assert.equal(ptPT.settings, 'Configurações');
+  assert.equal(ptPT.automaticUpdates, 'Atualizar Tovu automaticamente');
   assert.deepEqual(desktopCopy({ locale: 'pt' }), desktopCopy({ locale: 'pt-BR' }));
 });

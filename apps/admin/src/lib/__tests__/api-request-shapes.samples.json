@@ -771,6 +771,30 @@
   "min": [],
   "full": []
  },
+ "applyMediaProviderChanges": {
+  "min": [
+   {
+    "removes": [],
+    "patches": []
+   }
+  ],
+  "full": [
+   {
+    "removes": ["<removedProviderId>"],
+    "patches": [
+     {
+      "providerId": "<providerId>",
+      "fields": {
+       "apiKey": "<apiKey>",
+       "baseUrl": "<baseUrl>",
+       "model": "<model>"
+      }
+     }
+    ]
+   },
+   {}
+  ]
+ },
  "getMediaProviderCatalog": {
   "min": [],
   "full": []

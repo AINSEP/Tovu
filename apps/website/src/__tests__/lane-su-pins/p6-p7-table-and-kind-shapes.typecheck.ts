@@ -1,7 +1,7 @@
 /**
  * @file P6 + P7 (S0), type level: the persisted table shapes and the `entry_refs` kinds that lanes S/U move
- * code around. Compiled ONLY by `npm run typecheck:tests` (`tsconfig.tests.json`; the normal tsconfig
- * excludes `__tests__`), so that command is this pin's gate and the node test runner proves nothing here.
+ * code around. The Jini Published Typecheck workflow gates this pin via `tsconfig.lane-su-pins.json`
+ * because the normal tsconfig excludes `__tests__` and the node test runner proves nothing here.
  *
  * P6: for every table named in a lane S/U facts file, `keyof ContentDatabase["<table>"]` equals the literal
  * union below. A Jini adapter copies these column sets into its own row interface; if the generated

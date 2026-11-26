@@ -66,6 +66,51 @@ exports[`request-shape table: what every fetching member sends > activateSite 1`
 }
 `;
 
+exports[`request-shape table: what every fetching member sends > applyMediaProviderChanges 1`] = `
+{
+  "full": {
+    "calls": [
+      {
+        "body": "{"removes":["<removedProviderId>"],"patches":[{"providerId":"<providerId>","fields":{"apiKey":"<apiKey>","baseUrl":"<baseUrl>","model":"<model>"}}]}",
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "PATCH",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers",
+      },
+    ],
+    "outcome": "resolved",
+  },
+  "min": {
+    "calls": [
+      {
+        "body": "{"removes":[],"patches":[]}",
+        "cache": undefined,
+        "credentials": "same-origin",
+        "hasSignal": true,
+        "headers": [
+          [
+            "content-type",
+            "application/json",
+          ],
+        ],
+        "keepalive": undefined,
+        "method": "PATCH",
+        "url": "/api/admin/v1/workspaces/workspace-local/media/providers",
+      },
+    ],
+    "outcome": "resolved",
+  },
+}
+`;
+
 exports[`request-shape table: what every fetching member sends > assignRole 1`] = `
 {
   "full": {

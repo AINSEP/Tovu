@@ -41,10 +41,13 @@ const answer = (ids: string[], nextCursor: string | null): MediaGridPage => ({ m
 describe("media grid cursor paging", () => {
   it("changing tabs during load more drops the stale response and keeps exact counts", async () => {
     const { port, waiting } = deferredPort();
+    const videoCounts = { all: 7, images: 4, videos: 3, trash: 1 };
+    const lateCounts = { all: 6, images: 5, videos: 1, trash: 2 };
     const { result, rerender } = renderHook(({ tab }) => useGridPages({ port, tab, orderBy: "created", useFetchQuery, listKey: KEYS.list, useCallback, useState }), { wrapper, initialProps: { tab: "all" as const } as { tab: "all" | "videos" } });
     await waitFor(() => expect(waiting.length).toBe(1));
     await act(async () => waiting[0].resolve(answer(["a1", "a2"], "cursor-1")));
     await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["a1", "a2"]));
+    expect(result.current.counts).toEqual(COUNTS);
 
     let pending: Promise<void> = Promise.resolve();
     act(() => { pending = result.current.loadMore(); });
@@ -53,13 +56,15 @@ describe("media grid cursor paging", () => {
 
     rerender({ tab: "videos" });
     await waitFor(() => expect(waiting.length).toBe(3));
-    await act(async () => waiting[2].resolve({ media: [asset("v1")], nextCursor: null, counts: COUNTS, hasUntypedActive: false }));
+    expect(waiting[2].view).toEqual({ tab: "videos", orderBy: "created" });
+    await act(async () => waiting[2].resolve({ media: [{ ...asset("v1"), contentType: "video/mp4" }], nextCursor: null, counts: videoCounts, hasUntypedActive: false }));
     await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["v1"]));
+    expect(result.current.counts).toEqual(videoCounts);
 
     // The All page that was in flight answers now: it belongs to a view nobody is looking at.
-    await act(async () => { waiting[1].resolve(answer(["a3", "a4"], null)); await pending; });
+    await act(async () => { waiting[1].resolve({ ...answer(["a3", "a4"], null), counts: lateCounts }); await pending; });
     expect(result.current.items?.map((item) => item.id)).toEqual(["v1"]);
-    expect(result.current.counts).toEqual(COUNTS);
+    expect(result.current.counts).toEqual(videoCounts);
     expect(result.current.hasMore).toBe(false);
     expect(result.current.items?.some((item) => item.id === "a3")).toBe(false);
   });

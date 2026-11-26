@@ -1,9 +1,10 @@
 import { t as translateMediaCopy } from "../media-i18n";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
-import { readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
+import { KEYS, readFileAsBase64 } from "@jini-ai/admin/screens/media/rules";
 import { sizeRefusalFromError } from "../upload-size-copy";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useCallback } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
@@ -400,19 +401,20 @@ describe("useMedia — injected port (no fetch stub)", () => {
     expect(result.current.counts?.trash).toBe(1);
   });
 
-  /**
-   * Negative verification (per this refactor's own required check): confirms this test actually
-   * exercises the injection rather than passing vacuously. Pointing the fake port's `listMedia` at
-   * a DIFFERENT resolved list than the one asserted on makes the first test's `toHaveLength(1)`/
-   * `.id === "m1"` assertions fail — see this file's own commit message / handoff report for the
-   * full negative-verification record (temporarily replacing `port.listMedia()` in
-   * `use-media.hooks.ts` with a call to the real `api.listMedia()` and re-running this suite).
-   */
-  it("does not resolve `media` while the injected port's list call is still pending", () => {
-    const port = createFakeMediaPort();
-    port.listMedia = () => new Promise(() => {});
+  it("does not resolve `media` while the injected port's list call is still pending", async () => {
+    const port = createFakeMediaPort({ media: [fakeMedia()] });
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const listMediaGrid = port.listMediaGrid;
+    port.listMediaGrid = vi.fn(async (...args: Parameters<typeof listMediaGrid>) => {
+      await pending;
+      return listMediaGrid(...args);
+    });
     const { result } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(port.listMediaGrid).toHaveBeenCalledExactlyOnceWith({ tab: "all", orderBy: "created" }, { limit: 50 }));
     expect(result.current.media).toBeNull();
+    await act(async () => release());
+    await waitFor(() => expect(result.current.media?.map((item) => item.id)).toEqual(["m1"]));
   });
 });
 
@@ -613,15 +615,23 @@ describe("useMedia — content refresh bus", () => {
 
   it("stops re-reading once unmounted", async () => {
     const port = createFakeMediaPort({ media: [fakeMedia()] });
-    const listSpy = vi.spyOn(port, "listMedia");
-    const { result, unmount } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
+    const invalidateSpy = vi.fn();
+    const useObservedInvalidate: typeof useInvalidate = () => {
+      const invalidate = useInvalidate();
+      return useCallback((...args: Parameters<typeof invalidate>) => {
+        invalidateSpy(...args);
+        return invalidate(...args);
+      }, [invalidate]);
+    };
+    const { result, unmount } = renderHook(() => useMedia({ port, hooks: { useGridPages, useMediaWrites, useFetchMutation, useFetchQuery, useInvalidate: useObservedInvalidate, useContentRefreshSubscription }, deps: { maxJsonUploadBytes: MEDIA_JSON_UPLOAD_MAX_BYTES, readFileAsBase64, translate: translateMediaCopy, describeApiError, sizeRefusalFromError }, tab: "all", locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
-    const callsWhileMounted = listSpy.mock.calls.length;
+    act(() => publishContentRefresh());
+    expect(invalidateSpy).toHaveBeenCalledExactlyOnceWith({ key: KEYS.list });
+    invalidateSpy.mockClear();
     unmount();
     act(() => publishContentRefresh());
-    await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
+    expect(invalidateSpy).not.toHaveBeenCalled();
   });
 });

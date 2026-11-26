@@ -4,6 +4,9 @@ import test from "node:test";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
+import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
@@ -68,10 +71,23 @@ test("T1: host refusal, static template hrefs and template scripts cannot break 
 });
 
 test("T1: legacy widget/media/content HTML is byte-identical with the optional plugin port", async () => {
-  const html = '<div data-embed-config=\'{"type":"widget","id":"missing"}\'></div><div data-embed-config=\'{"type":"media","id":"missing"}\'></div><div data-embed-config=\'{"type":"content","id":"missing"}\'></div>';
-  const deps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES, postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo() };
-  const baseline = await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html } });
-  assert.equal((await render(html)).html, renderHtmlPageBody({ html, resolved: baseline }));
+  const html = '<div data-embed-config=\'{"type":"widget","id":"missing"}\'></div><div data-embed-config=\'{"type":"media","slug":"promo-cc"}\'></div><div data-embed-config=\'{"type":"content","id":"missing"}\'></div>';
+  const sha256 = "a".repeat(64);
+  const mediaRepo = new InMemoryVersionedMediaRepo({}, { initialRows: [{
+    id: "video-cc", workspaceId, slug: "promo-cc", title: "Promo", alt: "", caption: "", credit: "",
+    source: { sha256 }, status: "active", createdAt: "2026-11-24T00:00:00.000Z",
+    updatedAt: "2026-11-24T00:00:00.000Z", version: 1, width: null, height: null, cssClass: null, htmlAttributes: null,
+  }] });
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  await mediaContentTypeStore.set({ workspaceId, sha256, contentType: "video/mp4" });
+  const deps = { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES, postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo(),
+    mediaRepo, mediaContentTypeStore, transformRepo: new InMemoryTransformDefinitionRepo({}) };
+  const input = { workspaceId, html };
+  const baseline = renderHtmlPageBody({ html, resolved: await resolveHtmlPageEmbeds({ deps, input }) });
+  assert.match(baseline, /<video\b[^>]*\bsrc="\/m\/promo-cc\/original\.mp4/);
+  const pluginExports = harness().runtime.forRender({ mode: "live" });
+  const withPlugin = await resolveHtmlPageEmbeds({ deps: { ...deps, pluginExports }, input });
+  assert.equal(renderHtmlPageBody({ html, resolved: withPlugin }), baseline);
 });
 
 test("T1: host links require the same plugin's ready provider and workspace", async () => {

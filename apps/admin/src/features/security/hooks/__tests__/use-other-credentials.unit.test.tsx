@@ -674,18 +674,26 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
   });
 
   it("external-mcp: deleteExternalMcpServer(itemId)", async () => {
-    const deleteExternalMcpServer = vi.fn((): Promise<ExternalMcpDeleteEnvelope> => Promise.resolve({ removed: true, restartRequired: true }));
+    let servers = [
+      fakeExternalMcpServer({ serverId: "s1", label: "S1", command: "x" }),
+      fakeExternalMcpServer({ serverId: "s2", label: "S2", command: "y" }),
+    ];
+    const deleteExternalMcpServer = vi.fn(async ({ serverId }: { serverId: string }): Promise<ExternalMcpDeleteEnvelope> => {
+      if (!servers.some((server) => server.serverId === serverId)) throw new Error(`Unknown server: ${serverId}`);
+      servers = servers.filter((server) => server.serverId !== serverId);
+      return { removed: true, restartRequired: true };
+    });
     const port = createFakeOtherCredentialsPort({
-      listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1", command: "x" })] }),
+      listExternalMcpServers: async () => ({ servers: [...servers] }),
       deleteExternalMcpServer,
     });
     const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
-    await waitFor(() => expect(result.current.groups).toBeDefined());
+    await waitFor(() => expect(findGroup(result.current.groups, "external-mcp")?.rows.map((row) => row.itemId).sort()).toEqual(["s1", "s2"]));
 
-    await act(() => result.current.remove(findGroup(result.current.groups, "external-mcp")!.rows[0]!));
+    await act(() => result.current.remove(findGroup(result.current.groups, "external-mcp")!.rows.find((row) => row.itemId === "s1")!));
 
     expect(deleteExternalMcpServer).toHaveBeenCalledWith({ serverId: "s1" });
-    await expect(deleteExternalMcpServer.mock.results[0]!.value).resolves.toEqual({ removed: true, restartRequired: true });
+    expect(findGroup(result.current.groups, "external-mcp")?.rows.map((row) => row.itemId)).toEqual(["s2"]);
   });
 
   it("a rejected remove surfaces the exact error text and preserves whatever draft token already existed", async () => {
