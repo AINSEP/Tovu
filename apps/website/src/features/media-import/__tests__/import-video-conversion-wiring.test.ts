@@ -177,7 +177,17 @@ test("The composed local import stores the original before staged conversion.", 
       assert.equal(all.find(item => item.id === result.media.id)?.createdBy, "owner");
       assert.deepEqual(all.find(item => item.id === result.media.id)?.source.provenance, { kind: "upload", path: "Holiday.mov" });
       if (mode === "success") {
-        assert.equal(all.find(item => item.id !== result.media.id)?.description, 'Web-playable copy of "Holiday".');
+        const copy = all.find(item => item.id !== result.media.id);
+        assert.ok(copy);
+        assert.equal(copy.description, 'Web-playable copy of "Holiday".');
+        const convertedHash = createHash("sha256").update(CONVERTED).digest("hex");
+        assert.equal(copy.source.sha256, convertedHash);
+        const convertedBlob = await f.deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE, sha256: convertedHash });
+        assert.ok(convertedBlob);
+        assert.deepEqual(fs.readFileSync(path.join(f.uploadsDir, convertedBlob.storageKey)), Buffer.from(CONVERTED));
+        const renditions = await f.deps.assetRenditionRepo.listByAsset({ workspaceId: WORKSPACE, assetId: copy.id });
+        assert.deepEqual(renditions.map(({ assetId, transformName, sha256, storageKey }) => [assetId, transformName, sha256, storageKey]),
+          [[copy.id, "original", convertedHash, convertedBlob.storageKey]]);
         const duplicate = await f.run();
         assert.notEqual(duplicate.media.id, result.media.id);
         assert.equal((await f.deps.mediaRepo.list({ workspaceId: WORKSPACE })).filter(item => item.source.sha256 === f.sha256).length, 2);

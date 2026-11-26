@@ -25,7 +25,7 @@ import type {
 } from "@jini-ai/integrations/credentialed-http";
 import type { CommitFilesResult, FileWritePlan, FileWritePlanResult, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
-import type { bindSourceControlWritePort } from "../../source-control/write-port.js";
+import type { bindSourceControlWritePort } from "../source-control/write-port.js";
 import type { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 import type { PublishCompatibilityPort } from "@jini-ai/core/contracts/site/custom-credential-publish-compatibility";
 

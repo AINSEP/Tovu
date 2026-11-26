@@ -296,6 +296,16 @@ test("mixed projection pins empty deploy URLs, exact peer paths, pending status 
   ]);
 });
 
+test("publish destination projection uses the caller's peer kind and the saved peer identity", async () => {
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: "alternate-peer", resolvePublishHistoryListLimit });
+  await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ kind: "alternate-peer", target: "saved", configFields: undefined }) });
+  const destinations = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry: await loadBundledDeployTargets(),
+    peers: [{ id: "saved", label: "Saved alternate peer", baseUrl: "https://alternate-peer.test" }], peerKind: "alternate-peer" });
+  assert.deepEqual(destinations, [
+    { id: "alternate-peer:saved", kind: "alternate-peer", peerId: "saved", label: "Saved alternate peer", url: "https://alternate-peer.test", lastPublishedAt: "2026-08-16T00:00:00.000Z" },
+  ]);
+});
+
 test("a deploy that neither reached its host nor was accepted is not a destination; more than 200 history rows is refused", async () => {
   const registry = await loadBundledDeployTargets();
   // Both shipped stores pre-filter; the listing still refuses a port that hands back an unconfirmed row.

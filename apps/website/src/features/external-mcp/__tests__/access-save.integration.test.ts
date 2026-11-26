@@ -52,7 +52,8 @@ test('existing MCP access uses one fixed card and only the approved proposal is 
   assert.equal(f.emissions.length, 1);
   assert.deepEqual(await f.repo.findByServerId(key), f.original);
   const html = JSON.stringify(f.emissions[0]);
-  assert.match(html, /read/); assert.match(html, /write/);
+  assert.equal(html.match(/<dt>Allowed tool names<\/dt><dd>(.*?)<\/dd>/)?.[1]?.replace(/<[^>]*>/g, ''), 'BeforereadAfterread, write');
+  assert.equal(html.match(/<dt>Write allowed tool names<\/dt><dd>(.*?)<\/dd>/)?.[1]?.replace(/<[^>]*>/g, ''), 'Before—Afterwrite');
   assert.match(html, /Source/); assert.equal(html.match(/<dt>Source target<\/dt><dd>([^<]*)<\/dd>/)?.[1], 'https://example.test');
   assert.doesNotMatch(html, /synthetic-test-secret/);
   assert.doesNotMatch(html, /name=\\?"(?:allowedToolNames|writeAllowedToolNames)\\?"/);

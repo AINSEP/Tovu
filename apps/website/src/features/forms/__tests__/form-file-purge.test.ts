@@ -140,6 +140,7 @@ test('transient legacy stamp failures keep the marker absent and retry automatic
     db.$client.prepare(`INSERT INTO form_submissions (id,workspace_id,form_definition_id,data_json,submitted_at,version) VALUES ('s','w','f',?,?,1)`).run(JSON.stringify({ file: { mediaId: 'm' } }),at);
     await kernel.run(db => db.insertInto('media').values({ id: 'm', workspace_id: 'w', kind: 'media', original_filename: 's-photo.png', title: '', slug: 'photo', alt: '', caption: '', credit: '', source_sha256: 'hash', source_metadata_json: '{"private":true}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
     db.$client.prepare("INSERT INTO asset_blobs (id,workspace_id,sha256,storage_key,created_by_principal,created_at,status,document_owned) VALUES ('blob','w','hash','private-key','system',?,'active',0)").run(at);
+    db.$client.prepare("INSERT INTO asset_blobs (id,workspace_id,sha256,storage_key,created_by_principal,created_at,status,document_owned) VALUES ('unrelated','w','other-hash','other-key','system',?,'active',0)").run(at);
     const transaction = t.mock.method(kernel, 'transaction', async () => { throw new Error('transient secret'); });
     await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
     transaction.mock.restore();
@@ -150,7 +151,7 @@ test('transient legacy stamp failures keep the marker absent and retry automatic
     assert.equal(await readFile(join(siteDir, '.form-files-protected-v1'), 'utf8'), 'complete\n');
     const protectedRow = await kernel.run(db => db.selectFrom('media').select('source_metadata_json').where('id', '=', 'm').executeTakeFirstOrThrow());
     assert.equal(JSON.parse(protectedRow.source_metadata_json!).private, true);
-    assert.deepEqual(db.$client.prepare("SELECT document_owned FROM asset_blobs WHERE id = 'blob'").get(), { document_owned: 1 });
+    assert.deepEqual(db.$client.prepare("SELECT id, document_owned FROM asset_blobs WHERE workspace_id = 'w' ORDER BY id").raw().all(), [['blob', 1], ['unrelated', 0]]);
     const rescan = t.mock.method(kernel, 'run');
     await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir });
     assert.equal(rescan.mock.callCount(), 0);

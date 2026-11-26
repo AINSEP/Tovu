@@ -94,9 +94,10 @@ test("refresh-after-credential-replaced: tokens for a credential an admin just r
   assert.notEqual(payload.tokens?.accessToken, "at-2", "the late refresh token was written onto the replacement credential");
 });
 
-for (const envelopes of [false, true]) test(`A callback cannot commit tokens after its OAuth configuration changes (${envelopes ? "present" : "absent"} envelopes)`, async () => {
+for (const mode of ["absent envelopes", "present envelopes", "recreated row"]) test(`A callback cannot commit tokens after its OAuth configuration changes (${mode})`, { timeout: 5_000 }, async () => {
   const h = await harness();
   h.connected.length = 0;
+  const envelopes = mode === "present envelopes";
   if (!envelopes) await h.save({}, { clientId: "pending-client", clientSecret: undefined });
   const started = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   assert.equal(started.kind, "redirect_required");
@@ -108,45 +109,69 @@ for (const envelopes of [false, true]) test(`A callback cannot commit tokens aft
   const exchanging = new Promise<void>(resolve => { entered = resolve; });
   h.hooks.exchange = async () => { entered(); return response; };
   const pending = h.service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state, code: "held-code" } });
-  await exchanging;
-  await h.save({}, { clientId: "replacement-client", clientSecret: envelopes ? "replacement-secret" : undefined });
-  const replacement = await h.row();
-  if (envelopes) {
-    assert.notEqual(original.sealedOAuth, null);
-    assert.notEqual(replacement.sealedOAuth, null);
-  } else {
-    assert.equal(original.sealedOAuth, null);
-    assert.equal(replacement.sealedOAuth, null);
+  let replacement: typeof original;
+  try {
+    await Promise.race([exchanging, pending.then(() => assert.fail("callback settled before token exchange"))]);
+    if (mode === "recreated row") {
+      const recreated = { ...original, createdAt: "2026-11-17T12:30:00.000Z", sealedOAuth: null };
+      assert.notEqual(recreated.createdAt, original.createdAt);
+      assert.equal(await h.repo.deleteByServerId({ workspaceId: WORKSPACE, serverId: SERVER }), true);
+      await h.repo.upsert(recreated);
+      replacement = await h.row();
+      assert.deepEqual(replacement, recreated);
+    } else {
+      await h.save({}, { clientId: "replacement-client", clientSecret: envelopes ? "replacement-secret" : undefined });
+      replacement = await h.row();
+      assert.notEqual(replacement.version, original.version);
+    }
+    if (envelopes) {
+      assert.notEqual(original.sealedOAuth, null);
+      assert.notEqual(replacement.sealedOAuth, null);
+    } else {
+      assert.equal(original.sealedOAuth, null);
+      assert.equal(replacement.sealedOAuth, null);
+    }
+  } finally {
+    release(new Response(JSON.stringify({ token_type: "Bearer", access_token: "late-token", refresh_token: "late-refresh", expires_in: 3600 }),
+      { status: 200, headers: { "content-type": "application/json" } }));
   }
-  assert.notEqual(replacement.version, original.version);
-  release(new Response(JSON.stringify({ token_type: "Bearer", access_token: "late-token", refresh_token: "late-refresh", expires_in: 3600 }),
-    { status: 200, headers: { "content-type": "application/json" } }));
   await assert.rejects(pending, ExternalMcpReauthRequiredError);
   assert.deepEqual(await h.row(), replacement);
   assert.equal((await openExternalMcpOAuthPayload(h.sealer, await h.row())).tokens, undefined);
   assert.deepEqual(h.connected, []);
 });
 
-for (const selfRegistered of [false, true]) test(`A late invalid-client response cannot clear the replacement (${selfRegistered ? "self-registered" : "typed"} client)`, async () => {
+for (const selfRegistered of [false, true]) test(`A late invalid-client response cannot clear the replacement (${selfRegistered ? "self-registered" : "typed"} client)`, { timeout: 5_000 }, async () => {
   const h = await harness();
   h.connected.length = 0;
-  if (selfRegistered) {
-    const current = await h.row();
-    await h.repo.upsert({ ...current, oauthEndpointsJson: JSON.stringify({ dynamicClientId: current.oauthClientId, registeredRedirectUri: REDIRECT_URI }) });
-  }
+  const configured = await h.row();
+  await h.repo.upsert({ ...configured, sealedOAuth: null, ...(selfRegistered
+    ? { oauthEndpointsJson: JSON.stringify({ dynamicClientId: configured.oauthClientId, registeredRedirectUri: REDIRECT_URI }) } : {}) });
   const started = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   assert.equal(started.kind, "redirect_required");
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state")!;
+  const original = await h.row();
+  assert.equal(original.sealedOAuth, null);
   let release!: (response: Response) => void;
   const response = new Promise<Response>(resolve => { release = resolve; });
   let entered!: () => void;
   const exchanging = new Promise<void>(resolve => { entered = resolve; });
   h.hooks.exchange = async () => { entered(); return response; };
   const pending = h.service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state, code: "held-code" } });
-  await exchanging;
-  await h.save({}, { clientId: "replacement-client", clientSecret: "replacement-secret" });
-  const replacement = await h.row();
-  release(new Response(JSON.stringify({ error: "invalid_client" }), { status: 401, headers: { "content-type": "application/json" } }));
+  const replacement = selfRegistered
+    ? { ...original, createdAt: "2026-11-17T12:30:00.000Z" }
+    : { ...original, oauthClientId: "replacement-client", version: original.version + 1 };
+  try {
+    await Promise.race([exchanging, pending.then(() => assert.fail("callback settled before token exchange"))]);
+    if (selfRegistered) {
+      assert.notEqual(replacement.createdAt, original.createdAt);
+      assert.equal(await h.repo.deleteByServerId({ workspaceId: WORKSPACE, serverId: SERVER }), true);
+    }
+    await h.repo.upsert(replacement);
+    assert.deepEqual(await h.row(), replacement);
+  } finally {
+    release(new Response(JSON.stringify({ error: "invalid_client" }), { status: 401, headers: { "content-type": "application/json" } }));
+  }
   await assert.rejects(pending, (error: unknown) => {
     assert.ok(error instanceof OAuthError);
     assert.equal(error.code, "OAUTH_PROVIDER_REJECTED");
@@ -156,7 +181,7 @@ for (const selfRegistered of [false, true]) test(`A late invalid-client response
   });
   const current = await h.row();
   assert.deepEqual(current, replacement);
-  assert.equal(current.oauthClientId, "replacement-client");
+  assert.equal(current.oauthClientId, selfRegistered ? original.oauthClientId : "replacement-client");
   assert.equal(current.oauthStatus, replacement.oauthStatus);
   assert.deepEqual(current.sealedOAuth, replacement.sealedOAuth);
   assert.deepEqual(h.connected, []);
