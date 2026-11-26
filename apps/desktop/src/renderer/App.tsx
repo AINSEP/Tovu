@@ -30,6 +30,7 @@ import type { useSiteFolders } from './use-site-folders.hooks.js';
 import { FindBar } from '@jini-ai/ui/find-bar';
 import { FIND_BAR_LABELS } from './app/find-bar-labels.js';
 import { TopNav } from './app/TopNav.js';
+import type { StorageSheetSlot } from './app/StorageSheet.js';
 import { TabStrip, type ImportTab } from './app/TabStrip.js';
 import { MainArea } from './app/MainArea.js';
 import { CreateWebsiteHost } from './app/CreateWebsiteHost.js';
@@ -58,6 +59,8 @@ function importTabProps({ open, selected, onSelect, onClose }: {
 export interface SitesSettingsHooks {
   useFolders?: typeof useSiteFolders;
   useSiteSettings?: typeof useSiteStorageSettings;
+  /** P11 ST-18a.T sites-home Storage entry; the host sets it only while the release flag is on. */
+  storageSheet?: StorageSheetSlot;
 }
 
 /**
@@ -287,6 +290,7 @@ function AppChrome({ state, navigation }: Pick<Parameters<typeof AppView>[0], 's
         onOpenAppearance={openAppearance}
         onSelectSection={selectSection}
         useSiteSettings={sitesSettings.useSiteSettings}
+        storageSheet={sitesSettings.storageSheet}
       />
       )}
 

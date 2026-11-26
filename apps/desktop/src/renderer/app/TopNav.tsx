@@ -7,6 +7,7 @@ import { useAppVersion } from '../use-app-version.hooks.js';
 import { ResourcesChip } from '../ResourcesPanel.js';
 import type { useSiteStorageSettings } from '../use-site-storage-settings.hooks.js';
 import { SettingsControl } from './SettingsControl.js';
+import { StorageSheetLauncher, type StorageSheetSlot } from './StorageSheet.js';
 
 /**
  * Runner's own navigation, horizontal across the top.
@@ -26,7 +27,7 @@ export function TopNav({
   onThemeChange,
   onOpenAppearance,
   onSelectSection,
-  useSiteSettings, useAppVersionHook = useAppVersion,
+  useSiteSettings, useAppVersionHook = useAppVersion, storageSheet,
 }: {
   activeId: RunnerSectionId;
   onSitesHome: boolean;
@@ -36,6 +37,8 @@ export function TopNav({
   onOpenAppearance: () => void;
   onSelectSection: (id: RunnerSectionId) => void;
   useSiteSettings?: typeof useSiteStorageSettings; useAppVersionHook?: typeof useAppVersion;
+  /** P11 ST-18a.T Storage entry; absent (the dark default) means no entry is rendered. */
+  storageSheet?: StorageSheetSlot;
 }) {
   const { version, error } = useAppVersionHook({});
   return (
@@ -71,6 +74,7 @@ export function TopNav({
 
       <div className="topnav__tools">
         <ResourcesChip />
+        {storageSheet && <StorageSheetLauncher slot={storageSheet} />}
         <SettingsControl theme={theme} onThemeChange={onThemeChange} onOpenAppearance={onOpenAppearance} useSiteSettings={useSiteSettings} />
       </div>
     </nav>
