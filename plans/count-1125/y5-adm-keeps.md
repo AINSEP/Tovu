@@ -30,6 +30,10 @@
 ^apps/admin/src/features/deployment/StaticSiteTab\.tsx$
 ^apps/admin/src/components/AssistantDock/AssistantDock\.tsx$
 ^apps/admin/src/components/AssistantDock/hooks/execution-config\.hooks\.ts$
+^apps/admin/src/features/plugins/AgentPlugins\.tsx$
+^apps/admin/src/features/plugins/Plugins\.tsx$
+^apps/admin/src/features/providers/Providers\.tsx$
+^apps/admin/src/features/publish-content/hooks/use-publish-content-confirm\.hooks\.ts$
 ```
 
 ## Round 2 status

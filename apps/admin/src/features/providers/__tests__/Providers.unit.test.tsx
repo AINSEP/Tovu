@@ -5,12 +5,12 @@ import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
-import { Providers, defaultProvidersHooks } from "../Providers";
+import { Providers } from "../Providers";
+import type { ProvidersProps } from "@jini-ai/admin/screens/providers/Providers";
 import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { defaultIntegrationsPort } from "../../integrations/hooks/integrations-dependencies.hooks";
 import { defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
 import { defaultAdminLocalePort } from "../../../hooks/admin-locale-dependencies.hooks";
-import type { ProvidersController } from "../Providers";
 
 /**
  * @file `Providers.tsx` — MCP Server and Webhooks tabs, "Soon" and greyed-inert (owner call,
@@ -20,7 +20,7 @@ import type { ProvidersController } from "../Providers";
  * `ExternalMcpSettingsPanel`.
  */
 
-function fixtureProviders(restartRequired = false): ProvidersController {
+function fixtureProviders(restartRequired = false): ReturnType<ProvidersProps["hooks"]["useProvidersHook"]> {
   return {
     externalMcp: {
       dependencies: createFakeSourceConfigDependencies<SourceConfigItem>({
@@ -187,7 +187,7 @@ describe("Providers — External MCP restart note: translated through this page'
 describe("Providers — injected hooks", () => {
   it("renders the theme boundary and locale handed in through the hooks prop", () => {
     const useFakeLocale = vi.fn(() => "en" as const);
-    const useFakeBoundary = (() => ({ "data-fake-boundary": "yes" })) as unknown as typeof defaultProvidersHooks.useAdminThemeBoundary;
+    const useFakeBoundary = (() => ({ "data-fake-boundary": "yes" })) as unknown as ProvidersProps["hooks"]["useAdminThemeBoundary"];
     const { container } = render(
       <FetchQueryProvider>
         <Providers

@@ -1,3 +1,4 @@
+import { HOST_AGENT_PLUGIN_SCREEN } from "./plugin-host-deps";
 import { useWiredAgentPluginDetailsModal } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
@@ -11,7 +12,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/_
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { AgentPlugins } from "../AgentPlugins";
+import { AgentPlugins } from "@jini-ai/admin/screens/plugins/AgentPlugins";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { createFakeAgentPluginInstallPort } from "./agent-plugin-install-port.fixture";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
@@ -69,7 +70,7 @@ function renderAddTab(port = createFakeAgentPluginInstallPort({ row: NOTE_TAKER 
     t: (key: string) => key,
     locale: "en",
   };
-  render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={() => controller} agentPluginInstallPort={port} />);
+  render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: () => controller }} agentPluginInstallPort={port} />);
   return { port, onInstalled };
 }
 

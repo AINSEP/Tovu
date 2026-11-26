@@ -1,3 +1,4 @@
+import { HOST_AGENT_PLUGIN_SCREEN } from "./plugin-host-deps";
 import { useWiredAgentPluginDetailsModal } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
@@ -22,7 +23,7 @@ import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom"
 import { buildAdminAgentPages } from "@/lib/agent-pages";
 import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 
-import { AgentPlugins } from "../AgentPlugins";
+import { AgentPlugins } from "@jini-ai/admin/screens/plugins/AgentPlugins";
 import { useWiredAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 import { type AgentPluginsController, type InspectedAgentPlugin } from "@jini-ai/agent-plugins/react/use-agent-plugins.hooks";
 import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
@@ -127,7 +128,7 @@ function renderAgentPlugins(overrides: Partial<AgentPluginsController> = {}) {
   function useFakeAgentPlugins(): AgentPluginsController {
     return fakeController(overrides);
   }
-  return render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={useFakeAgentPlugins} />);
+  return render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useFakeAgentPlugins }} />);
 }
 
 /** The row `<li>`, addressed by the plugin's humanized display name. */
@@ -138,15 +139,15 @@ function row(name: string): HTMLElement {
 describe("AgentPlugins", () => {
   it("opens the URL add tab and follows subsequent URL tab changes", () => {
     const useFake = () => fakeController();
-    const view = render(<AgentPlugins {...requiredAgentPluginsHooks} tabId="add" useAgentPluginsHook={useFake} />);
+    const view = render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} tabId="add" hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useFake }} />);
     expect(screen.getByText("Drop a .zip here")).toBeInTheDocument();
-    view.rerender(<AgentPlugins {...requiredAgentPluginsHooks} tabId="downloaded" useAgentPluginsHook={useFake} />);
+    view.rerender(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} tabId="downloaded" hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useFake }} />);
     expect(screen.queryByText("Drop a .zip here")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Downloaded" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it.each([undefined, null, "unknown"])("guards invalid URL tab %s with Installed", (tabId) => {
-    render(<AgentPlugins {...requiredAgentPluginsHooks} tabId={tabId} useAgentPluginsHook={() => fakeController()} />);
+    render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} tabId={tabId} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: () => fakeController() }} />);
     expect(screen.getByRole("button", { name: "Installed" })).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -284,7 +285,7 @@ describe("AgentPlugins", () => {
     function useExpanded(): AgentPluginsController {
       return fakeController({ expandedIds: new Set(["site-compliance"]) });
     }
-    rerender(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={useExpanded} />);
+    rerender(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useExpanded }} />);
     // Defensive re-click: the active tab is internal state in a child component that should
     // survive this rerender, but re-clicking an already-active tab is a harmless no-op either way.
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
@@ -571,7 +572,7 @@ describe("AgentPlugins inspector (stateful)", () => {
   }
 
   it("opens the read-only package inspector for the clicked plugin and closes it", async () => {
-    render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={useStatefulFakeAgentPlugins} />);
+    render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useStatefulFakeAgentPlugins }} />);
 
     // The eye control REPLACED a text button and kept its accessible name verbatim — so this
     // assertion is unchanged across the redesign, which is exactly the point of preserving it.
@@ -590,7 +591,7 @@ describe("AgentPlugins inspector (stateful)", () => {
   });
 
   it("closes the package inspector with Escape", async () => {
-    render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={useStatefulFakeAgentPlugins} />);
+    render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useStatefulFakeAgentPlugins }} />);
     await userEvent.click(screen.getByRole("button", { name: "Inspect package files — Site Compliance" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
@@ -598,7 +599,7 @@ describe("AgentPlugins inspector (stateful)", () => {
   });
 
   it("closes on the true backdrop while interior clicks keep the package inspector open", async () => {
-    render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={useStatefulFakeAgentPlugins} />);
+    render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useStatefulFakeAgentPlugins }} />);
     await userEvent.click(screen.getByRole("button", { name: "Inspect package files — Site Compliance" }));
     const dialog = screen.getByRole("dialog");
     const modalSurface = dialog.querySelector("[data-preview-modal]");
@@ -628,7 +629,7 @@ describe("AgentPlugins — real wired hook and HTTP adapter", () => {
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={useWiredAgentPlugins} />);
+    render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useWiredAgentPlugins }} />);
     const pluginRow = await screen.findByRole("listitem", { name: "Site Compliance" });
     expect(within(pluginRow).getByRole("switch")).toHaveAttribute("aria-checked", "true");
     await userEvent.click(within(pluginRow).getByRole("switch"));
@@ -701,7 +702,7 @@ describe("assistant admin navigation regression", () => {
         onToggleExpanded: ({ pluginId }) => setExpandedIds(new Set([pluginId])),
       });
     }
-    const view = render(<AgentPlugins {...requiredAgentPluginsHooks} tabId="installed" useAgentPluginsHook={useController} />);
+    const view = render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} tabId="installed" hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: useController }} />);
     const detailsControl = view.container.querySelector('.jini-agent-plugin-row-summary')!;
     const scroll = vi.fn();
     detailsControl.scrollIntoView = scroll;
