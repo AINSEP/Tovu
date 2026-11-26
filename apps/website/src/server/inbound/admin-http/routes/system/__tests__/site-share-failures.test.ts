@@ -149,7 +149,7 @@ test("a foreign-origin owner session gets a no-store refusal before the reveal b
   const reveal = async () => { revealed += 1; return { password: "never" }; };
   const app = express();
   app.use((req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; res.locals.failureReporter = sinks.reporter; next(); });
-  registerAdminSiteShareRoutes({ app, reporter: sinks.reporter, deps: {
+  registerAdminSiteShareRoutes({ errors: { ...createRouteIncidentReporter().errors, reporter: sinks.reporter }, app, deps: {
     workspaceId: "ws", ownerPrincipalId: "owner", authorize: async () => ({ allowed: true }),
     siteShareBackend: { revealPassword: reveal },
   } as unknown as RouteDeps });

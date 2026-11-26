@@ -148,8 +148,9 @@ esac
 const DEFAULT_DETECTOR_CHILD = `
 import express from "express";
 const { registerAdminAssistantTestAgentRoute } = await import(process.env.ROUTE_URL);
+const { createRouteIncidentReporter } = await import(process.env.INCIDENTS_URL);
 const app = express();
-registerAdminAssistantTestAgentRoute({ app, deps: { workspaceId: "w", authorize: async () => ({ allowed: true, reason: "granted" }) } });
+registerAdminAssistantTestAgentRoute({ errors: createRouteIncidentReporter().errors, app, deps: { workspaceId: "w", authorize: async () => ({ allowed: true, reason: "granted" }) } });
 const layer = app._router.stack.find((l) => l.route?.path?.endsWith("/test-agent"));
 const res = { locals: { principal: { id: "p" } }, statusCode: 200, status(code) { this.statusCode = code; return this; },
   json(body) { process.stdout.write(JSON.stringify({ status: this.statusCode, body })); } };
@@ -160,7 +161,8 @@ function runDefaultDetector({ binDir, home, agentId }: { binDir: string; home: s
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", DEFAULT_DETECTOR_CHILD], {
     cwd: process.cwd(), encoding: "utf8", timeout: 60_000,
     env: { PATH: binDir, HOME: home, TSX_TSCONFIG_PATH: process.env.TSX_TSCONFIG_PATH ?? "", AGENT_ID: agentId,
-      ROUTE_URL: new URL("../../../../../runtime/composition/modules/assistant-execution.ts", import.meta.url).href },
+      ROUTE_URL: new URL("../../../../../runtime/composition/modules/assistant-execution.ts", import.meta.url).href,
+      INCIDENTS_URL: new URL("../../../../../__tests__/helpers/route-incident-reporter.ts", import.meta.url).href },
   });
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout) as { status: number; body: unknown };

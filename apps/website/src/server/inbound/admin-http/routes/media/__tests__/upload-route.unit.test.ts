@@ -1,6 +1,7 @@
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createRouteIncidentReporter } from '#src/server/__tests__/helpers/route-incident-reporter';
 import { MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
@@ -93,7 +94,7 @@ test('media upload: an SVG reports its stored (sanitized) size, and null when th
 });
 
 test('upload and replace use the stored byte size for a sanitized SVG', async () => {
-  const { app, deps } = fixture(({ app, deps }) => { registerAdminMediaUploadRoute({ app, deps }); registerAdminMediaReplaceRoute({ app, deps }); });
+  const { app, deps } = fixture(({ app, deps }) => { const { errors } = createRouteIncidentReporter(); registerAdminMediaUploadRoute({ errors, app, deps }); registerAdminMediaReplaceRoute({ errors, app, deps }); });
   const body = { ...png, filename: 'logo.svg', dataBase64: Buffer.from(svg).toString('base64') };
   const uploaded = await dispatchJsonRequest(app, 'POST', `${BASE}/media`, body);
   assert.equal(uploaded.status, 201);
