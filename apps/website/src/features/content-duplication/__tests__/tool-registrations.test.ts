@@ -1,12 +1,14 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { ContentDuplicationToolDeps } from "../tool-registrations.js";
+import type { ContentDuplicationToolDeps } from "@jini-ai/cms/content-duplication/tool-registrations";
 import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { buildContentDuplicationRegistrations, contributeContentDuplicationTools } from "../tool-registrations.js";
+import { buildContentDuplicationRegistrations, contributeContentDuplicationTools } from "@jini-ai/cms/content-duplication/tool-registrations";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -93,7 +95,7 @@ function toolFor(
   contributors: readonly DuplicateResourceHandlerContributor<ContentDuplicationToolDeps>[],
 ): ToolRegistration {
   const registrations = buildContentDuplicationRegistrations(deps, {
-    listResourceHandlers: () => contributors,
+    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributors,
   });
   const found = registrations.find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(found, "expected 'content_duplicate' to be wired");
@@ -113,12 +115,15 @@ function call(registration: ToolRegistration, input: unknown) {
 
 test("the tool contributor resolves resources registered after contribution when build runs", async () => {
   const registered: DuplicateResourceHandlerContributor<ContentDuplicationToolDeps>[] = [];
-  const contributor = contributeContentDuplicationTools({ listResourceHandlers: () => registered });
+  let reads = 0;
+  const contributor = contributeContentDuplicationTools({ catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => { reads++; return registered; } });
+  assert.equal(reads, 0);
   const posts = fakeResource("post", "content.write");
   registered.push(posts.contributor);
   const { deps, authorizeCalls } = fakeRouteDeps(["content.write"]);
   const tool = contributor.build(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find(registration => registration.descriptor.id === "content_duplicate");
   assert.ok(tool);
+  assert.equal(reads, 1);
   assert.deepEqual(await call(tool, { resource: "post", id: "late-post", overrides: { title: "Late copy" } }), { copiedResource: "post", copiedFrom: "late-post" });
   assert.deepEqual(posts.calls, [{ principalId: PRINCIPAL_ID, id: "late-post", overrides: { title: "Late copy" } }]);
   assert.deepEqual(authorizeCalls, [{ principalId: PRINCIPAL_ID, permission: "content.write", workspaceId: WORKSPACE_ID, entityType: "post", entityId: "late-post" }]);

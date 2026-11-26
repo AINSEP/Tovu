@@ -26,7 +26,7 @@ import type {
 import { CommitFilesResult, FileWritePlan, FileWritePlanResult, SourceControlProvider } from "../../source-control/provider-module.js";
 import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import type { bindSourceControlWritePort } from "../../source-control/write-port.js";
-import type { bindPublishCompatibility } from "../../deployments/publish-credentials/compatibility-port.js";
+import type { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 import type { PublishCompatibilityPort } from "@jini-ai/core/contracts/site/custom-credential-publish-compatibility";
 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;

@@ -1,9 +1,10 @@
+import { staticPublishPorts } from '#src/features/deployments/static-publish/adapter';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { DeployTargetRegistry, DeployTargetInspection } from '@jini-ai/devops/deploy/site/deploy-targets/types';
 import type { PluginDeployHostKit as DeployHostKit } from '@jini-ai/devops/deploy';
 import { createDeployHostKit } from '../../deploy-targets/host-kit-binding.js';
-import { inspectStaticPublish } from '../inspection.js';
+import { inspectStaticPublish } from '@jini-ai/devops/deploy/site/static-publish/inspection';
 import type { PublishCredentialSource } from '@jini-ai/devops/deploy/site/static-publish/types';
 import type { FormDestinationForm, FormReceiverPort, FormSubmissionsInspection } from '@jini-ai/core/contracts/site/cms-forms';
 
@@ -29,7 +30,7 @@ function setup({ inspectionError, legacy = false, configured = true }: { inspect
 
 test('inspection binds the chosen connection and config; returns no usable credential', async () => {
   const f = setup();
-  const result = await inspectStaticPublish({ deps: f.deps, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site', credentialId: 'selected-id' } });
+  const result = await inspectStaticPublish({ deps: { ...f.deps, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site', credentialId: 'selected-id' } });
   assert.deepEqual(f.seen[0], { workspaceId: 'workspace', target: 'fixture', credentialId: 'selected-id' });
   assert.equal(result.credentialId, 'selected-id');
   assert.equal(result.inspection, f.inspection);
@@ -39,24 +40,24 @@ test('inspection binds the chosen connection and config; returns no usable crede
 
 test('legacy local-only preview never resolves a credential; invalid config/project fails before decrypt', async () => {
   const legacy = setup({ legacy: true });
-  assert.deepEqual(await inspectStaticPublish({ deps: legacy.deps, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: '' } }), {});
+  assert.deepEqual(await inspectStaticPublish({ deps: { ...legacy.deps, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: '' } }), {});
   assert.equal(legacy.seen.length, 0);
   const f = setup();
-  await assert.rejects(inspectStaticPublish({ deps: f.deps, input: { workspaceId: 'workspace', config: { target: 'unknown' }, projectName: 'site' } }), /not available/);
-  await assert.rejects(inspectStaticPublish({ deps: f.deps, input: { workspaceId: 'workspace', config: { target: 'fixture', customDomain: 'example.com' }, projectName: ' ' } }), /PROJECT_NAME_REQUIRED/);
+  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'unknown' }, projectName: 'site' } }), /not available/);
+  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture', customDomain: 'example.com' }, projectName: ' ' } }), /PROJECT_NAME_REQUIRED/);
   assert.equal(f.seen.length, 0);
 });
 
 test('a preview without a project label and without a domain keeps the local-only answer (admin card)', async () => {
   const f = setup();
-  assert.deepEqual(await inspectStaticPublish({ deps: f.deps, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: '' } }), {});
+  assert.deepEqual(await inspectStaticPublish({ deps: { ...f.deps, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: '' } }), {});
   assert.equal(f.seen.length, 0);
 });
 
 test('unavailable credential and provider errors are actionable and redact secrets', async () => {
   for (const options of [{ configured: false }, { inspectionError: 'Provider rejected secret-token. Check permissions.' }]) {
     const f = setup(options);
-    await assert.rejects(inspectStaticPublish({ deps: f.deps, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }), error => {
+    await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }), error => {
       assert.ok(error instanceof Error);
       assert.doesNotMatch(error.message, /secret-token/);
       assert.match(error.message, /Save a connection|Check permissions/);
@@ -70,7 +71,7 @@ test('a connection that cannot be opened refuses with the repair step and never 
   t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
   const f = setup();
   const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }), resolve: async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } };
-  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, credentialSource }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
+  await assert.rejects(inspectStaticPublish({ deps: { ...{ ...f.deps, credentialSource }, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
     { message: 'CREDENTIAL_RESOLUTION_FAILED: The saved connection could not be opened. Reopen the secure connection form and select or repair it before previewing again.' });
   assert.equal(logs.length, 1);
   const log = logs[0]?.join(' ') ?? '';
@@ -85,14 +86,14 @@ test('a provider preview that throws a non-Error value gets the generic actionab
   const registry = await f.deps.loadDeployTargets();
   const fixture = registry.get('fixture')!;
   const throwing: DeployTargetRegistry = { ...registry, get: target => target === 'fixture' ? { ...fixture, module: { ...fixture.module, preview: async () => { throw 'opaque provider value'; } } } : undefined };
-  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, loadDeployTargets: async () => throwing }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
+  await assert.rejects(inspectStaticPublish({ deps: { ...{ ...f.deps, loadDeployTargets: async () => throwing }, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
     { message: 'Provider inspection failed. Check the connection and preview again.' });
 });
 
 test('without an injected host kit the preview receives the default traced kit', async () => {
   const f = setup();
   const { hostKit: _injected, ...deps } = f.deps;
-  assert.equal((await inspectStaticPublish({ deps, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } })).inspection, f.inspection);
+  assert.equal((await inspectStaticPublish({ deps: { ...deps, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } })).inspection, f.inspection);
   const previewInput = f.seen[1] as { kit: DeployHostKit };
   assert.equal(typeof previewInput.kit.fetch, 'function');
   assert.equal(typeof previewInput.kit.waitForReachableDeploymentUrl, 'function');
@@ -118,7 +119,7 @@ test('provider preview errors redact both declared secrets, including repeated v
   } : undefined };
   const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }),
     resolve: async () => ({ ok: true, token: primary, secondSecret: secondary }) };
-  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, credentialSource, loadDeployTargets: async () => multiSecret },
+  await assert.rejects(inspectStaticPublish({ deps: { ...{ ...f.deps, credentialSource, loadDeployTargets: async () => multiSecret }, ...staticPublishPorts },
     input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }), error => {
     assert.ok(error instanceof Error);
     assert.equal(error.message, 'Provider refused [REDACTED:exact_secret]; secondary [REDACTED:exact_secret]; retry [REDACTED:exact_secret]. Check permissions.');
@@ -137,13 +138,13 @@ test('a wired form port hands co-hosted forms to the host and adds core form lin
     previewInput: async (input: unknown) => { asked.push(input); return answer; },
     prepare: async () => assert.fail('preview never prepares a receiver'),
   });
-  const hosted = await inspectStaticPublish({ deps: { ...f.deps, formDestination: port({ hosting: { forms }, formSubmissions }) }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } });
+  const hosted = await inspectStaticPublish({ deps: { ...{ ...f.deps, formDestination: port({ hosting: { forms }, formSubmissions }) }, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } });
   assert.equal((f.seen[1] as { formDestination?: unknown }).formDestination !== undefined, true);
   assert.deepEqual((f.seen[1] as { formDestination: { forms: unknown } }).formDestination.forms, forms);
   assert.deepEqual(hosted.inspection, { ...f.inspection, formSubmissions });
   assert.deepEqual((asked[0] as { workspaceId: string; hostingTargetId: string; projectName: string }), { workspaceId: 'workspace', hostingTargetId: 'fixture', projectName: 'site', kit: (asked[0] as { kit: unknown }).kit });
   const g = setup();
-  const plain = await inspectStaticPublish({ deps: { ...g.deps, formDestination: port({}) }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } });
+  const plain = await inspectStaticPublish({ deps: { ...{ ...g.deps, formDestination: port({}) }, ...staticPublishPorts }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } });
   assert.equal(plain.inspection, g.inspection);
   assert.equal('formDestination' in (g.seen[1] as object), false);
 });

@@ -1,3 +1,5 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -7,7 +9,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
@@ -184,7 +186,7 @@ test("content_duplicate's 'page' resource returns adminUrl for the newly created
   await seedPost(postRepo, { id: "source-1", slug: "original", kind: "page" });
   const registrations = new Map(
     buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-      listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
+      catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
     }).map((r) => [r.descriptor.id, r]),
   );
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ToolPermissionDeniedError, type ToolExecutionContext } from "@jini-ai/core";
-import { buildRegistrations, catalog, contributeIdentityPolicyListPermissionsTools, derivedRisk, type Deps } from "../permission-list-tool.js";
+import { buildRegistrations, contributeIdentityPolicyListPermissionsTools, derivedRisk, type Deps } from "@jini-ai/user-management/identity/permission-list-tool";
 
 /**
  * @file `identity_policy_list_permissions` (L7 Stryker: 30.6 %, the handler never ran). Denials first:
@@ -21,20 +21,22 @@ function harness(options: { allowed?: boolean } = {}) {
     policyRepo: { findById: async (input: { workspaceId: string; id: string }) => { calls.findById.push(input); return input.workspaceId === WS && input.id === "pol-1" ? { id: "pol-1", workspaceId: WS, name: "p" } : null; } },
     policyPermissionRepo: { listByPolicyId: async (input: unknown) => { calls.list.push(input); return GRANTS; } },
   } as unknown as Deps;
-  const [tool] = buildRegistrations(deps);
+  const [tool] = buildRegistrations({ deps, policy: { permission: "role.manage", policyReadToolId: "content_read.identity_policy" } });
   const run = (input: unknown) => tool!.handler({ executionId: "e", principal: { id: "principal-1" }, run: { id: "r" }, input, signal: new AbortController().signal } as ToolExecutionContext);
-  return { tool: tool!, run, calls };
+  return { tool: tool!, run, calls, deps };
 }
 
-test("the catalog pins role.manage, a read-only risk and a strict one-field input schema", () => {
-  assert.deepEqual(catalog.map(({ name, sideEffects, authorization, inputSchema }) => ({ name, sideEffects, authorization, inputSchema })), [{
-    name: "identity_policy_list_permissions", sideEffects: "none", authorization: { permission: "role.manage" },
-    inputSchema: { type: "object", additionalProperties: false, required: ["policyId"], properties: { policyId: { type: "string", minLength: 1 } } },
-  }]);
+test("the catalog pins role.manage, a read-only risk and a strict one-field input schema", async () => {
+  const h = harness();
+  await h.run({ policyId: "pol-1" });
+  assert.equal(h.tool.descriptor.id, "identity_policy_list_permissions");
+  assert.equal(h.tool.descriptor.readOnly, true);
+  assert.deepEqual(h.tool.descriptor.inputSchema, { type: "object", additionalProperties: false, required: ["policyId"], properties: { policyId: { type: "string", minLength: 1 } } });
+  assert.equal((h.calls.authorize[0] as { permission: string }).permission, "role.manage");
   assert.deepEqual([...derivedRisk], [["identity_policy_list_permissions", "none"]]);
-  const contributor = contributeIdentityPolicyListPermissionsTools();
+  const contributor = contributeIdentityPolicyListPermissionsTools({ policy: { permission: "role.manage", policyReadToolId: "content_read.identity_policy" } });
   assert.equal(contributor.domain, "identity-policy-list-permissions");
-  assert.equal(contributor.build, buildRegistrations);
+  assert.deepEqual(contributor.build(h.deps, undefined).map(tool => tool.descriptor), [h.tool.descriptor]);
   assert.equal(contributor.risk, derivedRisk);
 });
 

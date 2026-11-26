@@ -14,7 +14,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import type { HttpRequest } from "#src/platform/http/index";
-import type { AssetToolDeps } from "../../asset-transfer/asset-destinations.js";
+import type { AssetToolDeps } from "#src/features/asset-transfer/asset-sources";
 import { onTeardown } from "#src/__tests__/fixtures/teardown";
 import { bindAssetHost, type AssetHostDeps } from "#src/server/runtime/composition/asset-tool-host";
 

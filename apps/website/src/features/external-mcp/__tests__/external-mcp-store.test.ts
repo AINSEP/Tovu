@@ -1,3 +1,4 @@
+import { externalMcpStorePorts } from '#src/features/external-mcp/external-mcp-store';
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { randomUUID } from "node:crypto";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -9,7 +10,8 @@ import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { listExternalMcpServerViews, openExternalMcpOAuthPayload, parseEnvBlock, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { listExternalMcpServerViews, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { parseEnvBlock } from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, parseAllowedToolNames, parseArgs, parseWriteAllowedToolNames, toResolvedFederatedConnections, deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "@jini-ai/core/contracts/hosted-mcp";
@@ -198,19 +200,19 @@ test("a stdio server with no command is refused", async () => {
 
 test("a malformed env line is reported rather than silently dropped", () => {
   assert.throws(
-    () => parseEnvBlock({ text: "GITHUB_TOKEN=ok\nthis-line-has-no-equals" }),
+    () => parseEnvBlock({ ports: externalMcpStorePorts, text: "GITHUB_TOKEN=ok\nthis-line-has-no-equals" }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "env",
   );
 });
 
 test("env parsing keeps values containing '=' and honours comments and blanks", () => {
-  const env = parseEnvBlock({ text: "# a comment\n\nDSN=postgres://u:p@h/db?x=1\n  SPACED = value  \n" });
+  const env = parseEnvBlock({ ports: externalMcpStorePorts, text: "# a comment\n\nDSN=postgres://u:p@h/db?x=1\n  SPACED = value  \n" });
   assert.deepEqual(env, { DSN: "postgres://u:p@h/db?x=1", SPACED: "value" });
 });
 
 test("a duplicated env variable is refused rather than last-write-wins", () => {
   assert.throws(
-    () => parseEnvBlock({ text: "TOKEN=a\nTOKEN=b" }),
+    () => parseEnvBlock({ ports: externalMcpStorePorts, text: "TOKEN=a\nTOKEN=b" }),
     (err: unknown) => err instanceof ExternalMcpValidationError,
   );
 });
@@ -787,7 +789,7 @@ test("a brand-new server saved with an empty write list gets no attribution at a
 test("more than 64 environment variables are refused", () => {
   const block = Array.from({ length: 65 }, (_, i) => `VAR_${i}=x`).join("\n");
   assert.throws(
-    () => parseEnvBlock({ text: block }),
+    () => parseEnvBlock({ ports: externalMcpStorePorts, text: block }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "env",
   );
 });
@@ -1425,9 +1427,9 @@ test("static_env access token: leaving static_env drops it, and coming back with
 });
 
 test('TW3 JSON env preserves multiline values and rejects every invalid entry shape', () => {
-  assert.deepEqual(parseEnvBlock({ text: JSON.stringify({ TOKEN: 'first\nsecond', EMPTY: '' }) }), { TOKEN: 'first\nsecond', EMPTY: '' });
+  assert.deepEqual(parseEnvBlock({ ports: externalMcpStorePorts, text: JSON.stringify({ TOKEN: 'first\nsecond', EMPTY: '' }) }), { TOKEN: 'first\nsecond', EMPTY: '' });
   for (const input of ['{', '{"9NAME":"value"}', '{"NAME":2}', JSON.stringify({ NAME: 'bad\0value' }), JSON.stringify({ NAME: 'x'.repeat(8193) }), JSON.stringify(Object.fromEntries(Array.from({ length: 65 }, (_, n) => [`VAR_${n}`, 'value'])))]) {
-    assert.throws(() => parseEnvBlock({ text: input }), ExternalMcpValidationError);
+    assert.throws(() => parseEnvBlock({ ports: externalMcpStorePorts, text: input }), ExternalMcpValidationError);
   }
 });
 
@@ -1473,10 +1475,10 @@ test('TW3 hosted OAuth target validates tokens and preserves resolver failures',
 
 test('TW3 NAME=VALUE silently drops the __proto__ variable (reported, not fixed)', () => {
   const text = '__proto__=operator-value';
-  const parsed = parseEnvBlock({ text });
+  const parsed = parseEnvBlock({ ports: externalMcpStorePorts, text });
   assert.equal(Object.hasOwn(parsed, '__proto__'), false);
   assert.deepEqual(Object.entries(parsed), []);
-  const json = parseEnvBlock({ text: '{"__proto__":"operator-value"}' });
+  const json = parseEnvBlock({ ports: externalMcpStorePorts, text: '{"__proto__":"operator-value"}' });
   assert.equal(Object.hasOwn(json, '__proto__'), true);
   assert.equal(json.__proto__, 'operator-value');
 });

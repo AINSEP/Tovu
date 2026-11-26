@@ -1,9 +1,10 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { CredentialSetSummary } from "@jini-ai/core/contracts/credentials";
 import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
-import { bindPublishCompatibility, type PublishCompatibilitySource } from "../compatibility-port.js";
+import { bindPublishCompatibility, type PublishCompatibilitySource } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 
 /**
  * @file The binding `custom-credentials` gets for "a saved credential changed". It moved the invalidation lines out of
@@ -23,7 +24,7 @@ test("binding reads nothing from the source; prepareInvalidation reads it when t
     get loadDeployTargets() { reads.push("loadDeployTargets"); return async () => EMPTY; },
     get publishCredentialVerificationCache() { reads.push("cache"); return { delete: () => undefined }; },
   };
-  const port = bindPublishCompatibility({ source });
+  const port = bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source });
   assert.deepEqual(reads, [], "the roots bind before the source exists");
   await port.prepareInvalidation({ workspaceId: "ws-1" });
   assert.deepEqual([...new Set(reads)].sort(), ["cache", "loadDeployTargets"]);
@@ -31,7 +32,7 @@ test("binding reads nothing from the source; prepareInvalidation reads it when t
 
 test("without a cache there is no registry load and the returned function does nothing", async () => {
   let loads = 0;
-  const port = bindPublishCompatibility({ source: { loadDeployTargets: async () => { loads += 1; return EMPTY; } } });
+  const port = bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: { loadDeployTargets: async () => { loads += 1; return EMPTY; } } });
   const invalidate = await port.prepareInvalidation({ workspaceId: "ws-1" });
   invalidate({ after: AFTER });
   assert.equal(loads, 0);
@@ -39,6 +40,6 @@ test("without a cache there is no registry load and the returned function does n
 
 test("a rejected registry load propagates from prepareInvalidation", async () => {
   const failure = new Error("registry unavailable");
-  const port = bindPublishCompatibility({ source: { loadDeployTargets: async () => { throw failure; }, publishCredentialVerificationCache: { delete: () => undefined } } });
+  const port = bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: { loadDeployTargets: async () => { throw failure; }, publishCredentialVerificationCache: { delete: () => undefined } } });
   await assert.rejects(port.prepareInvalidation({ workspaceId: "ws-1" }), failure);
 });

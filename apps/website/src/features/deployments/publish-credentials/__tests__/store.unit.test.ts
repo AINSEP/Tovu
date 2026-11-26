@@ -5,24 +5,8 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
-import {
-  createPublishCredential,
-  deletePublishCredential,
-  describeCredential,
-  hasDefaultForPublish,
-  healAccountLabel,
-  invalidatePublishCredentialCompatibility,
-  listPublishCredentials,
-  publishHostsForCredential,
-  PublishCredentialDuplicateLabelError,
-  PublishCredentialNotFoundError,
-  PublishCredentialSecretStoreUnconfiguredError,
-  PublishCredentialValidationError,
-  resolveDefaultForPublish,
-  resolveForPublish,
-  updatePublishCredential,
-  type PublishCredentialWriteDeps,
-} from "../store.js";
+import { createPublishCredential, describeCredential, hasDefaultForPublish, invalidatePublishCredentialCompatibility, listPublishCredentials, publishHostsForCredential, resolveDefaultForPublish, resolveForPublish, updatePublishCredential, type PublishCredentialWriteDeps } from "../store.js";
+import { deletePublishCredential, healAccountLabel, PublishCredentialDuplicateLabelError, PublishCredentialNotFoundError, PublishCredentialSecretStoreUnconfiguredError, PublishCredentialValidationError } from "@jini-ai/devops/deploy/site/publish-credentials/store";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialScope } from "#src/features/vendor-credentials/vault-adapter";

@@ -4,7 +4,7 @@ import type { Insertable, Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "#src/features/deployments/static-publish/index";
+import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 
 
 import type { ContentKernel } from "../content-kernel.js";

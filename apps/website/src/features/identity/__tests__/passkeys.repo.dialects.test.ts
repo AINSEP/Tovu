@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { sql } from 'kysely';
 import { eachDialect } from '#src/platform/db/kernel/__tests__/dialect-matrix';
 import { createMfaStore, createPasskeyStore } from '../repo.sqlite.js';
-import { createIdentityTransactions } from '../repo.js';
+import { createIdentityTransactions } from '@jini-ai/user-management/identity/repo';
 import { CONTENT_MIGRATIONS, runMigrations } from '#src/platform/db/migrations/index';
 
 for (const adapter of eachDialect({ tables: ['owner_passkeys', 'owner_mfa_pending', 'owner_mfa_factors'], make: kernel => kernel })) {

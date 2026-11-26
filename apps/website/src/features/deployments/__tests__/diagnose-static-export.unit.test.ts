@@ -7,7 +7,8 @@ import test from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { getExportRunSnapshot, startExportRun } from "../export-run-binding.js";
 import type { ExportRunReportLike } from "@jini-ai/devops/deploy/site/export-run";
-import { deploymentsDerivedRisk, buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../tool-registrations.js";
+import { deploymentsDerivedRisk } from "@jini-ai/devops/deploy/site/tool-registrations";
+import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../tool-registrations.js";
 import { capabilityCard } from "../capability-card.js";
 
 const report = (): ExportRunReportLike => ({

@@ -669,3 +669,18 @@ test("chat delete policy defaults off; checked identity deletes retain a plan co
     assert.equal(on.descriptor.metadata?.approval?.confirmation, "plan");
   }
 });
+
+
+test("identity_role_delete rechecks authority lost during human approval", async () => {
+  const { deps, repos, ownerPrincipalId } = await buildHarness();
+  const role = { id: "post-confirm-role", workspaceId: WORKSPACE_ID, name: "Temporary", isBuiltin: false, version: 1 };
+  await repos.roles.save(role);
+  const [ctx] = executionContext(ownerPrincipalId, { roleId: role.id });
+  await assert.rejects(wired(deps, "identity_role_delete").handler(ctx, { emitSurface: async emission => {
+    const principal = await repos.principals.findById({ workspaceId: WORKSPACE_ID, id: ownerPrincipalId });
+    assert.ok(principal);
+    await repos.principals.save({ ...principal, status: "disabled" });
+    await autoAnswer(emission);
+  } }), IdentityForbiddenError);
+  assert.deepEqual(await repos.roles.findById({ workspaceId: WORKSPACE_ID, id: role.id }), role);
+});

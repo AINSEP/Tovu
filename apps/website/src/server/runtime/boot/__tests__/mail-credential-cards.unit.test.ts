@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,7 +26,7 @@ import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail"
 import { loadMailCredentialCards, loadMailProviderCatalog, MAIL_CREDENTIAL_CATEGORY } from "../mail-provider-catalog.js";
 import { describeMailProviders } from "../mail-provider-configuration.js";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 
 /**
  * @file Plugin-declared mail key cards: a v2 mail descriptor's `credentialCard` becomes a
@@ -102,7 +103,7 @@ function harness(cards: readonly PluginCredentialCard[]) {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
-    publishCompatibility: bindPublishCompatibility({ source: {} }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }),
     loadPluginCredentialCards: async () => cards,
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" }),

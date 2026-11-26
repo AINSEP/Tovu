@@ -1,7 +1,11 @@
+import { externalMcpVaultPorts } from '#src/features/external-mcp/external-mcp-vault';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secrets-vault';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
-import { SqlExternalMcpServerRepo } from '../external-mcp-repo.js';
+import { SqlExternalMcpServerRepo } from '@jini-ai/mcp/federation/hosted/external-mcp-repo';
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
 import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from '@jini-ai/core/contracts/hosted-mcp';
 import { describeEachDialect } from '../../../platform/db/kernel/__tests__/dialect-matrix.js';
@@ -33,7 +37,7 @@ async function sqlRepo(kernel: ContentKernel): Promise<ExternalMcpServerRepoPort
   await ensureVaultRepoFixture({ kernel });
   await kernel.run(db => db.insertInto('workspaces').values({ id: workspaceId, name: workspaceId, slug: workspaceId, created_at: originalAt })
     .onConflict(oc => oc.column('id').doNothing()).execute());
-  return new SqlExternalMcpServerRepo(kernel);
+  return new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: kernel }), query: statement => kernel.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
 }
 
 async function oauthEnvelope(value: string) {
@@ -43,6 +47,15 @@ async function oauthEnvelope(value: string) {
 }
 
 function contract(make: () => Promise<ExternalMcpServerRepoPort> | ExternalMcpServerRepoPort) {
+  test('a stale editor version cannot update the row or replace credential pointers', async () => {
+    const repo = await make();
+    const original = row({ sealedOAuth: await oauthEnvelope('original') });
+    await repo.upsert(original);
+    assert.equal(await repo.updateIfVersion!({ record: { ...original, label: 'stale' }, expectedVersion: 0,
+      replaces: { sealedEnv: original.sealedEnv, sealedOAuth: original.sealedOAuth } }), false);
+    assert.deepEqual(await repo.findByServerId(key), original);
+  });
+
   test('access-only application preserves concurrently refreshed credentials and all other columns', async () => {
     const repo = await make();
     const original = row({ sealedOAuth: await oauthEnvelope('initial-test-value') });

@@ -151,7 +151,11 @@ for (const each of eachDialect({ tables: TABLES.filter(table => table !== "secre
     const otherBefore = await snapshotTables(kernel, "other-workspace-user");
 
     const purge = new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues });
-    const counts = await purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId) });
+    const counts = await purge.purgeUser({ workspaceId: WS, principalId, buildEvent: (required, optional) => {
+      assert.equal(Object.hasOwn(optional!, "reason"), true);
+      assert.equal(optional!.reason, undefined);
+      return makeBuildEvent(principalId)(required);
+    } });
 
     assert.deepEqual(counts, { roles: 1, policies: 1, sessions: 2, apiKeys: 1, userSettings: 1 });
 

@@ -17,7 +17,8 @@ import { type VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { openProjectStore } from '../../../server/runtime/composition/project-store.js';
 import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
-import { createSharedOAuthOwnerStorage, type SharedOAuthIssuingContext } from '../shared-owner.js';
+import type { SharedOAuthIssuingContext } from "@jini-ai/integrations/api-connections/shared-owner";
+import { createSharedOAuthOwnerStorage } from '../shared-owner.js';
 import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
 import { createApiConnectionVault } from '../vault-store-binding.js';
 
@@ -208,4 +209,13 @@ test('a separate process cannot take an owner SQLite refresh lease held by anoth
   assert.deepEqual(JSON.parse((await runChild()).stdout), { acquired: false });
   await tokens.releaseRefreshLease!({ key: credentialId });
   assert.deepEqual(JSON.parse((await runChild()).stdout), { acquired: true });
+});
+
+
+test('a later client cannot replace the sealed original issuing context', async t => {
+  const f = await ownerFixture(t);
+  const replacement = { ...context, identity: { ...identity, clientId: 'later-client' },
+    client: { ...context.client, clientId: 'later-client' } };
+  await assert.rejects(f.b.saveContext({ credentialId, context: replacement }), { code: 'account-changed' });
+  assert.deepEqual(await f.a.readContext({ credentialId }), context);
 });

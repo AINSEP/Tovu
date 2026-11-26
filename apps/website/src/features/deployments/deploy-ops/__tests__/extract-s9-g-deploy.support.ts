@@ -1,3 +1,4 @@
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +11,7 @@ import { HKDF_EXTRACTION_SALT } from '../../../webhooks/keyring.env.js';
 import { InMemoryCustomCredentialSetRepo } from '../../../custom-credentials/repo.memory.js';
 import { createCustomCredential } from '../../../custom-credentials/store.js';
 import { InMemoryCredentialedRequestAuditLog } from '../../../custom-credentials/credentialed-request.js';
-import { InMemoryPublishHistoryStore, type PublishHistoryEntry } from '../../static-publish/publish-history.js';
+import { InMemoryPublishHistoryStore, type PublishHistoryEntry } from '@jini-ai/devops/deploy/site/static-publish/publish-history';
 import { loadDeployOpsRegistryFromSource } from '../registry.js';
 import { buildDeployOpsRegistrations } from '../tool-registrations.js';
 import { runDeploy, type DeployOpsToolDeps } from '../run-ops.js';
@@ -41,7 +42,7 @@ async function harness(scenario: Scenario, ledgerFails = false) {
   const permissions: string[] = [];
   const cards: SurfaceEmission[] = [];
   const history: { workspaceId: string; entry: PublishHistoryEntry }[] = [];
-  const ledger = new InMemoryPublishHistoryStore();
+  const ledger = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const originalRecord = ledger.recordSuccess.bind(ledger);
   ledger.recordSuccess = async input => {
     counts.history++;

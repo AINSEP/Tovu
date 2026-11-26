@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ApiConnectionRecord } from '@jini-ai/integrations/api-connections';
-import type { SharedOAuthOwnerStorage, SharedOAuthIssuingContext } from '../../api-connections/shared-owner.js';
+import type { SharedOAuthOwnerStorage, SharedOAuthIssuingContext } from '@jini-ai/integrations/api-connections/shared-owner';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../shared-oauth-disconnect.js';
 import { fakeAttachments } from './helpers.js';
 

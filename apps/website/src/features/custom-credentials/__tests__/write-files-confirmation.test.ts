@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,7 +19,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
 import { validateRepositoryTarget } from "../repository-target.js";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 
 
 /**
@@ -104,7 +105,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
     sourceControlWrite: bindSourceControlWritePort({ validateRepositoryTarget, load: githubFromSource, httpClient }),
-    publishCompatibility: bindPublishCompatibility({ source: {} }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }),
     authorize: async (params: Record<string, unknown>) => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
 

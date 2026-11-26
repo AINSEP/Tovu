@@ -1,4 +1,5 @@
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
 import { validateRepositoryTarget } from "#src/features/custom-credentials/repository-target";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
@@ -23,7 +24,7 @@ export function bindCredentialsHostPorts({ readDeps }: { readDeps: () => Credent
       get observability() { return readDeps().observability; },
       validateRepositoryTarget,
     }),
-    publishCompatibility: bindPublishCompatibility({ get source() { return readDeps(); } }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, get source() { return readDeps(); } }),
     // Source control reads a provider's saved API key by label through the custom-credentials owner;
     // the repo and sealer are read when a lookup runs, after the bag is complete.
     sourceControlSavedKeys: {

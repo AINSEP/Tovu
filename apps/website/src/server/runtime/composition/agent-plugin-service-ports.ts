@@ -88,7 +88,7 @@ export function composeAgentPluginConnectServices(required: {
   httpClient: HttpClientPort; loadCards?: LoadPluginCredentialCards;
   externalMcpOAuth?: Pick<ExternalMcpOAuthService, 'beginConnect'>;
   apiConnections?: { host: ApiConnectionHost };
-}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth: (AgentPluginOAuthPort & AgentPluginSignInPort) | undefined; apiConnections: AgentPluginApiConnectionsPort<import('#src/features/api-connections/contribution').DeclaredApiConnection> | undefined } {
+}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth: (AgentPluginOAuthPort & AgentPluginSignInPort) | undefined; apiConnections: AgentPluginApiConnectionsPort<import('@jini-ai/integrations/api-connections').DeclaredApiConnection> | undefined } {
   const { externalMcpOAuth, apiConnections } = required;
   return {
     credentials: composePluginCredentials(required),

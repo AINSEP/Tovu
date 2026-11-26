@@ -11,7 +11,30 @@ import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
 import { inspectWriteTarget } from "@jini-ai/cms/fs-files/write-files";
 import { openFsFileForRead, resolveFsFilePath } from "../fs-files/fs-files.js";
 import { resolvePickedFolder } from "../fs-files/tool-registrations.js";
-import type { AssetToolDeps } from "./asset-destinations.js";
+
+import type { AssetTheme } from '@jini-ai/core/contracts/site/asset-transfer-tool-ports';
+import type { DocumentArchiveReaderPort } from '@jini-ai/cms/media';
+import type { FsFilesToolDeps } from '../fs-files/tool-registrations.js';
+import type { MediaImportToolDeps, persistImportedMedia } from '../media-import/tool-registrations.js';
+import type { fetchImage } from '../media-import/fetch-image.js';
+
+/** The host's theme policy and Library saver for asset tools, bound once at the tool composition root.
+ * Method syntax on purpose: the host binds it over its own richer theme type. */
+export interface AssetHostPort<T extends AssetTheme = AssetTheme> {
+  readonly themeWritePermission: string;
+  /** @throws the theme owner's unknown-theme error, a caller shape error. */
+  findTheme(required: { themeId: string }): T;
+  /** Theme write scope and themes-root containment for one path; never writes. */
+  checkThemeWrite(required: { theme: T; relativePath: string }): void;
+  writeThemeFile(required: { theme: T; relativePath: string; bytes: Buffer }): void;
+  reloadTheme(required: { theme: T; themeId: string }): T;
+  sniffThemeImportType(required: { bytes: Uint8Array }): string;
+  /** The theme owner's safe-fetch byte/type policy and Accept header for URL copies into a theme. */
+  readonly themeImportFetch: NonNullable<Parameters<typeof fetchImage>[1]>;
+  isThemeShapeRejection(required: { error: unknown }): boolean;
+  saveLibraryDocument(required: { bytes: Uint8Array; name: string; principalId: string }, optional: { archiveReader?: DocumentArchiveReaderPort }): Promise<{ document: unknown }>;
+}
+export type AssetToolDeps = FsFilesToolDeps & MediaImportToolDeps & { assetHost: AssetHostPort; documentArchiveReader?: DocumentArchiveReaderPort; resolveImportedMediaUrls: Parameters<typeof persistImportedMedia>[0]["resolvePublicUrls"] };
 
 export const ASSET_SOURCE_SCHEMA = { type: "object", additionalProperties: false, required: ["root", "path"], properties: {
   root: { type: "string", enum: ["site", "picked", "theme", "media"] },

@@ -60,7 +60,9 @@ import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
-import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
+import type { PublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
+import type { PublishHistoryStore } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
+import type { StaticPublishFormDestinationPort } from "@jini-ai/devops/deploy/site/static-publish/adapter";
 import type { FormsAutoPullPort, FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
 import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
@@ -515,8 +517,8 @@ export interface FormsDeps {
  * they need; shared ownership follows the post domain rather than a whole-group caller.
  */
 export interface PostDeps {
-  pluginExports?: import("#src/features/agent-plugins/exports/runtime").PluginExportRuntime;
-  pluginExportRender?: import("#src/features/agent-plugins/exports/runtime").PluginExportRenderSession;
+  pluginExports?: import('@jini-ai/agent-plugins/site/exports/runtime').PluginExportRuntime;
+  pluginExportRender?: import('@jini-ai/agent-plugins/site/exports/runtime').PluginExportRenderSession;
   postRepo: PostRepoPort;
   /**
    * Scheduled go-live candidates (2026-10-21) for the serving process's go-live sweep

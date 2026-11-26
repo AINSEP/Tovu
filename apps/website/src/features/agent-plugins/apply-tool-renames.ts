@@ -4,7 +4,7 @@
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { AgentPluginMcpPort } from "@jini-ai/agent-plugins/site/service-ports";
 import { listInstalledAgentPluginServers } from "./import-access-token.js";
-import { applyAgentPluginToolRenames as applyWithPorts, renameToolNames as renameWithPorts, type InstalledAgentPluginServers, type TokenImportLog } from "@jini-ai/agent-plugins/connect";
+import { applyAgentPluginToolRenames as applyWithPorts, type InstalledAgentPluginServers, type TokenImportLog } from "@jini-ai/agent-plugins/connect";
 
 /** Recorded as the row's write-grant attribution when a rename changes its write list. */
 const TOOL_RENAMES_ACTOR = "system:tool-renames";
@@ -20,10 +20,6 @@ export interface ApplyAgentPluginToolRenamesDeps {
    *  `notifyExternalMcpRosterChanged`. A port rather than a value import: a feature module may not
    *  value-import `#src/assistant/` (`domain-no-direct-tool-registration.boundary.test.ts`). */
   readonly notifyRosterChanged: () => Promise<void>;
-}
-
-export function renameToolNames({ names, renames }: { names: readonly string[]; renames: Readonly<Record<string, string>> }, _optional: Record<string, never> = {}): string[] | null {
-  return renameWithPorts({ names, renames });
 }
 
 /** Same entry; the layout getter is read only if the default listing runs (as before). */

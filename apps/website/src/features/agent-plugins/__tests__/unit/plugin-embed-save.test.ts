@@ -7,7 +7,7 @@ import test from "node:test";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { createPost, InMemoryPostRepo } from "#src/features/post/index";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
-import { PluginEmbedValidationError } from "../../exports/diagnostics.js";
+import { PluginEmbedValidationError } from "@jini-ai/agent-plugins/site/exports/diagnostics";
 import { config, definition, harness, owner, workspaceId } from "../fixtures/plugin-exports.js";
 const clock = { nowMs: () => Date.parse("2026-10-24T00:00:00.000Z") };
 

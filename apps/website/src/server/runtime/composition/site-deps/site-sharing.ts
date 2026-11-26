@@ -32,7 +32,7 @@ import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-port
 import { selectArtifactStoreProvider } from "@jini-ai/platform/object-store/site/artifact-provider";
 import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
 import { SITE_TEMP_PARENT } from "#src/platform/temp/site-temp-roots";
-import { toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
+import { toDeployTargetCredential } from "@jini-ai/devops/deploy/site/static-publish/credentials";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 interface ConfigureSiteSharingRequired {

@@ -6,7 +6,8 @@ import test from "node:test";
 
 import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
-import { buildEmailTemplatesRegistrations, contributeEmailTemplatesTools, emailTemplatesAgentToolCatalog, emailTemplatesDerivedRisk } from "../tool-registrations.js";
+import { buildEmailTemplatesRegistrations, contributeEmailTemplatesTools, emailTemplatesAgentToolCatalog } from "../tool-registrations.js";
+import { emailTemplatesDerivedRisk } from "@jini-ai/platform/mail/email-template-tool-registrations";
 
 const WS = "ws-1";
 const HTML = '<html><head><meta name="email-fields" content="name=Ada"><title>Hi {{name}}</title></head><body><p>Hello {{name}}</p></body></html>';

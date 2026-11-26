@@ -50,7 +50,7 @@ import type { CustomCredentialsToolDeps } from "../features/custom-credentials/t
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";
 import type { DeployOpsToolDeps } from "../features/deployments/deploy-ops/tool-registrations.js";
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
-import type { StaticPublishToolDeps } from "../features/deployments/publish-agent-tools.js";
+import type { StaticPublishToolDeps } from "#src/features/deployments/publish-tool-deps";
 import type { EntriesToolDeps } from "@jini-ai/cms/entries/site/tool-registrations";
 import type { ExternalMcpToolDeps } from "@jini-ai/core/contracts/site/external-mcp-tool-ports";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
@@ -79,7 +79,7 @@ import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-
 import type { ChangeSetToolDeps } from "@jini-ai/cms/change-sets/tool-registrations";
 import type { WorkspaceToolDeps } from "@jini-ai/cms/workspace";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
-import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
+import type { IdentityToolDeps } from "@jini-ai/user-management/server";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
 import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
@@ -177,7 +177,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
   IdentityToolDeps &
   IntegrationsToolDeps &
   MediaToolDeps &
-  Pick<import("../features/image-transform/tool.js").ImageTransformToolDeps, "imageCodec"> &
+  Pick<import("@jini-ai/cms/media/site-transform/tool").ImageTransformToolDeps<import("@jini-ai/core/contracts/site/asset-transfer-tool-ports").AssetTheme>, "imageCodec"> &
   MediaTrashToolDeps &
   MediaGenerationToolDeps &
   MediaImportToolDeps &

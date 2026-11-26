@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import type { Insertable } from "kysely";
 
-import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/index";
+import type { PublishHistoryEntry } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import type { ContentKernel } from "../../content-kernel.js";
 import type { PublishHistoryTable } from "../../content-database.generated.js";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";

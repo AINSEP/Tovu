@@ -1,3 +1,4 @@
+import { staticPublishPorts } from '#src/features/deployments/static-publish/adapter';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import { listPublishContentPeers } from "@jini-ai/cms/publish/content/peer-registry";
@@ -5,7 +6,11 @@ import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/in
 import type { Express } from "express";
 import { ToolInputError } from "@jini-ai/core";
 
-import { inspectStaticPublish, composePublishCredentialSource, getPublishRunSnapshot, listPublishDestinations, missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, startPublishRun, unknownTargetMessage } from "#src/features/deployments/static-publish/index";
+import { inspectStaticPublish } from "@jini-ai/devops/deploy/site/static-publish/inspection";
+import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
+import { getPublishRunSnapshot, startPublishRun } from "#src/features/deployments/static-publish/publish-run";
+import { listPublishDestinations } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
+import { missingRequiredFieldMessage, planStaticPublish, readStaticPublishConfig, unknownTargetMessage } from "@jini-ai/devops/deploy/site/static-publish/adapter";
 import { type StaticPublishConfig, type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 import type {
   DeployTargetCredentialSpec,
@@ -143,7 +148,7 @@ async function httpPublishPreview(required: {
   const plan = planStaticPublish({ registry, config });
   const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: config.target });
   const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
-    deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination },
+    deps: { ...{ credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination }, ...staticPublishPorts },
     input: { workspaceId: deps.workspaceId, config, projectName: typeof query.projectName === "string" ? query.projectName : "", ...credentialChoice({ value: query.credentialId }) },
   }) : {};
   return { target: config.target, valid: plan.ok, validationError: plan.ok ? null : plan.message,

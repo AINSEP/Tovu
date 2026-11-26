@@ -1,3 +1,5 @@
+import { keepStoredRevocation } from '#src/platform/db/keep-stored-revocation';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import { assertVersionedWrite, RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
@@ -10,10 +12,10 @@ import { authorize, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPr
 import { authenticateApiKey } from "../api-key-binding.js";
 import { InMemoryApiKeyRepo } from "@jini-ai/user-management/identity/repo.memory";
 import type { ApiKeyRepoPort } from "@jini-ai/user-management/identity/api-key-types";
-import { SqlPrincipalRepo, SqlUserRepo } from "../repo.js";
+import { SqlPrincipalRepo, SqlUserRepo } from "@jini-ai/user-management/identity/repo";
 import { SqlitePrincipalPolicyRepo, SqlitePrincipalRoleRepo, SqliteRolePolicyRepo } from "../repo.sqlite.js";
-import { SqlApiKeyRepo, SqlSessionRepo } from "../repo.authentication.js";
-import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "../repo.authorization.js";
+import { SqlApiKeyRepo, SqlSessionRepo } from "@jini-ai/user-management/identity/repo.authentication";
+import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "@jini-ai/user-management/identity/repo.authorization";
 import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort } from "@jini-ai/user-management";
 import type { PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 
@@ -346,27 +348,27 @@ function runPrincipalPolicyRepoSuite(adapterName: string, makeRepo: () => Princi
 }
 
 runPrincipalRepoSuite("InMemoryPrincipalRepo", () => new InMemoryPrincipalRepo({}));
-for (const each of eachDialect({ tables: ["principals"], make: (kernel) => new SqlPrincipalRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["principals"], make: (kernel) => new SqlPrincipalRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'principals' }) })) {
   runPrincipalRepoSuite(`SqlPrincipalRepo [${each.name}]`, each.make);
 }
 
 runUserRepoSuite("InMemoryUserRepo", () => new InMemoryUserRepo({ assertVersionedWrite }));
-for (const each of eachDialect({ tables: ["identity_users"], make: (kernel) => new SqlUserRepo({ kernel, assertVersionedWrite }) })) {
+for (const each of eachDialect({ tables: ["identity_users"], make: (kernel) => new SqlUserRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'identity_users', assertVersionedWrite }) })) {
   runUserRepoSuite(`SqlUserRepo [${each.name}]`, each.make);
 }
 
 runSessionRepoSuite("InMemorySessionRepo", () => new InMemorySessionRepo({}));
-for (const each of eachDialect({ tables: ["sessions"], make: (kernel) => new SqlSessionRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["sessions"], make: (kernel) => new SqlSessionRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'sessions', keepStoredRevocation: () => keepStoredRevocation({ table: "sessions" }) }) })) {
   runSessionRepoSuite(`SqlSessionRepo [${each.name}]`, each.make);
 }
 
 runRoleRepoSuite("InMemoryRoleRepo", () => new InMemoryRoleRepo({ assertVersionedWrite }));
-for (const each of eachDialect({ tables: ["roles"], make: (kernel) => new SqlRoleRepo({ kernel, assertVersionedWrite }) })) {
+for (const each of eachDialect({ tables: ["roles"], make: (kernel) => new SqlRoleRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'roles', assertVersionedWrite }) })) {
   runRoleRepoSuite(`SqlRoleRepo [${each.name}]`, each.make);
 }
 
 runPolicyRepoSuite("InMemoryPolicyRepo", () => new InMemoryPolicyRepo({ assertVersionedWrite }));
-for (const each of eachDialect({ tables: ["policies"], make: (kernel) => new SqlPolicyRepo({ kernel, assertVersionedWrite }) })) {
+for (const each of eachDialect({ tables: ["policies"], make: (kernel) => new SqlPolicyRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'policies', assertVersionedWrite }) })) {
   runPolicyRepoSuite(`SqlPolicyRepo [${each.name}]`, each.make);
 }
 
@@ -424,13 +426,13 @@ runVersionedEditSuite("InMemory identity repos", () => ({
   users: new InMemoryUserRepo({ assertVersionedWrite }), roles: new InMemoryRoleRepo({ assertVersionedWrite }), policies: new InMemoryPolicyRepo({ assertVersionedWrite }),
 }));
 for (const each of eachDialect({ tables: ["identity_users", "roles", "policies"], make: (kernel) => ({
-  users: new SqlUserRepo({ kernel, assertVersionedWrite }), roles: new SqlRoleRepo({ kernel, assertVersionedWrite }), policies: new SqlPolicyRepo({ kernel, assertVersionedWrite }),
+  users: new SqlUserRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'identity_users', assertVersionedWrite }), roles: new SqlRoleRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'roles', assertVersionedWrite }), policies: new SqlPolicyRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'policies', assertVersionedWrite }),
 }) })) {
   runVersionedEditSuite(`Sql identity repos [${each.name}]`, each.make);
 }
 
 runPolicyPermissionRepoSuite("InMemoryPolicyPermissionRepo", () => new InMemoryPolicyPermissionRepo({}));
-for (const each of eachDialect({ tables: ["policy_permissions"], make: (kernel) => new SqlPolicyPermissionRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["policy_permissions"], make: (kernel) => new SqlPolicyPermissionRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'policy_permissions' }) })) {
   runPolicyPermissionRepoSuite(`SqlPolicyPermissionRepo [${each.name}]`, each.make);
 }
 
@@ -559,6 +561,6 @@ for (const each of eachDialect({ tables: ["principal_policies"], make: (kernel) 
 }
 
 runApiKeyRepoSuite("InMemoryApiKeyRepo", () => new InMemoryApiKeyRepo());
-for (const each of eachDialect({ tables: ["api_keys"], make: (kernel) => new SqlApiKeyRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["api_keys"], make: (kernel) => new SqlApiKeyRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'api_keys' }) })) {
   runApiKeyRepoSuite(`SqlApiKeyRepo [${each.name}]`, each.make);
 }

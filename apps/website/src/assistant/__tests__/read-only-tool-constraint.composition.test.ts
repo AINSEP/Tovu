@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 import { credentialSaveFixtureRegistrations } from "../../__tests__/support/credential-save.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -28,7 +29,7 @@ import { issueToolFailureDiagnostic } from "@jini-ai/daemon/tool-recovery";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 import { testToolReporter } from "#src/assistant/__tests__/helpers/tool-reporter";
 
 
@@ -109,7 +110,7 @@ async function buildHarness(): Promise<Harness> {
   const toolDeps: CustomCredentialsToolDeps = {
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
-    publishCompatibility: bindPublishCompatibility({ source: {} }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: repo,

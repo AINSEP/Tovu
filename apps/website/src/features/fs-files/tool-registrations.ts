@@ -12,13 +12,8 @@ import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 
-import {
-  FS_FILES_READ_PERMISSION,
-  FS_LIST_FILES_TOOL_ID,
-  FS_READ_FILE_TOOL_ID,
-  FS_WRITE_FILES_TOOL_ID,
-  getFsFilesAgentToolCatalog,
-} from "./agent-tools.js";
+import { FS_FILES_READ_PERMISSION, getFsFilesAgentToolCatalog } from "./agent-tools.js";
+import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID, FS_WRITE_FILES_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { listFsFiles, readFsFile, resolveFsFilePath } from "./fs-files.js";

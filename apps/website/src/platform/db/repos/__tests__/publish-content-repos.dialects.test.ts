@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import type { PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
 import type { PublishContentRunRecord } from "@jini-ai/cms/publish/content/run-repo";
-import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
+import type { PublishHistoryEntry } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import type { ContentKernel } from "../../content-kernel.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/sql/baseline-repo";

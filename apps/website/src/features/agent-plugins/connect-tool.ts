@@ -21,7 +21,7 @@ import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-
 import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
 import { isAgentPluginEnabled } from './activation-effects.js';
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
-import type { DeclaredApiConnection } from "../api-connections/contribution.js";
+import type { DeclaredApiConnection } from '@jini-ai/integrations/api-connections';
 import {
   runAgentPluginConnect as runWithPorts, titleCaseFromPluginId as titleCaseWithPorts, hasStoredAgentPluginCredential as hasStoredWithPorts,
   agentPluginConnectAgentToolCatalogFor, agentPluginConnectDerivedRiskFor,

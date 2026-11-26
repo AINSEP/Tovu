@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { resolveRuntimeMode } from '#src/contracts/core/runtime-mode';
 import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from '#src/features/webhooks/keyring.env';
 import { siteKeySourcesForSiteDir } from '#src/features/webhooks/site-key-sources';
-import type { PublishHistoryStore } from '../static-publish/publish-history.js';
+import type { PublishHistoryStore } from '@jini-ai/devops/deploy/site/static-publish/publish-history';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { issueCredentialSetup } from '#src/contracts/core/tool-failure-diagnostics';

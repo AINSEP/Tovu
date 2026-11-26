@@ -6,7 +6,8 @@ import test from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { getExportRunSnapshot } from "../export-run-binding.js";
 import type { ExportRunReportLike } from "@jini-ai/devops/deploy/site/export-run";
-import { buildDeploymentsRegistrations, contributeDeploymentsTools, deploymentsDerivedRisk, pickExportSiteOptions, type DeploymentsToolDeps } from "../tool-registrations.js";
+import { buildDeploymentsRegistrations, contributeDeploymentsTools, type DeploymentsToolDeps } from "../tool-registrations.js";
+import { deploymentsDerivedRisk, pickExportSiteOptions } from "@jini-ai/devops/deploy/site/tool-registrations";
 
 /** deployment_trigger_export's input contract and option forwarding, the Dockerfile conflict text
  *  for a missing file, and the contributor shape — through the registered handlers. */
@@ -33,6 +34,7 @@ test("deployment_trigger_export treats absent input as no options and forwards c
   assert.equal(seen[0]!.clean, false);
   assert.equal(seen[1]!.clean, true);
   assert.equal(seen[1]!.basePath, "/repo");
+  assert.deepEqual(Object.keys(seen[1]!).sort(), ["basePath", "clean", "outputDir"]);
   assert.equal("routeDeps" in seen[1]!, false, "the narrow tool deps never reach exportSiteBound");
 });
 

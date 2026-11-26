@@ -1,10 +1,12 @@
+import { keepStoredRevocation } from '#src/platform/db/keep-stored-revocation';
+import { schemaErasedKernel } from '#src/platform/db/content-kernel';
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { sql } from "kysely";
 
 import { createMfaStore, createRecoveryCodeStore } from "#src/features/identity/repo.sqlite";
-import { SqlSessionRepo } from "#src/features/identity/repo.authentication";
+import { SqlSessionRepo } from "@jini-ai/user-management/identity/repo.authentication";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
 /**
@@ -36,7 +38,7 @@ test("the staff session store finds a stored row by its digest and by no other",
   const kernel = await seededKernel();
   await kernel.execute(sql`INSERT INTO sessions (id, workspace_id, principal_id, token_hash, created_at, expires_at)
     VALUES ('session-1', ${WS}, ${PRINCIPAL}, ${SESSION_DIGEST}, ${NOW}, '2026-11-18T00:00:00.000Z')`);
-  const sessions = new SqlSessionRepo(kernel);
+  const sessions = new SqlSessionRepo({ kernel: schemaErasedKernel({ store: kernel }), table: 'sessions', keepStoredRevocation: () => keepStoredRevocation({ table: "sessions" }) });
   assert.equal((await sessions.findByTokenHash({ workspaceId: WS, tokenHash: SESSION_DIGEST }))?.id, "session-1");
   assert.equal(await sessions.findByTokenHash({ workspaceId: WS, tokenHash: OTHER_SESSION_DIGEST }), null);
 });

@@ -5,7 +5,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import type { SurfaceCardSignInSpec, SurfaceCardSignInState } from '@jini-ai/core/contracts/cards';
 import type { AgentPluginCardsPort } from '@jini-ai/agent-plugins/connect';
-import { waitAtAgentPluginSignInCardWithPorts } from '../../connect-sign-in-wait.js';
+import { waitAtAgentPluginSignInCardWithPorts } from '@jini-ai/agent-plugins/connect';
 import { buildAgentPluginConnectCardWithPorts } from '@jini-ai/agent-plugins/connect';
 
 /** Distinct from UIResource: losing Resource at the wait callback fails this compile pin. */

@@ -22,7 +22,8 @@ import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deplo
 import { renderHeadersFile } from "@jini-ai/devops/static-export/site/static-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
-import { adaptInstalledTarget, publishStaticSite, type StaticPublishDeps } from "../adapter.js";
+import { adaptInstalledTarget } from "@jini-ai/devops/deploy/site/static-publish/adapter";
+import { publishStaticSite, type StaticPublishDeps } from "../adapter.js";
 import type { PublishCredentialSource, StaticPublishConfig } from "@jini-ai/devops/deploy/site/static-publish/types";
 
 /**

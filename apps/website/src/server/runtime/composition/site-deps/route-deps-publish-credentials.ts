@@ -8,7 +8,7 @@ import type { providerPluginBoot } from "./provider-identity.js";
 import type { composeMailHttp } from "./mail-http.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
-import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
+import { InMemoryPublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { SourceControlCredentialSetRecord } from "#src/features/source-control/types";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";

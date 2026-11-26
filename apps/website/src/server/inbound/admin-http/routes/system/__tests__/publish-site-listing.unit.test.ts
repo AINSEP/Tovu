@@ -1,3 +1,4 @@
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
 import { assertIncidentDiagnostics, createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
@@ -8,9 +9,9 @@ import express from "express";
 
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { createPublishCredential } from "#src/features/deployments/publish-credentials/index";
+import { createPublishCredential } from "#src/features/deployments/publish-credentials/store";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
-import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
+import { InMemoryPublishHistoryStore } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { registerAdminPublishSiteRoutes } from "#src/server/runtime/composition/modules/system-deploy";
 
 /**
@@ -63,7 +64,7 @@ function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}, inci
   const deps = {
     ...base,
     loadDeployTargets: async () => registry,
-    publishHistoryStore: new InMemoryPublishHistoryStore(),
+    publishHistoryStore: new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }),
     authorize: async (input: { permission: string }) => { permissions.push(input.permission); return { allowed: input.permission !== "publish_content.read", reason: "fixture" }; },
     ...overrides,
   };

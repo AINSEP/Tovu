@@ -1,3 +1,6 @@
+import { createFormDefinition, updateFormDefinition, setFormDefinitionStatus } from '#src/features/forms/index';
+import { executeCommand } from '@jini-ai/cms/core/commands';
+import { registerContentType } from '#src/features/content-types/write-service';
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
@@ -11,8 +14,8 @@ import test from "node:test";
 
 import { NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { contributeContentTypePublish } from "#src/features/content-types/publish-content";
-import { contributeFormPublish } from "#src/features/forms/publish-content";
+import { contributeContentTypePublish } from "@jini-ai/cms/content-types/site/publish-content";
+import { contributeFormPublish } from "@jini-ai/cms/forms/site/publish-content";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
 import { createWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
@@ -66,7 +69,9 @@ function instance(name: string) {
 }
 
 test("form, content-type, widget and widget-area round-trip to `unchanged` on SQLite", async () => {
-  registerOnly([contributeFormPublish(), contributeContentTypePublish(), contributeWidgetPublish(), contributeWidgetAreaPublish()]);
+  registerOnly([contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }), contributeContentTypePublish({ seededKeys: new Set(['widget', 'widget_area']),
+    seededKeyRefusal: ({ key }) => ['widget', 'widget_area'].includes(key) ? `content-type '${key}' is seeded on every instance and is never published` : null,
+    permission: 'admin.collections.manage', registerContentType }), contributeWidgetPublish(), contributeWidgetAreaPublish()]);
   const src = instance("src");
   const dst = instance("dst");
 
@@ -174,7 +179,7 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
 });
 
 test("a contact-form widget lands pointing at the destination's own form (forms get a new id there), then stays unchanged", async () => {
-  registerOnly([contributeFormPublish(), contributeWidgetPublish()]);
+  registerOnly([contributeFormPublish({ tableKey: FORMS_TABLES.definitions, permission: 'admin.forms.manage', executeCommand, createFormDefinition, updateFormDefinition, setFormDefinitionStatus }), contributeWidgetPublish()]);
   const src = instance("src");
   const dst = instance("dst");
   await src.repos.forms.create({

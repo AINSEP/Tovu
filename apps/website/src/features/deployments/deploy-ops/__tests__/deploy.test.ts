@@ -1,4 +1,5 @@
-import { InMemoryPublishHistoryStore, listPublishDestinations } from "../../static-publish/publish-history.js";
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
+import { InMemoryPublishHistoryStore, listPublishDestinations } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -112,7 +113,7 @@ test("the chat tool requires write permission, validates input and calls runDepl
 test("a throwing history store preserves an accepted deploy and logs no error payload", async (t) => {
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
-  const store = new InMemoryPublishHistoryStore();
+  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   store.recordSuccess = async () => { throw new Error("database parameters: PRIVATE_TOKEN"); };
   let deploys = 0;
   const f = await withDeploy(async () => { deploys++; return accepted({ runId: "42" }); });
@@ -124,7 +125,7 @@ test("a throwing history store preserves an accepted deploy and logs no error pa
 });
 
 test("accepted deploys append descriptor identity to the shared ledger and link only matching saved peers", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const f = await withDeploy(async () => accepted({ url: "https://live.example.test/", runId: "42" }));
   await runDeploy({ deps: { ...f.deps, publishHistoryStore: historyStore }, input: { platform: "example-host", target: "shop" } });
   const [recorded] = await historyStore.list({ workspaceId: "ws" });
@@ -148,7 +149,7 @@ test("accepted deploys append descriptor identity to the shared ledger and link 
 });
 
 test("an accepted deploy followed by failing status never becomes a confirmed destination", async () => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const f = await withDeploy(async () => accepted({ url: "https://failed.example.test", runId: "42" }));
   const platform = f.deps.deployOpsRegistry!.get("example-host")!;
   platform.module.status = async () => ({ platform: "example-host", target: "shop", state: "failing",

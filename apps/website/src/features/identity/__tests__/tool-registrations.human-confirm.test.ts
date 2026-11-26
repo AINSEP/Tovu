@@ -18,7 +18,8 @@ import {
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
 
-import { buildGatedIdentityRegistrations, withoutPassword, contributeIdentityTools, type TovuIdentityToolDeps } from "../tool-registrations.js";
+import { buildGatedIdentityRegistrations, contributeIdentityTools, type TovuIdentityToolDeps } from "../tool-registrations.js";
+import { withoutPassword } from "@jini-ai/user-management/identity/tool-registrations";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

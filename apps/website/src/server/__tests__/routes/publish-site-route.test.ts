@@ -1,3 +1,4 @@
+import { resolvePublishHistoryListLimit } from '@tovu/contracts/publish-history-list-limit';
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import express from "express";
@@ -21,7 +22,7 @@ import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { set as setSetting } from "@jini-ai/core/settings";
 import { SITE_CONSENT_NAMESPACE } from "@jini-ai/cookie-consent/site/config";
-import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
+import { InMemoryPublishHistoryStore } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 
@@ -1030,7 +1031,7 @@ test("publish-targets: an unauthorized principal gets 403 and a mismatched works
 });
 
 test("publish destinations: empty array, saved public destination, system.read gate and workspace isolation", async t => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const deps = { ...testRouteDeps(), publishHistoryStore: historyStore };
   // Prove listing needs only system.read, while the existing trigger still needs system.publish.
   const permissions: string[] = [];
@@ -1064,7 +1065,7 @@ test("publish destinations: empty array, saved public destination, system.read g
 
 
 test("publish destinations: peer rows and deploy links require publish_content.read; deleted peers disappear", async t => {
-  const historyStore = new InMemoryPublishHistoryStore();
+  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
   const deps = { ...testRouteDeps(), publishHistoryStore: historyStore };
   let peerReadAllowed = true;
   const authorize = deps.authorize;
@@ -1141,7 +1142,7 @@ test("publish-site: a fresh site's default-off banner does not block a static pu
 
 
 test("auth denial writes once and records one blocked event, and a granted destination read still omits peers without peer capability", async t => {
-  const deps = { ...testRouteDeps(), publishHistoryStore: new InMemoryPublishHistoryStore() };
+  const deps = { ...testRouteDeps(), publishHistoryStore: new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit }) };
   const order: string[] = [];
   const permissions: string[] = [];
   deps.authorize = async input => { permissions.push(input.permission); return { allowed: input.permission === "system.read", reason: "fixture" }; };

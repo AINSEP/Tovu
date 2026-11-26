@@ -13,7 +13,7 @@ import * as realApiConnections from "@jini-ai/integrations/api-connections";
 import { loadPluginContributionsFromSource } from "../../agent-plugins/lifecycle.js";
 
 test("load: a non-Error thrown by the descriptor parser drops the connection with a generic, log-safe reason", async (t) => {
-  const mocked = mock.module("@jini-ai/integrations/api-connections", {
+  const mocked = mock.module(new URL("./descriptor.js", import.meta.resolve("@jini-ai/integrations/api-connections")), {
     namedExports: { ...realApiConnections, parseApiConnectionDescriptor: () => { throw "provider text that must not be logged"; } },
   });
   t.after(() => mocked.restore());

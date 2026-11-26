@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import { createCustomCredential, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
-import { createPublishCredential, resolveDefaultForPublish } from "#src/features/deployments/publish-credentials/index";
+import { createPublishCredential, resolveDefaultForPublish } from "#src/features/deployments/publish-credentials/store";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import type { RouteDeps } from "#src/server/routes/types";
 import { openProjectStore } from "#src/server/runtime/composition/project-store";

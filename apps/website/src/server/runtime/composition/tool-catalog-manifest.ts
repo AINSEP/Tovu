@@ -1,3 +1,13 @@
+import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
+import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
+import { requireAssetDestination, prepareAssetWrites, writeAssetFiles } from '@jini-ai/cms/asset-transfer/asset-destinations';
+import { FsFilePathError } from '@jini-ai/platform/fs/guarded-reader';
+import { FsWriteInputError } from '@jini-ai/cms/fs-files/write-files';
+import { refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import { isImportShapeRejection } from '#src/features/media-import/tool-registrations';
+import { ASSET_SOURCE_SCHEMA, readAssetSource } from '#src/features/asset-transfer/asset-sources';
+import { FS_FILES_READ_PERMISSION } from '#src/features/fs-files/agent-tools';
+import { describeWriteBatch } from '@jini-ai/cms/fs-files/tool-registrations';
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { WEB_FETCH_PER_HOST } from "#src/features/web/policy";
@@ -70,7 +80,7 @@ import { processServerLogSource } from "#src/features/server-logs/process-source
 import { contributeObservabilityTools } from "@jini-ai/diagnostics/observability/tool-registrations";
 import { TELEMETRY_TEST_ERROR_MESSAGE } from "#src/features/observability/test-error-message";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
-import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
+import { contributeIdentityPolicyListPermissionsTools } from "@jini-ai/user-management/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/index";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
 import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
@@ -81,7 +91,7 @@ import { contributeCommentsTools } from "#src/features/comments/tool-registratio
 import { contributePermanentDeleteTools } from "#src/features/permanent-delete/tool-registrations";
 import { buildPermanentDeleteDeps } from "./permanent-delete-deps.js";
 import { bindTrashUserForTool } from "./trash-user-tool-port.js";
-import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
+import { contributeContentDuplicationTools } from "@jini-ai/cms/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
 import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
@@ -117,8 +127,8 @@ import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-regi
 import { contributeExternalMcpOperationsTools } from "@jini-ai/mcp/external/operations-tools";
 import { externalMcpOperationsHost, probeExternalMcpServer, readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-tools";
-import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
-import { bindAssetHost } from "./asset-tool-host.js";
+import { contributeFilesCopyTools, buildFilesCopyAgentToolCatalog } from "@jini-ai/cms/asset-transfer/copy-tool";
+import { bindAssetHost, bindFilesCopyToolDeps, bindAssetDestinationDeps } from "./asset-tool-host.js";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "@jini-ai/cms/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
@@ -154,7 +164,7 @@ import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplic
 import { UPLOAD_CAPS } from "@tovu/contracts/upload-limits";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { contributeMediaViewImageTools } from "@jini-ai/cms/media/site/view-image-tool";
-import { contributeImageTransformTools } from "#src/features/image-transform/tool";
+import { contributeImageTransformTools, buildImageTransformAgentToolCatalog } from "@jini-ai/cms/media/site-transform/tool";
 import { createMediaConversionPorts, createMediaVideoToolPorts } from "./media-video-ports.js";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
@@ -512,7 +522,7 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`
   // call — see `features/agent-plugins/tool-registrations.ts`'s "search_agent_plugin_local" section
   // header for why the two halves use different wiring seams.
-  contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools() });
+  contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools({ policy: { permission: "role.manage", policyReadToolId: "content_read.identity_policy" } }) });
   contributions.contributors.register({ contribution: contributeSitesListTools() });
   contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate(), publishTrustProvisioning: deps.publishTrustProvisioning ?? getPublishTrustProvisioning() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
@@ -543,7 +553,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   // assistant/**` import, and reading the registry from inside that feature was a real
   // `check:boundaries` error until this seam replaced it. Passed as the reader FUNCTION, not a
   // pre-read array — the per-resource handlers below are registered after this line.
-  contributions.contributors.register({ contribution: contributeContentDuplicationTools({ listResourceHandlers: listDuplicateResourceHandlers }) });
+  contributions.contributors.register({ contribution: contributeContentDuplicationTools({ catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: listDuplicateResourceHandlers }) });
   contributions.contributors.register({ contribution: contributeContentTypesTools() });
   contributions.contributors.register({ contribution: contributeCustomCredentialsTools() });
   contributions.contributors.register({ contribution: contributeDatabaseTools({ mutationActor: ({ principalId }) => actorForMutation({ principalId, origin: "assistant" }) }) });
@@ -567,13 +577,27 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("@jini-ai/core/contracts/site/external-mcp-tool-ports").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
-  contributions.contributors.register({ contribution: contributeFilesCopyTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
+  contributions.contributors.register({ contribution: contributeFilesCopyTools({
+    catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION }),
+    approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) },
+    bindDeps: ({ deps }) => bindFilesCopyToolDeps({ deps: { ...deps, resolveImportedMediaUrls: resolveMediaPublicUrls, assetHost: bindAssetHost(deps) } }),
+  }) });
   contributions.contributors.register({ contribution: contributeFormsTools({ deriveDuplicateName }) });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools(mediaConversionPorts) });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools({ mediaAssetReadToolId: "content_read.media_asset", mediaMetadataWriteToolId: "media_update_metadata" }) });
-  contributions.contributors.register({ contribution: contributeImageTransformTools({ resolveImportedMediaUrls: resolveMediaPublicUrls, bindAssetHost: deps => bindAssetHost(deps) }) });
+  contributions.contributors.register({ contribution: contributeImageTransformTools({
+    catalog: buildImageTransformAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION }),
+    approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) },
+    destinationKit: { requireAssetDestination, prepareAssetWrites, writeAssetFiles },
+    bindDeps: ({ deps }) => ({ destination: bindAssetDestinationDeps({ deps: { ...deps, resolveImportedMediaUrls: resolveMediaPublicUrls, assetHost: bindAssetHost(deps) } }),
+      source: { readAsset: input => readAssetSource({ deps: { ...deps, resolveImportedMediaUrls: resolveMediaPublicUrls, assetHost: bindAssetHost(deps) }, ...input }) },
+      imageCodec: deps.imageCodec, refuseUnexpectedKeys,
+      isFsShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof FsWriteInputError,
+      isThemeShapeRejection: input => bindAssetHost(deps).isThemeShapeRejection(input), isImportShapeRejection,
+    }),
+  }) });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools({ resolvePublicUrls: resolveMediaPublicUrls }) });
   contributions.contributors.register({ contribution: contributeMediaProviderTools({ host: mediaProviderHost }) });

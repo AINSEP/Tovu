@@ -1,3 +1,4 @@
+import { isOperationInFlight } from "#src/contracts/core/operation-lock";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -776,6 +777,11 @@ async function executeEffects(fixture: ReturnType<typeof fakeRouteDeps>): Promis
 
 test("human confirmation does not turn an assistant migration into a user write", async () => {
   const fixture = fakeRouteDeps();
+  const capture = fixture.repos.dbOps.captureRestorePoint.bind(fixture.repos.dbOps);
+  fixture.repos.dbOps.captureRestorePoint = async required => {
+    assert.equal(isOperationInFlight({ siteId: WORKSPACE_ID }), true);
+    return capture(required);
+  };
   const tokens = fixture.deps.gatedMutations.gatewayDeps.tokens;
   const saved: Parameters<typeof tokens.save>[0][] = [];
   const save = tokens.save.bind(tokens);
@@ -783,6 +789,8 @@ test("human confirmation does not turn an assistant migration into a user write"
   const call = await startExecute(fixture.deps, "database_execute_migrate_forward", {});
   assert.deepEqual(call.answer(PRINCIPAL_ID, "confirm"), { ok: true });
   assert.equal((await call.pending as { migrated: boolean }).migrated, true);
+  assert.equal(isOperationInFlight({ siteId: WORKSPACE_ID }), false);
+  assert.ok(fixture.order.indexOf("dbOps.captureRestorePoint") < fixture.order.indexOf("restorePointsRepo.save"));
   assert.equal(saved.length, 1);
   assert.equal(saved[0]!.confirmerPrincipalId, PRINCIPAL_ID);
   assert.ok(fixture.authorizeCalls.length > 0);
@@ -998,3 +1006,16 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
 function ledgerDetail<Row extends object>(row: Row): Row & { actorId: string; detailJson: string | null } {
   return row as Row & { actorId: string; detailJson: string | null };
 }
+
+
+test("an unavailable restore point refuses migration before a dialog or execution", async () => {
+  const fixture = fakeRouteDeps();
+  fixture.repos.dbOps.getCapabilities = async () => ({ restorePoint: { costClass: "unavailable", kind: "file-snapshot" } });
+  const before = await executeEffects(fixture);
+  const emitted: unknown[] = [];
+  const tool = wired(combinedRegistrations(fixture.deps), "database_execute_migrate_forward");
+  await assert.rejects(tool.handler(executionContext({}), { emitSurface: async surface => { emitted.push(surface); } }), /DATABASE_RESTORE_POINT_UNAVAILABLE/);
+  assert.deepEqual(emitted, []);
+  assert.deepEqual(await executeEffects(fixture), before);
+  assert.deepEqual((await fixture.repos.databaseLedgerRepo.query({ limit: 10 })).items, []);
+});

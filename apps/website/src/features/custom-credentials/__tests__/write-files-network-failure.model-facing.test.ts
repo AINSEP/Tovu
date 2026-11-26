@@ -1,3 +1,4 @@
+import { invalidatePublishCredentialCompatibility } from '#src/features/deployments/publish-credentials/store';
 /**
  * @file Regression suite for `custom_credential_write_files`' network-failure branch (2026-09-16, w7).
  *
@@ -33,7 +34,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
 import { validateRepositoryTarget } from "../repository-target.js";
-import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { bindPublishCompatibility } from "@jini-ai/devops/deploy/site/publish-credentials/compatibility-port";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 
@@ -100,7 +101,7 @@ async function buildHarness(steps: Step[]) {
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
     sourceControlWrite: bindSourceControlWritePort({ validateRepositoryTarget, load: githubFromSource, httpClient }),
-    publishCompatibility: bindPublishCompatibility({ source: {} }),
+    publishCompatibility: bindPublishCompatibility({ invalidatePublishCredentialCompatibility: invalidatePublishCredentialCompatibility, source: {} }),
     customCredentialsFailureLog: (line) => logLines.push(line),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
