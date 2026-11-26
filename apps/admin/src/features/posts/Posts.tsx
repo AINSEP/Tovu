@@ -66,7 +66,7 @@ export function Posts({ usePostsHook = useWiredPosts, hooks = { useWiredAdminLoc
     togglePostPublish,
     removePost,
     rowMenuHandleById,
-  } = usePostsHook();
+  } = usePostsHook({});
   const locale = hooks.useWiredAdminLocale();
   const t = createPostsTranslator({ locale, translate: translateForPosts });
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with

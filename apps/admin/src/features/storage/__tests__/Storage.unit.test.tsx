@@ -4,7 +4,7 @@ import type { RetentionPassResult } from "@jini-ai/platform/retention";
 
 import type { StorageClient, StorageReport } from "@jini-ai/admin/screens/storage/api/storage-api";
 import type { ScreenshotCleanupClient } from "@jini-ai/admin/screens/storage/api/screenshot-cleanup-api";
-import { StorageScreen } from "../Storage";
+import { StorageScreen } from "@jini-ai/admin/screens/storage/StorageScreen";
 import { useWiredStorage } from "@jini-ai/admin/screens/storage/hooks/use-storage.hooks";
 import { useScreenshotCleanup } from "@jini-ai/admin/screens/storage/hooks/use-screenshot-cleanup.hooks";
 
@@ -37,7 +37,12 @@ function harness() {
     }),
   };
   const screenshotClient: ScreenshotCleanupClient = { preview: vi.fn(), apply: vi.fn() };
-  render(<StorageScreen client={client} screenshotClient={screenshotClient} reportErrors={({ error }) => String(error)} now={() => 0} locale="en" useWiredStorageHook={useWiredStorage} useScreenshotCleanupHook={useScreenshotCleanup} />);
+  render(<StorageScreen client={client} screenshotClient={screenshotClient} reportErrors={({ error }) => String(error)} now={() => 0} locale="en" useWiredStorageHook={useWiredStorage} useScreenshotCleanupHook={useScreenshotCleanup}
+    kit={{ Button: "button" }}
+    links={[{ label: "Chats", href: "/admin/ai-assistant", categories: ["chat-database"] }, { label: "Trash", href: "/admin/trash", categories: [] }]}
+    copy={{ automatic: "Cleaned automatically", yours: "Yours", shown: "Shown only", dryRun: "Clean up now", confirm: "Review and confirm", clean: "Clean up", lastAutomaticPass: "Last automatic clean-up", freed: "Freed", failures: "Could not clean" }}
+    t={({ key }) => key} categoryLabels={{ logs: "Logs", uploads: "Uploads", exports: "Exports" }} kindLabels={{ cache: "Cache", derived: "Rebuildable files", "old-copy": "Old copies" }}
+    screenshotAgeDays={90} screenshotsAnchor="storage-screenshots" screenshotHeading="Delete screenshots older than 90 days" />);
   return { client, seen };
 }
 

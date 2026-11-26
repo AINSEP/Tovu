@@ -19,7 +19,8 @@ import { EmailActivityTab } from "@jini-ai/admin/screens/email/EmailActivityTab"
 import { EmailOverviewTab } from "@jini-ai/admin/screens/email/EmailOverviewTab";
 import { Chip, Loaded, Section, when } from "@jini-ai/admin/screens/email/EmailParts";
 import { createEmailProviderLabel } from "@jini-ai/admin/screens/email/EmailProviderTab.hooks";
-import { EmailSenderTab, SenderDomain } from "@jini-ai/admin/screens/email/EmailSenderTab";
+import { createEmailNavigate } from "@jini-ai/admin/screens/email/Email.hooks";
+import { EmailSenderTab, EmailStatusFacts } from "@jini-ai/admin/screens/email/EmailSenderTab";
 import { EmailTemplatesTab } from "@jini-ai/admin/screens/email/EmailTemplatesTab";
 import { emailSummary } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
 import type { EmailActivityController } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
@@ -77,13 +78,7 @@ export const TAB_HOOKS: EmailTabHooks<HostEmailTypes> = {
 
 export const PARTS: EmailParts<HostEmailTypes> = { Overview: EmailOverviewTab, Sender: EmailSenderTab, Activity: EmailActivityTab, Templates: EmailTemplatesTab };
 
-/** The facts line under the status summary: the sender domain and the provider's verdict on it. */
-function StatusFacts(props: { status: AdminMailStatus; locale: string }) {
-  const verification = props.status.senderDomainVerification;
-  return <SenderDomain status={{ senderDomain: verification?.domain ?? null, providerVerification: verification ?? null }} locale={props.locale} />;
-}
-
-export const KIT: EmailKit<AdminMailStatus> = { TabBar, Segmented: ChatSettingsSegmented, Chip, Section, Loaded, StatusFacts };
+export const KIT: EmailKit<AdminMailStatus> = { TabBar, Segmented: ChatSettingsSegmented, Chip, Section, Loaded, StatusFacts: EmailStatusFacts };
 
 export const RULES: EmailRules<AdminMailStatus, MailProviderConfiguration, AdminAgentPluginRow> = {
   summarize: emailSummary, isFullyActive, when, providerLabel: createEmailProviderLabel, displayName: agentPluginDisplayName,
@@ -92,8 +87,9 @@ export const RULES: EmailRules<AdminMailStatus, MailProviderConfiguration, Admin
 export const COPY: EmailCopy = { t, navLabel: translateAdminNavLabel };
 
 /** This app's URL shape for a tab and its section; a section id is user-visible data, so it is encoded. */
-export const navigateEmail: EmailNavigate = ({ tabId, part }) =>
-  navigate({ routePath: part === null ? `/email?tab=${tabId}` : `/email?tab=${tabId}&p=${encodeURIComponent(part)}` }, { replace: true });
+export const navigateEmail: EmailNavigate = createEmailNavigate({
+  deps: { routePath: "/email", tabKey: "tab", partKey: "p", navigate },
+});
 
 /** The `/email` page. */
 export function EmailPanel(props: { tabId?: string | null; part?: string | null }) {

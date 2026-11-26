@@ -1,5 +1,5 @@
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
-import { hexOrDefault } from "../../rules";
+import { hexOrDefault } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import type { ToolbarGroupProps } from "./toolbar-group-props";
 
 /* Text/background color (owner, 2026-08-11: "anything and everything"; consolidated to fewer

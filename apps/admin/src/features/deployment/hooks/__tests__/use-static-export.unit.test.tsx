@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { useStaticExport } from "../use-static-export.hooks";
+import { useStaticExport } from "@jini-ai/devops/deploy/react/hooks/use-static-export.hooks";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
 import { createFakeStaticExportPort } from "../static-export-dependencies.hooks";
 import { DEPLOYMENT_EXPORT_RESOURCE } from "@jini-ai/devops/deploy/react/rules";
 import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
@@ -38,7 +42,7 @@ describe("useStaticExport — initial load", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeStaticExportPort({ status: IDLE_RUN });
 
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
 
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
     expect(result.current.run).toEqual(IDLE_RUN);
@@ -50,14 +54,14 @@ describe("useStaticExport — initial load", () => {
   it("seeds an already-running run so a reload mid-export shows the real state", async () => {
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
     const port = createFakeStaticExportPort({ status: runningRun });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
 
     await waitFor(() => expect(result.current.isRunning).toBe(true));
   });
 
   it("surfaces a rejected initial read as a translated, formatted load error", async () => {
     const port = createFakeStaticExportPort({ status: () => Promise.reject(new Error("disk error")) });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
 
     await waitFor(() => expect(result.current.loadError).not.toBeNull());
     expect(result.current.loadError).toContain("Could not load the export status");
@@ -68,7 +72,7 @@ describe("useStaticExport — initial load", () => {
 describe("useStaticExport — clean flag", () => {
   it("defaults clean to false and setClean updates it", async () => {
     const port = createFakeStaticExportPort({ status: IDLE_RUN });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     expect(result.current.clean).toBe(false);
@@ -84,7 +88,7 @@ describe("useStaticExport — trigger", () => {
     const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
     const port = createFakeStaticExportPort({ status: IDLE_RUN }, { getSiteExportStatus, triggerSiteExport });
 
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     act(() => result.current.setClean(true));
@@ -105,7 +109,7 @@ describe("useStaticExport — trigger", () => {
     const port = createFakeStaticExportPort({ status: IDLE_RUN }, {
       triggerSiteExport: () => new Promise((resolve) => (resolveTrigger = resolve)),
     });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     let triggerPromise!: Promise<void>;
@@ -125,7 +129,7 @@ describe("useStaticExport — trigger", () => {
     const port = createFakeStaticExportPort({ status: IDLE_RUN }, {
       triggerSiteExport: () => Promise.reject(new Error("an export is already running")),
     });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     await act(async () => {
@@ -153,7 +157,7 @@ describe("useStaticExport — trigger", () => {
     const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
     const port = createFakeStaticExportPort({ status: IDLE_RUN }, { getSiteExportStatus, triggerSiteExport });
 
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
 
     // The bootstrap read is still in flight — nothing has seeded `run` yet.
     expect(result.current.run).toBeUndefined();
@@ -192,7 +196,7 @@ describe("useStaticExport — duplicate submit (terra #5)", () => {
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
     const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
     const port = createFakeStaticExportPort({ status: IDLE_RUN }, { triggerSiteExport });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
     act(() => result.current.setClean(true));
 
@@ -216,7 +220,7 @@ describe("useStaticExport — duplicate submit (terra #5)", () => {
     const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
     const triggerSiteExport = vi.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(runningRun);
     const port = createFakeStaticExportPort({ status: IDLE_RUN }, { triggerSiteExport });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).not.toBeUndefined());
 
     await act(async () => {
@@ -250,7 +254,7 @@ describe("useStaticExport — poll loop", () => {
     });
     const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
     expect(getSiteExportStatus).toHaveBeenCalledTimes(1);
 
@@ -278,7 +282,7 @@ describe("useStaticExport — poll loop", () => {
     });
     const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     await act(async () => {
@@ -304,7 +308,7 @@ describe("useStaticExport — poll loop", () => {
       .mockRejectedValueOnce(new Error("blip 3"))
       .mockResolvedValue(completedRun);
     const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     for (let poll = 1; poll <= 5; poll += 1) {
@@ -329,7 +333,7 @@ describe("useStaticExport — poll loop", () => {
     const getSiteExportStatus = vi.fn().mockResolvedValueOnce(runningRun).mockRejectedValue(new Error("ECONNREFUSED"));
     const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     // Three consecutive failed polls — the bound this fix introduces.
@@ -393,7 +397,7 @@ describe("useStaticExport — poll loop", () => {
     });
     const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     // Arm the second poll, then unmount WHILE its request is still pending.
@@ -423,7 +427,7 @@ describe("useStaticExport — poll loop", () => {
     });
     const port = createFakeStaticExportPort({ status: runningRun }, { getSiteExportStatus });
 
-    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.isRunning).toBe(true));
 
     await act(async () => {
@@ -452,7 +456,7 @@ describe("useStaticExport — content refresh bus", () => {
   it("re-reads the status when a content refresh fires, so a run started from ANOTHER tab appears without a reload", async () => {
     let current: AdminExportRunSnapshot = IDLE_RUN;
     const port = createFakeStaticExportPort({ status: () => Promise.resolve(current) });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
 
     // A DIFFERENT tab/session called `deployment_trigger_export` — this hook's own `seededRef` means
@@ -471,7 +475,7 @@ describe("useStaticExport — content refresh bus", () => {
   it("refreshes on a notification that names deployment-export, and ignores one that names only other resources", async () => {
     let current: AdminExportRunSnapshot = IDLE_RUN;
     const port = createFakeStaticExportPort({ status: () => Promise.resolve(current) });
-    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
 
     current = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
@@ -492,7 +496,7 @@ describe("useStaticExport — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakeStaticExportPort({ status: IDLE_RUN });
     const statusSpy = vi.spyOn(port, "getSiteExportStatus");
-    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale }), { wrapper });
+    const { result, unmount } = renderHook(() => useStaticExport({ port, t: fakeT, locale: fakeLocale, useFetchQuery, useContentRefreshSubscription, describeApiError, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage, setTimeout, clearTimeout }), { wrapper });
     await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
 
     const callsWhileMounted = statusSpy.mock.calls.length;

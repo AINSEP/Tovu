@@ -4,7 +4,7 @@ import type { Translate } from "@jini-ai/core/text";
 
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
 import type { PostUrlDialogController } from "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks";
-import { toolbarBtnClass } from "../../rules";
+import { toolbarBtnClass } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import { probeBubbleMenu } from "./bubble-menu-state";
 
 /**

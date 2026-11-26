@@ -43,7 +43,7 @@ import {
   type StandingDraftAutosaveSnapshot,
   type StandingDraftStaleBasis,
 } from "@/hooks/use-standing-draft-autosave.hooks";
-import { handleImageDrop, titleNodeText, withTitleNode } from "../rules";
+import { handleImageDrop, titleNodeText, withTitleNode } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import { POSTS_RESOURCE } from "@jini-ai/cms/react/posts/posts-list-rules";
 import { buildPostAutosaveDraft, isoToLocalDateTimeInput, isScheduledPost, postSlugForTitle, postSlugFollowsTitle, localDateTimeInputToIso, type PostSaveConflict, resolvePostPreviewBranches } from "@jini-ai/cms/react/posts/post-editor-rules";
 import { t as translate } from "../posts-i18n";
@@ -662,7 +662,14 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
       // `role="textbox"` only at view creation — a later `setOptions` re-applies these attributes
       // as-is, so omitting it here drops the role.
       attributes: { role: "textbox", "aria-label": t("Content") },
-      handleDrop: (view, event, _slice, moved) => handleImageDrop({ view: view, event: event, moved: moved }),
+      handleDrop: (view, event, _slice, moved) => handleImageDrop({ view: view, event: event, moved: moved, deps: {
+        insertImageAtDrop: ({ event, src: uri }) => {
+          const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+          const node = view.state.schema.nodes.image.create({ src: uri });
+          view.dispatch(view.state.tr.insert(pos, node));
+          return true;
+        },
+      } }),
     },
     // The title-node half of the title's two-way sync with the standalone title `<input>` (see
     // `setTitleAndSyncEditor` below for the input's own half): every keystroke anywhere in the doc

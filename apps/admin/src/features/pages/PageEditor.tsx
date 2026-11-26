@@ -38,7 +38,9 @@ import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
 import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useWiredTermPicker } from "../taxonomy/taxonomy-wired.hooks";
-import { pagePickerValue, pagePublicPath, type PageSaveConflict } from "./rules";
+import { postPublicPath as pagePublicPath } from "@jini-ai/cms/routing/public-path";
+import type { SaveConflict as PageSaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
+import { pagePickerValue } from "./rules";
 import { pageEditorSurface } from "@jini-ai/cms/react/pages/page-editor-rules";
 import {
   pageAutosaveStaleBasisMessage,

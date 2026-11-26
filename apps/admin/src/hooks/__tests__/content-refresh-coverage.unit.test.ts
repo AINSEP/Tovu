@@ -51,7 +51,7 @@ const WIRED_HOOKS: readonly string[] = [
   // Taxonomy's list hook moved into `@jini-ai/admin`; its subscription is checked in the built
   // module this admin actually imports.
   "../node_modules/@jini-ai/admin/dist/screens/taxonomy/hooks/use-taxonomy.hooks.js",
-  "features/posts/hooks/use-posts.hooks.ts",
+  "../node_modules/@jini-ai/admin/src/posts/hooks/use-posts.hooks.ts",
   "features/pages/hooks/use-pages.hooks.ts",
   "features/plugins/hooks/use-plugins.hooks.ts",
   "features/plugins/hooks/use-agent-plugins.hooks.ts",
@@ -74,7 +74,7 @@ const WIRED_HOOKS: readonly string[] = [
   // Jini owns the queue lifecycle; Tovu's event port is the surviving bus subscription.
   "integrations/jini-admin/comments-ports.ts",
   // Recovery owns restore points.
-  "features/deployment/hooks/use-static-export.hooks.ts",
+  "../node_modules/@jini-ai/devops/src/deploy/react/hooks/use-static-export.hooks.ts",
   "features/members/hooks/members-controller.hooks.ts",
   // Jini owns both list lifecycles; the resource-filtered host port retains their subscription.
   "integrations/jini-admin/widgets-ports.ts",

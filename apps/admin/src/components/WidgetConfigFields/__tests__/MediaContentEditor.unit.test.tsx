@@ -4,7 +4,10 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/_
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { MediaPickerPort } from "@jini-ai/admin/shell/components/MediaPickerDialog/media-picker-port.hooks";
 import { MediaContentEditor } from "../MediaContentEditor";
-import { useMediaContentEditor } from "../MediaContentEditor";
+import { useMediaContentEditor } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor.hooks";
+import { acceptsMedia } from "@jini-ai/admin/media";
+import { useWiredMediaPickerItems, defaultMediaPickerPort } from "../../MediaPickerDialog/media-picker-dependencies.hooks";
+import { DEFAULT_LOCALE } from "../../../hooks/admin-locale-dependencies.hooks";
 import { useHtmlAttributeRows } from "@jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks";
 import { htmlAttributesToRows, isDroppedAttributeRow as isDroppedRow, rowsToHtmlAttributes } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { embedPolicy } from "@/integrations/jini-admin/embed-policy-ports";
@@ -217,10 +220,10 @@ describe("MediaContentEditor", () => {
 function useControlledMedia(initial: Record<string, unknown>) {
   const [config, setConfig] = useState(initial);
   const [emissions, setEmissions] = useState<Record<string, unknown>[]>([]);
-  const controller = useMediaContentEditor({ config, widgetType: "media", onChange: next => {
+  const controller = useMediaContentEditor({ port, locale: DEFAULT_LOCALE, useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia, config, widgetType: "media", onChange: next => {
     setConfig(next);
     setEmissions(current => [...current, next]);
-  } }, { port });
+  } });
   return { controller, config, emissions };
 }
 
@@ -325,7 +328,7 @@ it("the controller's default port loads media through the real API adapter", asy
     return new Response(JSON.stringify({ media: LIBRARY }), { status: 200, headers: { "content-type": "application/json" } });
   });
   try {
-    const { result, unmount } = renderHook(() => useMediaContentEditor({ config: { mode: "media", items: [{ slug: "sl-a" }] },
+    const { result, unmount } = renderHook(() => useMediaContentEditor({ port: defaultMediaPickerPort, locale: DEFAULT_LOCALE, useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia, config: { mode: "media", items: [{ slug: "sl-a" }] },
       widgetType: "media", onChange: () => { throw new Error("loading must not change the config"); } }));
     await waitFor(() => expect(result.current.library).toEqual(LIBRARY));
     expect(result.current.rows[0].asset).toEqual(LIBRARY[0]);

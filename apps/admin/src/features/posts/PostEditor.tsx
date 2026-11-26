@@ -35,7 +35,7 @@ import { usePostEditorScreen } from "./hooks/use-post-editor-screen.hooks";
 import { PostCoverImage } from "@jini-ai/cms/react/posts/PostCoverImage";
 import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
 import { postCoverBindings, useWiredPostFeaturedImage } from "./hooks/post-cover-host.hooks";
-import { overridesThemePageFromSelectValue, overridesThemePageSelectValue } from "./rules";
+import { overridesThemePageFromSelectValue, overridesThemePageSelectValue } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import "../../styles/native-domain-dialogs.css";
 

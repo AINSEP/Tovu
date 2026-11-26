@@ -1,3 +1,4 @@
+import type { SaveConflict as PageSaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
 import { readVersionConflict } from "../../../lib/shell-collaborators";
 import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
 import { useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
@@ -32,7 +33,7 @@ import { createEmbedPlaceholderDescriber } from "@jini-ai/admin/pages/lib/embed-
 import { embedMarkerTarget, parseEmbedMarkerConfig } from "@jini-ai/cms/widgets/markers";
 import { prettifyHtml } from "@jini-ai/admin/pages/lib/prettify-html";
 import { useWiredEditorHtmlJump, useWiredInteractiveEditorFlush } from "./page-editor-wiring.hooks";
-import { HOME_PAGE_HANDLE, pageAdminPath, PAGES_RESOURCE, type PageSaveConflict } from "../rules";
+import { HOME_PAGE_HANDLE, pageAdminPath, PAGES_RESOURCE } from "../rules";
 import {
   buildPageAutosaveDraft,
   buildPageSavePlan,

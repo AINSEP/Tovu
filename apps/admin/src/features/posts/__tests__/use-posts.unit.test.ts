@@ -5,8 +5,15 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { settingsApi } from "@/lib/admin-http/settings-api";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
-import { usePosts, usePostRowMenuHandleMap, useWiredPosts } from "../hooks/use-posts.hooks";
-import { POSTS_RESOURCE } from "@jini-ai/cms/react/posts/posts-list-rules";
+import { usePosts, usePostRowMenuHandleMap } from "@jini-ai/admin/posts/hooks/use-posts.hooks";
+import { useWiredPosts } from "../hooks/use-posts.hooks";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { t as translate } from "../posts-i18n";
+import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "@jini-ai/cms/react/posts/posts-list-rules";
+
+const hooks = { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate, useContentRefreshSubscription };
+const deps = { createRoutePath: "/posts?create=1", resource: POSTS_RESOURCE, translate, buildPostRowMenuHandleMap };
 
 /**
  * @file `usePosts` — everything the Posts LIST screen does. No hook-level test file existed for
@@ -56,7 +63,7 @@ afterEach(() => {
 
 async function renderLoaded() {
   fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: POST }] }));
-  const view = renderHook(() => useWiredPosts());
+  const view = renderHook(() => useWiredPosts({}));
   await waitFor(() => expect(view.result.current.posts).not.toBeNull());
   return view;
 }
@@ -70,7 +77,7 @@ describe("initial load", () => {
 
   it("sets the ApiError's own message on a failed load", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "not allowed" }, 403));
-    const { result } = renderHook(() => useWiredPosts());
+    const { result } = renderHook(() => useWiredPosts({}));
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("not allowed");
     expect(result.current.posts).toBeNull();
@@ -78,7 +85,7 @@ describe("initial load", () => {
 
   it("falls back to 'failed to load posts' for a non-Error rejection", async () => {
     fetchMock.mockRejectedValueOnce("network exploded");
-    const { result } = renderHook(() => useWiredPosts());
+    const { result } = renderHook(() => useWiredPosts({}));
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("failed to load posts");
   });
@@ -120,7 +127,7 @@ describe("togglePostPublish", () => {
   it("PUTs the row's own title/slug/bodyJson alongside status: draft AND expectedVersion, and replaces only the matching row", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: POST }, { post: OTHER_POST }] }));
-    const { result } = renderHook(() => useWiredPosts());
+    const { result } = renderHook(() => useWiredPosts({}));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     const updated = { ...POST, status: "draft" as const, version: POST.version + 1 };
@@ -148,7 +155,7 @@ describe("togglePostPublish", () => {
   it("PUTs status: published for a draft row", async () => {
     const DRAFT = { ...POST, status: "draft" as const };
     fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: DRAFT }] }));
-    const { result } = renderHook(() => useWiredPosts());
+    const { result } = renderHook(() => useWiredPosts({}));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT, status: "published" } }));
@@ -223,7 +230,7 @@ describe("removePost", () => {
 
   it("keeps the row and clears the delete state when the port rejects", async () => {
     const port = createFakePostsListPort({ posts: [POST], deleteError: new Error("delete denied") });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
     act(() => result.current.setPendingDelete(POST));
 
@@ -264,7 +271,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
   it("an unrelated publish toggle settling does not unlock a different row's in-flight Delete confirm", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     const port = createFakePostsListPort({ posts: [POST, OTHER_POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     let resolveToggle!: (v: { post: AdminPost }) => void;
@@ -308,7 +315,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
   it("a Delete settling first does not unlock a different row's in-flight publish toggle", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     const port = createFakePostsListPort({ posts: [POST, OTHER_POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     let resolveDelete!: (v: { post: AdminPost }) => void;
@@ -350,7 +357,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const post = { ...POST, status };
     const fake = createFakePostsListPort({ posts: [post] });
     const port = { ...fake, updatePost: async () => { throw null; } };
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([post]));
     await act(() => result.current.togglePostPublish(post));
     expect(result.current.error).toBe(message);
@@ -362,7 +369,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("uses the delete fallback for a non-Error rejection and closes the confirmation without removing the row", async () => {
     const fake = createFakePostsListPort({ posts: [POST] });
     const port = { ...fake, deletePost: async () => { throw undefined; } };
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
     act(() => result.current.setPendingDelete(POST));
     await act(() => result.current.removePost());
@@ -378,7 +385,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     let resolveList!: (value: Awaited<ReturnType<typeof fake.listPosts>>) => void;
     const pendingList = new Promise<Awaited<ReturnType<typeof fake.listPosts>>>((resolve) => { resolveList = resolve; });
     const port = { ...fake, listPosts: () => pendingList };
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     expect(result.current.posts).toBeNull();
     if (action === "toggle") await act(() => result.current.togglePostPublish(POST));
     else {
@@ -396,7 +403,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("loads posts through the injected port and navigates on create, without touching fetch", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
     const navigate = vi.fn();
-    const { result } = renderHook(() => usePosts({ port, navigate }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate } }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
     expect(result.current.posts).toEqual([POST]);
 
@@ -411,7 +418,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("togglePostPublish patches the post through the injected port", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     await act(async () => {
@@ -427,7 +434,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
    *  block uses for the editor's own save. */
   it("togglePostPublish rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     // Another operator (the full editor, say) saves first.
@@ -445,7 +452,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("removePost deletes the pending post through the injected port", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     act(() => result.current.setPendingDelete(POST));
@@ -475,7 +482,7 @@ describe("usePosts — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires, so an assistant-created post appears without a reload", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
 
     // The assistant's tool call landing server-side. The screen has no way to know it happened.
@@ -489,7 +496,7 @@ describe("usePosts — content refresh bus", () => {
 
   it("refreshes on a notification that names posts, and ignores one that names only other resources", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
 
     port.posts.push(TRANSLATED_POST);
@@ -506,7 +513,7 @@ describe("usePosts — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
     const listSpy = vi.spyOn(port, "listPosts");
-    const { result, unmount } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result, unmount } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
 
     const callsWhileMounted = listSpy.mock.calls.length;
@@ -519,7 +526,7 @@ describe("usePosts — content refresh bus", () => {
 
   it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
 
     // Two assistant writes land back to back, each publishing its own content-refresh
@@ -558,18 +565,18 @@ describe("usePosts — content refresh bus", () => {
 // `<Posts />` render.
 describe("usePostRowMenuHandleMap", () => {
   it("keys the handle by post id, matching buildPostRowMenuHandleMap", () => {
-    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: [POST] }));
+    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: [POST], deps }));
     expect(result.current.get(POST.id)).toBe(`posts-row-${POST.id}`);
   });
 
   it("returns an empty map for null posts", () => {
-    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: null }));
+    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: null, deps }));
     expect(result.current.size).toBe(0);
   });
 
   it("is included on the controller usePosts/useWiredPosts return", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePosts({ locale: "en", hooks, deps: { ...deps, port, navigate: vi.fn() } }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
     expect(result.current.rowMenuHandleById.get(POST.id)).toBe(`posts-row-${POST.id}`);
   });
@@ -579,7 +586,7 @@ describe("posts shared query ownership", () => {
   it("a publish toggle updates a second mounted list", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
     const dependencies = { port, navigate: (_path: string) => {} };
-    const { result } = renderHook(() => ({ first: usePosts(dependencies), second: usePosts(dependencies) }));
+    const { result } = renderHook(() => ({ first: usePosts({ locale: "en", hooks, deps: { ...deps, ...dependencies } }), second: usePosts({ locale: "en", hooks, deps: { ...deps, ...dependencies } }) }));
     await waitFor(() => expect(result.current.second.posts).toEqual([POST]));
     await act(async () => { await result.current.first.togglePostPublish(POST); });
     await waitFor(() => {
@@ -591,7 +598,7 @@ describe("posts shared query ownership", () => {
   it("a rejected write leaves the second list and its version untouched", async () => {
     const port = createFakePostsListPort({ posts: [POST], updateError: new Error("write refused") });
     const dependencies = { port, navigate: (_path: string) => {} };
-    const { result } = renderHook(() => ({ first: usePosts(dependencies), second: usePosts(dependencies) }));
+    const { result } = renderHook(() => ({ first: usePosts({ locale: "en", hooks, deps: { ...deps, ...dependencies } }), second: usePosts({ locale: "en", hooks, deps: { ...deps, ...dependencies } }) }));
     await waitFor(() => expect(result.current.second.posts).toEqual([POST]));
     await act(async () => { await result.current.first.togglePostPublish(POST); });
     expect(result.current.first.error).toBe("write refused");

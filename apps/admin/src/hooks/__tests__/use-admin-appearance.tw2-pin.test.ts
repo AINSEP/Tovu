@@ -1,7 +1,7 @@
 import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { beforeEach, expect, it, vi } from "vitest";
 import { DEFAULT_APPEARANCE, type AppearanceConfig } from "../../lib/settings-tabs";
-import { useAdminAppearance, useSettingsAppearance, type AdminAppearancePort } from "../use-admin-appearance.hooks";
+import { useAdminAppearance, useSettingsAppearance } from "../use-admin-appearance.hooks";
 
 const state = vi.hoisted(() => ({
   themeId: "classic",
@@ -15,7 +15,7 @@ vi.mock("../use-admin-appearance-snapshot.hooks", () => ({
 vi.mock("@jini-ai/admin/shell/hooks/use-admin-appearance-snapshot.hooks", () => ({
   advanceAppearancePreview: () => ++state.version,
 }));
-const port: AdminAppearancePort = {
+const port: NonNullable<NonNullable<Parameters<typeof useAdminAppearance>[1]>["port"]> = {
   loadAppearance: async () => DEFAULT_APPEARANCE,
   subscribeToSettingsRefresh: () => () => {},
 };

@@ -10,7 +10,7 @@ import { createFakePageEditorPort } from "../../features/pages/hooks/page-editor
 import { createFakeThemeCanvasPort } from "../../features/pages/hooks/theme-canvas-dependencies.hooks";
 import { standingDraftLocalBackup } from "../../lib/shell-collaborators";
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
-import { withTitleNode } from "../../features/posts/rules";
+import { withTitleNode } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import { COMMON_I18N } from "../../lib/i18n-common";
 
 const row: AdminPost = {

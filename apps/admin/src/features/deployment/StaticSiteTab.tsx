@@ -453,7 +453,7 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
   // Keep the DI seams. Forwarding resolvers previously isolated these branches for the
   // complexity gate; this component is small enough to resolve its defaults directly.
 
-  const exportController = hooks.useStaticExportHook();
+  const exportController = hooks.useStaticExportHook({});
   const publishController = hooks.useStaticPublishHook();
   const credentialsController = hooks.usePublishCredentialsHook({ targets: publishController.targets });
 

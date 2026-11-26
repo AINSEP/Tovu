@@ -10,7 +10,7 @@ import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { PostCoverImage } from "@jini-ai/cms/react/posts/PostCoverImage";
 import { postCoverBindings } from "../hooks/post-cover-host.hooks";
-import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
+import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 
 /**
  * @file The cover image above the title node (owner, 2026-10-10): the slot's eligibility rule, its

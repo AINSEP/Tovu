@@ -52,8 +52,8 @@ export const CollectionEntries = lazy(() => import("./features/collections").the
 export const CollectionEntryEditor = lazy(() => import("./features/collections/collection-entry-panel").then(module => ({ default: module.CollectionEntryEditor })));
 export const Taxonomy = lazy(() => import("./features/taxonomy").then(module => ({ default: module.Taxonomy })));
 export const Trash = lazy(() => import("./features/trash").then(module => ({ default: module.Trash })));
-export const Email = lazy(() => import("./features/email").then(module => ({ default: module.Email })));
-export const EmailTemplateEditor = lazy(() => import("./features/email").then(module => ({ default: module.EmailTemplateEditor })));
+export const Email = lazy(() => import("./features/email/email-panel").then(module => ({ default: module.EmailPanel })));
+export const EmailTemplateEditor = lazy(() => import("./features/email/email-panel").then(module => ({ default: module.EmailTemplateEditorPanel })));
 export const Database = lazy(() => import("./features/database").then(module => ({ default: module.Database })));
 export const Recovery = lazy(() => import("./features/recovery/recovery-panel").then(module => ({ default: module.Recovery })));
 export const Storage = lazy(() => import("./features/storage/Storage").then(module => ({ default: module.Storage })));

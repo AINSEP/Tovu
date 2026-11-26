@@ -1,7 +1,7 @@
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
 import type { ToolbarOverflowController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import type { PostUrlDialogController } from "@jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks";
-import { CODE_LANGUAGE_OPTIONS, toolbarBtnClass } from "../../rules";
+import { CODE_LANGUAGE_OPTIONS, toolbarBtnClass } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import type { ToolbarGroupProps } from "./toolbar-group-props";
 
 /** Props of a group whose controls can be promoted onto the phone row (`overflow.slot`). */

@@ -9,7 +9,7 @@ import { useMenuCopyEmbed, useMenuSave } from "@jini-ai/admin/screens/menus/hook
 import { createMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { trashApi } from "@/features/trash/api/trash-api";
-import { pagePublicPath } from "../pages/rules";
+import { postPublicPath as pagePublicPath } from "@jini-ai/cms/routing/public-path";
 import { isVersionConflict } from "@/lib/shell-collaborators";
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { adminFailureChannel, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
