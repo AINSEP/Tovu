@@ -6,6 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { parseHostSignalDeclaration, readBundledHostSignalDeclaration, resolveBundledHostSignals } from "@jini-ai/agent-plugins/site/host-signals";
 import { bundledContributionSources } from "../../bundled-contribution-sources.js";
+// These fixtures are intentional N-1 (`extensions.tovu`) manifests, read under Tovu's host policy.
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from "../../identity-read-policy.js";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, selectCoreHostSignalDeclaration } from "@tovu/contracts/host-signals";
 
@@ -18,11 +20,11 @@ const empty = { hosted: false, nativeToolsRestricted: false, trustProxyHops: und
 const fallback = { ...empty, deploymentAdvice: "Set TOVU_RUNTIME_MODE=production (fly.toml and docker-compose.yml already do)." };
 
 test("strict JSON declaration validation accepts only the data contract", () => {
-  assert.deepEqual(parseHostSignalDeclaration({ manifest: manifest([signal], "Set example mode.") }), {
+  assert.deepEqual(parseHostSignalDeclaration({ manifest: manifest([signal], "Set example mode.") }, TOVU_AGENT_PLUGIN_IDENTITY_READ), {
     signals: [signal], deploymentAdvice: "Set example mode.",
   });
-  assert.deepEqual(parseHostSignalDeclaration({ manifest: manifest([{ env: "EMPTY", facts: {} }]) }), { signals: [{ env: "EMPTY", facts: {} }] });
-  assert.deepEqual(parseHostSignalDeclaration({ manifest: manifest([{ env: "FALSE", facts: { hosted: false, nativeToolsRestricted: false } }]) }), {
+  assert.deepEqual(parseHostSignalDeclaration({ manifest: manifest([{ env: "EMPTY", facts: {} }]) }, TOVU_AGENT_PLUGIN_IDENTITY_READ), { signals: [{ env: "EMPTY", facts: {} }] });
+  assert.deepEqual(parseHostSignalDeclaration({ manifest: manifest([{ env: "FALSE", facts: { hosted: false, nativeToolsRestricted: false } }]) }, TOVU_AGENT_PLUGIN_IDENTITY_READ), {
     signals: [{ env: "FALSE", facts: { hosted: false, nativeToolsRestricted: false } }],
   });
   for (const value of [null, [], 1, {}, { extensions: null }, { extensions: [] }, { extensions: { tovu: null } },
@@ -34,7 +36,7 @@ test("strict JSON declaration validation accepts only the data contract", () => 
       .map(facts => manifest([{ ...signal, facts }])),
     ...[null, false, "", "  ", "line\nbreak", "\u0000", "x".repeat(2049)].map(label => manifest([{ ...signal, label }])),
     ...[null, 12, "", "bad\rline"].map(advice => manifest([signal], advice)),
-  ]) assert.equal(parseHostSignalDeclaration({ manifest: value }), undefined, JSON.stringify(value));
+  ]) assert.equal(parseHostSignalDeclaration({ manifest: value }, TOVU_AGENT_PLUGIN_IDENTITY_READ), undefined, JSON.stringify(value));
 });
 
 test("nonthrowing reader rejects ambiguous declarations as a whole for the core fallback", () => {
@@ -109,11 +111,11 @@ test("real synchronous bundled selection reads manifests, excludes retired/non-p
   writeFileSync(path.join(sourceRoot, "deploy", "plugin.json"), JSON.stringify(manifest([{ env: "RETIRED", facts: { hosted: true } }])));
   writeFileSync(path.join(sourceRoot, "malformed", "plugin.json"), "{");
   writeFileSync(path.join(sourceRoot, "ordinary-file"), "not a directory");
-  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources }), { signals: [signal] });
+  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources }, TOVU_AGENT_PLUGIN_IDENTITY_READ), { signals: [signal] });
   // An unrelated valid declaration cannot mask a missing baseline security declaration.
-  assert.deepEqual(resolveBundledHostSignals({ env: { EXAMPLE_APP: "app" }, bundledSourceRoot: sourceRoot, ...host }), fallback);
+  assert.deepEqual(resolveBundledHostSignals({ env: { EXAMPLE_APP: "app" }, bundledSourceRoot: sourceRoot, ...host }, TOVU_AGENT_PLUGIN_IDENTITY_READ), fallback);
   // Exercise the text port separately from the production default reader.
-  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources }, { readText: file => readFileSync(file, "utf8") }), { signals: [signal] });
+  assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot, sources: bundledContributionSources }, { ...TOVU_AGENT_PLUGIN_IDENTITY_READ, readText: file => readFileSync(file, "utf8") }), { signals: [signal] });
 });
 
 test("explicit shipped and unavailable payloads keep independent no-signal defaults", () => {
