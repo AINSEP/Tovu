@@ -78,7 +78,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "Loading…",
     "Each item shows how many days it has left.",
     "Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
-    "Items are permanently deleted {days} days after they are moved to Trash.",
+    "Items moved to Trash now are permanently deleted after {days} days. Items trashed earlier keep the date shown on their row.",
     "Post",
     "Page",
     "Comment",

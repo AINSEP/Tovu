@@ -142,7 +142,7 @@ describe("Trash screen", () => {
     expect(descriptions).toHaveLength(1);
     // Rows deleted under an older retention keep their own stamp, so the header must not promise one fixed length.
     // Bug d2 refines that: it states the current window (for items trashed now) and always pairs it with the per-row days.
-    expect(descriptions[0].textContent).toBe("Items are permanently deleted 14 days after they are moved to Trash. Each item shows how many days it has left.");
+    expect(descriptions[0].textContent).toBe("Items moved to Trash now are permanently deleted after 14 days. Items trashed earlier keep the date shown on their row. Each item shows how many days it has left.");
     const info = within(screen.getByRole("heading", { level: 1 })).getByLabelText(
       "Deleted items wait here so you can restore them until their days run out. Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
     );
