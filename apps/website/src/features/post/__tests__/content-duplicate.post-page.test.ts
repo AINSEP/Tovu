@@ -1,3 +1,5 @@
+import { realToolCatalog } from "#src/assistant/__tests__/real-tool-catalog.fixture";
+import { listDuplicateResourceHandlers, resetDuplicateResourceHandlersForTests } from "#src/assistant/index";
 import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
 import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
 import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
@@ -118,13 +120,14 @@ function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
 
-test("content_duplicate is wired, and this domain contributes both 'post' and 'page'", async () => {
-  const { deps } = fakeRouteDeps();
-  const registrations = registrationsFor(deps);
-  assert.ok(registrations.has("content_duplicate"));
+test("content_duplicate is wired, and this domain contributes both 'post' and 'page'", async (t) => {
+  resetDuplicateResourceHandlersForTests();
+  t.after(resetDuplicateResourceHandlersForTests);
+  const { registry } = await realToolCatalog();
+  assert.ok(registry.has({ toolId: "content_duplicate" }), "the production catalog must register content_duplicate");
   assert.deepEqual(
-    contributePostDuplicateHandlers({ deriveDuplicateName }).map((c) => c.resource).sort(),
-    ["page", "post"],
+    listDuplicateResourceHandlers().map((c) => c.resource).sort(),
+    ["form", "media", "page", "post"],
   );
 });
 

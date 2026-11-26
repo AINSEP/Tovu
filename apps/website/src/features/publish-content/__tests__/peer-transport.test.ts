@@ -16,7 +16,7 @@ import {
   callPeer,
 } from "../peer-transport-binding.js";
 import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport-error";
-import type { PublishHistoryRecorder } from "@jini-ai/cms/publish/content/peer-transport";
+import type { PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { ResolvedPeerCredential } from "@jini-ai/cms/publish/content/peer-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
@@ -738,9 +738,10 @@ test("a completed peer apply records one tovu-peer history row with the caller's
 });
 
 test("type pin: a history store without recordSuccess cannot be a PeerCallDeps recorder", () => {
-  const recorder: PublishHistoryRecorder = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
-  const refusesMissingRecorder: {} extends PublishHistoryRecorder ? false : true = true;
-  assert.equal(refusesMissingRecorder, true);
+  type Store = NonNullable<PeerCallDeps<"tovu-peer">["publishHistory"]>["store"];
+  const refusesMissingRecorder: {} extends Store ? false : true = true;
+  void refusesMissingRecorder;
+  const recorder: Store = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   assert.equal(typeof recorder.recordSuccess, "function");
 });
 

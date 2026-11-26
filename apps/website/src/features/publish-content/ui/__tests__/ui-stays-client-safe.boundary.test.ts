@@ -47,8 +47,8 @@ const REPORT_CONTRACT_FILE = fileURLToPath(import.meta.resolve(REPORT_CONTRACT_S
  *  package specifier allowed to leave `ui/` (see the closure test below for why it is client-safe). */
 const NEUTRAL_UI_SPECIFIER = "@jini-ai/cms/publish/content/ui";
 const NEUTRAL_UI_FILE = fileURLToPath(import.meta.resolve(NEUTRAL_UI_SPECIFIER));
-const NEUTRAL_UI_SOURCE_ROOT = path.resolve(path.dirname(NEUTRAL_UI_FILE), "../../../../src/publish/content/ui");
-const SEPARATE_REPORT_ROW_FILE = path.join(NEUTRAL_UI_SOURCE_ROOT, "PublishContentReportRow.tsx");
+const NEUTRAL_UI_ROOT = path.dirname(NEUTRAL_UI_FILE);
+const SEPARATE_REPORT_ROW = path.join(NEUTRAL_UI_ROOT, "PublishContentReportRow");
 
 const REACT_SPECIFIER_PATTERN = /^react(-dom)?(\/|$)/;
 
@@ -88,6 +88,8 @@ function edgesInSource(source: string): readonly ModuleEdge[] {
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword &&
       node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) {
       edges.push({ specifier: node.arguments[0].text, typeOnly: false });
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+      edges.push({ specifier: node.argument.literal.text, typeOnly: true });
     }
     ts.forEachChild(node, visit);
   };
@@ -113,28 +115,31 @@ function collectUiFiles(dir: string, out: string[]): void {
     if (entry.name === "__tests__") continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) collectUiFiles(full, out);
-    else if (full.endsWith(".ts") || full.endsWith(".tsx")) out.push(full);
+    else if (full.endsWith(".ts") || full.endsWith(".tsx") || full.endsWith(".js")) out.push(full);
   }
 }
 
 const UI_FILES = (() => {
   const out: string[] = [];
   collectUiFiles(UI_ROOT, out);
-  collectUiFiles(NEUTRAL_UI_SOURCE_ROOT, out);
-  return out.filter(file => file !== SEPARATE_REPORT_ROW_FILE);
+  const installed: string[] = [];
+  collectUiFiles(NEUTRAL_UI_ROOT, installed);
+  return out.concat(installed.filter(file => (file.endsWith(".js") || file.endsWith(".d.ts")) &&
+    file !== `${SEPARATE_REPORT_ROW}.js` && file !== `${SEPARATE_REPORT_ROW}.d.ts`));
 })();
 
 function relative(file: string): string {
   return path.relative(UI_ROOT, file);
 }
 
-test("the boundary test actually found this folder's source files", () => {
+test("the boundary test found the host sources and installed neutral entrypoints", () => {
   // Without this, every assertion below would vacuously pass on an empty list — the exact failure
   // mode a sibling agent shipped tonight.
   const hostFiles = UI_FILES.filter(file => file.startsWith(`${UI_ROOT}${path.sep}`));
   assert.ok(hostFiles.length >= 4, `expected features/publish-content/ui/ to hold source files, found ${hostFiles.length}`);
   assert.ok(UI_FILES.includes(INDEX_FILE), "features/publish-content/ui/index.ts must exist — it is the admin package's entrypoint");
-  assert.ok(UI_FILES.includes(path.join(NEUTRAL_UI_SOURCE_ROOT, "index.ts")), "the neutral Jini source entrypoint must be scanned too");
+  assert.ok(UI_FILES.includes(NEUTRAL_UI_FILE), "the installed neutral runtime entrypoint must be scanned");
+  assert.ok(UI_FILES.includes(path.join(NEUTRAL_UI_ROOT, "index.d.ts")), "the installed neutral declarations must be scanned");
 });
 
 test("features/publish-content/ui/ contains no .tsx file", () => {
@@ -169,7 +174,7 @@ test("no file under features/publish-content/ui/ takes a VALUE import on server 
       if (edge.typeOnly) continue;
       const resolved = resolveRelative(file, edge.specifier);
       if (resolved !== null) {
-        const root = file.startsWith(`${UI_ROOT}${path.sep}`) ? UI_ROOT : NEUTRAL_UI_SOURCE_ROOT;
+        const root = file.startsWith(`${UI_ROOT}${path.sep}`) ? UI_ROOT : NEUTRAL_UI_ROOT;
         if (!resolved.startsWith(`${root}${path.sep}`)) {
           offenders.push(`${relative(file)} -> ${edge.specifier} (a module outside features/publish-content/ui/)`);
         }
@@ -243,6 +248,8 @@ test("the client boundary sees side-effect, re-export and dynamic imports while 
   assert.deepEqual(edgesInSource('import "node:fs";'), [{ specifier: "node:fs", typeOnly: false }]);
   assert.deepEqual(edgesInSource('import type { X } from "../report-contract.js";'),
     [{ specifier: "../report-contract.js", typeOnly: true }]);
+  assert.deepEqual(edgesInSource('type Element = import("react").ReactElement;'),
+    [{ specifier: "react", typeOnly: true }]);
   assert.deepEqual(edgesInSource('// import "node:fs";'), []);
 });
 
@@ -259,7 +266,7 @@ test("the neutral publish-content-ui closure the host binding imports is itself 
     visited.add(file);
     for (const edge of edgesOf(file)) {
       const target = path.resolve(path.dirname(file), edge.specifier);
-      if (!edge.specifier.startsWith(".") || !target.startsWith(`${path.dirname(NEUTRAL_UI_FILE)}${path.sep}`)) {
+      if (!edge.specifier.startsWith(".") || !target.startsWith(`${NEUTRAL_UI_ROOT}${path.sep}`)) {
         escapes.push(`${path.basename(file)} -> ${edge.specifier}`);
       } else queue.push(target);
     }

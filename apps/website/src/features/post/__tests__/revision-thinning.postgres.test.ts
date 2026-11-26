@@ -1,6 +1,8 @@
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
+import { sql } from "kysely";
 import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
 
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
@@ -28,16 +30,19 @@ const SCOPE = { workspaceId: WS, postId: "p1", kind: "post" } as const;
 
 let first: ContentKernel;
 let second: ContentKernel;
+let observer: ContentKernel;
 
 before(async () => {
   const url = freshPostgresContentDatabase(DATABASE);
   first = openPostgresKernel<ContentDatabase>({ connectionString: url });
   second = openPostgresKernel<ContentDatabase>({ connectionString: url });
+  observer = openPostgresKernel<ContentDatabase>({ connectionString: url });
 });
 
 after(async () => {
   await first?.close();
   await second?.close();
+  await observer?.close();
 });
 
 function revision(seq: number, restoredFrom?: string, ws = WS): PostRevisionInput {
@@ -98,24 +103,41 @@ test("undo reference written during apply keeps its target", async () => {
 
   // The change-set insert joins this open transaction; its fence is held until the commit.
   const changeSets = new SqliteChangeSetRepo({ store: first });
-  let holding!: () => void, release!: () => void;
-  const held = new Promise<void>((resolve) => { holding = resolve; });
-  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const { promise: held, resolve: holding } = Promise.withResolvers<number>();
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>();
   const writer = first.transaction(async () => {
+    const [{ pid }] = await first.query(sql<{ pid: number }>`SELECT pg_backend_pid() AS pid`);
     await changeSets.insert({
       record: { id: "cs-undo", workspaceId: ws, actorId: "a", actor: { id: "a", kind: "user" }, status: "applied", summary: "edit", createdAt: "2026-05-01T00:00:00.000Z" },
       items: [{ id: "csi-undo", changeSetId: "cs-undo", entityType: "post", entityId: "p1", operation: "update", position: 0, beforeRevisionId: ids[1] }],
     });
-    holding();
+    holding(pid);
     await gate;
   });
-  await held;
-  let settled = false;
-  const applying = binding.apply({ principal: "owner", scope, previewToken: preview.previewToken, confirm: true }, {}).finally(() => { settled = true; });
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  try { assert.equal(settled, false, "apply waits on the fence while the change-set insert is open"); } finally { release(); }
+  const timer = new AbortController();
+  const deadline = delay(5_000, undefined, { signal: timer.signal })
+    .then(() => { throw new Error("Postgres did not report thinning blocked by the undo writer before the deadline"); });
+  let applying: ReturnType<typeof binding.apply> | undefined;
+  try {
+    const writerPid = await Promise.race([held, deadline, writer.then(() => { throw new Error("undo writer completed before releasing the fence"); })]);
+    const { promise: readerReady, resolve: identifyReader } = Promise.withResolvers<number>();
+    applying = second.transaction(async () => {
+      const [{ pid }] = await second.query(sql<{ pid: number }>`SELECT pg_backend_pid() AS pid`);
+      identifyReader(pid);
+      return binding.apply({ principal: "owner", scope, previewToken: preview.previewToken, confirm: true }, {});
+    });
+    const finished = applying.then(() => { throw new Error("thinning completed before Postgres showed it waiting on the undo writer"); });
+    const readerPid = await Promise.race([readerReady, deadline, finished]);
+    const blocking = sql<{ blocked: boolean }>`SELECT ${writerPid} = ANY(pg_blocking_pids(${readerPid})) AS blocked`;
+    while (!(await Promise.race([observer.query(blocking), deadline, finished]))[0].blocked) await delay(10);
+  } finally {
+    release();
+    timer.abort();
+    await Promise.allSettled([deadline, writer, applying]);
+  }
   await writer;
   const result = await applying;
   assert.deepEqual(result.deleted, [ids[0]]);
   assert.deepEqual(result.kept, [{ id: ids[1], reason: "isUndoReferenced" }]);
+  assert.deepEqual((await repoA.listRevisions({ workspaceId: ws, postId: "p1" })).map((row) => row.id).sort(), ids.slice(1).sort());
 });

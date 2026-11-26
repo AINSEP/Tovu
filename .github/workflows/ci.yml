@@ -98,6 +98,11 @@ jobs:
         continue-on-error: true
         run: npm run typecheck
 
+      - name: Typecheck (tests)
+        id: gate-tests-typecheck
+        continue-on-error: true
+        run: npm run typecheck:tests
+
       - name: Check shipped theme and reference-site drift
         # This is a dedicated gate: the broad Test step has a legacy failure baseline, so
         # stock/reference or stock/reset drift must also fail the summary directly.
@@ -314,6 +319,7 @@ jobs:
           }
           echo "--- build-and-test gates ---"
           check "${{ steps.gate-typecheck.outcome }}"          "typecheck (root)"
+          check "${{ steps.gate-tests-typecheck.outcome }}"    "typecheck (tests)"
           check "${{ steps.gate-boundaries.outcome }}"         "check:boundaries (dependency-cruiser)"
           check "${{ steps.gate-architecture.outcome }}"       "check:architecture"
           check "${{ steps.gate-inventory.outcome }}"          "check:inventory"

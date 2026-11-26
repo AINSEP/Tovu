@@ -14,8 +14,8 @@ const catalog = createMediaViewVideoCatalog({ mediaAssetReadToolId: 'content_rea
 // Contract: ADS-memory/.local-artifacts/codex/2026-10-06-release-0111-video64/staged/spec.md. The fixture is read
 // only. Spec SHA256: 855beddf17d8f9a6a7f7974a54d3ca396fb8eab2a9e0bb3ed49b59a7bad6939d.
 // Its mvhd/tkhd headers declare 8 seconds and 632x418; those are independent test oracles.
-test('real tiny MP4 reaches the tool as N decodable bounded JPEGs with source metadata', { timeout: 105_000 }, async t => {
-  if (!await findVideoBinaries({}, {})) { t.skip('Video preview unavailable: nice/ffmpeg/ffprobe are missing.'); return; }
+test('real tiny MP4 reaches the tool as N decodable bounded JPEGs with source metadata', { timeout: 105_000 }, async () => {
+  assert.ok(await findVideoBinaries({}, {}), "real video preview requires nice, ffmpeg and ffprobe");
   const workspaceId = 'ws-video-integration';
   const principalId = 'video-integration-owner';
   const mediaRepo = new InMemoryMediaRepo({});
