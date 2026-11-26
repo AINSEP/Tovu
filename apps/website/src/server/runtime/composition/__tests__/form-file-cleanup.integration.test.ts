@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,7 +20,7 @@ test("attachment purge journals rendition identities and tombstones after its sn
     await deps.formDefinitionRepo.create({ id: "attachment-form", workspaceId, name: "Files", slug: "files", status: "active", version: 1,
       createdAt: at, updatedAt: at, fields: [], notify: { enabled: false, recipients: [] } });
     const { media } = await uploadMedia({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
-      renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock, idGen: deps.idGen },
+      renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock, idGen: deps.idGen, createHash },
       input: { workspaceId, filename: "private-photo.png", contentType: "image/png", bytes: Uint8Array.of(137,80,78,71,13,10,26,10), createdByPrincipal: "owner", access: "private" } });
     const storageKey = (await deps.assetBlobRepo.findByHash({ workspaceId, sha256: media.source.sha256 }))!.storageKey;
     await deps.formSubmissionRepo.create({ workspaceId, id: "attachment-submission", formDefinitionId: "attachment-form",
@@ -48,7 +49,7 @@ test('a public editorial asset with a submission-like filename is retained durin
   try {
     site = await bootSite({ dir }); const { deps } = site; const workspaceId = deps.workspaceId, at = '2030-01-01T00:00:00.000Z';
     await deps.formDefinitionRepo.create({ id: 'public-ref-form', workspaceId, name: 'Files', slug: 'files', status: 'active', version: 1, createdAt: at, updatedAt: at, fields: [], notify: { enabled: false, recipients: [] } });
-    const { media } = await uploadMedia({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock, idGen: deps.idGen },
+    const { media } = await uploadMedia({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock, idGen: deps.idGen, createHash },
       input: { workspaceId, filename: 'forged-photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), createdByPrincipal: 'owner' } });
     await deps.formSubmissionRepo.create({ workspaceId, id: 'forged', formDefinitionId: 'public-ref-form', data: { photo: { mediaId: media.id, filename: 'photo.png', contentType: 'image/png', byteSize: 8 } }, sourceIp: null, submittedAt: at });
     const hidden = await deps.trash.trash({ workspaceId, entityType: 'form_submission', entityId: 'forged', actor: { principalId: 'owner' }, display: { title: 'Files' }, at, expectedVersion: null }); assert.equal(hidden.ok, true);

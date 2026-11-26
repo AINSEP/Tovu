@@ -27,6 +27,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
         id: "cs-restart-1",
         workspaceId,
         actorId: "user-1",
+        actor: { id: "user-1", kind: "user" },
         status: "applied",
         summary: "Renamed a post",
         idempotencyKey: "idem-restart-1",
@@ -53,6 +54,7 @@ test("SqliteChangeSetRepo: an applied change set (header + items) survives a sim
 
     const found = await repo2.findById({ workspaceId, id: "cs-restart-1" });
     assert.ok(found, "the change set must survive a restart");
+    assert.deepEqual(found.changeSet.actor, { id: "user-1", kind: "user" });
     assert.equal(found?.changeSet.summary, "Renamed a post");
     assert.equal(found?.items.length, 1);
     assert.deepEqual(found?.items[0].inversePayload, { title: "Old title" }, "the inverse payload (revert's only input for a non-revisioned entity) must survive");

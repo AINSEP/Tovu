@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent } from "@jini-ai/core/contracts/events";
+import type { AttributedDomainEvent, ChangeSetItemRecord, NewChangeSetRecord } from "@jini-ai/core/contracts/events";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "../../content-kernel.js";
@@ -15,8 +15,8 @@ import { changeSetsOn } from "#src/platform/db/__tests__/events-adapters";
  */
 
 const AT = "2026-11-18T00:00:00.000Z";
-const header = (over: Partial<ChangeSetRecord>): ChangeSetRecord => ({
-  id: "cs-a", workspaceId: "ws-a", actorId: "user-1", status: "proposed", summary: "s", idempotencyKey: "idem-1", createdAt: AT, ...over,
+const header = (over: Partial<NewChangeSetRecord>): NewChangeSetRecord => ({
+  id: "cs-a", workspaceId: "ws-a", actorId: "user-1", actor: { id: "user-1", kind: "user" }, status: "proposed", summary: "s", idempotencyKey: "idem-1", createdAt: AT, ...over,
 });
 const item = (over: Partial<ChangeSetItemRecord>): ChangeSetItemRecord => ({
   id: "csi-a", changeSetId: "cs-a", entityType: "post", entityId: "post-1", operation: "create", position: 0, ...over,
@@ -54,7 +54,8 @@ describeEachDialect(
 
     test("the co-persisted outbox row is the frozen outbox row, in the insert's transaction (mutation: write another shape)", async () => {
       const { kernel, repo } = make();
-      const event: DomainEvent = { id: "cs-a-change-set.applied", name: "change-set.applied", occurredAt: AT, workspaceId: "ws-a", payload: { changeSetId: "cs-a" } };
+      const event: AttributedDomainEvent = { id: "cs-a-change-set.applied", name: "change-set.applied", occurredAt: AT,
+        workspaceId: "ws-a", actorId: "user-1", actor: { id: "user-1", kind: "user" }, payload: { changeSetId: "cs-a" } };
       await repo.insert({ record: header({}), items: [] }, { event });
       const rows = await kernel.run((db) => db.selectFrom("outbox_events").select(["id", "workspace_id", "status", "attempts", "next_attempt_at", "created_at"]).execute());
       assert.deepEqual(rows, [{ id: event.id, workspace_id: "ws-a", status: "pending", attempts: 0, next_attempt_at: AT, created_at: AT }]);

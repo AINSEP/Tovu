@@ -13,8 +13,9 @@ import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerived
 import { assetToolHarness, until } from "./asset-tool-fixture.js";
 import { THEME_IMPORT_ACCEPT, THEME_IMPORT_MAX_BYTES, THEME_IMPORT_POLICY } from "#src/features/theme/asset-operations";
 
+const videoImport = { ports: {}, reportNote: () => assert.fail("image copies must not attempt video conversion") };
 /** Owner 2026-10-27: copy tool through actual source guards, existing destination writers and cards. */
-const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: (deps, surfaces) => buildFilesCopyRegistrations({ deps: bindFilesCopyToolDeps({ deps }), surfaces,
+const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: (deps, surfaces) => buildFilesCopyRegistrations({ deps: bindFilesCopyToolDeps({ deps, videoImport }), surfaces,
     catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: 'content.read' }),
     approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) } }), toolId: "files_copy" });
 const source = { root: "picked", path: "logo.png" };
@@ -30,7 +31,7 @@ function folder(dir: string, count: number, bytes: Buffer = Buffer.from("asset")
 test("copy catalog, metadata and risk declarations register one generic recipe surface", () => {
   assert.equal(contributeFilesCopyTools({ catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: 'content.read' }),
     approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) },
-    bindDeps: ({ deps }: { deps: AssetToolDeps }) => bindFilesCopyToolDeps({ deps }) }).domain, "files-copy");
+    bindDeps: ({ deps }: { deps: AssetToolDeps }) => bindFilesCopyToolDeps({ deps, videoImport }) }).domain, "files-copy");
   assert.equal(filesCopyDerivedRisk.get("files_copy"), "mutates-durable-state");
   assert.deepEqual(nativeToolMetadata.byId.files_copy?.approval, { class: "edit", confirmation: "policy" });
 });
@@ -163,11 +164,11 @@ test("destination authorization fails before any source read or fetch", async t 
   assert.equal(h.requests.length, 0); assert.equal(h.emitted.length, 0);
 });
 
-test("files_copy's per-file cap and URL theme-fetch policy are the theme owner's, bound by the host", () => {
+test("files_copy's per-file cap and URL theme-fetch policy are the theme owner's, bound by the host", async t => {
   // The copy catalog states the cap itself (it is built before any host port exists); this pins it
   // to the theme import cap so the two cannot drift, and pins the host binding to the theme policy.
   assert.equal(FILES_COPY_LIMITS.maxFileBytes, THEME_IMPORT_MAX_BYTES);
-  const host = bindAssetHost({} as never);
+  const { deps: { assetHost: host } } = await harness(t);
   assert.equal(host.themeImportFetch.policy, THEME_IMPORT_POLICY);
   assert.equal(host.themeImportFetch.accept, THEME_IMPORT_ACCEPT);
 });

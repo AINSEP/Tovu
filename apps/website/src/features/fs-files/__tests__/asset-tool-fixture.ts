@@ -1,5 +1,6 @@
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -48,7 +49,7 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: { newId: () => "card-1" }, defaultChannel: "mcp-ui" });
   const permissions: string[] = []; const requests: HttpRequest[] = [];
   const hostDeps: AssetHostDeps = {
-    resolveImportedMediaUrls: resolveMediaPublicUrls,
+    createHash,
     workspaceId: "ws", siteBinding: { dir: site }, themesDir, resolveActiveThemeId: async () => "match",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }), clock, idGen: { newId: () => `asset-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
@@ -58,7 +59,7 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
     resolveRoots: () => ({ repo: base, site, custom: custom === "picked" ? picked : custom || undefined }),
     authorize: async ({ permission }) => { permissions.push(permission); return { allowed: allowed(permission), reason: "matched" }; },
   };
-  const deps: AssetToolDeps = { ...hostDeps, assetHost: bindAssetHost(hostDeps) };
+  const deps: AssetToolDeps = { ...hostDeps, resolveImportedMediaUrls: resolveMediaPublicUrls, assetHost: bindAssetHost(hostDeps) };
   const handler = build(deps, { surfaceExchanges: store }).find((r) => r.descriptor.id === toolId)!.handler;
   const emitted: SurfaceEmission[] = [];
   const call = (input: unknown, withSurface = true) => handler(

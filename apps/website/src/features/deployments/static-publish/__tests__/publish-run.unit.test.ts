@@ -140,7 +140,7 @@ test("startPublishRun: a full success records history with owner/repo/basePath/b
   // the branch here differs from the config's (absent) one to prove which side is read.
   const providerMetadata = { owner: "octo", repo: "my-site", branch: "gh-pages", commitSha: "commit-sha-abc123", branchCreated: false };
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://example.test/published", "ready", "commit-sha-abc123", providerMetadata) };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input = githubInput(routeDeps);
 
   const outcome = await runPublishForTest(deps, input, clock, history);
@@ -167,7 +167,7 @@ test("startPublishRun: history's owner/repo/branch/commitSha come from providerM
   const routeDeps = testRouteDeps();
   const providerMetadata = { owner: "octo", repo: "my-site", branch: "main", commitSha: "sha-from-host", branchCreated: true };
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://example.test/p", "ready", "dpl-other", providerMetadata) };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
 
   await runPublishForTest(deps, { ...githubInput(routeDeps), config: { target: "github-pages", owner: "octo", repo: "my-site", branch: "gh-pages" } }, clock, history);
 
@@ -192,7 +192,7 @@ test("startPublishRun: history's owner/repo/branch/commitSha come from providerM
 test("startPublishRun: a non-github-pages target never carries commitSha/branch, even though deploymentId is still recorded verbatim", async () => {
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://demo.vercel.app", "ready", "dpl_not_a_commit") };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, publishOutputRootDir: routeDeps.publishOutputRootDir, idGen: routeDeps.idGen, exportSiteBound: routeDeps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" };
 
   await runPublishForTest(deps, input, clock, history);
@@ -209,7 +209,7 @@ test("startPublishRun: a non-github-pages target never carries commitSha/branch,
 test("startPublishRun: a partial (uploaded, not yet reachable) outcome is still recorded, with reachable:false", async () => {
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => partialDeployTarget() };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, publishOutputRootDir: routeDeps.publishOutputRootDir, idGen: routeDeps.idGen, exportSiteBound: routeDeps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" };
 
   const outcome = await runPublishForTest(deps, input, clock, history);
@@ -224,7 +224,7 @@ test("startPublishRun: a partial (uploaded, not yet reachable) outcome is still 
 test("startPublishRun: a failed outcome is never recorded — no history for a publish that did not happen", async () => {
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => failingDeployTarget() };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input = githubInput(routeDeps);
 
   const outcome = await runPublishForTest(deps, input, clock, history);
@@ -244,7 +244,7 @@ test("startPublishRun: a history-store failure never changes the reported outcom
       throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "ENOSPC" });
     }
   }
-  const brokenHistory = new BrokenHistoryStore();
+  const brokenHistory = new BrokenHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input = { ...githubInput(routeDeps), exportSiteBound: async ({ outputDir }: { outputDir: string }) => ({
     outputDir, routes: { succeeded: [{ path: "/", kind: "home" as const, outputFile: "index.html", data: "site" }], failed: [] },
     assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
@@ -269,7 +269,7 @@ test("a registry reload failure logs a sanitized warning and preserves outcome-o
       if (++loads > 1) throw new Error("plugin config: PRIVATE_TOKEN");
       return routeDeps.loadDeployTargets({ workspaceId });
     } };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input = githubInput(routeDeps);
   assert.equal((await runPublishForTest(deps, input, clock, history)).ok, true);
   const recorded = await history.getLast({ workspaceId: input.workspaceId, target: input.config.target });
@@ -281,7 +281,7 @@ test("a registry reload failure logs a sanitized warning and preserves outcome-o
 test("startPublishRun: the fire-and-forget path records history too, once the background publish settles", async () => {
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://example.test/bg", "ready") };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input = githubInput(routeDeps);
 
   let finish!: () => void;
@@ -302,7 +302,7 @@ test("startPublishRun: the fire-and-forget path records history too, once the ba
 test("an unexpected publish failure settles the run with its error and permits the next run", { timeout: 5000 }, async () => {
     const routeDeps = testRouteDeps();
     const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() }; // built before export (it names the URL); idGen fails next
-    const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+    const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
     const failure = new Error("run ID generation failed");
     const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish(failure), exportSiteBound: async () => assert.fail("must not export") };
     const run = runPublishForTest(deps, input, clock, history);
@@ -318,7 +318,7 @@ test("an unexpected publish failure settles the run with its error and permits t
 
 test("Publish destinations: successful Vercel-like run records replay config and credential binding; failed run adds none", async () => {
   const routeDeps = testRouteDeps();
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input: StaticPublishInput = {
     ...githubInput(routeDeps),
     config: { target: "vercel", teamId: "team-a", token: "SECRET", undeclared: "SECRET" },
@@ -360,7 +360,7 @@ for (const explicit of [false, true]) {
         publishes++;
         return fakeDeployTarget();
       } };
-    const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+    const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
     assert.equal((await runPublishForTest(deps, input, clock, history)).ok, true);
     const [destination] = await listStaticPublishDestinations({ workspaceId: input.workspaceId,
       historyStore: history, registry: await routeDeps.loadDeployTargets({ workspaceId: input.workspaceId }) });
@@ -380,7 +380,7 @@ for (const explicit of [false, true]) {
 test("an unexpected non-Error publish failure settles the run with its string form and is reported through the snapshot", { timeout: 5000 }, async () => {
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() }; // built before export (it names the URL); idGen fails next
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish("opaque failure value"), exportSiteBound: async () => assert.fail("must not export") };
   await assert.rejects(runPublishForTest(deps, input, clock, history), { message: "opaque failure value" });
   assert.equal(getPublishRunSnapshot().status, "errored");
@@ -389,7 +389,7 @@ test("an unexpected non-Error publish failure settles the run with its string fo
 
 test("a host's destinationConfig refines the recorded replay config from the provider's own metadata", async () => {
   const routeDeps = testRouteDeps();
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const seen: unknown[] = [];
   const loadDeployTargets: StaticPublishDeps["loadDeployTargets"] = async ({ workspaceId }) => {
     const registry = await routeDeps.loadDeployTargets({ workspaceId });
@@ -408,7 +408,7 @@ test("a host's destinationConfig refines the recorded replay config from the pro
 for (const failure of ["returned", "thrown"] as const) {
   test(`a ${failure} provider build failure leaves the job failed and writes no publish history`, async () => {
     const routeDeps = testRouteDeps();
-    const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+    const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
     const message = "Vercel build failed. Deployment ID: dpl_failed; provider status: ERROR. Check the Vercel dashboard before publishing again.";
     const target = fakeDeployTarget();
     target.publish = async () => {
@@ -427,7 +427,7 @@ for (const failure of ["returned", "thrown"] as const) {
 test('an unexpected manual publish failure never exposes secret shapes in its polled snapshot', async () => {
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() };
-  const history = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const history = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const failure = new Error('operation id failed token=PUBLISH_CANARY_90872');
   const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish(failure), exportSiteBound: async () => assert.fail('must not export') };
   await assert.rejects(runPublishForTest(deps, input, clock, history), error => {

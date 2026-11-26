@@ -38,7 +38,7 @@ async function setup() {
   const ownerId = await identity.ownerPrincipalId;
   const service = identityServiceDepsFrom({ ...identity, clock, idGen });
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: { next: idGen.newId }, clock,
+  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: schemaErasedKernel({ store: db }), purge: new KernelUserPurge({ kernel: schemaErasedKernel({ store: contentKernel({ store: db }) }), eventValues: outboxEventValues }), idGen: { next: idGen.newId }, clock,
     assertAccountAction: (required, optional) => identity.transactions.run({ workspaceId, execute: () => assertUserAccountAction({ ...required, deps: service }, { ...optional, seededOwnerPrincipalId: ownerId }) }),
   });
   const trash = createTrashService({ repo: trashRepo, adapters: new Map([["user", adapter]]), idGen,

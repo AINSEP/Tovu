@@ -100,7 +100,7 @@ test("throws ChangeSetNotFoundError when no change set matches (workspace + id)"
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry: createRevertRegistry({}, {}), clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "missing-cs" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "missing-cs", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof ChangeSetNotFoundError);
       assert.equal((err as Error).message, "change set 'missing-cs' was not found");
@@ -115,7 +115,7 @@ test("throws ChangeSetInvalidStatusError when the change set is not 'applied'", 
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry: createRevertRegistry({}, {}), clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof ChangeSetInvalidStatusError);
       assert.equal(
@@ -135,7 +135,7 @@ test("throws RevertNotPossibleError when no reverter is registered for the item'
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof RevertNotPossibleError);
       assert.equal(
@@ -156,7 +156,7 @@ test("throws RevertNotPossibleError when the item has no inverse payload", async
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof RevertNotPossibleError);
       assert.equal(
@@ -177,7 +177,7 @@ test("throws RevertConflictError with 'missing' when the entity no longer exists
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof RevertConflictError);
       assert.equal(
@@ -200,7 +200,7 @@ test("throws RevertConflictError with the found version when the entity has sinc
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof RevertConflictError);
       assert.equal(
@@ -232,7 +232,7 @@ test("applies inverses in descending position order (last-applied item is revert
   );
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
-  await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } });
+  await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } });
 
   assert.deepEqual(
     applyOrder,
@@ -268,7 +268,7 @@ test("throws ChangeSetInvalidStatusError ('already reverted concurrently') when 
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof ChangeSetInvalidStatusError);
       assert.equal(
@@ -298,13 +298,13 @@ test("enqueues a change-set.reverted event on the outbox when one is provided", 
   };
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen, outbox };
 
-  const reverted = await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } });
+  const reverted = await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } });
 
   const persisted = await changeSets.findById({ workspaceId: WS, id: "cs-1" });
   assert.equal(persisted?.changeSet.status, "reverted");
   assert.equal(persisted?.changeSet.revertedAt, new Date(clock.nowMs()).toISOString());
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     ChangeSetInvalidStatusError,
   );
 
@@ -315,7 +315,8 @@ test("enqueues a change-set.reverted event on the outbox when one is provided", 
     occurredAt: reverted.revertedAt,
     aggregateId: "cs-1",
     workspaceId: WS,
-    actorId: undefined,
+    actorId: "reverting-user",
+    actor: { id: "reverting-user", kind: "user" },
     changeSetId: "cs-1",
     payload: { changeSetId: "cs-1" },
   });
@@ -329,13 +330,13 @@ test("completes without enqueuing anything when no outbox is provided", async ()
   registry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
-  const reverted = await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } });
+  const reverted = await revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } });
 
   const persisted = await changeSets.findById({ workspaceId: WS, id: "cs-1" });
   assert.equal(persisted?.changeSet.status, "reverted");
   assert.equal(persisted?.changeSet.revertedAt, new Date(clock.nowMs()).toISOString());
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     ChangeSetInvalidStatusError,
   );
 
@@ -360,7 +361,7 @@ test("conflict message names the actor when the reverter resolves one via curren
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof RevertConflictError);
       assert.equal(
@@ -383,7 +384,7 @@ test("conflict message omits the actor suffix when a currentActor method exists 
   const deps: RevertChangeSetDeps = { transaction, changeSets, registry, clock, idGen };
 
   await assert.rejects(
-    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }),
     (err: unknown) => {
       assert.ok(err instanceof RevertConflictError);
       assert.equal(
@@ -411,7 +412,7 @@ test("force:true past a stale-version conflict resolves without throwing and app
 
   const reverted = await revertChangeSet({
     deps,
-    input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user" },
+    input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user", actor: { id: "reverting-user", kind: "user" } },
   });
 
   assert.equal(reverted.status, "reverted");
@@ -435,7 +436,7 @@ test("force:true does NOT bypass a missing entity — still throws RevertConflic
     () =>
       revertChangeSet({
         deps,
-        input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user" },
+        input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user", actor: { id: "reverting-user", kind: "user" } },
       }),
     (err: unknown) => {
       assert.ok(err instanceof RevertConflictError);
@@ -458,7 +459,7 @@ test("force omitted/false with a real mismatch is unchanged — the default path
     () =>
       revertChangeSet({
         deps,
-        input: { workspaceId: WS, changeSetId: "cs-1", force: false, principalKind: "user" },
+        input: { workspaceId: WS, changeSetId: "cs-1", force: false, principalKind: "user", actor: { id: "reverting-user", kind: "user" } },
       }),
     (err: unknown) => {
       assert.ok(err instanceof RevertConflictError);
@@ -490,7 +491,7 @@ test("force:true with an agent principal throws RevertForbiddenError before any 
     () =>
       revertChangeSet({
         deps,
-        input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "agent" },
+        input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "agent", actor: { id: "assistant-1", kind: "agent" } },
       }),
     (err: unknown) => {
       assert.ok(err instanceof RevertForbiddenError);
@@ -512,7 +513,7 @@ test("an agent principal WITHOUT force reverts normally — the restriction is f
 
   const reverted = await revertChangeSet({
     deps,
-    input: { workspaceId: WS, changeSetId: "cs-1", principalKind: "agent" },
+    input: { workspaceId: WS, changeSetId: "cs-1", principalKind: "agent", actor: { id: "assistant-1", kind: "agent" } },
   });
 
   assert.equal(reverted.status, "reverted");
@@ -542,7 +543,7 @@ test("checks every item's version before applying any inverse or emitting/saving
   };
   await assert.rejects(() => revertChangeSet({
     deps: { transaction, changeSets, registry, clock, idGen, outbox },
-    input: { workspaceId: WS, changeSetId: changeSet.id },
+    input: { workspaceId: WS, changeSetId: changeSet.id, actor: { id: "reverting-user", kind: "user" } },
   }), (error: unknown) => {
     assert.ok(error instanceof RevertConflictError);
     assert.equal(error.entityId, "stale");
@@ -569,7 +570,7 @@ test("a change set deleted during inverse application cannot be saved back as re
   const registry = createRevertRegistry({}, {});
   registry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { deleted = true; } }));
   await assert.rejects(revertChangeSet({ deps: { transaction, changeSets, registry, clock, idGen },
-    input: { workspaceId: WS, changeSetId: "cs-1" } }, {}), {
+    input: { workspaceId: WS, changeSetId: "cs-1", actor: { id: "reverting-user", kind: "user" } } }, {}), {
     name: "Error", message: "change set 'cs-1' was already reverted concurrently",
   });
   assert.equal(deleted, true);
@@ -587,7 +588,7 @@ test("L079: inverse availability is checked before any version read, including u
     baseItem({ id: "valid", position: 2 }), baseItem({ id: "missing-inverse", inversePayload: undefined }),
   ]);
   await assert.rejects(revertChangeSet({ deps: { transaction, changeSets, registry, clock, idGen },
-    input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user" } }),
+    input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user", actor: { id: "reverting-user", kind: "user" } } }),
     { message: "change-set item 'missing-inverse' has no inverse payload and cannot be reverted" });
   assert.deepEqual(reads, []);
 });
@@ -598,7 +599,7 @@ test("L079: force without principal kind is refused before any write", async () 
   const applied: string[] = [];
   registry.register('widget', 'update', fakeReverter({ currentVersion: 2, onApplyInverse: item => { applied.push(item.id); } }));
   await assert.rejects(revertChangeSet({ deps: { transaction, changeSets, registry, clock, idGen },
-    input: { workspaceId: WS, changeSetId: 'cs-1', force: true } }), (err: unknown) => {
+    input: { workspaceId: WS, changeSetId: 'cs-1', force: true, actor: { id: "reverting-user", kind: "user" } } }), (err: unknown) => {
     assert.ok(err instanceof RevertForbiddenError);
     assert.equal((err as RevertForbiddenError).reasonCode, 'FORCE_NEEDS_PRINCIPAL_KIND');
     return true;
@@ -646,7 +647,7 @@ test("L079: a later inverse failure rolls back earlier writes.", async () => {
     claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {},
   };
   await assert.rejects(revertChangeSet({ deps: { transaction, changeSets, registry, clock, idGen, outbox },
-    input: { workspaceId: WS, changeSetId: changeSet.id } }), error => error === failure);
+    input: { workspaceId: WS, changeSetId: changeSet.id, actor: { id: "reverting-user", kind: "user" } } }), error => error === failure);
   assert.deepEqual(attempted, ["first", "later"]);
   assert.deepEqual([...values], [["first", "new-first"], ["later", "new-later"]]);
   assert.deepEqual(saves, []);

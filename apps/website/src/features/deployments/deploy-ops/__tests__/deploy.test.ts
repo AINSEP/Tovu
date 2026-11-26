@@ -113,7 +113,7 @@ test("the chat tool requires write permission, validates input and calls runDepl
 test("a throwing history store preserves an accepted deploy and logs no error payload", async (t) => {
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   store.recordSuccess = async () => { throw new Error("database parameters: PRIVATE_TOKEN"); };
   let deploys = 0;
   const f = await withDeploy(async () => { deploys++; return accepted({ runId: "42" }); });
@@ -125,7 +125,7 @@ test("a throwing history store preserves an accepted deploy and logs no error pa
 });
 
 test("accepted deploys append descriptor identity to the shared ledger and link only matching saved peers", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const f = await withDeploy(async () => accepted({ url: "https://live.example.test/", runId: "42" }));
   await runDeploy({ deps: { ...f.deps, publishHistoryStore: historyStore }, input: { platform: "example-host", target: "shop" } });
   const [recorded] = await historyStore.list({ workspaceId: "ws" });
@@ -136,20 +136,21 @@ test("accepted deploys append descriptor identity to the shared ledger and link 
   assert.equal(recorded?.status, "started");
   const registry = await loadBundledDeployTargets();
   const peers = [{ id: "saved-peer", label: "Live", baseUrl: "https://live.example.test" }];
-  const [destination] = await listPublishDestinations({ workspaceId: "ws", historyStore, registry, peers });
+  const [destination] = await listPublishDestinations({ workspaceId: "ws", historyStore, registry, peers, peerKind: "tovu-peer" });
   assert.deepEqual(destination, { id: "deploy:example-host:shop", kind: "deploy", target: "example-host", label: "shop",
     status: "started", statusMessage: "Deploy started, not confirmed",
     url: "https://live.example.test/", lastPublishedAt: recorded!.publishedAt, linkedPeerId: "saved-peer" });
-  const [unlinked] = await listPublishDestinations({ workspaceId: "ws", historyStore, registry, peers: [] });
-  assert.equal(unlinked?.kind === "deploy" && "linkedPeerId" in unlinked, false);
-  assert.deepEqual(await listPublishDestinations({ workspaceId: "foreign", historyStore, registry, peers }), []);
+  const [unlinked] = await listPublishDestinations({ workspaceId: "ws", historyStore, registry, peers: [], peerKind: "tovu-peer" });
+  assert.equal(unlinked?.kind, "deploy");
+  assert.equal(unlinked && "linkedPeerId" in unlinked, false);
+  assert.deepEqual(await listPublishDestinations({ workspaceId: "foreign", historyStore, registry, peers, peerKind: "tovu-peer" }), []);
   const failed = await withDeploy(async () => { throw new Error("deploy failed"); });
   await assert.rejects(runDeploy({ deps: { ...failed.deps, publishHistoryStore: historyStore }, input: { platform: "example-host", target: "other" } }));
   assert.equal((await historyStore.list({ workspaceId: "ws" })).length, 1);
 });
 
 test("an accepted deploy followed by failing status never becomes a confirmed destination", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const f = await withDeploy(async () => accepted({ url: "https://failed.example.test", runId: "42" }));
   const platform = f.deps.deployOpsRegistry!.get("example-host")!;
   platform.module.status = async () => ({ platform: "example-host", target: "shop", state: "failing",
@@ -158,9 +159,11 @@ test("an accepted deploy followed by failing status never becomes a confirmed de
   await runDeploy({ deps, input: { platform: "example-host", target: "shop" } });
   assert.equal((await runDeployOps({ deps, input: { platform: "example-host", target: "shop", runId: "42" }, operation: "status" })).state, "failing");
   const destinations = await listPublishDestinations({ workspaceId: "ws", historyStore,
-    registry: await loadBundledDeployTargets(), peers: [] });
+    registry: await loadBundledDeployTargets(), peers: [], peerKind: "tovu-peer" });
   assert.equal(destinations.length, 1);
-  assert.equal(destinations[0]!.kind === "deploy" && destinations[0]!.status, "started");
+  const [destination] = destinations;
+  assert.equal(destination?.kind, "deploy");
+  assert.equal(destination && "status" in destination ? destination.status : undefined, "started");
   assert.equal((await historyStore.list({ workspaceId: "ws" }))[0]!.reachable, false);
 });
 

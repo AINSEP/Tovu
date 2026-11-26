@@ -1,4 +1,4 @@
-import type { JsonObject } from "@jini-ai/core/primitives";
+import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 
 /** The inputs the legacy-markup byte pin renders, shared by the recorder and the test. */
 export const SOCIAL_PROPS: JsonObject = { links: [{ platform: "Mastodon", url: "https://example.org/@a" }, { platform: "RSS <feed>", url: "/feed.xml" }, "not-an-object"] };
@@ -14,7 +14,7 @@ export const POST_PROPS: JsonObject = {
 };
 export const POST_NO_HEADER_PROPS: JsonObject = { ...POST_PROPS, header: false };
 export const POST_DOC_RENDERING = { renderDocNode: () => "<p>body</p>", renderNodes: () => "" };
-export const FORM_FIELDS = [{ name: "email", type: "email", label: "Email", required: true }, { name: "note", type: "text", label: "Note" }];
+export const FORM_FIELDS: JsonValue[] = [{ name: "email", type: "email", label: "Email", required: true }, { name: "note", type: "text", label: "Note" }];
 export const FORM_BUILTIN_PROPS: JsonObject = { slug: "contact", fields: FORM_FIELDS };
 export const FORM_BUILTIN_MESSAGE_PROPS: JsonObject = { slug: "contact", fields: FORM_FIELDS, successMessage: "Sent <ok>" };
 export const FORM_HTML_PROPS: JsonObject = { slug: "contact", mode: "html", html: "<label>Email <input name=\"email\"></label>", fields: FORM_FIELDS };

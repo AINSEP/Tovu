@@ -64,6 +64,8 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
     await changeSets1.insert({ record: {
         id: "cs-cochangeset-1",
         workspaceId: "workspace-restart-test",
+        actorId: "user-1",
+        actor: { id: "user-1", kind: "user" },
         status: "applied",
         summary: "Renamed a post",
         createdAt: "2026-07-16T00:00:00.000Z",
@@ -83,6 +85,8 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
         occurredAt: "2026-07-16T00:00:00.000Z",
         workspaceId: "workspace-restart-test",
         changeSetId: "cs-cochangeset-1",
+        actorId: "user-1",
+        actor: { id: "user-1", kind: "user" },
         payload: { changeSetId: "cs-cochangeset-1", entityType: "post", entityId: "post-1" },
       } }
     );
@@ -96,6 +100,7 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
     assert.equal(claimed.length, 1);
     assert.equal(claimed[0].id, "evt-cochangeset-1");
     assert.equal(claimed[0].event.name, "change-set.applied");
+    assert.deepEqual(claimed[0].event.actor, { id: "user-1", kind: "user" });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

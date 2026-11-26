@@ -166,7 +166,7 @@ async function pinnedOfferSite(t: import("node:test").TestContext, { runId }: { 
   await durable.accept({ conversationId, messageId: `${runId}-answer`, runId, principalId, workspaceId: deps.workspaceId,
     now: Date.now(), request: { contextRef: JSON.stringify({ prompt: "Read notes", pluginRefIds: [pluginId] }) } }, {});
   const app = express();
-  createAssistantByokModule({ routeDeps: deps }).registerToolExecRoutes({ router: app });
+  createAssistantByokModule({ routeDeps: deps, reporter: testToolReporter() }).registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);
   const post = (body: unknown) => fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify(body) });
   return { post, pluginId, durable, baseUrl, principalId, recover: () => { bump++; } };
@@ -218,6 +218,7 @@ test("preflight refusal logs neither server secrets nor candidate text", async t
     toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
     plugins: { controller: { start: async () => { throw leak(); }, offer: async () => { throw leak(); }, commit: async () => { throw leak(); }, forget() {} },
       pinnedPrefix: async () => "", emit: async () => {}, refusalPrefix: () => "" },
+    reporter: testToolReporter(),
   }, {});
   const baseUrl = await startTestServer(app, t);
   const post = (body: unknown) => fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify(body) });

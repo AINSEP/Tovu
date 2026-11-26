@@ -1,6 +1,7 @@
 import { bindAssetDestinationDeps } from '#src/server/runtime/composition/asset-tool-host';
 import { requireAssetDestination, prepareAssetWrites, writeAssetFiles } from '@jini-ai/cms/asset-transfer/asset-destinations';
-import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import { refuseUnexpectedKeysPort as refuseUnexpectedKeys } from '@jini-ai/core';
+import { approvalToolHandler } from '#src/contracts/core/human-confirm';
 import { describeWriteBatch } from '@jini-ai/cms/fs-files/tool-registrations';
 import { ASSET_SOURCE_SCHEMA, readAssetSource, type AssetToolDeps } from '#src/features/asset-transfer/asset-sources';
 import { buildImageTransformAgentToolCatalog } from '@jini-ai/cms/media/site-transform/tool';

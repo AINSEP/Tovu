@@ -8,6 +8,8 @@ import test from "node:test";
 import express, { Router } from "express";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { createRoutinesNotReadyStarter, startServingRoutines, ROUTINES_NOT_READY } from "../serving-routines.js";
+import type { SiteStoreHooks } from "../../site-deps/store-close-hooks.js";
+import type { StoreCloseRegistration } from "../../site-deps/open-store.js";
 import { ROUTINE_ROUTE_BASE } from "../assistant-routines.js";
 
 /**
@@ -26,10 +28,10 @@ function fakeChannel() {
 function site(t: { after: (fn: () => void) => void }) {
   const root = mkdtempSync(path.join(tmpdir(), "serving-routines-"));
   const drains: Array<() => Promise<void>> = [];
-  const registrations: Array<() => unknown> = [];
-  t.after(async () => { for (const drain of drains) await drain(); for (const registration of registrations) registration(); rmSync(root, { recursive: true, force: true }); });
-  const hooks = { dbPath: path.join(root, "content.db"), beforeStoreClose: ({ drain }: { drain: () => Promise<void> }) => { drains.push(drain); },
-    onStoreClose: ({ registration }: { registration: () => unknown }) => { registrations.push(registration); } };
+  const registrations: StoreCloseRegistration[] = [];
+  t.after(async () => { for (const drain of drains) await drain(); for (const registration of registrations) await (await registration)(); rmSync(root, { recursive: true, force: true }); });
+  const hooks: SiteStoreHooks = { dbPath: path.join(root, "content.db"), beforeStoreClose: ({ drain }) => { drains.push(drain); },
+    onStoreClose: ({ registration }) => { registrations.push(registration); } };
   return { hooks };
 }
 

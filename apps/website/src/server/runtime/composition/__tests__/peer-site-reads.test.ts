@@ -219,7 +219,7 @@ test('zero or multiple target owners refuse and close every provisional connecti
   const role = await f.b.identity.roleRepo.findByName({ workspaceId: f.b.workspaceId, name: 'owner' }); assert.ok(role);
   // A second owner role link is enough: the identity query joins real site-local users.
   await f.b.identity.principalRepo.save({ id: 'second', workspaceId: f.b.workspaceId, kind: 'user', displayName: 'Second', status: 'active', createdAt: f.b.clock.nowIso() });
-  await f.b.identity.userRepo.save({ principalId: 'second', workspaceId: f.b.workspaceId, username: 'second', passwordHash: 'unused' });
+  await f.b.identity.userRepo.save({ principalId: 'second', workspaceId: f.b.workspaceId, username: 'second', passwordHash: 'unused', version: 1 });
   await f.b.identity.principalRoleRepo.save({ id: 'second-link', workspaceId: f.b.workspaceId, principalId: 'second', roleId: role.id });
   const required = { siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId, buildRegistrations: () => inspection(async () => null) };
   await assert.rejects(f.peer.resolve(required), /exactly one owner/);

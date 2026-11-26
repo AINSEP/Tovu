@@ -185,7 +185,7 @@ async function bootClosableTurn(deps: ReturnType<typeof createRouteDeps>, toolSu
     post: (route: string, handler: (req: express.Request, res: express.Response, next: express.NextFunction) => unknown) =>
       app.post(route, (req, res, next) => { turnStarted.resolve({ turn: handler(req, res, next) }); }),
   } as unknown as express.Express;
-  createAssistantByokModule({ routeDeps: deps }, { toolSurface }).registerRoutes?.({ app: recordingApp });
+  createAssistantByokModule({ routeDeps: deps, reporter: routeErrors.reporter }, { toolSurface }).registerRoutes?.({ app: recordingApp });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   let providerCalls = 0;
   const providerUrl = await startStubProviderServer(t, () => { providerCalls++; return { status: 200, body: FIXTURE_REPLY }; });
@@ -194,7 +194,7 @@ async function bootClosableTurn(deps: ReturnType<typeof createRouteDeps>, toolSu
 
 test("closing during federation startup never starts a paid BYOK call", async t => {
   const deps = createRouteDeps();
-  const surface = createByokToolSurface(deps, { installExtensions: false });
+  const surface = createByokToolSurface({ ...deps, reporter: testToolReporter() }, { installExtensions: false });
   const federationEntered = deferred();
   const federationGate = deferred();
   let federationCalls = 0;
@@ -235,7 +235,7 @@ test("closing during credential resolution never starts a BYOK stream", async t 
     return storedVault.findOne(input, options);
   } } });
   deps.adminExecutionCredentialRepo = Object.create(storedRepo, { vault: { value: heldVault } });
-  const probe = await bootClosableTurn(deps, createByokToolSurface(deps, { installExtensions: false }), t);
+  const probe = await bootClosableTurn(deps, createByokToolSurface({ ...deps, reporter: testToolReporter() }, { installExtensions: false }), t);
   const client = new AbortController();
   const response = fetch(`${probe.baseUrl}${BYOK_TURN_PATH}`, { method: "POST", signal: client.signal, headers: { cookie: probe.cookie, "content-type": "application/json" },
     body: JSON.stringify({ messages: [{ role: "user", content: "Hello" }] }) });
@@ -256,7 +256,7 @@ test("closing during credential resolution never starts a BYOK stream", async t 
 
 test("a response closed before the turn begins never starts a paid BYOK call", async t => {
   const deps = createRouteDeps();
-  const probe = await bootClosableTurn(deps, createByokToolSurface(deps, { installExtensions: false }), t, { holdUntilClosed: true });
+  const probe = await bootClosableTurn(deps, createByokToolSurface({ ...deps, reporter: testToolReporter() }, { installExtensions: false }), t, { holdUntilClosed: true });
   const client = new AbortController();
   const response = fetch(`${probe.baseUrl}${BYOK_TURN_PATH}`, { method: "POST", signal: client.signal, headers: { cookie: probe.cookie, "content-type": "application/json" }, body: JSON.stringify({
     messages: [{ role: "user", content: "Hello" }], byok: { protocol: "anthropic", apiKey: "fixture-key", model: "fixture", baseUrl: probe.providerUrl },

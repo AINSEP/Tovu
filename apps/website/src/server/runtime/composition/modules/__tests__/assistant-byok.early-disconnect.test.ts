@@ -1,15 +1,10 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import express from "express";
-import { createToolRegistry } from "@jini-ai/core";
-import { createToolExecutor } from "@jini-ai/daemon";
-import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createRouteDeps } from "../../app.js";
-import type { ByokToolSurface } from "#src/assistant/index";
+import { createByokToolSurface, type ByokToolSurface } from "#src/assistant/index";
 import { setExecutionCredential } from "#src/assistant/execution-credential-store";
 import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
@@ -25,22 +20,17 @@ function deferred<T = void>(): { promise: Promise<T>; resolve: (value: T) => voi
   return { promise, resolve };
 }
 
-/** Bare surface whose federation wait the test controls. Every live-run allocation lists the
+/** Real surface whose federation wait the test controls. Every live-run allocation lists the
  * registry first, so the counter is the witness that no live-tool-run entry was ever created. */
-function heldFederationSurface({ federation }: { federation: Promise<void> }) {
-  const registry = createToolRegistry({});
+function heldFederationSurface({ deps, wait, t }: { deps: Parameters<typeof createByokToolSurface>[0]; wait?: () => Promise<void>; t: TestContext }) {
+  const real = createByokToolSurface(deps, { installExtensions: false });
   const counts = { list: 0 };
-  const list = registry.list.bind(registry);
-  const surface = {
-    registry: { ...registry, list: (input: Parameters<typeof list>[0]) => { counts.list++; return list(input); } },
-    metaTools: [],
-    surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-    executeMetaTool: async () => ({ content: "" }),
-    ready: Promise.resolve(),
-    awaitFederation: async () => { await federation; return { settled: true }; },
-    daemonCalls: { executor: createToolExecutor({ registry: createToolRegistry({}) }), listToolsFor: async () => [] },
-    readFederationAdmissions: async () => ({ connections: [], configFailures: [] }),
-  } as unknown as ByokToolSurface;
+  const list = real.registry.list.bind(real.registry);
+  t.mock.method(real.registry, "list", (input: Parameters<typeof list>[0]) => { counts.list++; return list(input); });
+  const surface: ByokToolSurface = {
+    ...real,
+    awaitFederation: wait ? async () => { await wait(); return { settled: true }; } : real.awaitFederation,
+  };
   return { surface, counts };
 }
 
@@ -52,11 +42,10 @@ for (const held of ["federation", "credential"] as const) {
     const serverClosed = deferred();
     const deps = createRouteDeps();
     await deps.identityReady;
-    const { surface, counts } = heldFederationSurface({ federation: held === "federation" ? gate.promise.then(() => undefined) : Promise.resolve() });
-    if (held === "federation") {
-      const awaitFederation = surface.awaitFederation;
-      surface.awaitFederation = (input) => { reached.resolve(); return awaitFederation(input); };
-    }
+    const { surface, counts } = heldFederationSurface({
+      deps: { ...deps, reporter: routeErrors.reporter }, t,
+      ...(held === "federation" ? { wait: async () => { reached.resolve(); await gate.promise; } } : {}),
+    });
     let providerCalls = 0;
     const providerHit = deferred();
     const providerUrl = await startStubProviderServer(t, () => { providerCalls++; providerHit.resolve(); return { status: 200, body: REPLY }; });
@@ -70,7 +59,7 @@ for (const held of ["federation", "credential"] as const) {
       res.on("close", () => serverClosed.resolve());
       next();
     });
-    createAssistantByokModule({ routeDeps: deps }, { toolSurface: surface }).registerRoutes?.({ app });
+    createAssistantByokModule({ routeDeps: deps, reporter: routeErrors.reporter }, { toolSurface: surface }).registerRoutes?.({ app });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const byok = { protocol: "anthropic", apiKey: "fixture-key", model: "fixture", baseUrl: providerUrl };
     if (held === "credential") {

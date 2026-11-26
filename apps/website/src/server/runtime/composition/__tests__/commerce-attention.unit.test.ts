@@ -21,7 +21,6 @@ import { sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { composeCommerce, type ComposeCommerceRequired } from '../commerce.js';
 import { ensureCommerceSetting } from '@jini-ai/commerce';
-import type { ProviderConfigSource } from '../provider-config-source.js';
 
 const context = { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, signal: new AbortController().signal };
 const authorize = async () => ({ allowed: true, reason: 'fixture-owner' });
@@ -46,7 +45,16 @@ async function fixture(t: test.TestContext, { active = true, configured = true }
   const ports: ComposeCommerceRequired = { kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
     workerOwner: false, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
     providers: { paymentProviders: () => [{ pluginId: 'payments-fake', module: fake.provider }] },
-    providerConfig: { read: async () => ({ settings: { accountId: 'merchant' }, secrets: { test_webhookSecret: LIPAY_FAKE_SECRET } }) } as unknown as ProviderConfigSource,
+    providerConfig: {
+      scope: 'site',
+      read: async ({ pluginId }) => {
+        assert.equal(pluginId, 'payments-fake');
+        return { settings: { accountId: 'merchant' }, secrets: { test_webhookSecret: LIPAY_FAKE_SECRET } };
+      },
+      readSettings: async () => assert.fail('commerce must not read the settings summary'),
+      usage: async () => assert.fail('commerce must not read credential usage'),
+      write: async () => assert.fail('commerce must not write credentials'),
+    },
     httpClient: { send: async () => { throw new Error('no vendor network'); } },
   };
   const boot = (changes: Partial<ComposeCommerceRequired> = {}) => runtime = composeCommerce({ ...ports, ...changes }, { warn: message => warnings.push(message) });

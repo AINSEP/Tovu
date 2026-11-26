@@ -3,7 +3,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { MCP_UI_EXPIRES_AT_META_KEY, MCP_UI_MIME_TYPE } from "@jini-ai/protocol/mcp-ui";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
@@ -397,28 +397,43 @@ test("an answer with an unrecognised 'decision' string is NOT confirm — never 
   assert.equal(httpClient.calls.length, 0);
 });
 
-test("an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — never decrypts, never sends", async () => {
+test("an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — never decrypts, never sends", { timeout: 5_000 }, async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
   await seedExampleHost(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
+  let now = Date.parse(NOW);
+  const timers = new Map<number, () => void>();
+  const surfaceExchanges = createSurfaceExchangeStore({
+    scheduler: { schedule: ({ delayMs, callback }) => { timers.set(delayMs, callback); return () => { timers.delete(delayMs); }; } },
+    clock: { nowMs: () => now }, idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui",
+  }, { idleTtlMs: 1000 });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const result = await call(deleteTool, { emitSurface: async () => undefined });
+  const emitted = Promise.withResolvers<SurfaceEmission>();
+  const pending = call(deleteTool, { emitSurface: async (surface) => emitted.resolve(surface) });
+  await Promise.race([emitted.promise, pending.then(() => assert.fail("DELETE settled before emitting a dialog"))]);
+  assert.equal(surfaceExchanges.size(), 1);
+  const expire = timers.get(1000);
+  assert.ok(expire, "the visible dialog must have an idle-expiry timer");
+  now += 1000;
+  expire();
 
+  const result = await pending;
   assert.deepEqual(result, { executed: false, cancelled: false, reason: "expired" });
+  assert.equal(surfaceExchanges.size(), 0);
   assert.equal(sealer.openCalls, 0);
   assert.equal(httpClient.calls.length, 0);
 });
 
-test("a cancelled run abandons the dialog and reports {executed:false, cancelled:false, reason:'abandoned'} — never decrypts, never sends", async () => {
+test("a cancelled run abandons the dialog and reports {executed:false, cancelled:false, reason:'abandoned'} — never decrypts, never sends", { timeout: 5_000 }, async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
   await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
   const controller = new AbortController();
 
-  const pending = call(deleteTool, { emitSurface: async () => undefined, signal: controller.signal });
-  await new Promise((resolve) => setImmediate(resolve));
+  const emitted = Promise.withResolvers<SurfaceEmission>();
+  const pending = call(deleteTool, { emitSurface: async (surface) => emitted.resolve(surface), signal: controller.signal });
+  await Promise.race([emitted.promise, pending.then(() => assert.fail("DELETE settled before emitting a dialog"))]);
   assert.equal(surfaceExchanges.size(), 1);
 
   controller.abort();
@@ -616,7 +631,7 @@ test("a grant revoked while DELETE approval is open refuses the approved request
   assert.equal(exchanges.size(), 0);
 });
 
-test("an abort during approved DELETE reauthorization prevents decryption and sending", async () => {
+test("an abort during approved DELETE reauthorization prevents decryption and sending", { timeout: 5_000 }, async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
   await seedExampleHost(writeDeps);
   const controller = new AbortController();
@@ -628,12 +643,14 @@ test("an abort during approved DELETE reauthorization prevents decryption and se
     return result;
   } };
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const emitted: unknown[] = [];
+  let emissions = 0;
+  const emitted = Promise.withResolvers<SurfaceEmission>();
   const pending = call(tool(buildRegistrations(routeDeps, exchanges), TOOL_ID), { signal: controller.signal,
-    emitSurface: async surface => void emitted.push(surface) });
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(emitted.length, 1);
-  assert.deepEqual(exchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]), principalId: PRINCIPAL_ID,
+    emitSurface: async (surface) => { emissions++; emitted.resolve(surface); } });
+  const dialog = await Promise.race([emitted.promise, pending.then(() => assert.fail("DELETE settled before emitting a dialog"))]);
+  assert.equal(emissions, 1);
+  assert.equal(exchanges.size(), 1);
+  assert.deepEqual(exchanges.deliver({ exchangeId: exchangeIdFromSurface(dialog), principalId: PRINCIPAL_ID,
     params: { decision: "confirm" } }, { toolId: TOOL_ID }), { ok: true });
   assert.deepEqual(await pending, { executed: false, cancelled: false, reason: "abandoned" });
   assert.equal(authorizations, 2);

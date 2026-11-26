@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { deletePost } from "@jini-ai/cms/posts/post-trash";
+import { SqliteTrashRepo } from "#src/features/trash/index";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bootSite, send, expectJson, SITE_DIALECTS, type SiteDeps } from "#src/server/__tests__/helpers/unrun-site-boot";
 
@@ -48,7 +49,7 @@ async function storedState({ deps }: { deps: SiteDeps }, _optional = {}) {
     post: await deps.postRepo.findById({ workspaceId, id: ENTITY_ID }),
     revisions: await deps.postRepo.listRevisions({ workspaceId, postId: ENTITY_ID }),
     menu: await deps.menuRepo.findById({ workspaceId, id: ENTITY_ID }),
-    trash: await deps.trashRepo.findByEntity({ workspaceId, entityType: "post", entityId: ENTITY_ID }),
+    trash: await new SqliteTrashRepo({ store: contentKernel }).findByEntity({ workspaceId, entityType: "post", entityId: ENTITY_ID }),
     refs: await deps.entryRefsRepo.findBySource({ workspaceId, sourceEntryId: ENTITY_ID }),
     ledger: await deps.changeSets.findById({ workspaceId, id: CHANGE_SET_ID }),
     events: await contentKernel.run(db => db.selectFrom("outbox_events").select(["id", "event_json"]).orderBy("id").execute()),

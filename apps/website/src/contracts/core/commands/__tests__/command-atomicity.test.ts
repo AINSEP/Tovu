@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isDeepStrictEqual } from "node:util";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { updatePost, InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { postPublicPath } from "#src/platform/routing/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import {
   executeCommand,
@@ -10,10 +15,10 @@ import {
 import {
   type ChangeSetItemRecord,
   type ChangeSetRecord,
+  type NewChangeSetRecord,
   type ChangeSetRepoPort,
   type ChangeSetWithItems,
   type CommandMutation,
-  type DomainEvent,
 } from "@jini-ai/core/contracts/events";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
@@ -51,16 +56,13 @@ function seededPost(): PostRecord {
   });
 }
 
-/** A no-op stand-in for `updatePost`'s own required `outbox` dep (SPEC-008/ADR-PIPE-008 Decision §5) — this
- * file's own gateway-level `outbox` fake (constructed per-test below) is a separate concern (the
- * `change-set.applied` event), so `postUpdateMutation`'s inner `updatePost` call gets its own. */
-const postTransitionOutbox = { enqueue: async () => {} } as never;
-
 /** Mirrors the post-update route's mutation, including the rollback seam. */
 function postUpdateMutation(
   repo: InMemoryPostRepo,
   next: { title: string; slug: string; bodyJson: JsonObject; status: "draft" | "published" }
 ): CommandMutation<Awaited<ReturnType<typeof updatePost>>> {
+  // Keep the post transition outbox separate from the gateway's change-set.applied event.
+  const postTransitionOutbox = new InMemoryOutbox();
   let priorPost: PostRecord | null = null;
   return {
     entityType: "post",
@@ -78,7 +80,7 @@ function postUpdateMutation(
     },
     execute: () =>
       updatePost({
-        deps: { repo, clock: fixedClock, outbox: postTransitionOutbox },
+        deps: { repo, clock: fixedClock, outbox: postTransitionOutbox, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual },
         input: { workspaceId: WORKSPACE, id: POST_ID, ...next },
       }),
     captureEntityVersion: ({ result }) => result.post.version,
@@ -90,7 +92,7 @@ function postUpdateMutation(
 
 /** A change-set repo whose record persistence always fails (injected EC-08 fault). */
 class FailingChangeSetRepo implements ChangeSetRepoPort {
-  async insert(_required: { record: ChangeSetRecord; items: ChangeSetItemRecord[] }): Promise<void> {
+  async insert(_required: { record: NewChangeSetRecord; items: ChangeSetItemRecord[] }): Promise<void> {
     throw new Error("injected change-set persist failure");
   }
   async findById(): Promise<ChangeSetWithItems | null> {
@@ -109,8 +111,7 @@ test("AC-17: injected change-set persist failure rolls back the post, no change 
   const repo = new InMemoryPostRepo({}, { initialRows: [seededPost()] });
   const before = await repo.findById({ workspaceId: WORKSPACE, id: POST_ID });
 
-  const enqueued: DomainEvent[] = [];
-  const outbox = { enqueue: async (e: DomainEvent) => void enqueued.push(e) } as never;
+  const outbox = new InMemoryOutbox();
 
   await assert.rejects(
     executeCommand({
@@ -133,14 +134,13 @@ test("AC-17: injected change-set persist failure rolls back the post, no change 
   assert.equal(after?.title, "Original title");
 
   // No outbox event (enqueue sits after the record commit, which never happened).
-  assert.equal(enqueued.length, 0);
+  assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
 });
 
 test("happy path: record commits, post updated, exactly one change set + one event", async () => {
   const repo = new InMemoryPostRepo({}, { initialRows: [seededPost()] });
 
-  const enqueued: DomainEvent[] = [];
-  const outbox = { enqueue: async (e: DomainEvent) => void enqueued.push(e) } as never;
+  const outbox = new InMemoryOutbox();
   // BR-04 (2026-07-16): the event now rides into changeSets.insert()'s third argument instead of
   // a separate deps.outbox.enqueue() call — the repo needs its own outbox reference to forward it.
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
@@ -158,6 +158,7 @@ test("happy path: record commits, post updated, exactly one change set + one eve
 
   assert.equal(result.post.version, 2);
   assert.equal(result.post.title, "Changed title");
+  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: POST_ID }), result.post);
 
   const recorded = await changeSets.findById({ workspaceId: WORKSPACE, id: changeSetId });
   assert.ok(recorded, "change set persisted");
@@ -165,6 +166,7 @@ test("happy path: record commits, post updated, exactly one change set + one eve
   assert.equal(recorded.items.length, 1);
   assert.equal(recorded.items[0].entityVersionAtApply, 2);
 
+  const enqueued = await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" });
   assert.equal(enqueued.length, 1);
-  assert.equal(enqueued[0].name, "change-set.applied");
+  assert.equal(enqueued[0]?.event.name, "change-set.applied");
 });

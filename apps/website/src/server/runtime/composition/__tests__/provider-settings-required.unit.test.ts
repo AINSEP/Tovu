@@ -3,7 +3,7 @@ import test from "node:test";
 import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
 import { buildProviderSettingsForm } from "@jini-ai/integrations/custom-credentials/provider-settings-card";
-import { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
+import type { ProviderConfigSource, ProviderPluginConfig } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { tovuProviderSettingsCardIdentity } from "#src/features/custom-credentials/tovu-credential-card-identity";
 import { providerInputOf } from "../provider-plugins.js";
 import { providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";

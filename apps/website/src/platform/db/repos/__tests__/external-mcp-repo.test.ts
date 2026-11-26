@@ -1,4 +1,5 @@
 import { externalMcpVaultPorts } from '#src/features/external-mcp/external-mcp-vault';
+import type { RawBuilder } from 'kysely';
 import type { KyselyKernel } from '@jini-ai/db/kernel';
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secrets-vault';
 import { schemaErasedKernel } from '#src/platform/db/content-kernel';
@@ -17,7 +18,8 @@ import { openContentDb, openSqliteContentConnection } from "../../sqlite/content
 
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
+import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlExternalMcpServerRepo } from "@jini-ai/mcp/federation/hosted/external-mcp-repo";
 
 /**
@@ -385,17 +387,22 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     for (const kind of keys) assert.deepEqual(await repo.vaultRepo.list({ workspaceId: WORKSPACE, kind, ownerKey: original.serverId, principalId: null }), []);
   });
 
-  test("roster reads hydrate every server's two payloads in one query", async () => {
+  test("roster reads hydrate every server's two payloads in one query", async (t) => {
     const repo = makeRepo();
-    for (let n = 0; n < 8; n++) await repo.upsert(makeOAuthRecord({ serverId: `batch-${n}`, sealedEnv: makeRecord().sealedEnv }));
+    const records = Array.from({ length: 8 }, (_, n) => makeOAuthRecord({
+      serverId: `batch-${n}`,
+      sealedEnv: { keyId: "k1", ciphertext: Buffer.from(`env-${n}`).toString("base64"), nonce: "bm9uY2U=", alg: "aes-256-gcm" },
+      sealedOAuth: { keyId: "k2", ciphertext: Buffer.from(`oauth-${n}`).toString("base64"), nonce: "bjI=", alg: "aes-256-gcm" },
+    }));
+    for (const record of records) await repo.upsert(record);
     const kernel = (repo as unknown as { kernel: ContentKernel }).kernel;
-    let queries = 0;
-    const externalMcpKernel4 = { ...kernel, query: async statement => { queries++; return kernel.query(statement); } };
-    const observed = new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel4 }), query: statement => externalMcpKernel4.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel4 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
-    const rows = await observed.listByWorkspaceId(WORKSPACE);
-    assert.equal(queries, 1);
+    const observed = t.mock.method(kernel, "query");
+    const rows = await repo.listByWorkspaceId(WORKSPACE);
+    assert.equal(observed.mock.callCount(), 1);
     assert.equal(rows.length, 8);
-    assert.ok(rows.every(row => row.sealedEnv && row.sealedOAuth));
+    const payloads = (values: ExternalMcpServerRecord[]) => new Map(values.map(({ serverId, sealedEnv, sealedOAuth }) =>
+      [serverId, [sealedEnv?.ciphertext, sealedOAuth?.ciphertext]]));
+    assert.deepEqual(payloads(rows), payloads(records));
   });
 
 });
@@ -404,17 +411,26 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
  *  overlays `patch` on every joined row. The JOIN itself never returns a foreign or malformed
  *  payload, so this is the only way to reach the read path's defensive refusals. */
 async function readTampered(patch: Record<string, unknown>): Promise<ExternalMcpServerRecord | null> {
-  const kernel = freshSqliteContentKernel();
-  await kernel.run((db) => db.insertInto("workspaces").values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, created_at: NOW }).execute());
-  await prepareVault(kernel);
-  const record = makeOAuthRecord({ sealedEnv: makeRecord().sealedEnv });
-  await new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: kernel }), query: statement => kernel.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors }).upsert(record);
-  const externalMcpKernel5 = {
-    ...kernel,
-    query: async (statement) => (await kernel.query(statement)).map((row) => ({ ...row, ...patch })),
-  };
-  const tampered = new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: externalMcpKernel5 }), query: statement => externalMcpKernel5.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: externalMcpKernel5 as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
-  return tampered.findByServerId(record);
+  const store = openContentDb(":memory:");
+  const kernel = contentKernel({ store });
+  try {
+    await kernel.run((db) => db.insertInto("workspaces").values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, created_at: NOW }).execute());
+    await prepareVault(kernel);
+    const record = makeOAuthRecord({ sealedEnv: makeRecord().sealedEnv });
+    const deps: ConstructorParameters<typeof SqlExternalMcpServerRepo>[0] = {
+      kernel: { ...schemaErasedKernel({ store: kernel }), query: statement => kernel.query(statement) },
+      vaultRepo: new SqlSecretsVaultRepo({ kernel: sqliteKernel<SecretsVaultDatabase>({ source: store }) }),
+      tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors,
+    };
+    await new SqlExternalMcpServerRepo(deps).upsert(record);
+    const tampered = new SqlExternalMcpServerRepo({ ...deps, kernel: {
+      ...deps.kernel,
+      query: async <Row>(statement: RawBuilder<Row>) => (await kernel.query(statement)).map(row => Object.assign({}, row, patch)),
+    } });
+    return await tampered.findByServerId(record);
+  } finally {
+    store.$client.close();
+  }
 }
 
 const CONTEXT_REFUSAL = { name: "VaultError", code: "context", message: "Secrets vault: context" };

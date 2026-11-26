@@ -9,20 +9,15 @@ import path from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { buildMediaRegistrations, MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { buildFilesCopyRegistrations } from '@jini-ai/cms/asset-transfer/copy-tool';
-import { createDocumentArchiveReader } from '@jini-ai/cms/media/site/document-archive';
-import * as yauzl from 'yauzl';
-import { createYauzlAgentPluginArchiveReader, type YauzlPort } from '@jini-ai/agent-plugins/lifecycle/yauzl';
 import { downloadDocuments } from '../../media/__tests__/download-documents.fixture.js';
 import { assetToolHarness } from './asset-tool-fixture.js';
 import { FS_FILES_READ_PERMISSION } from '@jini-ai/cms/fs-files/agent-tools';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
-/** Host binding: the installed yauzl SDK + agent-plugins streaming reader back the document archive guard. */
-const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiveReader: createYauzlAgentPluginArchiveReader };
 
 const destination = { kind: 'library' };
 interface Result { applied: boolean; documents: { id: string; filename: string; publicUrl: null; byteSize: number }[] }
 const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options,
-  build: (deps, surfaces) => buildFilesCopyRegistrations({ deps: bindFilesCopyToolDeps({ deps: { ...deps, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps) } }), surfaces,
+  build: (deps, surfaces) => buildFilesCopyRegistrations({ deps: bindFilesCopyToolDeps({ deps, videoImport: { ports: {}, reportNote: () => assert.fail("Library copies must not attempt video conversion") } }), surfaces,
     catalog: buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION }),
     approval: { approvalToolHandler, describeWriteBatch: ({ batch, toolId }) => describeWriteBatch(batch, { toolId }) } }), toolId: 'files_copy' });
 

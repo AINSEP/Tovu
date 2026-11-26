@@ -4,7 +4,8 @@ import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import type { Serializable } from "node:child_process";
-import type { Request, Response } from "express";
+import type { Request } from "express";
+import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { fetchAgentDaemon } from "../../composition/modules/assistant-daemon-client.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { publishDaemonPluginEvent } from "../../composition/modules/assistant-tool-exec.js";
@@ -95,20 +96,23 @@ test("desktop refusal reaches the server log and chat response without losing it
   parent.refusalReason = reason;
   const log = t.mock.method(console, "error", () => {});
   const warning = t.mock.method(console, "warn", () => {});
-  let body: unknown; let status: number | undefined;
-  const res = { status(code: number) { status = code; return res; }, json(value: unknown) { body = value; return res; } };
+  const { res, capture } = createCapturingResponse();
   startAssistantDaemon({ workspaceId: "site", siteDir: "/site", siteApiOrigin: "http://127.0.0.1:3100" }, {
     parentIpc: parent, registerProcessSignalHandlers: false,
     spawnDaemonProcess: () => assert.fail("a refusal must not spawn a local daemon"),
   });
   try {
-    assert.equal(await fetchAgentDaemon({ method: "POST", originalUrl: "/api/runs" } as Request, res as unknown as Response), null);
-    assert.equal(status, 503);
-    assert.deepEqual(body, { error: reason, code: "AGENT_DAEMON_UNAVAILABLE" });
+    assert.equal(await fetchAgentDaemon({ req: { method: "POST", originalUrl: "/api/runs" } as Request, res }), null);
+    assert.equal(capture.statusCode, 503);
+    assert.deepEqual(capture.jsonBody, { error: reason, code: "AGENT_DAEMON_UNAVAILABLE" });
     assert.deepEqual(log.mock.calls.map(call => call.arguments[0]), [`[assistant] the agent daemon is not ready: ${reason}`]);
     await assert.rejects(prepareAssistantPageBinding({}, {
-      activate: (input, options) => activateAssistantDaemon(input, { ...options,
-        request: async () => globalThis.Response.json(body, { status }),
+      activate: (input: { signal?: AbortSignal | undefined }) => activateAssistantDaemon(input, {
+        request: async (url: string, init: RequestInit) => {
+          assert.equal(url, "/api/frontend-sessions/activate");
+          assert.equal(init.method, "POST");
+          return globalThis.Response.json(capture.jsonBody, { status: capture.statusCode });
+        },
       }),
     }), { message: `${reason}\nDetails: HTTP 503; AGENT_DAEMON_UNAVAILABLE` }, "the chat binding retains the server reason and its HTTP/code diagnostic");
     await shutdownAssistantDaemon();
@@ -129,13 +133,13 @@ test("a latched failure retains its code while exposing the current readiness re
   const reasonCode = "previous-daemon-crash";
   recordAssistantDaemonFailure({ reasonCode });
   t.mock.method(console, "error", () => {});
-  let body: unknown;
-  const res = { status(code: number) { assert.equal(code, 503); return res; }, json(value: unknown) { body = value; return res; } };
+  const { res, capture } = createCapturingResponse();
   try {
-    await fetchAgentDaemon({ method: "POST", originalUrl: "/api/runs" } as Request, res as unknown as Response, {
+    await fetchAgentDaemon({ req: { method: "POST", originalUrl: "/api/runs" } as Request, res }, {
       ensureReady: async () => { throw Object.assign(new Error(reason), { refusalReason: reason }); },
     });
-    assert.deepEqual(body, { error: reason, code: "AGENT_DAEMON_KNOWN_FAILED", reasonCode });
+    assert.equal(capture.statusCode, 503);
+    assert.deepEqual(capture.jsonBody, { error: reason, code: "AGENT_DAEMON_KNOWN_FAILED", reasonCode });
   } finally { clearAssistantDaemonFailure(); }
 });
 
@@ -220,7 +224,7 @@ test('unexpected readiness failures expose plain recovery steps with redacted di
   let body!: { error: string; detail: string };
   const res = { status: () => res, json(value: typeof body) { body = value; return res; } };
   const secret = 'sk-ant-api03-very-secret-test-token';
-  await awaitDaemonForResponse({ res: res as unknown as Response }, {
+  await awaitDaemonForResponse({ res }, {
     ensureReady: async () => { throw new Error(`Connection failed: api_key=${secret} /Users/private/.credentials`); },
   });
   assert.match(body.error, /could not connect.*Retry/);
