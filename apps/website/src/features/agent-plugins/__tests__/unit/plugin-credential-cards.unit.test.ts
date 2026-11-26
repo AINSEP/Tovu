@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parsePluginCredentialCards, mergePluginCredentialCards, credentialCardsContribution, findPluginCredentialCard } from '@jini-ai/agent-plugins/connect';
+import { parsePluginCredentialCards as parseJiniCredentialCards, mergePluginCredentialCards, credentialCardsContribution, findPluginCredentialCard } from '@jini-ai/agent-plugins/connect';
+import { TOVU_AGENT_PLUGIN_IDENTITY_READ } from '../../identity-read-policy.js';
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../../../contracts/core/plugin-credential-card.js";
 import { readPluginCredentialValues } from "../../../custom-credentials/plugin-credential-card.js";
 
 const declaration = { target: 'example', label: 'Example key', category: 'hosting', baseUrl: 'https://api.example.com', title: 'Connect Example', intro: 'Publish this site.', keyHint: 'Grant deployment write access.' };
+/** Fixtures carry legacy `extensions.tovu` cards, so they are read through Tovu's host policy, as `connect-tool.ts` does. */
+const parsePluginCredentialCards = (required: Parameters<typeof parseJiniCredentialCards>[0], optional: Parameters<typeof parseJiniCredentialCards>[1] = {}) =>
+  parseJiniCredentialCards(required, { ...TOVU_AGENT_PLUGIN_IDENTITY_READ, ...optional });
 const manifest = (cards: unknown) => JSON.stringify({ extensions: { tovu: { credentialCards: cards } } });
 
 test('usedFor is bounded display text on API and domain cards, never saved connection metadata', () => {
