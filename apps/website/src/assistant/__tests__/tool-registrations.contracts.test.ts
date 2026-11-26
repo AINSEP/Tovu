@@ -107,7 +107,7 @@ import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-t
 import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
 import { buildFilesCopyAgentToolCatalog } from '@jini-ai/cms/asset-transfer/copy-tool';
 import { ASSET_SOURCE_SCHEMA } from '#src/features/asset-transfer/asset-sources';
-import { FS_FILES_READ_PERMISSION } from '#src/features/fs-files/agent-tools';
+import { FS_FILES_READ_PERMISSION } from '@jini-ai/cms/fs-files/agent-tools';
 const filesCopyAgentToolCatalog = buildFilesCopyAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION });
 import { buildImageTransformAgentToolCatalog } from '@jini-ai/cms/media/site-transform/tool';
 const imageTransformAgentToolCatalog = buildImageTransformAgentToolCatalog({ sourceSchema: ASSET_SOURCE_SCHEMA, fsReadPermission: FS_FILES_READ_PERMISSION });

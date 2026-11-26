@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { MediaImportToolDeps } from "@jini-ai/cms/media/site-import/bindings";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -65,6 +66,7 @@ function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void 
   const routeDeps: MediaImportToolDeps = testSiteLayoutContext({
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
+    createHash,
     clock: createFakeClock({ startIso: "2026-09-07T00:00:00.000Z" }),
     idGen: { newId: () => "id-1" },
     mediaRepo: new InMemoryMediaRepo({}),

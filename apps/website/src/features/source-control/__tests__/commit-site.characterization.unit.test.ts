@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { ExportReport } from "@tovu/contracts/export-report";
 import {
   commitExportDir,
   commitSiteToSourceControl,
@@ -81,7 +81,7 @@ function credentialRepo(run: Pick<Run, "events">, mode: CredentialMode): SourceC
     return { id: "cred-1", label: "Test", connection: { providerId: mode === "default" ? PROVIDER : "other-git", token: TOKEN } };
   };
   return {
-    canonical: { supports: () => true, describe: repoNeverRead, resolve },
+    canonical: { supports: () => true, describe: repoNeverRead, resolve, list: repoNeverRead, update: repoNeverRead, remove: repoNeverRead },
     insert: repoNeverRead, update: repoNeverRead, findById: repoNeverRead,
     findDefaultByProvider: repoNeverRead, listByProvider: repoNeverRead, listByWorkspace: repoNeverRead, delete: repoNeverRead,
   };

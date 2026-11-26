@@ -5,7 +5,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import type { PostRecord } from "@jini-ai/cms/posts/post";
+import { createPublicPostReader } from "@jini-ai/cms/posts/post-read";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEntryRefsRepo, InMemoryWidgetRegionBindingRepo, PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
@@ -35,21 +39,22 @@ class TracingPostRepo extends InMemoryPostRepo {
 }
 
 function makeRouteDeps(repo: TracingPostRepo, seen: string[]): WidgetsRouteDeps {
+  const trash = memoryWidgetTrash();
   return {
-    authorize: (async () => ({ allowed: true, reason: "test" })) as unknown as WidgetsRouteDeps["authorize"],
+    authorize: PRE_AUTHORIZED,
     workspaceId: "ws",
     clock,
     idGen: { newId: () => "id-1" },
-    outbox: new InMemoryOutbox() as unknown as WidgetsRouteDeps["outbox"],
-    entryRepo: {} as unknown as WidgetsRouteDeps["entryRepo"],
-    contentTypeRepo: {} as unknown as WidgetsRouteDeps["contentTypeRepo"],
-    entryRefsRepo: {} as unknown as WidgetsRouteDeps["entryRefsRepo"],
-    widgetBindingRepo: {} as unknown as WidgetsRouteDeps["widgetBindingRepo"],
+    outbox: new InMemoryOutbox(),
+    entryRepo: trash.entryRepo,
+    contentTypeRepo: new InMemoryContentTypeRepo(),
+    entryRefsRepo: new InMemoryEntryRefsRepo(),
+    widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: repo,
-    changeSets: {} as unknown as WidgetsRouteDeps["changeSets"],
-    pluginBeforeSaveHook: (async () => ({ allowed: true })) as unknown as WidgetsRouteDeps["pluginBeforeSaveHook"],
+    changeSets: new InMemoryChangeSetRepo(),
+    pluginBeforeSaveHook: async () => ({}),
     forgetRemovedPost: async () => {},
-    removeWidget: (async () => ({ ok: true })) as unknown as WidgetsRouteDeps["removeWidget"],
+    removeWidget: trash.remove,
     widgetPostWrites: {
       updatePost: (required, optional) => { seen.push("updatePost"); return updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional); },
       restorePostForward: (required, optional) => { seen.push("restorePostForward"); return restorePostForward(required, optional); },
@@ -71,10 +76,11 @@ test("widget embed update writes through the injected live-editor updatePost on 
   const writeDeps = { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox };
   const input = { workspaceId: "ws", id: "p1", title: "Embed edited", slug: created.slug, status: created.status, bodyJson: { type: "doc", content: [] }, expectedVersion: created.version, actorId: "human" };
 
+  repo.calls.length = 0;
   const { post } = await deps.host.posts.updatePost({ deps: writeDeps, input });
   assert.equal(post.version, created.version + 1);
-  assert.equal((await repo.findById({ workspaceId: "ws", id: "p1" }))?.version, created.version + 1);
   assert.ok(repo.calls.length > 0 && repo.calls.every((c) => c === "findById:true"), "the original instance served every read");
+  assert.equal((await repo.findById({ workspaceId: "ws", id: "p1" }))?.version, created.version + 1);
 
   const stale = await deps.host.posts.updatePost({ deps: writeDeps, input }).then(() => null, (error: unknown) => error);
   assert.ok(deps.host.posts.isVersionConflict(stale), "a stale expectedVersion is refused by the live editor's version guard");
@@ -90,13 +96,13 @@ test("widget embed rollback calls the injected forward restore on the original r
     workspaceId: "ws", id: "p1", title: "Edited", slug: created.slug, status: created.status, bodyJson: created.bodyJson, expectedVersion: created.version, actorId: "human",
   } });
 
+  repo.calls.length = 0;
   const restored = await deps.host.posts.restorePostForward({
-    deps: { ...writeDeps, forgetRemoved: deps.forgetRemovedPost }, input: { prior: created as PostRecord, actorId: "human" },
-  }) as { post: PostRecord } | null;
-  assert.ok(restored, "the forward restore applied");
-  assert.equal(restored.post.title, "Host");
+    deps: { ...writeDeps, forgetRemoved: deps.forgetRemovedPost }, input: { prior: created, actorId: "human" },
+  });
+  assert.partialDeepStrictEqual(restored, { post: { title: "Host" } }, "the forward restore applied");
+  assert.ok(repo.calls.length > 0 && repo.calls.every((c) => c === "findById:true"));
   assert.equal((await repo.findById({ workspaceId: "ws", id: "p1" }))?.title, "Host");
-  assert.ok(repo.calls.every((c) => c === "findById:true"));
   assert.deepEqual(seen, ["updatePost", "restorePostForward"]);
 });
 
@@ -104,7 +110,7 @@ test("a read-only widget host binding refuses post writes in plain words instead
   const { repo, created } = await seed();
   const host = buildWidgetHostPorts({ postRepo: repo, postWrites: READ_ONLY_WIDGET_POST_WRITES }, {});
   await assert.rejects(
-    host.posts.updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() as never }, input: {
+    host.posts.updatePost({ deps: { repo: createPublicPostReader({ repo }), clock, outbox: new InMemoryOutbox() }, input: {
       workspaceId: "ws", id: "p1", title: "x", slug: created.slug, status: created.status, bodyJson: created.bodyJson, expectedVersion: created.version,
     } }),
     /read-only/,

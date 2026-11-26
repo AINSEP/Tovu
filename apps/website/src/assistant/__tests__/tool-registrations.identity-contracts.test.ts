@@ -382,7 +382,7 @@ test("identity_user_list caps its fan-out and SAYS so, rather than silently retu
 
   for (let i = 0; i < 205; i++) {
     await repos.principals.save({ id: `bulk-${i}`, workspaceId: WORKSPACE_ID, kind: "user", displayName: `bulk-${i}`, status: "active", createdAt: "2026-01-01T00:00:00.000Z" });
-    await repos.users.save({ principalId: `bulk-${i}`, workspaceId: WORKSPACE_ID, username: `bulk-${i}`, passwordHash: "hash" });
+    await repos.users.save({ principalId: `bulk-${i}`, workspaceId: WORKSPACE_ID, username: `bulk-${i}`, passwordHash: "hash", version: 1 });
   }
 
   const result = (await wired(deps, "content_read.identity_user").handler(...asOwner(ownerPrincipalId, {}))) as {

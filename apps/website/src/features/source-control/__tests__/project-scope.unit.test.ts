@@ -1,3 +1,4 @@
+import { SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store.validation";
 import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
@@ -20,7 +21,7 @@ import type { SourceControlCredentialSetRepoPort } from "@jini-ai/core/contracts
 import type { HttpClientPort } from "#src/platform/http/index";
 import { exampleProviders, exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
-import { deleteSourceControlCredential, describeCredential, findDefaultSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialDuplicateLabelError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { deleteSourceControlCredential, describeCredential, findDefaultSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialDuplicateLabelError } from "@jini-ai/devops/source-control/site/store";
 import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 
 /**

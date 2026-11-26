@@ -5,7 +5,8 @@ import test from "node:test";
 import { seedPrincipals } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { type ContentKernel, eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemoryUserPurge, UserDeleteUnsupportedError, type PurgeCounts, type UserPurgePort } from "@jini-ai/user-management/identity/user-purge-types";
-import { SqlUserPurge } from "../user-purge.js";
+import { KernelUserPurge } from "@jini-ai/user-management/identity/sql/kernel-user-purge";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
@@ -150,10 +151,9 @@ for (const each of eachDialect({ tables: TABLES.filter(table => table !== "secre
     const neighborBefore = await snapshotTables(kernel, "neighbor");
     const otherBefore = await snapshotTables(kernel, "other-workspace-user");
 
-    const purge = new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues });
+    const purge = new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues });
     const counts = await purge.purgeUser({ workspaceId: WS, principalId, buildEvent: (required, optional) => {
-      assert.equal(Object.hasOwn(optional!, "reason"), true);
-      assert.equal(optional!.reason, undefined);
+      assert.deepEqual(optional, {});
       return makeBuildEvent(principalId)(required);
     } });
 
@@ -200,9 +200,10 @@ for (const each of eachDialect({ tables: TABLES.filter(table => table !== "secre
     );
 
     const before = await snapshotTables(kernel);
-    const purge = new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues });
+    const purge = new KernelUserPurge({ kernel: schemaErasedKernel({ store: kernel }), eventValues: outboxEventValues });
     await assert.rejects(
-      purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId, "dup-event") })
+      purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId, "dup-event") }),
+      /UNIQUE constraint failed: outbox_events\.id|duplicate key value violates unique constraint "outbox_events_pkey"/i
     );
 
     assert.equal(await countWhere(kernel, "principals", "id", principalId), 1);

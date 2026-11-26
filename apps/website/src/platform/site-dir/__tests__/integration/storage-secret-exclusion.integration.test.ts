@@ -91,7 +91,6 @@ test("the site backup collects no .storage-secret.json from any scope", async (t
       themesDir: path.join(dir, "themes"),
       agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }),
       skillsDir: path.join(dir, "skills"),
-      tovuVersion: "test",
     },
     include: { database: true, media: true, themes: true, plugins: true, settings: true },
   });

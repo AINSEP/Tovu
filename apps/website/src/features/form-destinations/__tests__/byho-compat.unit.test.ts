@@ -76,7 +76,7 @@ async function republish(required: { creds: CustomCredentialWriteDeps; newSecret
   const deployTargets: DeployTargetRegistry = { get: (id) => (id === HOST ? loaded : undefined), list: () => [loaded], refusals: [] };
   const routeDeps = createRouteDeps();
   const outcome = await publishStaticSite(
-    { credentialSource: { resolve: async () => ({ ok: true, token: "tok" }), isConfigured: async () => ({ configured: true }) },
+    { credentialSource: { resolve: async () => ({ ok: true, token: "tok", basis: { kind: "env" } }), isConfigured: async () => ({ configured: true, basis: { kind: "env" } }) },
       loadDeployTargets: async () => deployTargets, buildTarget: () => target, formDestination },
     { workspaceId: routeDeps.workspaceId, publishOutputRootDir: publishOutputDir, idGen: routeDeps.idGen, exportSiteBound: routeDeps.exportSiteBound, config: { target: HOST }, projectName: "byho-mingjie" },
   );

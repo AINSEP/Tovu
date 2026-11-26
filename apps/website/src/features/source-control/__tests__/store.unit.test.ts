@@ -1,3 +1,4 @@
+import { SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store.validation";
 import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import assert from "node:assert/strict";
@@ -10,7 +11,7 @@ import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { credentialScope } from "../../vendor-credentials/vault-adapter.js";
 import type { LoadSourceControlProviders } from "../provider-registry.js";
 import { exampleProviders, exampleProvidersWithoutProbe, exampleRegistry } from './fixtures/example-provider.js';
-import { deleteSourceControlCredential, describeCredential, resolveDefaultForSourceControl, isUniqueLabelViolation, listSourceControlCredentials, SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError, SourceControlCredentialSecretStoreUnconfiguredError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { deleteSourceControlCredential, describeCredential, resolveDefaultForSourceControl, isUniqueLabelViolation, listSourceControlCredentials, SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError, SourceControlCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/source-control/site/store";
 import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest } from "#src/platform/http/index";

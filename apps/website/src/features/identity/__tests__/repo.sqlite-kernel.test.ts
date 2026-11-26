@@ -17,7 +17,7 @@ for (const mode of ["handle", "kernel"] as const) {
     const repo = new SqliteRoleRepo({ store: mode === "handle" ? db : kernel, assertVersionedWrite });
     const transactions = createIdentityTransactions({ kernel });
     await assert.rejects(transactions.run({ workspaceId: "ws-rollback", execute: async () => {
-      await repo.save({ id: "rolled-back", workspaceId: "ws-rollback", name: "temporary", isBuiltin: false });
+      await repo.save({ id: "rolled-back", workspaceId: "ws-rollback", name: "temporary", isBuiltin: false, version: 1 });
       throw new Error("rollback probe");
     } }), /rollback probe/);
     assert.equal(await repo.findById({ workspaceId: "ws-rollback", id: "rolled-back" }), null);
@@ -37,10 +37,10 @@ for (const mode of ["handle", "kernel"] as const) {
     };
     const principal = { id: "reader", workspaceId: "ws-b08", kind: "user" as const, displayName: "Reader", status: "active" as const, createdAt: "2026-10-01T12:00:00Z" };
     await repos.principals.save(principal);
-    await repos.users.save({ workspaceId: "ws-b08", principalId: "reader", username: "ada", passwordHash: "stored-hash", email: "ada@example.com" });
+    await repos.users.save({ workspaceId: "ws-b08", principalId: "reader", username: "ada", passwordHash: "stored-hash", email: "ada@example.com", version: 1 });
     await repos.sessions.save({ id: "session", workspaceId: "ws-b08", principalId: "reader", tokenHash: "session-hash", createdAt: "2026-10-01T12:00:00Z", expiresAt: "2026-10-02T12:00:00Z" });
-    await repos.roles.save({ id: "editor", workspaceId: "ws-b08", name: "editor", isBuiltin: false });
-    for (const id of ["direct-policy", "role-policy"]) await repos.policies.save({ id, workspaceId: "ws-b08", name: id, isBuiltin: false, isFrozen: false });
+    await repos.roles.save({ id: "editor", workspaceId: "ws-b08", name: "editor", isBuiltin: false, version: 1 });
+    for (const id of ["direct-policy", "role-policy"]) await repos.policies.save({ id, workspaceId: "ws-b08", name: id, isBuiltin: false, isFrozen: false, version: 1 });
     await repos.policyPermissions.save({ id: "read", workspaceId: "ws-b08", policyId: "direct-policy", permission: "content.read", resourceType: null, constraintJson: null });
     await repos.policyPermissions.save({ id: "edit", workspaceId: "ws-b08", policyId: "role-policy", permission: "content.edit", resourceType: "post", constraintJson: null });
     await repos.principalPolicies.save({ id: "direct", workspaceId: "ws-b08", principalId: "reader", policyId: "direct-policy" });

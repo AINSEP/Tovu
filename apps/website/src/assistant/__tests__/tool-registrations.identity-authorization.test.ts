@@ -130,7 +130,7 @@ async function addPrincipal(repos: IdentityRepos, id: string): Promise<string> {
     status: "active",
     createdAt: "2026-01-01T00:00:00.000Z",
   });
-  await repos.users.save({ principalId: id, workspaceId: WORKSPACE_ID, username: id, passwordHash: "hash" });
+  await repos.users.save({ principalId: id, workspaceId: WORKSPACE_ID, username: id, passwordHash: "hash", version: 1 });
   return id;
 }
 
@@ -141,7 +141,7 @@ async function addPrincipal(repos: IdentityRepos, id: string): Promise<string> {
  */
 async function grant(repos: IdentityRepos, principalId: string, permissions: readonly string[]): Promise<void> {
   const policyId = `policy-for-${principalId}-${permissions.join("-")}`;
-  await repos.policies.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
+  await repos.policies.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false, version: 1 });
   for (const permission of permissions) {
     await repos.policyPermissions.save({
       id: `pp-${policyId}-${permission}`,

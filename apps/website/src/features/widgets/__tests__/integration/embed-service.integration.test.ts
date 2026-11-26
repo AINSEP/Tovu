@@ -4,7 +4,7 @@ import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -40,7 +40,7 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
  */
 
 const WORKSPACE_ID = "ws-1";
-const ACTOR = { principalId: "user-1", kind: "user" };
+const ACTOR = { principalId: "user-1", kind: "user" as const };
 const HOST_CONTENT_TYPE = "article";
 
 function nestedEmbedDoc({ leaf, depth }: { leaf: unknown; depth: number }, _optional = {}): unknown {
@@ -261,7 +261,7 @@ test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-17): a widget_area
   const host = await makeHostEntry(repos);
 
   await ensureWidgetContentTypesRegistered({
-    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
@@ -502,7 +502,7 @@ test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reo
   const inserted = await insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: w1 } });
 
   await ensureWidgetContentTypesRegistered({
-    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({

@@ -1,3 +1,4 @@
+import { SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store.validation";
 import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -17,7 +18,7 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { LoadSourceControlProviders } from "../provider-registry.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import { deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialNotFoundError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialNotFoundError } from "@jini-ai/devops/source-control/site/store";
 import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 import { exampleRegistry } from "./fixtures/example-provider.js";
 import { githubFromSource } from "./fixtures/github-from-source.js";

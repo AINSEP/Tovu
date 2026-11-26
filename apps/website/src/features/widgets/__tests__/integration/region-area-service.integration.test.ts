@@ -1,4 +1,4 @@
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -23,7 +23,7 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
  */
 
 const WORKSPACE_ID = "ws-1";
-const ACTOR = { principalId: "user-1" };
+const ACTOR = { principalId: "user-1", kind: "user" as const };
 
 function makeDeps(): RegionAreaServiceDeps & WidgetWriteServiceDeps {
   let counter = 0;
@@ -31,7 +31,7 @@ function makeDeps(): RegionAreaServiceDeps & WidgetWriteServiceDeps {
   const contentTypeRepo = new InMemoryContentTypeRepo();
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const bindingRepo = new InMemoryWidgetRegionBindingRepo();
-  return { host: buildWidgetHostPorts({}, {}),
+  return { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
     entryRepo,
     contentTypeRepo,
     entryRefsRepo,

@@ -65,7 +65,9 @@ test("one principal throughout", async () => {
 test("the owner is re-resolved at fire time; a creator who is no longer an owner starts nothing", async () => {
   const h = harness({ owner: null });
   const handle = await h.handler(fire());
-  await assert.rejects(handle.prepare!(h.row()), /no longer manages this site/);
+  const { prepare } = handle;
+  assert.ok(prepare);
+  await assert.rejects(async () => prepare(h.row()), /no longer manages this site/);
   assert.equal(h.calls.accepted.length, 0);
   assert.equal(h.calls.created.length, 0);
 });
@@ -99,15 +101,26 @@ test("claim loser starts nothing", async () => {
 test("unavailable agent or model fails with a plain reason and no substitute", async () => {
   const gone = harness({ agents: [{ ...CLAUDE, available: false }, CODEX] });
   const handle = await gone.handler(fire({ agentId: "claude" }));
-  await assert.rejects(handle.prepare!(gone.row()), /Claude Code" isn't available right now/);
+  const { prepare } = handle;
+  assert.ok(prepare);
+  await assert.rejects(async () => prepare(gone.row()), /Claude Code" isn't available right now/);
   assert.equal(gone.calls.accepted.length, 0);
   assert.equal(gone.calls.created.length, 0);
   const noModel = harness();
-  await assert.rejects((await noModel.handler(fire({ agentId: "claude", model: "opus" }))).prepare!(noModel.row()), /model "opus" isn't available for Claude Code/);
+  const noModelHandle = await noModel.handler(fire({ agentId: "claude", model: "opus" }));
+  const { prepare: noModelPrepare } = noModelHandle;
+  assert.ok(noModelPrepare);
+  await assert.rejects(async () => noModelPrepare(noModel.row()), /model "opus" isn't available for Claude Code/);
   const signedOut = harness({ agents: [{ ...CLAUDE, authStatus: "missing" }] });
-  await assert.rejects((await signedOut.handler(fire({ agentId: "claude" }))).prepare!(signedOut.row()), /isn't signed in/);
+  const signedOutHandle = await signedOut.handler(fire({ agentId: "claude" }));
+  const { prepare: signedOutPrepare } = signedOutHandle;
+  assert.ok(signedOutPrepare);
+  await assert.rejects(async () => signedOutPrepare(signedOut.row()), /isn't signed in/);
   const nobody = harness({ agents: [] });
-  await assert.rejects((await nobody.handler(fire())).prepare!(nobody.row()), /No local assistant agent is ready/);
+  const nobodyHandle = await nobody.handler(fire());
+  const { prepare: nobodyPrepare } = nobodyHandle;
+  assert.ok(nobodyPrepare);
+  await assert.rejects(async () => nobodyPrepare(nobody.row()), /No local assistant agent is ready/);
 });
 
 test("Claude adapter fake: the pinned agent and model cross the acceptance seam and are recorded", async () => {
@@ -124,10 +137,16 @@ test("Claude adapter fake: the pinned agent and model cross the acceptance seam 
 
 test("Codex is refused by default, explicitly or as the only agent, and allowed only with the test override", async () => {
   const refused = harness({ agents: [CODEX] });
-  await assert.rejects((await refused.handler(fire({ agentId: "codex" }))).prepare!(refused.row()), new Error(CODEX_ROUTINE_REFUSAL));
+  const refusedHandle = await refused.handler(fire({ agentId: "codex" }));
+  const { prepare: refusedPrepare } = refusedHandle;
+  assert.ok(refusedPrepare);
+  await assert.rejects(async () => refusedPrepare(refused.row()), new Error(CODEX_ROUTINE_REFUSAL));
   assert.equal(CODEX_ROUTINE_REFUSAL, "Codex can't run routines yet. Choose another agent.");
   const onlyCodex = harness({ agents: [CODEX] });
-  await assert.rejects((await onlyCodex.handler(fire())).prepare!(onlyCodex.row()), /No local assistant agent is ready/);
+  const onlyCodexHandle = await onlyCodex.handler(fire());
+  const { prepare: onlyCodexPrepare } = onlyCodexHandle;
+  assert.ok(onlyCodexPrepare);
+  await assert.rejects(async () => onlyCodexPrepare(onlyCodex.row()), /No local assistant agent is ready/);
   const allowed = harness({ agents: [CODEX], allowCodex: true });
   const handle = await allowed.handler(fire({ agentId: "codex" }));
   await handle.prepare!(allowed.row());
@@ -149,7 +168,9 @@ test("catch-up text reaches both the durable user turn and the accepted prompt",
 test("a null write refuses before launch, and the failed prepare's conversation is removed by discard", async () => {
   const h = harness({ nullWrite: true });
   const handle = await h.handler(fire());
-  await assert.rejects(handle.prepare!(h.row()), /could not be saved/);
+  const { prepare } = handle;
+  assert.ok(prepare);
+  await assert.rejects(async () => prepare(h.row()), /could not be saved/);
   assert.equal(h.calls.accepted.length, 0);
   handle.discard!();
   await handle.completion;
@@ -182,7 +203,9 @@ test("an accepted run that the seam refuses throws a plain startup error instead
   const h = harness({ accept: null });
   const handle = await h.handler(fire());
   await handle.prepare!(h.row());
-  await assert.rejects(handle.start!(), /could not start this routine run/);
+  const { start } = handle;
+  assert.ok(start);
+  await assert.rejects(async () => start(), /could not start this routine run/);
   assert.equal(h.calls.accepted.length, 1);
 });
 
@@ -212,6 +235,8 @@ test("a refused acceptance is never tracked", async () => {
   const handler = createRoutineRunHandler({ ...depsOf(h), approvals: { track: (run) => { tracked.push(run); }, untrack: () => {} } }, {});
   const handle = await handler(fire());
   await handle.prepare!(h.row());
-  await assert.rejects(handle.start!());
+  const { start } = handle;
+  assert.ok(start);
+  await assert.rejects(async () => start(), /could not start this routine run/);
   assert.deepEqual(tracked, []);
 });

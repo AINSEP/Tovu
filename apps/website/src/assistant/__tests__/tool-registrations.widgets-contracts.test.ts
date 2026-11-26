@@ -35,6 +35,8 @@ import { memoryWidgetTrash } from "../../features/widgets/__tests__/support/memo
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
+import { READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
@@ -73,6 +75,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     contentTypeRepo,
     entryRefsRepo,
     widgetBindingRepo,
+    postRepo: new InMemoryPostRepo({}),
+    widgetPostWrites: READ_ONLY_WIDGET_POST_WRITES,
     removeWidget: widgetTrash.remove,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -132,12 +136,11 @@ async function seedInstance(deps: RegistryDepsWithoutLimiter, title = "Footer No
 }
 
 /** Registers a non-widget host content type + creates one entry of it — the target for embed tests. Bypasses the tool layer deliberately: this is test SETUP for a capability (authoring an ordinary page/article entry) outside this task's scope, not a widgets tool under test. */
-async function makeHostEntry(deps: RegistryDepsWithoutLimiter): Promise<{ id: string; version: number }> {
-  const routeDeps = deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo; entryRepo: TrashAwareInMemoryEntryRepo };
+async function makeHostEntry(routeDeps: RegistryDepsWithoutLimiter): Promise<{ id: string; version: number }> {
   const ctDeps = {
     repo: routeDeps.contentTypeRepo,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
-    ids: { newId: () => `ct-${Math.random()}` },
+    ids: routeDeps.idGen,
     authorize: PRE_AUTHORIZED,
     indexProvisioner: new NoopContentTypeIndexProvisioner(),
     outbox: { enqueue: async () => undefined },
@@ -147,12 +150,13 @@ async function makeHostEntry(deps: RegistryDepsWithoutLimiter): Promise<{ id: st
     await registerContentType({ deps: ctDeps, input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, key: HOST_CONTENT_TYPE, label: "Article", fields: [] } });
   }
   const created = await createEntry({
-    deps: { entryRepo: routeDeps.entryRepo, contentTypeRepo: routeDeps.contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: { newId: () => `entry-${Math.random()}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: routeDeps.entryRepo, contentTypeRepo: routeDeps.contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: routeDeps.idGen, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: {
       actorId: PRINCIPAL_ID,
+      actor: { id: PRINCIPAL_ID, kind: "user" },
       workspaceId: WORKSPACE_ID,
       type: HOST_CONTENT_TYPE,
-      slug: `host-${Math.random().toString(36).slice(2)}`,
+      slug: `host-${routeDeps.idGen.newId()}`,
       title: "Host Entry",
       fieldsJson: { ext: { site: {} } },
       bodyJson: { type: "doc", content: [] },

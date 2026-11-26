@@ -13,6 +13,8 @@ import { SealedDatabaseDestinationStore } from '../../database-transfer/destinat
 import { type SavedDatabaseDestination } from "@jini-ai/db/transfer/destination-store";
 import { createDestinationExchangeReporter } from '../../database-transfer/destination-exchange.js';
 import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-transfer/destination-ui.js';
+import { verifyPublishCredential } from '../../deployments/static-publish/verify.js';
+import { InMemoryPublishCredentialVerificationCache } from '@jini-ai/devops/deploy/site/static-publish/verify';
 import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import { McpProtocolError } from '@jini-ai/mcp/federation';
 import type { SurfaceEmission } from '@jini-ai/core';
@@ -109,7 +111,6 @@ test('database destination uses real sealing, keeps blank updates, refuses white
 });
 
 test('publish verifier validates before probing and maps 401/403 independently of provider reason', async () => {
-  const { verifyPublishCredential, InMemoryPublishCredentialVerificationCache } = await import('../../deployments/static-publish/verify.js');
   let probes = 0; let status = 401; let value = 'fixture-credential-a9F2';
   const target = {
     pluginId: 'fixture',
@@ -118,7 +119,7 @@ test('publish verifier validates before probing and maps 401/403 independently o
   };
   const deps = {
     clock, cache: new InMemoryPublishCredentialVerificationCache(),
-    credentialSource: { isConfigured: async () => ({ configured: true as const }), resolve: async () => ({ ok: true as const, token: value }) },
+    credentialSource: { isConfigured: async () => ({ configured: true as const, basis: { kind: 'env' as const } }), resolve: async () => ({ ok: true as const, token: value, basis: { kind: 'env' as const } }) },
     loadDeployTargets: async () => ({ list: () => [target], get: () => target, refusals: [] }),
   };
   for (const code of [401, 403]) {

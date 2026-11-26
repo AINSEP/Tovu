@@ -1,4 +1,4 @@
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
@@ -37,7 +37,7 @@ async function harness() {
 test("form slug, form id and widget spellings resolve identically and fill plain POST actions", async () => {
   const deps = await harness();
   const html = ['{"type":"form","id":"contact","mode":"html"}', '{"type":"form","id":"form-1","mode":"html"}', '{"type":"widget","id":"widget-1","mode":"html"}'].map((config) => `<div data-embed-config='${config}'></div>`).join("");
-  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html } });
+  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...deps }, input: { workspaceId: "ws", html } });
   assert.deepEqual(resolved.get("form")?.get("contact"), resolved.get("widget")?.get("widget-1"));
   const rendered = renderHtmlPageBody({ html, resolved });
   assert.equal((rendered.match(/<form /g) ?? []).length, 3);
@@ -57,13 +57,13 @@ test("form slug, form id and widget spellings resolve identically and fill plain
 test("HTML mode is per occurrence, and native POST results reveal plain confirmation/error slots", async () => {
   const deps = await harness();
   const html = `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div><div data-embed-config='{"type":"widget","id":"widget-1","mode":"html"}'></div>`;
-  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html } });
+  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...deps }, input: { workspaceId: "ws", html } });
   const rendered = renderHtmlPageBody({ html, resolved });
   assert.match(rendered, /class="widget tovu-form widget-contact-form"/);
   assert.match(rendered, /<form class="tovu-form" data-tovu-form="contact"/);
   assert.equal(resolved.get("widget")?.get("widget-1")?.props.mode, undefined);
   const plainHtml = `<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`;
-  const plain = renderHtmlPageBody({ html: plainHtml, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html: plainHtml } }) });
+  const plain = renderHtmlPageBody({ html: plainHtml, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...deps }, input: { workspaceId: "ws", html: plainHtml } }) });
   const success = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(success, /data-jini-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
   assert.match(success, /<form hidden class="tovu-form" data-tovu-form/);

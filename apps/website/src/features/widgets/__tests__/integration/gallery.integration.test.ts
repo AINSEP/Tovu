@@ -5,7 +5,7 @@ import { resolveHtmlPageEmbeds } from '@jini-ai/cms/widgets/html';
 import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from '#src/features/media/index';
 import { CORE_PUBLIC_TRANSFORM_NAME } from '@jini-ai/cms/media/site/bootstrap';
-import { buildWidgetHostPorts } from '#src/features/widgets/deps';
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { extractHtmlEntryRefs } from '@jini-ai/cms/widgets';
 import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
@@ -25,7 +25,7 @@ test('gallery resolves real media and renders ordered figures, captions, respons
   await transformRepo.insert({ id: 'public', workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME, version: 1, params: { format: 'webp' }, owner: 'core', createdAt: now });
   const images = [{ mediaId: 'one', alt: 'Author alt', caption: '<first>' }, { mediaId: 'two', alt: '' }];
   const html = marker({ images, layout: 'grid', columns: 2 }) + marker({ images: [...images].reverse(), layout: 'carousel' });
-  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), entryRepo: new InMemoryEntryRepo(), mediaRepo, transformRepo }, input: { workspaceId, html } });
+  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), entryRepo: new InMemoryEntryRepo(), mediaRepo, transformRepo }, input: { workspaceId, html } });
   const rendered = renderHtmlPageBody({ html, resolved });
   assert.equal((rendered.match(/<figure /g) ?? []).length, 4);
   assert.ok(rendered.includes('jini-gallery-grid'));

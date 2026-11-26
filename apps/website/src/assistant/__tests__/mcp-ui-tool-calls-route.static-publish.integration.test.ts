@@ -67,10 +67,10 @@ function fakeDeployTarget(captured: { value: DeployFile[] | null }): DeployTarge
 
 const CONFIGURED_CREDENTIAL_SOURCE: PublishCredentialSource = {
   async resolve() {
-    return { ok: true, token: "fake-token-never-real" };
+    return { ok: true, token: "fake-token-never-real", basis: { kind: "env" } };
   },
   async isConfigured() {
-    return { configured: true };
+    return { configured: true, basis: { kind: "env" } };
   },
 };
 
