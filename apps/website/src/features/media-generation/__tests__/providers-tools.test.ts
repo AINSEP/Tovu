@@ -31,7 +31,7 @@ import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assis
 import { startMcpUiToolCallsServer } from "../../../assistant/__tests__/support/mcp-ui-tool-calls-server.js";
 import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutor } from '@jini-ai/daemon';
-import { createSystemClock } from "@jini-ai/platform/system";
+import { createFakeClock } from "../../../__tests__/support/fake-clock.js";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
 import { createHostMediaProviderRegistry } from "../host-media-providers.js";
@@ -94,7 +94,8 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
   const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer, mediaProviderRegistry: createHostMediaProviderRegistry(),
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
-  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });
+  const exchangeClock = createFakeClock({ startIso: '2026-10-01T00:00:00.000Z' });
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: exchangeClock, idGenerator: { newId: () => 'exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });
   const registrations = credentialSaveFixtureRegistrations({ registrations: buildMediaProviderRegistrations({ deps, surfaces: { surfaceExchanges: surfaces }, host: mediaProviderHost }), adapters: { mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps, surfaces: { surfaceExchanges: surfaces }, host: mediaProviderHost }, optional) } });
   function tool(id: string) { const found = registrations.find(r => r.descriptor.id === id); assert.ok(found, `expected '${id}' to be wired`); return found; }
   function call(id: string, input: unknown, extra: CallExtra = {}) {
@@ -102,7 +103,7 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
       signal: new AbortController().signal, ...extra });
   }
   const writeDeps = { repo, sealer, keyring, clock: deps.clock };
-  return { deps, repo, sealer, auth, surfaces, tool, call, writeDeps };
+  return { deps, repo, sealer, auth, surfaces, tool, call, writeDeps, exchangeClock };
 }
 async function form(f: ReturnType<typeof fixture>, extra: CallExtra = {}) {
   const emitted: SurfaceEmission[] = [];
@@ -213,8 +214,17 @@ test('t10 media raw save errors containing the key never reach the model or outc
 
 test('t10 media expired form closes without saving', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const f = fixture(true, { idleTtlMs: 5 }); const { pending } = await form(f);
-  t.mock.timers.tick(5);
+  let wallNow = Date.parse('2026-10-01T00:00:00.000Z');
+  t.mock.method(Date, 'now', () => wallNow += 6);
+  const f = fixture(true, { idleTtlMs: 5 }); const { pending, emitted } = await form(f);
+  assert.equal(emitted.length, 1);
+  assert.equal(f.surfaces.size(), 1);
+  f.exchangeClock.advanceMs(4);
+  t.mock.timers.tick(4);
+  assert.equal(await Promise.race([pending.then(() => false), Promise.resolve(true)]), true);
+  assert.equal(f.surfaces.size(), 1);
+  f.exchangeClock.advanceMs(1);
+  t.mock.timers.tick(1);
   assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
   assert.deepEqual(await f.repo.listByWorkspaceId({ workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
@@ -439,7 +449,7 @@ for (const ending of ['blank', 'safe-failure', 'raw-failure', 'cancelled', 'expi
     const controller = new AbortController();
     const { pending, emitted } = await form(f, { signal: controller.signal });
     switch (ending) {
-      case 'expired': t.mock.timers.tick(5); break;
+      case 'expired': f.exchangeClock.advanceMs(5); t.mock.timers.tick(5); break;
       case 'abandoned': controller.abort(); break;
       case 'cancelled': submit(f, { [SURFACE_DISMISSED_PARAM]: true }); break;
       case 'blank': submit(f, { apiKey: '   ' }); break;
