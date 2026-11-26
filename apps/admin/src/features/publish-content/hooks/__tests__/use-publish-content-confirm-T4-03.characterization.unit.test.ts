@@ -2,8 +2,23 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import type { PublishDestinationView, PublishDestinationView as AdminPublishDestinationView } from "@jini-ai/core/contracts/site/cms-publish-content";
-import { createFakePublishContentPort } from "../publish-content-dependencies.hooks";
-import { usePublishContentConfirm } from "../use-publish-content-confirm.hooks";
+import { createFakePublishContentPort, defaultPublishContentPort } from "../publish-content-dependencies.hooks";
+import { bindPublishContentConfirm } from "@jini-ai/cms/react/publish-content/hooks/use-publish-content-confirm.hooks";
+import { applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
+import { publishScopeDescriptionKey, publishScopeTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+
+const usePublishContentConfirm = bindPublishContentConfirm({
+  port: defaultPublishContentPort,
+  hooks: { useLocaleHook: useWiredAdminLocale },
+  deps: {
+    applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypePluralLabel,
+    publishSectionForEntityTypes, publishScopeDescriptionKey, publishScopeTitleKey, describeApiError,
+    now: () => performance.now(),
+    overwriteUnavailableKey: "is on an older Tovu and can't overwrite these yet. Update it, then publish again.",
+  },
+});
 
 const t = (key: string): string => key;
 const peer = {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { liveGapLinesFor, overwriteTooltipFor } from "../use-publish-content-confirm.hooks";
+import { liveGapLinesFor } from "@jini-ai/cms/react/publish-content/hooks/use-publish-content-confirm.hooks";
+import { overwriteTooltipFor } from "@jini-ai/cms/react/publish-content/hooks/publish-content-confirm.rules";
+import { publishEntityTypePluralLabel } from "@tovu/publish-content-ui";
 
 /**
  * @file `overwriteTooltipFor` — the pure helper `PublishContentDialog.tsx` now calls for the
@@ -46,7 +48,7 @@ describe("liveGapLinesFor", () => {
           { entityType: "form", count: 7 },
           { entityType: "collection-entry", count: 1 },
         ],
-        t: t }
+        t: t, deps: { publishEntityTypePluralLabel } }
       )
     ).toEqual([
       "Entries (1) can't publish yet: the live site needs an update first.",
@@ -55,14 +57,14 @@ describe("liveGapLinesFor", () => {
   });
 
   it("says nothing for an absent or empty list, or a zero count", () => {
-    expect(liveGapLinesFor({ entries: undefined, t: t })).toEqual([]);
-    expect(liveGapLinesFor({ entries: [], t: t })).toEqual([]);
-    expect(liveGapLinesFor({ entries: [{ entityType: "form", count: 0 }], t: t })).toEqual([]);
+    expect(liveGapLinesFor({ entries: undefined, t: t, deps: { publishEntityTypePluralLabel } })).toEqual([]);
+    expect(liveGapLinesFor({ entries: [], t: t, deps: { publishEntityTypePluralLabel } })).toEqual([]);
+    expect(liveGapLinesFor({ entries: [{ entityType: "form", count: 0 }], t: t, deps: { publishEntityTypePluralLabel } })).toEqual([]);
   });
 
   it("falls back to the raw type id for a type no section names, and translates both parts", () => {
     const upper = (key: string): string => key.toUpperCase();
-    expect(liveGapLinesFor({ entries: [{ entityType: "something-new", count: 3 }], t: upper })).toEqual([
+    expect(liveGapLinesFor({ entries: [{ entityType: "something-new", count: 3 }], t: upper, deps: { publishEntityTypePluralLabel } })).toEqual([
       "SOMETHING-NEW (3) CAN'T PUBLISH YET: THE LIVE SITE NEEDS AN UPDATE FIRST.",
     ]);
   });

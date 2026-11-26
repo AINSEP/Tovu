@@ -2,14 +2,29 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/ui";
-import { createFakePublishContentPort } from "../publish-content-dependencies.hooks";
-import { publishMismatchMessage, usePublishContentConfirm } from "../use-publish-content-confirm.hooks";
+import { createFakePublishContentPort, defaultPublishContentPort } from "../publish-content-dependencies.hooks";
+import { bindPublishContentConfirm, publishMismatchMessage } from "@jini-ai/cms/react/publish-content/hooks/use-publish-content-confirm.hooks";
+import { applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
+import { publishScopeDescriptionKey, publishScopeTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 /**
  * @file The confirm hook's re-entry and selection guards, driven through its public view over the
  * in-memory publish-content port: toggling a row back on, confirming with nothing selected, and
  * dismissing while a run is in flight.
  */
+
+const usePublishContentConfirm = bindPublishContentConfirm({
+  port: defaultPublishContentPort,
+  hooks: { useLocaleHook: useWiredAdminLocale },
+  deps: {
+    applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypePluralLabel,
+    publishSectionForEntityTypes, publishScopeDescriptionKey, publishScopeTitleKey, describeApiError,
+    now: () => performance.now(),
+    overwriteUnavailableKey: "is on an older Tovu and can't overwrite these yet. Update it, then publish again.",
+  },
+});
 
 const t = (key: string): string => key;
 const peer = { id: "live", label: "Live", baseUrl: "https://live.test", remoteWorkspaceId: "local", masked: null, hasCredential: true };

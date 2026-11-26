@@ -1,7 +1,7 @@
 /** The Plugins "Add a plugin" tab (moved from the retired "Install plugin" popup, 2026-10-06):
  *  the trust review is shown before install, installs stay off, and the tab reads as switched off
  *  when the server allows no local installs. */
-import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL, HOST_PLUGIN_SCREEN } from "./plugin-host-deps";
 import { render, screen, waitFor, cleanup, fireEvent } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, it, expect, vi } from "vitest";
@@ -9,7 +9,7 @@ import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import type { PluginInstallPort } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 import { usePlugins } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
-import { Plugins } from "../Plugins";
+import { Plugins } from "@jini-ai/admin/screens/plugins/Plugins";
 import { tPlugins as t } from "../../../lib/i18n-common";
 
 afterEach(cleanup);
@@ -18,7 +18,7 @@ const preview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-
 function renderAddTab(installPort: PluginInstallPort, installSources: string[] = ["folder"]) {
   const port = createFakePluginsPort({ plugins: [], installSources });
   function useHook() { return usePlugins({ ...HOST_PLUGINS, port, installPort, locale: "en", t: (key) => key }); }
-  render(<Plugins tabId="add" usePluginsHook={useHook} />);
+  render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="add" hooks={{ ...HOST_PLUGIN_SCREEN.hooks, usePluginsHook: useHook }} />);
   return { user: userEvent.setup() };
 }
 
@@ -133,7 +133,7 @@ it("an empty picked folder is refused in plain words and leaves nothing to previ
 it("the working Add a plugin tab is untagged and switches to the tab", async () => {
   const port = createFakePluginsPort({ plugins: [], installSources: ["folder"] });
   function useHook() { return usePlugins({ ...HOST_PLUGINS, port, installPort: createFakePluginInstallPort({ preview }), locale: "en", t: (key) => key }); }
-  render(<Plugins tabId="installed" usePluginsHook={useHook} />);
+  render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="installed" hooks={{ ...HOST_PLUGIN_SCREEN.hooks, usePluginsHook: useHook }} />);
   const tab = await screen.findByRole("tab", { name: /^Add a plugin/ });
   expect(tab.querySelector(".jini-tab-bar-tag")).toBeNull();
   expect(tab).not.toBeDisabled();

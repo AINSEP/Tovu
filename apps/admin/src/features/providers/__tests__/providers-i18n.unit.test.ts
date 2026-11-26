@@ -58,8 +58,8 @@ describe("PROVIDERS_DICT: cross-locale key parity", () => {
   // The Always allow panel lives in `@jini-ai/admin` now; its built output is what the host ships.
   const jiniPanel = ["node_modules", "../../node_modules"].map((root) => `${root}/@jini-ai/admin/dist/screens/providers/AlwaysAllowPanel.js`).find((path) => existsSync(path));
   expect(jiniPanel, "built @jini-ai/admin AlwaysAllowPanel").toBeTruthy();
-  for (const file of ["Providers.tsx", "AlwaysAllowPanel.tsx"]) {
-    const source = readFileSync(file === "AlwaysAllowPanel.tsx" ? (jiniPanel as string) : `src/features/providers/${file}`, "utf8");
+  for (const file of ["Providers.tsx", "ProvidersTabs.tsx", "AlwaysAllowPanel.tsx"]) {
+    const source = readFileSync(file === "AlwaysAllowPanel.tsx" ? (jiniPanel as string) : `node_modules/@jini-ai/admin/src/screens/providers/${file}`, "utf8");
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file === "AlwaysAllowPanel.tsx" ? ts.ScriptKind.JS : ts.ScriptKind.TSX);
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {

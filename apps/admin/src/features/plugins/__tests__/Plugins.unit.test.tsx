@@ -1,8 +1,9 @@
+import { HOST_PLUGIN_SCREEN } from "./plugin-host-deps";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Plugins } from "../Plugins";
+import { Plugins } from "@jini-ai/admin/screens/plugins/Plugins";
 import type { PluginsController } from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 
@@ -97,7 +98,7 @@ afterEach(() => {
 describe("tabs: Installed, Downloaded, Add a plugin, Marketplace, in that order, Installed active by default", () => {
   it("renders exactly those four tabs in that order, with Installed selected", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     const tablist = await screen.findByRole("tablist");
     const tabs = within(tablist).getAllByRole("tab");
@@ -111,7 +112,7 @@ describe("tabs: Installed, Downloaded, Add a plugin, Marketplace, in that order,
 
   it("on a server that refuses local installs, ?tab=add falls back to Installed", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="add" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="add" />);
 
     const tablist = await screen.findByRole("tablist");
     expect(within(tablist).getByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
@@ -123,7 +124,7 @@ describe("tabs: Installed, Downloaded, Add a plugin, Marketplace, in that order,
 describe("Installed tab scope: every installed plugin, on or off (owner 2026-10-25)", () => {
   it("lists the switched-off rows too, each off-but-valid one with its own Enable", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     await screen.findByRole("tablist");
     expect(screen.getAllByRole("listitem").map((row) => row.getAttribute("aria-label"))).toEqual(["Word Count", "Invalid Site Plugin", "Valid Site Plugin"]);
@@ -138,7 +139,7 @@ describe("Installed tab scope: every installed plugin, on or off (owner 2026-10-
     Element.prototype.scrollIntoView = scrollIntoView;
     try {
       fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-      render(<Plugins tabId="installed" focusPluginId="valid-site-plugin" />);
+      render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="installed" focusPluginId="valid-site-plugin" />);
 
       const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
       expect(row).toHaveAttribute("data-focused", "true");
@@ -162,7 +163,7 @@ describe("REQ-12/AC-18: Downloaded tab renders every PLUGINS_LIST record, unfilt
     // never changes which tab this component itself thinks is active. `Security.unit.test.tsx`'s
     // own suite draws the identical line: its click test asserts only `window.location`, and its
     // per-tab content tests render fresh with a `tabId` prop instead of clicking through.
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const rows = await screen.findAllByRole("listitem");
     expect(rows).toHaveLength(3);
@@ -175,7 +176,7 @@ describe("REQ-12/AC-18: Downloaded tab renders every PLUGINS_LIST record, unfilt
 describe("row-action split: Installed carries the toggle, Downloaded carries Remove on every row plus Enable on a disabled row", () => {
   it("Installed's row shows the Enable/Disable toggle and no Remove/Enable action", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     expect(within(row).getByRole("button", { name: "Disable Word Count" })).toBeInTheDocument();
@@ -193,7 +194,7 @@ describe("row-action split: Installed carries the toggle, Downloaded carries Rem
       ],
     };
     fetchMock.mockResolvedValueOnce(jsonResponse(response));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Site Plugin Enabled" });
     const removeBtn = within(row).getByRole("button", { name: "Remove Site Plugin Enabled — unavailable" });
@@ -204,7 +205,7 @@ describe("row-action split: Installed carries the toggle, Downloaded carries Rem
 
   it("Downloaded's row for a DISABLED site plugin shows Enable and a usable Remove", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     // "Valid Site Plugin" is enabled: false in the fixture.
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
@@ -234,7 +235,7 @@ describe("row-action split: Installed carries the toggle, Downloaded carries Rem
         return Promise.resolve(jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "valid-site-plugin" ? { ...p, enabled: true } : p)) }));
       });
 
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
     const button = within(row).getByRole("button", { name: "Enable Valid Site Plugin" });
 
@@ -258,14 +259,14 @@ describe("row-action split: Installed carries the toggle, Downloaded carries Rem
 describe("REQ-15/AC-23: loading and error states", () => {
   it("shows a loading notice while the initial fetch is in flight, no tabs yet", async () => {
     fetchMock.mockImplementation(() => new Promise(() => {})); // never resolves
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
     expect(await screen.findByText(/loading plugins/i)).toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
   it("shows an error notice instead of any tab when the initial fetch rejects, with no partial/stale data", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     const notice = await screen.findByText("network down", { exact: true });
     expect(notice).toHaveClass("notice", "error");
@@ -277,7 +278,7 @@ describe("REQ-15/AC-23: loading and error states", () => {
 describe("empty states", () => {
   it("REQ-14/AC-22: Downloaded shows its own empty-state notice instead of an empty list when zero plugins are returned", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ plugins: [] }));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     expect(await screen.findByText(/no plugins installed/i)).toBeInTheDocument();
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
@@ -285,7 +286,7 @@ describe("empty states", () => {
 
   it("Installed shows its own honest empty note when no plugin is installed", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ plugins: [] }));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     expect(await screen.findByText(/no plugins installed/i)).toBeInTheDocument();
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
@@ -294,7 +295,7 @@ describe("empty states", () => {
   it("Installed still lists every plugin when none is switched on", async () => {
     const allDisabled = { plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => ({ ...p, enabled: false })) };
     fetchMock.mockResolvedValueOnce(jsonResponse(allDisabled));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     expect(await screen.findAllByRole("listitem")).toHaveLength(3);
   });
@@ -304,7 +305,7 @@ describe("REQ-16/AC-24: per-row inline error display, now inside the row's own e
   it("an invalid plugin's own errors[] (code + message) are hidden until the row is expanded, then shown", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Invalid Site Plugin" });
     expect(within(row).getByText(/HOOK_UNKNOWN/)).not.toBeVisible();
@@ -325,7 +326,7 @@ describe("PL-2 (mobile catalog 2026-10-06): a healthy plugin's expander is not e
     // healthy row rotated the chevron over an empty box.
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     await user.click(within(row).getByRole("button", { name: /^Word Count/ }));
@@ -361,7 +362,7 @@ describe("automatic plugin quarantine", () => {
       }),
     );
 
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     await user.click(within(row).getByRole("button", { name: /^Word Count/ }));
 
@@ -402,7 +403,7 @@ describe("plugin name conflicts (2026-10-04): conflicts[] and the boot quarantin
       }),
     );
 
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
     // An error with no file still renders (its React key falls back to an empty file part).
     expect(within(screen.getByRole("listitem", { name: "Invalid Site Plugin" })).getByText("HOOK_UNKNOWN")).toBeInTheDocument();
@@ -431,7 +432,7 @@ describe("REQ-18/AC-26: row subline shows source · tier · status verbatim, not
       ],
     };
     fetchMock.mockResolvedValueOnce(jsonResponse(response));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     await screen.findAllByRole("listitem");
     expect(within(screen.getByRole("listitem", { name: "Tier One Plugin" })).getByText("site · tier-1 · valid")).toBeInTheDocument();
@@ -465,7 +466,7 @@ describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — Disable d
         return Promise.resolve(jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "word-count" ? { ...p, enabled: false } : p)) }));
       });
 
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     const button = within(row).getByRole("button", { name: "Disable Word Count" });
 
@@ -497,7 +498,7 @@ describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — Disable d
       .mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE))
       .mockResolvedValueOnce(jsonResponse({ error: "This plugin failed validation and cannot be enabled.", code: "PLUGIN_INVALID" }, 422));
 
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     const button = within(row).getByRole("button", { name: "Disable Word Count" });
 
@@ -520,7 +521,7 @@ describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — Disable d
 
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE)).mockImplementationOnce(() => patchPromise);
 
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     const button = within(row).getByRole("button", { name: "Disable Word Count" });
 
@@ -541,7 +542,7 @@ describe("Downloaded tab: Remove is gated behind a confirm dialog before the rea
   it("opens a confirm dialog naming the plugin and does not call DELETE until Confirm is pressed", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
     await user.click(within(row).getByRole("button", { name: "Remove Valid Site Plugin" }));
@@ -569,7 +570,7 @@ describe("Downloaded tab: Remove is gated behind a confirm dialog before the rea
   it("Cancel closes the dialog without ever calling DELETE", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
     await user.click(within(row).getByRole("button", { name: "Remove Valid Site Plugin" }));
@@ -583,7 +584,7 @@ describe("Downloaded tab: Remove is gated behind a confirm dialog before the rea
 
   it("a built-in plugin's Remove is honestly disabled, with the reason reaching the accessibility tree", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     const removeBtn = within(row).getByRole("button", { name: "Remove Word Count — unavailable" });
@@ -598,20 +599,20 @@ describe("Downloaded tab: Remove is gated behind a confirm dialog before the rea
 describe("?tab= deep-linking (ADR-063's shared idiom, same as Security.tsx/Database.tsx)", () => {
   it("falls back to Installed for an absent or unrecognized ?tab= value", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="not-a-real-tab" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="not-a-real-tab" />);
     expect(await screen.findByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("selects the tab named by a recognized ?tab= value", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
     expect(await screen.findByRole("tab", { name: "Downloaded" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("switching tabs calls navigate with the right query string", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     await user.click(await screen.findByRole("tab", { name: "Downloaded" }));
     expect(window.location.pathname).toBe("/admin/addons/plugins");
@@ -622,7 +623,7 @@ describe("?tab= deep-linking (ADR-063's shared idiom, same as Security.tsx/Datab
 describe("each tab renders only its own panel (characterization)", () => {
   it("Marketplace shows its designed empty state, with no plugin rows and no other tab's copy", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="marketplace" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="marketplace" />);
 
     const note = await screen.findByRole("note");
     expect(note).toHaveTextContent("Nothing to browse yet");
@@ -634,7 +635,7 @@ describe("each tab renders only its own panel (characterization)", () => {
 
   it("Installed shows neither Downloaded's built-in note nor Marketplace's empty state", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     await screen.findByRole("listitem", { name: "Word Count" });
     expect(screen.queryByText(/Built-in plugins ship with Tovu itself/)).not.toBeInTheDocument();
@@ -643,7 +644,7 @@ describe("each tab renders only its own panel (characterization)", () => {
 
   it("Downloaded's built-in note accompanies only a non-empty list", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ plugins: [] }));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     expect(await screen.findByText(/no plugins installed/i)).toBeInTheDocument();
     expect(screen.queryByText(/Built-in plugins ship with Tovu itself/)).not.toBeInTheDocument();
@@ -665,7 +666,7 @@ describe("package-files viewer: a row's eye button opens it (characterization)",
         limits: { maxFiles: 200, maxEntries: 2000, maxFileBytes: 524288, maxTotalBytes: 4194304 },
       }),
     );
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -687,7 +688,7 @@ describe("package-files viewer: a row's eye button opens it (characterization)",
 describe("Accessibility (React Component Testing Policy)", () => {
   it("the plugin list renders as a semantic list with an accessible toggle button per row", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} />);
 
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     expect(within(row).getByRole("button", { name: /disable/i })).toBeInTheDocument();
@@ -695,7 +696,7 @@ describe("Accessibility (React Component Testing Policy)", () => {
 
   it("the row's subline is visible text, not color alone — status is always rendered as text", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId="downloaded" />);
 
     const invalidRow = await screen.findByRole("listitem", { name: "Invalid Site Plugin" });
     // The (collapsed) detail panel repeats the id `invalid-site-plugin` — the assertion is about the
@@ -749,7 +750,7 @@ function renderPluginsWithController(overrides: Partial<PluginsController> = {})
   function useFakePlugins(): PluginsController {
     return fakePluginsController(overrides);
   }
-  return render(<Plugins usePluginsHook={useFakePlugins} />);
+  return render(<Plugins {...HOST_PLUGIN_SCREEN} hooks={{ ...HOST_PLUGIN_SCREEN.hooks, usePluginsHook: useFakePlugins }} />);
 }
 
 describe("X1: a refresh failure after load keeps the tabs and rows", () => {
@@ -775,7 +776,7 @@ describe("provider settings saved notice (injected controller)", () => {
 describe("row expanders and tab edge states (injected controller)", () => {
   function renderTab(tabId: string, overrides: Partial<PluginsController> = {}) {
     const controller = fakePluginsController(overrides);
-    render(<Plugins tabId={tabId} usePluginsHook={() => controller} />);
+    render(<Plugins {...HOST_PLUGIN_SCREEN} tabId={tabId} hooks={{ ...HOST_PLUGIN_SCREEN.hooks, usePluginsHook: () => controller }} />);
     return controller;
   }
 

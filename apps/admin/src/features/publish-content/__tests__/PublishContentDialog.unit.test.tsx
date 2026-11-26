@@ -4,14 +4,28 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PublishContentReport, PublishCriteria, PublishRequestResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
-import { ApiError } from "@/lib/admin-http/request";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { t as dashboardT } from "../../dashboard/dashboard-i18n";
 
 import { bindPublishContentDialog } from "@jini-ai/cms/react/publish-content/PublishContentDialog";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../../styles/native-domain-dialogs.css";
-import { createFakePublishContentPort } from "../hooks/publish-content-dependencies.hooks";
-import { usePublishContentConfirm } from "../hooks/use-publish-content-confirm.hooks";
+import { createFakePublishContentPort, defaultPublishContentPort } from "../hooks/publish-content-dependencies.hooks";
+import { bindPublishContentConfirm } from "@jini-ai/cms/react/publish-content/hooks/use-publish-content-confirm.hooks";
+import { applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
+import { publishScopeDescriptionKey, publishScopeTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+
+const usePublishContentConfirm = bindPublishContentConfirm({
+  port: defaultPublishContentPort,
+  hooks: { useLocaleHook: useWiredAdminLocale },
+  deps: {
+    applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypePluralLabel,
+    publishSectionForEntityTypes, publishScopeDescriptionKey, publishScopeTitleKey, describeApiError,
+    now: () => performance.now(),
+    overwriteUnavailableKey: "is on an older Tovu and can't overwrite these yet. Update it, then publish again.",
+  },
+});
 
 const PublishContentDialog = bindPublishContentDialog({
   kit: { Dialog }, hooks: { usePublishContentConfirmHook: usePublishContentConfirm },

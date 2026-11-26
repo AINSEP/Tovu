@@ -1,4 +1,4 @@
-import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL } from "./plugin-host-deps";
+import { HOST_PLUGINS, HOST_INSTALL, HOST_AGENT_INSTALL, HOST_AGENT_PLUGIN_SCREEN } from "./plugin-host-deps";
 import { useWiredAgentPluginDetailsModal } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useWiredAgentPluginMemory } from "@/features/plugins/hooks/use-agent-plugin-memory.hooks";
@@ -12,7 +12,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { AgentPlugins, AgentPluginUpdateSlot } from "../AgentPlugins";
+import { AgentPlugins, AgentPluginUpdateSlot } from "@jini-ai/admin/screens/plugins/AgentPlugins";
 import { AgentPluginDisableConfirmDialog } from "@jini-ai/admin/screens/plugins/AgentPluginDisableConfirmDialog";
 import { AgentPluginRow } from "@jini-ai/admin/screens/plugins/AgentPluginRow";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
@@ -28,7 +28,8 @@ import { pluginRules } from "../rules";
 
 
 const requiredAgentPluginUpdateSlotHooks = {
-  useAgentPluginUpdateHook: useAgentPluginUpdate,
+  hooks: { useAgentPluginUpdateHook: useAgentPluginUpdate },
+  deps: HOST_AGENT_PLUGIN_SCREEN.deps,
 };
 
 const requiredAgentPluginsHooks = {
@@ -78,7 +79,7 @@ function renderRow(plugin: AgentPluginListRow, update?: ReactNode) {
 describe("Agent Plugin rows — compatibility and Update", () => {
   it("only an operator-installed row with its digest offers Update; bundled rows never do", async () => {
     const port = createFakeAgentPluginInstallPort({ row: UPLOADED });
-    render(<AgentPlugins {...requiredAgentPluginsHooks} useAgentPluginsHook={() => controllerFor([UPLOADED, BUNDLED, NO_DIGEST])} agentPluginInstallPort={port} />);
+    render(<AgentPlugins {...HOST_AGENT_PLUGIN_SCREEN} hooks={{ ...requiredAgentPluginsHooks, useAgentPluginsHook: () => controllerFor([UPLOADED, BUNDLED, NO_DIGEST]) }} agentPluginInstallPort={port} />);
     expect(await screen.findByRole("button", { name: "Update Note Taker" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: "Update Site Compliance" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Update Old Server" })).toBeNull();
