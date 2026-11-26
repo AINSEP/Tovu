@@ -137,3 +137,84 @@ test("database-copies registers as an old-copy class only for a file-backed site
   assert.deepEqual(policies.map(({ id, kind }) => ({ id, kind })), [{ id: "database-copies", kind: "old-copy" }, { id: "temp-roots", kind: "old-copy" }]);
   assert.match(source("./serving-app.ts"), /databaseCopies: servingDatabaseCopies\(\{ contentDbPath: routeDeps\.siteStoragePaths\.contentDbPath \}\)/);
 });
+
+// P11 ST-7c.T (T5b): the free-page reclaim has its OWN schedule, off unless the host supplies the work. Its tick
+// may call only that work; it must never start the general runner or turn its measure-only passes live.
+// Mutation `M7c-enable-global-sweep` (a free-page tick that also runs a live general pass) must fail this test.
+test("daily free-page work cannot invoke any other policy", async () => {
+  const timers: Array<{ callback: () => void; ms: number }> = [];
+  const calls = { measure: 0, sweep: 0, reportOnly: 0, freePages: 0 };
+  const lifecycle = startSiteRetention({
+    createRunner: createRetentionRunner,
+    policiesForSignal: () => [{ id: "database-copies", kind: "old-copy", measure: async () => { calls.measure++; return { bytes: 1 }; }, sweep: async () => { calls.sweep++; return { freedBytes: 1, removed: 1 }; } }],
+    reportOnlyForSignal: () => [{ id: "media-bytes", kind: "old-copy", measure: async () => { calls.reportOnly++; return { bytes: 1 }; } }],
+    freePagesForSignal: () => ({ run: async () => { calls.freePages++; }, drain: async () => {} }),
+    clock: { now: () => 0 },
+    scheduler: {
+      setTimeout: (callback: () => void, ms: number) => timers.push({ callback, ms }),
+      clearTimeout: () => {},
+      setInterval: (callback: () => void, ms: number) => timers.push({ callback, ms }),
+      clearInterval: () => {},
+    },
+    reportError: () => {}, log: () => {},
+  }, { bootDelayMs: 1, freePagesDelayMs: 2, freePagesIntervalMs: 3 });
+  lifecycle.listenerReady();
+  const freePageTimers = () => timers.filter(timer => timer.ms === 2 || timer.ms === 3);
+  freePageTimers()[0]!.callback();
+  await new Promise(resolve => setImmediate(resolve));
+  freePageTimers()[1]!.callback();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.freePages, 2);
+  assert.deepEqual({ ...calls, freePages: 0 }, { measure: 0, sweep: 0, reportOnly: 0, freePages: 0 }, "a free-page tick touched another policy");
+  // The general runner's own boot pass is still measure-only.
+  timers.find(timer => timer.ms === 1)!.callback();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.sweep, 0);
+  await lifecycle.stop();
+  // Daily reclamation is never turned on by flipping the general runner live.
+  assert.doesNotMatch(source("./serving-app.ts"), /scheduledDryRun/);
+});
+
+test("free-page work is scheduled only when the host supplies it", () => {
+  const timers: number[] = [];
+  const lifecycle = startSiteRetention({
+    createRunner: createRetentionRunner, policiesForSignal: () => [],
+    clock: { now: () => 0 },
+    scheduler: { setTimeout: (_callback: () => void, ms: number) => timers.push(ms), clearTimeout: () => {}, setInterval: () => undefined, clearInterval: () => {} },
+    reportError: () => {}, log: () => {},
+  }, { bootDelayMs: 1, freePagesDelayMs: 2 });
+  lifecycle.listenerReady();
+  assert.deepEqual(timers, [1]);
+  // Off by default: serving-app binds the work only from an explicit host option, which no entrant passes yet.
+  assert.match(source("./serving-app.ts"), /freePagesForSignal: optional\.dbFreePages/);
+});
+
+test("free-page shutdown drains before closing SQLite", async () => {
+  const timers: Array<{ callback: () => void; ms: number }> = [];
+  const events: string[] = [];
+  let finish!: () => void;
+  let signal!: AbortSignal;
+  const lifecycle = startSiteRetention({
+    createRunner: createRetentionRunner, policiesForSignal: () => [],
+    freePagesForSignal: received => {
+      signal = received;
+      let inFlight: Promise<void> = Promise.resolve();
+      return {
+        run: () => (inFlight = new Promise<void>(resolve => { finish = () => { events.push("step finished"); resolve(); }; })),
+        drain: async () => { await inFlight; events.push("drained"); },
+      };
+    },
+    clock: { now: () => 0 },
+    scheduler: { setTimeout: (callback: () => void, ms: number) => timers.push({ callback, ms }), clearTimeout: () => {}, setInterval: () => undefined, clearInterval: () => {} },
+    reportError: () => {}, log: () => {},
+  }, { bootDelayMs: 1, freePagesDelayMs: 2 });
+  lifecycle.listenerReady();
+  timers.find(timer => timer.ms === 2)!.callback();
+  const stopped = lifecycle.stop().then(() => events.push("sqlite closes"));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(signal.aborted, true);
+  assert.deepEqual(events, [], "stop returned while a free-page step was in flight");
+  finish();
+  await stopped;
+  assert.deepEqual(events, ["step finished", "drained", "sqlite closes"]);
+});
