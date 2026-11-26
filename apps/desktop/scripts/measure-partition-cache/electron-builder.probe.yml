@@ -1,0 +1,44 @@
+# P11 ST-1a.T — the ISOLATED packaged cache probe. A separate, throwaway app; NOT the Tovu app.
+#
+# Build (Mac, from apps/desktop):  npm run probe:partition-cache:package
+# Run:  release-probe-cache/mac-arm64/TovuCacheProbe.app/Contents/MacOS/TovuCacheProbe --evidence-dir=<repo>/plans/evidence
+#
+# Why a dedicated config rather than a flag on `electron-builder.yml`: the app's packaging identity
+# (appId, productName, files allowlist, entitlements, signing, publish) must not change to host a
+# measurement harness, and the app's own `files:` already drops `scripts/**`. Everything here differs
+# from the app on purpose — its own appId/productName (so it can never open Tovu's profile by default
+# path either; the probe also sets userData/sessionData into its disposable root before `ready`), its
+# own entry, no node_modules, no extraResources, unsigned `dir` output only, never published.
+#
+# The ONE thing it must share with the app is the Electron build: the evidence it emits is valid only
+# for that exact version. `main.test.ts` pins this line to `package-lock.json`'s `node_modules/electron`
+# and to `PROBE_ELECTRON_VERSION`, so an Electron upgrade turns that test red until all three move.
+appId: com.tovu.partition-cache-probe
+productName: TovuCacheProbe
+electronVersion: "43.8.6"
+directories:
+  # `release-probe*/` is already gitignored (apps/desktop/.gitignore), so the js-backslide and
+  # tree-quiet gates never see this output.
+  output: release-probe-cache
+  # Not the app's `build/`: this directory holds no icon or entitlements, so Electron's defaults apply.
+  buildResources: scripts/measure-partition-cache
+extraMetadata:
+  name: tovu-partition-cache-probe
+  main: scripts/measure-partition-cache/packaged-entry.ts
+files:
+  - package.json
+  - "scripts/measure-partition-cache/*.ts"
+  - "!scripts/measure-partition-cache/*.test.ts"
+  # The probe imports only `electron` and `node:` builtins; none of the app's dependencies ship.
+  - "!node_modules/**/*"
+asar: true
+npmRebuild: false
+publish: null
+mac:
+  target:
+    - dir
+  # Unsigned local measurement build; never distributed.
+  identity: null
+  hardenedRuntime: false
+  electronLanguages:
+    - en
