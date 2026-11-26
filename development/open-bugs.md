@@ -3,6 +3,12 @@
 Known behaviours that are kept on purpose for now. Each one has a name; reports refer to it by that name.
 Fixing one is its own piece of work: write the failing test first, then change the code.
 
+## MERGE-26 (2026-11-26, `integ/merge-26-2026-11-26`; full report `cloud-results/merge-26.md`)
+- FIXED (desktop, runtime): `site-dir-store.ts` `deliverTokens` awaited `finished(stdin)` on both sides of a duplex stream; every init now pipes stdin, so an unread duplex stdin hung site creation. Now `{ readable: false }`.
+- FIXED (Jini agent-plugins, runtime): upload preview passed the host zero-arg archive reader to the engine without the adapter.
+- FIXED (Jini cms, runtime): clearing a media alt/caption left an `undefined` key on the item.
+- OPEN: Tovu website tsc 19 (13 carried + 6 new: peer-transport x2, publish-site, plugins/install, mount-admin-system, import-database repo.sqlite); Tovu admin tsc 6; Jini guard 267; Jini "tovu" identifiers `"tovu-peer"` (publish-history kind) and `REMOVE_FROM_TOVU` (integrations) need a cross-repo rename; red tests: chat P26 empty AG-UI stream, user-management OWNER_REQUIRED + blocked purge, cms media publish-content x2 (MissingMutationActorError), db recovery malformed confirm, admin two tests without AdminKitProvider, platform guarded-reader.binary x2 (bugd); desktop `tests` gate flaked once under CPU load.
+
 ## Found in the w3-ext-w1w2 review run (2026-11-25, `integ/w3-ext-w1w2-2026-11-25`)
 
 Fixed on this branch (Sol round-1 builds were untested; each was red before the fix):
