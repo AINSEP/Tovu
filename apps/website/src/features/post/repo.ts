@@ -1,6 +1,6 @@
 import { POST_SEARCH_HOST } from "./search-host-config.js";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
 import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
@@ -8,7 +8,7 @@ import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-
 import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { PostAutosaveSnapshot, PostRecord, PostRepoPort, PostRevisionAppendResult, PostRevisionInput, PostRevisionRecord } from "@jini-ai/cms/posts/post";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
+import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "@jini-ai/cms/posts/sql/repo.rows";
 import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
 import { currentIso } from "@jini-ai/core/scheduled-publish";
 import { postSearchFor, type PostSearchProjection } from "@jini-ai/cms/posts/sql";
@@ -69,7 +69,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .limit(1)
         .executeTakeFirst()
     );
-    return row ? toRecord(row) : null;
+    return row ? toRecord({ row }) : null;
   }
 
   async findBySlug(required: { workspaceId: string; slug: string }): Promise<PostRecord | null> {
@@ -82,14 +82,14 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .limit(1)
         .executeTakeFirst()
     );
-    return row ? toRecord(row) : null;
+    return row ? toRecord({ row }) : null;
   }
 
   async list(required: { workspaceId: string }): Promise<PostRecord[]> {
     const rows = await this.kernel.run((db) =>
       db.selectFrom("posts").selectAll().where("workspace_id", "=", required.workspaceId).execute()
     );
-    return rows.map(toRecord);
+    return rows.map(row => toRecord({ row }));
   }
 
   /** See PostRepoPort.listHtmlByKind: filter before loading any body and bound the result. */
@@ -106,7 +106,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         ]));
       })
       .orderBy("updated_at", "desc").orderBy("id", "asc").limit(required.limit).execute());
-    return rows.map(toRecord);
+    return rows.map(row => toRecord({ row }));
   }
 
   /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract. Every filter
@@ -133,7 +133,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .offset(required.offset ?? 0)
         .execute()
     );
-    return rows.map(toRecord);
+    return rows.map(row => toRecord({ row }));
   }
 
   /** See `GoLiveCandidatesPort.listGoLiveCandidates`. Every predicate is in the query: ISO UTC
@@ -156,20 +156,20 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .orderBy("id", "asc")
         .execute()
     );
-    return rows.map(toRecord);
+    return rows.map(row => toRecord({ row }));
   }
 
   /** Upsert plus the search projection, in one transaction. The projection is refreshed here rather
    *  than by a trigger on `posts`, because the indexed body is plain text walked out of a nested
    *  TipTap document — an extraction SQL has no business attempting. */
   async save(record: PostRecord): Promise<void> {
-    const row = toRow(record);
+    const row = toRow({ record });
     await this.kernel.transaction(async () => {
       await this.kernel.run((db) =>
         db
           .insertInto("posts")
           .values(row)
-          .onConflict((oc) => oc.column("id").doUpdateSet(updatableColumns(row)))
+          .onConflict((oc) => oc.column("id").doUpdateSet(updatableColumns({ row })))
           .execute()
       );
       await this.search.upsert({ kernel: this.searchKernel, document: toPostSearchDocument(record) });
@@ -187,12 +187,12 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    * @complexity O(1) — one statement against the `posts` primary key.
    */
   async saveIfVersion(required: { record: PostRecord; ifVersion: number }): Promise<{ applied: boolean }> {
-    const row = toRow(required.record);
+    const row = toRow({ record: required.record });
     const result = await this.kernel.transaction(async () => {
       const updated = await this.kernel.run((db) =>
         db
           .updateTable("posts")
-          .set(updatableColumns(row))
+          .set(updatableColumns({ row }))
           .where("id", "=", row.id)
           .where("workspace_id", "=", row.workspace_id)
           .where("version", "=", required.ifVersion)
@@ -340,7 +340,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .executeTakeFirst()
       );
       const id = randomUUID();
-      await this.kernel.run((db) => db.insertInto("post_revisions").values(toRevisionRow({ input, id })).execute());
+      await this.kernel.run((db) => db.insertInto("post_revisions").values(toRevisionRow({ input, id, hashJsonText: text => createHash("sha256").update(text).digest("hex") })).execute());
       return { id, previousId: prior?.id ?? null };
     });
   }
@@ -357,7 +357,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .orderBy("seq", "asc")
         .execute()
     );
-    return rows.map(toRevisionRecord);
+    return rows.map(row => toRevisionRecord({ row }));
   }
 
   /** See `PostRepoPort.transaction`'s own doc: repo calls made inside `fn` join ONE transaction

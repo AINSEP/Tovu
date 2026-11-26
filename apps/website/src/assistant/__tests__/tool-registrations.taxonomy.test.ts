@@ -14,7 +14,7 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResu
 import { createPost } from "@jini-ai/cms/posts/post-create";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { type AgentToolDefinition as TaxonomyAgentToolDefinition } from "@jini-ai/core";
-import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
+import { taxonomyAgentToolCatalog } from "../../features/taxonomy/tool-registrations.js";
 import {
   InMemoryEntryTermRepo,
   InMemoryTaxonomyRepo,

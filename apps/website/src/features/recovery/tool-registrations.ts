@@ -1,62 +1,22 @@
 import { toolMetadata } from '@jini-ai/core/tool-metadata/recovery';
-import { type Clock } from "@jini-ai/core/primitives";
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-/**
- * @file Recovery's half of ADR-049 Decision 4 (SPEC-019/ADR-045): maps the wireable subset of
- * `agent-tools.ts`'s seven catalog entries onto the restore-point/capabilities/plan/status/deep-link
- * reads, as `ToolRegistration`s, plus `backup_execute_restore` (2026-09-24), which asks the human in
- * chat first and only runs on their click — see `contracts/core/human-confirm.ts`'s
- * `humanConfirmedToolHandler`.
- *
- * One entry is declared unwired, with its reason on {@link UNWIRED_RECOVERY_TOOL_IDS}:
- * `backup_create_restore_point`, whose id Recovery shares with Database. That is a genuine cross-domain id collision (pre-existing, not
- * introduced by this wiring), resolved by wiring it in Database only — see the constant's own
- * comment, and `assistant/tool-registrations.ts`'s merge check, which now fails the build if any
- * future pair of domains both wire one id.
- *
- * Authorization shape: none of the underlying read functions call `authorize()` internally, so
- * every handler here calls the kit's `requireToolPermission` — ADR-021 §2's single evaluation,
- * located where the real route locates it.
- */
-import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { requireToolPermission } from "@jini-ai/cms/core";
-import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
-// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
-// for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
-// than redacting it into a message-stripped 500.
-import { ToolInputError } from "@jini-ai/core";
+import type { Clock } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler } from "#src/contracts/core/human-confirm";
-import { refuseUnexpectedKeys } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import type { ToolContributor } from "@jini-ai/core";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type { MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
-// `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
-// this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
-// sourcing this one type from `@jini-ai/db/recovery/migrate-forward-hooks` too is the established "Recovery
-// depends on Database, never the reverse" direction, not a new cross-domain edge.
 import type { LedgerAppendPort } from "@jini-ai/db/recovery/migrate-forward-hooks";
-import { listRestorePoints, type RestorePointListPort } from "@jini-ai/db/tools";
+import type { RestorePointListPort } from "@jini-ai/db/tools";
 import { createRecoveryAgentToolCatalog } from "@jini-ai/db/recovery/agent-tools";
-import {
-  resolveDeepLinkContext,
-  type DatabaseContextEnvelope,
-  type DeepLinkRestorePointLookupPort,
-} from "@jini-ai/db/recovery/deep-link";
-import { computeDisclosure, type DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
-import { confirmRestore, executeRestore, planRestore } from "@jini-ai/db/recovery/recovery-orchestrator";
-import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-
-const BACKUP_READ_PERMISSION = "backup.read" as const;
-const RESTORE_POINT_ENTITY = "restore-point" as const;
+import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
+import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
+import { bindRecoveryTools } from "@jini-ai/db/recovery/tool-registrations";
 
 /** Host binding (K3): the catalog's guidance names this host's own backup tools, its `.tovu.zip`
  * export screen and its restore-point read tools, which the engine catalog cannot know. */
@@ -64,8 +24,6 @@ export const recoveryAgentToolCatalog = createRecoveryAgentToolCatalog({
   backupWorkflowGuidance: "For private full-site repository backups, call source_control_get_capabilities to discover installed hosts (including disabled ones), then site_backup_plan → site_backup_push. Portable .tovu.zip exports are available under Admin → Sites → Export.",
   restorePointIdSource: "content_read.backup_restore_point or content_read.database_restore_point",
 }, { resolveDeepLinkCitation: "INV-04" });
-
-const CATALOG_BY_ID = indexCatalogById({ catalog: recoveryAgentToolCatalog });
 
 /**
  * The exact slice of the route-deps bag Recovery's tool handlers read. Declared structurally
@@ -91,364 +49,29 @@ export interface RecoveryToolDeps {
   gatedMutations: { gatewayDeps: GatewayDeps };
 }
 
-/**
- * This wiring layer's OWN risk classification, authored from what each handler below actually
- * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
- * `sideEffects` declaration. Neither excluded tool appears here at all, which is itself the
- * strongest of the guards: an unclassified id cannot be wired.
- */
-export const recoveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> listRestorePoints (@jini-ai/db/tools, the same repo Database's own list
-  //    tool reads): one read.
-  ["backup_list_restore_points", "none"],
-  // -> dbOps.getCapabilities(): pure, side-effect-free per its own doc comment.
-  ["backup_get_capabilities", "none"],
-  // -> planRestore (recovery-orchestrator.ts) + gateway.ts's plan() + computeDisclosure(): three
-  //    reads composed together, nothing persisted.
-  ["backup_plan_restore", "none"],
-  // -> dbOps.getCapabilities() + siteStatusRepo.get() + isOperationInFlight() (a lock PEEK, not an
-  //    acquire) + resolveDegradedBanner() (pure): all reads.
-  ["recovery_get_status", "none"],
-  // -> resolveDeepLinkContext (deep-link.ts): one DeepLinkRestorePointLookupPort read; never
-  //    mutates the input envelope (see that function's own doc comment).
-  ["recovery_resolve_deep_link", "none"],
-  // -> gateway confirm() (as the human, after their click) + execute() via buildRestoreHooks,
-  //    inside executeRestore's operation lock: swaps the site's data for the restore point's.
-  ["backup_execute_restore", "mutates-durable-state"],
-]);
-
-const RESTORE_TOOL_ID = "backup_execute_restore";
-
 /** Mirrors `apps/website/src/server/inbound/admin-http/routes/recovery/disclosure.ts`'s own `COVERED_CATEGORIES` constant exactly — that
  * route-local const is not exported, so this is a deliberate, disclosed duplication rather than a
  * reach into a route file's private state. Keep the two in sync if either changes. */
 const RECOVERY_DISCLOSURE_COVERED_CATEGORIES = ["posts_pages", "plugin_table"] as const;
 
-const UNWIRED_RECOVERY_TOOL_IDS = new Set([
-  // Pre-existing (SPEC-019) catalog entry, deliberately left unwired HERE: this id collides with
-  // `features/database/agent-tools.ts`'s own `backup_create_restore_point`, which
-  // `buildDatabaseRegistrations` already wires as the canonical tool (ADR-041 §6 names the
-  // Database/Storage domain as this permission's "named tool"). Recovery's OWN local
-  // `createRestorePoint` (`recovery/restore-points.ts`) never calls `DbOpsPort.captureRestorePoint()`
-  // — wiring it here too would silently mint a SECOND, artifact-less restore point under the same
-  // tool id, reintroducing the exact "artifactRef silently dropped" defect
-  // `database/restore-points.ts`'s own file header records as already fixed. One tool id, one
-  // handler, backed by the real snapshot path.
-  "backup_create_restore_point",
-]);
-
-/** One field's "must be typeof number" check for {@link requireDeepLinkEnvelope} — same rejection
- *  style as the kit's own `requireNumber`, just scoped to a nested envelope field path. */
-function requireEnvelopeNumber({ value, fieldPath }: { value: unknown; fieldPath: string }, _optional = {}): number {
-  if (typeof value !== "number") throw new ToolInputError({ message: `'${fieldPath}' (number) is required` });
-  return value;
-}
-
-/** One field's "must be typeof string" check for {@link requireDeepLinkEnvelope}. */
-function requireEnvelopeString({ value, fieldPath }: { value: unknown; fieldPath: string }, _optional = {}): string {
-  if (typeof value !== "string") throw new ToolInputError({ message: `'${fieldPath}' (string) is required` });
-  return value;
-}
-
-/** One field's "must be a string, or explicitly null" check — `ledgerEventId`/`restorePointId`
- *  are the only two nullable fields on the envelope. */
-function requireEnvelopeStringOrNull({ value, fieldPath }: { value: unknown; fieldPath: string }, _optional = {}): string | null {
-  if (value !== null && typeof value !== "string") throw new ToolInputError({ message: `'${fieldPath}' must be a string or null` });
-  return value;
-}
-
-/**
- * Validates a raw `envelope` value against `recovery_resolve_deep_link`'s published schema and
- * returns it narrowed to `DatabaseContextEnvelope`.
- *
- * Hand-written rather than delegating to `Jini packages/user-management/src/server/agent-tool-input.ts`'s generic schema
- * interpreter, because this is the only nested-object tool input in the whole wiring layer and that
- * interpreter is flat-only — it cannot express a nested `envelope` object at all.
- *
- * @throws {ToolInputError} Naming the first missing/mistyped field, matching the kit's
- * `requireString`/`requireNumber` rejection style.
- * @complexity O(1) — a fixed number of field checks.
- * @overallScore 100
- */
-function requireDeepLinkEnvelope({ raw }: { raw: unknown }, _optional = {}): DatabaseContextEnvelope {
-  const candidate = { value: raw };
-  if (!isRecord(candidate)) throw new ToolInputError({ message: "'envelope' (object) is required" });
-  const value = candidate.value;
-
-  return {
-    v: requireEnvelopeNumber({ value: value.v, fieldPath: "envelope.v" }),
-    correlationId: requireEnvelopeString({ value: value.correlationId, fieldPath: "envelope.correlationId" }),
-    siteId: requireEnvelopeString({ value: value.siteId, fieldPath: "envelope.siteId" }),
-    ledgerEventId: requireEnvelopeStringOrNull({ value: value.ledgerEventId, fieldPath: "envelope.ledgerEventId" }),
-    restorePointId: requireEnvelopeStringOrNull({ value: value.restorePointId, fieldPath: "envelope.restorePointId" }),
-    drift: requireEnvelopeString({ value: value.drift, fieldPath: "envelope.drift" }),
-    intent: requireEnvelopeString({ value: value.intent, fieldPath: "envelope.intent" }),
-    issuedAt: requireEnvelopeString({ value: value.issuedAt, fieldPath: "envelope.issuedAt" }),
-  };
-}
-function createRecoveryPlanner(routeDeps: RecoveryToolDeps) {
-  const restoreHooks = ({ actorId, restorePointId }: { actorId: string; restorePointId: string }, _optional = {}) =>
-    buildRestoreHooks({
-      workspaceId: routeDeps.workspaceId,
-      actorId,
-      // Assistant tool path (P10-H2): the restore ledger records the agent kind.
-      actor: { id: actorId, kind: "agent" },
-      restorePointId,
-      clock: routeDeps.clock,
-      idGen: routeDeps.idGen,
-      restorePointsRepo: routeDeps.restorePointsRepo,
-      databaseLedgerRepo: routeDeps.databaseLedgerRepo,
-      dbOps: routeDeps.dbOps,
-      migrationRunsRepo: routeDeps.migrationRunsRepo,
-      siteStatus: routeDeps.siteStatusRepo,
-    });
-
-
-  // Plans a restore as the agent and folds in the discarded-write-window disclosure — shared by
-  // `backup_plan_restore` and the confirm dialog of `backup_execute_restore`.
-  const planRestoreWithDisclosure = async ({ actorId, restorePointId }: { actorId: string; restorePointId: string }, _optional = {}) => {
-    const result = await planRestore({
-      deps: {
-        dbOps: {
-          getCapabilities: async () => {
-            const capabilities = await routeDeps.dbOps.getCapabilities();
-            return { costClass: capabilities.restorePoint.costClass, restorePointKind: capabilities.restorePoint.kind };
-          },
-        },
-        gateway: {
-          plan: (input) =>
-            toRecoveryResult({ run: () =>
-              gatewayPlan({
-                deps: routeDeps.gatedMutations.gatewayDeps,
-                principalId: input.principalId,
-                principalKind: input.principalKind,
-                hooks: restoreHooks({ actorId, restorePointId: input.restorePointId }),
-              }) }, {},
-            ),
-        },
-      },
-      input: { principalId: actorId, principalKind: AGENT_TOOL_PRINCIPAL_KIND, restorePointId },
-    });
-
-    if (!result.ok) throw new Error(result.error.message ?? result.error.code);
-
-    const disclosure = await computeDisclosure({
-      deps: { watermarkSource: routeDeps.disclosureWatermarkSource, coveredCategories: RECOVERY_DISCLOSURE_COVERED_CATEGORIES },
-      input: { restorePointId },
-    });
-    return { plan: result.value, disclosure };
-  };
-  return { restoreHooks, planRestoreWithDisclosure };
-}
-
-
-
-    
-async function readRecoveryStatus(routeDeps: RecoveryToolDeps, ctx: Parameters<ToolHandler>[0]) {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
-
-      const capabilities = await routeDeps.dbOps.getCapabilities();
-      const siteStatus = await routeDeps.siteStatusRepo.get(routeDeps.workspaceId);
-      const banner = resolveDegradedBanner({
-        capabilities: {
-          costClass: capabilities.restorePoint.costClass,
-          operationInFlight: isOperationInFlight({ siteId: routeDeps.workspaceId }, {}),
-          pendingMigration: siteStatus === "PENDING_MIGRATION",
-          migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
-          // Matches `@jini-ai/cms/admin-http/routes/recovery/status`'s own honest stub — no per-category
-          // write-count tracker exists anywhere in this codebase yet (see `disclosure.ts`'s doc).
-          watermarkBaselineAvailable: false,
-        },
-      });
-
-      return { costClass: capabilities.restorePoint.costClass, banner };
-    }
-
-
-
-    
-async function resolveRecoveryDeepLink(routeDeps: RecoveryToolDeps, ctx: Parameters<ToolHandler>[0]) {
-      const candidate = { value: ctx.input };
-      if (!isRecord(candidate)) throw new ToolInputError({ message: "'envelope' (object) is required" });
-      const envelope = requireDeepLinkEnvelope({ raw: candidate.value.envelope });
-
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
-
-      return resolveDeepLinkContext({
-        deps: { lookup: routeDeps.deepLinkRestorePointLookup },
-        input: { principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, envelope },
-      });
-    }
-type RestorePreparation = { restorePointId: string; plan: { planId: string; planHash: string }; createdAt: string | undefined };
-function createRecoveryConfirmationGateway(routeDeps: RecoveryToolDeps, hooks: ReturnType<ReturnType<typeof createRecoveryPlanner>['restoreHooks']>, confirmer: { id: string; kind: Parameters<typeof gatewayConfirm>[0]['principalKind']; signal: AbortSignal }): Parameters<typeof confirmRestore>[0]['deps']['gateway'] {
-  return {
-              confirm: (params) =>
-                toRecoveryResult({ run: async () => {
-                  const record = await gatewayConfirm({
-                    deps: routeDeps.gatedMutations.gatewayDeps,
-                    principalId: confirmer.id,
-                    principalKind: confirmer.kind,
-                    signal: confirmer.signal,
-                    hooks,
-                    planId: params.planId,
-                    planHash: params.planHash,
-                  });
-                  return { confirmationToken: record.confirmationToken };
-                } }, {}),
-            };
-}
-
-function createRecoveryRestoreRun(routeDeps: RecoveryToolDeps, restoreHooks: ReturnType<typeof createRecoveryPlanner>['restoreHooks']): Parameters<typeof humanConfirmedToolHandler<RestorePreparation>>[1]['run'] {
-  return async ({ ctx, prepared: { restorePointId, plan }, confirmer }) => {
-        const hooks = restoreHooks({ actorId: ctx.principal.id, restorePointId });
-        const confirmed = await confirmRestore({
-          deps: {
-            gateway: createRecoveryConfirmationGateway(routeDeps, hooks, { ...confirmer, signal: ctx.signal }),
-          },
-          input: { principalId: confirmer.id, principalKind: confirmer.kind, planId: plan.planId, planHash: plan.planHash, disclosureAcknowledged: true },
-        });
-        if (!confirmed.ok) throw new Error(confirmed.error.message ?? confirmed.error.code);
-        const { confirmationToken } = confirmed.value as { confirmationToken: string };
-
-        const executed = await executeRestore({
-          deps: {
-            gateway: {
-              execute: (params) =>
-                toRecoveryResult({ run: () =>
-                  gatewayExecute({
-                    deps: routeDeps.gatedMutations.gatewayDeps,
-                    principalId: ctx.principal.id,
-                    principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-                    hooks,
-                    confirmationToken: params.confirmationToken,
-                    signal: ctx.signal,
-                  }) }, {},
-                ),
-            },
-            operationLock: { acquireOperationLock, releaseOperationLock },
-            clock: routeDeps.clock,
-          },
-          input: {
-            principalId: ctx.principal.id,
-            principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-            confirmationToken,
-            siteId: routeDeps.workspaceId,
-            delegatedByPrincipalId: confirmer.id,
-          },
-        });
-        if (!executed.ok) throw new Error(executed.error.message ?? executed.error.code);
-        return { restored: true, ...executed.value };
-      };
-}
-
-
-
-
-    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
-    // inside the same operation lock the admin execute route uses. No restore point is taken
-    // first, so the dialog says the current data is replaced and it can't be undone. The human's
-    // confirm click is the disclosure acknowledgment (CIC U-002).
-    
-function createRecoveryRestoreHandler(routeDeps: RecoveryToolDeps, surfaces: AssistantSurfaceDeps, { restoreHooks, planRestoreWithDisclosure }: ReturnType<typeof createRecoveryPlanner>): ToolHandler {
-  return humanConfirmedToolHandler(surfaces, {
-      flag: "restored",
-      prepare: async ({ ctx }) => {
-        const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys({ input: input, allowed: ["restorePointId"] });
-        const restorePointId = requireString({ input: input, key: "restorePointId" });
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.restore" }, { entityType: RESTORE_POINT_ENTITY });
-        const { plan } = await planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });
-        const { items } = await listRestorePoints({ repo: routeDeps.restorePointsRepo });
-        const createdAt = items.find((item) => item.id === restorePointId)?.createdAt;
-        return { restorePointId, plan: plan as { planId: string; planHash: string }, createdAt };
-      },
-      dialog: ({ restorePointId, createdAt }) => ({
-        toolId: RESTORE_TOOL_ID,
-        errorCode: "RECOVERY",
-        title: "Restore the site's data?",
-        details: [{ label: "Restore point", value: createdAt ? `${restorePointId} (${createdAt})` : restorePointId }],
-        warning:
-          "Your current data will be replaced with this restore point. Anything changed since then is lost. " +
-          "No restore point is taken first, so this can't be undone.",
-        danger: true,
-        confirmLabel: "Replace current data",
-      }),
-      run: createRecoveryRestoreRun(routeDeps, restoreHooks),
-    });
-}
-
-
-export function buildRecoveryRegistrations(
-  routeDeps: RecoveryToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-): ToolRegistration[] {
-  const { restoreHooks, planRestoreWithDisclosure } = createRecoveryPlanner(routeDeps);
-
-  const handlers: Record<string, ToolHandler> = {
-    backup_list_restore_points: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
-      // Same repo/function Database's own `database_list_restore_points` reads — one persisted
-      // list, two gated views (ADR-045 §1, "Database and Recovery are sibling faces").
-      return listRestorePoints({ repo: routeDeps.restorePointsRepo });
+export const { buildRecoveryRegistrations, contributeRecoveryTools } = bindRecoveryTools<RecoveryToolDeps>({
+  catalog: recoveryAgentToolCatalog, metadata: toolMetadata, catalogModule: "@jini-ai/db/recovery/agent-tools.ts",
+  readPermission: "backup.read", restorePermission: "backup.restore", coveredCategories: RECOVERY_DISCLOSURE_COVERED_CATEGORIES,
+  capabilityGuidance: {
+    fullSiteBackup: {
+      discoveryTool: "source_control_get_capabilities", planTool: "site_backup_plan", pushTool: "site_backup_push",
+      guidance: "Discover installed source-control hosts, including disabled hosts, before choosing a private repository. Enable the chosen plugin and configure its connection through the secure card. Plan and review the private full-site backup before pushing; rendered static output commits are separate.",
     },
-
-    backup_get_capabilities: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
-      const capabilities = await routeDeps.dbOps.getCapabilities();
-      return { costClass: capabilities.restorePoint.costClass, kind: capabilities.restorePoint.kind,
-        fullSiteBackup: {
-          discoveryTool: "source_control_get_capabilities", planTool: "site_backup_plan", pushTool: "site_backup_push",
-          guidance: "Discover installed source-control hosts, including disabled hosts, before choosing a private repository. Enable the chosen plugin and configure its connection through the secure card. Plan and review the private full-site backup before pushing; rendered static output commits are separate.",
-        },
-        portableExport: { href: "/admin/sites", guidance: "Admin → Sites → Export creates a portable .tovu.zip." },
-      };
-    },
-
-    backup_plan_restore: async (ctx) => {
-      const restorePointId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "restorePointId" });
-
-      // Defensive, explicit check ahead of `planRestore()`: that function's own cost-class
-      // short-circuit (COST_CLASS_UNAVAILABLE) returns BEFORE the gateway's internal authorize()
-      // ever runs — a pre-existing gap this wiring found in the real HTTP route too (it calls
-      // `planRestore` with no authorize() of its own either). This tool stays strictly more
-      // conservative than that route by never skipping the check, rather than reproducing the gap.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
-
-      // An unknown id is a caller mistake, not a planning question — reject it here rather than
-      // letting it reach `planRestore()`/the gateway, which have no reason to name a nonexistent
-      // restore point in a way that points the caller back to the list tool.
-      const points = await routeDeps.restorePointsRepo.list();
-      if (!points.some((point) => point.id === restorePointId)) {
-        throw new ToolInputError({ message: `restore point '${restorePointId}' was not found — call backup_list_restore_points for valid ids` });
-      }
-
-      // Folds in the discarded-write-window disclosure, matching this tool's own catalog
-      // description ("including the discarded-write-window disclosure") — the human admin UI reads
-      // this from a separate `/recovery/disclosure` request; a tool call composes both in one turn.
-      return planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });
-    },
-    recovery_get_status: ctx => readRecoveryStatus(routeDeps, ctx),
-    recovery_resolve_deep_link: ctx => resolveRecoveryDeepLink(routeDeps, ctx),
-    [RESTORE_TOOL_ID]: createRecoveryRestoreHandler(routeDeps, surfaces, { restoreHooks, planRestoreWithDisclosure }),
-  };
-
-  return buildDomainRegistrations({ metadata: toolMetadata, domain: "recovery", catalogModule: "@jini-ai/db/recovery/agent-tools.ts", catalog: CATALOG_BY_ID, handlers, derivedRisk: recoveryDerivedRisk }, { unwiredToolIds: UNWIRED_RECOVERY_TOOL_IDS });
-}
-
-/**
- * Contributes Recovery's AI tools to the assistant's catalog — called once by
- * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
- * module. `assistant/tool-registrations.ts` no longer imports `buildRecoveryRegistrations`/
- * `recoveryDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2).
- * Unlike `database` (tried and reverted earlier in this same batch — see
- * `features/database/tool-registrations.ts`'s trailing comment), Recovery's only imports of
- * `features/database` (`@jini-ai/db/recovery/reconcile-interrupted-migration`, `../database/gated-hooks`)
- * are both `import type` — erased from the runtime-only graph `check:architecture` uses for module
- * cycles/SCC — so this domain does not carry `database`'s `db`-hub round-trip risk.
- */
-export function contributeRecoveryTools(): ToolContributor<RecoveryToolDeps, AssistantSurfaceDeps> {
-  return { domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk };
-}
+    portableExport: { href: "/admin/sites", guidance: "Admin → Sites → Export creates a portable .tovu.zip." },
+  },
+  authorize: ({ deps: routeDeps, ctx, permission, entityType }) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission }, { entityType }),
+  operationLock: { acquireOperationLock, releaseOperationLock }, isOperationInFlight,
+  refuseUnexpectedKeys, buildRestoreHooks, gatewayPlan, gatewayConfirm, gatewayExecute, toRecoveryResult, humanConfirmedToolHandler,
+  dialog: {
+    errorCode: "RECOVERY", title: "Restore the site's data?", restorePointLabel: "Restore point",
+    warning:
+      "Your current data will be replaced with this restore point. Anything changed since then is lost. " +
+      "No restore point is taken first, so this can't be undone.",
+    confirmLabel: "Replace current data",
+  },
+});

@@ -4,6 +4,9 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildRecoveryRegistrations, type RecoveryToolDeps } from "../../tool-registrations.js";
 
@@ -23,7 +26,7 @@ function ctxWithInput(input: unknown): ToolExecutionContext {
 
 function buildTool() {
   const deps = createRouteDeps() as unknown as RecoveryToolDeps;
-  const registration = buildRecoveryRegistrations(deps).find((r) => r.descriptor.id === "recovery_resolve_deep_link");
+  const registration = buildRecoveryRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find((r) => r.descriptor.id === "recovery_resolve_deep_link");
   assert.ok(registration, "expected recovery_resolve_deep_link to be wired");
   return registration;
 }

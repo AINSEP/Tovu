@@ -1,11 +1,9 @@
 import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "./store.js";
-import { buildSourceControlRegistrations as build, sourceControlDerivedRisk, type SourceControlToolDeps as Deps } from "@jini-ai/devops/source-control/site/tool-registrations";
+import { bindSourceControlTools, type SourceControlToolDeps as Deps } from "@jini-ai/devops/source-control/site/tool-registrations";
 import { createSourceControlAgentToolCatalog } from "@jini-ai/devops/source-control/site/agent-tools";
-import { indexCatalogById, type ToolContributor, type ToolHandler } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
+import { indexCatalogById } from "@jini-ai/core";
 import { commitSiteToSourceControl, previewCommitExport } from "./commit-site.js";
 import { buildSourceControlProvider, switchedOffPluginSentence } from "./provider-registry.js";
-import { proposeSourceControlCredential } from "./credential-setup.js";
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { findPluginCredentialCard } from "@jini-ai/agent-plugins/connect";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
@@ -22,19 +20,10 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: sourceControlAgentToolCatalog 
 
 export type SourceControlToolDeps = Omit<Deps, "deps" | "catalog" | "switchedOffPluginSentence" | "buildSourceControlProvider" | "previewCommitExport" | "commitSiteToSourceControl" | "defineSecretCardTool" | "applyPluginCredentialCard" | "findPluginCredentialCard" | "askThenReport" | "credentialSaveToolId" | "credentialFormUriHost" | "backupRepositoryRules" | "credentialText" | "formatCredentialHint" | "reportCredentialFailure" | "assertCredentialFreeField" | "isProjectKeyCreateConflictError">;
 
-export function buildSourceControlCredentialHandler({ deps, surfaces }: { deps: SourceControlToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): ToolHandler {
-  return (ctx, optional = {}) => proposeSourceControlCredential({ deps, surfaces, ctx }, optional);
-}
-
-export function buildSourceControlRegistrations(deps: SourceControlToolDeps, surfaces: AssistantSurfaceDeps) {
-  return build({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS, catalog: CATALOG_BY_ID, switchedOffPluginSentence, buildSourceControlProvider, previewCommitExport, commitSiteToSourceControl,
-    defineSecretCardTool, applyPluginCredentialCard, findPluginCredentialCard, askThenReport, credentialSaveToolId: CREDENTIAL_SAVE_TOOL_ID,
-    credentialFormUriHost: "tovu", backupRepositoryRules: 'For a site backup, the repository must be private and already have at least one commit (for example a README).',
-    credentialText, formatCredentialHint, reportCredentialFailure: message => console.warn(message), assertCredentialFreeField,
-    isProjectKeyCreateConflictError: (error): error is ProjectKeyCreateConflictError => error instanceof ProjectKeyCreateConflictError,
-  }, surfaces);
-}
-
-export function contributeSourceControlTools(): ToolContributor<SourceControlToolDeps, AssistantSurfaceDeps> {
-  return { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk };
-}
+export const { buildSourceControlCredentialHandler, buildSourceControlRegistrations, contributeSourceControlTools } = bindSourceControlTools({
+  deps: SOURCE_CONTROL_CREDENTIAL_DEPS, catalog: CATALOG_BY_ID, switchedOffPluginSentence, buildSourceControlProvider, previewCommitExport, commitSiteToSourceControl,
+  defineSecretCardTool, applyPluginCredentialCard, findPluginCredentialCard, askThenReport, credentialSaveToolId: CREDENTIAL_SAVE_TOOL_ID,
+  credentialFormUriHost: "tovu", backupRepositoryRules: 'For a site backup, the repository must be private and already have at least one commit (for example a README).',
+  credentialText, formatCredentialHint, reportCredentialFailure: message => console.warn(message), assertCredentialFreeField,
+  isProjectKeyCreateConflictError: (error): error is ProjectKeyCreateConflictError => error instanceof ProjectKeyCreateConflictError,
+});

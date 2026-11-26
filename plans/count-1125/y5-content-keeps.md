@@ -13,4 +13,6 @@
 ^apps/website/src/features/post/post-tool-policy\.ts$
 ^apps/website/src/features/post/preview-tool\.ts$
 ^apps/website/src/features/post/repo\.memory\.ts$
+^apps/website/src/features/source-control/tool-registrations\.ts$
+^apps/website/src/features/recovery/tool-registrations\.ts$
 ```

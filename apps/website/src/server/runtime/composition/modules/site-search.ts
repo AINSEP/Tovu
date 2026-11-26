@@ -18,7 +18,7 @@ import { set } from "#src/features/settings/index";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "@jini-ai/search/site/access";
 import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
 import { createCmsSearchRules } from "#src/features/site-search/cms-search-rules";
-import { toRecord } from "#src/features/post/read-model";
+import { toRecord } from "@jini-ai/cms/posts/sql/repo.rows";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
@@ -416,7 +416,7 @@ const SEARCH_INDEX_TABLES: SearchIndexTables = {
   retired: "search_index_retired",
 };
 
-const cmsSearchRules = createCmsSearchRules({ toPostRecord: toRecord });
+const cmsSearchRules = createCmsSearchRules({ toPostRecord: row => toRecord({ row }) });
 /** The public URL a search hit links to: the sanitized public rendition, or the SVG passthrough. */
 function mediaSearchPublicPath({ record }: { readonly record: MediaRecord }, _optional = {}): string {
   const contentType = record.source.contentType ?? "";

@@ -94,7 +94,7 @@ import { sourceControlAgentToolCatalog } from "../../features/source-control/too
 import { siteEvidenceAgentToolCatalog } from "@jini-ai/diagnostics/web-evidence/agent-tools";
 import { webAgentToolCatalog } from "../../features/web/agent-tools.js";
 import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/catalog-host.js";
-import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
+import { taxonomyAgentToolCatalog } from "../../features/taxonomy/tool-registrations.js";
 import { getWorkspaceAgentToolCatalog } from "@jini-ai/cms/workspace";
 import { formsAgentToolCatalog } from "@jini-ai/cms/forms";
 import { identityAgentToolCatalog } from "@jini-ai/user-management/server";
