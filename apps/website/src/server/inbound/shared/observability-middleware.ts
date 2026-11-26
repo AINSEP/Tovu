@@ -8,7 +8,7 @@ import type { RequestTrackingOutcome } from "@jini-ai/core/contracts/observabili
 import { runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
 import { createRequestReportScope } from "#src/server/inbound/shared/request-admissions";
 import { REQUEST_ID_HEADER, resolveRequestId } from "@jini-ai/http-kit/request-id";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 /**
  * @file Records inbound HTTP requests through the injected diagnostics observability port
@@ -83,7 +83,6 @@ export function applyRequestTracking({ app, deps }: { app: Express; deps: {
     const requestId = resolveRequestId({ header: req.headers[REQUEST_ID_HEADER] });
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
-    res.locals.adminFailureTracker = deps.tracker;
     // Queryable per error object, so the admin responder skips the tracker only for a failure this
     // request already admitted, not for every failure after any unrelated report.
     const scope: ErrorReportScope = createRequestReportScope({});
@@ -144,7 +143,7 @@ function reportServerError({ tracker, req, res, scope, routePattern }: {
 export const captureRouteError: ErrorRequestHandler = (error, req, res, next) => {
   res.locals.routeError = error;
   if (!res.headersSent && /^\/api\/admin(?:\/|$)/.test(req.path) && !isExpectedClientError({ error })) {
-    sendAdminFailure({ res, error }, { operation: "admin-route.uncaught" });
+    sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, { operation: "admin-route.uncaught" });
     return;
   }
   next(error);

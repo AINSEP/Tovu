@@ -7,7 +7,7 @@ import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import type { SiteGuideEngine } from "#src/features/site-guide/index";
 import { buildBaseSystemOverlay } from "#src/server/inbound/assistant/assistant-system-overlay";
-import { SYSTEM_PREAMBLE } from "../modules/assistant-byok.js";
+import { SYSTEM_PREAMBLE } from "../modules/assistant-byok-preflight.js";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { buildSiteGuideRegistrations, readSiteGuideInput, siteGuideDerivedRisk } from "../site-guide-tools.js";
 import { nativeToolMetadata, siteGuideToolMetadata as toolMetadata } from "#src/contracts/core/tool-metadata/index";

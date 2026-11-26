@@ -17,6 +17,7 @@ import { importErrorResponse } from "../../routes/publish-content/import-errors.
 import { createMappedErrorResponse } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
 import { installErrorResponse } from "../../routes/agent-plugins/install-response.js";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
+import { createTovuErrorReporter } from "#src/server/runtime/composition/error-reporter";
 import { adminFailureResponse, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 function fixture(error: unknown, tracked: unknown[], { recorded = recordingComposedReporter() } = {}) {
@@ -133,10 +134,11 @@ test("the recorded duplicate-skill-name refusal remains actionable while unexpec
 for (const broken of ["logger", "tracker"]) {
   test(`a failing ${broken} cannot suppress the private 500 or prevent the other diagnostic sink`, t => {
     let logged = 0, tracked = 0, status = 0, body: any;
-    t.mock.method(console, "error", () => { logged++; if (broken === "logger") throw new Error("logger unavailable"); });
+    const logger = { warn: () => {}, error: () => { logged++; if (broken === "logger") throw new Error("logger unavailable"); } };
     const tracker = { error: () => { tracked++; if (broken === "tracker") throw new Error("tracker unavailable"); } };
     const res = { status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
-    sendAdminFailure({ res, tracker, error: new Error("private path") });
+    const reporter = createTovuErrorReporter({ logger, tracker, clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" } });
+    sendAdminFailure({ res, reporter, error: new Error("private path") });
     assert.equal(status, 500);
     assert.equal(typeof body.errorId, "string");
     assert.equal(body.error, `The request could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`);
@@ -148,7 +150,7 @@ for (const [name, map] of Object.entries({
   widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
   peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => createMappedErrorResponse({
-    incident: (error, facts) => adminFailureResponse({ error, tracker: options.tracker, reporter: options.reporter }, facts),
+    incident: (error, facts) => adminFailureResponse({ error, reporter: options.reporter }, facts),
     operation: "routes/publish-content/route-helpers",
   })({ err, table: [] }),
   installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1]) => installErrorResponse({ error: err }, options),

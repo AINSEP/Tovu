@@ -328,7 +328,7 @@ export function registerAdminSiteImportRoutes(
       authorize: params => authorizeOrRespond({ res, authorize: deps.authorize, params }),
       requireSession: options => rejectUnlessSessionCredential({ res, ...options }),
       noStore: headers => { res.set(headers); }, json: (body, status) => res.status(status).json(body),
-      failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker, reporter: errors.reporter }, options),
+      failure: (error, options) => sendAdminFailure({ res, error, reporter: errors.reporter }, options),
       body: () => req.body, query: () => req.query, importId: () => String(req.params.importId),
       origin: () => req.get("origin"), protocol: () => req.protocol, host: () => req.get("host"),
       parseZip: options => new Promise<void>((resolve, reject) => express.raw(options)(req, res, error => error ? reject(error) : resolve())),

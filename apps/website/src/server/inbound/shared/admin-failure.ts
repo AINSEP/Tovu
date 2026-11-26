@@ -6,12 +6,9 @@
  */
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
-import { randomBytes } from "node:crypto";
-import { mintToolErrorId } from "@jini-ai/core/errors/error-id";
 import type { Response } from "express";
-import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { UNAVAILABLE_ERROR_ID, type ErrorReporter } from "@jini-ai/core/errors/reporter";
-import { describeRequestFailure, formatErrorForLog, formatUserFacingError, type UserFacingError, type UserFacingErrorOptions } from "@jini-ai/core";
+import { describeRequestFailure, formatUserFacingError, type UserFacingError, type UserFacingErrorOptions } from "@jini-ai/core";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { wasAdmittedInRequest } from "#src/server/inbound/shared/request-admissions";
 
@@ -31,32 +28,30 @@ export interface FailureOptions {
   failure?: { action: string; step: string; cause?: unknown; metadata?: UserFacingErrorOptions };
 }
 
-export interface AdminFailurePorts {
-  /** Legacy sink for callers the composition has not bound a reporter for yet. */
-  tracker?: Pick<Tracker, "error">;
+/** Ports for a failure site with no response of its own: the composed reporter is REQUIRED, never the legacy pair. */
+export interface BoundFailurePorts {
   /** The site's one incident path. When bound it alone writes the host record and the tracker report. */
-  reporter?: Pick<ErrorReporter, "record">;
+  reporter: Pick<ErrorReporter, "record">;
   /** True only when this request's tracker already admitted THIS error object (`request-admissions.ts`). */
   trackerAlreadyReported?: boolean;
 }
 
-/** Ports for a failure site with no response of its own: the composed reporter is REQUIRED, never the legacy pair. */
-export type BoundFailurePorts = AdminFailurePorts & { reporter: Pick<ErrorReporter, "record"> };
+export function failureReporterOf({ res }: { res: FailureResponse }, _optional = {}): Pick<ErrorReporter, "record"> {
+  const reporter: unknown = res.locals?.failureReporter ?? res.app?.locals.failureReporter;
+  if (reporter !== null && typeof reporter === "object" && "record" in reporter && typeof reporter.record === "function") return reporter as Pick<ErrorReporter, "record">;
+  return { record: ({ operation }) => {
+    console.error("[admin-failure] reporter unavailable", { operation });
+    throw new Error("failure reporter unavailable");
+  } };
+}
 
 const UNEXPECTED_CAUSE = "The error ID identifies the server report.";
 
-function mintErrorId(): string {
-  return mintToolErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") });
-}
 interface FailureResponse {
   status(code: number): { json(body: unknown): unknown };
   locals?: Response["locals"];
+  app?: Pick<Response["app"], "locals">;
   req?: Pick<Response["req"], "method" | "route">;
-}
-
-/** Preserve an exception's stack while redacting before either diagnostic sink receives it. */
-function adminDiagnostic({ error }: { error: unknown }, _options = {}): string {
-  return formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS);
 }
 
 /** Log one server incident (redacted message + stack) to the local log and the tracker under one
@@ -66,17 +61,16 @@ function adminDiagnostic({ error }: { error: unknown }, _options = {}): string {
  * Expected refusals (bad input, not found, refused link) are NOT incidents and must not call it.
  * @param required.operation - `<area>:<step>` naming what failed, e.g. `mail-feedback:record`.
  * With a bound `reporter` the reporter is the only sink: one host record and (unless skipped) one
- * tracker report, under the ID it returns. Unbound callers keep the console + tracker pair below.
+ * tracker report, under the ID it returns.
  * @param optional.errorId - Reuse an ID the reply already carries; otherwise a new one.
  * @complexity Core redaction over the diagnostic plus one log line and one tracker report.
- * @example const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
+ * @example const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { reporter: failureReporterOf({ res }) });
  */
 export function reportServerFailure(
   { error, operation }: { error: unknown; operation: string },
-  { tracker, reporter, errorId, trackerAlreadyReported = false }: AdminFailurePorts & { errorId?: string } = {},
+  { reporter, errorId, trackerAlreadyReported = false }: BoundFailurePorts & { errorId?: string },
 ): { errorId: string } {
-  if (reporter) return recordWithReporter({ error, operation }, { reporter, errorId, trackerAlreadyReported });
-  return reportToLegacySinks({ error, operation }, { tracker, errorId: errorId ?? mintErrorId() });
+  return recordWithReporter({ error, operation }, { reporter, errorId, trackerAlreadyReported });
 }
 
 /** The bound arm. Never falls back to the legacy sinks: they would be a second, separately minted record.
@@ -101,28 +95,13 @@ function recordWithReporter(
   }
 }
 
-/** The pre-reporter pair for unbound callers: one redacted console line and one tracker report.
- * @complexity Core redaction over the diagnostic plus one log line and one tracker report.
- */
-function reportToLegacySinks(
-  { error, operation }: { error: unknown; operation: string },
-  { tracker, errorId }: { tracker: Pick<Tracker, "error"> | undefined; errorId: string },
-): { errorId: string } {
-  const diagnostic = adminDiagnostic({ error });
-  // Never hand raw backend/provider errors to a log sink: they may contain saved credentials.
-  // Diagnostic sinks are independent: either may fail, but neither may suppress the HTTP reply.
-  try { console.error(`[${operation}]`, { errorId, diagnostic }); } catch { /* The tracker still gets the incident. */ }
-  try { tracker?.error({ error: new Error(diagnostic) }, { context: { operation, attributes: { errorId } } }); } catch { /* The local log still carries the ID. */ }
-  return { errorId };
-}
-
 /** The shared admin failure lifecycle: redact before either sink, then correlate a safe reply.
  * Ports stay request-scoped; no global tracker is retained. Expected refusals belong to callers,
  * except the typed disk-space refusal, which every admin route returns as-is (no incident).
  * @complexity Core redaction over the diagnostic/explanation plus fixed log/report/envelope work.
  */
 export function adminFailureResponse(
-  { error, tracker, reporter, trackerAlreadyReported }: { error: unknown } & AdminFailurePorts,
+  { error, reporter, trackerAlreadyReported }: { error: unknown } & BoundFailurePorts,
   options: FailureOptions = {},
 ): { status: number; body: { error: string; code: string; errorId?: string; details?: { failure: UserFacingError } } } {
   // C115: a full disk is the owner's to fix, not a server incident. Classify it before anything is
@@ -138,7 +117,7 @@ export function adminFailureResponse(
   // rule finds it, and the record is offered that ID instead of minting a second one.
   // The shared formatter preserves a cause's existing ERR ID. Use it for both sinks and reply.
   const causeErrorId = formatApprovedFailure({ options }, {}).failure.errorId;
-  const { errorId } = reportServerFailure({ error, operation }, { tracker, reporter, errorId: causeErrorId, trackerAlreadyReported });
+  const { errorId } = reportServerFailure({ error, operation }, { reporter, errorId: causeErrorId, trackerAlreadyReported });
   return { status: options.status ?? 500, body: unexpectedAdminBody({ errorId, options }) };
 }
 
@@ -213,22 +192,19 @@ function httpFailureOptions({ res, options }: { res: FailureResponse; options: F
   return { ...options, method: res.req?.method, route, discloseDetails };
 }
 
-/** Send the shared failure envelope using the reporter and tracker injected by the HTTP composition root.
- * The legacy tracker default (skip after any report) applies only to unbound requests; a bound reporter
- * skips its tracker copy only for a failure this request already admitted.
+/** Send the shared failure envelope using the reporter injected by the HTTP composition root.
+ * The reporter skips its tracker copy only for a failure this request already admitted.
  * @complexity The shared redaction cost plus O(1) envelope construction.
  */
 export function sendAdminFailure(
   {
-    res, error,
-    tracker = res.locals?.adminFailureReportScope?.reported ? undefined : res.locals?.adminFailureTracker,
-    reporter = res.locals?.failureReporter,
-  }: { res: FailureResponse; error: unknown; tracker?: Pick<Tracker, "error">; reporter?: Pick<ErrorReporter, "record"> },
+    res, error, reporter,
+  }: { res: FailureResponse; error: unknown; reporter: Pick<ErrorReporter, "record"> },
   options: FailureOptions = {},
 ): void {
   const resolved = httpFailureOptions({ res, options });
   const trackerAlreadyReported = wasAdmittedInRequest({ scope: res.locals?.adminFailureReportScope, error });
-  const { status, body } = adminFailureResponse({ error, tracker, reporter, trackerAlreadyReported }, resolved);
+  const { status, body } = adminFailureResponse({ error, reporter, trackerAlreadyReported }, resolved);
   const { error: message, ...identity } = body;
   res.status(status).json({ ...(resolved.discloseDetails ? options.details : {}), ...identity, [options.field ?? "error"]: message });
 }

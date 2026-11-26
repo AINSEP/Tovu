@@ -14,7 +14,7 @@ import {
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -69,7 +69,7 @@ import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 export function respondWithError({ res, err }: { res: Response; err: unknown }, { message }: { message?: string } = {}): void {
   return respondWithPeerActionError({ err,
     json: (body, status) => { res.status(status).json(body); },
-    incident: (error, facts) => adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter }, facts),
+    incident: (error, facts) => adminFailureResponse({ error, reporter: failureReporterOf({ res }) }, facts),
     operation: "routes/publish-content/route-helpers",
     method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
@@ -86,7 +86,7 @@ export const registerPublishContentPeerPushRoutes: PublishContentRouteRegistrar 
     }),
   }, { preflight: route.preflight, failureWriter: ({ res, error }) => route.failure({ err: error,
     json: (body, status) => { res.status(status).json(body); },
-    incident: (error, facts) => adminFailureResponse({ error, tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter }, facts),
+    incident: (error, facts) => adminFailureResponse({ error, reporter: errors.reporter }, facts),
     method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
     discloseDetails: !res.req || !!res.locals?.principal,

@@ -136,7 +136,7 @@ test('unexpected consent failure preserves 503 enforcement guidance and one reda
   const logs = t.mock.method(console, 'error', () => {});
   const reports: unknown[] = [];
   const app = express();
-  app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; res.locals.failureReporter = recorded.reporter; next(); });
   registerAdminConsentRoutes({ errors: routeErrors, app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
   const base = await startTestServer(app, t);
   const res = await fetch(`${base}/api/admin/v1/workspaces/ws/consent/settings`);

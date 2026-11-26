@@ -42,7 +42,7 @@ function writeAnalyticsRefusal({ res, error }: { res: Response; error: RouteRefu
  * @complexity O(1) plus the shared failure report. */
 function writeAnalyticsFailure({ res, error, errors }: { res: Response; error: unknown; errors: RouteErrorPorts }, _optional = {}): void {
   const { req } = res;
-  const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker, reporter: errors.reporter }, {
+  const failure = adminFailureResponse({ error, reporter: errors.reporter }, {
     operation: "analytics/recent-hits", method: req.method, route: req.route.path,
     discloseDetails: !!res.locals.principal,
   });

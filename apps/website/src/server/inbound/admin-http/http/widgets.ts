@@ -1,4 +1,4 @@
-import { adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, adminFailureResponse, type BoundFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
@@ -50,7 +50,7 @@ export async function requireWidgetsPermissionOrRespond({ authorize, workspaceId
  * since a `Response` can only be finalized once.
  */
 export function widgetErrorToResponse({ err }: { err: unknown }, options: BoundFailurePorts): WidgetErrorResponse {
-  return knownWidgetErrorToResponse({ err }) ?? adminFailureResponse({ error: err, tracker: options.tracker, reporter: options.reporter }, { operation: "http/widgets" });
+  return knownWidgetErrorToResponse({ err }) ?? adminFailureResponse({ error: err, reporter: options.reporter }, { operation: "http/widgets" });
 }
 
 /**
@@ -75,6 +75,6 @@ export function knownWidgetErrorToResponse({ err }: { err: unknown }, _optional:
  * function never throws.
  */
 export function mapWidgetErrorToResponse({ err, res }: { err: unknown; res: Response }, _optional = {}): void {
-  const { status, body } = widgetErrorToResponse({ err }, { tracker: res.locals?.adminFailureTracker, reporter: res.locals?.failureReporter });
+  const { status, body } = widgetErrorToResponse({ err }, { reporter: failureReporterOf({ res }) });
   res.status(status).json(body);
 }

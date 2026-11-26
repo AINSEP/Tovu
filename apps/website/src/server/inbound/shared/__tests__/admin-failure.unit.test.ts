@@ -7,11 +7,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createNoopObservabilityPort, type ErrorReport } from "@jini-ai/core/contracts/observability";
 import type { Tracker, TrackerErrorContext } from "@jini-ai/core/contracts/site/diagnostics-observability";
-import type { ErrorReporter, RecordFailureOptions } from "@jini-ai/core/errors/reporter";
+import { UNAVAILABLE_ERROR_ID, type ErrorReporter, type RecordFailureOptions } from "@jini-ai/core/errors/reporter";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { createTracker, runWithErrorReportScope } from "@jini-ai/diagnostics/observability/node";
 import { createTovuErrorReporter } from "#src/server/runtime/composition/error-reporter";
 import { adminFailureResponse, reportServerFailure, sendAdminFailure } from "../admin-failure.js";
+import type { Request, Response } from "express";
+import { captureRouteError } from "../observability-middleware.js";
 import { createRequestReportScope } from "../request-admissions.js";
 
 const ERR_ID = /^ERR-[0-9a-f]{4}(?:-[0-9a-f]{4}){3}$/i;
@@ -65,13 +67,11 @@ test("one admin failure writes one host record and one tracker report with the s
 test("disk-space refusal reports nothing and carries no id", t => {
   const consoleLines = t.mock.method(console, "error", () => {});
   const { calls, reporter } = fakeReporter({ errorId: "ERR-1111-1111-1111-1111" });
-  const { calls: trackerCalls, tracker } = recordingTracker();
   const error = new DatabaseDiskSpaceError({ freeBytes: 0, requiredBytes: 50 * 1024 * 1024 });
-  const { status, body } = adminFailureResponse({ error, reporter, tracker }, { operation: "pages:save" });
+  const { status, body } = adminFailureResponse({ error, reporter }, { operation: "pages:save" });
   assert.equal(status, error.status);
   assert.deepEqual(body, { code: error.code, error: error.message });
   assert.equal(calls.length, 0);
-  assert.equal(trackerCalls.length, 0);
   assert.equal(consoleLines.mock.callCount(), 0);
 });
 
@@ -81,8 +81,8 @@ test("a failure already admitted in this request is recorded with tracker skip a
   const tracker = createTracker({ observability: { ...createNoopObservabilityPort({}), reportError: (_report: ErrorReport) => {} } });
   runWithErrorReportScope({ scope, work: () => tracker.error({ error }) });
   const { calls, reporter } = fakeReporter({ errorId: "ERR-2222-2222-2222-2222" });
-  const { sent, res } = fakeResponse({ locals: { principal: { id: "owner" }, adminFailureReportScope: scope, failureReporter: reporter, adminFailureTracker: tracker } });
-  sendAdminFailure({ res, error }, { operation: "tools:run" });
+  const { sent, res } = fakeResponse({ locals: { principal: { id: "owner" }, adminFailureReportScope: scope, failureReporter: reporter } });
+  sendAdminFailure({ res, error, reporter }, { operation: "tools:run" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.optional?.tracker, "skip");
   assert.equal(sent.status, 500);
@@ -97,22 +97,20 @@ test("an unrelated earlier report in the request does not skip this failure's tr
   assert.equal(scope.reported, true);
   const { calls, reporter } = fakeReporter({ errorId: "ERR-3333-3333-3333-3333" });
   const { res } = fakeResponse({ locals: { principal: { id: "owner" }, adminFailureReportScope: scope, failureReporter: reporter } });
-  sendAdminFailure({ res, error: new Error("this failure") }, { operation: "pages:load" });
+  sendAdminFailure({ res, error: new Error("this failure"), reporter }, { operation: "pages:load" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.optional?.tracker, undefined);
 });
 
 test("a throwing reporter answers with the unavailable id and writes no console line", t => {
   const consoleLines = t.mock.method(console, "error", () => {});
-  const { calls, tracker } = recordingTracker();
   const reporter: Pick<ErrorReporter, "record"> = { record: () => { throw new Error("reporter breach with PRIVATE_DETAIL"); } };
-  const { body } = adminFailureResponse({ error: new Error("PRIVATE_BACKEND"), reporter, tracker }, { operation: "pages:load" });
+  const { body } = adminFailureResponse({ error: new Error("PRIVATE_BACKEND"), reporter }, { operation: "pages:load" });
   assert.equal(body.errorId, UNAVAILABLE);
   assert.equal(body.details?.failure.errorId, UNAVAILABLE);
   assert.match(body.details!.failure.copyText, new RegExp(`Error ID: ${UNAVAILABLE}`));
-  assert.deepEqual(reportServerFailure({ error: new Error("x"), operation: "public:post" }, { reporter, tracker }), { errorId: UNAVAILABLE });
+  assert.deepEqual(reportServerFailure({ error: new Error("x"), operation: "public:post" }, { reporter }), { errorId: UNAVAILABLE });
   assert.equal(consoleLines.mock.callCount(), 0);
-  assert.equal(calls.length, 0, "no fallback tracker report either");
   assert.equal(JSON.stringify(body).includes("PRIVATE"), false);
 });
 
@@ -139,13 +137,15 @@ test("an approved-cause id the reporter accepts stays the one id", () => {
   assert.match(body.details!.failure.cause, new RegExp(causeId));
 });
 
-test("an unbound caller keeps the legacy console line and tracker report under one id", t => {
+test("an unbound admin request returns an unavailable reference and one wiring diagnostic", t => {
   const consoleLines = t.mock.method(console, "error", () => {});
   const { calls, tracker } = recordingTracker();
-  const { body } = adminFailureResponse({ error: new Error("legacy"), tracker }, { operation: "pages:load" });
-  assert.match(body.errorId ?? "", ERR_ID);
+  const { sent, res } = fakeResponse({ locals: { adminFailureTracker: tracker } });
+  captureRouteError(new Error("PRIVATE_UNBOUND_CANARY"), { path: "/api/admin/v1/pages" } as Request, res as Response, () => assert.fail("the failure must be answered"));
+  assert.equal(sent.status, 500);
+  assert.equal(sent.body.errorId, UNAVAILABLE_ERROR_ID);
   assert.equal(consoleLines.mock.callCount(), 1);
-  assert.equal((consoleLines.mock.calls[0]!.arguments[1] as { errorId: string }).errorId, body.errorId);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0]!.context?.attributes?.errorId, body.errorId);
+  assert.deepEqual(consoleLines.mock.calls[0]!.arguments, ["[admin-failure] reporter unavailable", { operation: "admin-route.uncaught" }]);
+  assert.equal(JSON.stringify({ body: sent.body, diagnostic: consoleLines.mock.calls[0]!.arguments }).includes("PRIVATE_UNBOUND_CANARY"), false);
+  assert.equal(calls.length, 0);
 });

@@ -33,7 +33,7 @@ import type { ApiKeyServiceDeps } from "@jini-ai/user-management/identity/api-ke
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { createBootSessionTokenStore } from "@jini-ai/user-management/identity/boot-session-token";
 import { redeemBootSessionToken } from "#src/features/identity/boot-session-token-binding";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { asyncRoute } from "../../../platform/express/async-route.js";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
@@ -500,7 +500,7 @@ function sendAuthFailure(
   _options = {},
 ): void {
   const signingOut = operation === "logout";
-  sendAdminFailure({ res, error: new Error("Admin session handling stopped", { cause: error }) }, {
+  sendAdminFailure({ res, error: new Error("Admin session handling stopped", { cause: error }), reporter: failureReporterOf({ res }) }, {
     operation: `auth-${operation}`,
     message: signingOut ? "Sign-out could not finish." : "Sign-in could not finish.",
     failure: {

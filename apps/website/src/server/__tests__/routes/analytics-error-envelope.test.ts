@@ -50,14 +50,13 @@ for (const failure of ["authorize", "sink"] as const) {
       const secret = "ghp_" + "x".repeat(36);
       const fail = async () => { throw new Error(`private ${failure} failure ${secret}`); };
       const logs: unknown[][] = [];
-      const reports: Array<{ error: Error; options: unknown }> = [];
       t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
 
       const app = express();
       applyRequestTracking({ app, deps: { tracker: createTracker({}), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
       app.use((_req, res, next) => {
         res.locals.principal = { id: "owner" };
-        res.locals.adminFailureTracker = { error: (report: { error: Error }, options: unknown) => { reports.push({ ...report, options }); } };
+        res.locals.failureReporter = recorded.reporter;
         next();
       });
       const deps: AdminAnalyticsRecentHitsDeps = {

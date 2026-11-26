@@ -13,7 +13,7 @@ import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition, ty
 import { mountJsonRoute, type JsonRoutePorts } from "@jini-ai/http-kit";
 import { createAdminJsonRoutePorts, mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "#src/server/inbound/admin-http/routes/forms/deps";
 import type { ServerModuleHandle } from "./types.js";
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
@@ -150,7 +150,7 @@ function formsPullPorts(_required: Record<string, never> = {}, _optional: Record
   const ports = createAdminJsonRoutePorts({ authorization: "direct", failure: { operation: "routes/forms/pull-submissions", code: "INTERNAL_ERROR" } });
   return { ...ports, onError: ({ res, error }) => {
     if (!(error instanceof FormsPullFailedError)) { ports.onError?.({ res, error }); return; }
-    sendAdminFailure({ res, error: error.cause }, { operation: "forms-pull",
+    sendAdminFailure({ res, error: error.cause, reporter: failureReporterOf({ res }) }, { operation: "forms-pull",
       message: "Form submission retrieval stopped before any published host was read.",
       failure: { action: "Try pulling submissions again. If it still fails, copy details and report this problem.", step: "forms.submissions.pull" },
     });

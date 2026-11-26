@@ -476,7 +476,7 @@ export function registerAdminPublishCredentialsRoutes({ errors, app, deps }: { e
     mount: ({ path, handle }) => { app.get(path, asyncRoute({ handler: (req, res) => handle({
       foreignWorkspace: () => rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId }), principalId: () => getAuthedPrincipal(res).id,
       authorize: params => authorizeDirectOrRespond({ res, authorize: deps.authorize, params }),
-      json: (body, status) => res.status(status).json(body), failure: (error, options) => sendAdminFailure({ res, error }, options),
+      json: (body, status) => res.status(status).json(body), failure: (error, options) => sendAdminFailure({ res, error, reporter: errors.reporter }, options),
     }) })); },
   });
   mountAdminJsonRoute({ errors, app, spec: publishCredentialCreateRoute, deps: {

@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { MediaValidationError } from "@jini-ai/cms/media";
@@ -27,5 +27,5 @@ export function sendValidationOrInternalError({ res, error }: { res: Response; e
     res.status(400).json({ error: error.message });
     return;
   }
-  sendAdminFailure({ res, error }, { operation: "routes/media/route-guards", code: "INTERNAL_ERROR", message: "The media upload or change could not finish." });
+  sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, { operation: "routes/media/route-guards", code: "INTERNAL_ERROR", message: "The media upload or change could not finish." });
 }

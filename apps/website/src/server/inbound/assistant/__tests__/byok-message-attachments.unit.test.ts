@@ -9,6 +9,7 @@ import { AttachmentUnavailableError, prepareByokMessageAttachments } from "../by
 import { readPickedFolders } from "#src/assistant/run-page-context";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { createDiskAttachmentStore } from "@jini-ai/daemon/http";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { readOwnerChatAttachment } from "#src/features/media/chat-attachment-reader-host";
 
 test("BYOK sniffs a video prefix without hydrating it and delivers full PNG pixels", async t => {
@@ -42,46 +43,51 @@ test("BYOK sniffs a video prefix without hydrating it and delivers full PNG pixe
 });
 
 test("BYOK attachment refusals stay 400 while preparation faults become redacted incidents", async (t) => {
-  const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
+  const source = ts.createSourceFile("assistant-byok-preflight.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok-preflight.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
   const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "attachTurnMessagesOrRespond");
   assert.ok(declaration, "the attachment handler exists");
-  const code = ts.transpileModule(`return (${declaration.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
-  const logs: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const reader = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "readAttachmentRefs");
+  assert.ok(reader);
+  const code = ts.transpileModule(`${reader.getText(source)}\nreturn (${declaration.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+  const { reporter, records, reports } = recordingComposedReporter();
   async function attempt(error: Error) {
     const attach = new Function("prepareByokMessageAttachments", "AttachmentUnavailableError", "sendAdminFailure", code)(async () => { throw error; }, AttachmentUnavailableError, sendAdminFailure);
     let status = 200; let body: unknown;
     const res = { locals: { principal: { id: "owner" } }, status(value: number) { status = value; return res; }, json(value: unknown) { body = value; return res; } };
-    const result = await attach({ attachmentIds: ["ref"], messages: [{ role: "user", content: "PRIVATE_BODY" }], principalId: "owner", routeDeps: { siteStoragePaths: { chatAttachmentsDir: "/tmp" } }, res });
+    const result = await attach({ attachmentIds: ["ref"], messages: [{ role: "user", content: "PRIVATE_BODY" }], principalId: "owner", routeDeps: { siteStoragePaths: { chatAttachmentsDir: "/tmp" } }, res, reporter });
     assert.equal(result, false);
     return { status, body };
   }
   const refusal = await attempt(new AttachmentUnavailableError("Attachment is unavailable. Reattach it before sending."));
   assert.equal(refusal.status, 400);
   assert.deepEqual(refusal.body, { error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
-  assert.equal(logs.length, 0);
+  assert.equal(records.length, 0);
+  assert.equal(reports.length, 0);
   const failure = await attempt(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"));
   assert.equal(failure.status, 500);
   assert.ok(failure.body && typeof failure.body === "object" && "errorId" in failure.body && "error" in failure.body);
   assert.match(String(failure.body.error), /The attachment could not be prepared/);
-  const entry = logs.find(args => args[0] === "[assistant-byok:attachments]");
-  assert.ok(entry, "the attachment failure is reported");
-  const detail = entry[1] as { errorId: string; diagnostic: string };
+  assert.equal(records.length, 1);
+  assert.equal(reports.length, 1);
+  const detail = (records[0]![1] as { meta: { errorId: string; diagnostic: string } }).meta;
   assert.equal(detail.errorId, failure.body.errorId);
+  assert.equal((reports[0]![1] as { context: { attributes: { incidentId: string } } }).context.attributes.incidentId, failure.body.errorId);
   assert.match(detail.diagnostic, /boom/);
   assert.match(detail.diagnostic, /byok-message-attachments\.unit\.test\.ts/);
-  assert.doesNotMatch(JSON.stringify({ body: failure.body, logs }), /SECRETSECRETSECRETSECRET|PRIVATE_BODY/);
+  assert.doesNotMatch(JSON.stringify({ body: failure.body, records, reports }), /SECRETSECRETSECRETSECRET|PRIVATE_BODY/);
 });
 
 test("the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory", async () => {
-  const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
+  const source = ts.createSourceFile("assistant-byok-preflight.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok-preflight.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
   const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "resolveTurnInputsOrRespond");
   assert.ok(declaration);
   // why: 540014db (complexity <=10) moved the attachment step into attachTurnMessagesOrRespond(),
   // which resolveTurnInputsOrRespond() awaits; both real declarations are evaluated together.
   const attach = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "attachTurnMessagesOrRespond");
   assert.ok(attach);
-  const code = ts.transpileModule(`${attach.getText(source)}\nreturn (${declaration.getText(source)});`, {
+  const reader = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "readAttachmentRefs");
+  assert.ok(reader);
+  const code = ts.transpileModule(`${reader.getText(source)}\n${attach.getText(source)}\nreturn (${declaration.getText(source)});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
   const calls: unknown[] = [];
@@ -97,7 +103,7 @@ test("the BYOK route places prepared pixels only on the newest user message, rea
   // The directory comes from the booted `RouteDeps.siteStoragePaths`, never from env/`siteDir()`
   // (hardwiring audit #19): the old code passed no directory and resolved one from env per request.
   const routeDeps = { workspaceId: "ws", siteStoragePaths: { chatAttachmentsDir: "/booted-site/uploads/chat-attachments" } };
-  const result = await resolve({ body: { messages, attachmentIds: ["green", "yellow"] } }, {}, { resolve: async () => ({ model: "vision" }) }, routeDeps);
+  const result = await resolve({ body: { messages, attachmentIds: ["green", "yellow"] } }, {}, { resolve: async () => ({ model: "vision" }) }, routeDeps, new AbortController().signal, recordingComposedReporter().reporter);
   assert.deepEqual(calls, [{ refs: ["green", "yellow"], principalId: "alice", uploadDirectory: "/booted-site/uploads/chat-attachments" }]);
   assert.deepEqual(result.messages, [...messages.slice(0, -1), { role: "user", content: "colours?", images }]);
 });

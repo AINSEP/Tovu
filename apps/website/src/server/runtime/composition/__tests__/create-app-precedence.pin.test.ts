@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { dispatchHttpRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { createApp, createRouteDeps } from "../app.js";
 
 /**
@@ -49,16 +50,16 @@ test("an oversized public JSON body is answered by the closing handler as JSON 4
 
 type LocalsLayer = { regexp: RegExp; handle: (req: unknown, res: { locals: Record<string, unknown> }, next: () => void) => void };
 
-test("the admin failure tracker is exposed to every /api/admin handler through res.locals", async () => {
-  const deps = createRouteDeps();
-  const app = createApp(deps);
-  let seen: unknown;
-  const original = deps.tracker;
-  // The gate's error mappers read res.locals.adminFailureTracker; a 401 never reaches them, so probe the middleware directly.
+test("createApp binds the same reporter to its middleware and owning app", () => {
+  const { reporter } = recordingComposedReporter();
+  const app = createApp(createRouteDeps(), { errorReporter: reporter });
   const stack = (app as unknown as { _router: { stack: LocalsLayer[] } })._router.stack;
-  const layer = stack.find((entry) => entry.regexp.source.startsWith("^\\/api\\/admin") && entry.handle.name === "");
-  assert.ok(layer, "the /api/admin locals middleware is registered");
   const res = { locals: {} as Record<string, unknown> };
-  layer.handle({}, res, () => { seen = res.locals.adminFailureTracker; });
-  assert.equal(seen, original);
+  let nextCalls = 0;
+  const layer = stack.find(entry => entry.handle.toString().includes("res.locals.failureReporter"));
+  assert.ok(layer, "the reporter middleware is registered");
+  layer.handle({}, res, () => { nextCalls += 1; });
+  assert.equal(res.locals.failureReporter, reporter);
+  assert.equal(app.locals.failureReporter, reporter);
+  assert.equal(nextCalls, 1);
 });

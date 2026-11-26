@@ -1,3 +1,4 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -9,9 +10,9 @@ import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 
 for (const send of [respondToSignInError, sendMemberAuthError]) test(`${send.name} returns safe correlated JSON and keeps credential refusal`, async t => {
   const logs = t.mock.method(console, "error", () => {});
-  const reports: unknown[] = [];
+  const { reporter, records, reports } = recordingComposedReporter();
   const app = express();
-  app.get("/failure", (_req, res) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; send({ res, error: new Error("member context password=MEMBER_CANARY") }); });
+  app.get("/failure", (_req, res) => { res.locals.failureReporter = reporter; send({ res, error: new Error("member context password=MEMBER_CANARY") }); });
   const base = await startTestServer(app, t);
   const res = await fetch(`${base}/failure`);
   const body = await res.json();
@@ -20,14 +21,16 @@ for (const send of [respondToSignInError, sendMemberAuthError]) test(`${send.nam
   assert.match(body.error, /couldn’t complete sign-in/);
   assert.ok(body.errorId);
   assert.equal(reports.length, 1);
-  assert.equal(logs.mock.calls.length, 1);
+  assert.equal(logs.mock.calls.length, 0);
+  assert.equal(records.length, 1);
   assert.ok(JSON.stringify(reports).includes(body.errorId));
-  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /MEMBER_CANARY/);
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(reports) + JSON.stringify(records), /MEMBER_CANARY/);
   const { res: refused, capture } = createCapturingResponse();
   send({ res: refused, error: new MemberAuthError("private credential refusal") });
   assert.equal(capture.statusCode, 401);
   assert.deepEqual(capture.jsonBody, { error: "invalid credentials", code: "INVALID_CREDENTIALS" });
-  assert.equal(logs.mock.calls.length, 1);
+  assert.equal(logs.mock.calls.length, 0);
+  assert.equal(records.length, 1);
 });
 
 test("post-acceptance delivery failure reports privately without changing acceptance", t => {

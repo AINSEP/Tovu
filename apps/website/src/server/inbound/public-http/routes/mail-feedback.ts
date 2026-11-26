@@ -29,15 +29,15 @@ function rawBody(route: MailFeedbackRoute) {
 }
 
 /** The redacted 500 of an ingest failure. */
-function writeMailFeedbackFailure({ res, error }: { res: Response; error: unknown }): void {
+function writeMailFeedbackFailure({ res, error, reporter }: { res: Response; error: unknown; reporter: RouteErrorPorts["reporter"] }): void {
   // Never echo internals to an unauthenticated caller; the provider retries a 5xx.
-  const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
+  const { errorId } = reportServerFailure({ error, operation: "mail-feedback:record" }, { reporter });
   res.status(500).json({ ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId });
 }
 
 /** @example registerMailFeedbackRoute({ app, errors, route: createMailFeedbackRoute(deps) }) */
 export function registerMailFeedbackRoute({ app, route, errors }: { app: Express; route: MailFeedbackRoute; errors: RouteErrorPorts }, _optional: Record<string, never> = {}): void {
-  mountPublicRawRoute({ app, errors, spec: mailFeedbackRoute, deps: { ingest: route, requestHeaders: {} }, failure: writeMailFeedbackFailure }, {
+  mountPublicRawRoute({ app, errors, spec: mailFeedbackRoute, deps: { ingest: route, requestHeaders: {} }, failure: ({ res, error }) => writeMailFeedbackFailure({ res, error, reporter: errors.reporter }) }, {
     bodyParsers: [rawBody(route)],
     requestDeps: ({ req, deps }) => ({ ...deps, requestHeaders: req.headers }),
   });

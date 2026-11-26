@@ -4,7 +4,7 @@ import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh"
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
 import { themeRosterPorts } from "#src/features/theme/theme-roster-ports";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../platform/express/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
@@ -96,7 +96,7 @@ export function registerThemePreviewRefresh(
       });
       if (outcome.kind === "forbidden") res.status(403).json(outcome.body);
       else if (outcome.kind === "reloaded") res.json(outcome.body);
-      else sendAdminFailure({ res, error: outcome.error }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
+      else sendAdminFailure({ res, error: outcome.error, reporter: failureReporterOf({ res }) }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
     } }),
   );
   return ({ revision }) => authenticatedRevisions.has({ revision });

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "#src/assistant/daemon-access";
 import { FEDERATION_RELOAD_PATH, registerFederationReloadRoute } from "../federation-reload-route.js";
@@ -19,10 +20,10 @@ import { FEDERATION_RELOAD_PATH, registerFederationReloadRoute } from "../federa
 
 const TOKEN = "test-daemon-token";
 
-function buildApp(reload: () => Promise<{ newlyAdmittedConnectionIds: readonly string[] }>): express.Express {
+function buildApp(reload: () => Promise<{ newlyAdmittedConnectionIds: readonly string[] }>, reporter = recordingComposedReporter().reporter): express.Express {
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
-  registerFederationReloadRoute({ app, deps: { reload } });
+  registerFederationReloadRoute({ app, deps: { reload }, reporter });
   return app;
 }
 
@@ -88,26 +89,25 @@ test("a rejected reload() is reported as a real failure â€” never a silent 200 â
 });
 
 test("a reload() that rejects with a non-Error value is still a visible 500 and logs the stringified reason", async (t) => {
-  const logged: string[] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(JSON.stringify(args)); });
-  const baseUrl = await startTestServer(buildApp(async () => { throw "roster lock busy"; }), t);
+  const { reporter, records } = recordingComposedReporter();
+  const baseUrl = await startTestServer(buildApp(async () => { throw "roster lock busy"; }, reporter), t);
   const res = await postReload(baseUrl, { authorization: `Bearer ${TOKEN}` });
   assert.equal(res.status, 500);
   const body = await res.json();
   assert.equal(body.ok, false);
-  assert.equal(logged.length, 1);
-  assert.match(logged[0]!, /roster lock busy/);
-  assert.ok(logged[0]!.includes(body.errorId));
+  assert.equal(records.length, 1);
+  assert.match(JSON.stringify(records[0]), /roster lock busy/);
+  assert.ok(JSON.stringify(records[0]).includes(body.errorId));
 });
 
 test("reload failure redacts private evidence and correlates one incident", async t => {
-  const logs = t.mock.method(console, "error", () => {});
-  const base = await startTestServer(buildApp(async () => { throw new Error("reload context password=RELOAD_CANARY"); }), t);
+  const { reporter, records } = recordingComposedReporter();
+  const base = await startTestServer(buildApp(async () => { throw new Error("reload context password=RELOAD_CANARY"); }, reporter), t);
   const res = await postReload(base, { authorization: `Bearer ${TOKEN}` });
   const body = await res.json();
   assert.equal(res.status, 500);
   assert.equal(body.ok, false);
-  assert.equal(logs.mock.calls.length, 1);
-  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
-  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(logs.mock.calls), /RELOAD_CANARY/);
+  assert.equal(records.length, 1);
+  assert.ok(JSON.stringify(records).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(records), /RELOAD_CANARY/);
 });

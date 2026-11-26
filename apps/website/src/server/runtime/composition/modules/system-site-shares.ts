@@ -68,7 +68,7 @@ function siteShareFailureReply({ args, errors }: { args: SiteShareFailureArgs; e
   sendSiteShareFailure({ error: failure, deps: {
     refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
     json: (body, status) => (res as unknown as Response).status(status).json(body),
-    failure: (error, options) => sendAdminFailure({ res: res as unknown as Response, error }, options),
+    failure: (error, options) => sendAdminFailure({ res: res as unknown as Response, error, reporter: errors.reporter }, options),
   } }, { step });
   return reply;
 }
@@ -136,7 +136,7 @@ export function registerAdminSiteShareRoutes(required: { errors: RouteErrorPorts
     failure: (error, options) => sendSiteShareFailure({ error, deps: {
       refusal: SiteShareRefusal, exportFailure: SiteShareExportFailure,
       json: (body, status) => res.status(status).json(body),
-      failure: (error, options) => sendAdminFailure({ res, error, tracker: deps.tracker }, options),
+      failure: (error, options) => sendAdminFailure({ res, error, reporter: required.errors.reporter }, options),
     } }, options),
   }));
   mountSiteShareRoute({ errors: required.errors, app, spec: siteShareAcknowledgeRoute, routeDeps });

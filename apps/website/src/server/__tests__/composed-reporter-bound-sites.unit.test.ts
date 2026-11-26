@@ -86,7 +86,7 @@ test("federation reload: a failed reload is one composed incident", async (t) =>
   const probe = composedReporterProbe({ t }); const thrown = secretBearingError();
   const app = express();
   app.use((_req, res, next) => { res.locals.failureReporter = probe.reporter; next(); });
-  registerFederationReloadRoute({ app, deps: { reload: async () => { throw thrown; } } });
+  registerFederationReloadRoute({ app, reporter: probe.reporter, deps: { reload: async () => { throw thrown; } } });
   const base = await startTestServer(app, t);
   const response = await fetch(`${base}${FEDERATION_RELOAD_PATH}`, { method: "POST" });
   assert.equal(response.status, 500);

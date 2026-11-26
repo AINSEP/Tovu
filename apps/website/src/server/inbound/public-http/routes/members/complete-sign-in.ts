@@ -1,4 +1,4 @@
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import { serialize } from "cookie";
 import { memberAuthRefusal, memberCookieExpiry, sendMemberAuthError as sendAuthError } from "@jini-ai/user-management/members/public-member-auth-response";
@@ -59,7 +59,7 @@ export const MEMBER_AUTH_FAILURE = {
 /** Write `memberAuthRefusal`'s answer, or report the failure and answer the redacted 500. */
 export const sendMemberAuthError = ({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void => sendAuthError({ error, deps: {
   refusal: memberAuthRefusal,
-  report: input => reportServerFailure(input, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+  report: input => reportServerFailure(input, { reporter: failureReporterOf({ res }) }),
   json: (body, status) => { res.status(status).json(body); },
   copy: MEMBER_AUTH_FAILURE,
 } }, options);

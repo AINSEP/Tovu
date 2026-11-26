@@ -1,3 +1,4 @@
+import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import type { Express } from 'express';
@@ -9,8 +10,7 @@ mock.module('@jini-ai/platform/net', { namedExports: { ...net, requestLoopbackHt
 const { registerWarmSiteControl } = await import('../warm-site-control.js');
 
 test('warm site control reports one redacted incident without forwarding request data', async (t) => {
-  const logs: unknown[][] = [];
-  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const { reporter, records, reports } = recordingComposedReporter();
   let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
   const app = { use: (_path: string, next: typeof handler) => { handler = next; } } as unknown as Express;
   const prefix = '/api/admin/v1/workspaces/ws/system/sites';
@@ -19,14 +19,15 @@ test('warm site control reports one redacted incident without forwarding request
   });
   assert.ok(handler, 'the control route is registered');
   let status = 0; let body: unknown;
-  const res = { locals: { principal: { id: 'owner' } }, status(code: number) { status = code; return res; }, json(value: unknown) { body = value; return res; } };
+  const res = { locals: { principal: { id: 'owner' }, failureReporter: reporter }, status(code: number) { status = code; return res; }, json(value: unknown) { body = value; return res; } };
   await handler({ originalUrl: prefix, method: 'POST', headers: { cookie: 'COOKIE_SHOULD_NEVER_LEAK' }, body: { secret: 'BODY_SHOULD_NEVER_LEAK' } }, res);
   assert.equal(status, 500);
   assert.ok(body && typeof body === 'object' && 'error' in body && 'errorId' in body);
   assert.match(String(body.error), /The dev site manager is unavailable/);
   assert.doesNotMatch(JSON.stringify(body), /SECRETSECRETSECRETSECRET|COOKIE_SHOULD_NEVER_LEAK|BODY_SHOULD_NEVER_LEAK/);
-  const entry = logs.find(args => args[0] === '[warm-sites:control]'); assert.ok(entry);
-  const detail = entry[1] as { errorId: string; diagnostic: string };
+  assert.equal(records.length, 1);
+  assert.equal(reports.length, 1);
+  const detail = (records[0]![1] as { meta: { errorId: string; diagnostic: string } }).meta;
   assert.equal(detail.errorId, body.errorId);
   assert.match(detail.diagnostic, /boom/);
   assert.match(detail.diagnostic, /warm-site-control\.errors\.unit\.test\.ts/);

@@ -1,6 +1,6 @@
 import { serveStorefrontProducts, serveStorefrontProduct } from "@jini-ai/cms/public-http/routes/site/products";
 import { resolveProtocol } from "../../../../../platform/express/public-origin.js";
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "@jini-ai/cms/public-http/routes/site/product-checkout";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
@@ -67,7 +67,7 @@ export const registerProductRoutes = ({ app, deps }: { app: import("express").IR
     },
     renderSite: required => renderSite({ renderAssets: res.locals.siteConsentAssets, ...required }),
     perVisitor: () => resolvePerVisitorResponse({ req, res }), send: required => sendPublicPage({ req, res, deps, ...required }),
-    reportFault: required => reportServerFailure(required, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+    reportFault: required => reportServerFailure(required, { reporter: failureReporterOf({ res }) }),
     sendFault: html => void res.status(500).type("html").send(html),
     operation: "products:catalog", faultHtml: ({ errorId }) => `<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`,
   })),
@@ -82,7 +82,7 @@ export const registerProductRoutes = ({ app, deps }: { app: import("express").IR
     },
     renderSite: required => renderSite({ renderAssets: res.locals.siteConsentAssets, ...required }),
     perVisitor: () => resolvePerVisitorResponse({ req, res }), send: required => sendPublicPage({ req, res, deps, ...required }),
-    reportFault: required => reportServerFailure(required, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+    reportFault: required => reportServerFailure(required, { reporter: failureReporterOf({ res }) }),
     sendFault: html => void res.status(500).type("html").send(html),
     decorateCheckout: ({ html, product }) => productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
       productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus }),

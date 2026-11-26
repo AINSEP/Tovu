@@ -1,5 +1,5 @@
 import { bindOwnerPasskeyRoutes } from '@jini-ai/user-management/admin-http/owner/passkey-routes';
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from 'express';
 import { beginOwnerPasskeyEnrollment, confirmOwnerPasskeyEnrollment, beginOwnerPasskeyLogin, completeOwnerPasskeyLogin,
   removeOwnerPasskey, createSimpleWebAuthnPasskeys } from '@jini-ai/user-management/server';
@@ -34,7 +34,7 @@ export const registerOwnerPasskeyRoutes = bindOwnerPasskeyRoutes<Request, Respon
   retryAfter: ({ res, value }) => { res.setHeader('Retry-After', value); },
   json: ({ res, value, status }) => { if (status !== undefined) res.status(status); res.json(value); },
   empty: ({ res }) => { res.status(204).send(); },
-  incident: ({ res, error, options }) => { sendAdminFailure({ res, error }, options); },
+  incident: ({ res, error, options }) => { sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, options); },
   signedIn: ({ host, req, res, result }) => host.signedIn(req, res, result),
   services: { beginOwnerPasskeyEnrollment, confirmOwnerPasskeyEnrollment, beginOwnerPasskeyLogin,
     completeOwnerPasskeyLogin: required => completeOwnerPasskeyLogin(required, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 }), removeOwnerPasskey },

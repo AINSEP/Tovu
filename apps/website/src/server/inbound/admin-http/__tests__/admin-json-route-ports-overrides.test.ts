@@ -90,7 +90,7 @@ test("failureCopy 'operation' answers adminFailureResponse's operation-only body
   const failure = { operation: "routes/presentation/patch-active-theme" };
   const s = await serve({ crash: new Error("db locked"), failure, failureCopy: "operation" });
   t.after(s.close);
-  const legacy = adminFailureResponse({ error: new Error("db locked") }, failure);
+  const legacy = adminFailureResponse({ error: new Error("db locked"), reporter: createRouteIncidentReporter().reporter }, failure);
   const answered = await s.post();
   const normalize = (body: unknown) => JSON.parse(JSON.stringify(body).replaceAll(/ERR-[\w-]+/g, "<id>").replaceAll(/\d{4}-\d\d-\d\dT[\d:.]+Z/g, "<t>"));
   assert.equal(answered.status, legacy.status);

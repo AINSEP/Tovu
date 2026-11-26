@@ -21,7 +21,7 @@ import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin
  * @complexity O(1).
  */
 export function importErrorResponse({ err }: { err: unknown }, options: BoundFailurePorts): ImportErrorResponse {
-  return knownImportErrorResponse({ err }) ?? adminFailureResponse({ error: err, tracker: options.tracker, reporter: options.reporter }, IMPORT_FAILURE);
+  return knownImportErrorResponse({ err }) ?? adminFailureResponse({ error: err, reporter: options.reporter }, IMPORT_FAILURE);
 }
 
 /** The redacted-500 options for an unrecognised import error; the import specs' mounts answer with the same. */

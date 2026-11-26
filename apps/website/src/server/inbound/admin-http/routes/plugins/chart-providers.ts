@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Admin-only chart metadata and immutable bytes; installed/custom browser providers never enter this port. */
 import type { Express } from "express";
 import { chartProviderAsset, chartProviderMetadata } from "@jini-ai/cms/admin-http/routes/plugins/chart-providers";
@@ -32,7 +32,7 @@ export function registerChartProviderRoutes(
       await Promise.all([deps.pluginRuntimeReady, deps.siteTitleReady]);
       next();
     } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });
     }
   });
   app.get(base, async (_req, res) => {
@@ -40,7 +40,7 @@ export function registerChartProviderRoutes(
       const reply = await chartProviderMetadata({ deps: { ...deps, coreSnapshot: { generation: "core", siteProvider: CHART_TABLE_PROVIDER, providers: [] } } });
       res.set(reply.headers).json(reply.body);
     } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error, reporter: failureReporterOf({ res }) }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });
     }
   });
   app.get(`${base}/assets/:pluginId/:version/:digest/:asset`, (req, res) => {

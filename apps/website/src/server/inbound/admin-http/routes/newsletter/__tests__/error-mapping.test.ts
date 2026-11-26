@@ -28,7 +28,7 @@ import type { NewsletterRouteDeps } from "../deps.js";
 
 async function failWith(
   t: import("node:test").TestContext, thrown: unknown,
-  { tracker, recorded = recordingComposedReporter() }: { tracker?: { error: (...args: unknown[]) => void }; recorded?: ReturnType<typeof recordingComposedReporter> } = {},
+  { recorded = recordingComposedReporter() }: { recorded?: ReturnType<typeof recordingComposedReporter> } = {},
 ): Promise<{ status: number; json: unknown }> {
   const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
   const deps = {
@@ -39,7 +39,7 @@ async function failWith(
   const app = express();
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
-    if (tracker) res.locals.adminFailureTracker = tracker;
+    res.locals.failureReporter = recorded.reporter;
     next();
   });
   registerAdminNewsletterListListsRoute({ errors: routeErrors, app, deps });

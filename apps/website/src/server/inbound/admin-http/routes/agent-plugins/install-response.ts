@@ -42,5 +42,5 @@ export function knownInstallRefusal({ error }: { error: unknown }, _optional: Re
  * @complexity O(1).
  */
 export function installErrorResponse({ error }: { error: unknown }, options: BoundFailurePorts): InstallRefusal {
-  return knownInstallRefusal({ error }) ?? adminFailureResponse({ error: error, tracker: options.tracker, reporter: options.reporter }, { operation: "routes/agent-plugins/install-response" });
+  return knownInstallRefusal({ error }) ?? adminFailureResponse({ error: error, reporter: options.reporter }, { operation: "routes/agent-plugins/install-response" });
 }

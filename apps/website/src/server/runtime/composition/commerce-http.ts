@@ -11,7 +11,7 @@ import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-them
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { failureReporterOf, reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 
 /** Raw bytes must reach the signature verifier before the public JSON parser. O(1) mounting. */
 export function registerCommerceWebhooks({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
@@ -55,7 +55,7 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
       res.locals.commerceStatus = status;
       storefront(req, res, next);
     } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "commerce:storefront" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
+      const { errorId } = reportServerFailure({ error, operation: "commerce:storefront" }, { reporter: failureReporterOf({ res }) });
       res.status(503).type("html").send(`<h1>The shop catalog is temporarily unavailable.</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
     }
   });
