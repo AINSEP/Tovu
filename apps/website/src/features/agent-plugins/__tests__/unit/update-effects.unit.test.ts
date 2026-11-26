@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 
-import { AGENT_PLUGIN_RECOVERY_ACTOR, createAgentPluginUpdateEffects, createDeferredAgentPluginUpdateEffects, requireUpdateMcpDeps, type UpdateMcpDeps } from "../../update-effects.js";
+import { AGENT_PLUGIN_RECOVERY_ACTOR, createAgentPluginUpdateEffects, createDeferredAgentPluginUpdateEffects } from "../../update-effects.js";
+import { requireUpdateMcpDeps, type UpdateMcpDeps } from '@jini-ai/agent-plugins/site/update-effects';
 
 /**
  * @file The Agent Plugin update's MCP effects: re-provision the candidate's servers through the
@@ -67,10 +68,15 @@ test("the deferred boot port reads its deps only when called, and provisions as 
 
 test("the deferred boot port's provision and roster reload go through the real effects as the system actor", async () => {
   const r = recorder();
-  const port = createDeferredAgentPluginUpdateEffects({ resolveDeps: () => deps }, r.optional);
+  let reads = 0;
+  const port = createDeferredAgentPluginUpdateEffects({ resolveDeps: () => { reads++; return deps; } }, r.optional);
+  assert.equal(reads, 0);
   notified.length = 0;
   await port.provision({ workspaceId: "ws-1", installed });
   await port.notifyRosterChanged({ workspaceId: "ws-1" });
+  assert.equal(reads, 2);
+  assert.equal(r.calls[0] && (r.calls[0] as [string, { agentPluginLayout: unknown }])[1].agentPluginLayout, deps.agentPluginLayout);
+  assert.equal((r.calls[1] as [string, unknown])[1], deps.mcp);
   assert.equal((r.calls[1] as [string, unknown, { principalId: string }])[2].principalId, AGENT_PLUGIN_RECOVERY_ACTOR);
   assert.deepEqual(notified, ["notify"]);
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseDeployTargetsFile } from "../registry.js";
+import { parseDeployTargetsFile } from '@jini-ai/devops/deploy';
 
 const BASE = { id: "fixture-host", label: "Fixture", module: "targets/fixture.mjs" };
 const FIELD = { name: "token", label: "Token", required: true };

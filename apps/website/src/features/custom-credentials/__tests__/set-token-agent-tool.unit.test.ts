@@ -231,6 +231,29 @@ test("the tool's own result never echoes the submitted token, on success or fail
   assert.ok(!JSON.stringify(result).includes("brand-new-secret-token"), "the result must never contain the submitted token");
 });
 
+test("a submitted rotation reads metadata before owner lookup, seals afterward, then invalidates", async t => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  await seedNameCom(writeDeps);
+  const events: string[] = [];
+  const findByLabel = repo.findByLabel.bind(repo);
+  t.mock.method(repo, "findByLabel", async input => { events.push("metadata"); return findByLabel(input); });
+  const seal = sealer.seal.bind(sealer);
+  t.mock.method(sealer, "seal", input => { events.push("seal"); return seal(input); });
+  const routeDeps: CustomCredentialsToolDeps = { ...deps,
+    get ownerPrincipalId() { events.push("owner"); return Promise.resolve(PRINCIPAL_ID); },
+    publishCompatibility: { prepareInvalidation: async () => () => { events.push("invalidate"); } },
+  };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const { pending, exchangeId } = await raiseForm(tool(buildRegistrations(routeDeps, surfaceExchanges), TOOL_ID));
+  events.length = 0;
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: "rotated-token-after-owner" } }, { toolId: TOOL_ID });
+  assert.deepEqual(await pending, { saved: true });
+  assert.equal(events[0], "metadata");
+  assert.ok(events.indexOf("owner") > events.indexOf("metadata"));
+  assert.ok(events.indexOf("seal") > events.indexOf("owner"));
+  assert.ok(events.indexOf("invalidate") > events.indexOf("seal"));
+});
+
 test("a rotated token is trimmed of paste junk; an interior space is refused in plain words", async () => {
   const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
   await seedNameCom(writeDeps);

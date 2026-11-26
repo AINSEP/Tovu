@@ -18,7 +18,8 @@ import { recordBundledAgentPluginDigests } from "../../../agent-plugins/lifecycl
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../../agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
-import { DEPLOY_TARGETS_FILENAME, loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "../registry.js";
+import { loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "../registry.js";
+import { DEPLOY_TARGETS_FILENAME } from '@jini-ai/devops/deploy/site/deploy-targets/registry';
 
 /**
  * @file `registry.ts` — the generic seam that lets an Agent Plugin add a deploy host.

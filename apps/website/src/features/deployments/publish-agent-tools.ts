@@ -6,7 +6,7 @@ import type { StaticPublishToolDeps } from './publish-tool-deps.js';
 import { staticPublishPorts } from './static-publish/adapter.js';
 import { credentialStorePorts, describeCredential, hasDefaultForPublish, resolveForPublish, resolveDefaultForPublish } from './publish-credentials/store.js';
 import { verificationPorts } from './static-publish/verify.js';
-import { requireToolPermission } from '@jini-ai/cms/core';
+import { requireToolPermission } from '@jini-ai/core';
 import { resolveOperatorLocale } from '@jini-ai/core/operator-locale';
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute } from '#src/contracts/core/gated-mutations/gateway';
 import { planHashOf, resolveActorClassIdentity } from '#src/contracts/core/gated-mutations/composition';
@@ -28,6 +28,8 @@ import { toolApprovalConfirmation, approvalToolHandler } from '../../contracts/c
 /** No arguments — parameterless read tool. Matches `agent-tools.ts`'s own `NO_INPUT_SCHEMA` exactly;
  *  declared separately here rather than imported from that sibling file, per this file's own
  *  "no dependency on agent-tools.ts" architectural rule (this file's header). */
+const DEPLOYMENTS_READ_PERMISSION = "deployments.read";
+
 const NO_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,

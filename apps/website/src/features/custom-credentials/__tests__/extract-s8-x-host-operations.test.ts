@@ -326,6 +326,17 @@ test('real Tovu bindings retain the current registry/cache/repo and guard, with 
   assert.equal((await operations.sets.list({})).length, 1);
 });
 
+test('real Tovu provider enrichment retains source-control choices when hosting is unavailable', async () => {
+  const base = credentialToolDeps({ authorizeCalls: [] });
+  const events: string[] = [];
+  const operations = bindTovuCredentialToolOperations({ routeDeps: { ...base,
+    loadDeployTargets: async () => { events.push('hosting'); throw new Error('unavailable'); },
+    loadSourceControlProviders: async () => { events.push('source'); return { list: () => [{ descriptor: { id: 'source-host' } }] } as never; },
+  }, surfaces: { surfaceExchanges: fixedExchanges('tovu-source-only') } });
+  assert.deepEqual(await operations.publish.loadProviders({}), [{ id: 'source-host', vendorId: 'source-host' }]);
+  assert.deepEqual(events, ['hosting', 'source']);
+});
+
 test('real Tovu catalog failures remain optional, and absent cache performs no invalidation lookup', async () => {
   const base = credentialToolDeps({ authorizeCalls: [] });
   let deployLoads = 0; let sourceLoads = 0;

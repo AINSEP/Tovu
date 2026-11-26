@@ -5,7 +5,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
-import { waitForDeployOps } from "../run-ops.js";
+import { bindDeployOpsRuntime } from "../run-ops.js";
+import { waitForDeployOps } from "@jini-ai/devops/deploy";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import type { HttpRequest } from "@jini-ai/core/primitives";
 import { fixture, execution } from "./example-ops-fixture.js";
 import { AT } from "./module-fixture.js";
 
@@ -204,4 +209,41 @@ test("an unreadable bundled plugin tree yields a catalog with no platforms inste
   const status = catalog.find(tool => tool.name === "deployment_ops_status")!;
   assert.deepEqual((status.inputSchema.properties as { platform: { enum: string[] } }).platform.enum, []);
   assert.match(status.description, /Platforms: none available; enable a hosting plugin under Agent Plugins\./);
+});
+
+test("deploy transport forwards the response ceiling and signal and preserves transport truncation", async () => {
+  const f = await fixture();
+  const signal = new AbortController().signal;
+  const sent: HttpRequest[] = [];
+  const runtime = bindDeployOpsRuntime({ ...f.deps, deployOpsHttpClient: { send: async request => {
+    sent.push(request);
+    return { status: 200, headers: {}, bodyText: "clipped", bodyTruncated: true };
+  } } });
+  const result = await runtime.credentials.request({ workspaceId: "ws", label: "ops", method: "GET", url: "https://api.example-host.dev/v1/targets", maxResponseBytes: 1234 }, { signal });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0]?.maxResponseBytes, 1234);
+  assert.equal(sent[0]?.signal, signal);
+  assert.equal(result.bodyTruncated, true);
+});
+
+test("secret removal rechecks permission after the card before confirming or deleting", async () => {
+  const f = await fixture();
+  const events: string[] = [];
+  let answered = false;
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildDeployOpsRegistrations({ ...f.deps,
+    authorize: async ({ permission }) => { events.push(permission); return { allowed: !answered, reason: "denied" }; },
+    deployOpsHttpClient: { send: async request => {
+      events.push(request.method);
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ secrets: [{ name: "OLD_KEY", digest: "version-one" }] }) };
+    } },
+  }, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} });
+  const unset = registrations.find(registration => registration.descriptor.id === "deployment_ops_unset_secret")!;
+  await assert.rejects(unset.handler(execution({ platform: "example-host", target: "shop", name: "OLD_KEY" }), { emitSurface: async () => {
+    events.push("card");
+    answered = true;
+    const exchangeId = store.findTypedAnswerTarget({ principalId: "principal", toolId: "deployment_ops_unset_secret" })!;
+    assert.deepEqual(store.deliver({ exchangeId, principalId: "principal", params: { decision: "confirm" } }, { toolId: "deployment_ops_unset_secret" }), { ok: true });
+  } }), /not authorized/);
+  assert.deepEqual(events, ["custom-credentials.write", "GET", "card", "custom-credentials.write"]);
 });

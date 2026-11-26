@@ -24,7 +24,7 @@ import { parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-h
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
-import { loadInstalledDeployTargets } from "#src/features/deployments/deploy-targets/registry";
+import { loadInstalledDeployTargets } from "@jini-ai/devops/deploy/site/deploy-targets/registry";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMailCredentialCards } from "../../boot/mail-provider-catalog.js";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";

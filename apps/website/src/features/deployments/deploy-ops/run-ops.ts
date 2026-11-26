@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { secretFingerprint as fingerprintWithPorts, bindDeployOpsRuntime as bindRuntimeWithPorts } from '@jini-ai/devops/deploy/site/deploy-ops/run-ops';
 import { homedir } from 'node:os';
 import { resolveRuntimeMode } from '#src/contracts/core/runtime-mode';
 import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from '#src/features/webhooks/keyring.env';
@@ -11,11 +11,7 @@ import { makeCredentialedRequest, resolveRequestTarget, listCustomCredentials, a
 import { classifyCredentialedRequestError } from '@jini-ai/integrations/custom-credentials/credential-ports';
 import { EgressRefusedError } from '#src/platform/http/index';
 import type { DeployOpsRegistry, DeployOpsInput, LoadedDeployOps, DeployOpsStatus, DeployOpsLogs, DeployOpsTargets, DeployOpsRuntime, WaitClock } from '@jini-ai/devops/deploy';
-import { aborted, MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
 import * as portable from '@jini-ai/devops/deploy';
-export { aborted, MAX_RESPONSE_CHARS, MAX_WAIT_SECONDS, MAX_MODULE_SLEEP_MS, DeployCredentialSetupRequired, waitForDeployOps } from '@jini-ai/devops/deploy';
-export type { DeployRequest } from '@jini-ai/devops/deploy';
-export type { WaitClock } from '@jini-ai/devops/deploy';
 export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   authorize: AuthorizeFn;
   /** Shared site ledger, injected by production; optional for credential-only consumers. */
@@ -40,12 +36,8 @@ export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   readSiteKey?: () => string | undefined;
 }
 
-const sha256 = ({ value }: { value: string }, _options = {})=>createHash('sha256').update(value,'utf8').digest();
-/** A site-key-shaped value gets the Security page's own fingerprint, so the two can be compared by eye. O(n). */
-export function secretFingerprint({ value }: { value: string }, _options = {}): { fingerprint: string; fingerprintKind: "site-key" | "sha256" } {
-  const parsed = parseSiteKeyHex({ raw: value });
-  return parsed.ok ? { fingerprint: fingerprintSiteKeyHex({ hex: parsed.hex }), fingerprintKind: "site-key" } : { fingerprint: sha256({ value }).toString("hex").slice(0, 12), fingerprintKind: "sha256" };
-}
+export const secretFingerprint = ({ value }: { value: string }, _options = {}) =>
+  fingerprintWithPorts({ value, deps: { parseSiteKeyHex, fingerprintSiteKeyHex } });
 
 /** Same ordered sources and precedence the Security page and the keyring read; re-read on every call. */
 function defaultReadSiteKey(deps: DeployOpsToolDeps): string | undefined {
@@ -57,9 +49,8 @@ function defaultReadSiteKey(deps: DeployOpsToolDeps): string | undefined {
 
 
 export function readDeploySiteKey(deps:DeployOpsToolDeps):string|undefined {return deps.readSiteKey ? deps.readSiteKey() : defaultReadSiteKey(deps);}
-export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
-
-  return {
+export const bindDeployOpsRuntime = (deps:DeployOpsToolDeps):DeployOpsRuntime =>
+  bindRuntimeWithPorts({ deps, makeCredentialedRequest, runtime: {
     workspaceId:deps.workspaceId,clock:deps.clock,loadDeployOps:deps.loadDeployOps,
     loadDeployWorkflowFiles:deps.loadDeployWorkflowFiles,waitClock:deps.waitClock,publishHistoryStore:deps.publishHistoryStore,
     credentials:{
@@ -67,31 +58,13 @@ export function bindDeployOpsRuntime(deps:DeployOpsToolDeps):DeployOpsRuntime {
       list:async()=> (await listCustomCredentials({repo:deps.customCredentialSetRepo},{workspaceId:deps.workspaceId})).map(c=>({label:c.label,get allowedOrigins(){return allowedOriginsFor(c);}})),
       resolveTarget:(required,optional)=>resolveRequestTarget({repo:deps.customCredentialSetRepo},{...required,...optional}),
       classifyError:({error})=>classifyCredentialedRequestError({error,EgressRefusedError}),
-      request:async(required,optional)=>{
-        const {signal}=optional;
-        const httpClient = deps.deployOpsHttpClient;
-        if (httpClient === undefined) throw new Error('Deployment operations have no HTTP client');
-        const requestDeps:CredentialedRequestDeps={repo:deps.customCredentialSetRepo,sealer:deps.siteAssistantSecretSealer,httpClient,clock:deps.clock,...(deps.customCredentialsAudit?{audit:deps.customCredentialsAudit}:{}),loadAuthSchemes:deps.loadAuthSchemes};
-        let transportTruncated = false;
-    // Preserve the text clipping flag the credential API does not expose in its returned shape.
-    const boundedDeps: CredentialedRequestDeps = { ...requestDeps, httpClient: { send: async (request, _optional = {}) => {
-      // Auth scheme loading can yield after the earlier abort check. Recheck at the I/O boundary.
-      if (signal?.aborted) throw aborted();
-      const result = await requestDeps.httpClient.send({ ...request, ...(signal ? { signal } : {}), maxResponseBytes: required.maxResponseBytes });
-      transportTruncated = result.bodyTruncated === true;
-      return result;
-    } } };
-        const {maxResponseBytes: _limit,...request}=required;
-        const result=await makeCredentialedRequest(boundedDeps,{...request,headers:optional.headers,body:optional.body});
-        return {...result,bodyTruncated:transportTruncated};
-      },
+
     },
     siteKey:{read:()=>readDeploySiteKey(deps),fingerprint:({value})=>secretFingerprint({ value })},
     recovery:{setupRequired:({label,baseUrl})=>({message:"No matching deployment credential is saved. Call credential_save with kind api to open its secure card, then retry once.",credentialSetup:issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "api", label, baseUrl, category: "ops" } }, {})})},
     toolIds:{status:'deployment_ops_status',logs:'deployment_ops_logs',wait:'deployment_ops_wait',listTargets:'deployment_ops_list_targets',deploy:'deployment_ops_deploy',listSecrets:'deployment_ops_list_secrets',setSecret:'deployment_ops_set_secret',unsetSecret:'deployment_ops_unset_secret',credentialVerify:'custom_credential_verify'},
     messages:{noUsableSiteKey:"This site has no usable site key to copy. Check Security > Site key in the admin first.",severalCredentials:({host,labels})=>`Several saved custom credentials match '${host}'. Set credentialLabel to one of: ${labels.join(", ")}.`,noSavedCredential:({label})=>`No saved custom credential labeled '${label}'. Choose another credentialLabel.`},
-  };
-}
+  } });
 export function boundContext({deps,platform,explicit}:{deps:DeployOpsToolDeps;platform:LoadedDeployOps;explicit:string|undefined},{signal,...options}:{signal?:AbortSignal;allowDelete?:boolean}={}) {return portable.boundContext({deps:bindDeployOpsRuntime(deps),platform,explicit},{signal,...options});}
 export function runDeployOps(required:{deps:DeployOpsToolDeps;input:DeployOpsInput;operation:'status'},optional?:{signal?:AbortSignal}):Promise<DeployOpsStatus>;
 export function runDeployOps(required:{deps:DeployOpsToolDeps;input:DeployOpsInput;operation:'logs'},optional?:{signal?:AbortSignal}):Promise<DeployOpsLogs>;

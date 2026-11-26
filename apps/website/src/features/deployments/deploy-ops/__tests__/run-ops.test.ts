@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
-import { boundContext, runDeploy, runDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
+import { boundContext, runDeploy, runDeployOps } from "../run-ops.js";
+import { MAX_RESPONSE_CHARS } from '@jini-ai/devops/deploy';
 import { fixture } from "./example-ops-fixture.js";
 import { AT } from "./module-fixture.js";
 

@@ -12,7 +12,8 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { getFsFilesAgentToolCatalog } from "../agent-tools.js";
 import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID, FS_WRITE_FILES_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
 import { FS_ROOT_IDS, type FsRootId } from "../layout.js";
-import { buildFsFilesRegistrations, fsFilesDerivedRisk, type FsFilesToolDeps, contributeFsFilesTools } from "../tool-registrations.js";
+import { buildFsFilesRegistrations, type FsFilesToolDeps, contributeFsFilesTools, preparePickedFolderBatch } from "../tool-registrations.js";
+import { fsFilesDerivedRisk } from "@jini-ai/cms/fs-files/tool-registrations";
 
 /**
  * @file The `fs_list_files`/`fs_read_file` registrations — their catalog shape, their permission
@@ -414,4 +415,21 @@ test("a declined prepared write leaves the picked folder unchanged", async t => 
   assert.equal(result.cancelled, true);
   assert.equal(fs.readFileSync(path.join(custom, "existing.txt"), "utf8"), "original");
   assert.deepEqual(fs.readdirSync(custom), ["existing.txt"]);
+});
+
+test("picked-folder-escapes-root is refused before reading any file", t => {
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fs-escape-")));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const site = path.join(base, "site");
+  const custom = path.join(base, "picked");
+  fs.mkdirSync(site);
+  fs.mkdirSync(custom);
+  const deps = toolDeps({ siteBinding: { dir: site }, resolveRoots: () => ({ repo: site, site, custom }) });
+  let reads = 0;
+  t.mock.method(fs, "readFileSync", () => { reads++; assert.fail("an escaping path must be refused before a read"); });
+  for (const filePath of ["../outside.txt", path.join(base, "outside.txt")]) {
+    assert.throws(() => preparePickedFolderBatch({ routeDeps: deps, files: [{ path: filePath, content: "changed" }] }), /relative|outside|\.\./i);
+  }
+  assert.equal(reads, 0);
+  assert.deepEqual(fs.readdirSync(custom), []);
 });

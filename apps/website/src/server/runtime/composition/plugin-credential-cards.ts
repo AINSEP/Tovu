@@ -4,7 +4,7 @@ import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from "#src/features/agent-plugins/lifecycle";
 import { createCredentialCardsContribution, mergePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
-import { parseDeployTargetsFile } from "#src/features/deployments/deploy-targets/registry";
+import { parseDeployTargetsFile } from '@jini-ai/devops/deploy';
 import { parseSourceControlProvidersFile } from "#src/features/source-control/provider-registry";
 import { parseMailAdaptersFile } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";

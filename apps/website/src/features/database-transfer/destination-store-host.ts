@@ -5,7 +5,8 @@ import { InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secret
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { InMemoryKeyring } from "../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { SealedDatabaseDestinationStore as JiniSealedDatabaseDestinationStore, authorizeDestinationVaultContext as authorizeVaultContext } from "@jini-ai/db/transfer/destination-store";
+import { SealedDatabaseDestinationStore as JiniSealedDatabaseDestinationStore } from "@jini-ai/db/transfer/destination-store";
+import { authorizeScopedVaultContext as authorizeVaultContext } from "@jini-ai/core/contracts/site/vault-context";
 import type { DatabaseDestinationRepoPort, DatabaseDestinationStorePort } from "@jini-ai/db/transfer/destination-store";
 
 /**
@@ -31,7 +32,7 @@ export function authorizeDestinationVaultContext(
   { context }: { readonly context: { readonly kind: string; readonly ownerKey: string; readonly principalId: string | null } },
   _options = {}
 ): Promise<void> {
-  return authorizeVaultContext({ context, scope: destinationScope });
+  return authorizeVaultContext({ context: { ...context, binding: null }, scope: destinationScope });
 }
 
 export class SealedDatabaseDestinationStore extends JiniSealedDatabaseDestinationStore {

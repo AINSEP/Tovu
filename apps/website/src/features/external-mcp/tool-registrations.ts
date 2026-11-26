@@ -1,9 +1,10 @@
+import { resolvePublicOrigin } from '@jini-ai/core/contracts/site/public-origin';
 import { buildExternalMcpRegistrations as buildWithPorts, externalMcpDerivedRisk } from '@jini-ai/mcp/external/tool-registrations';
 import type { ExternalMcpToolDeps } from '@jini-ai/core/contracts/site/external-mcp-tool-ports';
 import type { ChatDeleteSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { ToolContributor } from '@jini-ai/core';
 import { ToolInputError } from '@jini-ai/core';
-import { ForbiddenError, requireToolPermission } from '@jini-ai/cms/core';
+import { ToolPermissionDeniedError as ForbiddenError, requireToolPermission } from '@jini-ai/core';
 import { resolveOperatorLocale } from '@jini-ai/core/operator-locale';
 import { issueCredentialSetup } from '#src/contracts/core/tool-failure-diagnostics';
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
@@ -40,23 +41,12 @@ const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback";
  *   misconfiguration reaches the operator instead of silently resolving to the wrong origin.
  * @complexity O(1).
  */
-function resolveConfiguredPublicOrigin(): string | undefined {
-  const configured = process.env.TOVU_PUBLIC_URL?.trim();
-  if (!configured) return undefined;
-  let url: URL | undefined;
-  try {
-    url = new URL(configured);
-  } catch {
-    url = undefined;
-  }
-  if (url === undefined) {
-    throw new ToolInputError({ message: `TOVU_PUBLIC_URL must be an absolute http(s) URL, but "${configured}" is not a valid URL.` });
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new ToolInputError({ message: `TOVU_PUBLIC_URL must be an http(s) URL, got "${configured}".` });
-  }
-  return url.origin;
-}
+const resolveConfiguredPublicOrigin = (): string | undefined => resolvePublicOrigin({
+  configured: process.env.TOVU_PUBLIC_URL, derivedPublicOrigin: undefined,
+  invalidConfiguredOrigin: ({ configured, reason }) => { throw new ToolInputError({ message: reason === 'url'
+    ? `TOVU_PUBLIC_URL must be an absolute http(s) URL, but "${configured}" is not a valid URL.`
+    : `TOVU_PUBLIC_URL must be an http(s) URL, got "${configured}".` }); },
+});
 
 /**
  * Builds `external_mcp_oauth_connect`'s redirect URI for one server id, or `undefined` when NEITHER

@@ -219,6 +219,17 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
 }
 
 function runPolicyPermissionRepoSuite(adapterName: string, makeRepo: () => PolicyPermissionRepoPort) {
+  test(`[${adapterName}] policy permission reads and deletes isolate the same policy id in another workspace`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pp-ws-one", workspaceId: WS, policyId: "shared-policy-id", permission: "content.read" });
+    await repo.save({ id: "pp-ws-two", workspaceId: WS2, policyId: "shared-policy-id", permission: "content.write" });
+    assert.deepEqual((await repo.listByPolicyId({ workspaceId: WS, policyId: "shared-policy-id" })).map(row => row.id), ["pp-ws-one"]);
+    assert.deepEqual((await repo.listByPolicyId({ workspaceId: WS2, policyId: "shared-policy-id" })).map(row => row.id), ["pp-ws-two"]);
+    await repo.deleteByPolicyId({ workspaceId: WS, policyId: "shared-policy-id" });
+    assert.deepEqual(await repo.listByPolicyId({ workspaceId: WS, policyId: "shared-policy-id" }), []);
+    assert.deepEqual((await repo.listByPolicyId({ workspaceId: WS2, policyId: "shared-policy-id" })).map(row => row.id), ["pp-ws-two"]);
+  });
+
   test(`[${adapterName}] constrained policy grants round-trip and stay fail-closed in authorization`, async () => {
     const repo = makeRepo();
     const row = { id: "pp-constrained", workspaceId: WS, policyId: "pol-constrained", permission: "content.write", resourceType: "post", constraintJson: '{"field":"title"}' };

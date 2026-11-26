@@ -11,7 +11,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { FS_WRITE_FILES_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
 import { getFsFilesAgentToolCatalog } from "../agent-tools.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
-import { buildFsFilesRegistrations, fsFilesDerivedRisk } from "../tool-registrations.js";
+import { buildFsFilesRegistrations } from "../tool-registrations.js";
+import { fsFilesDerivedRisk } from "@jini-ai/cms/fs-files/tool-registrations";
 import { FS_WRITE_LIMITS, FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles } from "@jini-ai/cms/fs-files/write-files";
 import { resolveFsFilePath } from "../fs-files.js";
 

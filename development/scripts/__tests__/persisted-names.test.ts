@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
-import { DEPLOY_TARGETS_FILENAME } from "#src/features/deployments/deploy-targets/registry";
+import { DEPLOY_TARGETS_FILENAME } from '@jini-ai/devops/deploy/site/deploy-targets/registry';
 import { LEDGER_TABLE } from "#src/platform/db/migrations/runner";
 import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";

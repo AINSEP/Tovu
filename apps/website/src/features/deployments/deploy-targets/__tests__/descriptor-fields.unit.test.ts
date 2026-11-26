@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { composedBundledPluginDirs } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
-import { parseDeployTargetsFile } from "../registry.js";
+import { parseDeployTargetsFile } from '@jini-ai/devops/deploy';
 import { loadBundledDeployTargets } from "./bundled-deploy-targets.fixture.js";
 
 /**

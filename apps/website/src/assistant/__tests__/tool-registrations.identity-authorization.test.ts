@@ -610,6 +610,15 @@ test("the ToolPolicy layer is a pass-through 'allow' for every identity registra
   }
 });
 
+test("the user-create model schema never exposes the password collected on the human card", async () => {
+  const { deps } = await buildHarness();
+  const create = identityRegistrations(deps).get("identity_user_create");
+  assert.ok(create);
+  const schema = create.descriptor.inputSchema as { properties: Record<string, unknown>; required?: string[] };
+  assert.equal(Object.hasOwn(schema.properties, "password"), false);
+  assert.equal(schema.required?.includes("password") ?? false, false);
+});
+
 test("no password-reset tool is wired — the one identity transition with no INV-07 clamp stays human-UI-only", async () => {
   const { deps } = await buildHarness();
   const wiredIds = [...identityRegistrations(deps).keys()];
