@@ -36,7 +36,7 @@ async function fixture(driver = "smtp", status = "draft") {
     newsletterHooks: createHookRegistry(), membersConsentCapability: null,
     // A delivering driver needs the site's configured sender (`platform/mail/sender-identity.ts`).
     mailSenderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example Site" }) },
-    ownerPrincipalId: Promise.resolve("owner"), userRepo: { findByPrincipalId: async (input) => { assert.deepEqual(input, { workspaceId: "ws", principalId: "owner" }); return { workspaceId: "ws", principalId: "owner", username: "owner", passwordHash: "hash", email: "owner@example.com" }; } },
+    ownerPrincipalId: Promise.resolve("owner"), userRepo: { findByPrincipalId: async (input) => { assert.deepEqual(input, { workspaceId: "ws", principalId: "owner" }); return { workspaceId: "ws", principalId: "owner", username: "owner", passwordHash: "hash", version: 1, email: "owner@example.com" }; } },
   };
   await deps.newsletterListRepo.save({ id: "list", workspaceId: "ws", name: "Readers", slug: "readers", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW });
   await deps.newsletterCampaignRepo.saveCampaignRow({ id: "campaign", workspaceId: "ws", status: status as "draft", subject: "October news", preheader: "Preview", fromName: "Editor", fromEmail: "sender@example.com", replyTo: "reply@example.com", listId: "list", scheduledAt: null, sendStartedAt: null, audienceSnapshotId: null, counters: { recipients: 0, delivered: 0, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: "owner", createdAt: NOW, updatedAt: NOW });
@@ -92,7 +92,10 @@ test("test send refuses caller-supplied addresses and a missing owner email", as
 for (const email of [undefined, "   "]) {
   test(`test send refuses an owner whose stored email is ${email === undefined ? "unset" : "blank"}`, async () => {
     const h = await fixture();
-    h.deps.userRepo.findByPrincipalId = async () => ({ workspaceId: "ws", principalId: "owner", username: "owner", passwordHash: "hash", email });
+    h.deps.userRepo.findByPrincipalId = async (input) => {
+      assert.deepEqual(input, { workspaceId: "ws", principalId: "owner" });
+      return { workspaceId: "ws", principalId: "owner", username: "owner", passwordHash: "hash", version: 1, email };
+    };
     await assert.rejects(h.call("newsletter_send_test"), {
       message: "NEWSLETTER_OWNER_EMAIL_MISSING: Set the site owner's email in their user profile before sending a test.",
     });

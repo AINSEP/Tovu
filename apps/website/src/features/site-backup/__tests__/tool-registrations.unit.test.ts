@@ -345,8 +345,12 @@ test("share tools use the site-bound backend and authorize before every effect",
   const row = { shareId: "export-id", site: WORKSPACE_ID, file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null, status: "active" as const, createdAt: NOW, revokedAt: null, downloadUrl: "/private/download", credentialWarnings: [{ path: "themes/site/SKILL.md", kind: "labeled secret" }], needsAcknowledgement: true };
   const staticRow = { ...row, file: "site-static-2026-10-30-1015.zip" };
   const registrations = buildSiteBackupRegistrations({ deps: { ...h.deps, siteShareBackend: {
-    registry: {} as import("../share-registry.js").SiteShareRegistry,
+    registry: {
+      get: async () => assert.fail("share tools must use the backend to get shares"),
+      list: async () => assert.fail("share tools must use the backend to list shares"),
+    },
     staticOptions: async () => ({ activeThemeId: "a", themes: [] }),
+    expiryChoices: async () => assert.fail("these share tools must not request expiry choices"),
     create: async ({ principalId, format }) => { calls.push(`create:${principalId}`); return format === "static" ? staticRow : row; },
     list: async () => { calls.push("list"); return [row]; },
     revoke: async ({ shareId }) => { calls.push(`revoke:${shareId}`); return { ...row, status: "revoked" as const }; },

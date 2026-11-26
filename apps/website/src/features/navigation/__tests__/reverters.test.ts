@@ -5,8 +5,10 @@ import { createRevertRegistry, InMemoryChangeSetRepo, revertChangeSet, RevertCon
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 
-import { type MenuRepoPort, type NavLocationBindingRepoPort, InMemoryMenuRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
+import { type MenuRepoPort, InMemoryNavLocationBindingRepo, InMemoryMenuRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
+import { applyRunActor, createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
+import { updateMenuTree } from "@jini-ai/cms/navigation/node";
 import { createMenuReverters, registerMenuReverters } from "@jini-ai/cms/navigation/site/reverters";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -59,7 +61,7 @@ function makeRepointDeps(menuRepo: MenuRepoPort): PublishContentDeps & { changeS
       return { newId: () => `generated-${++n}` };
     })(),
     outbox,
-    ports: { menu: { repo: menuRepo, bindingRepo: undefined as unknown as NavLocationBindingRepoPort } },
+    ports: { menu: { repo: menuRepo, bindingRepo: new InMemoryNavLocationBindingRepo({}) } },
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
     mutationActor: { id: "operator-1", kind: "user" },
@@ -73,7 +75,7 @@ test("revertChangeSet undoes a repoint change set, restoring the prior entryRef"
     menuRow({ id: "menu-header", ...menuState({ doc: { type: "menu", version: 1, items: priorItems } }) }),
   ] });
   const deps = makeRepointDeps(menuRepo);
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
 
   const result = await handler.repointReferences!({
     replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
@@ -109,7 +111,7 @@ test("revertChangeSet refuses a repoint change set whose menu changed since — 
     menuRow({ id: "menu-header", ...menuState({ doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
   ] });
   const deps = makeRepointDeps(menuRepo);
-  const handler = contributeMenusPublish().build(deps);
+  const handler = contributeMenusPublish({ createRepoPublishHandler, applyRunActor, updateMenuTree }).build(deps);
 
   const result = await handler.repointReferences!({
     replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
@@ -121,7 +123,9 @@ test("revertChangeSet refuses a repoint change set whose menu changed since — 
 
   // An unrelated later edit lands on the menu — the exact case the version guard exists for.
   const afterRepoint = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
-  await menuRepo.save({ ...afterRepoint!, version: afterRepoint!.version + 1 });
+  assert.ok(afterRepoint);
+  const edited = { ...afterRepoint, title: "Header after repoint", version: afterRepoint.version + 1 };
+  await menuRepo.save(edited);
 
   const registry = registerMenuReverters({ registry: createRevertRegistry({}, {}), deps: {
     menuRepo,
@@ -138,6 +142,7 @@ test("revertChangeSet refuses a repoint change set whose menu changed since — 
       }),
     (err: unknown) => err instanceof RevertConflictError
   );
+  assert.deepEqual(await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: edited.id }), edited);
 });
 
 test("menu reverter reports a deleted menu and refuses missing inverse payloads", async () => {

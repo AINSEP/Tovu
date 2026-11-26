@@ -3,12 +3,13 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
 import type { MagicLinkTokenRepoPort, MemberSessionRepoPort, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
-import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
-import { MemberAuthError, type MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { MemberAuthError } from "@jini-ai/user-management/members/types";
 import { consumeMemberChallenge } from "@jini-ai/user-management/members/member-challenge";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 
@@ -27,33 +28,31 @@ const FROZEN_RAW = "frozen-raw-bearer-token-class-only";
 const FROZEN_DIGEST = "df9d1bb8caaee1977a48f8d7c1a2d4f1214af7cc4b8e21c3b8ff72e7ad958a90";
 
 /** A sessions port that records lookups and keeps saved rows by digest, so the two sides can round-trip. */
-function recordingSessions(): MemberSessionRepoPort & { lookups: string[]; saved: MemberSessionRecord[] } {
-  const saved: MemberSessionRecord[] = [];
-  const lookups: string[] = [];
-  return {
-    lookups, saved,
-    findByTokenHash: async ({ tokenHash }) => { lookups.push(tokenHash); return saved.find((row) => row.tokenHash === tokenHash) ?? null; },
-    listByMember: async () => saved,
-    save: async (record) => { saved.push(record); },
-    revoke: async () => undefined,
-    revokeAllForMember: async () => undefined,
+function recordingSessions() {
+  const repo = new InMemoryMemberSessionRepo({});
+  const lookups: Parameters<MemberSessionRepoPort["findByTokenHash"]>[0][] = [];
+  const findByTokenHash = repo.findByTokenHash.bind(repo);
+  repo.findByTokenHash = async (required) => {
+    lookups.push(required);
+    return findByTokenHash(required);
   };
+  return Object.assign(repo, { lookups });
 }
 
-function recordingMagicLinks(): MagicLinkTokenRepoPort & { lookups: string[] } {
-  const lookups: string[] = [];
-  return {
-    lookups,
-    findById: async () => null,
-    findByTokenHash: async ({ tokenHash }) => { lookups.push(tokenHash); return null; },
-    save: async () => undefined,
-    reserveCodeAttempt: async () => false,
-    consume: async () => undefined,
+function recordingMagicLinks() {
+  const repo = new InMemoryMagicLinkTokenRepo({});
+  const lookups: Parameters<MagicLinkTokenRepoPort["findByTokenHash"]>[0][] = [];
+  const findByTokenHash = repo.findByTokenHash.bind(repo);
+  repo.findByTokenHash = async (required) => {
+    lookups.push(required);
+    return findByTokenHash(required);
   };
+  return Object.assign(repo, { lookups });
 }
 
 function deps(parts: { sessions: MemberSessionRepoPort; magicLinks: MagicLinkTokenRepoPort }): MembersWriteServiceDeps {
   return {
+    orFallbackSync,
     clock: createFakeClock({ startIso: NOW }), ids: { newId: () => "id-1" }, members: new InMemoryMemberRepo(), ...parts,
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(), principals: new InMemoryPrincipalRepo({}),
     passwordHasher: { hash: async () => "unused", verify: async () => false },
@@ -71,22 +70,23 @@ test("P5a write side: consumeMemberChallenge looks a link token up by its frozen
     consumeMemberChallenge({ deps: deps({ sessions: recordingSessions(), magicLinks }), input: { workspaceId: WS, token: FROZEN_RAW }, purpose: "signin", nowIso: NOW }),
     MemberAuthError,
   );
-  assert.deepEqual(magicLinks.lookups, [FROZEN_DIGEST]);
+  assert.deepEqual(magicLinks.lookups, [{ workspaceId: WS, tokenHash: FROZEN_DIGEST }]);
 });
 
 test("P5a write side: issueMemberSession stores the SHA-256 hex digest of the raw token it returns, never the raw token", async () => {
   const sessions = recordingSessions();
   const member = { id: "member-1", workspaceId: WS, email: "m@example.test", status: "active" as const, createdAt: NOW, updatedAt: NOW, version: 1 };
   const issued = await issueMemberSession({ deps: deps({ sessions, magicLinks: recordingMagicLinks() }), member, nowIso: NOW });
-  assert.equal(sessions.saved.length, 1);
-  assert.equal(sessions.saved[0]?.tokenHash, createHash("sha256").update(issued.rawSessionToken).digest("hex"));
-  assert.notEqual(sessions.saved[0]?.tokenHash, issued.rawSessionToken);
+  const saved = await sessions.listByMember({ workspaceId: WS, memberId: member.id });
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0]?.tokenHash, createHash("sha256").update(issued.rawSessionToken).digest("hex"));
+  assert.notEqual(saved[0]?.tokenHash, issued.rawSessionToken);
 });
 
 test("P5b read side: resolveMemberSession looks a session up by the same frozen digest", async () => {
   const sessions = recordingSessions();
   assert.equal(await resolveMemberSession({ sessions, workspaceId: WS, sessionToken: FROZEN_RAW, nowIso: NOW }), null);
-  assert.deepEqual(sessions.lookups, [FROZEN_DIGEST]);
+  assert.deepEqual(sessions.lookups, [{ workspaceId: WS, tokenHash: FROZEN_DIGEST }]);
 });
 
 test("P5 round trip: a session minted by the write side is found by the read side", async () => {

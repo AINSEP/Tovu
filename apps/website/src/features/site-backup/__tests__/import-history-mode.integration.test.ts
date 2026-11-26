@@ -236,7 +236,7 @@ test("a state-write failure before admission writes no SQL row and no witness", 
   } }), { code: "EIO" });
   assert.equal(exists(indexStatePaths({ root }).witness), false);
   assert.equal(readState(root).mode, "cutover");
-  assert.equal(bind({ root }).history.read({ run: (session) => session.kind === "index" ? session.store.get({ importId: id }) ?? null : "legacy" }), null);
+  assert.equal(bind({ root }).history.read({ run: (session) => session.kind === "index" ? session.store.get({ importId: id, principalId: "owner" }) ?? null : "legacy" }), null);
 });
 
 const MISSING = "Import history is missing, so imports are paused to avoid creating the same site twice. Nothing was changed. Contact support with this error ID.";

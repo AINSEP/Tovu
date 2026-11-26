@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 
 import { SqlAssetBlobRepo, SqlMediaRepo } from "#src/platform/db/repos/media-repo";
 import { outboxEventValues } from "@jini-ai/db/events";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { createUserTrashAdapter } from "#src/features/trash/adapters/user";
 import { trashEntityLockKey } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "#src/features/trash/registry";
@@ -97,7 +98,7 @@ describe("P1 trash lock keys", () => {
   test("the user adapter locks trash:user:<workspace>:<principal> (stays in Tovu)", async () => {
     const { kernel, keys } = recordingKernel();
     const adapter = createUserTrashAdapter({ assertAccountAction: async () => {},
-      eventValues: outboxEventValues, db: kernel,
+      eventValues: outboxEventValues, db: schemaErasedKernel({ store: kernel }),
       purge: { purgeUser: async () => { throw new Error("purge is not reached by hide"); } },
       idGen: { next: () => "id-1" }, clock: { nowIso: () => NOW },
     });

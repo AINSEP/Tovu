@@ -12,10 +12,11 @@ import test, { type TestContext } from "node:test";
 
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { SHARE_EXPIRY_COPY, SHARE_EXPIRY_DAYS, isShareExpired, shareExpiresAt } from "../share-expiry.js";
+import { SHARE_EXPIRY_DAYS, isShareExpired, shareExpiresAt } from "../share-expiry.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { newShareIdentity } from "@jini-ai/devops/backup/site/share-registry";
-import { createSiteShare, receiveSiteShareArtifact, type ShareDelivery } from "../share-service.js";
+import { createSiteShare, receiveSiteShareArtifact } from "../share-service.js";
+import type { ShareDelivery } from "@jini-ai/devops/backup/site/share-hosting";
 import { createSiteShareBackend } from "../share-backend.js";
 import { createBundledExportFilePolicy } from "#src/features/site-backup/bundled-export-file-policy";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
@@ -28,7 +29,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const ZIP = Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
 const TEN_YEARS = 10 * 365 * DAY;
 const CHOICES = "A share link can expire after 7, 30 or 90 days, or never.";
-const copy = SHARE_EXPIRY_COPY;
+const NOT_HOSTED_HERE = "Only links this server hosts in its own share folder can expire. Choose Never for this export.";
 
 async function registryAt(t: TestContext, clock: { now: number }): Promise<SiteShareRegistry> {
   const directory = await mkdtemp(path.join(tmpdir(), "share-expiry-"));
@@ -38,25 +39,36 @@ async function registryAt(t: TestContext, clock: { now: number }): Promise<SiteS
 
 /** This server's own share folder: the shape `isOwnShareFolder` affirms (absolute catalog path). */
 function ownFolder(registry: SiteShareRegistry): ShareDelivery {
-  const store = { upload: async () => ({ url: "https://site.example/_share/x" }), verify: async () => true, delete: async () => {} };
-  return { provider: "tovu-server", binding: registry.directory, store: store as unknown as ShareDelivery["store"] };
+  const uploaded = new Map<string, number>();
+  return { provider: "tovu-server", binding: registry.directory, store: {
+    upload: async ({ key, bytes }) => {
+      uploaded.set(key, bytes.length);
+      return { url: `https://site.example/${key}` };
+    },
+    verify: async ({ key, url, present, bytes }) => url === `https://site.example/${key}` &&
+      (present ? uploaded.has(key) && (bytes === undefined || uploaded.get(key) === bytes) : !uploaded.has(key)),
+    delete: async ({ key }) => { uploaded.delete(key); },
+  } };
 }
 
 function remote(counter: { uploads: number }): ShareDelivery {
-  const store = { upload: async () => { counter.uploads += 1; return { url: "https://x" }; }, verify: async () => true, delete: async () => {} };
-  return { provider: "s3", store: store as unknown as ShareDelivery["store"] };
+  return { provider: "s3", store: {
+    upload: async () => { counter.uploads += 1; return assert.fail("refused remote exports must not upload"); },
+    verify: async () => assert.fail("refused remote exports must not verify an upload"),
+    delete: async () => assert.fail("refused remote exports must not delete"),
+  } };
 }
 
 function planContent(): SiteSharePlanContent {
   return { profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
     database: { bytes: Buffer.from("safe projected DB"), watermarkAtCapture: 5 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }],
-    skipped: [], scopeNotes: {}, totalBytes: 19, site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "one" }, tovuVersion: "test", createdAt: "2026-10-19T00:00:00Z" } as unknown as SiteSharePlanContent;
+    skipped: [], scopeNotes: {}, totalBytes: 19, site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "one" }, tovuVersion: "test", createdAt: "2026-10-19T00:00:00Z" };
 }
 
 test("no expiry by default", async t => {
   const clock = { now: Date.now() };
   const registry = await registryAt(t, clock);
-  assert.equal(shareExpiresAt({ days: null, now: clock.now, destination: ownFolder(registry), copy }), null);
+  assert.equal(shareExpiresAt({ days: null, now: clock.now, destination: ownFolder(registry) }), null);
   const row = await createSiteShare({ registry, site: "ws", name: "Shop", archive: ZIP });
   assert.equal(row.expiresAt ?? null, null);
   const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy, registry, site: "ws", prepare: async () => planContent(), zip: zipFolderFiles, delivery: async () => ownFolder(registry) }, { now: () => clock.now });
@@ -83,16 +95,17 @@ test("an owner-chosen expiry stops the public link after its own date and delete
   const clock = { now: created };
   const registry = await registryAt(t, clock);
   const delivery = ownFolder(registry);
-  const expiresAt = shareExpiresAt({ days: 7, now: created, destination: delivery, copy });
+  const expiresAt = shareExpiresAt({ days: 7, now: created, destination: delivery });
   const row = await createSiteShare({ registry, site: "ws", name: "Shop", archive: ZIP }, { delivery, expiresAt });
   assert.equal(row.expiresAt, "2026-12-08T10:00:00.000Z");
   clock.now = created + 7 * DAY - 1;
-  assert.ok(await registry.findToken({ token: row.token, file: row.file }));
+  assert.equal((await registry.findToken({ token: row.token, file: row.file }))?.shareId, row.shareId);
   clock.now = created + 7 * DAY;
   assert.equal(await registry.findToken({ token: row.token, file: row.file }), null);
   const kept = await registry.get({ shareId: row.shareId });
   assert.equal(kept?.status, "active", "the owner still sees the row exactly as it was");
-  assert.equal(isShareExpired({ row: kept!, now: clock.now }), true);
+  assert.ok(kept);
+  assert.equal(isShareExpired({ row: kept, now: clock.now }), true);
   assert.equal((await stat(registry.artifactPath({ shareId: row.shareId }))).size, ZIP.length, "the ZIP is still on disk");
 });
 
@@ -100,20 +113,20 @@ test("the owner's choices are Never, 7, 30 or 90 days; anything else is refused 
   const registry = await registryAt(t, { now: 0 });
   const destination = ownFolder(registry);
   assert.deepEqual(SHARE_EXPIRY_DAYS, [7, 30, 90]);
-  assert.equal(shareExpiresAt({ days: 30, now: 0, destination, copy }), new Date(30 * DAY).toISOString());
+  assert.equal(shareExpiresAt({ days: 30, now: 0, destination }), new Date(30 * DAY).toISOString());
   for (const days of [0, 14, -7, 7.5]) {
-    assert.throws(() => shareExpiresAt({ days, now: 0, destination, copy }), (error: unknown) => error instanceof SiteShareRefusal && error.code === "INVALID_INPUT" && error.message === CHOICES);
+    assert.throws(() => shareExpiresAt({ days, now: 0, destination }), (error: unknown) => error instanceof SiteShareRefusal && error.code === "INVALID_INPUT" && error.message === CHOICES);
   }
 });
 
 test("an expiry needs affirmative own-folder hosting; Never is accepted for any destination", () => {
   const counter = { uploads: 0 };
-  assert.equal(shareExpiresAt({ days: null, now: 0, destination: remote(counter), copy }), null);
-  assert.equal(shareExpiresAt({ days: null, now: 0, destination: undefined, copy }), null);
-  assert.throws(() => shareExpiresAt({ days: 7, now: 0, destination: remote(counter), copy }), { code: "INVALID_INPUT", message: "Links stored with s3 can't expire yet. Choose Never, or turn off that storage for this export." });
-  assert.throws(() => shareExpiresAt({ days: 7, now: 0, destination: undefined, copy }), { code: "INVALID_INPUT", message: copy.notHostedHere });
+  assert.equal(shareExpiresAt({ days: null, now: 0, destination: remote(counter) }), null);
+  assert.equal(shareExpiresAt({ days: null, now: 0, destination: undefined }), null);
+  assert.throws(() => shareExpiresAt({ days: 7, now: 0, destination: remote(counter) }), { code: "INVALID_INPUT", message: "Links stored with s3 can't expire yet. Choose Never, or turn off that storage for this export." });
+  assert.throws(() => shareExpiresAt({ days: 7, now: 0, destination: undefined }), { code: "INVALID_INPUT", message: NOT_HOSTED_HERE });
   const relative = { provider: "tovu-server", binding: "shares" };
-  assert.throws(() => shareExpiresAt({ days: 7, now: 0, destination: relative, copy }), { code: "INVALID_INPUT" });
+  assert.throws(() => shareExpiresAt({ days: 7, now: 0, destination: relative }), { code: "INVALID_INPUT" });
 });
 
 test("a link stored with another provider cannot carry an expiry; nothing is written", async t => {
@@ -133,9 +146,9 @@ test("remote-provider refusal before any job", async t => {
   const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy, registry, site: "ws", prepare: async () => { prepared += 1; return planContent(); }, zip: zipFolderFiles, delivery: async () => remote(counter) });
   await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 30 }), { code: "INVALID_INPUT", message: "Links stored with s3 can't expire yet. Choose Never, or turn off that storage for this export." });
   await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 14 }), { code: "INVALID_INPUT", message: CHOICES });
-  await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static", expiresInDays: 7 }), { code: "INVALID_INPUT", message: copy.notHostedHere });
+  await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static", expiresInDays: 7 }), { code: "INVALID_INPUT", message: NOT_HOSTED_HERE });
   assert.equal(prepared, 0, "no export job started");
-  assert.equal(backend.hasWork(), false);
+  assert.equal(backend.hasWork?.({}), false);
   assert.equal(counter.uploads, 0);
   assert.deepEqual(await registry.list({}), []);
 });
@@ -144,8 +157,9 @@ test("the backend records the owner's choice from its own clock for its own fold
   const registry = await registryAt(t, { now: Date.now() });
   const now = Date.parse("2026-12-01T00:00:00.000Z");
   const backend = createSiteShareBackend({ createBundledFilePolicy: bundledFilePolicy, registry, site: "ws", prepare: async () => planContent(), zip: zipFolderFiles, delivery: async () => ownFolder(registry) }, { now: () => now });
-  const chosen = await backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 90 }, { waitMs: 5000 }) as { expiresAt?: string | null };
+  const chosen = await backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 90 }, { waitMs: 5000 }) as { shareId: string; expiresAt?: string | null };
   assert.equal(chosen.expiresAt, "2027-03-01T00:00:00.000Z");
+  assert.equal((await registry.get({ shareId: chosen.shareId, site: "ws" }))?.expiresAt, "2027-03-01T00:00:00.000Z");
 });
 
 test("an unreadable persisted expiry fails closed for serving only", async t => {

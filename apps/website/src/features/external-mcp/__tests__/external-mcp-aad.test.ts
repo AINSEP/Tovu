@@ -1,15 +1,11 @@
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { externalMcpVaultRecord } from "../external-mcp-vault.js";
-import { SITE_KEY_ENV_VAR_NAME } from "../../webhooks/site-key-read-bindings.js";
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
 import test from "node:test";
 
-process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
-
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer, LegacyUnboundAesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { FixedSiteKeyKeyring } from "../../webhooks/keyring.env.js";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
 
 /**
@@ -21,7 +17,7 @@ import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExterna
  * here is OAuth credentials for an external MCP server.
  */
 
-const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+const keyring = new FixedSiteKeyKeyring({ hex: "3a".repeat(32) });
 const sealer = new AesGcmSecretSealer({ keyring });
 const deps = { sealer, keyring };
 
@@ -101,7 +97,7 @@ test("external-mcp OAuth blob: CROSS-WORKSPACE transplant is rejected", async ()
 });
 
 test("external-mcp OAuth blob: ordinary reads reject unnormalized legacy envelopes", async () => {
-  const legacy = await sealer.seal({ plaintext: JSON.stringify({ clientSecret: "legacy-secret" }), key: await keyring.activeKey() });
+  const legacy = await new LegacyUnboundAesGcmSecretSealer({ keyring }).seal({ plaintext: JSON.stringify({ clientSecret: "legacy-secret" }), key: await keyring.activeKey({}) });
   await assert.rejects(openExternalMcpOAuthPayload(sealer, { workspaceId: WORKSPACE, serverId: SERVER_A,
     sealedOAuth: legacy, oauthAadVersion: 0 }), /could not be decrypted/);
 });

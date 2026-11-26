@@ -67,7 +67,7 @@ async function createPublished(params: {
   const created = await createEntry({
     deps,
     input: {
-      actorId: "user-1",
+      actorId: "user-1", actor: { id: "user-1", kind: "user" },
       workspaceId,
       type,
       slug: params.slug,
@@ -79,7 +79,7 @@ async function createPublished(params: {
   if (!created.ok) throw new Error("unreachable");
   const published = await publishEntry({
     deps,
-    input: { actorId: "user-1", workspaceId, id: created.value.entry.id, expectedVersion: created.value.entry.version },
+    input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId, id: created.value.entry.id, expectedVersion: created.value.entry.version },
   });
   assert.equal(published.ok, true, `publishEntry failed for "${params.slug}"`);
   if (!published.ok) throw new Error("unreachable");
@@ -146,7 +146,7 @@ describeEachDialect<Fixture>(
       const { repo } = make();
       const created = await createEntry({
         deps: depsFor(repo, "entry-1"),
-        input: { actorId: "user-1", workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
+        input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
       });
       assert.equal(created.ok, true);
       assert.equal(await repo.findById({ workspaceId: "ws-2", id: "entry-1" }), null);
@@ -162,10 +162,10 @@ describeEachDialect<Fixture>(
       const deps = depsFor(repo, "entry-1");
       await createEntry({
         deps,
-        input: { actorId: "user-1", workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
+        input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
       });
-      await updateEntry({ deps, input: { actorId: "user-1", workspaceId: "ws-1", id: "entry-1", title: "Banana Bread v2", expectedVersion: 1 } });
-      await publishEntry({ deps, input: { actorId: "user-1", workspaceId: "ws-1", id: "entry-1", expectedVersion: 2 } });
+      await updateEntry({ deps, input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", id: "entry-1", title: "Banana Bread v2", expectedVersion: 1 } });
+      await publishEntry({ deps, input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", id: "entry-1", expectedVersion: 2 } });
       const rows = await kernel.query<{ op: string; entry_id: string; workspace_id: string }>(
         sql`SELECT op, entry_id, workspace_id FROM entry_revisions ORDER BY seq ASC`
       );
@@ -178,7 +178,7 @@ describeEachDialect<Fixture>(
       const deps = depsFor(repo, "entry-1");
       await createEntry({
         deps,
-        input: { actorId: "user-1", workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
+        input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
       });
       await assert.rejects(
         updateEntry({
@@ -188,7 +188,7 @@ describeEachDialect<Fixture>(
               throw new Error("simulated onWritten failure");
             },
           },
-          input: { actorId: "user-1", workspaceId: "ws-1", id: "entry-1", title: "Should Never Persist", expectedVersion: 1 },
+          input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", id: "entry-1", title: "Should Never Persist", expectedVersion: 1 },
         }),
         /simulated onWritten failure/
       );
@@ -311,7 +311,7 @@ describeEachDialect<Fixture>(
       await createPublished({ repo, workspaceId: "ws-2", idSeed: "recipe-other", slug: "other-workspace", siteFields: {} });
       await createEntry({
         deps: depsFor(repo, "recipe-draft", "ws-1", "recipe", RECIPE_FIELDS),
-        input: { actorId: "user-1", workspaceId: "ws-1", type: "recipe", slug: "draft-recipe", title: "Draft", fieldsJson: { ext: { site: {} } } },
+        input: { actorId: "user-1", actor: { id: "user-1", kind: "user" }, workspaceId: "ws-1", type: "recipe", slug: "draft-recipe", title: "Draft", fieldsJson: { ext: { site: {} } } },
       });
       const trashed = await createPublished({ repo, idSeed: "recipe-trashed", slug: "trashed-recipe", siteFields: {} });
       await trash(kernel, trashed.id);

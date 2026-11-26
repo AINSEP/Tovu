@@ -7,16 +7,20 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type Database from "better-sqlite3";
-
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { InMemoryContentLookup } from "@jini-ai/cms/taxonomy";
+import { ContentRecordNotFoundError, InMemoryContentLookup, TaxonomyNotApplicableError, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 import type { TaxonomyPublishPorts } from "@jini-ai/cms/taxonomy/publish-ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { contributeCollectionEntryPublish } from "@jini-ai/cms/entries/site/publish-content";
+import { applyRunActor, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+
+const collectionEntryBindings = { ...repoPublishBindings, ...termSyncBindings, applyRunActor, okOrThrow,
+  ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError, excludedTypes: ["widget", "widget_area"] };
+
 const at = "2026-09-01T00:00:00.000Z";
 const soupBody = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Simmer the tomatoes for twenty minutes." }] }] };
 
@@ -50,7 +54,7 @@ async function instance() {
     tombstonedAt: null,
   });
   const trash = (id: string) =>
-    (db as unknown as { $client: Database.Database }).$client.prepare("UPDATE entries SET deleted_at = ? WHERE id = ?").run(at, id);
+    db.$client.prepare("UPDATE entries SET deleted_at = ? WHERE id = ?").run(at, id);
   // No entry here carries terms; the bag is the real SQLite one so `termIds` reads stay real.
   const terms: TaxonomyPublishPorts = {
     taxonomies: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WORKSPACE_ID }, {}),
@@ -65,7 +69,7 @@ async function instance() {
 }
 
 async function sites() {
-  registerOnly([contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] })]);
+  registerOnly([contributeCollectionEntryPublish(collectionEntryBindings)]);
   const src = await instance();
   const dst = await instance();
   await src.entries.save(entry({ id: "e-soup", slug: "soup", bodyJson: soupBody }));
@@ -166,7 +170,7 @@ test("collection-entry: the same id created at the destination after the plan is
 });
 
 test("collection-entry termIds: packed sorted, synced exactly on the destination, then unchanged; none = omitted", async () => {
-  registerOnly([contributeTaxonomyPublish(), contributeTermPublish(), contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] })]);
+  registerOnly([contributeTaxonomyPublish(repoPublishBindings), contributeTermPublish(repoPublishBindings), contributeCollectionEntryPublish(collectionEntryBindings)]);
   const [src, dst] = [sqliteContentSite(), sqliteContentSite()];
   for (const site of [src, dst]) {
     await site.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "recipe", label: "Recipes", fields: [{ name: "servings", kind: "integer", required: false, queryable: false }], status: "active", version: 1, tombstonedAt: null });
@@ -186,7 +190,9 @@ test("collection-entry termIds: packed sorted, synced exactly on the destination
 
   const { entities, second } = await roundTrip(source, dest);
   assert.deepEqual(entities.find((e) => e.id === "e-soup")?.state.termIds, ["t-quick", "t-veg"]);
-  assert.equal("termIds" in (entities.find((e) => e.id === "e-plain")?.state ?? {}), false);
+  const plain = entities.find((e) => e.id === "e-plain");
+  assert.ok(plain);
+  assert.equal("termIds" in plain.state, false);
   assert.deepEqual(await assigned(), ["t-quick", "t-veg"]);
   assert.deepEqual(second.rows.map((r) => r.outcome).filter((o) => o !== "unchanged"), []);
 
@@ -202,11 +208,11 @@ test("collection-entry termIds: packed sorted, synced exactly on the destination
 // own permissions. A `collection-entry` entity naming one of their types must not write them: a
 // publishing grant limited to `collection-entry` would otherwise edit widgets it never named.
 async function widgetSmuggle() {
-  registerOnly([contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] })]);
+  registerOnly([contributeCollectionEntryPublish(collectionEntryBindings)]);
   const dst = await instance();
   await dst.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "widget", label: "Widgets", fields: [], status: "active", version: 1, tombstonedAt: null });
   const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes: dst.contentTypes, terms: dst.terms } }, "dst");
-  const handler = contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }).build(dest);
+  const handler = contributeCollectionEntryPublish(collectionEntryBindings).build({ ...dest, mutationActor: { id: "operator-1", kind: "user" } });
   const state = { type: "widget", slug: "evil", title: "Evil", status: "published", bodyJson: null, fieldsJson: { ext: { site: {} } } };
   const entity = { entityType: "collection-entry", id: "w-evil", schemaVersion: 2, contentHash: "x", hashVersion: 1, requiredBlobs: [], state };
   return { dst, handler, entity };
@@ -249,7 +255,7 @@ test("collection-entry: a missing owning type may arrive after precheck, and omi
   const contentTypes = new InMemoryContentTypeRepo();
   const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes, terms: dst.terms } }, "late-owner");
   // As the apply port does: the run's trusted actor is merged into the handler deps (FIX 19 / H2).
-  const handler = contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }).build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
+  const handler = contributeCollectionEntryPublish(collectionEntryBindings).build({ ...dest, mutationActor: { id: "owner", kind: "user" } });
   const packed = (await packAll(source)).find(entity => entity.id === "e-cake");
   assert.ok(packed);
   const state = { ...packed.state };
@@ -269,7 +275,7 @@ test("collection-entry: a missing owning type may arrive after precheck, and omi
 
 test("collection-entry references include its owning collection and assigned terms", async () => {
   const { source, dest } = await sites();
-  const handler = contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }).build(dest);
+  const handler = contributeCollectionEntryPublish(collectionEntryBindings).build(dest);
   const packed = (await packAll(source)).find(entity => entity.id === "e-soup");
   assert.ok(packed);
   assert.ok(handler.references);

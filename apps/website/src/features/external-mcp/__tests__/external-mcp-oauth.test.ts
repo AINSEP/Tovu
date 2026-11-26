@@ -1089,7 +1089,7 @@ function keyringWhoseActiveKeyFailsThenRecovers(inner: KeyringPort, failures: nu
     activeKey: () => {
       calls += 1;
       if (calls <= failures) return Promise.reject(new Error("TOVU_SITE_KEY is not set"));
-      return inner.activeKey();
+      return inner.activeKey({});
     },
     deriveSigningSecret: (input) => inner.deriveSigningSecret(input),
     derive: (input) => inner.derive(input),

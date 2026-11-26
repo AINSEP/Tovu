@@ -90,7 +90,7 @@ test("postgres: two writers on the same base version, B blocked on A's row lock 
 test("postgres: two import-as-creates of one id, B blocked on A's uncommitted insert — one row, one revision, one event; B is a version conflict", async () => {
   const events: string[] = [];
   const base = { contentTypeRepo: { findByKey: async () => ({ workspaceId: "ws-1", key: "recipe", status: "active" as const, fields: [] }) }, clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") }, authorize: async () => ({ allowed: true, reason: "ok" }), outbox: { enqueue: async (event: { name: string }) => void events.push(event.name) } };
-  const input = (title: string) => ({ workspaceId: "ws-1", actorId: "user-1", id: "created-1", type: "recipe", slug: "created", title, status: "draft" as const, fieldsJson: { ext: { site: {} } }, publishedAt: null, expectedVersion: undefined });
+  const input = (title: string) => ({ workspaceId: "ws-1", actorId: "user-1", actor: { id: "user-1", kind: "user" as const }, id: "created-1", type: "recipe", slug: "created", title, status: "draft" as const, fieldsJson: { ext: { site: {} } }, publishedAt: null, expectedVersion: undefined });
 
   let releaseA!: () => void;
   const aMayCommit = new Promise<void>((resolve) => (releaseA = resolve));

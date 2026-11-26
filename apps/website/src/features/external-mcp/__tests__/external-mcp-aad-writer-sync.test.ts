@@ -9,7 +9,6 @@ import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { hostedMcpSignInLink } from "../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
-import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
 import { EXTERNAL_MCP_VAULT_VERSION } from "@jini-ai/mcp/federation/hosted";
