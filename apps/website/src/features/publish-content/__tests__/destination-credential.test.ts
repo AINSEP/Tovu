@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PublishTrustHandshakeError, type PublishSession } from "@jini-ai/cms/publish/trust/handshake-client";
+import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-error";
+import type { openPublishSession, PublishSession } from "@jini-ai/cms/publish/trust/handshake-client";
 import { resolvePublishDestinationCredential, type PublishDestinationCredentialDeps } from "../destination-credential.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
-import { type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
+import { createPublishContentPeer, type PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { InMemoryPublishContentPeerRepo } from "../peers.js";
 
 /** @file The connected-destination branch of `resolvePublishDestinationCredential` with the
  *  handshake replaced by a recording session opener (the real three-call handshake is proven
@@ -20,12 +24,15 @@ function connectedRecord(over: Partial<PublishContentPeerRecord> = {}): PublishC
 }
 
 function depsWith(record: PublishContentPeerRecord | null): PublishDestinationCredentialDeps {
-  const repo = { findById: async () => record } as unknown as PublishDestinationCredentialDeps["repo"];
-  return { repo, sealer: {} as never, keyring: {} as never, httpClient: {} as never };
+  const repo = new InMemoryPublishContentPeerRepo();
+  if (record) repo.findById = async ({ workspaceId, id }) =>
+    workspaceId === record.workspaceId && id === record.id ? record : null;
+  const keyring = new InMemoryKeyring();
+  return { repo, sealer: new AesGcmSecretSealer({ keyring }), keyring, httpClient: { send: async () => assert.fail("no live HTTP request expected") } };
 }
 
 function sessionAnswering(workspaceId: string, calls: unknown[]) {
-  return async ({ input }: { deps: unknown; input: unknown }): Promise<PublishSession> => {
+  return async ({ input }: Parameters<typeof openPublishSession>[0]): Promise<PublishSession> => {
     calls.push(input);
     return { token: "session-token", expiresAt: "2026-10-01T01:00:00.000Z", capabilities: [], identity: { installationId: "inst", workspaceId, origin: "https://destination.test" } };
   };
@@ -61,9 +68,14 @@ test("a destination now answering for a different workspace is refused — publi
 
 test("a row with a sealed key takes the explicit-peer path: no handshake, and an unopenable key surfaces only the safe error", async () => {
   const calls: unknown[] = [];
-  const sealed = connectedRecord({ sealed: { ciphertext: "not-a-real-envelope" } as never });
+  const deps = depsWith(null);
+  const { id } = await createPublishContentPeer({
+    deps: { ...deps, clock: { nowMs: () => 0 }, idGen: { newId: () => "dest-1" } },
+    input: { workspaceId: WS, label: "destination.test", baseUrl: "https://destination.test", remoteWorkspaceId: "dest-ws", apiKey: "fixture-key" },
+  });
+  deps.sealer.open = async () => { throw new Error("private decrypt failure"); };
   await assert.rejects(
-    resolvePublishDestinationCredential({ deps: depsWith(sealed), input: { workspaceId: WS, id: "dest-1" } }, { openSession: sessionAnswering("dest-ws", calls) }),
+    resolvePublishDestinationCredential({ deps, input: { workspaceId: WS, id } }, { openSession: sessionAnswering("dest-ws", calls) }),
     (error: unknown) => error instanceof PublishContentPeerSecretStoreUnconfiguredError
       && error.message === "peer 'destination.test' credential could not be opened",
   );

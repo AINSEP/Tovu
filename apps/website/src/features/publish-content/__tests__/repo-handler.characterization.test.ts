@@ -3,7 +3,6 @@
  * (`repo-handler.test.ts`) does not pin, written before the factory was split by responsibility
  * (publish-engine P0.6). Each case names the config field or step it guards.
  */
-import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -14,8 +13,7 @@ import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/
 import { changedSincePlan, notWired } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
 import type { RepoPublishTypeConfig, RepoWriteContext } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentDeps } from "../type-registry.js";
-import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PublishContentDeps, PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const WORKSPACE_ID = "workspace-1";
@@ -29,7 +27,7 @@ interface Row {
 }
 type Ports = { readonly rows: Map<string, Row> };
 
-function makeDeps(ports: Ports | undefined, overrides: Partial<PublishContentDeps> = {}): PublishContentDeps & { ports: unknown } {
+function makeDeps(ports: Ports | undefined, overrides: Partial<PublishContentDeps<{ holder?: Ports }>> = {}): PublishContentDeps<{ holder?: Ports }> {
   return {
     workspaceId: WORKSPACE_ID,
     ports: { holder: ports },
@@ -41,7 +39,7 @@ function makeDeps(ports: Ports | undefined, overrides: Partial<PublishContentDep
     mutationActor: { id: "op-1", kind: "user" },
     outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
     ...overrides,
-  } as never;
+  };
 }
 
 function workingChangeSets(inserted: Array<{ record: ChangeSetRecord; items: ChangeSetItemRecord[] }> = []): ChangeSetRepoPort {
@@ -51,11 +49,11 @@ function workingChangeSets(inserted: Array<{ record: ChangeSetRecord; items: Cha
   };
 }
 
-function config(overrides: Partial<RepoPublishTypeConfig<Row, Ports>> = {}): RepoPublishTypeConfig<Row, Ports> {
+function config(overrides: Partial<RepoPublishTypeConfig<Row, Ports, { holder?: Ports }>> = {}): RepoPublishTypeConfig<Row, Ports, { holder?: Ports }> {
   return {
     entityType: "widget",
     permission: "admin.widgets.manage",
-    ports: ({ deps }, _optional = {}) => (deps.ports as { holder?: Ports }).holder,
+    ports: ({ deps }, _optional = {}) => deps.ports.holder,
     list: async ({ ports }) => [...ports.rows.values()],
     find: async ({ ports, id }) => ports.rows.get(id) ?? null,
     fields: { id: "local", title: "transferred", subtitle: "transferred", note: "provenance", version: "local" },
@@ -144,7 +142,7 @@ test("extend receives the deps and a ports reader that reads the bag when it is 
     extend: (ctx) => { reader = ctx.ports; return { seedHash: async () => "seed" }; },
   })).build(makeDeps(undefined));
   assert.equal(reader?.(), undefined);
-  assert.equal(await handler.seedHash?.({ id: "w1" } as never), "seed");
+  assert.equal(await handler.seedHash?.({ id: "w1" }), "seed");
 });
 
 test("not wired: the messages name the ports key, which defaults to the entity type", async () => {
@@ -193,10 +191,10 @@ test("a PublishContentApplyRowError and a non-Error thrown by write pass through
 test("the write context carries the ports, deps, ids, state, existing row, expected version, principal and replacement", async () => {
   const ports: Ports = { rows: new Map([["w1", row()]]) };
   const deps = makeDeps(ports);
-  let seen: RepoWriteContext<Row, Ports, TovuPublishPorts> | undefined;
+  let seen: RepoWriteContext<Row, Ports, { holder?: Ports }> | undefined;
   const handler = createRepoPublishHandler(config({ write: async (ctx) => { seen = ctx; } })).build(deps);
   const replacement = { version: 3, sourceSha256: "b".repeat(64) };
-  const result = await handler.apply(applyInput("w1", { expectedVersion: 3, sourceReplacement: replacement as never }));
+  const result = await handler.apply(applyInput("w1", { expectedVersion: 3, sourceReplacement: replacement }));
   assert.equal(seen!.ports, ports);
   assert.equal(seen!.deps, deps);
   assert.deepEqual([seen!.workspaceId, seen!.id, seen!.expectedVersion, seen!.principalId], [WORKSPACE_ID, "w1", 3, "op-1"]);

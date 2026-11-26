@@ -18,6 +18,10 @@
  * with Task 2's own contract, not just with a fake built to match it. Section 3 covers
  * catalog ordering through `planImport`; invalid catalog cases live in `type-registry.test.ts`.
  */
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+import type { TovuPublishPorts } from "../tovu-publish-ports.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -30,6 +34,8 @@ import { planImport, type PlanImportDeps } from "@jini-ai/cms/publish/content/pl
 import { entityDisplayLabel, entityKey, packedEntityLabel, type BaselineRecord, type PublishContentBundle } from "@jini-ai/cms/publish/content/plan-rows";
 import type { RetireTarget, ReferenceHolder } from "@jini-ai/cms/publish/content/type-registry";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
 
 test.beforeEach(() => {
   resetPublishContentContributorsForTests();
@@ -111,11 +117,11 @@ function makeDeps(options: {
    *  "no row for this id" case. Omitted entirely (`undefined`) means `getSeedHash` is not wired at
    *  all, the same as today's one production call site (`gated-hooks.ts`) until it is. */
   seedHashes?: Map<string, string | null>;
-}): PlanImportDeps {
+}): PlanImportDeps<TovuPublishPorts> {
   const baselines = options.baselines ?? new Map();
   const availableBlobs = options.availableBlobs ?? new Set();
   return {
-    catalog: { build: buildPublishContentCatalog }, publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId: "ws", clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: {} },
     getBaseline: async ({ entityType, entityId }) => baselines.get(entityKey({ entityType, entityId })) ?? null,
     hasBlob: async ({ sha256 }) => availableBlobs.has(sha256),
     forcedEntityKeys: options.forcedEntityKeys,
@@ -853,8 +859,8 @@ test("refused: bundle.hashVersion mismatch refuses the WHOLE run — no rows, no
   const before = snapshot(destination);
 
   let baselineReads = 0;
-  const deps: PlanImportDeps = {
-    catalog: { build: buildPublishContentCatalog }, publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
+  const deps: PlanImportDeps<TovuPublishPorts> = {
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId: "ws", clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: {} },
     getBaseline: async () => {
       baselineReads += 1;
       return null;
@@ -991,9 +997,9 @@ test("real post contributor: created + byte-identical destination", async () => 
   const { contributeMediaPublish } = await import("../../media/publish-content.js");
   const { contributeTaxonomyPublish, contributeTermPublish } = await import("@jini-ai/cms/taxonomy/site/publish-content");
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
-  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
-  registerPublishContentContributor({ contributor: contributeTermPublish() });
-  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributeTermPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributePostPublish(postBindings) });
 
   const workspaceId = "11111111-1111-1111-1111-111111111111";
   const existing = {
@@ -1022,7 +1028,7 @@ test("real post contributor: created + byte-identical destination", async () => 
     requiredBlobs: [],
     state: newPostState,
   };
-  const deps: PlanImportDeps = {
+  const deps: PlanImportDeps<TovuPublishPorts> = {
     catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,
@@ -1039,9 +1045,9 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
   const { contributeMediaPublish } = await import("../../media/publish-content.js");
   const { contributeTaxonomyPublish, contributeTermPublish } = await import("@jini-ai/cms/taxonomy/site/publish-content");
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
-  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
-  registerPublishContentContributor({ contributor: contributeTermPublish() });
-  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributeTermPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributePostPublish(postBindings) });
 
   const workspaceId = "11111111-1111-1111-1111-111111111111";
   const existing = {
@@ -1070,7 +1076,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
     requiredBlobs: [],
     state: incomingState,
   };
-  const deps: PlanImportDeps = {
+  const deps: PlanImportDeps<TovuPublishPorts> = {
     catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,

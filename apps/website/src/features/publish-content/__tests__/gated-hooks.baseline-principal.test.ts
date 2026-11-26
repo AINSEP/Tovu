@@ -11,6 +11,7 @@
  * since the last sync (its hash equals the baseline hash) and the incoming content differs, so a
  * correct baseline lookup yields a row that writes, and a missing baseline yields a conflict.
  */
+import { actorForMutation } from "#src/server/runtime/composition/mutation-actor";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -74,7 +75,7 @@ async function planRowWithBaselineUnder({ baselinePeer }: { baselinePeer: string
   const idGen = { newId: () => `id-${++nextId}` };
   const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
   const hooks = buildPublishContentImportHooks({
-    workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ADMIN_ID, clock, idGen,
+    workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ADMIN_ID, actor: actorForMutation({ principalId: ADMIN_ID, origin: "admin" }), clock, idGen,
     planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}) } } },
     bundleRepo, baselineRepo, blobStore: { exists: async () => true },
@@ -92,7 +93,7 @@ async function planRowWithBaselineUnder({ baselinePeer }: { baselinePeer: string
 test("the plan reads the baseline saved under the bundle's source principal: an unchanged destination writes", async () => {
   const row = await planRowWithBaselineUnder({ baselinePeer: SOURCE_PEER_ID });
   assert.equal(row?.writes, true);
-  assert.notEqual(row?.outcome, "conflict");
+  assert.equal(row?.outcome, "applied");
 });
 
 test("a baseline saved under the confirming admin or another peer is not read: the row is a conflict", async () => {

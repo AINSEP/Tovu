@@ -6,6 +6,7 @@
  * Each case names the check it guards; the mutation table (rows AL*, AR*) shows it fails when the
  * check is removed.
  */
+import { actorForMutation } from "#src/server/runtime/composition/mutation-actor";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -78,7 +79,7 @@ function harness() {
     workspaceId: WS, bundleRepo, baselineRepo, runRepo, publishContentDeps, clock, idGen, ...extra,
   });
   const apply = async (entities: PackedEntity[], report: PublishContentReport, extra: Record<string, unknown> = {}) =>
-    port().applyReport({ report, principalId: OP, bundleId: await stage(entities), restorePointId: "rp-1", ...extra });
+    port().applyReport({ report, principalId: OP, actor: actorForMutation({ principalId: OP, origin: "admin" }), bundleId: await stage(entities), restorePointId: "rp-1", ...extra });
   return { bundleRepo, baselineRepo, runRepo, publishContentDeps, register, stage, port, apply, idGen };
 }
 
@@ -86,7 +87,7 @@ const hash = (type: string, id: string) => pack(type, id).contentHash;
 
 test("a missing or expired bundle is refused with the exact words, before any run row", async () => {
   const h = harness();
-  await assert.rejects(h.port().applyReport({ report: reportOf([]), principalId: OP, bundleId: "nope", restorePointId: "rp" }),
+  await assert.rejects(h.port().applyReport({ report: reportOf([]), principalId: OP, actor: actorForMutation({ principalId: OP, origin: "admin" }), bundleId: "nope", restorePointId: "rp" }),
     (err: Error) => err.message === `publish-content: bundle 'nope' was not found, or has expired, for workspace '${WS}'`);
   assert.equal(h.runRepo.saved.length, 0);
 });
@@ -97,8 +98,11 @@ test("the caller's authorize and backstop replace the port's own in the bag ever
   const authorize = async () => ({ allowed: true, reason: "attenuated" });
   const backstop = { coveredTables: ["x"], coveredRoots: [] };
   await h.apply([pack("thing", "a")], reportOf([row("thing", "a", "created")]), { authorize, backstop });
-  const built = script.builtWith.at(-1)!;
-  assert.equal((await built.authorize!({} as never)).reason, "attenuated", "the caller's authorize answers for the handlers");
+  const built = script.builtWith.at(-1);
+  assert.ok(built?.authorize);
+  assert.deepEqual(await built.authorize({ workspaceId: WS, principalId: OP, permission: "content.write", entityType: "thing", entityId: "a" }),
+    { allowed: true, reason: "attenuated" }, "the caller's authorize answers for the handlers");
+  assert.equal(built.authorize, authorize);
   assert.equal(built.backstop, backstop);
   await h.apply([pack("thing", "a")], reportOf([row("thing", "a", "created")]));
   assert.equal(script.builtWith.at(-1)!.backstop, undefined, "no backstop is invented when the caller gives none");
@@ -282,9 +286,9 @@ test("send by hand: the audit row is saved pending with each item's hash before 
   assert.equal(a.saves.length, 2);
   assert.deepEqual([a.saves[0]!.result, a.saves[0]!.direction, a.saves[0]!.actorId, a.saves[0]!.destination, a.saves[0]!.reason, a.saves[0]!.runId],
     ["pending", "destination", "admin-1", "live.example", metadata.reason, result.runId]);
-  assert.equal((a.saves[0]!.gapLabels as string[]).length, 1, "the destination derives its own gap labels");
+  assert.deepEqual(a.saves[0]?.gapLabels, ["table:p_widgets"], "the destination derives its own gap labels");
   assert.deepEqual(a.saves[0]!.items, [{ entityType: "raw-row", id: entity.id, beforeHash: "hash-before", afterHash: entity.contentHash }]);
-  assert.equal((result.report as { backstop?: unknown }).backstop !== undefined, true);
+  assert.deepEqual(result.report?.backstop, { ...metadata, gapLabels: ["table:p_widgets"] });
   assert.equal(JSON.parse(h.runRepo.saved[0]!.reportJson!).backstop.reason, metadata.reason, "the run row's report carries the send's metadata from the start");
   assert.equal(a.saves[1]!.result, "success");
   assert.deepEqual(a.saves[1]!.inverses, a.inverses);

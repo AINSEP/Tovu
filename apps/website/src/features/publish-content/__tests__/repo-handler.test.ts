@@ -19,8 +19,7 @@ import {
 } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler } from "@jini-ai/cms/publish/content/repo-handler";
 import type { RepoPublishTypeConfig } from "@jini-ai/cms/publish/content/repo-handler";
-import type { PublishContentDeps } from "../type-registry.js";
-import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PublishContentDeps, PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
@@ -80,17 +79,13 @@ class FakeItemRepo {
 }
 
 type ItemPorts = { readonly repo: FakeItemRepo };
-/** F1's own test-only extension of the real `PublishContentDeps` — F2 (a later slice) is what adds a
- *  real generic `ports` bag to that interface; until then a factory-config test reads off its own ad
- *  hoc field, the same way `features/redirects/__tests__/publish-content.test.ts` casts
- *  `postRepo: undefined as unknown as ...` for a field it has no use for. */
-type TestDeps = PublishContentDeps & { itemPorts?: ItemPorts };
+type TestDeps = PublishContentDeps<{ item?: ItemPorts }>;
 
 function makeDeps(itemPorts: ItemPorts | undefined, overrides: Partial<TestDeps> = {}): TestDeps {
   let clockTick = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    ports: {},
+    ports: { item: itemPorts },
     clock: { nowMs: () => Date.parse(`2026-09-25T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },
     idGen: { newId: () => "unused-in-these-tests" },
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
@@ -98,7 +93,6 @@ function makeDeps(itemPorts: ItemPorts | undefined, overrides: Partial<TestDeps>
     // The apply port merges the run's trusted actor into every handler's deps (`openRun`); a handler driven
     // without one is refused before it writes (FIX 19 / H2).
     mutationActor: { id: "op-1", kind: "user" },
-    itemPorts,
     ...overrides,
   };
 }
@@ -138,11 +132,11 @@ function workingChangeSets(inserted: Array<{ record: ChangeSetRecord; items: Cha
   };
 }
 
-function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts>> = {}): RepoPublishTypeConfig<Row, ItemPorts> {
+function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts, TestDeps["ports"]>> = {}): RepoPublishTypeConfig<Row, ItemPorts, TestDeps["ports"]> {
   return {
     entityType: "item",
     permission: "admin.items.manage",
-    ports: ({ deps }, _optional = {}) => (deps as TestDeps).itemPorts,
+    ports: ({ deps }, _optional = {}) => deps.ports.item,
     list: ({ ports, workspaceId }) => ports.repo.list(workspaceId),
     find: ({ ports, workspaceId, id }) => ports.repo.find(workspaceId, id),
     isTrashed: ({ row }) => row.status === "trashed",
@@ -169,7 +163,7 @@ function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts>> = 
   };
 }
 
-function buildHandler(config: RepoPublishTypeConfig<Row, ItemPorts>, deps: TestDeps): PublishContentHandler {
+function buildHandler(config: RepoPublishTypeConfig<Row, ItemPorts, TestDeps["ports"]>, deps: TestDeps): PublishContentHandler {
   return createRepoPublishHandler(config).build(deps);
 }
 
@@ -509,7 +503,7 @@ test("with undo and a working change-set repo, apply succeeds and the row lands"
     principalId: "op-1",
     idempotencyKey: "key-1",
   });
-  assert.ok(changeSetId.length > 0);
+  assert.equal(changeSetId, "unused-in-these-tests");
   assert.equal((await repo.find(WORKSPACE_ID, "x"))?.title, "X");
 });
 

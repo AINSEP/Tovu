@@ -1,3 +1,9 @@
+import { repoPublishBindings, termSyncBindings, widgetPublishPolicy } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor, okOrThrow } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+import { updateMenuTree } from "@jini-ai/cms/navigation/node";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
+import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -10,6 +16,8 @@ import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/c
 import type { PublishContentContributor, PublishContentDeps } from "../type-registry.js";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
+
 /**
  * @file Plan G3 — each registered type's `references()`: what a scoped publish carries along with it
  * (`export-bundle.ts`'s `includeReferencedEntities` is tested on its own in
@@ -17,11 +25,12 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
  * packed entity, so a bare deps bag is enough.
  */
 
-const DEPS = { ports: {} } as unknown as PublishContentDeps;
+const DEPS: PublishContentDeps = { workspaceId: "ws", clock: { nowMs: () => 0 }, idGen: { newId: () => "unused" }, ports: {} };
 
 function referencesOf(contributor: PublishContentContributor, entityType: string, state: Record<string, unknown>) {
   const packed: PackedEntity = { entityType, id: "x", schemaVersion: 1, contentHash: "h", hashVersion: 1, requiredBlobs: [], state };
   const handler = contributor.build(DEPS);
+  assert.equal(handler.entityType, entityType);
   return (handler.references?.({ entity: packed }) ?? []).map((ref) => `${ref.entityType}:${ref.key}`).sort();
 }
 
@@ -38,17 +47,18 @@ test("a page or post carries its images, its embedded widgets (node or html mark
     termIds: ["t1", "t2"],
   };
   const expected = ["media:m1", "term:t1", "term:t2", "widget:signup", "widget:w1"];
-  assert.deepEqual(referencesOf(contributePagePublish(), "page", state), expected);
-  assert.deepEqual(referencesOf(contributePostPublish(), "post", state), expected, "another post's embed is not carried");
+  assert.deepEqual(referencesOf(contributePagePublish(postBindings), "page", state), expected);
+  assert.deepEqual(referencesOf(contributePostPublish(postBindings), "post", state), expected, "another post's embed is not carried");
 });
 
 test("a collection entry carries its collection and what its body embeds", () => {
   const state = { type: "recipe", bodyJson: { type: "doc", content: [{ type: "widgetEmbed", attrs: { widgetEntryId: "w1" } }] } };
-  assert.deepEqual(referencesOf(contributeCollectionEntryPublish({ excludedTypes: ["widget", "widget_area"] }), "collection-entry", state), ["content-type:recipe", "widget:w1"]);
+  assert.deepEqual(referencesOf(contributeCollectionEntryPublish({ ...repoPublishBindings, ...termSyncBindings, applyRunActor, okOrThrow,
+    ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError, excludedTypes: ["widget", "widget_area"] }), "collection-entry", state), ["content-type:recipe", "widget:w1"]);
 });
 
 test("a widget carries the form, menu or term its config names", () => {
-  const widget = contributeWidgetPublish();
+  const widget = contributeWidgetPublish(widgetPublishPolicy);
   assert.deepEqual(referencesOf(widget, "widget", { widgetType: "contact-form", config: { formDefinitionId: "contact" } }), ["form:contact"]);
   assert.deepEqual(referencesOf(widget, "widget", { widgetType: "menu", config: { menuRef: "nav-1" } }), ["menu:nav-1"]);
   assert.deepEqual(referencesOf(widget, "widget", { widgetType: "recent-entries", config: { categoryTermId: "t1", maxItems: 3 } }), ["term:t1"]);
@@ -56,7 +66,7 @@ test("a widget carries the form, menu or term its config names", () => {
 });
 
 test("a widget carries the media files its settings link to, read through its type's config schema", () => {
-  const widget = contributeWidgetPublish();
+  const widget = contributeWidgetPublish(widgetPublishPolicy);
   const body = "Menu: https://example.com/m/lunch-menu/original.v1/menu.pdf and /media/m2/thumb.webp";
   assert.deepEqual(referencesOf(widget, "widget", { widgetType: "text", config: { body } }), ["media:lunch-menu", "media:m2"]);
   const links = [
@@ -75,16 +85,16 @@ test("a widget area carries the widgets it places", () => {
     { placementId: "p1", widgetEntryId: "w1", enabled: true },
     { placementId: "p2", widgetEntryId: "w2", enabled: false },
   ];
-  assert.deepEqual(referencesOf(contributeWidgetAreaPublish(), "widget-area", { regionKey: "sidebar", placements }), ["widget:w1", "widget:w2"]);
+  assert.deepEqual(referencesOf(contributeWidgetAreaPublish(widgetPublishPolicy), "widget-area", { regionKey: "sidebar", placements }), ["widget:w1", "widget:w2"]);
 });
 
 test("a term carries its taxonomy and its parent", () => {
-  const term = contributeTermPublish();
+  const term = contributeTermPublish(repoPublishBindings);
   assert.deepEqual(referencesOf(term, "term", { taxonomyId: "tx1", parentId: "t0", name: "Soup" }), ["taxonomy:tx1", "term:t0"]);
   assert.deepEqual(referencesOf(term, "term", { taxonomyId: "tx1", parentId: null, name: "Soup" }), ["taxonomy:tx1"]);
 });
 
 test("a menu carries nothing: its links point at other content rather than being part of it", () => {
   const items = [{ id: "i1", label: "Home", target: { kind: "entryRef", entryId: "pg1" } }];
-  assert.deepEqual(referencesOf(contributeMenusPublish(), "menu", { slug: "main", doc: { items } }), []);
+  assert.deepEqual(referencesOf(contributeMenusPublish({ createRepoPublishHandler: repoPublishBindings.createRepoPublishHandler, applyRunActor, updateMenuTree }), "menu", { slug: "main", doc: { items } }), []);
 });

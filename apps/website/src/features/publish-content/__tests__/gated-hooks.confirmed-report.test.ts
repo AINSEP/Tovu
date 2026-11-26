@@ -18,6 +18,7 @@
  * The invariant this file pins: whatever `applyReport` receives is the report `gateway.execute()`
  * verified against the token, never a second derivation.
  */
+import { actorForMutation } from "#src/server/runtime/composition/mutation-actor";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -35,7 +36,7 @@ import {
 } from "@jini-ai/cms/publish/content/gated-hooks";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/plan-rows";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
-import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import { buildPublishContentCatalog, registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps } from "../type-registry.js";
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
@@ -150,7 +151,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
     save: async (row) => { restorePoints.set(row.restorePointId, structuredClone(row)); },
   };
 
-  let applied: PublishContentReport | null = null;
+  const applied: PublishContentReport[] = [];
   const applyPort: PublishContentApplyPort = {
     applyReport: async ({ report, restorePointId }) => {
       assert.deepEqual(restorePoints.get(restorePointId), {
@@ -158,7 +159,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
         trigger: "publish-content-import", createdAt: "2026-09-20T12:00:00.000Z",
         createdBy: ACTOR_ID, artifactRef: "artifact-1", watermarkAtCapture: 1,
       }, "the recovery artifact must already be stored before apply");
-      applied = report;
+      applied.push(report);
       return { runId: "run-1", changeSetIds: [], retiredChangeSetIds: [], repointChangeSetIds: [], menuLinksUpdated: 0, menuLinksNotUpdated: [], verificationProblems: [] };
     },
   };
@@ -167,6 +168,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
     workspaceId: WORKSPACE_ID,
     bundleId: BUNDLE_ID,
     actorId: ACTOR_ID,
+    actor: actorForMutation({ principalId: ACTOR_ID, origin: "admin" }),
     planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     clock,
     idGen,
@@ -208,8 +210,8 @@ test("publish-content applies the report the gateway verified, not one re-derive
   assert.equal(restorePoints.size, 1);
   assert.equal((executed as { restorePointId: string }).restorePointId, [...restorePoints.keys()][0]);
 
-  assert.notEqual(applied, null, "applyReport was never called");
-  const appliedReport = applied as unknown as PublishContentReport;
+  assert.equal(applied.length, 1, "applyReport must run exactly once");
+  const [appliedReport] = applied;
   assert.equal(
     appliedReport.rows[0]?.outcome,
     "conflict",
@@ -219,14 +221,14 @@ test("publish-content applies the report the gateway verified, not one re-derive
 });
 
 /** A minimal hooks bag around `bundleRepo` whose apply port records exactly what it was handed. */
-function minimalHooks(bundleRepo: InMemoryPublishContentBundleRepo, extraDeps: Record<string, unknown>, seen: Array<Record<string, unknown>>) {
+function minimalHooks(bundleRepo: InMemoryPublishContentBundleRepo, extraDeps: Pick<PublishContentDeps, "backstop" | "authorize">, seen: Array<Parameters<PublishContentApplyPort["applyReport"]>[0]>) {
   let nextId = 0;
   const idGen = { newId: () => `min-${++nextId}` };
   const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
   const hooks = buildPublishContentImportHooks({
-    workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ACTOR_ID, clock, idGen,
+    workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ACTOR_ID, actor: actorForMutation({ principalId: ACTOR_ID, origin: "admin" }), clock, idGen,
     planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
-    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}) } }, ...extraDeps } as never,
+    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}) } }, ...extraDeps },
     bundleRepo, baselineRepo: new InMemoryPublishContentBaselineRepo(), blobStore: { exists: async () => true },
     dbOps: { captureRestorePoint: async () => ({ artifactRef: "artifact-min", watermarkAtCapture: 1 }) },
     restorePointsRepo: { save: async () => {} },
@@ -246,7 +248,7 @@ for (const changed of ["version", "source"] as const) {
     registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
     const bundleRepo = new InMemoryPublishContentBundleRepo();
     await bundleRepo.save({ record: stagedBundle() });
-    const seen: Array<Record<string, unknown>> = [];
+    const seen: Array<Parameters<PublishContentApplyPort["applyReport"]>[0]> = [];
     const { hooks, deps } = minimalHooks(bundleRepo, {}, seen);
     const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });
     const token = await confirm({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, planId: planned.planId, planHash: planned.planHash });
@@ -266,20 +268,23 @@ test("planning a bundle that was never staged (or expired) is refused as not fou
 });
 
 test("execute threads this request's backstop and authorize into the apply port, and omits them when absent", async () => {
-  for (const extra of [{}, { backstop: { marker: "backstop" }, authorize: async () => ({ allowed: true, reason: "attenuated" }) }]) {
+  for (const extra of [{}, { backstop: { coveredTables: ["settings"], coveredRoots: [] }, authorize: async () => ({ allowed: true, reason: "attenuated" }) }]) {
     resetPublishContentContributorsForTests();
     registerFakeHandler(new Map([[ENTITY_ID, { version: 1, hash: BASELINE_HASH }]]));
     const bundleRepo = new InMemoryPublishContentBundleRepo();
     await bundleRepo.save({ record: stagedBundle() });
-    const seen: Array<Record<string, unknown>> = [];
+    const seen: Array<Parameters<PublishContentApplyPort["applyReport"]>[0]> = [];
     const { hooks, deps } = minimalHooks(bundleRepo, extra, seen);
     const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });
     const token = await confirm({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, planId: planned.planId, planHash: planned.planHash });
     await execute({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, confirmationToken: token.confirmationToken });
     assert.equal(seen.length, 1);
-    assert.equal("backstop" in seen[0]!, "backstop" in extra);
-    assert.equal("authorize" in seen[0]!, "authorize" in extra);
-    if ("backstop" in extra) assert.equal(seen[0]!.backstop, extra.backstop);
+    const [applied] = seen;
+    assert.equal("backstop" in applied, "backstop" in extra);
+    assert.equal("authorize" in applied, "authorize" in extra);
+    assert.equal(applied.backstop, extra.backstop);
+    assert.equal(applied.authorize, extra.authorize);
+    assert.deepEqual(applied.actor, { id: ACTOR_ID, kind: "user" });
   }
 });
 

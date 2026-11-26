@@ -34,11 +34,11 @@ import { contributeThemeFilesPublish } from "#src/features/theme/publish-content
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/cms/widgets/site/publish-content";
 
 /** The engine functions every repo-backed contributor is built over (Jini injects them rather than importing them). */
-const repoPublishBindings = { createRepoPublishHandler, gatewayDeps };
+export const repoPublishBindings = { createRepoPublishHandler, gatewayDeps };
 /** Term sync, shared by post/page and collection entries. */
-const termSyncBindings = { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, collectBodyReferences } as const;
+export const termSyncBindings = { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, collectBodyReferences } as const;
 
-const widgetPublishPolicy = {
+export const widgetPublishPolicy = {
   ...repoPublishBindings, applyRunActor,
   ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError,
   bindingTable: WIDGET_REGION_BINDINGS_TABLE,

@@ -14,6 +14,9 @@ import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
  * RED before the fix: the handler rejected with the raw `PluginHookFailedError` (the transport turns
  * any non-`ToolInputError` into `{ code: "INTERNAL_ERROR", message: "an internal error occurred" }`).
  */
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -68,9 +71,9 @@ function refusingSecondPost(): BeforeSaveHookPort {
 async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   const f = await fixture([livePost("p-1"), livePost("p-2"), livePost("p-3")]);
   registerPublishContentContributor({ contributor: contributeMediaPublish() }); // post dependsOn media and term; no ports, so both pack nothing
-  registerPublishContentContributor({ contributor: contributePostPublish() });
-  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
-  registerPublishContentContributor({ contributor: contributeTermPublish() });
+  registerPublishContentContributor({ contributor: contributePostPublish({ ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor }) });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributeTermPublish(repoPublishBindings) });
   const postRepo = new InMemoryPostRepo({});
   const outbox = new InMemoryOutbox();
   const ports = { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) } };

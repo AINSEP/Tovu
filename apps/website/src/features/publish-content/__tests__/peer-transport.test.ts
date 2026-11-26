@@ -15,7 +15,8 @@ import {
   pushBundleToPeer,
   callPeer,
 } from "../peer-transport-binding.js";
-import { PublishContentPeerTransportError, type PublishHistoryRecorder } from "@jini-ai/cms/publish/content/peer-transport";
+import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport-error";
+import type { PublishHistoryRecorder } from "@jini-ai/cms/publish/content/peer-transport";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { ResolvedPeerCredential } from "@jini-ai/cms/publish/content/peer-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
@@ -692,7 +693,7 @@ test("executePeerImport refuses overwriteEntityKeys when the peer does not adver
 
 
 test("outbound successful and partial peer applies append saved-peer history and list only that workspace's saved destinations", async () => {
-  const historyStore = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const historyStore = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   const at = "2026-10-18T10:00:00.000Z";
   for (const report of [{ refused: false, rows: [] }, { refused: false, rows: [{ outcome: "conflict" }] }]) {
     const result = { runId: "remote-run", report };
@@ -705,12 +706,12 @@ test("outbound successful and partial peer applies append saved-peer history and
                                              }), result);
   }
   const rows = await historyStore.list({ workspaceId: "source-ws" });
-  assert.equal(rows.length, 2);
-  assert.equal(rows[0]!.kind, "tovu-peer");
-  assert.equal(rows[0]!.target, CREDENTIAL.id);
+  assert.deepEqual(rows.map(({ kind, target, status }) => [kind, target, status]), [
+    ["tovu-peer", CREDENTIAL.id, "applied"], ["tovu-peer", CREDENTIAL.id, "applied"],
+  ]);
   const registry = await loadBundledDeployTargets();
   const peers = [{ id: CREDENTIAL.id, label: CREDENTIAL.label, baseUrl: CREDENTIAL.baseUrl }];
-  const list = (workspaceId: string, saved = peers) => listPublishDestinations({ workspaceId, historyStore, registry, peers: saved });
+  const list = (workspaceId: string, saved = peers) => listPublishDestinations({ workspaceId, historyStore, registry, peers: saved, peerKind: "tovu-peer" });
   assert.deepEqual(await list("source-ws"), [{ id: `tovu-peer:${CREDENTIAL.id}`, kind: "tovu-peer", peerId: CREDENTIAL.id,
     label: CREDENTIAL.label, url: CREDENTIAL.baseUrl, lastPublishedAt: at }]);
   assert.deepEqual(await list("source-ws", []), [], "removed peers or unauthorized peer metadata are omitted");
@@ -722,7 +723,7 @@ test("a completed peer apply records one tovu-peer history row with the caller's
   const at = "2026-10-18T10:00:00.000Z";
   const result = { runId: "remote-run", report: { refused: false, rows: [] } };
   for (const [triggeredBy, expected] of [[undefined, "admin_ui"], ["agent_tool", "agent_tool"]] as const) {
-    const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+    const store = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
     const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
     await executePeerImport({
       deps: { httpClient: http, credential: CREDENTIAL,
@@ -737,16 +738,16 @@ test("a completed peer apply records one tovu-peer history row with the caller's
 });
 
 test("type pin: a history store without recordSuccess cannot be a PeerCallDeps recorder", () => {
-  const recorder: PublishHistoryRecorder = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
-  // @ts-expect-error a store that cannot record is not a recorder
-  const missing: PublishHistoryRecorder = {};
-  assert.ok(recorder && missing);
+  const recorder: PublishHistoryRecorder = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
+  const refusesMissingRecorder: {} extends PublishHistoryRecorder ? false : true = true;
+  assert.equal(refusesMissingRecorder, true);
+  assert.equal(typeof recorder.recordSuccess, "function");
 });
 
 test("a throwing history store preserves the successful remote apply and logs no error payload", async (t) => {
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   store.recordSuccess = async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); };
   const result = { runId: "remote-run", report: { refused: false, rows: [] } };
   const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
@@ -764,7 +765,7 @@ test("a throwing history store preserves the successful remote apply and logs no
 });
 
 test("outbound failures, refusals and malformed success bodies never establish destinations", async () => {
-  const store = new InMemoryPublishHistoryStore({ resolvePublishHistoryListLimit });
+  const store = new InMemoryPublishHistoryStore({ peerKind: "tovu-peer", resolvePublishHistoryListLimit });
   for (const json of [{ ok: false, runId: "failed" }, { runId: "refused", report: { refused: true } }, {}]) {
     await executePeerImport({
                               deps: { httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, json }]), credential: CREDENTIAL,

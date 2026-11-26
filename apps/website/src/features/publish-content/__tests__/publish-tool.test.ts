@@ -1,3 +1,4 @@
+import { actorForMutation } from "#src/server/runtime/composition/mutation-actor";
 import assert from "node:assert/strict";
 import { NO_INCIDENT_REPORTER } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import test from "node:test";
@@ -59,7 +60,7 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
   f.deps.fileBlobIndex = new Map();
   f.deps.blobStore.get = async () => new Uint8Array();
   const hooks = (bundleId: string, overwrite?: string[]) => buildPublishContentImportHooks({
-    workspaceId: "local", bundleId, actorId: OWNER, clock: f.deps.clock, idGen: f.deps.idGen,
+    workspaceId: "local", bundleId, actorId: OWNER, actor: actorForMutation({ principalId: OWNER, origin: "admin" }), clock: f.deps.clock, idGen: f.deps.idGen,
     planHashOf, resolveActorClassIdentity, catalog: { build: buildPublishContentCatalog },
     publishContentDeps: { workspaceId: "local", clock: f.deps.clock, idGen: f.deps.idGen, ports: {} },
     bundleRepo: f.bundleRepo, baselineRepo: f.baselineRepo, blobStore: f.deps.blobStore,

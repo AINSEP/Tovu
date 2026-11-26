@@ -1,4 +1,4 @@
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
 /**
  * @file A published VIDEO media item must render as a `<video>` on the receiving site, with its
  * poster there too — the 2026-09-26 live bug: tovu.dev rendered the home hero's
@@ -127,7 +127,7 @@ test("publishing only a video media item carries its poster along, and the recei
 
   const html = `<figure class="hero-media"><div class="video-embed" data-embed-config='{"type":"media","slug":"promo-01"}' autoplay muted loop playsinline></div></figure>`;
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}),
+    deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
       entryRepo: new InMemoryEntryRepo(),
       mediaRepo: destination.repo,
       transformRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [

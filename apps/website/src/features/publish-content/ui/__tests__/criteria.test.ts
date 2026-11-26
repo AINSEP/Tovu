@@ -5,7 +5,6 @@
  * (`use-publish-content-confirm.hooks.ts`'s `setDeselectedKeys`/`applyOverwriteKeys`). Criteria only
  * ever set the *initial* value of state the dialog already owns.
  */
-import { publishEntityTypeLabel } from "../sections.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -38,7 +37,7 @@ test("types filter keeps matching kinds, plural/alias forms accepted, and desele
       row({ outcome: "created", entityType: "menu", entityId: "m-1", entityLabel: "Main nav" }),
       row({ outcome: "created", entityType: "post", entityId: "post-1", entityLabel: "Hello" }),
       row({ outcome: "created", entityType: "redirect", entityId: "r-1", entityLabel: "/old" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   // "pages" -> page, "nav" -> menu (plan §2's documented aliases).
   const selection = applyPublishCriteria({ rows, criteria: { types: ["pages", "nav"] } });
@@ -51,7 +50,7 @@ test("items filter matches a label case-insensitively and deselects every other 
       row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" }),
       row({ outcome: "created", entityType: "page", entityId: "p-2", entityLabel: "Contact" }),
       row({ outcome: "created", entityType: "post", entityId: "post-1", entityLabel: "Team" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   const selection = applyPublishCriteria({ rows, criteria: { items: ["about"] } });
 
@@ -66,7 +65,7 @@ test("overwrite:true ticks only overwritable rows that also match the criteria",
       row({ outcome: "conflict", entityType: "menu", entityId: "m-1", canOverwrite: true, reason: "edited on the live site" }),
       // Matches the type, but is an ordinary publish row (never overwritable) — must not be ticked.
       row({ outcome: "created", entityType: "page", entityId: "p-2" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   const selection = applyPublishCriteria({ rows, criteria: { types: ["page"], overwrite: true } });
 
@@ -79,14 +78,14 @@ test("item IDs, qualified keys and intersected type/title filters select exact r
     row({ outcome: "created", entityType: "page", entityId: "p2", entityLabel: "Contact" }),
     row({ outcome: "created", entityType: "post", entityId: "p1", entityLabel: "About" }),
     row({ outcome: "created", entityType: "post", entityId: "post2", entityLabel: "Other" }),
-  ]), entityTypeLabel: publishEntityTypeLabel });
+  ]) });
   assert.deepEqual([...applyPublishCriteria({ rows, criteria: { items: ["p1"] } }).deselectedKeys].sort(), ["page:p2", "post:post2"]);
   assert.deepEqual([...applyPublishCriteria({ rows, criteria: { items: ["page:p1"] } }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
   assert.deepEqual([...applyPublishCriteria({ rows, criteria: { types: ["page"], items: ["About"] } }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
 });
 
 test("overwrite omitted ticks nothing, even for a matching overwritable row", () => {
-  const rows = toPublishReportRows({ report: report([row({ outcome: "blocked", entityType: "page", entityId: "p-1", canOverwrite: true, reason: "slug taken" })]), entityTypeLabel: publishEntityTypeLabel });
+  const rows = toPublishReportRows({ report: report([row({ outcome: "blocked", entityType: "page", entityId: "p-1", canOverwrite: true, reason: "slug taken" })]) });
 
   const selection = applyPublishCriteria({ rows, criteria: { types: ["page"] } });
 
@@ -94,7 +93,7 @@ test("overwrite omitted ticks nothing, even for a matching overwritable row", ()
 });
 
 test("unmatchedItems and unknownTypes name what named nothing in the plan", () => {
-  const rows = toPublishReportRows({ report: report([row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" })]), entityTypeLabel: publishEntityTypeLabel });
+  const rows = toPublishReportRows({ report: report([row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" })]) });
 
   const selection = applyPublishCriteria({ rows, criteria: { items: ["About", "Nonexistent Page"], types: ["page", "redirect"] } });
 
@@ -106,7 +105,7 @@ test("empty criteria give empty sets, the same as today's dialog", () => {
   const rows = toPublishReportRows({ report: report([
       row({ outcome: "created", entityType: "page", entityId: "p-1" }),
       row({ outcome: "blocked", entityType: "menu", entityId: "m-1", canOverwrite: true, reason: "slug taken" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   const selection = applyPublishCriteria({ rows, criteria: {} });
 
@@ -120,7 +119,7 @@ test("a non-selectable row is never put in deselectedKeys, whatever the criteria
   const rows = toPublishReportRows({ report: report([
       row({ outcome: "created", entityType: "page", entityId: "p-1" }),
       row({ outcome: "unchanged", entityType: "post", entityId: "post-1" }), // not selectable
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   const selection = applyPublishCriteria({ rows, criteria: { types: ["page"] } });
 
@@ -241,7 +240,7 @@ test("items match a row's source names, and excludeItems deselects a row the oth
   const [about, contact] = toPublishReportRows({ report: report([
       row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" }),
       row({ outcome: "created", entityType: "page", entityId: "p-2", entityLabel: "Contact" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   const rows = [{ ...about!, names: ["About us", "about-us"] }, { ...contact!, names: ["Contact"] }];
 
   const byName = applyPublishCriteria({ rows, criteria: { items: ["ABOUT-US"] } });
@@ -257,7 +256,7 @@ test("items also match an exact entity id or row key, and a blank item matches n
       row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" }),
       row({ outcome: "created", entityType: "page", entityId: "p-2", entityLabel: "Contact" }),
       row({ outcome: "created", entityType: "page", entityId: "p-3", entityLabel: "Team" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   const selection = applyPublishCriteria({ rows, criteria: { items: ["p-1", "page:p-2", "   "] } });
 

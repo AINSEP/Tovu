@@ -18,6 +18,10 @@
  * failures are recorded in the Task 8 handoff, not duplicated here as comments, so this file does
  * not itself carry a permanently-disabled "broken" code path.
  */
+import { repoPublishBindings, termSyncBindings } from "#src/server/runtime/composition/publish-content-manifest";
+import { applyRunActor } from "@jini-ai/cms/publish/content/repo-handler";
+import { withTermIds } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
+import { updateMenuTree } from "@jini-ai/cms/navigation/node";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -54,11 +58,13 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { publishContentItemIdempotencyKey } from "@jini-ai/cms/publish/content/idempotency";
 
+const postBindings = { ...repoPublishBindings, ...termSyncBindings, withTermIds, contentHash, applyRunActor };
+
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 /** `post` depends on `term`; no taxonomy ports are wired here, so both pack nothing. */
 function registerTermTypes(): void {
-  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
-  registerPublishContentContributor({ contributor: contributeTermPublish() });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish(repoPublishBindings) });
+  registerPublishContentContributor({ contributor: contributeTermPublish(repoPublishBindings) });
 }
 
 /** The bundle's AUTHENTICATED source — plan §1.6 / §5 risk #9's own peer key. Deliberately a
@@ -179,7 +185,7 @@ function makeHarness(
 ) {
   resetPublishContentContributorsForTests();
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
-  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributePostPublish(postBindings) });
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
 
   const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
@@ -807,7 +813,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
   const findBaseline = (entityId: string) =>
     baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "post", entityId });
 
-  assert.ok(await findBaseline("p-created"), "created must gain a baseline");
+  assert.equal((await findBaseline("p-created"))?.hashAtLastSync, packedFrom(createdSource).contentHash, "created must gain the source hash");
   assert.deepEqual(await findBaseline("p-unchanged"), {
     workspaceId: WORKSPACE_ID,
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
@@ -818,8 +824,8 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
     syncedAt: clock.nowIso(),
     runId: "run-1",
   });
-  assert.ok(await findBaseline("p-applied"), "applied must gain a baseline");
-  assert.ok(await findBaseline("p-forced"), "forced must gain a baseline");
+  assert.equal((await findBaseline("p-applied"))?.hashAtLastSync, packedFrom(appliedSource).contentHash, "applied must record the new source hash");
+  assert.equal((await findBaseline("p-forced"))?.hashAtLastSync, packedFrom(forcedSource).contentHash, "forced must record the new source hash");
   assert.equal(await findBaseline("p-conflict"), null, "conflict must NEVER gain a baseline");
   assert.equal(await findBaseline("p-blocked"), null, "blocked must NEVER gain a baseline");
 
@@ -1001,7 +1007,7 @@ test("a refused report is persisted as an 'abandoned' run and produces no writes
 
 test("a media row blocked at apply time downgrades that ONE row and the rest of the run still applies", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributePostPublish(postBindings) });
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
 
@@ -1223,7 +1229,7 @@ test("after applying, the run reports a published media item whose poster is not
 // it is that row's `blocked`, and the rest of the run still applies.
 test("a write refused permission blocks that ONE row with the refusal as its reason; the rest of the run applies", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributePostPublish(postBindings) });
   registerTermTypes();
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
 
@@ -1409,10 +1415,10 @@ function makeMenuRow(overrides: { id: string; entryId: string; version?: number 
 function makeMenuHarness(rows: PostRecord[] = [], options: { menuRepo?: MenuRepoPort; wireMenuDeps?: boolean } = {}) {
   resetPublishContentContributorsForTests();
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
-  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributePostPublish(postBindings) });
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
-  registerPublishContentContributor({ contributor: contributePagePublish() }); // menu's own MENU_DEPENDS_ON names it
-  registerPublishContentContributor({ contributor: contributeMenusPublish() });
+  registerPublishContentContributor({ contributor: contributePagePublish(postBindings) }); // menu's own MENU_DEPENDS_ON names it
+  registerPublishContentContributor({ contributor: contributeMenusPublish({ createRepoPublishHandler: repoPublishBindings.createRepoPublishHandler, applyRunActor, updateMenuTree }) });
 
   const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   const clock = makeClock();

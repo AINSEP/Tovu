@@ -1,4 +1,5 @@
 import { entityKey } from "@jini-ai/cms/publish/content/plan-rows";
+import { actorForMutation } from "#src/server/runtime/composition/mutation-actor";
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
@@ -95,7 +96,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
   assert.deepEqual(report.rows.map(row => row.outcome), ["unchanged", "applied", "conflict"]);
   const staged = await stageBundle({ input: { ...bundle, workspaceId: "ws", sourcePrincipalId: "peer", blobManifest: [] }, deps: { repo: bundleRepo, clock, idGen } });
   const port = createPublishContentApplyPort({ workspaceId: "ws", bundleRepo, baselineRepo, runRepo, publishContentDeps, clock, idGen });
-  await port.applyReport({ report, bundleId: staged.bundleId, principalId: "owner", restorePointId: "restore" });
+  await port.applyReport({ report, bundleId: staged.bundleId, principalId: "owner", actor: actorForMutation({ principalId: "owner", origin: "admin" }), restorePointId: "restore" });
   assert.deepEqual(writes, ["seed"], "a current seed match must remain applicable at execute time");
   for (const id of ["same", "seed"]) {
     const baseline = await baselineRepo.findOne(key(id));

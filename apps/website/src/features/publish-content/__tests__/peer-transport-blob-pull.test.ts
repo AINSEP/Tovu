@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
+import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport-error";
 import { pullBlobsFromPeer } from "../peer-transport-binding.js";
 import type { ResolvedPeerCredential } from "@jini-ai/cms/publish/content/peer-registry";
 import { computeBlobStorageKey } from "../../media/index.js";
@@ -51,6 +51,9 @@ class FakeBlobPeer implements HttpClientPort {
   constructor(private readonly bodies: Record<string, { status?: number; json?: unknown; bodyText?: string }>) {}
 
   async send(request: HttpRequest): Promise<HttpResponse> {
+    assert.equal(request.method, "GET");
+    assert.equal(request.headers.authorization, `Bearer ${API_KEY}`);
+    assert.match(request.url, /^https:\/\/tovu\.example\.com\/api\/admin\/v1\/workspaces\/remote-ws-9\/publish-content\/blobs\/[a-f0-9]{64}$/);
     this.calls.push(request);
     const sha = request.url.split("/").pop() ?? "";
     const route = this.bodies[sha];
@@ -207,7 +210,8 @@ test("a blob the peer does not hold is REPORTED, not thrown — the entity that 
 
   assert.deepEqual([...result.unavailable], [goneSha]);
   assert.deepEqual([...result.downloaded], [heldSha], "one absent blob must not abort the rest of the pull");
-  assert.equal(sink.written.length, 1);
+  assert.deepEqual(sink.written.map(({ workspaceId, sha256, bytes }) => ({ workspaceId, sha256, bytes: Buffer.from(bytes) })),
+    [{ workspaceId: WORKSPACE, sha256: heldSha, bytes: held }]);
 });
 
 test("a peer failure that is NOT a 404 aborts the pull instead of being silently recorded as unavailable", async () => {

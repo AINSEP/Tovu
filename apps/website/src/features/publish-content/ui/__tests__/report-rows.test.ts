@@ -7,7 +7,6 @@
  * run writes and which it skips — and a second copy in the admin package could drift from
  * `planner.ts` without anything going red.
  */
-import { publishEntityTypeLabel } from "../sections.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -64,7 +63,7 @@ test("every row carries a stable key, a disposition label and its planner reason
   const rows = toPublishReportRows({ report: report([
       row({ outcome: "created", entityId: "post-a" }),
       row({ outcome: "conflict", entityType: "media", entityId: "media-b", reason: "edited on the live site" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   assert.deepEqual(
     rows.map((r) => ({ key: r.key, disposition: r.disposition, label: r.dispositionLabel, reason: r.reason })),
@@ -76,7 +75,7 @@ test("every row carries a stable key, a disposition label and its planner reason
 });
 
 test("a skipped row with no planner reason still reads as skipped rather than blank", () => {
-  const [only] = toPublishReportRows({ report: report([row({ outcome: "blocked", reason: null })]), entityTypeLabel: publishEntityTypeLabel });
+  const [only] = toPublishReportRows({ report: report([row({ outcome: "blocked", reason: null })]) });
   assert.equal(only.reason, "No reason recorded.");
 });
 
@@ -88,7 +87,7 @@ test("the summary counts what the run writes, and excludes conflicts", () => {
         row({ outcome: "unchanged", entityId: "c" }),
         row({ outcome: "conflict", entityId: "d", reason: "edited on the live site" }),
         row({ outcome: "blocked", entityId: "e", reason: "slug taken" }),
-      ]), entityTypeLabel: publishEntityTypeLabel }) }
+      ]) }) }
   );
 
   assert.deepEqual(summary, { total: 5, publishing: 2, unchanged: 1, skipped: 2 });
@@ -100,7 +99,7 @@ test("a refused report produces no rows at all", () => {
     refusalReason: "these two instances are on different content-hash versions",
     applyOrder: [],
     rows: [],
-  }, entityTypeLabel: publishEntityTypeLabel });
+  } });
   assert.deepEqual(rows, []);
 });
 
@@ -109,7 +108,7 @@ test("a refused report produces no rows at all", () => {
 // ---------------------------------------------------------------------------
 
 test("a row renders its own human label rather than its id", () => {
-  const [shaped] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b", entityLabel: "spring-sale" })]), entityTypeLabel: publishEntityTypeLabel });
+  const [shaped] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b", entityLabel: "spring-sale" })]) });
 
   assert.equal(shaped.entityLabel, "spring-sale");
   assert.equal(shaped.entityId, "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b", "the id itself is still carried, just not what is displayed");
@@ -118,7 +117,7 @@ test("a row renders its own human label rather than its id", () => {
 test("a row with no label falls back to a short id, never the whole uuid", () => {
   const uuid = "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b";
   for (const missing of [null, undefined, "   "]) {
-    const [shaped] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: uuid, entityLabel: missing })]), entityTypeLabel: publishEntityTypeLabel });
+    const [shaped] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: uuid, entityLabel: missing })]) });
     assert.equal(shaped.entityLabel, "d4bf2a26", `entityLabel ${JSON.stringify(missing)} must degrade to a short id`);
     assert.notEqual(shaped.entityLabel, uuid);
   }
@@ -136,7 +135,7 @@ test("the type column reads as a plain word, not the raw entity type id", () => 
       row({ outcome: "created", entityType: "redirect", entityId: "exact:/old-promo" }),
       row({ outcome: "created", entityType: "theme-files", entityId: "official/basic" }),
       row({ outcome: "created", entityType: "some-future-type", entityId: "x" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.deepEqual(
     rows.map((r) => r.entityTypeLabel),
     ["Post", "Page", "Media", "Menu", "Redirect", "Theme", "some-future-type"]
@@ -151,7 +150,7 @@ test("only a row the run would write is selectable", () => {
       row({ outcome: "unchanged", entityId: "d" }),
       row({ outcome: "conflict", entityId: "e", reason: "edited on the live site" }),
       row({ outcome: "blocked", entityId: "f", reason: "slug taken" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   assert.deepEqual(
     rows.map((r) => [r.entityId, r.selectable]),
@@ -161,7 +160,7 @@ test("only a row the run would write is selectable", () => {
 });
 
 test("selectable row keys are byte-identical to the planner's own entity keys", () => {
-  const rows = toPublishReportRows({ report: report([row({ outcome: "created", entityType: "media", entityId: "m-1" })]), entityTypeLabel: publishEntityTypeLabel });
+  const rows = toPublishReportRows({ report: report([row({ outcome: "created", entityType: "media", entityId: "m-1" })]) });
   assert.deepEqual(selectableRowKeys({ rows }), [entityKey({ entityType: "media", entityId: "m-1" })]);
 });
 
@@ -170,7 +169,7 @@ test("the button's count is the intersection of the selection and what is select
       row({ outcome: "created", entityId: "a" }),
       row({ outcome: "applied", entityId: "b" }),
       row({ outcome: "conflict", entityId: "c", reason: "edited on the live site" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   assert.equal(countSelectedPublishing({ rows, selected: new Set(["post:a", "post:b"]) }), 2);
   assert.equal(countSelectedPublishing({ rows, selected: new Set(["post:a"]) }), 1);
@@ -194,7 +193,7 @@ test("overwritable is true only for a skipped row whose planner canOverwrite is 
       row({ outcome: "forced", entityId: "d", canOverwrite: true, reason: "operator accepted the conflict" }),
       row({ outcome: "created", entityId: "e" }),
       row({ outcome: "unchanged", entityId: "f" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   assert.deepEqual(
     rows.map((r) => [r.entityId, r.overwritable]),
@@ -211,7 +210,7 @@ test("retiresLabel names the live row an overwrite would retire, falling back to
         reason: "slug taken",
         retires: { entityType: "post", entityId: "post-about", entityLabel: "About", hash: "h1" },
       }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.equal(withLabel.retiresLabel, "About");
 
   const [withoutLabel] = toPublishReportRows({ report: report([
@@ -222,10 +221,10 @@ test("retiresLabel names the live row an overwrite would retire, falling back to
         reason: "slug taken",
         retires: { entityType: "post", entityId: "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b", entityLabel: null, hash: "h2" },
       }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.equal(withoutLabel.retiresLabel, "d4bf2a26");
 
-  const [none] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: "c" })]), entityTypeLabel: publishEntityTypeLabel });
+  const [none] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: "c" })]) });
   assert.equal(none.retiresLabel, null);
 });
 
@@ -244,12 +243,12 @@ test("referencedByLabels names every live holder of this row's retire target, fa
           { entityType: "menu", entityId: "menu-footer-long-id", entityLabel: null, referencedId: "post-about-old" },
         ],
       }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.deepEqual(withHolders.referencedByLabels, ["Header", "menu-foo"]);
 });
 
 test("referencedByLabels is empty for a row with no referencedBy at all", () => {
-  const [none] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: "b" })]), entityTypeLabel: publishEntityTypeLabel });
+  const [none] = toPublishReportRows({ report: report([row({ outcome: "created", entityId: "b" })]) });
   assert.deepEqual(none.referencedByLabels, []);
 });
 
@@ -464,7 +463,7 @@ test("toPublishReportRows rewrites a skipped row's reason for a non-technical ow
         reason:
           "no prior sync baseline for media 'c0bf1802-f30a-4ac6-9de3-fa65e3667897' with this peer — the destination already holds different content",
       }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.equal(shaped.reason, "Different version already on the live site. Tick Overwrite to replace it.");
 });
 
@@ -474,7 +473,7 @@ test("toPublishReportRows rewrites a skipped row's reason for a non-technical ow
  * never selectable, but counted as publishing whenever a page/post that uses it is still ticked.
  */
 test("a carried-along media row is untickable and notes the pages that use it", () => {
-  const [media] = toPublishReportRows({ report: report([row({ outcome: "created", entityType: "media", entityId: "m1", includedFor: ["page:pg1", "page:pg2"] })]), entityTypeLabel: publishEntityTypeLabel });
+  const [media] = toPublishReportRows({ report: report([row({ outcome: "created", entityType: "media", entityId: "m1", includedFor: ["page:pg1", "page:pg2"] })]) });
   assert.equal(media?.selectable, false);
   assert.equal(media?.disposition, "publish");
   assert.deepEqual(media?.includedFor, ["page:pg1", "page:pg2"]);
@@ -486,7 +485,7 @@ test("the carried-along note names posts, or both, by the referrers' own types",
       row({ outcome: "created", entityType: "media", entityId: "m1", includedFor: ["post:p1"] }),
       row({ outcome: "applied", entityType: "media", entityId: "m2", includedFor: ["page:pg1", "post:p1"] }),
       row({ outcome: "created", entityType: "media", entityId: "m3" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.deepEqual(
     rows.map((r) => r.usedByNote),
     ["Used by these posts", "Used by these pages and posts", null]
@@ -499,7 +498,7 @@ test("a row carried along for anything but pages and posts gets the generic note
   const rows = toPublishReportRows({ report: report([
       row({ outcome: "created", entityType: "widget", entityId: "w1", includedFor: ["widget-area:sidebar"] }),
       row({ outcome: "applied", entityType: "form", entityId: "contact", includedFor: ["page:pg1", "widget-area:sidebar"] }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.deepEqual(
     rows.map((r) => r.usedByNote),
     ["Used by items you're publishing", "Used by items you're publishing"]
@@ -514,7 +513,7 @@ test("a carried-along row counts toward the button only while a page that uses i
       row({ outcome: "created", entityType: "media", entityId: "m1", includedFor: ["page:pg1"] }),
       row({ outcome: "created", entityType: "page", entityId: "pg1" }),
       row({ outcome: "created", entityType: "page", entityId: "pg2" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
   assert.deepEqual(selectableRowKeys({ rows }), ["page:pg1", "page:pg2"], "the media row is never a selection key");
   assert.equal(countSelectedPublishing({ rows, selected: new Set(["page:pg1", "page:pg2"]) }), 3);
   assert.equal(countSelectedPublishing({ rows, selected: new Set(["page:pg2"]) }), 1);
@@ -557,7 +556,7 @@ test("a row the source tagged as trashing reads 'Will trash on live', still publ
   const rows = toPublishReportRows({ report: report([
       row({ outcome: "applied", entityType: "media", entityId: "gone", trashes: true }),
       row({ outcome: "applied", entityType: "media", entityId: "kept" }),
-    ]), entityTypeLabel: publishEntityTypeLabel });
+    ]) });
 
   assert.deepEqual(
     rows.map((r) => ({ key: r.key, disposition: r.disposition, label: r.dispositionLabel, trashes: r.trashes, selectable: r.selectable })),
@@ -574,7 +573,7 @@ test("completed reports describe actual writes and retain named skips without se
       reason: "This replaces the file on the live site. Tick Overwrite on live to publish it." },
     { entityType: "media", entityId: "three", entityLabel: "Skipped trash", outcome: "conflict", writes: false, trashes: true,
       reason: "The live file changed. Plan publishing again." },
-  ] }, entityTypeLabel: publishEntityTypeLabel }, { completed: true });
+  ] } }, { completed: true });
   assert.equal(rows[0]!.dispositionLabel, "Published — overwrite");
   assert.equal(rows[0]!.selectable, false);
   assert.equal(rows[1]!.entityLabel, "Skipped photo");

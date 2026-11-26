@@ -106,10 +106,12 @@ test("L061 metadata update rethrows driver failures and rotation refuses a disap
   const { deps, repo, input } = fixture();
   const created = await createPublishContentPeer({ deps, input });
   const failure = new Error("driver failure");
-  const failingRepo = { vault: repo.vault, insert: repo.insert.bind(repo), update: async () => { throw failure; },
-    findById: repo.findById.bind(repo), listByWorkspace: repo.listByWorkspace.bind(repo), delete: repo.delete.bind(repo) };
+  const failingRepo = new VaultPublishContentPeerRepo({ vault: repo.vault });
+  failingRepo.update = async () => { throw failure; };
   await assert.rejects(updatePublishContentPeer({ deps: { ...deps, repo: failingRepo }, input: { workspaceId: "ws", id: created.id } }), (err: unknown) => err === failure);
   const missingVault: VaultRepoPort = { find: async () => null, list: repo.vault.list.bind(repo.vault), put: repo.vault.put.bind(repo.vault),
     delete: repo.vault.delete.bind(repo.vault), patchMeta: repo.vault.patchMeta.bind(repo.vault) };
-  await assert.rejects(updatePublishContentPeer({ deps: { ...deps, repo: { ...failingRepo, vault: missingVault } }, input: { workspaceId: "ws", id: created.id, apiKey: input.apiKey } }), PublishContentPeerNotFoundError);
+  const vanishedRepo = new VaultPublishContentPeerRepo({ vault: missingVault });
+  vanishedRepo.findById = repo.findById.bind(repo);
+  await assert.rejects(updatePublishContentPeer({ deps: { ...deps, repo: vanishedRepo }, input: { workspaceId: "ws", id: created.id, apiKey: input.apiKey } }), PublishContentPeerNotFoundError);
 });

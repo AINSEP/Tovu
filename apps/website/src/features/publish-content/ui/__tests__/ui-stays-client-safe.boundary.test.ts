@@ -37,12 +37,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 
-/** The dialog semantics live in `@jini-ai/cms/publish/content/ui`; admin and the server tool both
- *  import them from there, so the browser-safety rules below guard that package's SOURCE folder
- *  (resolved through the package, `dist/publish/content/ui/index.js` -> `src/publish/content/ui/`). The
- *  host-kept section table (`../sections.ts`, admin's `@tovu/publish-content-ui` alias) is checked too. */
-const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms/publish/content/ui"))), "../../../../src/publish/content/ui");
-const HOST_SECTIONS_FILE = path.resolve(import.meta.dirname, "../sections.ts");
+const UI_ROOT = path.resolve(import.meta.dirname, "..");
 const INDEX_FILE = path.join(UI_ROOT, "index.ts");
 const REPORT_CONTRACT_SPECIFIER = "@jini-ai/core/contracts/site/cms-publish-content";
 /** The published module behind the specifier; resolved from this test process (Node ESM). */
@@ -52,6 +47,8 @@ const REPORT_CONTRACT_FILE = fileURLToPath(import.meta.resolve(REPORT_CONTRACT_S
  *  package specifier allowed to leave `ui/` (see the closure test below for why it is client-safe). */
 const NEUTRAL_UI_SPECIFIER = "@jini-ai/cms/publish/content/ui";
 const NEUTRAL_UI_FILE = fileURLToPath(import.meta.resolve(NEUTRAL_UI_SPECIFIER));
+const NEUTRAL_UI_SOURCE_ROOT = path.resolve(path.dirname(NEUTRAL_UI_FILE), "../../../../src/publish/content/ui");
+const SEPARATE_REPORT_ROW_FILE = path.join(NEUTRAL_UI_SOURCE_ROOT, "PublishContentReportRow.tsx");
 
 const REACT_SPECIFIER_PATTERN = /^react(-dom)?(\/|$)/;
 
@@ -123,8 +120,8 @@ function collectUiFiles(dir: string, out: string[]): void {
 const UI_FILES = (() => {
   const out: string[] = [];
   collectUiFiles(UI_ROOT, out);
-  out.push(HOST_SECTIONS_FILE);
-  return out;
+  collectUiFiles(NEUTRAL_UI_SOURCE_ROOT, out);
+  return out.filter(file => file !== SEPARATE_REPORT_ROW_FILE);
 })();
 
 function relative(file: string): string {
@@ -134,8 +131,10 @@ function relative(file: string): string {
 test("the boundary test actually found this folder's source files", () => {
   // Without this, every assertion below would vacuously pass on an empty list — the exact failure
   // mode a sibling agent shipped tonight.
-  assert.ok(UI_FILES.length >= 4, `expected features/publish-content/ui/ to hold source files, found ${UI_FILES.length}`);
+  const hostFiles = UI_FILES.filter(file => file.startsWith(`${UI_ROOT}${path.sep}`));
+  assert.ok(hostFiles.length >= 4, `expected features/publish-content/ui/ to hold source files, found ${hostFiles.length}`);
   assert.ok(UI_FILES.includes(INDEX_FILE), "features/publish-content/ui/index.ts must exist — it is the admin package's entrypoint");
+  assert.ok(UI_FILES.includes(path.join(NEUTRAL_UI_SOURCE_ROOT, "index.ts")), "the neutral Jini source entrypoint must be scanned too");
 });
 
 test("features/publish-content/ui/ contains no .tsx file", () => {
@@ -170,7 +169,8 @@ test("no file under features/publish-content/ui/ takes a VALUE import on server 
       if (edge.typeOnly) continue;
       const resolved = resolveRelative(file, edge.specifier);
       if (resolved !== null) {
-        if (!resolved.startsWith(`${UI_ROOT}${path.sep}`) && resolved !== HOST_SECTIONS_FILE) {
+        const root = file.startsWith(`${UI_ROOT}${path.sep}`) ? UI_ROOT : NEUTRAL_UI_SOURCE_ROOT;
+        if (!resolved.startsWith(`${root}${path.sep}`)) {
           offenders.push(`${relative(file)} -> ${edge.specifier} (a module outside features/publish-content/ui/)`);
         }
         continue;
@@ -251,17 +251,19 @@ test("the neutral publish-content-ui closure the host binding imports is itself 
   // reaches is part of the admin bundle: it must stay inside its own folder, with no bare package
   // (no React, no node:*, no server code) — its report-contract import is type-only and erased in dist.
   const visited = new Set<string>();
-  const bare: string[] = [];
+  const escapes: string[] = [];
   const queue = [NEUTRAL_UI_FILE];
   while (queue.length > 0) {
     const file = queue.pop() as string;
     if (visited.has(file)) continue;
     visited.add(file);
     for (const edge of edgesOf(file)) {
-      if (!edge.specifier.startsWith(".")) bare.push(`${path.basename(file)} -> ${edge.specifier}`);
-      else queue.push(path.resolve(path.dirname(file), edge.specifier));
+      const target = path.resolve(path.dirname(file), edge.specifier);
+      if (!edge.specifier.startsWith(".") || !target.startsWith(`${path.dirname(NEUTRAL_UI_FILE)}${path.sep}`)) {
+        escapes.push(`${path.basename(file)} -> ${edge.specifier}`);
+      } else queue.push(target);
     }
   }
-  assert.deepEqual(bare, [], "the neutral module may not depend on any package at runtime");
+  assert.deepEqual(escapes, [], "the neutral module may not depend on anything outside its folder at runtime");
   assert.ok(visited.size >= 6, `expected the neutral index to reach its modules, walked only ${visited.size}`);
 });
