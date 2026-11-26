@@ -137,5 +137,32 @@ function contract(make: () => Promise<ExternalMcpServerRepoPort> | ExternalMcpSe
   });
 }
 
+function callbackBasisContract({ make }: { make: () => Promise<ExternalMcpServerRepoPort> }, _optional = {}) {
+  for (const changed of [{ version: 2 }, { createdAt: appliedAt }]) {
+    test(`A stale callback basis cannot write through the host SQL repository (${Object.keys(changed)[0]})`, async () => {
+      const repo = await make();
+      const original = row({ sealedOAuth: await oauthEnvelope('callback-token') });
+      await repo.upsert(original);
+      assert.equal(await repo.updateOAuthRuntime({ key, expectedSealedOAuth: original.sealedOAuth,
+        expectedConfig: { version: original.version, createdAt: original.createdAt, ...changed },
+        patch: { oauthStatus: 'needs_reauth', oauthExpiresAt: null, oauthRefreshLeaseUntil: null,
+          sealedOAuth: original.sealedOAuth, oauthAadVersion: original.oauthAadVersion, updatedAt: appliedAt } }), false);
+      assert.deepEqual(await repo.findByServerId(key), original);
+    });
+  }
+
+  test('a matching callback basis applies through the host SQL repository without advancing version', async () => {
+    const repo = await make();
+    const original = row({ sealedOAuth: await oauthEnvelope('callback-token') });
+    await repo.upsert(original);
+    assert.equal(await repo.updateOAuthRuntime({ key, expectedSealedOAuth: original.sealedOAuth,
+      expectedConfig: { version: original.version, createdAt: original.createdAt },
+      patch: { oauthStatus: 'needs_reauth', oauthExpiresAt: null, oauthRefreshLeaseUntil: null,
+        sealedOAuth: original.sealedOAuth, oauthAadVersion: original.oauthAadVersion, updatedAt: appliedAt } }), true);
+    assert.deepEqual(await repo.findByServerId(key), { ...original, oauthStatus: 'needs_reauth', updatedAt: appliedAt });
+  });
+}
+
 describe('external MCP access-only update [memory]', () => contract(() => new InMemoryExternalMcpServerRepo()));
 describeEachDialect('external MCP access-only update', { tables: ['workspaces'], make: sqlRepo }, make => contract(make));
+describeEachDialect('external MCP callback configuration guard', { tables: ['workspaces'], make: sqlRepo }, make => callbackBasisContract({ make }));

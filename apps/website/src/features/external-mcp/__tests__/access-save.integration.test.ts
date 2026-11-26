@@ -53,7 +53,7 @@ test('existing MCP access uses one fixed card and only the approved proposal is 
   assert.deepEqual(await f.repo.findByServerId(key), f.original);
   const html = JSON.stringify(f.emissions[0]);
   assert.match(html, /read/); assert.match(html, /write/);
-  assert.match(html, /Source/); assert.match(html, /https:\/\/example\.test\/mcp/);
+  assert.match(html, /Source/); assert.equal(html.match(/<dt>Source target<\/dt><dd>([^<]*)<\/dd>/)?.[1], 'https://example.test');
   assert.doesNotMatch(html, /synthetic-test-secret/);
   assert.doesNotMatch(html, /name=\\?"(?:allowedToolNames|writeAllowedToolNames)\\?"/);
   assert.deepEqual(f.answer({ decision: 'confirm' }, 'other-person'), { ok: false, reason: 'binding-mismatch' });
@@ -64,6 +64,41 @@ test('existing MCP access uses one fixed card and only the approved proposal is 
   assert.equal(saved!.enabled, true); assert.equal(saved!.allowedToolNames, '["read","write"]');
   assert.equal(saved!.writeAllowedToolNames, '["write"]'); assert.equal(saved!.url, f.original.url);
   assert.deepEqual(f.answer({ decision: 'confirm' }), { ok: false, reason: 'unknown-or-closed' });
+});
+
+test('remote endpoint confirmation shows only its origin', async t => {
+  const f = await fixture(); t.after(() => f.controller.abort());
+  const url = 'https://userinfo-user-marker:userinfo-password-marker@example.test:9443/path-marker?query-marker=value-marker#fragment-marker';
+  f.original.url = url;
+  await f.repo.upsert(f.original);
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  const html = JSON.stringify(f.emissions[0]);
+  const target = html.match(/<dt>Source target<\/dt><dd>([^<]*)<\/dd>/)?.[1];
+  assert.equal(target, 'https://example.test:9443');
+  for (const marker of ['userinfo-user-marker', 'userinfo-password-marker', 'path-marker', 'query-marker', 'value-marker', 'fragment-marker']) {
+    assert.equal(html.includes(marker), false, marker);
+  }
+  assert.deepEqual(f.answer({ decision: 'confirm' }), { ok: true });
+  assert.equal((await pending as { saved: boolean }).saved, true);
+  const saved = await f.repo.findByServerId(key);
+  assert.equal(saved!.enabled, true);
+  assert.equal(saved!.allowedToolNames, '["read","write"]');
+  assert.equal(saved!.writeAllowedToolNames, '["write"]');
+  assert.equal(saved!.url, url);
+});
+
+test('changing only the endpoint path makes an emitted access card stale', async t => {
+  const f = await fixture(); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  const changedUrl = new URL(f.original.url!);
+  changedUrl.pathname = '/different-mcp';
+  const replacement = { ...f.original, url: changedUrl.href };
+  await f.repo.upsert(replacement);
+  assert.deepEqual(f.answer({ decision: 'confirm' }), { ok: true });
+  await assert.rejects(pending, /changed|stale/i);
+  assert.deepEqual(await f.repo.findByServerId(key), replacement);
 });
 
 for (const decision of ['cancel', 'abort', 'stale', 'revoked'] as const) test(`${decision} performs no MCP access write`, async t => {

@@ -132,7 +132,9 @@ test("a second host signs in through its own ports and fake flow operations; no 
   assert.equal(begin.ownerKey, `${WS}:${SERVER}`);
   assert.equal((host.seen.beginOptional as { messages: unknown }).messages, host.messages);
   // The persisted AAD format is the neutral protocol input: kind/version/parts unchanged.
-  assert.deepEqual(host.seen.aad, { kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify([WS, SERVER])] });
+  const basis = await f.repo.findByServerId({ workspaceId: WS, serverId: SERVER });
+  assert.ok(basis);
+  assert.deepEqual(host.seen.aad, { kind: "oauth-redirect-state", version: "v2", parts: [JSON.stringify([WS, SERVER, basis.createdAt, basis.version])] });
 
   const hostedStart = await service.beginConnect({ serverId: SERVER, redirectUri, delivery: "hosted" });
   assert.equal(hostedStart.kind === "redirect_required" && hostedStart.authorizationUrl, `/acme/connect/docs?return=${encodeURIComponent(redirectUri)}`);

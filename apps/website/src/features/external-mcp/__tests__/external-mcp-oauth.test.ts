@@ -15,9 +15,7 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
 import { hostedMcpSignInLink } from "../../api-connections/browser-binding.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
-import { createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
 import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
@@ -1143,7 +1141,8 @@ test("sealed redirect state survives rebuilding the service and carries only enc
   const state = url.searchParams.get("state")!;
   assert.ok(state.length > 256 && state.length <= MAX_AUTHORIZATION_STATE_LENGTH);
   const sealed = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
-  const aad = formatAad({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify([WORKSPACE, SERVER])] });
+  const record = await readRow(h.repo);
+  const aad = formatAad({ kind: "oauth-redirect-state", version: "v2", parts: [JSON.stringify([WORKSPACE, SERVER, record.createdAt, record.version])] });
   const payload = JSON.parse(await h.sealer.open({ sealed }, { aad }));
   assert.equal(payload.workspaceId, WORKSPACE);
   assert.equal(payload.serverId, SERVER);
@@ -1575,35 +1574,44 @@ test("a post-connect step that succeeds is handed the server id and logs nothing
   assert.equal(warn.mock.callCount(), 0);
 });
 
-test("B272: an OAuth callback cannot apply a pending attempt to a replacement client", {
-  todo: "B272 verify-first: completeAuthorizationCallback does not bind the pending attempt to the client id it started with, so the old attempt connects the replacement client",
-}, async () => {
+for (const recreate of [false, true]) test(recreate
+  ? "B272: an OAuth callback rejects a same-version recreation with a distinct creation time"
+  : "B272: an OAuth callback cannot apply a pending attempt to a replacement client", async () => {
   // Repro: beginConnect (client A) -> hold state -> save clientId B -> callback with held state:
   // the row is `connected` with A's exchanged token under client B.
   // Synthetic tokens only. The old client's attempt is held across a save that swaps the client id.
-  const { repo, sealer, keyring, clock, http, service } = await makeHarness({
+  const h = await makeHarness({
     script: [{ json: { token_type: "Bearer", access_token: "at-for-old-client", refresh_token: "rt-for-old-client", expires_in: 3600 } }],
   });
+  const { repo, sealer, keyring, clock, http } = h;
+  const connected: string[] = [];
+  const service = serviceOver(h, { onConnected: async serverId => { connected.push(serverId); } });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const heldState = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state") ?? "";
   assert.notEqual(heldState, "");
+  const original = await readRow(repo);
+  if (recreate) {
+    await repo.deleteByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    clock.advance(1_000);
+  }
 
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
     {
       workspaceId: WORKSPACE, serverId: SERVER, transport: "stdio", authMode: "oauth", enabled: true,
       command: "npx", args: "-y higgs-mcp", allowedToolNames: "generate_image", writeAllowedToolNames: "",
-      principalId: "principal-1", oauth: { clientId: "replacement-client" },
+      principalId: "principal-1", oauth: { providerId: PROVIDER.providerId, grant: "authorization_code", clientId: "replacement-client", tokenEnvName: "HIGGS_TOKEN" },
     },
   );
-  assert.equal((await readRow(repo)).oauthClientId, "replacement-client");
-
-  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: heldState, code: "old-attempt-code" } })
-    .then(() => undefined, () => undefined);
-
-  const row = await readRow(repo);
-  assert.notEqual(row.oauthStatus, "connected", "the replacement client must not read as signed in");
-  assert.equal(row.oauthExpiresAt, null);
-  assert.equal((await openExternalMcpOAuthPayload(sealer, row)).tokens, undefined, "no token is written for the replacement client");
+  const replacement = await readRow(repo);
+  assert.equal(replacement.oauthClientId, "replacement-client");
+  if (recreate) {
+    assert.equal(replacement.version, original.version);
+    assert.notEqual(replacement.createdAt, original.createdAt);
+  } else assert.notEqual(replacement.version, original.version);
+  await assert.rejects(service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: heldState, code: "old-attempt-code" } }),
+    (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
+  assert.deepEqual(await readRow(repo), replacement);
   assert.equal(http.callCount(), 0, "the old attempt's code is never exchanged for the replacement client");
+  assert.deepEqual(connected, []);
 });
