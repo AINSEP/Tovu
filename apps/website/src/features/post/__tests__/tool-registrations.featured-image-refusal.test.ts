@@ -17,7 +17,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { InMemoryMediaRepo } from "../../media/index.js";
 import type { FeaturedImageResolution } from "@jini-ai/cms/posts/featured-image";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { PostToolDeps } from "../post-tool-deps.js";
+import type { PostToolDeps } from "../tool-registrations.js";
 
 const WS = "workspace-1";
 

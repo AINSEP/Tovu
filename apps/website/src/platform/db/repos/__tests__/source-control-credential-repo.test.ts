@@ -10,7 +10,7 @@ import { SqlSourceControlCredentialSetRepo } from "../../../../features/source-c
 import { openContentDb } from "../../sqlite/content-db.js";
 import { SqliteSourceControlCredentialSetRepo } from "../../../../features/source-control/source-control-credential-repo.sqlite.js";
 import { workspaces } from "../../schema.sqlite.js";
-import type { SourceControlCredentialSetRecord } from "#src/features/source-control/types";
+import type { SourceControlCredentialSetRecord } from "@jini-ai/core/contracts/site/source-control-credentials";
 
 /**
  * @file `SqlSourceControlCredentialSetRepo` against a real, migrated content database on every dialect (the raw-SQL constraint probes at the end: SQLite only) —

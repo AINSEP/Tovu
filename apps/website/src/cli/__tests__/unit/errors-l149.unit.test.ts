@@ -4,7 +4,7 @@ import { CommanderError } from "commander";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { mapErrorToCliOutcome, PortInUseError, ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../../errors.js";
 import { ValidationError, InitDirNotEmptyError, SiteDirInvalidError, SiteNewerThanRuntimeError, SiteCorruptError, SiteRepairRefusedError, InternalError } from "../../../platform/site-dir/index.js";
-import { ExportOutputNotEmptyError } from "../../../features/site-export/index.js";
+import { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 
 for (const code of ["commander.helpDisplayed", "commander.help", "commander.version"]) {
   test(`commander success ${code} omits diagnostics`, () => {

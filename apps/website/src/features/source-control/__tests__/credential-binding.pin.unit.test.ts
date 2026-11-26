@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,7 +11,8 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { validateRepositoryTarget } from "../../custom-credentials/repository-target.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import { createSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl } from "../store.js";
+import { listSourceControlCredentials, resolveDefaultForSourceControl } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential } from "../store.js";
 import type { SourceControlProviderRegistry } from "../provider-registry.js";
 import { bindSourceControlWritePort } from "../write-port.js";
 import { exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
@@ -38,14 +40,14 @@ test("A04 pin: a saved connection is described by label in its own workspace wit
   assert.equal(saved.label, "Deploy key");
   assert.deepEqual(saved.tokenHint, { length: FAKE_TOKEN.length, last4: FAKE_TOKEN.slice(-4) });
 
-  const listed = await listSourceControlCredentials(deps, { workspaceId: SITE });
+  const listed = await listSourceControlCredentials({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE });
   assert.deepEqual(listed.map(row => ({ label: row.label, providerId: row.providerId, tokenHint: row.tokenHint })),
     [{ label: "Deploy key", providerId: "example-git", tokenHint: { length: FAKE_TOKEN.length, last4: FAKE_TOKEN.slice(-4) } }]);
   assert.equal(JSON.stringify(listed).includes(FAKE_TOKEN), false, "a listed summary carried the secret");
-  assert.deepEqual(await listSourceControlCredentials(deps, { workspaceId: OTHER }), [], "another workspace must not see this row");
+  assert.deepEqual(await listSourceControlCredentials({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: OTHER }), [], "another workspace must not see this row");
 
-  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: OTHER, providerId: "example-git" }), null);
-  const opened = await resolveDefaultForSourceControl(deps, { workspaceId: SITE, providerId: "example-git" });
+  assert.equal(await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: OTHER, providerId: "example-git" }), null);
+  const opened = await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE, providerId: "example-git" });
   assert.equal(opened?.label, "Deploy key");
   assert.equal(opened?.connection.token === FAKE_TOKEN, true, "the selected row must open in its own scope");
 });

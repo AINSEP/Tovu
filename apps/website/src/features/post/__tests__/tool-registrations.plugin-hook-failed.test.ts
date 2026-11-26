@@ -27,7 +27,7 @@ import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { buildPostRegistrations } from "../tool-registrations.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";

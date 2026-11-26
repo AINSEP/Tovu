@@ -32,6 +32,7 @@ import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
  */
 export type TovuPublishPorts = CmsPublishPorts & {
   readonly post: {
+    readonly reportRollbackError: (message: string, diagnostic: string) => void;
     /** Apply-only — `retire()`'s address-clash overwrite (`retirePostForReplacement`). */
     readonly remove?: RemovePostFn;
   };

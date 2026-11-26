@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,8 +12,8 @@ import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
@@ -55,7 +58,7 @@ function makeRouteDeps(): WidgetsToolDeps {
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: new InMemoryPostRepo({}),
     // A14 (cc1db295f): the host binds the live editor's post writes, as production composition does.
-    widgetPostWrites: { updatePost, restorePostForward },
+    widgetPostWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward },
     forgetRemovedPost: async () => {},
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],

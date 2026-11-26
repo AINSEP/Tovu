@@ -1,17 +1,32 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { createHash } from "node:crypto";
+import { CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import { askThenReport } from '@jini-ai/daemon/surface-exchanges';
-import { getMediaProviderCredentials, saveMediaProviderCredentials } from '../media/provider-credential-store.js';
+import { getMediaProviderCredentials, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import type { CredentialPrep, CredentialSaved, ProposalResult, saveMediaCredential } from '@jini-ai/cms/media/site-generation/providers-tools';
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 const CREDENTIAL_SAVE_FAILURE = 'Nothing was saved. Check the key and the server credential store, then try again.';
 
 export const mediaProviderHost = {
-  getMediaProviderCredentials,
-  saveProviders: ({ deps, workspaceId }, { providers }) => saveMediaProviderCredentials(deps, { workspaceId, providers }),
+  getMediaProviderCredentials: (deps, input) => getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: input.workspaceId }),
+  saveProviders: ({ deps, workspaceId }, { providers }) => saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId, providers } }),
   assertCredentialFreeField,
   credentialText,
   formatCredentialHint,

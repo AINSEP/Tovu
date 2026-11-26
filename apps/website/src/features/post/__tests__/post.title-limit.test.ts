@@ -1,11 +1,14 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { MAX_TITLE_LENGTH } from "@jini-ai/cms/posts/post-write-fields";
 import { PostValidationError, type PostRecord } from "@jini-ai/cms/posts/post";
-import { updatePost, type UpdatePostDeps } from "../post-update.js";
+import { updatePost, type UpdatePostDeps } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
@@ -42,7 +45,7 @@ function seed(): PostRecord {
   };
 }
 
-function deps(repo: InMemoryPostRepo): UpdatePostDeps {
+function deps(repo: InMemoryPostRepo): Omit<UpdatePostDeps, "reservedSegments" | "postPublicPath" | "isDeepStrictEqual"> {
   return { repo, clock, outbox: noopOutbox };
 }
 
@@ -54,7 +57,7 @@ function retitle(record: PostRecord, title: string) {
 async function createRejection(title: string): Promise<string> {
   const repo = new InMemoryPostRepo({}, { initialRows: [] });
   try {
-    await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "post-new", title } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "post-new", title } });
   } catch (err) {
     assert.ok(err instanceof PostValidationError);
     return err.message;
@@ -69,7 +72,7 @@ test("updatePost refuses a 201-character title with create's exact message, writ
   const createMessage = await createRejection(tooLong);
 
   await assert.rejects(
-    () => updatePost({ deps: deps(repo), input: retitle(record, tooLong) }),
+    () => updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: retitle(record, tooLong) }),
     (err: unknown) => {
       assert.ok(err instanceof PostValidationError);
       assert.equal((err as Error).message, "title must be 200 characters or fewer");
@@ -87,7 +90,7 @@ test("updatePost accepts a title of exactly 200 characters", async () => {
   const record = seed();
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
-  const { post } = await updatePost({ deps: deps(repo), input: retitle(record, "t".repeat(MAX_TITLE_LENGTH)) });
+  const { post } = await updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: retitle(record, "t".repeat(MAX_TITLE_LENGTH)) });
 
   assert.equal(post.title, "t".repeat(MAX_TITLE_LENGTH));
 });
@@ -96,7 +99,7 @@ test("updatePost measures the trimmed title, as create does: 200 characters plus
   const record = seed();
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
-  const { post } = await updatePost({ deps: deps(repo), input: retitle(record, `  ${"t".repeat(MAX_TITLE_LENGTH)}  `) });
+  const { post } = await updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: retitle(record, `  ${"t".repeat(MAX_TITLE_LENGTH)}  `) });
 
   assert.equal(post.title, "t".repeat(MAX_TITLE_LENGTH));
 });
@@ -106,7 +109,7 @@ test("an empty title is still refused on update with its own message, ahead of t
   const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
   await assert.rejects(
-    () => updatePost({ deps: deps(repo), input: retitle(record, "   ") }),
+    () => updatePost({ deps: { ...deps(repo), reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual }, input: retitle(record, "   ") }),
     (err: unknown) => err instanceof PostValidationError && err.message === "title is required"
   );
 });

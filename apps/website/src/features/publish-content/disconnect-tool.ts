@@ -1,6 +1,6 @@
 import { createPublishContentDisconnectTools } from "@jini-ai/cms/publish/content/disconnect-tool";
 import { disconnectDestination, PublishTrustConnectError } from "@jini-ai/cms/publish/trust/connect";
-import { requirePublishTrustProvisioning } from "./tool-registrations.js";
+import { requirePublishTrustProvisioning } from "@jini-ai/cms/publish/content/tool-registrations";
 import type { PublishContentToolDeps } from "./tool-deps.js";
 
 /** Only the ports the admin disconnect handler uses; no HTTP handshake or secret decryption. */

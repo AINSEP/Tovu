@@ -2,17 +2,20 @@ import { FORMS_TABLES } from '#src/platform/db/content-tables';
 import { createFormDefinition, updateFormDefinition, setFormDefinitionStatus } from '#src/features/forms/index';
 import { executeCommand } from '@jini-ai/cms/core/commands';
 import { registerContentType } from '#src/features/content-types/write-service';
+import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
+import { buildWidgetHostPorts, READ_ONLY_WIDGET_POST_WRITES } from "#src/features/widgets/deps";
+import { findWidgetTypeRegistration } from "@jini-ai/cms/widgets";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { contributeContentTypePublish } from "@jini-ai/cms/content-types/site/publish-content";
 import { contributeCollectionEntryPublish } from "#src/features/entries/publish-content";
 import { contributeFormPublish } from "@jini-ai/cms/forms/site/publish-content";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
-import { contributeMenusPublish } from "#src/features/navigation/publish-content";
-import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
+import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
+import { contributePagePublish, contributePostPublish } from "@jini-ai/cms/posts/publish-content";
 import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { contributeRawFilePublish } from "#src/features/publish-content/raw-file-contributor";
-import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
+import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
 import { createRepoPublishHandler, gatewayDeps } from "@jini-ai/cms/publish/content/repo-handler";
 import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
@@ -22,7 +25,15 @@ import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 import { contributeActiveThemePublish } from "#src/features/theme/active-theme-publish-content";
 import { contributeThemeFilesPublish } from "#src/features/theme/publish-content";
-import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
+import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/cms/widgets/site/publish-content";
+
+const widgetPublishPolicy = {
+  bindingTable: WIDGET_REGION_BINDINGS_TABLE,
+  buildWidgetHostPorts: () => buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}),
+  findWidgetTypeRegistration, configReferences: { formDefinitionId: "form", menuRef: "menu", categoryTermId: "term" },
+  formReference: { field: "formDefinitionId", widgetType: "contact-form" },
+};
+
 
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — the composition-root wiring
@@ -79,8 +90,8 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
   registerPublishContentContributor({ contributor: contributeTermPublish() });
   registerPublishContentContributor({ contributor: contributeCollectionEntryPublish() });
-  registerPublishContentContributor({ contributor: contributeWidgetPublish() });
-  registerPublishContentContributor({ contributor: contributeWidgetAreaPublish() });
+  registerPublishContentContributor({ contributor: contributeWidgetPublish(widgetPublishPolicy) });
+  registerPublishContentContributor({ contributor: contributeWidgetAreaPublish(widgetPublishPolicy) });
   registerPublishContentContributor({ contributor: contributeSiteSettingPublish({ createRepoPublishHandler, gatewayDeps: gatewayDeps<TovuPublishPorts>, publishableSettings: PUBLISHABLE_SETTINGS, writePolicies: SETTINGS_WRITE_POLICIES, principalLookup: createSettingsPrincipalLookup }) });
   registerPublishContentContributor({ contributor: contributeActiveThemePublish() });
   registerPublishContentContributor({ contributor: contributeRawRowPublish() });

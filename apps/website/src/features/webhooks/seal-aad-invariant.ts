@@ -3,7 +3,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
-import { findSealCallsInSource, type SealViolation } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant";
+import type { SealViolation } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant";
+import { findSealCallsWithoutAad as find } from "@jini-ai/integrations/webhooks/site/seal-aad-invariant.node";
 
 /**
  * @file Enforces, as a repo-scanning static check, that no production call to
@@ -96,39 +97,11 @@ export function isNonSecretSealCall({ displayPath, text }: { displayPath: string
   return NON_SECRET_SEAL_CALLS[displayPath] === text;
 }
 
-function isTestFile({ file }: { file: string }, _optional = {}): boolean {
-  return /__tests__|\.test\.|\.spec\./.test(file);
-}
-
-function collectTsFiles({ dir }: { dir: string }, _optional = {}): string[] {
-  const out: string[] = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      out.push(...collectTsFiles({ dir: full }));
-    } else if (/\.tsx?$/.test(entry.name) && !isTestFile({ file: full })) {
-      out.push(full);
-    } else {
-      // Non-source entries are outside the seal invariant.
-    }
-  }
-  return out;
-}
-
-/** Real-repo scan: every non-test `.ts`/`.tsx` file under `scanRoot`, reported paths relative to
- * the repo root. Defaults to `apps/website/src` — the only surface `SecretSealerPort.seal()` is
- * called from today. */
 export function findSealCallsWithoutAad(
   _required: Record<string, never> = {},
   { scanRoot = DEFAULT_SCAN_ROOT }: { scanRoot?: string } = {}
 ): SealViolation[] {
-  const violations: SealViolation[] = [];
-  for (const file of collectTsFiles({ dir: scanRoot })) {
-    const sourceText = fs.readFileSync(file, "utf8");
-    violations.push(...findSealCallsInSource({ sourceText, displayPath: path.relative(REPO_ROOT, file), ast: ts, isExempt: isNonSecretSealCall }));
-  }
-  return violations;
+  return find({ repoRoot: REPO_ROOT, scanRoot, fs, ast: ts, isExempt: isNonSecretSealCall });
 }
 
 function main(): void {

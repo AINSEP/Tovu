@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { readSiteMetaJson as readMeta, readSiteMetaId as readId, readSiteKeySourceMaterial as readMaterial, type SiteKeySourceMaterial } from "@jini-ai/platform/secrets/root-key/material";
 import { join } from "node:path";
 
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
@@ -136,15 +136,7 @@ function legacyVolumeFilePath({ cwd }: { cwd: string }, _optional = {}): string 
  * @complexity O(1) — one small, bounded-size file read.
  */
 export function readSiteMetaJson({ siteDir }: { siteDir: string }, _optional = {}): Record<string, unknown> | undefined {
-  const raw = orFallbackSync({ work: () => readFileSync(join(siteDir, ".site-meta.json"), "utf8"), fallback: undefined, step: "Read site key metadata" });
-  if (raw === undefined) return undefined;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : undefined;
+  return readMeta({ filePath: join(siteDir, ".site-meta.json"), readFileSync });
 }
 
 /**
@@ -156,9 +148,7 @@ export function readSiteMetaJson({ siteDir }: { siteDir: string }, _optional = {
  * @complexity O(1), one small file read.
  */
 export function readSiteMetaId({ siteDir }: { siteDir: string }, _optional = {}): string | undefined {
-  const meta = readSiteMetaJson({ siteDir });
-  const id = typeof meta?.siteId === "string" && meta.siteId !== "" ? meta.siteId : meta?.siteKeyId;
-  return typeof id === "string" && id !== "" ? id : undefined;
+  return readId({ siteDir, readSiteMetaJson, idField: "siteId", fallbackIdField: "siteKeyId" });
 }
 
 const SITE_ID_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
@@ -279,18 +269,9 @@ export function siteKeyFilePathFrom({ sources }: { sources: readonly SiteKeySour
  *
  * @complexity O(1) env read, or one `existsSync` plus a file read for a file-kind source.
  */
-export interface SiteKeySourceMaterial {
-  readonly raw: string;
-  readonly envVarName?: string;
-}
-
 export function readSiteKeySourceMaterial(
   { source, env }: { source: SiteKeySource; env: Record<string, string | undefined> },
   _optional: Record<string, never> = {},
 ): SiteKeySourceMaterial | undefined {
-  if (source.kind === "env") {
-    const resolved = resolveSiteKeyEnv({ env });
-    return resolved.kind === "ok" ? { raw: resolved.value, envVarName: resolved.varName } : undefined;
-  }
-  return source.path !== undefined && existsSync(source.path) ? { raw: readFileSync(source.path, "utf8") } : undefined;
+  return readMaterial({ source, env, fs: { existsSync, readFileSync }, resolveSiteKeyEnv });
 }

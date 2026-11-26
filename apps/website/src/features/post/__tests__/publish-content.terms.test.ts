@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
+import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import {
   applyReport,
@@ -23,7 +23,7 @@ import { registerPublishContentContributor } from "#src/features/publish-content
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import { contributePostPublish, toPublishableState } from "../publish-content.js";
+import { contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 const at = "2026-09-01T00:00:00.000Z";
@@ -77,9 +77,9 @@ async function sites() {
 test("an untagged post keeps its schemaVersion-1 hash byte-for-byte, with or without taxonomy ports", async () => {
   registerOnly([contributePostPublish()]);
   const row = post({ id: "p-untagged", slug: "untagged" });
-  const bare = contributePostPublish().build(makeSite({ post: { repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
+  const bare = contributePostPublish().build(makeSite({ post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
   const withTerms = sqliteContentSite();
-  const tagged = contributePostPublish().build(makeSite({ ...withTerms.ports, post: { repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
+  const tagged = contributePostPublish().build(makeSite({ ...withTerms.ports, post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: new InMemoryPostRepo({}, { initialRows: [row] }) } }));
 
   for (const handler of [bare, tagged]) {
     const packed: PackedEntity[] = [];

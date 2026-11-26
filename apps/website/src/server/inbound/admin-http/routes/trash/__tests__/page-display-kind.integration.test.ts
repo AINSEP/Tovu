@@ -1,4 +1,5 @@
 import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { tableExists } from "@jini-ai/db/kernel";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
@@ -11,7 +12,9 @@ import { bindRemoveEntity, createTrashService, type TrashItem } from "@jini-ai/c
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost, deletePost, SqlitePostRepo } from "#src/features/post/index";
+import { deletePost } from "@jini-ai/cms/posts/post-trash";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { SqlitePostRepo } from "#src/features/post/index";
 import { createPostTrashAdapter } from "@jini-ai/cms/trash/site/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
@@ -59,7 +62,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
   return {
     kernel, postRepo, trashRepo, deps,
     async trashPost(kind: "page" | "post", id = kind) {
-      await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId: WS, id, kind, title: `Deleted ${kind}` } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock }, input: { workspaceId: WS, id, kind, title: `Deleted ${kind}` } });
       await deletePost({ deps: { repo: postRepo, clock, outbox, remove }, input: { workspaceId: WS, id } });
       const row = await trashRepo.findByEntity({ workspaceId: WS, entityType: "post", entityId: id });
       assert.ok(row);

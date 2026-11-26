@@ -1,4 +1,7 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { openPostSearchScratch } from "#src/features/post/search-scratch-host";
 import { sanitizeShareDatabase } from "../../site-portability.js";
@@ -7,7 +10,8 @@ import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { type TrashKindMover } from "@jini-ai/core/contracts/site/cms-trash";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
-import { COMMENT_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
+import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { MEDIA_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/media";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
@@ -23,8 +27,8 @@ import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switche
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { composeVisitorToolsManagement } from "../../visitor-tools-management.js";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
-import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 
 /** Trash service and registry, the forms mover, and the site-backup sanitizer, plugin exports and agent inventory that open the root. */
 export function memoryTrashCoreDeps(required: MemoryRootContext, _optional = {}) {
@@ -118,7 +122,7 @@ export function memoryTrashSweepDeps(required: MemoryRootContext, _optional = {}
       entityType: POST_ENTITY_TYPE
     }),
     // A14: widget embeds on a post/page host write through the live editor's own chokepoints.
-    widgetPostWrites: { updatePost, restorePostForward },
+    widgetPostWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward },
     // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the
     // timer (`createServingApp` does), and the hermetic media/comment adapters have no
     // `hardDelete`, so a pass here would stand down rather than claim a removal.
@@ -168,7 +172,7 @@ export function memoryPostChatDeps(required: MemoryRootContext, _optional = {}) 
     // this double's `deps.repo` is already the full `postRepo`, so its own `appendRevision` calls
     // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
-    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo: postRepo, clock, entryRefsRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml, widgetSlugLookup: entryRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo: postRepo, clock, entryRefsRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml, widgetSlugLookup: entryRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
     // FIX 11: no shared rollback boundary over the page write and its change-set record here (the
     // post snapshot does not cover the change-set repo or the outbox), so recorded HTML writes refuse.
     recordedHtmlWrites: "disabled",

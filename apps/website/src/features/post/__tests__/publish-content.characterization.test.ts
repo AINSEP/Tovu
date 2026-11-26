@@ -7,7 +7,7 @@ import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-re
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import { contributePagePublish, contributePostPublish } from "../publish-content.js";
+import { contributePagePublish, contributePostPublish } from "@jini-ai/cms/posts/publish-content";
 
 /**
  * @file Characterization pin for M-POST (`plan-publish-all-types-2026-09-25.md` §5, §7): the live site

@@ -6,9 +6,7 @@ import { createInMemorySearchProvider, createInMemorySearchState } from "@jini-a
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { MediaRecord } from "@jini-ai/cms/media";
 
-import {
-  createMediaSearchAccessPort, createMediaSearchChangeSink, createMediaSearchSource, isPublicSearchImage, MEDIA_SEARCH_COLLECTION,
-} from "../media-search-source.js";
+import { createMediaSearchAccessPort, createMediaSearchChangeSink, createMediaSearchSource, isPublicSearchImage, MEDIA_SEARCH_COLLECTION } from "@jini-ai/search/site/media-search-source";
 import { mediaChangeMarker, type MediaChangeSink } from "#src/platform/db/repos/media-repo";
 
 type MemoryRepo = {

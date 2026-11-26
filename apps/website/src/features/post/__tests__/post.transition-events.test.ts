@@ -1,8 +1,11 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
@@ -50,7 +53,7 @@ test("updatePost transition table: not-published -> published emits exactly one 
   const outbox = new RecordingOutbox();
 
   await updatePost({
-    deps: { repo, clock, outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -72,7 +75,7 @@ test("updatePost transition table: published -> published (edited) emits exactly
   const outbox = new RecordingOutbox();
 
   await updatePost({
-    deps: { repo, clock, outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -92,7 +95,7 @@ test("updatePost transition table: published -> not-published emits exactly one 
   const outbox = new RecordingOutbox();
 
   await updatePost({
-    deps: { repo, clock, outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -112,7 +115,7 @@ test("updatePost transition table: not-published -> not-published (edited) emits
   const outbox = new RecordingOutbox();
 
   await updatePost({
-    deps: { repo, clock, outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -131,7 +134,7 @@ test("updatePost transition table: the emitted event's payload carries entryId +
   const outbox = new RecordingOutbox();
 
   await updatePost({
-    deps: { repo, clock, outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",

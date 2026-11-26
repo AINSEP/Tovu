@@ -987,9 +987,9 @@ test("a contributor registered AFTER an earlier planImport call is picked up by 
 
 test("real post contributor: created + byte-identical destination", async () => {
   const { InMemoryPostRepo } = await import("../../post/repo.memory.js");
-  const { contributePostPublish } = await import("../../post/publish-content.js");
+  const { contributePostPublish } = await import("@jini-ai/cms/posts/publish-content");
   const { contributeMediaPublish } = await import("../../media/publish-content.js");
-  const { contributeTaxonomyPublish, contributeTermPublish } = await import("../../taxonomy/publish-content.js");
+  const { contributeTaxonomyPublish, contributeTermPublish } = await import("@jini-ai/cms/taxonomy/site/publish-content");
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
   registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
   registerPublishContentContributor({ contributor: contributeTermPublish() });
@@ -1023,7 +1023,7 @@ test("real post contributor: created + byte-identical destination", async () => 
     state: newPostState,
   };
   const deps: PlanImportDeps = {
-    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,
   };
@@ -1035,9 +1035,9 @@ test("real post contributor: created + byte-identical destination", async () => 
 
 test("real post contributor: blocked on a genuine slug collision against a DIFFERENT existing post", async () => {
   const { InMemoryPostRepo } = await import("../../post/repo.memory.js");
-  const { contributePostPublish } = await import("../../post/publish-content.js");
+  const { contributePostPublish } = await import("@jini-ai/cms/posts/publish-content");
   const { contributeMediaPublish } = await import("../../media/publish-content.js");
-  const { contributeTaxonomyPublish, contributeTermPublish } = await import("../../taxonomy/publish-content.js");
+  const { contributeTaxonomyPublish, contributeTermPublish } = await import("@jini-ai/cms/taxonomy/site/publish-content");
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
   registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
   registerPublishContentContributor({ contributor: contributeTermPublish() });
@@ -1071,7 +1071,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
     state: incomingState,
   };
   const deps: PlanImportDeps = {
-    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
+    catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,
   };

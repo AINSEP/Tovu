@@ -3,7 +3,7 @@ import { SqliteAssetBlobRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
-import { createMediaSearchChangeSink } from "#src/features/media/media-search-source";
+import { createMediaSearchChangeSink } from "@jini-ai/search/site/media-search-source";
 import { SqlitePostRepo } from "#src/features/post/index";
 import type { OutboxEventPreparation } from "@jini-ai/db/events";
 import type { MediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";

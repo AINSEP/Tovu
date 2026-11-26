@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file Characterization of the Widgets agent-tool contract, built THROUGH THE HOST CONTRIBUTOR
  * (`contributeWidgetsTools().build(deps, surfaces)`), so it pins what the assistant's composition
@@ -26,8 +29,8 @@ import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { updatePost } from "#src/features/post/post-update";
-import { restorePostForward } from "#src/features/post/post-trash";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { contributeWidgetsTools, type WidgetsToolDeps } from "../tool-registrations.js";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
@@ -105,7 +108,7 @@ async function makeFixture(): Promise<Fixture> {
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
     // A14: the host binds the live editor's post writes (same chokepoints as production composition).
-    widgetPostWrites: { updatePost, restorePostForward },
+    widgetPostWrites: { updatePost: (required, optional) => updatePost({ ...required, deps: { ...required.deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, } }, optional), restorePostForward },
     entryRepo: widgetTrash.entryRepo,
     removeWidget: widgetTrash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),

@@ -1,4 +1,4 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -32,13 +32,13 @@ test("InMemoryPagesHtmlDocumentStore: write and conversion after go-live announc
 
   const htmlRepo = new InMemoryPostRepo({}, { initialRows: [page({ bodyFormat: "html", bodyHtml: "<p>v1</p>", bodyJson: null })] });
   const written = recordingOutbox();
-  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo: htmlRepo, clock, outbox: written, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo: htmlRepo, clock, outbox: written, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await store.read();
   await store.write({ html: "<p>v2</p>" });
   assert.deepEqual(written.ids, [GO_LIVE_ID]);
 
   const docRepo = new InMemoryPostRepo({}, { initialRows: [page({})] });
   const converted = recordingOutbox();
-  await new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo: docRepo, clock, outbox: converted, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }).ensureHtmlFormat({ seedHtml: "<p>seed</p>" });
+  await new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-1" }, deps: { repo: docRepo, clock, outbox: converted, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }).ensureHtmlFormat({ seedHtml: "<p>seed</p>" });
   assert.deepEqual(converted.ids, [GO_LIVE_ID]);
 });

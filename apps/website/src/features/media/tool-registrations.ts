@@ -4,7 +4,7 @@ import { withLargeUploadRouting } from "@jini-ai/cms/media/site/large-upload-rou
 import { LARGE_UPLOAD_ROUTING } from "./large-upload-routing-copy.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import { CONVERT_VIDEO_TOOL_ID, type ImageCodecPort, type MediaTranscoderPort, type VideoCodecProbePort } from "@jini-ai/cms/media";
-import { createDerivedMediaLink } from "./derived-media-link.js";
+import { createDerivedMediaLink } from "@jini-ai/cms/media/site/derived-media-link";
 import { toolMetadata as jiniMediaMetadata } from '@jini-ai/core/tool-metadata/media';
 import { toolMetadata as videoConversionMetadata } from "@jini-ai/core/tool-metadata/media-video-conversion";
 import { withToolMetadata } from '@jini-ai/core';
@@ -183,7 +183,7 @@ export function buildMediaRegistrationsForTovu(
     resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls({ deps: routeDeps, assets }),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
     ...UPLOAD_CAPS,
-    ...(transcoder ? { videoConversion: { transcoder, linkDerivedMedia: createDerivedMediaLink({ mediaRepo: routeDeps.mediaRepo, clock: routeDeps.clock }) } } : {}),
+    ...(transcoder ? { videoConversion: { transcoder, linkDerivedMedia: createDerivedMediaLink({ mediaRepo: routeDeps.mediaRepo, clock: routeDeps.clock, description: ({ title }) => `Web-playable copy of "${title}".`, refusal: "The converted video could not be linked to its original, so it was not kept." }) } } : {}),
   });
 
   return withToolMetadata({ registrations: registrations.map(withHostDeclaredMetadata), metadata: toolMetadata }).map((registration): ToolRegistration => {
@@ -218,5 +218,3 @@ export function contributeMediaTools(ports: MediaConversionPorts = {}): ToolCont
   const risk = ports.transcoder ? new Map([...mediaDerivedRisk, [CONVERT_VIDEO_TOOL_ID, "mutates-durable-state" as const]]) : mediaDerivedRisk;
   return { domain: "media", build: (routeDeps, surfaces) => buildMediaRegistrationsForTovu(routeDeps, surfaces, ports), risk };
 }
-
-export { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "./view-video-tool.js";

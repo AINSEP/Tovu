@@ -148,7 +148,7 @@ export function sqliteContentSite() {
   };
   const ports: Partial<TovuPublishPorts> = {
     // A function port, so not `unused()`'s Proxy (calling a Proxy over `{}` is a bare TypeError).
-    post: { repo: repos.posts, forgetRemoved: async () => {}, remove: async () => { throw new Error("round-trip-harness: 'post.remove' is not wired"); } },
+    post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: repos.posts, forgetRemoved: async () => {}, remove: async () => { throw new Error("round-trip-harness: 'post.remove' is not wired"); } },
     ...buildContentPublishPorts({
       formDefinitionRepo: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }),
       contentTypeRepo: repos.contentTypes,

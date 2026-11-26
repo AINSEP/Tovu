@@ -20,9 +20,15 @@ import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";
 import { buildMediaGenerationRegistrations } from "../../media-generation/tool-registrations.js";
 import { buildMediaImportRegistrations } from "../../media-import/tool-registrations.js";
 import { buildPromoteChatAttachmentTool } from "@jini-ai/cms/media/site/promote-chat-attachment";
-import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import { createHostMediaProviderRegistry } from "#src/features/media-generation/host-media-providers";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
 
 // Exercise the real registered handlers, upload/replacement services and codec. Only paid vendor
 // generation and outbound downloads are substituted; no HTTP server or external I/O is needed.
@@ -44,7 +50,7 @@ test("every registered media-producing tool returns the same inline image previe
     resolveRoots: () => ({ repo: root, site: root, custom: root }),
     mediaImportHttpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "", bodyBytes: bytes, bodyTruncated: false }) },
     mediaGenerationHttpClient: { send: async () => { throw new Error("unexpected generation HTTP"); } },
-    mediaProviderRegistry: createHostMediaProviderRegistry(), mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
+    mediaProviderRegistry: createHostMediaProviderRegistry(), mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() }),
     siteAssistantSecretSealer: { seal: async () => { throw new Error("unexpected seal"); }, open: async () => { throw new Error("unexpected open"); } },
     env: { OPENAI_API_KEY: "test-preview-key" },
     generateMedia: async () => ({ bytes, providerNote: "test fixture", providerId: "openai", usedStubFallback: false, warnings: [] }),

@@ -1,6 +1,6 @@
 import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -38,7 +38,7 @@ function harness(_required = {}, _options = {}) {
   let sequence = 0;
   const deps: EmailTemplateDeps = { EmailTemplateNotFoundError,
     workspaceId: WS, clock, postRepo, idGen: { newId: () => `template-${++sequence}` },
-    pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock, revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+    pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore({ scope, deps: { ...options, statements: createPageHtmlStatements({ kernel }), clock, revisions: postRepo, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
   };
   const registry = buildTrashRegistry();
   const trashDb = contentKernel({ store: db });

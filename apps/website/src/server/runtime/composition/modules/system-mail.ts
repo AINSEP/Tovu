@@ -23,7 +23,8 @@ import type { MailDeliveryToolDeps } from "#src/features/mail-status/delivery-to
 import { mailDomainDepsFrom } from "@jini-ai/user-management/mail/status/domain-deps";
 import { readMailFeedbackSetup } from "@jini-ai/platform/mail/feedback-setup";
 import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
-import { activateMailProvider, planMailProviderCredential, readMailProviderConfigurations } from "#src/features/mail-status/provider-operations";
+import { activateMailProvider, readMailProviderConfigurations } from "@jini-ai/user-management/mail/status/provider-operations";
+import { planMailProviderCredential } from "#src/features/mail-status/provider-operations";
 import { mailUseReadinessDepsFrom, readMailUseReadiness } from "@jini-ai/platform/mail/use-readiness";
 import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps } from "@jini-ai/platform/mail/test-send";
 import { isMailDeliveryAvailable } from "#src/platform/mail/index";

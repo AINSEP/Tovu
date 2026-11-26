@@ -16,7 +16,7 @@ import { NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { contributeContentTypePublish } from "@jini-ai/cms/content-types/site/publish-content";
 import { contributeFormPublish } from "@jini-ai/cms/forms/site/publish-content";
-import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
+import { contributeWidgetAreaPublish, contributeWidgetPublish } from "@jini-ai/cms/widgets/site/publish-content";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
 import { createWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";

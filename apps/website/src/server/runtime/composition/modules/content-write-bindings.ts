@@ -1,9 +1,15 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { parseExpectedVersion, versionConflictEnvelope } from "@jini-ai/cms/posts/expected-version";
 import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 import { resolveFeaturedMediaIdForWrite } from "@jini-ai/cms/posts/featured-image";
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
-import { createPost, deletePost, getAdminPostByIdOrSlug, restorePostForward, updatePost, type UpdatePostInput } from "#src/features/post/index";
+import { deletePost, restorePostForward } from "@jini-ai/cms/posts/post-trash";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { getAdminPostByIdOrSlug } from "#src/features/post/index";
+import { updatePost, type UpdatePostInput } from "@jini-ai/cms/posts/post-update";
 import { toAdminPostResponse } from "@jini-ai/cms/admin-http/http/posts";
 import { rejectPluginHookFailure } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
@@ -159,7 +165,7 @@ export async function applyContentUpdate(
   _optional: Record<string, never> = {},
 ) {
   return updatePost({
-    deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, beforeSaveHook: deps.pluginBeforeSaveHook, slugChangeCapture: deps.slugChangeCapture },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, beforeSaveHook: deps.pluginBeforeSaveHook, slugChangeCapture: deps.slugChangeCapture },
     input: {
       workspaceId: deps.workspaceId,
       id,

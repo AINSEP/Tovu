@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -5,9 +8,9 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost } from "../post-create.js";
-import { deletePost } from "../post-trash.js";
-import { updatePost } from "../post-update.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { deletePost } from "@jini-ai/cms/posts/post-trash";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -148,7 +151,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: createPost writes a create revision and returns its id`, async () => {
     const repo = adapter.make();
     const { post, revisionId, previousRevisionId } = await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: "post-1", title: "Hello" },
     });
 
@@ -165,7 +168,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: createPost honors a caller-supplied actorId`, async () => {
     const repo = adapter.make();
     await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: "post-1", title: "Hello", actorId: "user-42" },
     });
 
@@ -176,7 +179,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: createPost honors a caller-supplied delegatedByWorkspaceId/delegatedById (agent-path attribution)`, async () => {
     const repo = adapter.make();
     await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: {
         workspaceId: WS,
         id: "post-1",
@@ -195,7 +198,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: createPost defaults delegatedByWorkspaceId/delegatedById to null when omitted — a direct (non-delegated) write is distinguishable from a delegated one`, async () => {
     const repo = adapter.make();
     await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: "post-1", title: "Hello", actorId: "user-42" },
     });
 
@@ -207,12 +210,12 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: updatePost writes an update revision chained to the create revision`, async () => {
     const repo = adapter.make();
     const { revisionId: createRevisionId } = await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: "post-1", title: "Hello" },
     });
 
     const { post, revisionId, previousRevisionId } = await updatePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
       input: {
         workspaceId: WS,
         id: "post-1",
@@ -234,10 +237,10 @@ for (const adapter of ADAPTERS) {
 
   test(`${adapter.name}: updatePost honors a caller-supplied actorId and delegatedByWorkspaceId/delegatedById`, async () => {
     const repo = adapter.make();
-    await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
 
     await updatePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
       input: {
         workspaceId: WS,
         id: "post-1",
@@ -261,7 +264,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: deletePost writes a delete revision carrying the trashed state, chained to the prior revision`, async () => {
     const repo = adapter.make();
     const { revisionId: createRevisionId } = await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: "post-1", title: "Hello", status: "published" },
     });
 
@@ -282,7 +285,7 @@ for (const adapter of ADAPTERS) {
 
   test(`${adapter.name}: deletePost honors a caller-supplied actorId and delegatedByWorkspaceId/delegatedById`, async () => {
     const repo = adapter.make();
-    await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
 
     await deletePost({
       deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) },
@@ -313,7 +316,7 @@ for (const adapter of ADAPTERS) {
     );
 
     const { post } = await updatePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
       input: {
         workspaceId: WS,
         id: "post-1",
@@ -368,7 +371,7 @@ for (const adapter of ADAPTERS) {
     const repo = withThrowingAppendRevision(inner);
 
     await assert.rejects(
-      () => createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } }),
+      () => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } }),
       /simulated appendRevision failure/
     );
 
@@ -379,7 +382,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: updatePost's post write and revision append are atomic — a throwing appendRevision leaves the row unchanged`, async () => {
     const inner = adapter.make();
     const { post: seeded } = await createPost({
-      deps: { repo: inner, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo: inner, clock },
       input: { workspaceId: WS, id: "post-1", title: "Hello" },
     });
 
@@ -387,7 +390,7 @@ for (const adapter of ADAPTERS) {
     await assert.rejects(
       () =>
         updatePost({
-          deps: { repo, clock, outbox: noopOutbox },
+          deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
           input: {
             workspaceId: WS,
             id: "post-1",
@@ -410,7 +413,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: deletePost's softDelete write and revision append are atomic — a throwing appendRevision leaves the row live`, async () => {
     const inner = adapter.make();
     const { post: seeded } = await createPost({
-      deps: { repo: inner, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo: inner, clock },
       input: { workspaceId: WS, id: "post-1", title: "Hello", status: "published" },
     });
 

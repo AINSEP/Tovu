@@ -1,9 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /** @file Owner request 2026-10-11: public post/page writes never claim admin or api. */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { createPost } from "../post-create.js";
-import { updatePost } from "../post-update.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { PostValidationError } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
@@ -20,10 +23,10 @@ for (const kind of ["post", "page"] as const) {
         assert.equal(error.message, `slug '${slug.toLowerCase()}' is reserved`);
         return true;
       };
-      await assert.rejects(createPost({ deps, input: { workspaceId, id: "bad", kind, title: "Safe", slug } }), expected);
+      await assert.rejects(createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "bad", kind, title: "Safe", slug } }), expected);
       assert.equal(await repo.findById({ workspaceId, id: "bad" }), null);
-      const { post } = await createPost({ deps, input: { workspaceId, id: "safe", kind, title: "Safe" } });
-      await assert.rejects(updatePost({ deps, input: { workspaceId, id: post.id, title: post.title, slug, status: post.status, bodyJson: post.bodyJson, expectedVersion: post.version } }), expected);
+      const { post } = await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "safe", kind, title: "Safe" } });
+      await assert.rejects(updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { workspaceId, id: post.id, title: post.title, slug, status: post.status, bodyJson: post.bodyJson, expectedVersion: post.version } }), expected);
       assert.deepEqual(await repo.findById({ workspaceId, id: post.id }), post);
       assert.equal((await repo.listRevisions({ workspaceId, postId: post.id })).length, 1);
     });
@@ -34,8 +37,8 @@ for (const kind of ["post", "page"] as const) {
       const repo = new InMemoryPostRepo({});
       const deps = { repo, clock };
       const firstSuffix = kind === "post" ? 1 : 2;
-      const first = await createPost({ deps, input: { workspaceId, id: "first", kind, title } });
-      const second = await createPost({ deps, input: { workspaceId, id: "second", kind, title } });
+      const first = await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "first", kind, title } });
+      const second = await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "second", kind, title } });
       assert.equal(first.post.slug, `${title.toLowerCase()}-${firstSuffix}`);
       assert.equal(second.post.slug, `${title.toLowerCase()}-${firstSuffix + 1}`);
     });
@@ -45,14 +48,14 @@ for (const kind of ["post", "page"] as const) {
 test("an unpublished automatic post slug follows the title onto API with collision suffixing", async () => {
   const repo = new InMemoryPostRepo({});
   const deps = { repo, clock, outbox: new InMemoryOutbox() };
-  const { post } = await createPost({ deps, input: { workspaceId, id: "draft", title: "Safe" } });
-  await createPost({ deps, input: { workspaceId, id: "occupied", title: "API" } });
-  const result = await updatePost({ deps, input: { workspaceId, id: post.id, title: "api", slugFromTitle: true, status: "draft", bodyJson: post.bodyJson, expectedVersion: post.version } });
+  const { post } = await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "draft", title: "Safe" } });
+  await createPost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS }, input: { workspaceId, id: "occupied", title: "API" } });
+  const result = await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { workspaceId, id: post.id, title: "api", slugFromTitle: true, status: "draft", bodyJson: post.bodyJson, expectedVersion: post.version } });
   assert.equal(result.post.slug, "api-2");
   assert.equal((await repo.findById({ workspaceId, id: post.id }))?.slug, "api-2");
 });
 
 test("a page may still claim the root", async () => {
-  const result = await createPost({ deps: { repo: new InMemoryPostRepo({}), clock }, input: { workspaceId, id: "home", title: "Home", kind: "page", slug: "/" } });
+  const result = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: new InMemoryPostRepo({}), clock }, input: { workspaceId, id: "home", title: "Home", kind: "page", slug: "/" } });
   assert.equal(result.post.slug, "/");
 });

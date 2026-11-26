@@ -13,7 +13,7 @@ import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService, type TrashRegistry } from "@jini-ai/cms/trash";
-import type { TrashAuthorizeFn } from "../index.js";
+import type { TrashAuthorizeFn } from "@jini-ai/core/contracts/site/cms-trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { TRASH_RETENTION_DAYS } from "#src/server/runtime/composition/trash-retention";
 

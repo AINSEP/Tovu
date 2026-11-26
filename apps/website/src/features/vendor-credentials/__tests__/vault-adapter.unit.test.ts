@@ -10,9 +10,10 @@ import {
 } from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { credentialHint, credentialScope, credentialVault, TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "../vault-adapter.js";
-import type { VendorCredentialSetRecord } from "../types.js";
-import type { SourceControlCredentialSetRecord } from "../../source-control/types.js";
+import { credentialHint } from "@jini-ai/integrations/vendor-credentials/vault-adapter";
+import { credentialScope, credentialVault, TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "../vault-adapter.js";
+import type { VendorCredentialSetRecord } from "@jini-ai/core/contracts/site/vendor-credentials";
+import type { SourceControlCredentialSetRecord } from "@jini-ai/core/contracts/site/source-control-credentials";
 
 const NOW = "2026-10-16T00:00:00.000Z";
 const envelope = { keyId: "v1", ciphertext: "ciphertext", nonce: "nonce", alg: "aes-256-gcm" as const };

@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,12 +7,8 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import {
-  createSourceControlCredential,
-  resolveDefaultForSourceControl,
-  SourceControlCredentialSecretStoreUnconfiguredError,
-  type SourceControlCredentialWriteDeps,
-} from "../store.js";
+import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
@@ -62,7 +59,7 @@ test("resolveDefaultForSourceControl decrypts the provider's default connection,
   const second = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Work", connection: { providerId: "example-git", token: "fixture_work_secret" }, isDefault: true } });
 
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Newest", connection: { providerId: "example-git", token: "fixture_newest_non_default" } } });
-  const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" });
+  const resolved = await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" });
   assert.ok(resolved);
   assert.equal(resolved.id, second.id);
   assert.equal(resolved.label, "Work");
@@ -73,7 +70,7 @@ test("resolveDefaultForSourceControl returns null (never throws) when the provid
   const deps = makeDeps();
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "GL", connection: { providerId: "example-token", token: "fixture_secret" } } });
 
-  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }), null);
+  assert.equal(await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }), null);
 });
 
 test("resolveDefaultForSourceControl throws on a genuine decrypt failure rather than silently returning null", async () => {
@@ -81,7 +78,7 @@ test("resolveDefaultForSourceControl throws on a genuine decrypt failure rather 
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Personal", connection: { providerId: "example-git", token: "fixture_real_secret" } } });
 
   const wrongKeyDeps = { ...deps, sealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }) };
-  await assert.rejects(() => resolveDefaultForSourceControl(wrongKeyDeps, { workspaceId: WORKSPACE, providerId: "example-git" }));
+  await assert.rejects(() => resolveDefaultForSourceControl({ ...wrongKeyDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }));
 });
 
 /**
@@ -104,7 +101,7 @@ test("resolveDefaultForSourceControl converts a decrypt failure (missing site ke
   const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
 
   await assert.rejects(
-    () => resolveDefaultForSourceControl(brokenDeps, { workspaceId: WORKSPACE, providerId: "example-git" }),
+    () => resolveDefaultForSourceControl({ ...brokenDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-git" }),
     SourceControlCredentialSecretStoreUnconfiguredError
   );
 });
@@ -117,7 +114,7 @@ test("resolveDefaultForSourceControl round-trips a example-paired connection's p
     connection: { providerId: "example-paired", token: "paired-password", username: "octocat" },
   } });
 
-  const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-paired" });
+  const resolved = await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: WORKSPACE, providerId: "example-paired" });
   assert.deepEqual(resolved?.connection, { providerId: "example-paired", token: "paired-password", username: "octocat" });
 });
 
@@ -145,10 +142,10 @@ test("resolveDefaultForSourceControl refuses a same-key ciphertext transplanted 
     const record = await deps.repo.findById(target);
     assert.ok(record, label);
     // Positive control: the target opens with its own blob before the swap.
-    assert.ok(await resolveDefaultForSourceControl(deps, { workspaceId: target.workspaceId, providerId }), label);
+    assert.ok(await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: target.workspaceId, providerId }), label);
     await deps.repo.update({ ...record, sealed: sourceRecord.sealed });
     await assert.rejects(
-      () => resolveDefaultForSourceControl(deps, { workspaceId: target.workspaceId, providerId }),
+      () => resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: target.workspaceId, providerId }),
       SourceControlCredentialSecretStoreUnconfiguredError,
       `${label}: a transplanted blob must not open as this row`
     );

@@ -6,7 +6,8 @@ import { createPagesAgentToolCatalog } from "@jini-ai/cms/pages/agent-tools";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "@tovu/contracts/assistant-content-guidance";
 import { PAGE_HTML_CONTRACT } from "../../contracts/core/page-html.js";
-import { recordAssistantPageHtmlWrite } from "./html-change-recording.js";
+import { recordAssistantPageHtmlWrite } from "@jini-ai/cms/pages/html-change-recording";
+import type { PageHtmlOperation } from "@jini-ai/core/contracts/site/page-html-store";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme, themeRosterPorts, type DiscoveredTheme } from "../theme/index.js";
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
@@ -55,12 +56,20 @@ async function readPageTheme(
 
 export const pagesAgentToolCatalog = createPagesAgentToolCatalog({ editHtmlPermission: PAGES_EDIT_HTML_PERMISSION, authoringContract: PAGE_HTML_CONTRACT, editGuidance: ASSISTANT_CONTENT_EDIT_GUIDANCE });
 
+/** Short, HTML-free summaries: change-set summaries are listed to the model and to History. */
+const SUMMARY: Readonly<Record<PageHtmlOperation, string>> = {
+  pages_write_html: "Assistant rewrote a page's HTML",
+  pages_write_region: "Assistant edited a page section",
+  pages_move_region: "Assistant moved a page section",
+};
+
+
 export function bindPagesToolHost(_required: Record<string, never> = {}, _optional: Record<string, never> = {}) {
   return {
     catalog: pagesAgentToolCatalog,
     editHtmlPermission: PAGES_EDIT_HTML_PERMISSION,
     regions: { scanHtmlRegions, handlesMadeAmbiguous, locateRegion, moveRegion, regionHandlesIn, replaceRegionInner, untaggedTopLevelSections },
     readTheme: readPageTheme,
-    recordWrite: ({ deps }: { deps: PagesToolDeps }): RecordPageHtmlWritePort => (required, optional) => recordAssistantPageHtmlWrite({ deps, ...required }, optional),
+    recordWrite: ({ deps }: { deps: PagesToolDeps }): RecordPageHtmlWritePort => (required, optional) => recordAssistantPageHtmlWrite({ deps: { ...deps, editPermission: PAGES_EDIT_HTML_PERMISSION, summary: SUMMARY }, ...required }, optional),
   };
 }

@@ -1,3 +1,4 @@
+import { isOwnShareFolder } from "#src/features/site-backup/share-own-folder";
 import { lstat, readdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { createRetentionRunner, RetentionPolicy } from "@jini-ai/platform/retention";
@@ -38,7 +39,7 @@ import fsPromises from "node:fs/promises";
 import { sweepOwnedTempRoots } from "@jini-ai/platform/fs";
 import { SITE_TEMP_ROOTS, siteTempRootLock } from "#src/platform/temp/site-temp-roots";
 import { createSiteTempRootPolicy } from "./retention-policies/temp-roots.js";
-import { createShareMutex, createShareRetention, type ShareRetentionFs } from "#src/features/site-backup/share-retention";
+import { createShareMutex, createShareRetention, type ShareRetentionFs } from "@jini-ai/devops/backup/site/share-retention";
 import { createDatabaseCopyPolicy, type DatabaseCopyPolicyRequired } from "./retention-policies/database-copies.js";
 
 /** One bounded free-page pass (`createDbFreePagesPolicy`): `run` steps, `drain` awaits the step in flight. */
@@ -152,7 +153,7 @@ export function siteRetentionPolicies(
 ): RetentionPolicy[] {
   const { registry, fs, clock, signal, reportError, databaseCopies } = required;
   const policies: RetentionPolicy[] = [];
-  if (registry) policies.push(createShareRetention({ registry, shareMutex: createShareMutex({}), fs, clock, signal,
+  if (registry) policies.push(createShareRetention({ isOwnShareFolder, registry, shareMutex: createShareMutex({}), fs, clock, signal,
     reportError: ({ error }, {}) => reportError({ error, policyId: "share-files" }, {}) }));
   if (databaseCopies) policies.push(createDatabaseCopyPolicy({ ...databaseCopies, signal }));
   policies.push(createSiteTempRootPolicy({ roots: SITE_TEMP_ROOTS, sweepOwnedTempRoots, fs: fsPromises, fileLock: siteTempRootLock, signal }));

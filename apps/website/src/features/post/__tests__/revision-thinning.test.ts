@@ -11,7 +11,8 @@ import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
 
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor } from "../repo.js";
-import { bindRevisionThinning, revisionThinningApprovalHandler, type RevisionRefProbe } from "../revision-thinning.js";
+import { type RevisionRefProbe } from "@jini-ai/cms/posts/sql/revision-thinning";
+import { bindRevisionThinning, revisionThinningApprovalHandler } from "../revision-thinning.js";
 
 /**
  * @file The host revision-thinning adapter over a real migrated SQLite content kernel: date-only

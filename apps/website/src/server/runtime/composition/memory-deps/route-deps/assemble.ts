@@ -1,4 +1,5 @@
-import { registerPageHtmlReverter } from "../../../../../features/pages/html-reverter.js";
+import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/permissions";
+import { registerPageHtmlReverter } from "@jini-ai/cms/pages/html-reverter";
 import { memoryTrashCoreDeps, memoryTrashRemoverDeps, memoryTrashSweepDeps, memoryPostChatDeps, memorySettingsSeoDeps } from "./trash-and-content.js";
 import { memoryAssistantCredentialDeps, memoryMcpOAuthDeps, memoryReadinessRevertDeps, memorySiteBindingDeps } from "./assistant-and-site.js";
 import { memoryMemberMediaDeps, memoryNewsletterFormsDeps } from "./members-media-newsletter-forms.js";
@@ -30,6 +31,6 @@ export function assembleMemoryRouteDeps(required: MemoryRootContext, _optional =
     ...memoryClientsAndSiteContextDeps(required),
   };
   // P1-T2.T: same page-store factory as the assistant write path, once registry and factory both exist.
-  registerPageHtmlReverter({ registry: deps.revertRegistry, store: deps.pagesHtmlStore, postRepo: deps.postRepo });
+  registerPageHtmlReverter({ editPermission: PAGES_EDIT_HTML_PERMISSION, registry: deps.revertRegistry, store: deps.pagesHtmlStore, postRepo: deps.postRepo });
   return deps;
 }

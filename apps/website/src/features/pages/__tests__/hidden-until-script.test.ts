@@ -1,12 +1,14 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, createPost } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
 
@@ -28,7 +30,7 @@ function harness() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
   }, host: bindPagesToolHost({}) });
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
   const ctx = { principal: { id: "admin-1", kind: "user" }, signal: new AbortController().signal };
@@ -42,7 +44,7 @@ function harness() {
 
 test("pages_write_html still writes hidden markup but returns a warning naming it", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Home", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Home", kind: "page" } });
   const html = `<section data-agent-element="hero" data-agent-role="region"><h1 style="opacity:0">We hire</h1></section>`;
 
   const result = await call("pages_write_html", { id: "page-1", html });
@@ -56,7 +58,7 @@ test("pages_write_html still writes hidden markup but returns a warning naming i
 
 test("pages_write_html on clean markup carries no warning", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Home", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Home", kind: "page" } });
   const result = await call("pages_write_html", { id: "page-1", html: `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` });
   assert.equal(result.written, true);
   assert.equal("warning" in result, false);
@@ -64,7 +66,7 @@ test("pages_write_html on clean markup carries no warning", async () => {
 
 test("pages_write_region warns about hidden markup in the fragment it wrote", async () => {
   const { repo, call } = harness();
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Home", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Home", kind: "page" } });
   await call("pages_write_html", { id: "page-1", html: `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` });
 
   // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).

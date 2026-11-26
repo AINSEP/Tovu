@@ -1,10 +1,11 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
 import { githubFromSource } from "#src/features/source-control/__tests__/fixtures/github-from-source";
-import { resolveDefaultForSourceControl } from "#src/features/source-control/index";
+import { resolveDefaultForSourceControl } from "@jini-ai/devops/source-control/site/store";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../helpers/unrun-site-boot.js";
 
@@ -126,7 +127,7 @@ for (const dialect of SITE_DIALECTS) {
     const base = `${site.ws}/system/source-control/credentials`;
     const resolveNamedProvider = () =>
       resolveDefaultForSourceControl(
-        { repo: site.deps.sourceControlCredentialSetRepo, sealer: site.deps.siteAssistantSecretSealer },
+        { repo: site.deps.sourceControlCredentialSetRepo, sealer: site.deps.siteAssistantSecretSealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS },
         { workspaceId: site.deps.workspaceId, providerId: NAMED_PROVIDER_ID }
       );
 

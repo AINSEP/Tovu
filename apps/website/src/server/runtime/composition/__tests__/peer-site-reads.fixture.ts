@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 import { FORMS_TABLES } from "#src/platform/db/content-tables";
@@ -29,7 +30,8 @@ import { createSitesWorkspace, assertTestHomeIsolation } from '#src/platform/sit
 import { resolveSiteDatabasePaths } from '#src/platform/site-dir/site-databases';
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
 import { createSettingsPrincipalLookup } from '#src/features/settings/index';
-import { createPost, SqlitePostRepo } from '#src/features/post/index';
+import { createPost } from '@jini-ai/cms/posts/post-create';
+import { SqlitePostRepo } from '#src/features/post/index';
 import { PagesHtmlDocumentStore } from "#src/features/pages/html-document-store.sqlite";
 import { LocalFsBlobStore } from '#src/features/media/index';
 import { SqliteToolAttemptAuditSink } from '#src/features/tool-audit/repo.sqlite';
@@ -78,8 +80,8 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: kernel, dbPath: paths.contentDbPath });
     const ownerId = await identity.ownerPrincipalId;
     const postRepo = new SqlitePostRepo({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: FORMS_TABLES });
-    await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });
-    await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'page', kind: 'page', title: `${name} page`, actorId: ownerId } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock }, input: { workspaceId, id: 'page', kind: 'page', title: `${name} page`, actorId: ownerId } });
     await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat({ seedHtml: `<main>${name} page</main>` });
     const bytes = await sharp({ create: { width: 2, height: 1, channels: 3, background: name === 'A' ? 'red' : 'blue' } }).png().toBuffer();
     const sha256 = createHash('sha256').update(bytes).digest('hex');

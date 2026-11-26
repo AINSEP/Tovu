@@ -9,7 +9,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 
 function fixture() {

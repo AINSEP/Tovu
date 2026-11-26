@@ -17,7 +17,7 @@ import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import { contributePostPublish, toPublishableState } from "../publish-content.js";
+import { contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const IMPORTING_OPERATOR = "operator-running-the-import";
@@ -38,7 +38,7 @@ function makeDeps(rows: PostRecord[]) {
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
-    ports: { post: { repo: postRepo, forgetRemoved: async () => {} } },
+    ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: postRepo, forgetRemoved: async () => {} } },
   };
 }
 

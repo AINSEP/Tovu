@@ -1,5 +1,6 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { pageToolInputWithBasis } from "./page-tool-input.js";
@@ -7,7 +8,8 @@ import { executeRegisteredTool } from "../../../assistant/__tests__/fixtures/exe
 import { withBatchInput, type BatchResult } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryPostRepo, createPost } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { ToolInputError } from "@jini-ai/core";
 import { buildPagesRegistrations } from "@jini-ai/cms/pages/tool-registrations";
@@ -48,7 +50,7 @@ function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
     postRepo: repo,
     ...pageHtmlChangeTestDeps(),
     pagesHtmlStore: (scope) => {
-      const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+      const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
       if (afterRead) {
         const read = store.read.bind(store);
         store.read = async () => {
@@ -76,7 +78,7 @@ function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
 }
 
 async function seedPage(repo: InMemoryPostRepo, id: string) {
-  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id, title: "Landing", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id, title: "Landing", kind: "page" } });
 }
 
 /** A three-region page in the shape the contract asks for, with a `<style>` block after it — the
@@ -375,7 +377,7 @@ const LEGACY_DUPLICATE =
 /** Creates page `id` holding `html` straight through the store, bypassing the tools' duplicate-handle check. */
 async function seedHtmlBypassingTools(repo: InMemoryPostRepo, id: string, html: string) {
   await seedPage(repo, id);
-  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: id, actorId: "seed" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: id, actorId: "seed" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await store.ensureHtmlFormat({ seedHtml: html });
   await store.read();
   await store.write({ html });
@@ -441,7 +443,7 @@ test("pages_write_html still rewrites a legacy page whose existing duplicate it 
 test("pages_write_region reports a store CAS race as an actionable input error and preserves the winner", async () => {
   let winningRow: unknown;
   const { repo, call } = harness(async (repo) => {
-    const winner = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-race" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const winner = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "page-race" }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await winner.read();
     await winner.write({ html: THREE_REGIONS.replace("Body copy.", "Winning edit.") });
     winningRow = await repo.findById({ workspaceId: WS, id: "page-race" });
@@ -575,7 +577,7 @@ for (const selector of ["regionId", "handle", "region"]) {
   test(`pages_write_region: ${selector} refuses absent and duplicate DOM regions without writes`, async () => {
     const h = harness();
     await seedThreeRegionPage(h.call, h.repo, "landing");
-    const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "landing" }, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: "landing" }, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     await store.read();
     await store.write({ html: THREE_REGIONS + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>' });
     const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
@@ -603,7 +605,7 @@ for (const selector of ["regionId", "handle", "region"]) {
         return { allowed: false, reason: "permission denied" };
       },
       ...pageHtmlChangeTestDeps(),
-      pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }); },
+      pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }); },
     }, host: bindPagesToolHost({}) }).find((entry) => entry.descriptor.id === "pages_write_region")!;
     const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, [selector]: "page-hero", html: "<h1>Canonical edit</h1>" } });
     assert.equal(result.status, "failed");
@@ -640,7 +642,7 @@ test("pages_write_region: all coexisting target spellings are rejected, includin
   const registration = buildPagesRegistrations({ deps: {
     workspaceId: WS, postRepo: h.repo, authorize: async () => ({ allowed: true, reason: "matched" }),
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }); },
+    pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: h.repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }); },
   }, host: bindPagesToolHost({}) }).find((entry) => entry.descriptor.id === "pages_write_region")!;
   for (const targets of [
     { regionId: "page-hero", handle: "other" }, { regionId: "page-hero", region: "other" },

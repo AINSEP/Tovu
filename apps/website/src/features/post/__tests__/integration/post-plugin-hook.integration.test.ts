@@ -1,7 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, createPost, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /**
@@ -77,7 +82,7 @@ test("AC-01/REQ-05/REQ-06: updatePost merges the injected beforeSaveHook's retur
   let receivedDraft: unknown;
 
   const post = await updatePost({
-    deps: {
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,
       repo: memoryRepo,
       clock,
       outbox,
@@ -105,7 +110,7 @@ test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must
 
   await assert.rejects(() =>
     updatePost({
-      deps: {
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,
         repo,
         clock,
         outbox,
@@ -127,7 +132,7 @@ test("behavior.spec.md §10 / regression seam: updatePost with NO beforeSaveHook
   await seedPost(memoryRepo, { ext: priorExt });
 
   const { post } = await updatePost({
-    deps: { repo: memoryRepo, clock, outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: memoryRepo, clock, outbox },
     input: { workspaceId: "ws-1", id: "post-1", title: "Hello Again", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "draft" },
   });
 
@@ -142,7 +147,7 @@ test("REQ-11/AC-14: an entry with no contributing plugin carries no ext object a
   await seedPost(memoryRepo);
 
   const { post } = await updatePost({
-    deps: { repo: memoryRepo, clock, outbox },
+    deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo: memoryRepo, clock, outbox },
     input: { workspaceId: "ws-1", id: "post-1", title: "Hello", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "draft" },
   });
 
@@ -154,7 +159,7 @@ test("createPost passes the new draft to its hook and persists the derived exten
   const repo = new InMemoryPostRepo({});
   const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "created body" }] }] };
   const { post } = await createPost({
-    deps: { repo, clock, outbox, beforeSaveHook: async (draft) => {
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock, outbox, beforeSaveHook: async (draft) => {
       assert.deepEqual(draft, { id: "created", workspaceId: "ws-1", title: "Created", slug: "created", status: "published", bodyJson, ext: {} });
       return { "word-count": { count: JSON.stringify(draft.bodyJson).length } };
     } },

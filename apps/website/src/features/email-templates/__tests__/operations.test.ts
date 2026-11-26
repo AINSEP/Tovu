@@ -1,11 +1,16 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
-import { InMemoryPostRepo, createPost, updatePost } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { EMAIL_TEMPLATE_KIND } from "@jini-ai/cms/posts/post";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
@@ -37,7 +42,7 @@ function harness(options: { storeFactory?: (repo: InMemoryPostRepo, clock: { now
     postRepo: repo,
     clock,
     idGen: { newId: () => `tpl-${++n}` },
-    pagesHtmlStore: options.storeFactory?.(repo, clock) ?? ((scope, options = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } })),
+    pagesHtmlStore: options.storeFactory?.(repo, clock) ?? ((scope, options = {}) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} })),
   };
   return { repo, deps, tick: () => { ms += 1000; } };
 }
@@ -87,7 +92,7 @@ test("create refuses malformed input before writing anything", async () => {
 
 test("list returns only live templates, newest first, id breaking ties", async () => {
   const { repo, deps, tick } = harness();
-  await createPost({ deps: { repo, clock: deps.clock }, input: { workspaceId: WS, id: "page-1", title: "A page", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock: deps.clock }, input: { workspaceId: WS, id: "page-1", title: "A page", kind: "page" } });
   await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "Old", html: HTML }, actorId: "u1" });
   tick();
   await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "New B", html: HTML }, actorId: "u1" });
@@ -103,7 +108,7 @@ test("get returns one template and refuses missing, trashed, non-template and no
   const { repo, deps } = harness();
   await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "T", html: HTML }, actorId: "u1" });
   assert.equal((await getEmailTemplate({ store: emailTemplateStore({ deps }), id: "tpl-1" })).html, HTML);
-  await createPost({ deps: { repo, clock: deps.clock }, input: { workspaceId: WS, id: "page-1", title: "P", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock: deps.clock }, input: { workspaceId: WS, id: "page-1", title: "P", kind: "page" } });
   const docRow: PostRecord = { id: "raw", workspaceId: WS, title: "r", slug: "email-template:raw", bodyJson: { type: "doc", content: [] }, status: "draft", kind: EMAIL_TEMPLATE_KIND as unknown as PostKind, bodyFormat: "doc", bodyHtml: null, updatedAt: "2026-10-22T00:00:00.000Z", version: 1 };
   await repo.save(docRow);
   await repo.save({ ...docRow, id: "nohtml", bodyFormat: "html" });
@@ -139,7 +144,7 @@ test("edit maps a concurrent write to a version conflict and lets any other fail
   for (const [thrown, expected] of [[new PageConcurrentEditError("raced"), EmailTemplateVersionConflictError], [new Error("disk"), Error]] as const) {
     const { deps } = harness({
       storeFactory: (repo, clock) => (scope, options = {}) => {
-        const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+        const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
         return Object.assign(store, { write: async () => { throw thrown; } });
       },
     });
@@ -152,7 +157,7 @@ test("updatePost treats an email template as not found, so it can never be publi
   const { repo, deps } = harness();
   await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "T", html: HTML }, actorId: "u1" });
   await assert.rejects(
-    updatePost({ deps: { repo, clock: deps.clock }, input: { workspaceId: WS, id: "tpl-1", title: "T", slug: "t", bodyJson: { type: "doc", content: [] }, status: "published" } } as never),
+    updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock: deps.clock }, input: { workspaceId: WS, id: "tpl-1", title: "T", slug: "t", bodyJson: { type: "doc", content: [] }, status: "published" } } as never),
     /was not found/,
   );
   assert.equal((await repo.findById({ workspaceId: WS, id: "tpl-1" }))?.status, "draft");
@@ -197,7 +202,7 @@ test("renderEmailTemplateForSend returns subject, static html and text for a sav
 test("a Pages conversion failure rolls back the template and permits a clean retry", async () => {
   let broken = true;
   const { deps, repo } = harness({ storeFactory: (repo, clock) => (scope, options = {}) => {
-    const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { ...options, repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     return { read: () => store.read(), capturedVersion: () => store.capturedVersion(), write: ({ html }) => store.write({ html }), ensureHtmlFormat: async ({ seedHtml }) => { if (broken) throw new Error("conversion failed"); return store.ensureHtmlFormat({ seedHtml }); } };
   } });
   await assert.rejects(createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "Atomic", html: HTML }, actorId: "u" }), /conversion failed/);
@@ -241,14 +246,14 @@ test("generic Trash classifies an email template through the existing Post lifec
 test("Pages stores cannot read, convert or write templates; template-scoped stores cannot read Pages", async () => {
   const { deps, repo } = harness();
   const template = await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "Private template", html: HTML }, actorId: "owner" });
-  const page = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: template.id }, deps: { repo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+  const page = new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId: WS, postId: template.id }, deps: { repo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   await assert.rejects(page.read(), PageNotFoundError);
   await assert.rejects(page.ensureHtmlFormat({ seedHtml: "<p>bypass</p>" }), PageKindMismatchError);
   await assert.rejects(page.write({ html: "<p>bypass</p>" }), /before read/);
   assert.equal((await getEmailTemplate({ store: emailTemplateStore({ deps }), id: template.id })).html, HTML);
-  await createPost({ deps: { repo, clock: deps.clock }, input: { workspaceId: WS, id: "only-page", title: "Page", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock: deps.clock }, input: { workspaceId: WS, id: "only-page", title: "Page", kind: "page" } });
   const pageScope = { workspaceId: WS, postId: "only-page" };
-  await new InMemoryPagesHtmlDocumentStore({ scope: pageScope, deps: { repo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }).ensureHtmlFormat({ seedHtml: "<p>page</p>" });
+  await new InMemoryPagesHtmlDocumentStore({ scope: pageScope, deps: { repo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }).ensureHtmlFormat({ seedHtml: "<p>page</p>" });
   const templateStore = deps.pagesHtmlStore(pageScope, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) });
   await assert.rejects(templateStore.read(), PageNotFoundError);
   await assert.rejects(templateStore.ensureHtmlFormat({ seedHtml: "<p>bypass</p>" }), PageKindMismatchError);

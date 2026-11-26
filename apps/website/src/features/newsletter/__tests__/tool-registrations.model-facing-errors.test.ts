@@ -27,7 +27,8 @@ import {
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
 } from "@jini-ai/user-management/newsletter/repo.memory";
-import { buildNewsletterRegistrations, contributeNewsletterTools, newsletterDerivedRisk, type NewsletterToolDeps } from "../tool-registrations.js";
+import { newsletterDerivedRisk } from "@jini-ai/user-management/newsletter/tool-registrations";
+import { buildNewsletterRegistrations, contributeNewsletterTools, type NewsletterToolDeps } from "../tool-registrations.js";
 import { createRouteIncidentReporter } from "../../../server/__tests__/helpers/route-incident-reporter.js";
 
 const WORKSPACE_ID = "ws-newsletter-errors";

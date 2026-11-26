@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
-import { loadBundledLoginProviders } from "../providers.js";
+import { loadBundledLoginProviders } from "#src/features/member-login/bindings";
 import { createTovuReadyLoginProviderList } from "../bindings.js";
 import { cryptoFixture } from "./fixtures.js";
 import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";

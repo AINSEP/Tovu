@@ -1,9 +1,10 @@
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryPostRepo } from '../../post/repo.memory.js';
-import { createPost } from '../../post/index.js';
+import { createPost } from '@jini-ai/cms/posts/post-create';
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 import { createPrivacyPageCheck } from '#src/server/inbound/public-http/middleware/site-consent';
 import { createSiteConsentService } from '@jini-ai/cookie-consent/site/service';
@@ -24,12 +25,12 @@ function fixture() {
     try { return await fn(); } finally { inTransaction = previous; }
   } });
   const deps: PrivacyDefaultsDeps = {
-    workspaceId: 'site-a', post: { repo }, createPost: ({ input }) => createPost({ deps: { repo, clock }, input }), ids: { newId: () => `id-${++counter}` },
+    workspaceId: 'site-a', post: { repo }, createPost: ({ input }) => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input }), ids: { newId: () => `id-${++counter}` },
     readUrl: async () => url,
     setUrl: async ({ url: value }) => { url = value; writes++; },
     readIdentity: async () => ({ siteTitle: 'A & B', email: 'owner@example.test', principalId: 'owner' }),
     pagesHtmlStore: scope => {
-      const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+      const store = new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
       return { ensureHtmlFormat: async ({ seedHtml: html }) => {
         assert.equal(inTransaction, true, 'create and HTML seed share a transaction');
         seeds++;
@@ -38,7 +39,7 @@ function fixture() {
     },
   };
   const add = async (input: { slug?: string; title?: string; kind?: 'post' | 'page'; deletedAt?: string; status?: 'draft' | 'published'; publishAt?: string } = {}) => {
-    const { post } = await createPost({ deps: { repo, clock }, input: {
+    const { post } = await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: {
       workspaceId: deps.workspaceId, id: `existing-${++counter}`, title: 'Privacy Policy', kind: 'page', slug: 'privacy', ...input,
     } });
     if (input.deletedAt) await repo.save({ ...post, deletedAt: input.deletedAt });

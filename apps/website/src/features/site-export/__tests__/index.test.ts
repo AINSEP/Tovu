@@ -1,13 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildRouteManifest, ExportOutputNotEmptyError, exportSite, firstExportFailure } from "../index.js";
+import { buildRouteManifest, exportSite } from "../index.js";
 import { buildRouteManifest as directBuildRouteManifest } from "../route-manifest.js";
-import {
-  ExportOutputNotEmptyError as DirectExportOutputNotEmptyError,
-  exportSite as directExportSite,
-  firstExportFailure as directFirstExportFailure,
-} from "../site-exporter.js";
+import { exportSite as directExportSite } from "../site-exporter.js";
 
 /**
  * @file `index.ts` is this module's public barrel ("mirroring `src/redirects`/`src/seo`'s own
@@ -23,6 +19,4 @@ import {
 test("index.ts re-exports the same function/class references as route-manifest.ts and site-exporter.ts, not copies", () => {
   assert.equal(buildRouteManifest, directBuildRouteManifest);
   assert.equal(exportSite, directExportSite);
-  assert.equal(firstExportFailure, directFirstExportFailure);
-  assert.equal(ExportOutputNotEmptyError, DirectExportOutputNotEmptyError);
 });

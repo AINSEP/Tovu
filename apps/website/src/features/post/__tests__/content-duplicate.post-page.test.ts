@@ -1,6 +1,7 @@
 import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
 import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
+import { POST_TOOL_HOST } from "../post-tool-policy.js";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
@@ -14,8 +15,8 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { contributePostDuplicateHandlers } from "@jini-ai/cms/posts/post-tool-duplicate";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
 
 /**
@@ -106,7 +107,7 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
   const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
+    catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })),
   });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
@@ -116,7 +117,7 @@ test("content_duplicate is wired, and this domain contributes both 'post' and 'p
   const registrations = registrationsFor(deps);
   assert.ok(registrations.has("content_duplicate"));
   assert.deepEqual(
-    contributePostDuplicateHandlers({ deriveDuplicateName }).map((c) => c.resource).sort(),
+    contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })).map((c) => c.resource).sort(),
     ["page", "post"],
   );
 });
@@ -282,7 +283,7 @@ function withPagesHtmlStore(deps: PostToolDeps, postRepo: InMemoryPostRepo): Pos
   return {
     ...deps,
     pagesHtmlStore: (scope: { workspaceId: string; postId: string }) =>
-      new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: { nowMs: () => Date.parse(NOW) }, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+      new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: { nowMs: () => Date.parse(NOW) }, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
   } as PostToolDeps;
 }
 
@@ -325,7 +326,7 @@ test("HTML conversion failure leaves no copy, slug, revision or change set", asy
   const before = await postRepo.list({ workspaceId: WORKSPACE_ID });
   const failure = new Error("conversion failed");
   const registrations = registrationsFor({ ...deps, pagesHtmlStore: (scope) => {
-    if (scope.postId === "source-1") return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    if (scope.postId === "source-1") return new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo: postRepo, clock: deps.clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
     return { read: async () => "", ensureHtmlFormat: async () => { throw failure; } };
   } } as PostToolDeps);
   await assert.rejects(call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1", overrides: { slug: "failed-copy" } }), (error) => error === failure);

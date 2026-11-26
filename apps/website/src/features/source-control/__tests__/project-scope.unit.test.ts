@@ -1,8 +1,9 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
@@ -15,22 +16,12 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { CredentialProjectHalf } from "@jini-ai/integrations/vendor-credentials/project-scope";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import type { SourceControlCredentialSetRepoPort } from "../types.js";
+import type { SourceControlCredentialSetRepoPort } from "@jini-ai/core/contracts/site/source-control-credentials";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { exampleProviders, exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import { attachedVaultPolicy, createVaultPolicy } from "#src/features/project-keys/vault-policy";
-import {
-  createSourceControlCredential,
-  deleteSourceControlCredential,
-  describeCredential,
-  findDefaultSourceControlCredential,
-  listSourceControlCredentials,
-  resolveDefaultForSourceControl,
-  SourceControlCredentialDuplicateLabelError,
-  SourceControlCredentialValidationError,
-  updateSourceControlCredential,
-  type SourceControlCredentialWriteDeps,
-} from "../store.js";
+import { deleteSourceControlCredential, describeCredential, findDefaultSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialDuplicateLabelError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 
 /**
  * @file Source-control (git host) tokens are project-first (owner 2026-10-25), the same rule as custom
@@ -71,18 +62,18 @@ test("a git host token saves to the project store and a second site of the proje
   assert.equal(JSON.stringify(saved).includes(token), false);
 
   const b = site(project);
-  assert.deepEqual(await resolveDefaultForSourceControl(b, { workspaceId: SITE_B, providerId: "example-git" }),
+  assert.deepEqual(await resolveDefaultForSourceControl({ ...b, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B, providerId: "example-git" }),
     { id: saved.id, label: "default", connection: { providerId: "example-git", token } });
-  assert.equal((await findDefaultSourceControlCredential(b, { workspaceId: SITE_B, providerId: "example-git" }))?.id, saved.id);
-  assert.deepEqual((await listSourceControlCredentials(b, { workspaceId: SITE_B })).map(row => [row.id, row.scope]), [[saved.id, "project"]]);
-  assert.equal((await describeCredential(b, { workspaceId: SITE_B, id: saved.id }))?.scope, "project");
+  assert.equal((await findDefaultSourceControlCredential({ ...b, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B, providerId: "example-git" }))?.id, saved.id);
+  assert.deepEqual((await listSourceControlCredentials({ ...b, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B })).map(row => [row.id, row.scope]), [[saved.id, "project"]]);
+  assert.equal((await describeCredential({ ...b, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B, id: saved.id }))?.scope, "project");
 });
 
 test("local source-control keys take precedence with an owner store configured", async () => {
   const project = projectHalf(), a = site(project);
   await save(a, SITE_A, "default", secret("owner"));
   await save(a, SITE_A, "own", secret("own"), { scope: "site" });
-  assert.equal((await resolveDefaultForSourceControl(a, { workspaceId: SITE_A, providerId: "example-git" }))?.connection.token, secret("own"));
+  assert.equal((await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, providerId: "example-git" }))?.connection.token, secret("own"));
 });
 
 test("invalid source-control scopes are refused before any write", async () => {
@@ -98,11 +89,11 @@ test("update and delete change a project row where it lives", async () => {
   const updated = await updateSourceControlCredential({ deps: a, input: { workspaceId: SITE_A, id: saved.id, label: "renamed",
     connection: { providerId: "example-git", token: secret("second") } } });
   assert.deepEqual([updated.label, updated.scope], ["renamed", "project"]);
-  assert.equal((await resolveDefaultForSourceControl(site(project), { workspaceId: SITE_B, providerId: "example-git" }))?.connection.token, secret("second"));
+  assert.equal((await resolveDefaultForSourceControl({ ...site(project), deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B, providerId: "example-git" }))?.connection.token, secret("second"));
   const renamedOnly = await updateSourceControlCredential({ deps: a, input: { workspaceId: SITE_A, id: saved.id, label: "again" } });
   assert.deepEqual([renamedOnly.label, renamedOnly.scope], ["again", "project"]);
 
-  await deleteSourceControlCredential(a, { workspaceId: SITE_A, id: saved.id });
+  await deleteSourceControlCredential({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, id: saved.id });
   assert.equal(await project.repo.findById({ workspaceId: "project", id: saved.id }), null);
 });
 
@@ -110,7 +101,7 @@ test('shared owner metadata remains unchanged after a refused site-copy save', a
   const project = projectHalf(), a = site(project);
   const shared = await save(a, SITE_A, 'shared', secret('owner'));
   await save(a, SITE_A, 'main', secret('site'), { scope: 'site' });
-  assert.equal((await describeCredential(a, { workspaceId: SITE_A, id: shared.id }))?.label, 'shared');
+  assert.equal((await describeCredential({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, id: shared.id }))?.label, 'shared');
 });
 
 test('local source-control keys remain independently owned after shared revocation', async () => {
@@ -121,9 +112,9 @@ test('local source-control keys remain independently owned after shared revocati
   const a = { ...old, repo: new InMemorySourceControlCredentialSetRepo({ vault: old.repo.vault! }, { project: { ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments, policy: attachedVaultPolicy }) }) } }) };
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: shared.id });
   const input = { workspaceId: SITE_A, providerId: 'example-git' };
-  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('old'));
+  assert.equal((await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input))?.connection.token, secret('old'));
   await attachments.detach({ siteId: SITE_A, keyId: shared.id });
-  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('old'));
+  assert.equal((await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input))?.connection.token, secret('old'));
 });
 
 test("no project store (Fly): tokens stay in the site vault and summaries carry no scope", async () => {
@@ -131,8 +122,8 @@ test("no project store (Fly): tokens stay in the site vault and summaries carry 
   const saved = await save(a, SITE_A, "default", secret("fly"));
   assert.equal("scope" in saved, false);
   assert.ok(await a.repo.findById({ workspaceId: SITE_A, id: saved.id }));
-  assert.equal((await resolveDefaultForSourceControl(a, { workspaceId: SITE_A, providerId: "example-git" }))?.connection.token, secret("fly"));
-  assert.equal("scope" in (await listSourceControlCredentials(a, { workspaceId: SITE_A }))[0]!, false);
+  assert.equal((await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, providerId: "example-git" }))?.connection.token, secret("fly"));
+  assert.equal("scope" in (await listSourceControlCredentials({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A }))[0]!, false);
 });
 
 
@@ -142,13 +133,13 @@ test("git-host defaults, descriptions and lists only expose attached project row
   const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments, policy: attachedVaultPolicy }) }) });
   const saved = await save(a, SITE_A, "attached-only", secret("git"));
   const input = { workspaceId: SITE_A, providerId: "example-git" };
-  assert.equal(await findDefaultSourceControlCredential(a, input), null);
-  assert.deepEqual(await listSourceControlCredentials(a, { workspaceId: SITE_A }), []);
+  assert.equal(await findDefaultSourceControlCredential({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input), null);
+  assert.deepEqual(await listSourceControlCredentials({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A }), []);
   await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
-  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret("git"));
-  assert.equal((await describeCredential(a, { workspaceId: SITE_A, id: saved.id }))?.id, saved.id);
+  assert.equal((await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input))?.connection.token, secret("git"));
+  assert.equal((await describeCredential({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, id: saved.id }))?.id, saved.id);
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
-  assert.equal(await resolveDefaultForSourceControl(a, input), null);
+  assert.equal(await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input), null);
 });
 
 test('a sole attached nondefault opens through the vault; multiple attached nondefaults refuse ambiguity', async () => {
@@ -161,15 +152,15 @@ test('a sole attached nondefault opens through the vault; multiple attached nond
   const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments, policy: attachedVaultPolicy }) }) });
   const input = { workspaceId: SITE_A, providerId: 'example-git' };
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: second.id });
-  assert.deepEqual(await resolveDefaultForSourceControl(a, input), { id: second.id, label: 'attached', connection: { providerId: 'example-git', token: secret('second') } });
-  assert.equal((await findDefaultSourceControlCredential(a, input))?.id, second.id);
+  assert.deepEqual(await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input), { id: second.id, label: 'attached', connection: { providerId: 'example-git', token: secret('second') } });
+  assert.equal((await findDefaultSourceControlCredential({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input))?.id, second.id);
   assert.equal((await raw.find({ workspaceId: 'project', id: second.id }))?.isDefault, false);
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: third.id });
-  assert.equal(await resolveDefaultForSourceControl(a, input), null);
+  assert.equal(await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input), null);
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: first.id });
-  assert.equal((await resolveDefaultForSourceControl(a, input))?.id, first.id);
+  assert.equal((await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input))?.id, first.id);
   const local = await save(a, SITE_A, 'site-override', secret('own'), { scope: 'site' });
-  assert.equal((await resolveDefaultForSourceControl(a, input))?.id, local.id);
+  assert.equal((await resolveDefaultForSourceControl({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, input))?.id, local.id);
 });
 
 
@@ -201,8 +192,8 @@ test('a Source control-page save is visible after reload on this site only; site
   const reload = createCapturingResponse(); reload.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'get', path)({ params: { workspaceId: SITE_A } }, reload.res);
   assert.deepEqual((reload.capture.jsonBody as { credentials: { id: string }[] }).credentials.map(row => row.id), [id]);
-  assert.deepEqual(await listSourceControlCredentials(b, { workspaceId: SITE_B }), []);
-  assert.equal(await resolveDefaultForSourceControl(b, { workspaceId: SITE_B, providerId: 'example-git' }), null);
+  assert.deepEqual(await listSourceControlCredentials({ ...b, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B }), []);
+  assert.equal(await resolveDefaultForSourceControl({ ...b, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B, providerId: 'example-git' }), null);
   assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: id }), true);
   assert.equal(await attachments.isAttached({ siteId: SITE_B, keyId: id }), false);
   const own = createCapturingResponse(); own.res.locals.principal = { id: 'owner' };
@@ -212,8 +203,8 @@ test('a Source control-page save is visible after reload on this site only; site
   const localId = (own.capture.jsonBody as { credential: { id: string } }).credential.id;
   assert.equal(await raw.find({ workspaceId: 'project', id: localId }), null);
   assert.deepEqual(await attachments.usersOf({ keyId: localId }), []);
-  assert.equal((await listSourceControlCredentials(a, { workspaceId: SITE_A })).some(row => row.id === localId), true);
-  assert.deepEqual(await listSourceControlCredentials(b, { workspaceId: SITE_B }), []);
+  assert.equal((await listSourceControlCredentials({ ...a, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A })).some(row => row.id === localId), true);
+  assert.deepEqual(await listSourceControlCredentials({ ...b, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_B }), []);
   rejectAttachment = true;
   const failed = createCapturingResponse(); failed.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Unattached', connection: { providerId: 'example-git', token: secret('orphan') } } }, failed.res);

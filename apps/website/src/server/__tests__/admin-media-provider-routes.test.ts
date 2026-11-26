@@ -1,3 +1,9 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { createHash } from "node:crypto";
+import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { createRouteIncidentReporter } from "./helpers/route-incident-reporter.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -7,12 +13,22 @@ import express from "express";
 
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { resolveMediaProviderCredential } from "../../features/media/provider-credential-store.js";
+import { resolveMediaProviderCredential } from "@jini-ai/cms/media/site/provider-credential-store";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createMediaModule } from "../runtime/composition/modules/media.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 /**
  * @file Route-level tests for the 2 media-provider-credential routes (GET/PUT
@@ -110,8 +126,7 @@ test("bare and wrong-grant sessions cannot read or replace provider credentials"
     }
   }
   assert.equal((await resolveMediaProviderCredential(
-    { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-    { workspaceId: deps.workspaceId, providerId: "openai" },
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId, providerId: "openai" },
   ))?.apiKey, "sk-original-4242");
 });
 
@@ -186,8 +201,7 @@ test("editing baseUrl without resending the key keeps the stored key", async (t)
   assert.equal(body["grok"]?.apiKeyTail, "8888");
   assert.equal(body["grok"]?.baseUrl, "https://api.x.ai/v1");
   assert.deepEqual(await resolveMediaProviderCredential(
-    { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-    { workspaceId: deps.workspaceId, providerId: "grok" },
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId, providerId: "grok" },
   ), { apiKey: "xai-keep-8888", baseUrl: "https://api.x.ai/v1", model: null });
 });
 

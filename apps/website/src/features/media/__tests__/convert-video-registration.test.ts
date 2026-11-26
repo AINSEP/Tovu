@@ -5,7 +5,7 @@ import { VIDEO_CONVERSION_MESSAGES, VIDEO_TRANSCODE_MAX_INPUT_BYTES, VIDEO_TRANS
 import { createFfmpegMediaTranscoder } from "@jini-ai/agent-plugins/ffmpeg-transcode/adapter";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from "../index.js";
 import { contributeMediaTools } from "../tool-registrations.js";
-import { withVideoConversionOnImport } from "../import-video-conversion.js";
+import { withVideoConversionOnImport } from "@jini-ai/cms/media/site/import-video-conversion";
 import { createMediaConversionPorts } from "#src/server/runtime/composition/media-video-ports";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 

@@ -17,7 +17,7 @@ import {
 } from "../commit-site.js";
 import type { SourceControlCommitResult, RepositoryTargetValidator } from "@jini-ai/devops/source-control/site/provider-module";
 import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
-import type { SourceControlCredentialSetRepoPort } from "../types.js";
+import type { SourceControlCredentialSetRepoPort } from "@jini-ai/core/contracts/site/source-control-credentials";
 
 /**
  * @file Characterization of `commit-site.ts` BEFORE it becomes a binding over Jini's orchestration

@@ -1,5 +1,6 @@
 import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
 import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
+import { POST_TOOL_HOST } from "../post-tool-policy.js";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,8 +14,8 @@ import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-dupli
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
-import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { contributePostDuplicateHandlers } from "@jini-ai/cms/posts/post-tool-duplicate";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -186,7 +187,7 @@ test("content_duplicate's 'page' resource returns adminUrl for the newly created
   await seedPost(postRepo, { id: "source-1", slug: "original", kind: "page" });
   const registrations = new Map(
     buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
-      catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }),
+      catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })),
     }).map((r) => [r.descriptor.id, r]),
   );
 

@@ -7,7 +7,7 @@ import { assignRole, createUser, NodeSessionTokens } from "@jini-ai/user-managem
 import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
-import { USER_ENTITY_TYPE } from "#src/features/trash/index";
+import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 

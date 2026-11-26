@@ -11,7 +11,7 @@ import type { PostRecord, PostRevisionInput } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 import { postRevisionLockKey } from "@jini-ai/core/contracts/site/post-revision-lock";
 import { bindRevisionThinning } from "../revision-thinning.js";
-import { postRevisionRefProbes } from "../revision-refs.js";
+import { postRevisionRefProbes } from "@jini-ai/cms/posts/sql/revision-refs";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 
 /**

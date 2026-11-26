@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry, type ToolContributor as OwnedToolContributor, type DerivedToolContributor as OwnedDerivedToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
@@ -11,7 +12,7 @@ import test from "node:test";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
-import { createPost } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
@@ -83,7 +84,7 @@ test("createSiteRouteDeps: pages_write_html on a doc page appends its html state
   const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
   await deps.identityReady;
 
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-w", title: "Landing", kind: "page", bodyJson: DOC } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-w", title: "Landing", kind: "page", bodyJson: DOC } });
   await writeThroughTool(deps, "page-w");
 
   await assertLedgered(deps, "page-w");
@@ -92,7 +93,7 @@ test("createSiteRouteDeps: pages_write_html on a doc page appends its html state
 test("createRouteDeps (in-memory root): pages_write_html is unavailable and appends nothing to post_revisions (FIX 11)", async () => {
   const deps = createRouteDeps();
 
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-m", title: "Landing", kind: "page", bodyJson: DOC } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-m", title: "Landing", kind: "page", bodyJson: DOC } });
   const before = await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "page-m" });
   await assert.rejects(writeThroughTool(deps, "page-m"), /not available.*Nothing was written/s);
   assert.deepEqual(await deps.postRepo.listRevisions({ workspaceId: deps.workspaceId, postId: "page-m" }), before);
@@ -113,7 +114,7 @@ test("the transactional root records and can resolve a page-html change set; the
   assert.equal(sqlite.recordedHtmlWrites, "enabled");
   const roots: Array<[string, RootDeps]> = [["sqlite", sqlite]];
   for (const [label, deps] of roots) {
-    await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-cs", title: "Landing", kind: "page", bodyJson: DOC } });
+    await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-cs", title: "Landing", kind: "page", bodyJson: DOC } });
     const before = (await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: "page-cs" }))!.version;
     const result = await writeThroughTool(deps, "page-cs");
     assert.equal(typeof result.changeSetId, "string", `${label}: a committed write names its change set`);

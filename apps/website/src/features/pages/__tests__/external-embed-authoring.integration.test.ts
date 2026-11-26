@@ -1,6 +1,6 @@
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
 import { createPageHtmlStatements } from "#src/features/pages/html-document-store.sqlite";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
@@ -17,7 +17,7 @@ test('H2: guidance points to plugin embeds, and owner-authorized page HTML is st
   t.after(() => kernel.close());
   const clock = { nowMs: () => Date.parse('2026-10-31T00:00:00Z') };
   await kernel.run(q => q.insertInto('posts').values({ id: 'booking', workspace_id: 'site', title: 'Book', slug: 'book', kind: 'page', body_format: 'html', body_html: '<section data-agent-element="booking"></section>', body_json: null, status: 'draft', updated_at: '2026-10-31T00:00:00Z', version: 1, ext: '{}' }).execute());
-  const deps = { workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), ...pageHtmlChangeTestDeps(), pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }) };
+  const deps = { workspaceId: 'site', authorize: async () => ({ allowed: true as const, reason: 'matched' as const }), postRepo: postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }), ...pageHtmlChangeTestDeps(), pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new SqlPagesHtmlDocumentStore({ scope, deps: { statements: createPageHtmlStatements({ kernel }), clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }) };
   const tools = buildPagesRegistrations({ deps: deps, host: bindPagesToolHost({}) });
   const embed = '<div class="vendor-inline-widget" data-url="https://book.vendor.test/owner/meeting"></div><script async src="https://assets.vendor.test/widget.js"></script>';
   const context = (input: unknown) => ({ executionId: crypto.randomUUID(), principal: { id: 'owner' }, run: { id: 'chat' }, input, signal: new AbortController().signal });

@@ -7,7 +7,8 @@ import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-b
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
-import { buildNewsletterDeliveryRegistrations, contributeNewsletterDeliveryTools, newsletterDeliveryDerivedRisk, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
+import { newsletterDeliveryDerivedRisk } from "@jini-ai/user-management/newsletter/delivery/tool-registrations";
+import { buildNewsletterDeliveryRegistrations, contributeNewsletterDeliveryTools, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
 import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "@jini-ai/user-management/newsletter/send-pipeline";
 import type { SendBatchJob } from "@jini-ai/user-management/newsletter/ports";

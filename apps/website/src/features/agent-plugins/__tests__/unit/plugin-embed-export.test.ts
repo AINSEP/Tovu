@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /** OPUS-REVIEW T1: real HTTP static exporter, asset route, base-path rewriting and fallback. */
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -8,7 +9,7 @@ import test from "node:test";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { exportSite } from "#src/features/site-export/site-exporter";
-import { createPost } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
 import { createPluginExportSource, pluginExportFileUrl } from "../../exports/source.js";
 import { config, definition, template } from "../fixtures/plugin-exports.js";
@@ -37,7 +38,7 @@ test("T1: static snapshot ships fallback + deduplicated CSS/artwork, no marker/s
   writeFileSync(path.join(packageRoot, "components/mark.png"), png);
   const runtime = createPluginExportRuntime({ workspaceId: deps.workspaceId, source, listProviders: async () => [] });
   deps.pluginExports = runtime;
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "plugin-page", slug: "plugin-page", title: "Embed", kind: "page", status: "published" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "plugin-page", slug: "plugin-page", title: "Embed", kind: "page", status: "published" } });
   const snippet = embedMarkerSnippetFromConfig({ config }).replace('></div>', '><p class="fallback">Login unavailable offline</p></div>');
   const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: "plugin-page" });
   await store.ensureHtmlFormat({ seedHtml: `<main>${snippet}${snippet}</main>` });

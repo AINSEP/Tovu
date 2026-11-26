@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -5,11 +8,11 @@ import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { comparePostsByDisplayDate, currentIso, isLiveAt, isScheduledAt, postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { findPublishedPostById, findPublishedPostBySlug, getPublishedPostBySlug, listPublishedPostPreviews, listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { normalizePublishAt } from "@jini-ai/cms/posts/post-write-fields";
 import { PostNotFoundError, PostValidationError, type PostRepoPort } from "@jini-ai/cms/posts/post";
-import { updatePost } from "../post-update.js";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { postRepoFor } from "../repo.js";
 
@@ -27,7 +30,7 @@ const clock = { nowMs: () => Date.parse("2026-10-05T00:00:00.000Z") };
 
 async function scheduledPost(repo: PostRepoPort, extra: { featuredMediaId?: string } = {}) {
   const { post } = await createPost({
-    deps: { repo, clock },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
     input: { workspaceId: WS, id: "p1", title: "Coffee tips", status: "published", publishAt: "2026-10-12T09:00:00-07:00", ...extra },
   });
   return post;
@@ -67,11 +70,11 @@ function runContract(name: string, withRepo: () => Promise<{ repo: PostRepoPort;
       const deps = { repo, clock, outbox: { enqueue: async () => {} } as never };
       const base = { workspaceId: WS, id: "p1", title: created.title, slug: created.slug, bodyJson: created.bodyJson, status: created.status };
 
-      const kept = (await updatePost({ deps, input: { ...base, title: "Renamed" } })).post;
+      const kept = (await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...base, title: "Renamed" } })).post;
       assert.equal(kept.publishAt, GO_LIVE);
       assert.equal(kept.featuredMediaId, "media-1");
 
-      const cleared = (await updatePost({ deps, input: { ...base, publishAt: null, featuredMediaId: null } })).post;
+      const cleared = (await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...base, publishAt: null, featuredMediaId: null } })).post;
       assert.equal("publishAt" in cleared, false);
       assert.equal("featuredMediaId" in cleared, false);
       const stored = await repo.findById({ workspaceId: WS, id: "p1" });
@@ -79,7 +82,7 @@ function runContract(name: string, withRepo: () => Promise<{ repo: PostRepoPort;
       assert.equal(stored?.featuredMediaId, undefined);
       assert.equal((await listPublishedPosts({ deps: { repo }, input: { workspaceId: WS } }, { nowIso: BEFORE })).posts.length, 1, "cleared ⇒ live now");
 
-      const set = (await updatePost({ deps, input: { ...base, publishAt: "2026-12-01T00:00:00Z", featuredMediaId: "media-2" } })).post;
+      const set = (await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...base, publishAt: "2026-12-01T00:00:00Z", featuredMediaId: "media-2" } })).post;
       assert.equal(set.publishAt, "2026-12-01T00:00:00.000Z");
       assert.equal((await repo.findById({ workspaceId: WS, id: "p1" }))?.featuredMediaId, "media-2");
     } finally {
@@ -103,7 +106,7 @@ test("publishAt must carry a timezone offset; a bad value writes nothing", async
   assert.equal(normalizePublishAt({ value: "" }), null);
   const repo = new InMemoryPostRepo({});
   await assert.rejects(
-    createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "p1", title: "x", publishAt: "tomorrow 9am" } }),
+    createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WS, id: "p1", title: "x", publishAt: "tomorrow 9am" } }),
     /publishAt must be an ISO 8601 date-time with a timezone offset/
   );
   assert.equal(await repo.findById({ workspaceId: WS, id: "p1" }), null);

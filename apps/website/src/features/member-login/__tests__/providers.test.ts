@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
 import { parseLoginProviders } from "@jini-ai/user-management/server";
-import { loadBundledLoginProviders, loadLoginProviders } from "../providers.js";
+import { loadBundledLoginProviders, loadLoginProviders } from "#src/features/member-login/bindings";
 import { provider } from "./fixtures.js";
 import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 

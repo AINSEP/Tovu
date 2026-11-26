@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import { POST_SEARCH_HOST } from "../search-host-config.js";
@@ -11,7 +12,7 @@ import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content
 import { startPgliteOwner, type PgliteOwner } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { postRepoFor } from "../repo.js";
 import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 import { PostSearchIndex } from "@jini-ai/cms/posts/sql";
@@ -47,7 +48,7 @@ before(async () => {
   const repo = postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() });
   for (const post of EVAL_POSTS) {
     await createPost({
-      deps: { repo, clock },
+      deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock },
       input: { workspaceId: WS, id: post.id as UUID, title: post.title, kind: "post", bodyJson: body(post.text), status: "published" },
     });
   }

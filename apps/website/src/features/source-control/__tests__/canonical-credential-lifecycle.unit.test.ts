@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -16,11 +17,8 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { LoadSourceControlProviders } from "../provider-registry.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import {
-  createSourceControlCredential, deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl,
-  SourceControlCredentialNotFoundError, SourceControlCredentialValidationError, updateSourceControlCredential,
-  type SourceControlCredentialWriteDeps,
-} from "../store.js";
+import { deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialNotFoundError, SourceControlCredentialValidationError } from "@jini-ai/devops/source-control/site/store";
+import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 import { exampleRegistry } from "./fixtures/example-provider.js";
 import { githubFromSource } from "./fixtures/github-from-source.js";
 import { attachedVaultPolicy } from "#src/features/project-keys/vault-policy";
@@ -79,7 +77,7 @@ test("a canonical Source Control key survives reload and can be listed updated a
 
   const reloaded = sourceControlStore({ credentials: customDeps({ opens }, { vault: customVault }), legacyVault, opens });
   opens.count = 0;
-  const listed = await listSourceControlCredentials(reloaded, { workspaceId: SITE_A });
+  const listed = await listSourceControlCredentials({ ...reloaded, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A });
   assert.equal(opens.count, 0, "listing never unseals a key for display");
   assert.deepEqual(listed.map(row => row.id).sort(), [created.id, legacy.id].sort(), "one row per stable id, canonical included");
   const canonicalRow = listed.find(row => row.id === created.id);
@@ -90,13 +88,13 @@ test("a canonical Source Control key survives reload and can be listed updated a
   const updated = await updateSourceControlCredential({ deps: reloaded, input: { workspaceId: SITE_A, id: created.id, connection: { token: secret("second") } } });
   assert.equal(updated.id, created.id);
   assert.equal(JSON.stringify(updated).includes(secret("second")), false);
-  assert.equal((await resolveDefaultForSourceControl(reloaded, { workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("second"));
+  assert.equal((await resolveDefaultForSourceControl({ ...reloaded, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("second"));
   // Owned but refused: the canonical name is the binding, so a rename is denied, never retried as a legacy row.
   await assert.rejects(updateSourceControlCredential({ deps: reloaded, input: { workspaceId: SITE_A, id: created.id, label: "Renamed" } }), SourceControlCredentialValidationError);
 
-  await deleteSourceControlCredential(reloaded, { workspaceId: SITE_A, id: created.id });
-  assert.equal(await resolveDefaultForSourceControl(reloaded, { workspaceId: SITE_A, providerId: "github" }), null);
-  assert.deepEqual((await listSourceControlCredentials(reloaded, { workspaceId: SITE_A })).map(row => row.id), [legacy.id], "the legacy row is untouched");
+  await deleteSourceControlCredential({ ...reloaded, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, id: created.id });
+  assert.equal(await resolveDefaultForSourceControl({ ...reloaded, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, providerId: "github" }), null);
+  assert.deepEqual((await listSourceControlCredentials({ ...reloaded, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A })).map(row => row.id), [legacy.id], "the legacy row is untouched");
 });
 
 // Mutation `drop-canonical-workspace-scope`: the binding reads the owner inventory instead of the site's granted
@@ -116,18 +114,18 @@ test("a foreign or ungranted canonical key is neither listed nor edited", async 
   const hosting = await createCustomCredential(siteA, { workspaceId: SITE_A, scope: "site", label: "hosting", category: "source-control", baseUrl: "https://api.example.test", connection: { token: secret("hosting") } });
   const store = sourceControlStore({ credentials: siteA, legacyVault: new InMemoryVaultRepo({}), opens });
 
-  assert.deepEqual(await listSourceControlCredentials(store, { workspaceId: SITE_A }), []);
+  assert.deepEqual(await listSourceControlCredentials({ ...store, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A }), []);
   for (const id of [foreign.id, hosting.id]) {
     await assert.rejects(updateSourceControlCredential({ deps: store, input: { workspaceId: SITE_A, id, connection: { token: secret("overwrite") } } }), SourceControlCredentialNotFoundError);
-    await deleteSourceControlCredential(store, { workspaceId: SITE_A, id });
+    await deleteSourceControlCredential({ ...store, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, id });
   }
   assert.equal((await resolveCustomCredentialByLabel(owner, { workspaceId: SITE_B, label: "github" }))?.connection.token, secret("foreign"));
   assert.equal((await resolveCustomCredentialByLabel(siteA, { workspaceId: SITE_A, label: "hosting" }))?.connection.token, secret("hosting"));
 
   // Positive control: once granted it is listed, and the shared-key deletion rule still refuses removal here.
   await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: foreign.id });
-  assert.deepEqual((await listSourceControlCredentials(store, { workspaceId: SITE_A })).map(row => [row.id, row.scope]), [[foreign.id, "project"]]);
-  await assert.rejects(deleteSourceControlCredential(store, { workspaceId: SITE_A, id: foreign.id }), SourceControlCredentialValidationError);
+  assert.deepEqual((await listSourceControlCredentials({ ...store, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A })).map(row => [row.id, row.scope]), [[foreign.id, "project"]]);
+  await assert.rejects(deleteSourceControlCredential({ ...store, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, id: foreign.id }), SourceControlCredentialValidationError);
   assert.equal((await resolveCustomCredentialByLabel(owner, { workspaceId: SITE_B, label: "github" }))?.connection.token, secret("foreign"));
 });
 
@@ -144,5 +142,5 @@ test("a canonical Source Control key refuses a host move or a paired field and k
 
   await assert.rejects(updateSourceControlCredential({ deps, input: { workspaceId: SITE_A, id: created.id, connection: { providerId: "example-git", token: secret("moved") } } }), refusal);
   await assert.rejects(updateSourceControlCredential({ deps, input: { workspaceId: SITE_A, id: created.id, connection: { token: secret("paired"), owner: "someone" } } }), refusal);
-  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("kept"));
+  assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("kept"));
 });

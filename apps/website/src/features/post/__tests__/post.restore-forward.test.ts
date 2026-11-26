@@ -1,12 +1,15 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost } from "../post-create.js";
-import { deletePost, restorePostForward } from "../post-trash.js";
-import { updatePost } from "../post-update.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { deletePost, restorePostForward } from "@jini-ai/cms/posts/post-trash";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
@@ -65,7 +68,7 @@ const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
  *  adapter materializes its nullable columns, and `createPost`'s returned record does not. */
 async function seedPublishedPost(repo: PostRepoPort, outbox: OutboxPort): Promise<PostRecord> {
   await createPost({
-    deps: { repo, clock, outbox },
+    deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock, outbox },
     input: { workspaceId: WS, id: "post-1", title: "Original Title", status: "published" },
   });
   const seeded = await repo.findById({ workspaceId: WS, id: "post-1" });
@@ -81,7 +84,7 @@ for (const adapter of ADAPTERS) {
     const prior = await seedPublishedPost(repo, outbox);
 
     await updatePost({
-      deps: { repo, clock, outbox, beforeSaveHook: undefined },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox, beforeSaveHook: undefined },
       input: {
         workspaceId: WS,
         id: prior.id,
@@ -131,7 +134,7 @@ for (const adapter of ADAPTERS) {
     const prior = await seedPublishedPost(repo, outbox);
 
     await updatePost({
-      deps: { repo, clock, outbox, beforeSaveHook: undefined },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox, beforeSaveHook: undefined },
       input: { workspaceId: WS, id: prior.id, title: "Ghost", slug: prior.slug, bodyJson: prior.bodyJson, status: "draft" },
     });
     outbox.events.length = 0;
@@ -222,7 +225,7 @@ for (const adapter of ADAPTERS) {
     const prior = await seedPublishedPost(repo, outbox);
 
     await updatePost({
-      deps: { repo, clock, outbox, beforeSaveHook: undefined },
+      deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox, beforeSaveHook: undefined },
       input: { workspaceId: WS, id: prior.id, title: "Ghost", slug: prior.slug, bodyJson: prior.bodyJson, status: "draft" },
     });
     outbox.events.length = 0;
@@ -234,7 +237,7 @@ for (const adapter of ADAPTERS) {
       findById: repo.findById.bind(repo),
       listRevisions: async (required: { workspaceId: string; postId: string }) => {
         await updatePost({
-          deps: { repo, clock, outbox, beforeSaveHook: undefined },
+          deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox, beforeSaveHook: undefined },
           input: { workspaceId: WS, id: prior.id, title: "Third Writer", slug: prior.slug, bodyJson: prior.bodyJson, status: "draft" },
         });
         return repo.listRevisions(required);

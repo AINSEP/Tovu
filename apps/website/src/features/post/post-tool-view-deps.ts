@@ -1,7 +1,7 @@
 import type { PostToolViewDeps } from "@jini-ai/cms/posts/post-tool-views";
 import { entryPublicPath } from "#src/platform/routing/index";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
-import type { PostToolDeps } from "./post-tool-deps.js";
+import type { PostToolDeps } from "./tool-registrations.js";
 
 /** `publishedWhere` on a published write result when this instance is a local copy, not the live site. */
 export const PUBLISHED_WHERE_LOCAL =

@@ -9,7 +9,8 @@ import { createSystemClock } from "@jini-ai/platform/system";
 
 import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 import type { MailProviderControl } from "@jini-ai/platform/mail";
-import { buildMailProviderRegistrations, contributeMailProviderTools, currentLanesDetail, mailProviderDerivedRisk, readCurrentLanes, asToolInputError, type MailProviderToolDeps } from "../provider-tool-registrations.js";
+import { currentLanesDetail, mailProviderDerivedRisk, readCurrentLanes, asToolInputError } from "@jini-ai/user-management/mail/status/provider-tool-registrations";
+import { buildMailProviderRegistrations, contributeMailProviderTools, type MailProviderToolDeps } from "../provider-tool-registrations.js";
 import { buildMailStatusRegistrations } from "../tool-registrations.js";
 
 /**

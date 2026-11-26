@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -11,7 +12,8 @@ import { setPluginEnabled } from "@jini-ai/plugins/host";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { createPost, InMemoryPostRepo } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { createTier2WorkerRunner } from "../run-in-worker.js";
 
@@ -99,7 +101,7 @@ test("built-in tier-2: enable probes in a worker, save writes ext through a work
   const { runtime } = await enabledRuntime(builtInSource("tier2-echo", importedInProcess), SUCCESS_TIMEOUT_MS);
   const postRepo = new InMemoryPostRepo({});
 
-  await createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id: "p1", title: "Hello" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id: "p1", title: "Hello" } });
   assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "p1" }))?.ext, {
     "tier2-echo": { seenSlug: "hello", titleLength: 5 },
   });
@@ -114,7 +116,7 @@ test("built-in tier-2: enable probes in a worker, save writes ext through a work
 test("built-in tier-2: a throwing filter fails the save closed and quarantines at the threshold", async () => {
   const { runtime, repo } = await enabledRuntime(builtInSource("tier2-throw", []), SUCCESS_TIMEOUT_MS);
   const postRepo = new InMemoryPostRepo({});
-  const save = (id: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: "throw" } });
+  const save = (id: string) => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: "throw" } });
 
   await assert.rejects(save("t1"), PluginHookFailedError);
   await assert.rejects(save("t2"), { name: "PluginHookFailedError", message: /echo fixture refused this draft/ });

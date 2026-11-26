@@ -1,5 +1,9 @@
 import { buildContentDuplicationAgentToolCatalog } from '@jini-ai/cms/content-duplication/agent-tools';
 import { withPluginHookRefusals } from '@jini-ai/plugins/host/hook-refusals';
+import { POST_TOOL_HOST } from "../post-tool-policy.js";
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
@@ -19,13 +23,13 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { buildContentDuplicationRegistrations } from "@jini-ai/cms/content-duplication/tool-registrations";
-import { createPost } from "../post-create.js";
-import { updatePost } from "../post-update.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
-import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { contributePostDuplicateHandlers } from "@jini-ai/cms/posts/post-tool-duplicate";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 
 /**
@@ -45,8 +49,8 @@ function runCreatorKindContract(name: string, withRepo: () => { repo: PostRepoPo
   test(`createPost records the creator kind given — "agent" for an agent, "person" when omitted (${name})`, async () => {
     const { repo, teardown } = withRepo();
     try {
-      await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-agent", title: "A", actorId: "p-1", creatorKind: "agent" } });
-      await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-person", title: "B", actorId: "p-1" } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-agent", title: "A", actorId: "p-1", creatorKind: "agent" } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "by-person", title: "B", actorId: "p-1" } });
       assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "by-agent" }))?.createdByKind, "agent");
       assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "by-person" }))?.createdByKind, "person");
     } finally {
@@ -57,9 +61,9 @@ function runCreatorKindContract(name: string, withRepo: () => { repo: PostRepoPo
   test(`updatePost never changes the creator kind, whoever edits (${name})`, async () => {
     const { repo, teardown } = withRepo();
     try {
-      await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "agent-draft", title: "Draft", actorId: "p-1", creatorKind: "agent" } });
+      await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "agent-draft", title: "Draft", actorId: "p-1", creatorKind: "agent" } });
       const result = await updatePost({
-        deps: { repo, clock, outbox: noopOutbox },
+        deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: noopOutbox },
         input: { workspaceId: WORKSPACE_ID, id: "agent-draft", title: "Owner edit", slug: "agent-draft", bodyJson: { type: "doc", content: [] }, status: "draft", actorId: "owner-1" },
       });
       assert.equal(result.post.createdByKind, "agent");
@@ -107,7 +111,7 @@ test("agent tools record created_by_kind 'agent': content_post_create and conten
   const { post } = (await callTool(create, { kind: "post", title: "From the agent" })) as { post: { id: string } };
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id }))?.createdByKind, "agent");
 
-  const duplicate = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, { catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }) }).find((r) => r.descriptor.id === "content_duplicate");
+  const duplicate = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, { catalog: buildContentDuplicationAgentToolCatalog({ readToolName: 'content_read' }), withPluginHookRefusals, listResourceHandlers: () => contributePostDuplicateHandlers({ deriveDuplicateName }).map(contribution => ({ ...contribution, build: (deps, optional) => contribution.build({ ...deps, ...POST_TOOL_HOST }, optional) })) }).find((r) => r.descriptor.id === "content_duplicate");
   assert.ok(duplicate);
   const copy = (await callTool(duplicate, { resource: "post", id: post.id })) as { post: { id: string } };
   assert.notEqual(copy.post.id, post.id);

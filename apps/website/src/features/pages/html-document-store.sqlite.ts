@@ -5,7 +5,7 @@ import type { ContentDatabase } from "../../platform/db/content-database.generat
 import type { PagesHtmlDocumentStoreScope } from "@jini-ai/core/contracts/site/page-html-store";
 import { SqlPagesHtmlDocumentStore, type PagesHtmlDocumentStoreDeps, type PageHtmlStatements } from "@jini-ai/cms/pages/html-document-store";
 import { warnUnindexedEntryRef } from "../../contracts/core/entry-refs/unindexed-ref-warning.js";
-import { restoredEntryRefs } from "./html-inverse.js";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 
 export function createPageHtmlStatements({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): PageHtmlStatements {
   const thisRow = (db: Kysely<ContentDatabase>, scope: Pick<PagesHtmlDocumentStoreScope, "workspaceId" | "postId">) =>
@@ -42,6 +42,6 @@ export class PagesHtmlDocumentStore extends SqlPagesHtmlDocumentStore {
   /** `deps.db` is the connection's kernel, or the content db handle it is derived from. */
   constructor(scope: PagesHtmlDocumentStoreScope, deps: Omit<PagesHtmlDocumentStoreDeps, "statements" | "reportUnindexedRef" | "restoredEntryRefs"> & { db: ContentKernel | ContentDb }) {
     const { db, ...rest } = deps;
-    super({ scope, deps: { ...rest, statements: createPageHtmlStatements({ kernel: contentKernel({ store: db }) }), reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } });
+    super({ scope, deps: { ...rest, statements: createPageHtmlStatements({ kernel: contentKernel({ store: db }) }), reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} });
   }
 }

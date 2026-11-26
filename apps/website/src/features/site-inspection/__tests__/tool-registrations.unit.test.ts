@@ -20,11 +20,8 @@ import { siteInspectionAgentToolCatalog } from "#src/features/site-inspection/ca
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
 import { SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
 import { SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
-import {
-  buildSiteInspectionRegistrations,
-  contributeSiteInspectionTools,
-  siteInspectionDerivedRisk,
-} from "../tool-registrations.js";
+import { siteInspectionDerivedRisk } from "@jini-ai/cms/site-inspection/tool-registrations";
+import { buildSiteInspectionRegistrations, contributeSiteInspectionTools } from "../tool-registrations.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),

@@ -3,9 +3,10 @@ import test from "node:test";
 
 import { revertChangeSet } from "@jini-ai/cms/core/commands";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
-import { createPostRevertRegistry, InMemoryPostRepo } from "#src/features/post/index";
+import { createPostRevertRegistry } from "@jini-ai/cms/posts/reverters";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
-import type { PostReverterDeps } from "#src/features/post/index";
+import type { PostReverterDeps } from "@jini-ai/cms/posts/reverters";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";

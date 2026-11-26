@@ -26,10 +26,10 @@ import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
-import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
+import { contributePostPublish, toPublishableState } from "@jini-ai/cms/posts/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
-import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
+import { contributeTaxonomyPublish, contributeTermPublish } from "@jini-ai/cms/taxonomy/site/publish-content";
 
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
@@ -73,7 +73,7 @@ async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   registerPublishContentContributor({ contributor: contributeTermPublish() });
   const postRepo = new InMemoryPostRepo({});
   const outbox = new InMemoryOutbox();
-  const ports = { post: { repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) } };
+  const ports = { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) } };
   let changeSetCount = 0;
   const publishContentDeps: PublishContentDeps = {
     workspaceId: "local", clock: f.deps.clock, idGen: { newId: () => `cs-${++changeSetCount}` }, outbox,

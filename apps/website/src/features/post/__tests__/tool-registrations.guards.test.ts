@@ -17,7 +17,7 @@ import type { ForgetRemovedPostFn, RemovePostFn } from "#src/platform/publish-co
 import type { PostSearchQuery } from "@jini-ai/cms/posts/search";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, contributePostTools } from "../tool-registrations.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { type PostToolDeps } from "../tool-registrations.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 import { removeVia } from "./remove-post-double.js";
 

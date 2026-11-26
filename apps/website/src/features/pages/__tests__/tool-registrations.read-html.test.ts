@@ -1,5 +1,6 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import { pageHtmlChangeTestDeps } from "./page-html-change-test-deps.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -10,7 +11,8 @@ import { applyBatchInputs } from "../../../assistant/batch-tool-inputs.js";
 import { type BatchResult } from "@jini-ai/core";
 import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import { withContentTargets } from "../../../assistant/__tests__/fixtures/content-target-inputs.js";
-import { createPost, InMemoryPostRepo } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { InMemoryPagesHtmlDocumentStore } from "@jini-ai/cms/pages/html-document-store.memory";
@@ -41,7 +43,7 @@ function readerHarness(_required: Record<string, never>, { authorize, docBodyAsP
   const deps: PagesToolDeps = {
     workspaceId, postRepo: repo, authorize: authorize ?? (async () => ({ allowed: true, reason: "test" })),
     ...pageHtmlChangeTestDeps(),
-    pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }),
+    pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }),
     themes: [theme], resolveActiveThemeId: async () => "ink",
     ...(docBodyAsPageHtml ? { docBodyAsPageHtml } : {}),
   };
@@ -57,8 +59,8 @@ async function seed(
   { repo, id = "page", slug = "/", body = html }: { repo: InMemoryPostRepo; id?: string; slug?: string; body?: string },
   _optional: Record<string, never> = {},
 ) {
-  await createPost({ deps: { repo, clock }, input: { workspaceId, id, slug, title: id, kind: "page" } });
-  await new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId, postId: id }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }).ensureHtmlFormat({ seedHtml: body });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId, id, slug, title: id, kind: "page" } });
+  await new InMemoryPagesHtmlDocumentStore({ scope: { workspaceId, postId: id }, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }).ensureHtmlFormat({ seedHtml: body });
   return (await repo.findById({ workspaceId, id }))!;
 }
 
@@ -110,7 +112,7 @@ for (const [state, body, regionId, error] of [
 
 test("pages_read_html does not turn a missing region on a doc page into an empty-page success", async () => {
   const { repo, call } = readerHarness({});
-  await createPost({ deps: { repo, clock }, input: { workspaceId, id: "doc", slug: "doc", title: "Doc", kind: "page" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId, id: "doc", slug: "doc", title: "Doc", kind: "page" } });
   const result = await call({ slug: "doc" }) as PageRead;
   assert.equal(result.id, "doc");
   assert.equal(result.html, "");
@@ -124,7 +126,7 @@ test("pages_read_html gives a doc page's own text and widget back as editable HT
     { type: "paragraph", content: [{ type: "text", text: "Have a question?" }] },
     { type: "widgetEmbed", attrs: { placementId: "place-1", widgetEntryId: "form-1", content: { note: "it's" } } },
   ] };
-  await createPost({ deps: { repo, clock }, input: { workspaceId, id: "contact", slug: "contact", title: "Contact", kind: "page", bodyJson } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId, id: "contact", slug: "contact", title: "Contact", kind: "page", bodyJson } });
   const before = structuredClone(await repo.findById({ workspaceId, id: "contact" }));
   const result = await call({ slug: "contact" }) as PageRead & { note?: string };
   assert.match(result.html, /<p>Have a question\?<\/p>/);
@@ -165,7 +167,7 @@ for (const state of ["missing", "trashed", "post"] as const) {
       const row = await seed({ repo });
       await repo.softDelete({ workspaceId, id: row.id, version: row.version, deletedAt: "2026-10-23T00:00:00.000Z", updatedAt: "2026-10-23T00:00:00.000Z" });
     }
-    if (state === "post") await createPost({ deps: { repo, clock }, input: { workspaceId, id: "post", slug: "target", title: "Post" } });
+    if (state === "post") await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { workspaceId, id: "post", slug: "target", title: "Post" } });
     await assert.rejects(call({ slug: state === "post" ? "target" : "/" }), /PAGES_NOT_FOUND/);
   });
 }

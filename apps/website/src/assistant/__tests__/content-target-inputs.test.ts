@@ -1,5 +1,5 @@
 import { bindPagesToolHost } from "#src/features/pages/tool-host";
-import { restoredEntryRefs } from "#src/features/pages/html-inverse";
+import { restoredEntryRefs } from "@jini-ai/cms/pages/html-inverse";
 import { warnUnindexedEntryRef } from "#src/contracts/core/entry-refs/unindexed-ref-warning";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -123,7 +123,7 @@ test("page writes use the shared root resolver and still validate page kind and 
   const { deps, repo } = bareDeps([{ ...barePost, slug: "/" }, { ...barePost, id: "ordinary-post", slug: "news", kind: "post" }]);
   const clock = { nowMs: () => 0 };
   // A narrow handler fixture, not a composition: recording is enabled here (the in-memory composition binds it disabled, FIX 11).
-  const site = { ...deps, recordedHtmlWrites: "enabled" as const, pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs } }) };
+  const site = { ...deps, recordedHtmlWrites: "enabled" as const, pagesHtmlStore: (scope: { workspaceId: string; postId: string }) => new InMemoryPagesHtmlDocumentStore({ scope, deps: { repo, clock, reportUnindexedRef: warnUnindexedEntryRef, restoredEntryRefs: (required: Omit<Parameters<typeof restoredEntryRefs>[0], "report">) => restoredEntryRefs({ ...required, report: warnUnindexedEntryRef })} }) };
   const registrations = withContentTargets({ deps: site, registrations: buildPagesRegistrations({ deps: site, host: bindPagesToolHost({}) }) });
   const registration = registrations.find(tool => tool.descriptor.id === "pages_write_html")!;
   const html = '<main data-agent-element="home">Updated</main>';

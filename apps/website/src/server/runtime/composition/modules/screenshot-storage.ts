@@ -11,7 +11,8 @@ import { withFileLock } from "@jini-ai/platform/fs/file-lock";
 import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
 import { captureRootFor, type CaptureRootLock } from "@jini-ai/integrations/web-screenshot/capture-files";
 
-import { bindCaptureRetention, createCaptureRootFileLock, type CaptureRetentionBinding } from "#src/features/web-screenshot/capture-retention";
+import { createCaptureRootFileLock } from "@jini-ai/integrations/web-screenshot/capture-root-file-lock";
+import { bindCaptureRetention, type CaptureRetentionBinding } from "@jini-ai/integrations/web-screenshot/capture-retention";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import { adminSameOriginWrites, mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";

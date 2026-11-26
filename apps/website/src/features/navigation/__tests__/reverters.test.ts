@@ -6,7 +6,7 @@ import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { type MenuRepoPort, type NavLocationBindingRepoPort, InMemoryMenuRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
-import { contributeMenusPublish } from "../publish-content.js";
+import { contributeMenusPublish } from "@jini-ai/cms/navigation/site/publish-content";
 import { createMenuReverters, registerMenuReverters } from "@jini-ai/cms/navigation/site/reverters";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 

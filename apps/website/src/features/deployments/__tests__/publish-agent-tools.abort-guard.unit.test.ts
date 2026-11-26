@@ -3,7 +3,7 @@ import test from "node:test";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { buildStaticPublishRegistrations, contributeStaticPublishTools } from "../publish-agent-tools.js";
 import { staticPublishDerivedRisk } from "@jini-ai/devops/deploy/site/publish-agent-tools";
-import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
+import type { VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 
 /** abortGuardedCredentialRepo: writes refuse an aborted signal before reaching the store; reads,
  *  deletes, label updates and non-function vault members pass straight through unchanged. */

@@ -1,14 +1,17 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { SlugChangeCapture } from "@jini-ai/cms/routing";
-import { createPost } from "../post-create.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
 import { getAdminPostByIdOrSlug } from "@jini-ai/cms/posts/post-read";
 import { importPostEntity } from "@jini-ai/cms/posts/post-import";
 import { PostNotFoundError } from "@jini-ai/cms/posts/post";
-import { restorePostForward } from "../post-trash.js";
-import { retirePostForReplacement } from "../post-retire.js";
-import { updatePost } from "../post-update.js";
+import { restorePostForward } from "@jini-ai/cms/posts/post-trash";
+import { retirePostForReplacement } from "@jini-ai/cms/posts/post-retire";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 import { removeVia } from "./remove-post-double.js";
@@ -51,7 +54,7 @@ test("published create releases the trashed holder before saving without changin
   repo.save = async (post) => { if (post.id === "new") trace.push("save"); await save(post); };
   repo.appendRevision = async (input) => { trace.push("revision"); return appendRevision(input); };
   const outbox = { ...noopOutbox, enqueue: async (event: Parameters<OutboxPort["enqueue"]>[0]) => { trace.push(event.name); } };
-  await createPost({ deps: {
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS,
     repo, outbox, clock: { nowMs: () => { trace.push("clock"); return Date.parse(NOW); } },
     beforeSaveHook: async () => { trace.push("hook"); return {}; },
   }, input: { workspaceId: WS, id: "new", title: "Claimed", slug: "claimed", status: "published" } });
@@ -75,7 +78,7 @@ for (const throws of [false, true]) {
     const appendRevision = repo.appendRevision.bind(repo);
     repo.saveIfVersion = async (input) => { const result = await saveIfVersion(input); trace.push("CAS"); return result; };
     repo.appendRevision = async (input) => { trace.push("revision"); return appendRevision(input); };
-    const pending = updatePost({ deps: {
+    const pending = updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,
       repo, clock, outbox: { ...noopOutbox },
       beforeSaveHook: async () => { trace.push("hook"); enteredHook(); await paused; return {}; },
       slugChangeCapture: () => { trace.push("lookup"); return capture; },

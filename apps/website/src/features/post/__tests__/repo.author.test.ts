@@ -1,10 +1,13 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { createPost } from "../post-create.js";
-import { updatePost } from "../post-update.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 
@@ -13,17 +16,17 @@ const clock = { nowMs: () => Date.parse("2026-10-09T00:00:00Z") };
 describeEachDialect<PostRepoPort>("post author", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }, (makeRepo) => {
   test("author and showAuthor round-trip through insert, CAS update, omission, clearing, and revisions", async () => {
     const repo = makeRepo();
-    const created = (await createPost({ deps: { repo, clock }, input: {
+    const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: {
       workspaceId: "ws-author", id: "p-author", title: "Authored", author: "A & B", showAuthor: true, actorId: "human",
     } })).post;
     const key = { workspaceId: created.workspaceId, id: created.id };
     assert.deepEqual([(await repo.findById(key))?.author, (await repo.findById(key))?.showAuthor], ["A & B", true]);
     const deps = { repo, clock, outbox: new InMemoryOutbox() };
     const base = { ...key, title: created.title, slug: created.slug, bodyJson: created.bodyJson, status: created.status };
-    const kept = (await updatePost({ deps, input: { ...base, expectedVersion: 1 } })).post;
+    const kept = (await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...base, expectedVersion: 1 } })).post;
     assert.deepEqual([kept.author, kept.showAuthor], ["A & B", true]);
     assert.equal(kept.version, created.version, "omitted, unchanged credit creates no new version");
-    await updatePost({ deps, input: { ...base, expectedVersion: kept.version, author: null, showAuthor: false } });
+    await updatePost({ deps: { ...deps, reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual, }, input: { ...base, expectedVersion: kept.version, author: null, showAuthor: false } });
     const cleared = await repo.findById(key);
     assert.deepEqual([cleared?.author, cleared?.showAuthor], [null, false]);
     assert.equal(cleared?.createdByPrincipalId, "human");

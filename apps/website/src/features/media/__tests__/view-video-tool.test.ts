@@ -1,3 +1,4 @@
+import { prepareMessageAttachments } from '@jini-ai/daemon';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import sharp from 'sharp';
@@ -7,7 +8,7 @@ import { delegatedToolExecuteRoute } from '@jini-ai/daemon/http';
 import { ForbiddenError } from '@jini-ai/cms/core';
 import { VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_OUTPUT_BYTES, VIDEO_MAX_SHEET_BYTES, VIDEO_MAX_SHEETS, type VideoFrameExtractor, type VideoFrameOptions } from '@jini-ai/cms/media';
 import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, uploadMedia } from '../index.js';
-import { buildMediaViewVideoRegistrations, MEDIA_VIEW_VIDEO_INPUT_SCHEMA, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '../view-video-tool.js';
+import { createMediaViewVideoCatalog, buildMediaViewVideoRegistrations, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '@jini-ai/cms/media/site/view-video-tool';
 import { startStubProviderServer } from '../../../server/__tests__/helpers/stub-provider-server.js';
 import { providerTurnAdapters, runProviderToolTurn } from '@jini-ai/agent-runtime/providers/tool-turn';
 import { toolSearchKeywords } from '../../../assistant/tool-search-keywords.js';
@@ -15,6 +16,7 @@ import { applyBatchInputs } from '../../../assistant/batch-tool-inputs.js';
 import { invokeRegisteredTool, executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 import { withContentTargets } from '../../../assistant/__tests__/fixtures/content-target-inputs.js';
 import { createRouteIncidentReporter } from '../../../server/__tests__/helpers/route-incident-reporter.js';
+const catalog = createMediaViewVideoCatalog({ mediaAssetReadToolId: 'content_read.media_asset' });
 
 // Contract: ADS-memory/.local-artifacts/codex/2026-10-06-release-0111-video64/staged/spec.md.
 // Spec SHA256: 855beddf17d8f9a6a7f7974a54d3ca396fb8eab2a9e0bb3ed49b59a7bad6939d.
@@ -36,12 +38,12 @@ async function harness() {
     assert.equal(options.signal?.aborted, false);
     return { ok: true, metadata, frames: [{ at: 0.1, bytes: jpeg, mimeType: 'image/jpeg' }, { at: 1.9, bytes: jpeg, mimeType: 'image/jpeg' }] };
   } };
-  const deps: MediaViewVideoToolDeps = {
+  const deps: MediaViewVideoToolDeps = { prepareImages: prepareMessageAttachments,
     workspaceId, mediaRepo, assetBlobRepo, blobStore, extractor,
     authorize: async () => ({ allowed: true, reason: 'matched' }),
     readAttachment: async (input) => { reads++; return input.ownerId === owner && input.ref === attachmentRef ? { ok: true, bytes: mp4 } : { ok: false, refusal: 'not-owner' }; },
   };
-  const registrations = withContentTargets({ registrations: buildMediaViewVideoRegistrations(deps, {}), deps });
+  const registrations = withContentTargets({ registrations: buildMediaViewVideoRegistrations({ deps, catalog }, {}), deps });
   const tool = registrations[0]!;
   const call = (input: unknown, principalId = owner) => tool.handler({ executionId: 'video-exec', principal: { id: principalId }, run: { id: 'video-run' }, input, signal: new AbortController().signal } satisfies ToolExecutionContext);
   const seed = async (principal = owner) => (await uploadMedia({ deps: {
@@ -117,7 +119,7 @@ test('delegated HTTP video single calls accept slug selectors and retain frames'
 
 test('video schema and description advertise gap, start, sixty-four frames and total image budget', async () => {
   const h = await harness();
-  const schema = MEDIA_VIEW_VIDEO_INPUT_SCHEMA;
+  const schema = catalog[0].inputSchema;
   assert.deepEqual(h.tool.descriptor.inputSchema, schema);
   assert.equal(schema.additionalProperties, false);
   assert.equal(schema.properties.frames.maximum, 64);

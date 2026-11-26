@@ -1,3 +1,4 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { type SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { ExportReport } from "@tovu/contracts/export-report";
@@ -12,9 +13,9 @@ import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token"
 import { validateCommitTarget } from "@jini-ai/devops/source-control/site/commit-target";
 import type { RepositoryTargetValidator, SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 
-import { resolveDefaultForSourceControl } from "./store.js";
+import { resolveDefaultForSourceControl } from "@jini-ai/devops/source-control/site/store";
 import type { StaticSitePackagerPort } from "@jini-ai/devops/source-control/site/static-site-packager-port";
-import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
+import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "@jini-ai/core/contracts/site/source-control-credentials";
 
 /**
  * @file Tovu's binding of `@jini-ai/devops/source-control`'s commit orchestration for `source_control_execute_commit`
@@ -129,7 +130,7 @@ function commitArgs({ deps, input }: { deps: CommitSiteDeps; input: CommitSiteIn
     supportsFolder: deps.supportsFolder,
     describeMissingCredential: () => `No source control credential is configured for '${providerId}'. Connect one in the admin's Source Control page first.`,
     credentials: { resolve: async () => {
-      const credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId: input.workspaceId, providerId });
+      const credential = await resolveDefaultForSourceControl({ ...credentialDeps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: input.workspaceId, providerId });
       if (credential) return { providerId: credential.connection.providerId, token: credential.connection.token };
       const saved = await credentialDeps.resolveSavedApiKey?.({ workspaceId: input.workspaceId, providerId });
       return saved ? { providerId, token: saved.token } : null;

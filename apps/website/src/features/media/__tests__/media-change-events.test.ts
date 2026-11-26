@@ -10,7 +10,7 @@ import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content
 import { SqlMediaRepo, type MediaChangeSink } from "#src/platform/db/repos/media-repo";
 import { OUTBOX_TABLES } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { createMediaTrashAdapter } from "@jini-ai/cms/trash/site/adapters/media";
-import { createMediaSearchChangeSink, createMediaSearchSource, isPublicSearchImage, MEDIA_SEARCH_CHANGED_EVENT } from "../media-search-source.js";
+import { createMediaSearchChangeSink, createMediaSearchSource, isPublicSearchImage, MEDIA_SEARCH_CHANGED_EVENT } from "@jini-ai/search/site/media-search-source";
 
 /**
  * @file P10-M5.T2 — the media-change event is written by the outbox INSIDE the media write's own

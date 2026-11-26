@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file Characterization of the Taxonomy agent-tool contract, built THROUGH THE HOST CONTRIBUTOR
  * (`contributeTaxonomyTools().build(deps, surfaces)`), so it pins what the assistant's composition
@@ -23,7 +24,8 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { createPost, InMemoryPostRepo } from "../../post/index.js";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo, noopStampWatermark } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyTools, type TaxonomyToolDeps } from "../tool-registrations.js";
 
@@ -114,7 +116,7 @@ function context(input: Record<string, unknown>): ToolExecutionContext {
 }
 
 async function seed(fixture: Fixture): Promise<{ taxonomyId: string; fromTermId: string; intoTermId: string; postId: string }> {
-  await createPost({ deps: { repo: fixture.deps.postRepo, clock: fixture.deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "post-1", title: "P", kind: "post" } });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: fixture.deps.postRepo, clock: fixture.deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "post-1", title: "P", kind: "post" } });
   const { taxonomy } = (await fixture.call("taxonomy_create_taxonomy", { name: "Topic" })) as { taxonomy: { id: string } };
   const { term: from } = (await fixture.call("taxonomy_create_term", { taxonomyId: taxonomy.id, name: "Alpha" })) as { term: { id: string } };
   const { term: into } = (await fixture.call("taxonomy_create_term", { taxonomyId: taxonomy.id, name: "Beta" })) as { term: { id: string } };

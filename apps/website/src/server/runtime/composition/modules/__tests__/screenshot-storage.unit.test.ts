@@ -8,7 +8,7 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import { captureRootFor } from "@jini-ai/integrations/web-screenshot/capture-files";
 import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
-import { bindCaptureRetention } from "#src/features/web-screenshot/capture-retention";
+import { bindCaptureRetention } from "@jini-ai/integrations/web-screenshot/capture-retention";
 import { adminSameOriginWrites, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { captureWriterFence, mountScreenshotCleanup, screenshotOwnerFrom } from "../screenshot-storage.js";
 

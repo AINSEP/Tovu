@@ -6,7 +6,8 @@ import fs from "node:fs/promises";
 import { captureRootFor } from "@jini-ai/integrations/web-screenshot/capture-files";
 import { createCleanupPreviewStore } from "@jini-ai/platform/retention";
 import { withFileLock } from "@jini-ai/platform/fs/file-lock";
-import { bindCaptureRetention, createCaptureRootFileLock } from "../capture-retention.js";
+import { createCaptureRootFileLock } from "@jini-ai/integrations/web-screenshot/capture-root-file-lock";
+import { bindCaptureRetention } from "@jini-ai/integrations/web-screenshot/capture-retention";
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 10, 25);

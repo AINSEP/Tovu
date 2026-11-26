@@ -9,7 +9,8 @@ import test from "node:test";
 import express from "express";
 import type Database from "better-sqlite3";
 
-import { createContentDbTransactionRunner, createRedirectTrashAdapter, createTrashService, REDIRECT_ENTITY_TYPE, SqliteTrashRepo, type TrashAdapter, type TrashPort } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/redirect";
+import { createContentDbTransactionRunner, createRedirectTrashAdapter, createTrashService, SqliteTrashRepo, type TrashAdapter, type TrashPort } from "#src/features/trash/index";
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/post";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";

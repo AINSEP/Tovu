@@ -3,7 +3,7 @@ import test from "node:test";
 import { shouldTranscodeOnImport, uploadMedia, type MediaTranscoderPort } from "@jini-ai/cms/media";
 import { MAX_UPLOAD_BYTES, VIDEO_UPLOAD_LIMIT_BYTES, uploadLimitFor } from "@tovu/contracts/upload-limits";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo } from "../index.js";
-import { withVideoConversionOnImport, type ImportVideoConversion } from "../import-video-conversion.js";
+import { withVideoConversionOnImport, type ImportVideoConversion } from "@jini-ai/cms/media/site/import-video-conversion";
 
 /**
  * Owner rule 2026-10-31: a .mov/.m4v up to 50 MB is kept as it came; over 50 MB it is converted to a

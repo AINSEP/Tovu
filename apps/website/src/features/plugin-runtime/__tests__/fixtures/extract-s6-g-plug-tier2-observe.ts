@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file EXTRACT-S6 G-plug tier-2 observer: one REAL worker-backed tier-2 call that succeeds, one
  * runaway call stopped by the real timeout, and the before-save preview of each, recorded as plain
@@ -10,7 +11,8 @@ import path from "node:path";
 import { HOOK_CONTENT_ENTRY_BEFORE_SAVE, type ContentEntryDraft } from "@tovu/sdk";
 
 import { InMemoryPluginActivationRepo, setPluginEnabled, type PluginManifest } from "@jini-ai/plugins/host";
-import { createPost, InMemoryPostRepo } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { createTier2WorkerRunner } from "#src/server/runtime/plugin-tier2/run-in-worker";
 
@@ -58,7 +60,7 @@ export async function observeTier2Success(): Promise<unknown> {
   const { runtime, enabled, row } = await enabledRuntime("tier2-echo", SUCCESS_TIMEOUT_MS, importedInProcess);
   const afterEnable = await row();
   const postRepo = new InMemoryPostRepo({});
-  const saved = await settle(() => createPost({ deps: { repo: postRepo, clock, beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id: "p1", title: "Hello" } }));
+  const saved = await settle(() => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock, beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id: "p1", title: "Hello" } }));
   const savedExt = (await postRepo.findById({ workspaceId: WORKSPACE, id: "p1" }))?.ext;
   const preview = await settle(() => runtime.previewPluginBeforeSave("tier2-echo", draft("Preview me")));
   return JSON.parse(JSON.stringify({

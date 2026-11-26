@@ -2,7 +2,8 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPostPreviewRegistrations, contributePostPreviewTools, postPreviewAgentToolCatalog, postPreviewDerivedRisk } from "../preview-tool.js";
+import { postPreviewDerivedRisk } from "@jini-ai/cms/posts/preview-tool";
+import { buildPostPreviewRegistrations, contributePostPreviewTools, postPreviewAgentToolCatalog } from "../preview-tool.js";
 import { ToolInputError } from "@jini-ai/core";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import { bareDeps, barePost } from "#src/server/inbound/admin-http/routes/posts/__tests__/preview-fixtures";

@@ -11,14 +11,8 @@ import { assignRole, createUser } from "@jini-ai/user-management/server";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
-import {
-  bindRemoveEntity,
-  createContentDbTransactionRunner,
-  createUserTrashAdapter,
-  SqliteTrashRepo,
-  USER_ENTITY_TYPE,
-  type TrashAdapter,
-} from "#src/features/trash/index";
+import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
+import { bindRemoveEntity, createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, type TrashAdapter } from "#src/features/trash/index";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";

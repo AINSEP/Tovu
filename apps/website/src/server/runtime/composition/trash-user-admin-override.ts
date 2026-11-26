@@ -2,7 +2,8 @@ import { OwnerRequiredError } from "@jini-ai/user-management";
 import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 
 import { callerMayManageUserTrash, assertUserAccountAction, SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
-import { USER_ENTITY_TYPE, type TrashAuthorizeFn } from "#src/features/trash/index";
+import { USER_ENTITY_TYPE } from "#src/features/trash/adapters/user";
+import { type TrashAuthorizeFn } from "@jini-ai/core/contracts/site/cms-trash";
 
 /**
  * @file The composition-root-only seam that lets the Trash's generic restore/purge routes honor the

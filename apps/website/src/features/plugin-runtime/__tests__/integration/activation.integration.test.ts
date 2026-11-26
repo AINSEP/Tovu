@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -16,7 +17,8 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
-import { InMemoryPostRepo, createPost } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 
 /**
@@ -850,7 +852,7 @@ test("disabling through the real runtime callback stops the filter contributing 
   const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [source] });
   const deps = { clock: clock(), repo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled };
   const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
-  const save = (id: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: id } });
+  const save = (id: string) => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: id } });
   await setPluginEnabled({ deps, input: { workspaceId: WORKSPACE, pluginId: source.manifest.id, enabled: true } });
   await save("before-disable");
   assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "before-disable" }))?.ext, { "disable-marker": { seen: true } });
@@ -896,7 +898,7 @@ test("runtime SDK content reads and extension writes are isolated across overlap
   const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [sdkSource] });
   await runtime.onPluginEnabled(sdkSource.manifest.id);
   const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
-  const save = (id: string, title: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title } });
+  const save = (id: string, title: string) => createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title } });
   await Promise.all([save("first", "First title"), save("second", "Second title")]);
   assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "first" }))?.ext, { "sdk-marker": { firstOnly: true, title: "First title" } });
   assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "second" }))?.ext, { "sdk-marker": { title: "Second title" } });

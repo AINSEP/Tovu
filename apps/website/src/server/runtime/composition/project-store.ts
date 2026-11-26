@@ -3,7 +3,7 @@ import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { sql } from "kysely";
 import { openSqliteConnection } from "@jini-ai/db/sqlite";
 import type { KeyAttachments, ProjectKeyTransaction } from "@jini-ai/core/contracts/site/project-key-attachments";
-import { createKeyAttachments } from "#src/features/project-keys/attachments";
+import { createKeyAttachments } from "@jini-ai/user-management/project-keys/sql/attachments";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { homedir } from "node:os";
@@ -270,6 +270,11 @@ export async function openProjectStore(
     },
     transaction: ({ run }) => kernel.transaction(run),
     providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),
-    attachments: createKeyAttachments({ kernel: kernel as unknown as KyselyKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection({ source: db }) };
+    attachments: createKeyAttachments({ sql: kernel, tables: { attachments: "site_key_attachments", vault: "secrets_vault" },
+      nowIso: () => new Date().toISOString(), credentialTypeText: ({ column }) => jsonText({ dialect: kernel.dialect, column, path: ["credentialType"] }),
+      policy: { ownerWorkspaceId: "project", customKind: "custom", vendorKind: "vendor", vendorCredentialType: "custom", maxGrants: 100,
+        tooManyKeys: "This site uses more than 100 saved keys. Remove unused site grants in Shared Keys before continuing.",
+        ambiguousLabel: "More than one granted key has this label. Revoke the extra site grant in Shared Keys and choose one key.",
+        noSiteId: "This site has no id yet; restart it." } }), vault: scope, dbPath, close: () => closeSqliteConnection({ source: db }) };
   return store;
 }

@@ -16,7 +16,7 @@ import { ToolInputError, type SurfaceEmitter, type SurfaceEmission, type ToolExe
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
+import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "@jini-ai/core/contracts/site/vendor-credentials";
 import { InMemoryPublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
 import { InMemoryPublishHistoryStore } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import { type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
@@ -31,7 +31,7 @@ import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { attachedOnlyVault } from "@jini-ai/user-management/project-keys/attached-vault";
 import { projectKeyCreateVault } from "@jini-ai/user-management/project-keys/create-vault";
-import { createProjectKeys } from "#src/features/project-keys/service";
+import { createProjectKeys } from "#src/features/project-keys/host-bindings";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { createPostReverters, type PostReverterDeps } from "../reverters.js";
+import { createPostReverters, type PostReverterDeps } from "@jini-ai/cms/posts/reverters";
 import { buildPostRecord } from "./post-record.fixture.js";
 import { PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 

@@ -1,10 +1,13 @@
+import { isDeepStrictEqual } from "node:util";
+import { postPublicPath } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
-import { createPost, type CreatePostInput } from "../post-create.js";
-import { updatePost } from "../post-update.js";
+import { createPost, type CreatePostInput } from "@jini-ai/cms/posts/post-create";
+import { updatePost } from "@jini-ai/cms/posts/post-update";
 import { PostValidationError } from "@jini-ai/cms/posts/post";
-import { createPostReverters } from "../reverters.js";
+import { createPostReverters } from "@jini-ai/cms/posts/reverters";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 const clock = { nowMs: () => Date.parse("2026-10-09T00:00:00Z") };
@@ -14,12 +17,12 @@ test("creation defaults to the actor username once, stays hidden, and records th
   const repo = new InMemoryPostRepo({});
   const lookups: unknown[] = [];
   const authorAccounts = { findByPrincipalId: async (required: unknown) => { lookups.push(required); return { username: "admin" }; } };
-  const created = (await createPost({ deps: { repo, clock, authorAccounts }, input })).post;
+  const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock, authorAccounts }, input })).post;
   assert.equal(created.author, "admin");
   assert.equal(created.showAuthor, false);
   assert.equal(created.createdByPrincipalId, "human");
   assert.deepEqual(lookups, [{ workspaceId: "ws", principalId: "human" }]);
-  const changed = (await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  const changed = (await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: created.slug, bodyJson: created.bodyJson, status: created.status, author: "Guest Writer", showAuthor: true,
   } })).post;
   assert.equal(changed.author, "Guest Writer");
@@ -32,13 +35,13 @@ test("creation defaults to the actor username once, stays hidden, and records th
 
 test("explicit credit, including null, skips account lookup; unknown actors remain unknown", async () => {
   for (const [author, expected] of [["  By Another Name  ", "By Another Name"], [null, null], ["", null]] as const) {
-    const post = (await createPost({ deps: { repo: new InMemoryPostRepo({}), clock,
+    const post = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: new InMemoryPostRepo({}), clock,
       authorAccounts: { findByPrincipalId: async () => { throw new Error("must not resolve an explicit credit"); } },
     }, input: { ...input, author, showAuthor: true } })).post;
     assert.equal(post.author, expected);
     assert.equal(post.showAuthor, true);
   }
-  const post = (await createPost({ deps: { repo: new InMemoryPostRepo({}), clock }, input: { ...input, actorId: undefined } })).post;
+  const post = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: new InMemoryPostRepo({}), clock }, input: { ...input, actorId: undefined } })).post;
   assert.equal(post.author, null);
   assert.equal(post.showAuthor, false);
 });
@@ -51,7 +54,7 @@ test("invalid author or toggle fails before writing or account lookup, with exac
     [{ showAuthor: null }, "showAuthor must be a boolean"],
   ] as const) {
     const repo = new InMemoryPostRepo({});
-    await assert.rejects(createPost({ deps: { repo, clock, authorAccounts: {
+    await assert.rejects(createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock, authorAccounts: {
       findByPrincipalId: async () => { throw new Error("invalid input reached account lookup"); },
     } }, input: { ...input, ...patch } as CreatePostInput }),
     (error: unknown) => error instanceof PostValidationError && error.message === message);
@@ -61,10 +64,10 @@ test("invalid author or toggle fails before writing or account lookup, with exac
 
 test("author accepts 200 display characters and rejects a longer edit without changing the post or revisions", async () => {
   const repo = new InMemoryPostRepo({});
-  const created = (await createPost({ deps: { repo, clock }, input: { ...input, author: `  ${"A".repeat(200)}  ` } })).post;
+  const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...input, author: `  ${"A".repeat(200)}  ` } })).post;
   assert.equal(created.author, "A".repeat(200));
   const revisions = await repo.listRevisions({ workspaceId: "ws", postId: "p1" });
-  await assert.rejects(updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  await assert.rejects(updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: created.slug, bodyJson: created.bodyJson, status: created.status, author: "A".repeat(201),
   } }), (error: unknown) => error instanceof PostValidationError && error.message === "author must be at most 200 characters");
   assert.deepEqual(await repo.findById({ workspaceId: "ws", id: "p1" }), created);
@@ -74,14 +77,14 @@ test("author accepts 200 display characters and rejects a longer edit without ch
 test("author counts Unicode code points across creation and edits, with no write on overflow", async () => {
   const repo = new InMemoryPostRepo({});
   const author = "😀".repeat(200);
-  const created = (await createPost({ deps: { repo, clock }, input: { ...input, author: `  ${author}  ` } })).post;
+  const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...input, author: `  ${author}  ` } })).post;
   assert.equal(created.author, author);
-  const changed = (await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  const changed = (await updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: created.slug, bodyJson: created.bodyJson, status: created.status, author: "A😀".repeat(100),
   } })).post;
   assert.equal(changed.author, "A😀".repeat(100));
   const revisions = await repo.listRevisions({ workspaceId: "ws", postId: "p1" });
-  await assert.rejects(updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: {
+  await assert.rejects(updatePost({ deps: {reservedSegments: RESERVED_SEGMENTS, postPublicPath, isDeepStrictEqual,  repo, clock, outbox: new InMemoryOutbox() }, input: {
     ...input, slug: changed.slug, bodyJson: changed.bodyJson, status: changed.status, author: "😀".repeat(201),
   } }), (error: unknown) => error instanceof PostValidationError && error.message === "author must be at most 200 characters");
   assert.deepEqual(await repo.findById({ workspaceId: "ws", id: "p1" }), changed);
@@ -90,7 +93,7 @@ test("author counts Unicode code points across creation and edits, with no write
 
 test("undo restores the captured credit and toggle, while older inverses preserve current byline fields", async () => {
   const repo = new InMemoryPostRepo({});
-  const created = (await createPost({ deps: { repo, clock }, input: { ...input, author: "Current Writer", showAuthor: true } })).post;
+  const created = (await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo, clock }, input: { ...input, author: "Current Writer", showAuthor: true } })).post;
   const reverter = createPostReverters({ postRepo: repo, clock, outbox: new InMemoryOutbox(), forgetRemoved: async () => {} }).update;
   const inverse = { title: created.title, slug: created.slug, bodyJson: created.bodyJson, status: created.status };
   const item = { id: "item", changeSetId: "change", position: 0, entityType: "post", entityId: created.id, operation: "update" as const };

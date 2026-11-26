@@ -1,9 +1,10 @@
+import { SOURCE_CONTROL_CREDENTIAL_DEPS } from "#src/features/source-control/store";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { resolveDefaultForSourceControl } from "#src/features/source-control/index";
+import { resolveDefaultForSourceControl } from "@jini-ai/devops/source-control/site/store";
 import { bootAuthenticated, loginAsBarePrincipal as loginWithoutGrants } from "../helpers/http-test-server.js";
 import { exampleRegistry } from "../../../features/source-control/__tests__/fixtures/example-provider.js";
 import type { RouteDeps } from "../../routes/types.js";
@@ -152,7 +153,7 @@ test("source-control-credentials: full CRUD round trip — create, list, update 
   const { credential: renamed } = await updated.json();
   assert.equal(renamed.label, "renamed");
   assert.equal(renamed.id, credential.id);
-  const resolve = () => resolveDefaultForSourceControl({ repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: "example-git" });
+  const resolve = () => resolveDefaultForSourceControl({ repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: deps.workspaceId, providerId: "example-git" });
   assert.deepEqual((await resolve())?.connection, { providerId: "example-git", token: "fixture_secret_token" });
   const blank = await fetch(`${base}/${credential.id}`, {
     method: "PUT", headers: { cookie, "content-type": "application/json" },

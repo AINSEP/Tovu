@@ -1,3 +1,8 @@
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { createHash } from "node:crypto";
+import { CredentialInputError, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
+import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,19 +10,25 @@ import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
-import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
-import {
-  MediaProviderCredentialSecretStoreUnconfiguredError,
-  MediaProviderCredentialValidationError,
-  getMediaProviderCredentials,
-  resolveMediaProviderCredential,
-  saveMediaProviderCredentials,
-} from "../provider-credential-store.js";
+import { TurnLock } from "@jini-ai/db/kernel";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryMediaProviderCredentialRepo } from "@jini-ai/cms/media/site/provider-credential-store.memory";
+import { MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialValidationError, getMediaProviderCredentials, resolveMediaProviderCredential, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
 import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT } from "@jini-ai/platform/secrets/credential-token";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
-import { mediaVaultId, mediaVaultScope, resolveMediaCredentialIds } from "../provider-credential-vault.js";
+import { mediaVaultId, mediaVaultScope, resolveMediaCredentialIds } from "@jini-ai/cms/media/site/provider-credential-vault";
+
+const MEDIA_CREDENTIAL_POLICY = { ownerKey: "tovu", legacyIds: { grok: ["xai-grok-imagine"] },
+  parseMeta: ({ meta }: { meta: unknown }) => parseTovuStoreMeta({ kind: "media-provider", meta }) as { baseUrl: string | null; model: string | null } };
+const MEDIA_CREDENTIAL_BINDINGS = { vaultPolicy: MEDIA_CREDENTIAL_POLICY,
+  credentialPolicy: { assertCredentialFreeField, normalizeCredentialToken }, builtInProviderIds: new Set(MEDIA_PROVIDERS.map(provider => provider.id)),
+  credentialInputMessage: ({ error }: { error: unknown }) => error instanceof CredentialInputError ? error.message : undefined,
+  storageMessage: CREDENTIAL_MESSAGES.storage, sha256Hex: ({ text }: { text: string }) => createHash("sha256").update(text).digest("hex"),
+  createVault: (required: Omit<Parameters<typeof createTovuStoreVault>[0], "kind">) => createTovuStoreVault({ ...required, kind: "media-provider" }),
+};
+
 
 /**
  * @file `provider-credential-store.ts` — the whole-map-replace credential contract behind the
@@ -34,7 +45,7 @@ const WORKSPACE = "workspace-1";
 const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () => "2026-08-09T00:00:00.000Z" };
 
 function makeDeps() {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, deps: { repo, keyring, sealer, clock } };
@@ -57,10 +68,10 @@ class BrokenKeyring implements KeyringPort {
 test("save stores a key and returns markers only, never the key", async () => {
   const { deps } = makeDeps();
 
-  const saved = await saveMediaProviderCredentials(deps, {
+  const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: (" \ts" + "k-test-abcd1234\n "), baseUrl: "https://api.openai.com/v1", model: "dall-e-3" } },
-  });
+  } });
 
   assert.deepEqual(saved, {
     openai: {
@@ -72,59 +83,59 @@ test("save stores a key and returns markers only, never the key", async () => {
     },
   });
   assert.equal(JSON.stringify(saved).includes(("s" + "k-test-abcd1234")), false);
-  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  const resolved = await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" });
   assert.equal(resolved?.apiKey === ("s" + "k-test-abcd1234"), true, "only the entered key edges may be trimmed");
 });
 
 test("the stored value round-trips through a fresh read", async () => {
   const { deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { fal: { apiKey: "xai-key-wxyz", baseUrl: "https://api.x.ai/v1" } },
-  });
+  } });
 
-  const read = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
+  const read = await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE });
 
   assert.deepEqual(read, {
     fal: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true, apiKeyTail: "wxyz", apiKeyHint: { length: 12, last4: "wxyz" } },
   });
   // Vault hints remain readable even when no sealer is provided.
-  assert.deepEqual(await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE }), {
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: deps.repo }, workspaceId: WORKSPACE }), {
     fal: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true, apiKeyTail: "wxyz", apiKeyHint: { length: 12, last4: "wxyz" } },
   });
 });
 
 test("a provider omitted from the payload is DELETED, not left alone", async () => {
   const { deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-one-1111") }, fal: { apiKey: "xai-two-2222" } },
-  });
+  } });
 
   // The tab expresses "Clear grok" by sending a map that simply lacks it.
   // fal stands in for grok here: xAI media is now a plugin vendor, not a built-in one.
-  const saved = await saveMediaProviderCredentials(deps, {
+  const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKeyConfigured: true, apiKeyTail: "1111" } },
-  });
+  } });
 
   assert.deepEqual(Object.keys(saved), ["openai"]);
-  const read = await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  const read = await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: deps.repo }, workspaceId: WORKSPACE });
   assert.deepEqual(Object.keys(read), ["openai"]);
 });
 
 test("an entry with no apiKey keeps the stored key while editing other fields", async () => {
   const { deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-keep-9999") } },
-  });
+  } });
 
   // What the tab actually re-sends for an untouched provider: the markers it was handed, no key.
-  const saved = await saveMediaProviderCredentials(deps, {
+  const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKeyConfigured: true, apiKeyTail: "9999", model: "gpt-image-2" } },
-  });
+  } });
 
   assert.equal(saved.openai?.apiKeyConfigured, true);
   assert.equal(saved.openai?.apiKeyTail, "9999");
@@ -133,61 +144,61 @@ test("an entry with no apiKey keeps the stored key while editing other fields", 
 
 test("T17: a legacy keyless provider does not block another provider's metadata edit", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE, providers: { fal: { apiKey: "xai-existing-1234" } },
-  });
+  } });
   // New creates require a key, but migrated/recovered rows can legitimately have none.
   await repo.upsert({
     workspaceId: WORKSPACE, providerId: "openai", baseUrl: "https://api.openai.com/v1", model: null,
     sealed: null, keyTail: null, aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
   });
-  const before = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
+  const before = await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE });
   assert.deepEqual(before.openai, { baseUrl: "https://api.openai.com/v1" });
   const expected = { ...before, fal: { ...before.fal, model: "edited-model" } };
 
   await assert.doesNotReject(async () => {
-    const saved = await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: expected });
+    const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: expected } });
     assert.deepEqual(saved, expected);
   }, "re-sending an existing keyless provider must not require a new token");
 
-  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), expected);
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE }), expected);
   assert.equal((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).find(row => row.providerId === "openai")?.sealed, null);
-  assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "fal" }))?.apiKey,
+  assert.equal((await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "fal" }))?.apiKey,
     "xai-existing-1234");
 });
 
 test("a blank apiKey is treated as absent, not as a clear", async () => {
   const { deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-blank-7777") } },
-  });
+  } });
 
-  const saved = await saveMediaProviderCredentials(deps, {
+  const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: "" } },
-  });
+  } });
 
   assert.equal(saved.openai?.apiKeyConfigured, true);
   assert.equal(saved.openai?.apiKeyTail, "7777");
   const before = await deps.repo.listByWorkspaceId({ workspaceId: WORKSPACE });
-  await assert.rejects(saveMediaProviderCredentials(deps, {
+  await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE, providers: { openai: { apiKey: "   " } },
-  }), { name: "Error", message: "Enter a token. Spaces alone are not a token." });
+  } }), { name: "Error", message: "Enter a token. Spaces alone are not a token." });
   assert.deepEqual(await deps.repo.listByWorkspaceId({ workspaceId: WORKSPACE }), before);
 });
 
 test("a provider create with an absent or blank key fails without changing stored providers", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE, providers: { fal: { apiKey: "xai-existing-1234" } },
-  });
+  } });
   const before = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
   for (const apiKey of [undefined, "", "   "]) {
-    await assert.rejects(saveMediaProviderCredentials(deps, {
+    await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
       workspaceId: WORKSPACE,
       providers: { openai: { apiKey, baseUrl: "https://proxy.example.com/v1" } },
-    }), { name: "Error", message: "Enter a token. Spaces alone are not a token." });
+    } }), { name: "Error", message: "Enter a token. Spaces alone are not a token." });
     assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), before);
   }
 });
@@ -198,7 +209,7 @@ test("UI-spelled provider ids are rejected so only engine-canonical ids reach st
   // The exact divergence that would otherwise persist keys the dispatch engine never finds.
   for (const uiSpelling of ["xai-grok-imagine", "nano-banana", "fal-ai", "leonardo-ai", "custom-image-api", "volcengine-ark"]) {
     await assert.rejects(
-      saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { [uiSpelling]: { apiKey: "k-1234" } } }),
+      saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { [uiSpelling]: { apiKey: "k-1234" } } } }),
       MediaProviderCredentialValidationError,
       `${uiSpelling} must be rejected`
     );
@@ -206,10 +217,10 @@ test("UI-spelled provider ids are rejected so only engine-canonical ids reach st
 
   // ...and each one's engine-canonical counterpart is accepted.
   for (const canonical of ["fal", "nanobanana", "fal", "leonardo", "custom-image", "volcengine"]) {
-    const saved = await saveMediaProviderCredentials(deps, {
+    const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
       workspaceId: WORKSPACE,
       providers: { [canonical]: { apiKey: "k-1234" } },
-    });
+    } });
     assert.equal(saved[canonical]?.apiKeyConfigured, true, `${canonical} must be accepted`);
   }
 });
@@ -218,17 +229,17 @@ test("a non-string or oversized field is rejected", async () => {
   const { deps } = makeDeps();
 
   await assert.rejects(
-    saveMediaProviderCredentials(deps, {
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
       workspaceId: WORKSPACE,
       providers: { openai: { apiKey: 42 as unknown as string } },
-    }),
+    } }),
     MediaProviderCredentialValidationError
   );
   await assert.rejects(
-    saveMediaProviderCredentials(deps, {
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
       workspaceId: WORKSPACE,
       providers: { openai: { baseUrl: "x".repeat(2049) } },
-    }),
+    } }),
     MediaProviderCredentialValidationError
   );
 });
@@ -237,7 +248,7 @@ test("providers itself must be an object: null and an array are both rejected, n
   const { deps } = makeDeps();
 
   await assert.rejects(
-    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: null as unknown as Record<string, never> }),
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: null as unknown as Record<string, never> } }),
     (err: unknown) => {
       assert.ok(err instanceof MediaProviderCredentialValidationError);
       assert.equal((err as Error).message, "providers must be an object keyed by provider id");
@@ -245,7 +256,7 @@ test("providers itself must be an object: null and an array are both rejected, n
     }
   );
   await assert.rejects(
-    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: [] as unknown as Record<string, never> }),
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: [] as unknown as Record<string, never> } }),
     (err: unknown) => {
       assert.ok(err instanceof MediaProviderCredentialValidationError);
       assert.equal((err as Error).message, "providers must be an object keyed by provider id");
@@ -258,7 +269,7 @@ test("a provider entry that is null or an array is rejected as not-an-object, di
   const { deps } = makeDeps();
 
   await assert.rejects(
-    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: null as unknown as object } }),
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: null as unknown as object } } }),
     (err: unknown) => {
       assert.ok(err instanceof MediaProviderCredentialValidationError);
       assert.equal((err as Error).message, 'provider "openai" must be an object');
@@ -266,7 +277,7 @@ test("a provider entry that is null or an array is rejected as not-an-object, di
     }
   );
   await assert.rejects(
-    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: [] as unknown as object } }),
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: [] as unknown as object } } }),
     (err: unknown) => {
       assert.ok(err instanceof MediaProviderCredentialValidationError);
       assert.equal((err as Error).message, 'provider "openai" must be an object');
@@ -296,7 +307,7 @@ test("a non-Error rejection from the keyring returns only the safe secret-store-
   const broken = { ...deps, keyring: new NonErrorThrowingKeyring() };
 
   await assert.rejects(
-    saveMediaProviderCredentials(broken, { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-x-1234") } } }),
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...broken }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-x-1234") } } } }),
     (err: unknown) => {
       assert.ok(err instanceof MediaProviderCredentialSecretStoreUnconfiguredError);
       assert.equal(
@@ -310,19 +321,19 @@ test("a non-Error rejection from the keyring returns only the safe secret-store-
 
 test("a missing site key fails closed WITHOUT writing or deleting anything", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-intact-5555") }, fal: { apiKey: "xai-intact-6666" } },
-  });
+  } });
 
   const broken = { ...deps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
   await assert.rejects(
     // Also drops `fal` — proving the abort happens before the tombstone pass, not midway through.
-    saveMediaProviderCredentials(broken, { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-new-0000") } } }),
+    saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...broken }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-new-0000") } } } }),
     MediaProviderCredentialSecretStoreUnconfiguredError
   );
 
-  const after = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
+  const after = await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE });
   assert.deepEqual(after, {
     openai: { apiKeyConfigured: true, apiKeyTail: "5555", apiKeyHint: { length: 14, last4: "5555" } },
     fal: { apiKeyConfigured: true, apiKeyTail: "6666", apiKeyHint: { length: 15, last4: "6666" } },
@@ -331,36 +342,36 @@ test("a missing site key fails closed WITHOUT writing or deleting anything", asy
 
 test("one workspace's providers are invisible to another", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-w1-1111") } },
-  });
-  await saveMediaProviderCredentials(deps, {
+  } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: "workspace-2",
     providers: { fal: { apiKey: "xai-w2-2222" } },
-  });
+  } });
 
-  assert.deepEqual(Object.keys(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE })), ["openai"]);
-  assert.deepEqual(Object.keys(await getMediaProviderCredentials({ repo }, { workspaceId: "workspace-2" })), ["fal"]);
+  assert.deepEqual(Object.keys(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo }, workspaceId: WORKSPACE })), ["openai"]);
+  assert.deepEqual(Object.keys(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo }, workspaceId: "workspace-2" })), ["fal"]);
 });
 
 test("an empty map clears every provider and reads back empty", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-gone-3333") } },
-  });
+  } });
 
-  assert.deepEqual(await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: {} }), {});
-  assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {});
+  assert.deepEqual(await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: {} } }), {});
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo }, workspaceId: WORKSPACE }), {});
 });
 
 test("preserved-state merging and every write stay inside deps.repo.replaceWorkspace()", async () => {
   const { deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { fal: { apiKey: "xai-existing-4444" } },
-  });
+  } });
 
   const calls: string[] = [];
   // Wraps the real in-memory repo, recording call order and refusing to open the replace. Proves
@@ -389,8 +400,7 @@ test("preserved-state merging and every write stay inside deps.repo.replaceWorks
 
   await assert.rejects(
     saveMediaProviderCredentials(
-      { ...deps, repo: guardedRepo },
-      { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-new-5555") } } }
+      { deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, repo: guardedRepo }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-new-5555") } } } }
     ),
     /simulated transaction-open failure/
   );
@@ -402,7 +412,7 @@ test("preserved-state merging and every write stay inside deps.repo.replaceWorks
   );
 
   // And the pre-existing row is untouched, proving nothing leaked around the guarded replace.
-  const after = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
+  const after = await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE });
   assert.deepEqual(after, { fal: { apiKeyConfigured: true, apiKeyTail: "4444", apiKeyHint: { length: 17, last4: "4444" } } });
 });
 
@@ -432,10 +442,10 @@ test("a metadata-only save cannot resurrect a key that another save rotated whil
   // that committed in the window between the read and the write was silently reverted by a save
   // that never intended to touch the key at all.
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-alpha-1111") } },
-  });
+  } });
 
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -445,16 +455,16 @@ test("a metadata-only save cannot resurrect a key that another save rotated whil
 
   // Metadata-only for `openai`, a genuinely new key for `fal`. Sealing fal's key parks on the
   // gate, holding this save open across the rotation below.
-  const slowSave = saveMediaProviderCredentials(gatedDeps, {
+  const slowSave = saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...gatedDeps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { model: "dall-e-3" }, fal: { apiKey: "xai-new-3333" } },
-  });
+  } });
 
   // Meanwhile an admin rotates openai's key, and that save commits in full.
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-beta-9999") } },
-  });
+  } });
 
   release();
   const written = await slowSave;
@@ -465,11 +475,11 @@ test("a metadata-only save cannot resurrect a key that another save rotated whil
   const openai = rows.find((row) => row.providerId === "openai");
   assert.notEqual(openai?.sealed, null);
   assert.equal(
-    (await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }))?.apiKey,
+    (await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" }))?.apiKey,
     ("s" + "k-beta-9999"),
     "the stored ciphertext must be the rotated key, not the one this save read before it started"
   );
-  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), {
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE }), {
     openai: { model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "9999", apiKeyHint: { length: 12, last4: "9999" } },
     fal: { apiKeyConfigured: true, apiKeyTail: "3333", apiKeyHint: { length: 12, last4: "3333" } },
   });
@@ -480,13 +490,13 @@ test("a reader polling throughout a save never observes a half-replaced map", as
   // between each upsert and the tombstone delete, so a continuation queued on the shared connection
   // could observe `[a:new, b:old]` — a map that was never a valid state of this workspace.
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-old-key-1111") }, fal: { apiKey: "xai-old-2222" } },
-  });
+  } });
 
   const tailsNow = async (): Promise<string> => {
-    const map = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
+    const map = await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE });
     return Object.keys(map)
       .sort()
       .map((id) => `${id}:${map[id]?.apiKeyTail}`)
@@ -517,10 +527,10 @@ test("a reader polling throughout a save never observes a half-replaced map", as
     }
   };
 
-  await saveMediaProviderCredentials({ ...deps, repo: observingRepo }, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, repo: observingRepo }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-new-key-3333") }, fal: { apiKey: "xai-new-4444" } },
-  });
+  } });
   assert.ok(observations.length > 1, "the observer must actually have run while the save was in flight");
   assert.equal(observations[0], BEFORE);
   assert.equal(observations.at(-1), AFTER);
@@ -538,10 +548,10 @@ test("the in-memory adapter stages its writes: a planner that throws leaves stor
   // failure would survive, and no test against this adapter could tell a real transaction from a
   // passthrough.
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-kept-1111") } },
-  });
+  } });
 
   await assert.rejects(
     () =>
@@ -554,7 +564,7 @@ test("the in-memory adapter stages its writes: a planner that throws leaves stor
     /planner refused/
   );
 
-  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), {
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE }), {
     openai: { apiKeyConfigured: true, apiKeyTail: "1111", apiKeyHint: { length: 12, last4: "1111" } },
   });
 });
@@ -566,19 +576,19 @@ test("the in-memory adapter stages its writes: a planner that throws leaves stor
 
 test("resolveMediaProviderCredential decrypts a saved key back to its exact original plaintext", async () => {
   const { deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-real-secret-9999"), baseUrl: "https://api.openai.com/v1", model: "gpt-image-2" } },
-  });
+  } });
 
-  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  const resolved = await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" });
 
   assert.deepEqual(resolved, { apiKey: ("s" + "k-real-secret-9999"), baseUrl: "https://api.openai.com/v1", model: "gpt-image-2" });
 });
 
 test("resolveMediaProviderCredential returns null for a provider with no saved row at all", async () => {
   const { deps } = makeDeps();
-  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  const resolved = await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" });
   assert.equal(resolved, null);
 });
 
@@ -592,28 +602,27 @@ test("resolveMediaProviderCredential returns null (not an error) for a row saved
     workspaceId: WORKSPACE, providerId: "openai", baseUrl: "https://api.openai.com/v1", model: null,
     sealed: null, keyTail: null, aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
   });
-  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), {
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE }), {
     openai: { baseUrl: "https://api.openai.com/v1" },
   });
 
-  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  const resolved = await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" });
   assert.equal(resolved, null, "no sealed key means nothing to decrypt — this must not throw or fabricate a key");
 });
 
 test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the site key is unavailable at decrypt time", async () => {
-  const repo = new InMemoryMediaProviderCredentialRepo();
+  const repo = new InMemoryMediaProviderCredentialRepo({ vault: new InMemoryVaultRepo({}), policy: MEDIA_CREDENTIAL_POLICY, providerWrites: new TurnLock() });
   const workingKeyring = new InMemoryKeyring();
   const workingSealer = new AesGcmSecretSealer({ keyring: workingKeyring });
   await saveMediaProviderCredentials(
-    { repo, keyring: workingKeyring, sealer: workingSealer, clock },
-    { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-will-fail-to-open") } } }
+    { deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, keyring: workingKeyring, sealer: workingSealer, clock }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-will-fail-to-open") } } } }
   );
 
   // Same row, but resolved through a sealer backed by a broken keyring — mirrors this suite's own
   // "a missing site key fails closed" fixture for the write path, applied to the read path.
   const brokenSealer = new AesGcmSecretSealer({ keyring: new BrokenKeyring() });
   await assert.rejects(
-    () => resolveMediaProviderCredential({ repo, sealer: brokenSealer }, { workspaceId: WORKSPACE, providerId: "openai" }),
+    () => resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, sealer: brokenSealer }, workspaceId: WORKSPACE, providerId: "openai" }),
     (err: unknown) => {
       assert.ok(err instanceof MediaProviderCredentialSecretStoreUnconfiguredError);
       assert.equal((err as Error).message, "The credential could not be saved or unlocked. Check the site credential store.");
@@ -625,11 +634,11 @@ test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSe
 
 test("resolveMediaProviderCredential never includes the plaintext key anywhere in a JSON-serialized result other than the intended apiKey field", async () => {
   const { deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-visible-only-once-2222") } },
-  });
-  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  } });
+  const resolved = await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" });
   assert.ok(resolved);
   const occurrences = JSON.stringify(resolved).split(("s" + "k-visible-only-once-2222")).length - 1;
   assert.equal(occurrences, 1, "the key must appear exactly once — in apiKey, nowhere duplicated");
@@ -641,10 +650,10 @@ test("resolveMediaProviderCredential never includes the plaintext key anywhere i
 
 test("a freshly saved key is sealed as JSON under vault AAD and retains its compatibility marker", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: { openai: { apiKey: ("s" + "k-aad-bound-1234") } },
-  });
+  } });
 
   const [row] = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
   assert.equal(row?.aadVersion, 1);
@@ -659,13 +668,13 @@ test("a freshly saved key is sealed as JSON under vault AAD and retains its comp
 
 test("AAD binding: swapping one provider's ciphertext onto another provider's row fails closed (adversarial cross-row transplant)", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, {
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: {
     workspaceId: WORKSPACE,
     providers: {
       openai: { apiKey: ("s" + "k-openai-real-token") },
       fal: { apiKey: "xai-fal-real-token" },
     },
-  });
+  } });
 
   const rows = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
   const openaiRow = rows.find((row) => row.providerId === "openai")!;
@@ -677,26 +686,26 @@ test("AAD binding: swapping one provider's ciphertext onto another provider's ro
   await repo.upsert({ ...openaiRow, sealed: grokRow.sealed, keyTail: grokRow.keyTail });
 
   await assert.rejects(
-    () => resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }),
+    () => resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" }),
     MediaProviderCredentialSecretStoreUnconfiguredError
   );
 });
 
 test("AAD binding: the same provider's ciphertext cannot be transplanted to another workspace", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-workspace-bound-1234") } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-workspace-bound-1234") } } } });
   const [row] = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
   await repo.upsert({ ...row!, workspaceId: "workspace-2" });
   await assert.rejects(
-    () => resolveMediaProviderCredential(deps, { workspaceId: "workspace-2", providerId: "openai" }),
+    () => resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: "workspace-2", providerId: "openai" }),
     MediaProviderCredentialSecretStoreUnconfiguredError,
   );
 });
 
 test("provider resolution uses one exact-provider read and one open, even without a default flag", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE,
-    providers: { openai: { apiKey: "selected-token-1234" }, fal: { apiKey: "decoy-token-5678" } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "selected-token-1234" }, fal: { apiKey: "decoy-token-5678" } } } });
   // A migrated singleton can be non-default; direct SQL boot preserves that historical flag.
   const [selected] = await repo.vault.list({ workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, provider: "openai" });
   await repo.vault.put({ record: { ...selected!, isDefault: false, revision: selected!.revision + 1 }, expectedRevision: selected!.revision });
@@ -710,9 +719,9 @@ test("provider resolution uses one exact-provider read and one open, even withou
   };
   repo.vault.find = async () => { throw new Error("unexpected second read"); };
   const open = deps.sealer.open.bind(deps.sealer);
-  const resolved = await resolveMediaProviderCredential({ repo, sealer: {
+  const resolved = await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo, sealer: {
     seal: deps.sealer.seal.bind(deps.sealer), open: (input, options) => { opens++; return open(input, options); },
-  } }, { workspaceId: WORKSPACE, providerId: "openai" });
+  } }, workspaceId: WORKSPACE, providerId: "openai" });
   assert.equal(resolved?.apiKey, "selected-token-1234");
   assert.equal(reads, 1);
   assert.equal(opens, 1);
@@ -720,16 +729,16 @@ test("provider resolution uses one exact-provider read and one open, even withou
 
 test("media metadata reads and blank-key saves retain hints without opening or sealing", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "safe-token-1234" } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "safe-token-1234" } } } });
   const [before] = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
   const unavailable = { ...deps, sealer: {
     open: async (): Promise<never> => { throw new Error("must not open"); },
     seal: async (): Promise<never> => { throw new Error("must not seal"); },
   } };
-  const saved = await saveMediaProviderCredentials(unavailable, { workspaceId: WORKSPACE,
-    providers: { openai: { apiKey: "", model: "edited" } } });
+  const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...unavailable }, input: { workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "", model: "edited" } } } });
   assert.deepEqual(saved.openai?.apiKeyHint, { length: 15, last4: "1234" });
-  assert.deepEqual((await getMediaProviderCredentials(unavailable, { workspaceId: WORKSPACE })).openai, saved.openai);
+  assert.deepEqual((await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...unavailable }, workspaceId: WORKSPACE })).openai, saved.openai);
   const [after] = await repo.listByWorkspaceId({ workspaceId: WORKSPACE });
   assert.deepEqual(after?.sealed, before?.sealed);
   assert.equal(after?.createdAt, before?.createdAt);
@@ -743,13 +752,13 @@ test("a keyless singleton resolves with one read and zero opens", async () => {
   const list = repo.vault.list.bind(repo.vault);
   repo.vault.list = input => { reads++; return list(input); };
   deps.sealer.open = async () => { throw new Error("must not open a keyless row"); };
-  assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }), null);
+  assert.equal(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" }), null);
   assert.equal(reads, 1);
 });
 
 test("short media keys never expose a suffix through saved hints", async () => {
   const { deps } = makeDeps();
-  const saved = await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "short" } } });
+  const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "short" } } } });
   assert.deepEqual(saved.openai, { apiKeyConfigured: true, apiKeyHint: { length: 5, last4: null } });
 });
 
@@ -762,8 +771,8 @@ function validation(message: string) {
 
 async function saveRejects(providers: Record<string, unknown>, message: string) {
   const { repo, deps } = makeDeps();
-  await assert.rejects(saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE,
-    providers: providers as Record<string, never> }), validation(message));
+  await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE,
+    providers: providers as Record<string, never> } }), validation(message));
   assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), []);
 }
 
@@ -782,18 +791,18 @@ test("a registry-held plugin vendor id is accepted; an alias it would resolve is
   // A fake registry: holds `acme-media` exactly, and resolves the alias `acme` to it (as aliases resolve).
   const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" || id === "acme" ? { id: "acme-media" } : null) };
   const { repo, deps } = makeDeps();
-  const saved = await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" } } });
+  const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog }, input: { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "xai-existing-1234" } } } });
   assert.equal(saved["acme-media"]?.apiKeyConfigured, true);
   assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map(row => row.providerId), ["acme-media"]);
-  await assert.rejects(saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { acme: {} } }),
+  await assert.rejects(saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog }, input: { workspaceId: WORKSPACE, providers: { acme: {} } } }),
     validation('unknown media provider "acme" — expected an engine-canonical id from @jini-ai/integrations/media-providers'));
 });
 
 test("a whole-map save that omits a plugin vendor keeps its key; omitted built-ins are still tombstoned", async () => {
   const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" ? { id: "acme-media" } : null) };
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" }, openai: { apiKey: "sk-openai-123456" } } });
-  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: {} });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog }, input: { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "xai-existing-1234" }, openai: { apiKey: "test-media-key-2" } } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog }, input: { workspaceId: WORKSPACE, providers: {} } });
   assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map(row => row.providerId), ["acme-media"]);
 });
 
@@ -803,9 +812,9 @@ test("a whole-map save after the plugin vendor left the registry still keeps its
   const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" ? { id: "acme-media" } : null) };
   const emptyCatalog = { findProvider: () => null };
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" }, openai: { apiKey: "sk-openai-123456" } } });
-  await saveMediaProviderCredentials({ ...deps, providerCatalog: emptyCatalog }, { workspaceId: WORKSPACE, providers: { fal: { apiKey: "xai-fal-123456" } } });
-  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { fal: {} } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog }, input: { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "xai-existing-1234" }, openai: { apiKey: "test-media-key-2" } } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog: emptyCatalog }, input: { workspaceId: WORKSPACE, providers: { fal: { apiKey: "xai-existing-1234" } } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { fal: {} } } });
   assert.deepEqual((await repo.listByWorkspaceId({ workspaceId: WORKSPACE })).map(row => row.providerId).sort(), ["acme-media", "fal"]);
 });
 
@@ -833,7 +842,7 @@ for (const field of ["baseUrl", "model"] as const) {
 
   test(`a ${field} of exactly 2048 characters is accepted`, async () => {
     const { deps } = makeDeps();
-    const saved = await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "k-1234", [field]: "x".repeat(2048) } } });
+    const saved = await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "k-1234", [field]: "x".repeat(2048) } } } });
     assert.equal(saved.openai?.[field]?.length, 2048);
   });
 }
@@ -853,12 +862,12 @@ test("a whitespace-only apiKey is refused as a validation error, not treated as 
 
 test("a rotated key reuses the stored vault id and revision, keeping extra stored meta", async () => {
   const { repo, deps } = makeDeps();
-  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "first-token-1111" } } });
-  const [before] = await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "openai" }));
-  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "second-token-2222", model: " m2 " } } });
-  const [after] = await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "openai" }));
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "first-token-1111" } } } });
+  const [before] = await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "openai", policy: MEDIA_CREDENTIAL_POLICY }));
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, input: { workspaceId: WORKSPACE, providers: { openai: { apiKey: "second-token-2222", model: " m2 " } } } });
+  const [after] = await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "openai", policy: MEDIA_CREDENTIAL_POLICY }));
   assert.deepEqual([after?.id, after?.revision, after?.meta.model, after?.last4], [before?.id, before!.revision + 1, "m2", "2222"]);
-  assert.deepEqual(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }),
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" }),
     { apiKey: "second-token-2222", baseUrl: null, model: "m2" });
 });
 
@@ -876,43 +885,43 @@ function sealedDto(vaultRecord?: Partial<NonNullable<MediaProviderCredentialReco
 }
 
 test("a sealed DTO without private vault context reads as configured with no hint", async () => {
-  assert.deepEqual(await getMediaProviderCredentials({ repo: fixedRepo([sealedDto()]) }, { workspaceId: WORKSPACE }),
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixedRepo([sealedDto()]) }, workspaceId: WORKSPACE }),
     { openai: { apiKeyConfigured: true } });
 });
 
 test("a sealed row with an unknown token length reads as configured with no hint", async () => {
-  assert.deepEqual(await getMediaProviderCredentials({ repo: fixedRepo([sealedDto({ tokenLength: null, last4: "wxyz" })]) }, { workspaceId: WORKSPACE }),
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixedRepo([sealedDto({ tokenLength: null, last4: "wxyz" })]) }, workspaceId: WORKSPACE }),
     { openai: { apiKeyConfigured: true } });
 });
 
 test("a long sealed token with no stored last4 reads its length but no tail", async () => {
-  assert.deepEqual(await getMediaProviderCredentials({ repo: fixedRepo([sealedDto({ tokenLength: 20, last4: null })]) }, { workspaceId: WORKSPACE }),
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixedRepo([sealedDto({ tokenLength: 20, last4: null })]) }, workspaceId: WORKSPACE }),
     { openai: { apiKeyConfigured: true, apiKeyHint: { length: 20, last4: null } } });
 });
 
 test("a sealed token of exactly 12 characters exposes its tail", async () => {
-  assert.deepEqual(await getMediaProviderCredentials({ repo: fixedRepo([sealedDto({ tokenLength: 12, last4: "wxyz" })]) }, { workspaceId: WORKSPACE }),
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixedRepo([sealedDto({ tokenLength: 12, last4: "wxyz" })]) }, workspaceId: WORKSPACE }),
     { openai: { apiKeyConfigured: true, apiKeyHint: { length: 12, last4: "wxyz" }, apiKeyTail: "wxyz" } });
 });
 
 test("a sealed token of 11 characters withholds its tail", async () => {
-  assert.deepEqual(await getMediaProviderCredentials({ repo: fixedRepo([sealedDto({ tokenLength: 11, last4: "wxyz" })]) }, { workspaceId: WORKSPACE }),
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, repo: fixedRepo([sealedDto({ tokenLength: 11, last4: "wxyz" })]) }, workspaceId: WORKSPACE }),
     { openai: { apiKeyConfigured: true, apiKeyHint: { length: 11, last4: null } } });
 });
 
 test("a legacy sealed row written without hints reads as configured with no hint", async () => {
   const { repo, deps } = makeDeps();
   await repo.upsert(sealedDto());
-  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), { openai: { apiKeyConfigured: true } });
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE }), { openai: { apiKeyConfigured: true } });
 });
 
 test("an envelope whose payload apiKey is not a string fails closed with the safe storage message", async () => {
   const { repo, deps } = makeDeps();
   const vault = createTovuStoreVault({ ...deps, kind: "media-provider", storageError: () => new Error("unexpected storage error") });
-  const scope = mediaVaultScope({ workspaceId: WORKSPACE, providerId: "openai" });
+  const scope = mediaVaultScope({ workspaceId: WORKSPACE, providerId: "openai", policy: MEDIA_CREDENTIAL_POLICY });
   await repo.vault.put({ record: await vault.prepare({ ...scope, id: "vault:odd", expectedRevision: null, provider: "openai", label: "openai",
     meta: { baseUrl: null, model: null }, payload: { apiKey: 5 } }), expectedRevision: null });
-  await assert.rejects(resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }),
+  await assert.rejects(resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "openai" }),
     (err: unknown) => err instanceof MediaProviderCredentialSecretStoreUnconfiguredError && err.message === CREDENTIAL_MESSAGES.storage);
 });
 
@@ -925,51 +934,51 @@ const xaiCatalog = { findProvider: ({ id }: { id: string }) => (id === XAI || id
  *  under the canonical identity (or copying its ciphertext onto the canonical row) fails closed. */
 async function seedLegacyGrokRow(deps: ReturnType<typeof makeDeps>["deps"], apiKey: string) {
   const vault = createTovuStoreVault({ ...deps, kind: "media-provider", storageError: () => new Error("unexpected storage error") });
-  const scope = mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine" });
+  const scope = mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine", policy: MEDIA_CREDENTIAL_POLICY });
   await deps.repo.vault.put({ record: await vault.prepare({ ...scope, id: mediaVaultId({ providerId: "xai-grok-imagine" }), expectedRevision: null,
     provider: "xai-grok-imagine", label: "xai-grok-imagine", meta: { baseUrl: null, model: "grok-imagine-image" }, payload: { apiKey }, hintToken: apiKey }), expectedRevision: null });
   return (await deps.repo.vault.list(scope))[0]!;
 }
 
 const storedXaiRows = async (repo: InMemoryMediaProviderCredentialRepo) =>
-  (await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE }))).map(row => ({ id: row.id, provider: row.provider })).sort((a, b) => a.id.localeCompare(b.id));
+  (await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, policy: MEDIA_CREDENTIAL_POLICY }))).map(row => ({ id: row.id, provider: row.provider })).sort((a, b) => a.id.localeCompare(b.id));
 
 test("xAI credential ids: one canonical write id, legacy xai-grok-imagine readable after it; other providers unchanged", () => {
-  assert.deepEqual(resolveMediaCredentialIds({ providerId: XAI }), { writeId: XAI, readIds: [XAI, "xai-grok-imagine"] });
-  assert.deepEqual(resolveMediaCredentialIds({ providerId: "xai-grok-imagine" }), { writeId: XAI, readIds: [XAI, "xai-grok-imagine"] });
-  assert.deepEqual(resolveMediaCredentialIds({ providerId: "openai" }), { writeId: "openai", readIds: ["openai"] });
+  assert.deepEqual(resolveMediaCredentialIds({ providerId: XAI, policy: MEDIA_CREDENTIAL_POLICY }), { writeId: XAI, readIds: [XAI, "xai-grok-imagine"] });
+  assert.deepEqual(resolveMediaCredentialIds({ providerId: "xai-grok-imagine", policy: MEDIA_CREDENTIAL_POLICY }), { writeId: XAI, readIds: [XAI, "xai-grok-imagine"] });
+  assert.deepEqual(resolveMediaCredentialIds({ providerId: "openai", policy: MEDIA_CREDENTIAL_POLICY }), { writeId: "openai", readIds: ["openai"] });
 });
 
 test("a key sealed under the xai-grok-imagine alias still works and replacement writes only the new id", async () => {
   const { repo, deps } = makeDeps();
-  const legacy = await seedLegacyGrokRow(deps, "xai-legacy-key-1234");
+  const legacy = await seedLegacyGrokRow(deps, "test-media-key-1");
   for (const providerId of [XAI, "xai-grok-imagine"]) {
-    assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId }))?.apiKey, "xai-legacy-key-1234");
+    assert.equal((await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId }))?.apiKey, "test-media-key-1");
   }
   // Metadata-only edit migrates: open under the old identity, seal a new canonical envelope.
-  await saveMediaProviderCredentials({ ...deps, providerCatalog: xaiCatalog }, { workspaceId: WORKSPACE, providers: { [XAI]: { baseUrl: "https://proxy.example.test/v1" } } });
-  const [canonical] = await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: XAI }));
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog: xaiCatalog }, input: { workspaceId: WORKSPACE, providers: { [XAI]: { baseUrl: "https://proxy.example.test/v1" } } } });
+  const [canonical] = await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: XAI, policy: MEDIA_CREDENTIAL_POLICY }));
   assert.equal(canonical?.id, mediaVaultId({ providerId: XAI }));
   assert.notEqual(canonical?.sealed?.ciphertext, legacy.sealed?.ciphertext);
-  assert.deepEqual(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: XAI }),
-    { apiKey: "xai-legacy-key-1234", baseUrl: "https://proxy.example.test/v1", model: null });
-  await saveMediaProviderCredentials({ ...deps, providerCatalog: xaiCatalog }, { workspaceId: WORKSPACE, providers: { [XAI]: { apiKey: "xai-replacement-5678" } } });
-  assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: XAI }))?.apiKey, "xai-replacement-5678");
+  assert.deepEqual(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: XAI }),
+    { apiKey: "test-media-key-1", baseUrl: "https://proxy.example.test/v1", model: null });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog: xaiCatalog }, input: { workspaceId: WORKSPACE, providers: { [XAI]: { apiKey: "test-media-key-2" } } } });
+  assert.equal((await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: XAI }))?.apiKey, "test-media-key-2");
   // The legacy envelope is never rewritten or relabelled: same id, revision and ciphertext.
-  assert.deepEqual((await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine" })))[0], legacy);
+  assert.deepEqual((await repo.vault.list(mediaVaultScope({ workspaceId: WORKSPACE, providerId: "xai-grok-imagine", policy: MEDIA_CREDENTIAL_POLICY })))[0], legacy);
   // storedXaiRows sorts by vault id, so the canonical `grok` row precedes the `xai-grok-imagine` legacy row.
   assert.deepEqual(await storedXaiRows(repo), [{ id: mediaVaultId({ providerId: XAI }), provider: XAI }, { id: mediaVaultId({ providerId: "xai-grok-imagine" }), provider: "xai-grok-imagine" }]);
-  assert.deepEqual(Object.keys(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE })), [XAI]);
+  assert.deepEqual(Object.keys(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE })), [XAI]);
 });
 
 test("clearing xAI cannot reveal a legacy key on the next read", async () => {
   const { repo, deps } = makeDeps();
   await seedLegacyGrokRow(deps, "xai-legacy-key-1234");
-  await saveMediaProviderCredentials({ ...deps, providerCatalog: xaiCatalog }, { workspaceId: WORKSPACE, providers: { [XAI]: { apiKey: "xai-current-5678" } } });
+  await saveMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps, providerCatalog: xaiCatalog }, input: { workspaceId: WORKSPACE, providers: { [XAI]: { apiKey: "xai-current-5678" } } } });
   await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: [XAI] });
-  assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: XAI }), null);
+  assert.equal(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: XAI }), null);
   assert.deepEqual(await storedXaiRows(repo), []);
-  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), {});
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE }), {});
 });
 
 test("a canonical marker shadows a legacy sealed key even when canonical has no key", async () => {
@@ -977,7 +986,7 @@ test("a canonical marker shadows a legacy sealed key even when canonical has no 
   await seedLegacyGrokRow(deps, "xai-legacy-key-1234");
   await repo.upsert({ workspaceId: WORKSPACE, providerId: XAI, baseUrl: null, model: "grok-imagine-video", sealed: null, keyTail: null,
     aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
-  assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: XAI }), null);
-  assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "xai-grok-imagine" }), null);
-  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), { [XAI]: { model: "grok-imagine-video" } });
+  assert.equal(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: XAI }), null);
+  assert.equal(await resolveMediaProviderCredential({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE, providerId: "xai-grok-imagine" }), null);
+  assert.deepEqual(await getMediaProviderCredentials({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...deps }, workspaceId: WORKSPACE }), { [XAI]: { model: "grok-imagine-video" } });
 });

@@ -62,7 +62,7 @@ for (const root of ["memory", "sqlite"] as const) {
       bundle,
       deps: {
         catalog: { build: buildPublishContentCatalog }, publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
-          ports: { post: { repo: deps.postRepo } } },
+          ports: { post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: deps.postRepo } } },
         getBaseline: async () => null, hasBlob: async () => true,
       },
     });

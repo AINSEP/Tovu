@@ -13,7 +13,7 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { postAgentToolCatalog } from "#src/features/post/post-catalog-host";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { PAGE_HEADER_NAVIGATION } from "../post-tool-view-deps.js";
-import { type PostToolDeps } from "../post-tool-deps.js";
+import { type PostToolDeps } from "../tool-registrations.js";
 
 /**
  * @file Demo 2026-11-02: after creating pages the chat's final summary named header links ("Menu",

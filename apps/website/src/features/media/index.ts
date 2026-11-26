@@ -116,21 +116,6 @@ export type { AgentToolDefinition } from "@jini-ai/core";
 export { uploadMedia } from "@jini-ai/cms/media";
 export type { MediaRecord } from "@jini-ai/cms/media";
 
-export type {
-  MediaProviderCredentialResolveDeps,
-  ResolvedMediaProviderCredential,
-} from "./provider-credential-store.js";
-export {
-  MediaProviderCredentialSecretStoreUnconfiguredError,
-  MediaProviderCredentialStaleError,
-  MediaProviderCredentialValidationError,
-  getMediaProviderCredentials,
-  getMediaProviderCredentialsModel,
-  patchMediaProvider,
-  removeMediaProvider,
-  resolveMediaProviderCredential,
-  saveMediaProviderCredentials,
-} from "./provider-credential-store.js";
 
 export { MAX_DOCUMENT_BYTES, DOCUMENT_CONTENT_TYPES, documentContentType, validateDocumentIngress, decodeDocumentUtf8, documentDisplayFilename, DOCUMENT_TEXT_PAGE_BYTES, readDocumentText, isDocumentOnlyBlob } from "@jini-ai/cms/media";
 export type { MediaKind, DocumentArchiveReaderPort } from "@jini-ai/cms/media";

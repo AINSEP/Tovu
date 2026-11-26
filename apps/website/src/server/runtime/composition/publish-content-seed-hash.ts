@@ -101,7 +101,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
     // ({@link unusedBySeedInspect}) instead of a real instance, so a future handler that DOES
     // start reading one fails loudly here rather than silently hashing against the wrong store.
     ports: {
-      post: { repo: seedPostRepo },
+      post: { reportRollbackError: (message: string, diagnostic: string) => console.error(message, diagnostic), repo: seedPostRepo },
       media: {
         repo: new SqliteMediaRepo({ store: seedDb }),
         assetBlobRepo: unusedBySeedInspect({ label: "media.assetBlobRepo" }),
