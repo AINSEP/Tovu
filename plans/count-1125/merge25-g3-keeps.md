@@ -27,10 +27,18 @@ single null-guard; no loop/switch/try, no SQL, no hooks). LOC is the whole file 
 | `publish-content/tool-registrations.ts` | 35 | one build call; one conditional spread (null-guard) |
 | `site-inspection/tool-registrations.ts` | 37 | one build call; one `live ?` null-guard; one-expression log adapter |
 
-Reviewed and **not** kept (fail G3): `identity/user-purge.ts` (SQL), `vendor-credentials/vault-adapter.ts` (class
-bodies, branching cast), `taxonomy/agent-tools.ts` (`if`/throw + host catalog entries),
-`admin/src/lib/durable-run-subscription.ts` (multi-statement scheduler default),
-`admin/src/features/routines/use-conversation-deep-link.ts` (multi-statement browser adapter).
+Admin residuals, reviewed after this run moved their multi-statement adapters into Jini
+(`@jini-ai/chat/transports/http` `browserTimeoutSchedule`, `@jini-ai/admin/shell/hooks/use-conversation-deep-link`
+`replaceBrowserQuery`):
+
+| path (under `apps/admin/src/`) | LOC | residual |
+|---|---|---|
+| `lib/durable-run-subscription.ts` | ~20 | one map; one call per Jini factory; default ports are one-expression |
+| `features/routines/use-conversation-deep-link.ts` | ~15 | host route constant; one one-expression lookup adapter |
+
+Reviewed and **not** kept (fail G3): `vendor-credentials/vault-adapter.ts` (class bodies, branching cast),
+`taxonomy/agent-tools.ts` (`if`/throw + host catalog entries). `identity/user-purge.ts` was deleted instead
+(its SQL moved to `@jini-ai/user-management/identity/sql/kernel-user-purge`).
 
 ## Keep rules
 
@@ -55,4 +63,6 @@ bodies, branching cast), `taxonomy/agent-tools.ts` (`if`/throw + host catalog en
 ^apps/website/src/features/permanent\-delete/tool\-registrations\.ts$
 ^apps/website/src/features/publish\-content/tool\-registrations\.ts$
 ^apps/website/src/features/site\-inspection/tool\-registrations\.ts$
+^apps/admin/src/lib/durable\-run\-subscription\.ts$
+^apps/admin/src/features/routines/use\-conversation\-deep\-link\.ts$
 ```
