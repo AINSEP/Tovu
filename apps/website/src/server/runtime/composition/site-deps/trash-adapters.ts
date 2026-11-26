@@ -95,7 +95,7 @@ export function composeTrashAdapters(required: ComposeTrashAdaptersRequired, _op
       USER_ENTITY_TYPE,
       createUserTrashAdapter({
         eventValues: outboxEventValues,
-        db: kernel,
+        db: schemaErasedKernel({ store: kernel }),
         assertAccountAction: async (required, optional) => {
           const service = identityServiceDepsFrom({ ...identity, clock, idGen });
           await service.repos.transactions.run({ workspaceId: required.workspaceId, execute: async () => {
