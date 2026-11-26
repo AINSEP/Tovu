@@ -33,11 +33,13 @@ function row(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalMcpServe
     createdAt: originalAt, updatedAt: originalAt, version: 1, ...overrides };
 }
 
-async function sqlRepo(kernel: ContentKernel): Promise<ExternalMcpServerRepoPort> {
+async function sqlRepo(kernel: ContentKernel) {
   await ensureVaultRepoFixture({ kernel });
   await kernel.run(db => db.insertInto('workspaces').values({ id: workspaceId, name: workspaceId, slug: workspaceId, created_at: originalAt })
     .onConflict(oc => oc.column('id').doNothing()).execute());
-  return new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: kernel }), query: statement => kernel.query(statement) }, vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
+  const vaultRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
+  const repo = new SqlExternalMcpServerRepo({ kernel: { ...schemaErasedKernel({ store: kernel }), query: statement => kernel.query(statement) }, vaultRepo, tables: { servers: 'external_mcp_servers', vault: 'secrets_vault' }, vaultErrors: externalMcpVaultPorts.vaultErrors });
+  return { repo, kernel, vaultRepo };
 }
 
 async function oauthEnvelope(value: string) {
@@ -137,22 +139,34 @@ function contract(make: () => Promise<ExternalMcpServerRepoPort> | ExternalMcpSe
   });
 }
 
-function callbackBasisContract({ make }: { make: () => Promise<ExternalMcpServerRepoPort> }, _optional = {}) {
-  for (const changed of [{ version: 2 }, { createdAt: appliedAt }]) {
-    test(`A stale callback basis cannot write through the host SQL repository (${Object.keys(changed)[0]})`, async () => {
-      const repo = await make();
+function callbackBasisContract({ make }: { make: () => ReturnType<typeof sqlRepo> }, _optional = {}) {
+  for (const changed of [{ version: 2 }, { created_at: appliedAt }]) {
+    test(`A stale callback basis cannot write through the host SQL repository (${Object.keys(changed)[0]})`, async t => {
+      const { repo, kernel, vaultRepo } = await make();
       const original = row({ sealedOAuth: await oauthEnvelope('callback-token') });
       await repo.upsert(original);
+      const vaultBefore = await kernel.run(db => db.selectFrom('secrets_vault').selectAll().where('workspace_id', '=', workspaceId).orderBy('id').execute());
+      assert.equal(vaultBefore.length, 1);
+      const put = vaultRepo.put.bind(vaultRepo);
+      const staged = t.mock.method(vaultRepo, 'put', async (input: Parameters<typeof put>[0]) => {
+        const saved = await put(input);
+        const result = await kernel.run(db => db.updateTable('external_mcp_servers').set(changed)
+          .where('workspace_id', '=', workspaceId).where('server_id', '=', serverId).executeTakeFirst());
+        assert.equal(Number(result.numUpdatedRows), 1);
+        return saved;
+      });
       assert.equal(await repo.updateOAuthRuntime({ key, expectedSealedOAuth: original.sealedOAuth,
-        expectedConfig: { version: original.version, createdAt: original.createdAt, ...changed },
+        expectedConfig: { version: original.version, createdAt: original.createdAt },
         patch: { oauthStatus: 'needs_reauth', oauthExpiresAt: null, oauthRefreshLeaseUntil: null,
-          sealedOAuth: original.sealedOAuth, oauthAadVersion: original.oauthAadVersion, updatedAt: appliedAt } }), false);
+          sealedOAuth: await oauthEnvelope('late-callback-token'), oauthAadVersion: original.oauthAadVersion, updatedAt: appliedAt } }), false);
+      assert.equal(staged.mock.callCount(), 1);
       assert.deepEqual(await repo.findByServerId(key), original);
+      assert.deepEqual(await kernel.run(db => db.selectFrom('secrets_vault').selectAll().where('workspace_id', '=', workspaceId).orderBy('id').execute()), vaultBefore);
     });
   }
 
   test('a matching callback basis applies through the host SQL repository without advancing version', async () => {
-    const repo = await make();
+    const { repo } = await make();
     const original = row({ sealedOAuth: await oauthEnvelope('callback-token') });
     await repo.upsert(original);
     assert.equal(await repo.updateOAuthRuntime({ key, expectedSealedOAuth: original.sealedOAuth,
@@ -164,5 +178,5 @@ function callbackBasisContract({ make }: { make: () => Promise<ExternalMcpServer
 }
 
 describe('external MCP access-only update [memory]', () => contract(() => new InMemoryExternalMcpServerRepo()));
-describeEachDialect('external MCP access-only update', { tables: ['workspaces'], make: sqlRepo }, make => contract(make));
+describeEachDialect('external MCP access-only update', { tables: ['workspaces'], make: sqlRepo }, make => contract(async () => (await make()).repo));
 describeEachDialect('external MCP callback configuration guard', { tables: ['workspaces'], make: sqlRepo }, make => callbackBasisContract({ make }));

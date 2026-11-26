@@ -92,7 +92,7 @@ test("URL source calls the injected safe fetch port and persists its complete bi
   const url = "https://cdn.example.test/hero.png";
   const result = await h.call({ sources: [{ root: "url", url }], destination: theme }) as Result;
   assert.deepEqual(result.written, ["assets/hero.png"]);
-  assert.deepEqual(h.requests.map(request => request.url), [url]);
+  assert.deepEqual(h.requests.map(({ method, url, headers }) => [method, url, headers?.Accept]), [["GET", url, THEME_IMPORT_ACCEPT]]);
   assert.deepEqual(fs.readFileSync(path.join(h.theme, "assets/hero.png")), h.png);
   await assert.rejects(() => h.call({ sources: [{ root: "url", url: "file:///etc/passwd" }], destination: theme }));
   assert.equal(h.requests.length, 1, "invalid schemes are refused before fetch");
