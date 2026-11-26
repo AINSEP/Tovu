@@ -69,7 +69,7 @@ export function composeTrashAdapters(required: ComposeTrashAdaptersRequired, _op
   const pluginTrashAdapter = pluginTrashAdapterFor({ pluginRuntime, pluginActivationRepo });
   const trashAdapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter({ store: kernel, tableExists: ({ table }, _o = {}) => tableExists({ kernel, table }) })],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(kernel)],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter({ store: kernel })],
     [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(kernel)],
     [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
     [

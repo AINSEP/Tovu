@@ -146,7 +146,7 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
   test("redirect: hide disables, unhide re-activates, purge takes revisions and hits", async () => {
     const kernel = make();
     await seedRedirect(kernel, "r-1");
-    const redirect = createRedirectTrashAdapter(kernel);
+    const redirect = createRedirectTrashAdapter({ store: kernel });
 
     assert.deepEqual(await redirect.hide({ workspaceId: WS, entityId: "r-1", at: AT, expectedVersion: 1 }), { ok: true, version: 2 });
     assert.equal((await kernel.run((db) => db.selectFrom("redirects").select("status").executeTakeFirstOrThrow())).status, "disabled");

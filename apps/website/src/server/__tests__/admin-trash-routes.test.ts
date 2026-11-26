@@ -194,7 +194,7 @@ function buildTrashHarness(): TrashHarness {
   const sqliteTrashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, postTrashAdapterOn(contentKernel({ store: client }))],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter({ store: contentKernel({ store: client }) })],
     // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
     // registry-derived kind G1c registers.
     ...[...registry.values()].map(

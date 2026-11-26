@@ -67,7 +67,7 @@ function harness(): Harness {
 
   const adapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, postTrashAdapterOn(contentKernel({ store: client }))],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter({ store: contentKernel({ store: client }) })],
   ]);
   const repo = new SqliteTrashRepo({ store: client });
   let seq = 0;
