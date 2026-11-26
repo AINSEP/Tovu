@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { bindSettingsUi } from "@jini-ai/admin/screens/settings/SettingsUi";
 import { hooks as hostHooks, kit, deps } from "../SettingsUi";
+import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
+import { createAdminByokKeyPanelTranslator } from "@jini-ai/admin/shell/components/AdminByokKeyPanel.hooks";
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
@@ -36,6 +38,11 @@ const hooks = {
 const SettingsUi = bindSettingsUi({ hooks: { ...hostHooks, ...hooks }, kit, deps });
 
 afterEach(() => { window.history.replaceState(null, "", "/"); });
+
+it("supplies the original browser panel and BYOK translator factory", () => {
+  expect(kit.BrowserAgentSettingsPanel).toBe(BrowserAgentSettingsPanel);
+  expect(deps.createAdminByokKeyPanelTranslator).toBe(createAdminByokKeyPanelTranslator);
+});
 
 it("renders the bound tabs inline and keeps tab navigation in the current history entry", async () => {
   window.history.replaceState(null, "", "/admin/settings?tab=instructions");

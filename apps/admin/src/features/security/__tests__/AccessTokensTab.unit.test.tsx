@@ -17,6 +17,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
 import { CLOUDFLARE_PAGES_TARGET } from "../../deployment/__tests__/publish-targets.fixture";
 import { AccessTokensTab } from "../AccessTokensTab";
+import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import { createFakeAccessTokensPort } from "../hooks/access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
 import { useAccessTokens } from "@jini-ai/admin/security/host/hooks/use-access-tokens.hooks";
@@ -108,6 +110,12 @@ function makeOtherCredentials(overrides: Partial<OtherCredentialsController> = {
     ...overrides,
   };
 }
+
+it("binds the original secret control and field slugger", () => {
+  const { kit, deps } = AccessTokensTab({ useOtherCredentialsHook: () => makeOtherCredentials() }).props;
+  expect(kit.SecretInput).toBe(SecretInput);
+  expect(deps.asciiSlug).toBe(asciiSlug);
+});
 
 describe("AccessTokensTab search box", () => {
   it("links to Plugins when the Hosting filter has no providers", () => {

@@ -29,6 +29,7 @@ import { isDesktopAdmin, scopeKeys } from "./ai-agent-presentation";
 import "@jini-ai/admin/screens/settings/user-interface-settings.css";
 import { useUserInterfaceTab } from "./hooks/use-user-interface-tab.hooks";
 import { useAdminBrowserAgentSettings, webMcpT } from "../webmcp/browser-agent-settings.hooks";
+import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
 
 /**
  * @file Admin "Settings (New)" screen — the Open Design settings-dialog port. Markup only.
@@ -147,6 +148,7 @@ export const hooks: SettingsUiProps["hooks"] = {
 const aboutVersion = `Tovu Admin ${TOVU_ADMIN_VERSION}`;
 
 export const kit: SettingsUiProps["kit"] = {
+  BrowserAgentSettingsPanel,
   I18nProvider,
   SettingsDialogShell: ({ activeTabId, ...props }) => <SettingsDialogShell {...props} {...(activeTabId === undefined ? {} : { activeTabId })} />,
   ExecutionTab: ({ localCliUnavailableReason, apiKeyPlaceholder, ...props }) => <ExecutionTab {...props}
@@ -198,6 +200,7 @@ export const kit: SettingsUiProps["kit"] = {
 };
 
 export const deps: SettingsUiProps["deps"] = {
+  createAdminByokKeyPanelTranslator,
   SETTINGS_DIALOG_DICTIONARIES, ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, DEFAULT_EXECUTION_CONFIG,
   tApp, tCapability, tWorkspace, navigate, createSettingsTabChange, DEFAULT_PROVIDER_PRESETS,
   isDesktopAdmin, defaultLocalAgentId: "claude", scopeKeys,

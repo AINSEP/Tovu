@@ -13,6 +13,7 @@ import { createElement, type ComponentProps } from "react";
 import { Media } from "./panel-pages";
 import type { MediaProps } from "@jini-ai/admin/screens/media/Media";
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
+import { mediaFileName } from "@jini-ai/admin/media";
 // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
 // import { ModulePanel } from "./integrations/jini-admin/ModulePanel";
 import type { PanelRouteContext } from "./panel-contracts";
@@ -74,7 +75,7 @@ export const MEDIA_PROPS = {
     ExternalProvidersPanel: (props) => createElement(ExternalProvidersPanel, { ...props, kit: { I18nProvider, MediaProvidersTab: BoundMediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES }, mediaProvidersPort, mediaProviderCatalogPolicy, pinnedProviderIds: PINNED_MEDIA_PROVIDER_IDS }),
   },
   deps: {
-    mediaProviderCatalogPort, VIEWER_TIME_ZONE, MEDIA_GRID_SIZE_STORAGE_KEY, mediaTranslate,
+    mediaFileName, mediaProviderCatalogPort, VIEWER_TIME_ZONE, MEDIA_GRID_SIZE_STORAGE_KEY, mediaTranslate,
     VIDEO_CONVERSION_NOTICE_KEY, defaultMediaImportPort, describeApiError,
   },
 } satisfies MediaProps;
