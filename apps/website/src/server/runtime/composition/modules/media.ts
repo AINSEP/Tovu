@@ -21,6 +21,7 @@ import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import
 import { MEDIA_PROVIDERS_REVISION_REQUEST_HEADER } from "@jini-ai/cms/admin-http/routes/media/get-providers";
 import { mediaPutProvidersRoute, type MediaProvidersSaveOutcome } from "@jini-ai/cms/admin-http/routes/media/put-providers";
 import { mediaPatchProviderRoute } from "@jini-ai/cms/admin-http/routes/media/patch-provider";
+import { mediaBatchProvidersRoute, type MediaBatchProvidersRouteDeps } from "@jini-ai/cms/admin-http/routes/media/batch-providers";
 import { mediaDeleteProviderRoute } from "@jini-ai/cms/admin-http/routes/media/delete-provider";
 import { mediaProviderCatalogRoute } from "@jini-ai/cms/admin-http/routes/media/provider-catalog";
 import { projectMediaProviderCatalog } from "@jini-ai/integrations/media-providers/catalog-projection";
@@ -35,6 +36,7 @@ import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-re
 import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { uploadMedia } from "#src/features/media/index";
 import { getMediaProviderCredentialsModel, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialStaleError, MediaProviderCredentialValidationError, patchMediaProvider, removeMediaProvider, saveMediaProviderCredentials } from "@jini-ai/cms/media/site/provider-credential-store";
+import { applyMediaProviderChanges } from "@jini-ai/cms/media/site/provider-credential-batch";
 import { fetchImage } from "#src/features/media-import/fetch-image";
 import { EgressRefusedError } from "#src/platform/http/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
@@ -340,6 +342,13 @@ export const registerAdminMediaPatchProviderRoute: MediaProviderRouteRegistrar =
   mountAdminJsonRoute({ errors, app, spec: mediaPatchProviderRoute, deps: patchDeps }, mountOptions({ operation: "routes/media/patch-provider", authorization: "direct" }));
 };
 
+export const registerAdminMediaBatchProvidersRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _optional = {}) => {
+  const applyProviderChanges: MediaBatchProvidersRouteDeps["applyProviderChanges"] = (required, _optional = {}) =>
+    applyMediaProviderChanges({ deps: { ...MEDIA_CREDENTIAL_BINDINGS, ...mediaProviderStoreDeps({ deps }) }, ...required });
+  const batchDeps = { ...mediaPortDeps({ deps }), applyProviderChanges, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
+  mountAdminJsonRoute({ errors, app, spec: mediaBatchProvidersRoute, deps: batchDeps }, mountOptions({ operation: "routes/media/batch-providers", authorization: "direct" }));
+};
+
 /** DELETE one provider: exactly the bound workspace and the named provider, catalog or not. */
 export const registerAdminMediaDeleteProviderRoute: MediaProviderRouteRegistrar = ({ errors, app, deps }, _options = {}) => {
   const removeProvider = ({ workspaceId, providerId }: { workspaceId: string; providerId: string }) =>
@@ -467,6 +476,7 @@ export function createMediaModule(
       registerAdminMediaGetProvidersRoute({ errors, app, deps });
       registerAdminMediaPutProvidersRoute({ errors, app, deps });
       registerAdminMediaPatchProviderRoute({ errors, app, deps });
+      registerAdminMediaBatchProvidersRoute({ errors, app, deps });
       registerAdminMediaDeleteProviderRoute({ errors, app, deps });
     },
   };
