@@ -27,7 +27,8 @@ import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "@jin
 import { contentMarkerPorts } from "./render-context/content-marker-ports.js";
 import type { StaticMenuMap } from "./render-context/static-menus.js";
 import { resolveFeaturedImageForRender } from "./render-context/media-metadata.js";
-import { finishStaticTierDocument, staticThemeScripts } from "./static-tier.js";
+import { finishStaticTierDocument } from "./static-tier.js";
+import { staticThemeScripts } from "@jini-ai/cms/public-http/routes/site/pages/static-tier";
 import { renderTemplateDocument } from "@jini-ai/cms/public-http/routes/site/pages/template-render";
 
 /**
@@ -85,7 +86,7 @@ function buildMissingTemplateHtml({ apiVersion }: { apiVersion: 2 | undefined },
 }
 
 export async function renderViaTemplate({ deps, theme, post, staticMenus }: { deps: TemplateRenderDeps; theme: DiscoveredTheme; post: PostRecord; staticMenus: StaticMenuMap | undefined }, { pendingBodyJson, pendingBodyHtml, extraHead, siteAssistantEnabled = false, postPreviewsAccess }: { pendingBodyJson?: JsonObject; pendingBodyHtml?: string; extraHead?: string; siteAssistantEnabled?: SiteChatSelection; /* Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request, ALREADY built by the caller (`registerSiteRoutes` reuses the same instances it built for the home/related-posts listing gate; the admin preview supplies anonymous visitor access). A direct caller that omits it leaves any `{"type":"post-previews"}` marker's authored fallback untouched, byte-identical to before this marker existed, rather than querying with no way to gate the result correctly. Preview used to omit it too, which hid real lists and their See more button. */ postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext } } = {}): Promise<string> {
-  return renderTemplateDocument({ deps: {
+  return renderTemplateDocument<StaticMenuMap[string], PostPreviewsAccess>({ deps: {
     resolveTemplate: ({ templateChoice }) => resolveTemplate({ theme, templateChoice }),
     /**
      * The operator-facing "template not configured" page for a diagnostic template resolution, with the
@@ -126,7 +127,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
       input: { workspaceId: deps.workspaceId, html },
     }),
     renderHtmlPageBody,
-    finishStaticTierDocument: ({ input }, optional) => finishStaticTierDocument({ deps, input: { ...input, theme, postPreviewsAccess: input.postPreviewsAccess as PostPreviewsAccess | undefined } }, optional),
+    finishStaticTierDocument: ({ input }, optional) => finishStaticTierDocument({ deps, input: { ...input, theme, postPreviewsAccess: input.postPreviewsAccess } }, optional),
     postPublicPath,
     resolveFeaturedImageForRender: ({ post }) => resolveFeaturedImageForRender({ deps, post }),
     injectSiteAssistantIntoStaticPage,

@@ -1,4 +1,5 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { makeMemberPagePost } from "@jini-ai/cms/public-http/routes/site/member-pages";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
@@ -16,7 +17,7 @@ import { createSeoPostPort } from "#src/features/seo/index";
 import { SITE_CONSENT_DEFAULTS } from "@jini-ai/cookie-consent/site/config";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
-import { MEMBER_PAGES, memberPagePost, registerMemberPageRoutes } from "../member-pages.js";
+import { MEMBER_PAGES, registerMemberPageRoutes } from "../member-pages.js";
 
 /**
  * @file Core's member sign-in pages (`member-pages.ts`) served through `serveVirtualPage`
@@ -59,7 +60,7 @@ function closeServer(server: ReturnType<typeof createServer>) {
 
 test("memberPagePost: a published html Page per member path, titled like its own heading", () => {
   for (const [route, entry] of Object.entries(MEMBER_PAGES)) {
-    const post = memberPagePost({ path: route, workspaceId: "ws-1" })!;
+    const post = makeMemberPagePost({ path: route, workspaceId: "ws-1", pages: MEMBER_PAGES })!;
     assert.equal(post.workspaceId, "ws-1");
     assert.equal(post.slug, route.slice(1));
     assert.equal(post.status, "published");
@@ -70,7 +71,7 @@ test("memberPagePost: a published html Page per member path, titled like its own
     assert.doesNotMatch(entry.body, /<section data-member-view="[^"]+">/, `${route}: every view starts hidden until the script picks one`);
   }
   assert.equal(new Set(Object.values(MEMBER_PAGES).map((p) => p.id)).size, Object.keys(MEMBER_PAGES).length, "ids are distinct");
-  assert.equal(memberPagePost({ path: "/nope", workspaceId: "ws-1" }), undefined);
+  assert.equal(makeMemberPagePost({ path: "/nope", workspaceId: "ws-1", pages: MEMBER_PAGES }), undefined);
 });
 
 test("login provider slots ship empty and hidden: core names no provider, the script fills them", () => {
@@ -216,7 +217,7 @@ test("GET /signin with no themes installed answers like any other page", async (
  *  the registered handler directly (same technique as `pages.route.test.ts`'s `?? ""` guard). */
 function captureHandler(deps: Partial<RouteDeps>) {
   let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
-  registerMemberPageRoutes({ get: ((_paths: string[], fn: typeof handler) => { handler = fn; }) as never }, deps as RouteDeps);
+  registerMemberPageRoutes({ app: { get: ((_paths: string[], fn: typeof handler) => { handler = fn; }) as never }, deps: deps as RouteDeps });
   const sent: { status?: number; body?: string; ended?: boolean; cacheControl?: string; location?: string } = {};
   const res = {
     set(name: string, value: string) { if (name === "Cache-Control") sent.cacheControl = value; return res; },

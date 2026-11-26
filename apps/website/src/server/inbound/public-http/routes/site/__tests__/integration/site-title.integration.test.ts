@@ -8,7 +8,7 @@ import test, { type TestContext } from "node:test";
 import { resolveDefinitionRaw } from "#src/features/settings/index";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
 import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
-import { resolveStorefrontProducts } from "#src/server/inbound/public-http/routes/site/products";
+import { resolveStorefrontProducts } from "@jini-ai/cms/public-http/routes/site/products";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
@@ -133,7 +133,7 @@ test("AC-04/AC-11 (REQ-02, REQ-03, T-W2): an owner title written through the gen
     listProducts: async () => [fixtureProduct],
     findProduct: async ({ idOrSlug }) => idOrSlug === fixtureProduct.id || idOrSlug === fixtureProduct.slug ? fixtureProduct : null,
   };
-  const [product] = await resolveStorefrontProducts(site.deps);
+  const [product] = await resolveStorefrontProducts({ list: site.deps.commerceCatalog?.listProducts.bind(site.deps.commerceCatalog) });
   assert.ok(product, "expected the injected storefront product for the product-detail surface");
   const surfaces: Array<[string, string]> = [
     ["S1", "/"],

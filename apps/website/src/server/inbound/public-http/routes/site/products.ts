@@ -1,5 +1,4 @@
-import { resolveStorefrontProducts as listStorefrontProducts, resolveStorefrontProduct, storefrontProductsRoute, storefrontProductRoute } from "@jini-ai/cms/public-http/routes/site/products";
-import type { Request, Response } from "express";
+import { serveStorefrontProducts, serveStorefrontProduct } from "@jini-ai/cms/public-http/routes/site/products";
 import { resolveProtocol } from "../../../../../platform/express/public-origin.js";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "@jini-ai/cms/public-http/routes/site/product-checkout";
@@ -33,20 +32,6 @@ import type { RouteDeps } from "#src/server/routes/types";
  * The response finalization is shared with `pages.ts` too — see `sendStorefrontPage` below.
  */
 
-/**
- * Both handlers finish through `pages/response.ts`'s `sendPublicPage` (B230, owner decision): plugin
- * head and widget partials, form attempt tokens and results, the member sign-in script and
- * off-site-link targets are applied exactly as on every other public page. They used to apply only
- * the off-site-link pass, so a plugin's head markup, forms and member sign-in silently did not work on
- * storefront pages. `Cache-Control` therefore comes from the shared per-visitor policy
- * (`resolvePerVisitorResponse`): public for an anonymous visitor, never-store for a member, a form
- * result or the static-export marker — the owner accepted that change for member/form requests.
- */
-async function sendStorefrontPage(required: { req: Request; res: Response; deps: CommerceSiteAdapterDeps; html: string }, _optional = {}): Promise<void> {
-  const { req, res, deps, html } = required;
-  await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse({ req, res }) });
-}
-
 /** Commerce owns the bounded catalog projection. The host's adapter applies the activation
  * guard before any catalog reads. The public renderer has no legacy store or payment access. */
 export interface CommerceSiteAdapterDeps extends RouteDeps {
@@ -56,83 +41,52 @@ export interface CommerceSiteAdapterDeps extends RouteDeps {
   };
 }
 
-/** Shared by live routes and static export: one bounded projection, no per-product price reads.
- * An absent commerce plugin exposes no products. @complexity O(24) response rows, <=2 DB reads. */
-export async function resolveStorefrontProducts(deps: CommerceSiteAdapterDeps, optional: { readiness?: ProductCheckoutReadiness } = {}): Promise<SiteProduct[]> {
-  return listStorefrontProducts({ list: deps.commerceCatalog?.listProducts.bind(deps.commerceCatalog) }, optional);
-}
-
-/** Missing adapters expose no product, while registered adapters keep the scoped point lookup. */
-async function findStorefrontProduct({ deps, id, readiness }: { deps: CommerceSiteAdapterDeps; id: string; readiness: ProductCheckoutReadiness | undefined }): Promise<SiteProduct | null> {
-  return resolveStorefrontProduct({ id, find: deps.commerceCatalog?.findProduct?.bind(deps.commerceCatalog) }, { readiness });
-}
-
-/** The theme, assistant widget flag and site title a storefront page renders with; null once the "no themes installed" 500 is sent. */
-async function resolveStorefrontPage(required: { req: Request; res: Response; deps: CommerceSiteAdapterDeps }, _optional = {}) {
-  const { req, res, deps } = required;
-  const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
-    resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
-    resolveSiteAssistantWidgetForRequest({ request: req, deps }),
-    resolveSiteTitleForRender(deps),
-  ]);
-  const resolved = resolveActiveTheme({ deps, activeThemeId });
-  if (resolved === null) {
-    res.status(500).type("html").send("<h1>No themes installed</h1>");
-    return null;
-  }
-  // `NO_THEME_ID` -> `null`, which `renderSite` reads as "render this page unstyled". The two
-  // must not share a guard: `null` here means nothing is INSTALLED (a broken site, hence the
-  // 500 above), while the sentinel means the operator turned styling off on purpose and expects
-  // a real page back.
-  const theme = resolved === NO_THEME_ID ? null : resolved;
-  return { theme, siteAssistantEnabled, siteTitle };
-}
-
+/**
+ * Both handlers finish through `pages/response.ts`'s `sendPublicPage` (B230, owner decision): plugin
+ * head and widget partials, form attempt tokens and results, the member sign-in script and
+ * off-site-link targets are applied exactly as on every other public page. They used to apply only
+ * the off-site-link pass, so a plugin's head markup, forms and member sign-in silently did not work on
+ * storefront pages. `Cache-Control` therefore comes from the shared per-visitor policy
+ * (`resolvePerVisitorResponse`): public for an anonymous visitor, never-store for a member, a form
+ * result or the static-export marker — the owner accepted that change for member/form requests.
+ */
 /**
  * Public site: `/products` (grid) and `/products/:id` (detail), rendered through the active
  * theme's own `products`/`product` templates. Registered BEFORE the `/:slug` catch-all, same
  * reasoning as `registerStoreRoutes`.
  */
-export const registerProductRoutes = ({ app, deps }: { app: import("express").IRouter; deps: CommerceSiteAdapterDeps }, _optional: Record<string, never> = {}): void => {
-  app.get("/products", async (req, res) => {
-    try {
-      const reply = await storefrontProductsRoute.handle({ raw: req, deps: {
-        readCatalog: () => resolveStorefrontProducts(deps, { readiness: res.locals?.commerceStatus }),
-        renderPage: async ({ products }) => {
-          const page = await resolveStorefrontPage({ req, res, deps });
-          if (page === null) return null;
-          const { theme, siteAssistantEnabled, siteTitle } = page;
-          return renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
-        },
-      } });
-      if (reply.kind === "page") await sendStorefrontPage({ req, res, deps, html: reply.html });
-    } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "products:catalog" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
-      res.status(500).type("html").send(`<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
-    }
-  });
-
-  app.get("/products/:id", async (req, res) => {
-    try {
-      const reply = await storefrontProductRoute.handle({ raw: { params: req.params }, deps: {
-        findProduct: ({ id }) => findStorefrontProduct({ deps, id, readiness: res.locals?.commerceStatus }),
-        renderPage: async ({ products, product }) => {
-          const page = await resolveStorefrontPage({ req, res, deps });
-          if (page === null) return null;
-          const { theme, siteAssistantEnabled, siteTitle } = page;
-          return renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled });
-        },
-        decorateCheckout: ({ html, product }) => productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
-          productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus }),
-      } });
-      if (reply.kind === "missing") {
-        res.status(404).type("html").send("<h1>404 — product not found</h1><p><a href='/products'>All products</a></p>");
-        return;
-      }
-      if (reply.kind === "page") await sendStorefrontPage({ req, res, deps, html: reply.html });
-    } catch (error) {
-      const { errorId } = reportServerFailure({ error, operation: "products:detail" }, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter });
-      res.status(500).type("html").send(`<h1>This product could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`);
-    }
-  });
-};
+export const registerProductRoutes = ({ app, deps }: { app: import("express").IRouter; deps: CommerceSiteAdapterDeps }, _optional: Record<string, never> = {}): void => (
+  void app.get("/products", (req, res) => serveStorefrontProducts({
+    list: deps.commerceCatalog?.listProducts.bind(deps.commerceCatalog),
+    readiness: () => res.locals?.commerceStatus,
+    context: {
+      resolveRenderThemeId: () => resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
+      resolveSiteAssistantWidgetForRequest: () => resolveSiteAssistantWidgetForRequest({ request: req, deps }), title: () => resolveSiteTitleForRender(deps),
+      resolveActiveTheme: required => resolveActiveTheme({ deps, ...required }), noThemeId: NO_THEME_ID,
+      missingTheme: () => void res.status(500).type("html").send("<h1>No themes installed</h1>"),
+    },
+    renderSite: required => renderSite({ renderAssets: res.locals.siteConsentAssets, ...required }),
+    perVisitor: () => resolvePerVisitorResponse({ req, res }), send: required => sendPublicPage({ req, res, deps, ...required }),
+    reportFault: required => reportServerFailure(required, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+    sendFault: html => void res.status(500).type("html").send(html),
+    operation: "products:catalog", faultHtml: ({ errorId }) => `<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`,
+  })),
+  void app.get("/products/:id", (req, res) => serveStorefrontProduct({
+    get id() { return String(req.params.id ?? ''); }, find: deps.commerceCatalog?.findProduct?.bind(deps.commerceCatalog),
+    readiness: () => res.locals?.commerceStatus,
+    context: {
+      resolveRenderThemeId: () => resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
+      resolveSiteAssistantWidgetForRequest: () => resolveSiteAssistantWidgetForRequest({ request: req, deps }), title: () => resolveSiteTitleForRender(deps),
+      resolveActiveTheme: required => resolveActiveTheme({ deps, ...required }), noThemeId: NO_THEME_ID,
+      missingTheme: () => void res.status(500).type("html").send("<h1>No themes installed</h1>"),
+    },
+    renderSite: required => renderSite({ renderAssets: res.locals.siteConsentAssets, ...required }),
+    perVisitor: () => resolvePerVisitorResponse({ req, res }), send: required => sendPublicPage({ req, res, deps, ...required }),
+    reportFault: required => reportServerFailure(required, { tracker: res.locals.adminFailureTracker, reporter: res.locals.failureReporter }),
+    sendFault: html => void res.status(500).type("html").send(html),
+    decorateCheckout: ({ html, product }) => productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
+      productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus }),
+    missing: () => void res.status(404).type("html").send("<h1>404 — product not found</h1><p><a href='/products'>All products</a></p>"),
+    operation: "products:detail", faultHtml: ({ errorId }) => `<h1>This product could not be loaded</h1><p>Please try again shortly.</p><p>Reference: ${errorId}</p>`,
+  }))
+);

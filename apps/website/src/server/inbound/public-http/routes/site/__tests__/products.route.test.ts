@@ -1,6 +1,7 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveStorefrontProducts } from "@jini-ai/cms/public-http/routes/site/products";
 import { createCommerceSiteTestApp as createApp } from "./commerce-site-app.js";
-import { registerProductRoutes, resolveStorefrontProducts, type CommerceSiteAdapterDeps } from "../products.js";
+import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../products.js";
 import type { IRouter } from "express";
 import type { CommerceSiteTestDeps } from "./commerce-site-app.js";
 import assert from "node:assert/strict";
@@ -332,13 +333,10 @@ test("GET /products/:id survives a workspace with no presentation_settings row",
 
 
 test("the product adapter preserves store-plugin sale prices and the handler renders the unwired empty state", async () => {
-  const baseDeps = createRouteDeps();
   // The real HTTP test above owns the shipped sale-card markup and both formatted prices.
   // Assert adapter data here without repeating a worker render against the fixed 5s budget.
-  const products = await resolveStorefrontProducts({
-    ...baseDeps,
-    commerceCatalog: fakeStore({ products: [storeProduct({ id: "sale", title: "Sale Tee", slug: "sale-tee" }, { compareAtPrice: 4500 })] }),
-  });
+  const commerceCatalog = fakeStore({ products: [storeProduct({ id: "sale", title: "Sale Tee", slug: "sale-tee" }, { compareAtPrice: 4500 })] });
+  const products = await resolveStorefrontProducts({ list: commerceCatalog.listProducts.bind(commerceCatalog) });
   // A message on every assert.ok here: without one, Node regenerates the failing expression by
   // acorn-parsing this file's tsx output (one very long line), which takes minutes and looks like a hang.
   assert.ok(products[0], "the store adapter must return the sale product");
@@ -411,7 +409,7 @@ test("GET /products and /products/:id cache visitor-independent HTML for both co
 
 test("the catalog resolver ignores an injected legacy store runtime", async () => {
   const deps = Object.assign(createRouteDeps(), { store: { listProducts: async () => { throw new Error("legacy runtime must not run"); } } });
-  assert.deepEqual(await resolveStorefrontProducts(deps), []);
+  assert.deepEqual(await resolveStorefrontProducts({ list: deps.commerceCatalog?.listProducts.bind(deps.commerceCatalog) }), []);
 });
 
 test('detail resolves a product outside the bounded grid with a point lookup', async t => {

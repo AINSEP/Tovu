@@ -11,7 +11,7 @@ import { renderVirtualPage } from "@jini-ai/cms/public-http/routes/site/pages/ha
 import type { RouteDeps } from "#src/server/routes/types";
 import { withListingBatch } from "../listing/listing-batch.js";
 import { resolveSiteAssistantWidgetForRequest } from "../render-context/widgets.js";
-import { resolveStaticMenusForRender } from "../render-context/static-menus.js";
+import { resolveStaticMenusForRender, type StaticMenuMap } from "../render-context/static-menus.js";
 import { resolvePerVisitorResponse, sendPublicPage } from "../response.js";
 import { renderViaTemplate } from "../template-render.js";
 import { renderGenericPostPage } from "./post.js";
@@ -66,7 +66,7 @@ export function reportSiteRenderFault({ detail, err }: { detail: string; err: un
 export async function serveVirtualPage({ req, res, deps, post }: {
   req: Request; res: Response; deps: RouteDeps; post: PostRecord;
 }): Promise<void> {
-  return renderVirtualPage({ post, currentPath: () => req.path, deps: {
+  return renderVirtualPage<StaticMenuMap[string]>({ post, currentPath: () => req.path, deps: {
     withListingBatch: () => (deps = withListingBatch({ deps, req })),
     resolveRenderThemeId: ({ resolveStoredThemeId }) => resolveRenderThemeId({ response: res, resolveStoredThemeId }),
     resolveActiveThemeId: () => resolveActiveThemeId(deps),

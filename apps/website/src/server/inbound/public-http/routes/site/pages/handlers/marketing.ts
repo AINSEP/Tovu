@@ -58,7 +58,8 @@ export async function resolveMarketingPageOrOverride({ deps, theme, slug, static
     readPost: () => getPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } }),
     finishStaticTierDocument: input => finishStaticTierDocument({ deps, input: { theme: theme!, ...input, staticMenus, postPreviewsAccess } }, {}),
     postPublicPath,
-    resolveSiteTitleForRender: optional => resolveSiteTitleForRender(deps, optional),
+    resolveSiteTitleForRender: () => resolveSiteTitleForRender(deps),
+    resolveAuthoredSiteTitleForRender: () => resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true }),
     buildExtraHead: ({ siteTitle }, optional) => buildExtraHead({ deps, route: "page", siteTitle, post: undefined }, optional),
     injectSiteAssistantIntoStaticPage: ({ html }) => injectSiteAssistantIntoStaticPage({ html, enabled: siteAssistantEnabled }),
   });

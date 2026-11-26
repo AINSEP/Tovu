@@ -17,7 +17,6 @@ import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "@
 import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "../../../http/site/render/page-body.js";
-import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { injectSiteAssistantIntoStaticPage } from "../../../http/site/render/site-assistant-mount.js";
 import type { TemplateRenderDeps, SiteRequestDeps, PostPreviewsAccess } from "./render-context/deps.js";
 import { resolveSiteTitleForRender, htmlEmbedHostDeps } from "./render-context/site-title.js";
@@ -27,7 +26,7 @@ import { resolveCollectionListsForRender, type CollectionListsCollaborators } fr
 import { warnCollectionLists } from "#src/server/runtime/composition/collection-list-warnings";
 import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { resolvePerVisitorResponse, sendPublicPage } from "./response.js";
-import { finishStaticTierDocument as finishStaticDocument } from "@jini-ai/cms/public-http/routes/site/pages/static-tier";
+import { finishStaticTierDocument as finishStaticDocument, serveStaticThemeIndex as serveIndex, staticThemeScripts } from "@jini-ai/cms/public-http/routes/site/pages/static-tier";
 
 /** The CMS domain functions collection-marker resolution is injected with, bound once from their public subpaths. */
 const COLLECTION_LIST_COLLABORATORS: CollectionListsCollaborators = {
@@ -37,12 +36,10 @@ const COLLECTION_LIST_COLLABORATORS: CollectionListsCollaborators = {
   dates: { formatDateLabel, resolveSiteTimeZoneSafely },
 };
 
-export async function finishStaticTierDocument(
-  { deps, input }: { deps: TemplateRenderDeps; input: StaticTierDocumentInput },
+export const finishStaticTierDocument = (
+  { deps, input: { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor } }: { deps: TemplateRenderDeps; input: StaticTierDocumentInput },
   _optional: Record<string, never> = {}
-): Promise<string> {
-  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor } = input;
-  return finishStaticDocument({ deps: {
+): Promise<string> => finishStaticDocument({ deps: {
     DEFAULT_THEME_SLOTS,
     expandPartials: ({ defaultSlots, html }) => expandPartials({ defaultSlots, html, theme }),
     resolveHtmlPageEmbeds: ({ html }) => resolveHtmlPageEmbeds({
@@ -60,13 +57,12 @@ export async function finishStaticTierDocument(
     }),
     renderHtmlPageBody,
     resolveStaticMenusForRender: ({ currentPath }, optional) => resolveStaticMenusForRender({ deps, theme, currentPath }, optional),
-    resolvePostPreviewsForRender: ({ pageHtml, pagePath }) => resolvePostPreviewsForRender({ deps, memberAccessResolver: postPreviewsAccess!.resolver, memberContext: postPreviewsAccess!.context, pageHtml, pagePath }),
+    resolvePostPreviewsForRender: ({ pageHtml, pagePath, postPreviewsAccess }) => resolvePostPreviewsForRender({ deps, memberAccessResolver: postPreviewsAccess.resolver, memberContext: postPreviewsAccess.context, pageHtml, pagePath }),
     resolveCollectionListsForRender: ({ html, pagePath }) => resolveCollectionListsForRender({ deps: { ...deps, entryListAttribute: ENTRY_LIST_ATTRIBUTE, collaborators: COLLECTION_LIST_COLLABORATORS, warn: warnCollectionLists }, html, pagePath }),
     renderStaticPage: (required) => renderStaticPage({ theme, ...required }),
     staticThemeScripts: () => staticThemeScripts({ theme }),
     get documentAssets() { return deps.documentAssets; },
   }, input: { pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor } });
-}
 
 /** What {@link finishStaticTierDocument} finishes: one static-tier page of `theme`, and who is asking. */
 interface StaticTierDocumentInput {
@@ -82,27 +78,14 @@ interface StaticTierDocumentInput {
   readonly postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">;
 }
 
-/** Static pages and diagnostic templates share the theme's declared-script defaults. */
-export function staticThemeScripts({ theme }: { theme: DiscoveredTheme }): readonly import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[] {
-  return theme.manifest.scripts ?? [];
-}
-
 /** `GET /` through a static theme's own `index.html` (see the E4 note at the call site). */
-export async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extraHead, siteAssistantEnabled, access }: {
+export const serveStaticThemeIndex = ({ req, res, deps, theme, staticMenus, extraHead, siteAssistantEnabled, access }: {
   req: Request; res: Response; deps: SiteRequestDeps; theme: DiscoveredTheme & { pages: { index: string } };
   staticMenus: StaticMenuMap; extraHead: string; siteAssistantEnabled: SiteChatSelection; access: PostPreviewsAccess;
-}): Promise<void> {
-  // Preserve authored titles only when neither a workspace title nor a pending pin supplies one.
-  const preserveThemeTitle = await resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true })
-    .then((title) => title === undefined, () => false);
-  const rendered = await finishStaticTierDocument({ deps, input: {
-    theme,
-    pageId: "index",
-    html: theme.pages.index,
-    currentPath: "/",
-    staticMenus,
-    postPreviewsAccess: access,
-  } }, {});
-  const homeHtml = injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: rendered, extraHead }, { preserveThemeTitle }), enabled: siteAssistantEnabled });
-  await sendPublicPage({ req, res, deps, html: homeHtml, perVisitor: resolvePerVisitorResponse({ req, res }) });
-}
+}): Promise<void> => serveIndex({
+  theme, staticMenus, extraHead, siteAssistantEnabled, access, pageId: "index", currentPath: "/",
+  title: () => resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true }),
+  finish: (required, optional) => finishStaticTierDocument({ deps, ...required }, optional),
+  chat: injectSiteAssistantIntoStaticPage,
+  perVisitor: () => resolvePerVisitorResponse({ req, res }), send: required => sendPublicPage({ req, res, deps, ...required }),
+});
