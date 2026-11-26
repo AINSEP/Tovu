@@ -7,8 +7,8 @@
  * can never name what gets removed. A stale, expired or other-sender ID answers `relist`.
  */
 
-// The channel names live with their only registrar, apps/desktop/src/storage/storage-sheet-ipc.ts
-// (STORAGE_SHEET_CHANNELS); this file stays type-only so the bridge carries no runtime coupling.
+// The channel names and the dark release flag live in apps/desktop/src/contracts/storage-sheet.ts
+// (shared by main, preload and renderer); this file stays type-only so the bridge carries no runtime coupling.
 
 /** A byte estimate the main process could not measure is `null`, never a guessed zero. */
 export type ByteEstimate = number | null;

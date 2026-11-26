@@ -6,8 +6,9 @@ import path from "node:path";
 import test from "node:test";
 import { createStorageItemIds } from "./storage-item-ids.ts";
 import {
-  STORAGE_SHEET_CHANNELS, registerStorageSheetIpc, type RemovePartitionResult, type StorageIpcEvent, type StorageSheetRequired, type StorageTarget,
+  registerStorageSheetIpc, type RemovePartitionResult, type StorageIpcEvent, type StorageSheetRequired, type StorageTarget,
 } from "./storage-sheet-ipc.ts";
+import { STORAGE_SHEET_CHANNELS } from "../contracts/storage-sheet.ts";
 import { bindTrashDismissedFolder, type TrashDismissedRequired } from "./trash-dismissed-folder.ts";
 
 const SITES_URL = "file:///app/sites/index.html";
@@ -151,4 +152,17 @@ test("the managed profile is never trashable even if dismissed", async () => {
   fs.mkdirSync(path.join(root, "profile"));
   const deps = trashDeps(root, { readTrackedStrict: async () => ({ state: "ok", tracked: [], dismissed: [path.join(root, "profile")] }) });
   assert.deepEqual(await bindTrashDismissedFolder(deps)({ dir: path.join(root, "profile") }), { state: "kept", reason: "changed" });
+});
+
+test("M18 a renderer-supplied target, path or confirmed flag is never what main acts on", async () => {
+  const h = harness();
+  const view = await list(h);
+  const smuggled = { partition: "persist:someone-else", dir: "/etc", path: "/etc", target: "/etc", confirmed: true };
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.preview, { id: "/sites/old", action: "trash-folder", ...smuggled }), { state: "relist" }, "a path is not an ID");
+  const signIn = await h.call(STORAGE_SHEET_CHANNELS.preview, { id: view.signIns.items[0]!.id, action: "remove-sign-in", ...smuggled }) as { confirmationId: string };
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.act, { confirmationId: signIn.confirmationId, ...smuggled }), { state: "done" });
+  const folder = await h.call(STORAGE_SHEET_CHANNELS.preview, { id: view.otherFolders[0]!.id, action: "trash-folder", ...smuggled }) as { confirmationId: string };
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.act, { confirmationId: folder.confirmationId, ...smuggled }), { state: "done" });
+  assert.deepEqual(h.calls.removed, [{ partition: "persist:site-x", confirmed: true, evidence: "owner-dialog" }], "main's own partition, never the smuggled one");
+  assert.deepEqual(h.calls.trashed, ["/sites/old"], "main's own folder, never the smuggled path");
 });
