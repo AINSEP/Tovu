@@ -56,11 +56,17 @@ test("form slug, form id and widget spellings resolve identically and fill plain
 
 test("HTML mode is per occurrence, and native POST results reveal plain confirmation/error slots", async () => {
   const deps = await harness();
-  const html = `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div><div data-embed-config='{"type":"widget","id":"widget-1","mode":"html"}'></div>`;
+  const html = `<section id="default-mode"><div data-embed-config='{"type":"widget","id":"widget-1"}'></div></section><section id="html-mode"><div data-embed-config='{"type":"widget","id":"widget-1","mode":"html"}'></div></section>`;
   const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...deps }, input: { workspaceId: "ws", html } });
   const rendered = renderHtmlPageBody({ html, resolved });
-  assert.match(rendered, /class="widget tovu-form widget-contact-form"/);
-  assert.match(rendered, /<form class="tovu-form" data-tovu-form="contact"/);
+  const defaultMode = rendered.match(/<section id="default-mode">([\s\S]*?)<\/section>/)?.[1];
+  const htmlMode = rendered.match(/<section id="html-mode">([\s\S]*?)<\/section>/)?.[1];
+  assert.ok(defaultMode);
+  assert.ok(htmlMode);
+  assert.match(defaultMode, /class="widget tovu-form widget-contact-form"/);
+  assert.doesNotMatch(defaultMode, /<form class="tovu-form" data-tovu-form="contact"/);
+  assert.match(htmlMode, /<form class="tovu-form" data-tovu-form="contact"/);
+  assert.doesNotMatch(htmlMode, /class="widget tovu-form widget-contact-form"/);
   assert.equal(resolved.get("widget")?.get("widget-1")?.props.mode, undefined);
   const plainHtml = `<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`;
   const plain = renderHtmlPageBody({ html: plainHtml, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postWrites: READ_ONLY_WIDGET_POST_WRITES }, {}), ...deps }, input: { workspaceId: "ws", html: plainHtml } }) });

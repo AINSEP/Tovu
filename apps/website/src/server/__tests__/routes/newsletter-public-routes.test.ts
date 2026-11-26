@@ -388,7 +388,7 @@ test("UNSUBSCRIBE: an unexpected storage failure behind a validly signed token r
 });
 
 
-test('overlapping newsletter requests retain their own incident reporter and subscription request facts', async t => {
+test('overlapping newsletter requests retain their own incident reporter and subscription request facts', { timeout: 5_000 }, async t => {
   const deps = createRouteDeps(); await deps.newsletterReady;
   const { subscriptionId } = await seedConfirmedSubscription(deps);
   const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
@@ -419,14 +419,18 @@ test('overlapping newsletter requests retain their own incident reporter and sub
   registerPublicNewsletterConfirmRoute({ app: secondApp, deps: publicDeps, errors: secondReporter.errors });
   const firstBase = await startTestServer(firstApp, t), secondBase = await startTestServer(secondApp, t);
   const first = fetch(`${firstBase}/newsletter/confirm?token=${rawToken}`);
-  await started;
+  await Promise.race([started, first.then(res => assert.fail(`first request returned ${res.status} before lookup`))]);
+  const sameApp = await fetch(`${firstBase}/newsletter/confirm?token=broken`);
+  assert.equal(sameApp.status, 500);
+  assert.equal(firstReporter.entries.length, 1);
+  assert.equal(secondReporter.entries.length, 0);
   const second = await fetch(`${secondBase}/newsletter/confirm?token=broken`);
-  assert.equal(second.status, 500); assert.equal(secondReporter.entries.length, 1); assert.equal(firstReporter.entries.length, 0);
+  assert.equal(second.status, 500); assert.equal(secondReporter.entries.length, 1); assert.equal(firstReporter.entries.length, 1);
   release();
   assert.equal((await first).status, 200);
   assert.deepEqual(facts, [rawToken]); assert.deepEqual(events, ['newsletter_subscribed']);
   const confirmed = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
   assert.equal(confirmed?.status, 'subscribed');
   assert.equal(confirmed?.consentRevisionIdAtSubscribe, 'confirmed-revision');
-  assert.equal(firstReporter.entries.length, 0); assert.equal(secondReporter.entries.length, 1);
+  assert.equal(firstReporter.entries.length, 1); assert.equal(secondReporter.entries.length, 1);
 });

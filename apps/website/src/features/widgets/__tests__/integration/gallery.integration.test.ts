@@ -37,8 +37,12 @@ test('gallery resolves real media and renders ordered figures, captions, respons
   assert.ok(rendered.includes('alt=""'));
   assert.ok(rendered.includes('<figcaption>&lt;first&gt;</figcaption>'));
   assert.ok(!rendered.includes('data-embed-config'));
-  const carousel = rendered.slice(rendered.indexOf('class="jini-gallery jini-gallery-carousel"'));
-  assert.ok(carousel.indexOf('/m/photo-two/') < carousel.indexOf('/m/photo-one/'));
+  for (const [layout, expected] of [['grid', ['photo-one', 'photo-two']], ['carousel', ['photo-two', 'photo-one']]] as const) {
+    const gallery = rendered.match(new RegExp(`<div class="jini-gallery jini-gallery-${layout}"[^>]*>(.*?)</div>`, 's'))?.[1];
+    assert.ok(gallery, layout);
+    const slugs = Array.from(gallery.matchAll(/<img\b[^>]*>/g), ([img]) => img.match(/\ssrc="\/m\/([^/"]+)\//)?.[1]);
+    assert.deepEqual(slugs, expected, layout);
+  }
 });
 
 test('gallery media references protect every image and publish keys remain visible with invalid layout', () => {

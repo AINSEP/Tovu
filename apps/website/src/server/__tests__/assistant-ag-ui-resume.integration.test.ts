@@ -436,15 +436,21 @@ async function parkVisitorApproval({ baseUrl }: { baseUrl: string }) {
 
 test("server shutdown abandons every parked visitor and admin approval once", { timeout: 60_000 }, async (t) => {
   await boot(t);
-  const { createApp, createRouteDeps } = await import("../runtime/composition/app.js");
+  const { createRouteDeps } = await import("../runtime/composition/app.js");
+  const { createServingApp } = await import("../runtime/composition/serving-app.js");
   const deps = Object.assign(createRouteDeps(), { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } });
   await deps.siteTitleReady;
   let siteOrigin: URL | undefined;
   const { providerRequests } = await enableVisitorAsk({ t, deps, siteOrigin: () => siteOrigin! });
-  const shutdowns: Array<() => void> = [];
   // The serving process's shutdown path: createApp hands each process-local release to its host.
-  const app = createApp(deps, { onShutdown: ({ shutdown }) => { shutdowns.push(shutdown); } });
-  const baseUrl = await startTestServer(app, t);
+  const serving = createServingApp(deps);
+  t.after(async () => {
+    for (const handle of [serving.outboxDrainer, serving.trashSweeper, serving.themeWatcher, serving.formPullTrigger, serving.postGoLiveSweep, serving.webhookDeliveryWorker, serving.domainBindingSweeper, serving.siteSearchMaintenance]) {
+      await handle.stop();
+    }
+    await Promise.allSettled(serving.bootWork);
+  });
+  const baseUrl = await startTestServer(serving.app, t);
   siteOrigin = new URL(baseUrl);
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
@@ -454,7 +460,8 @@ test("server shutdown abandons every parked visitor and admin approval once", { 
   const admin = await startTurn({ baseUrl, cookie, conversationId });
   const visitor = await parkVisitorApproval({ baseUrl });
   assert.equal(providerRequests.length, 1, "the visitor's tool is held, the model waits");
-  for (const shutdown of [...shutdowns, ...shutdowns]) shutdown();
+  serving.releaseOnShutdown();
+  serving.releaseOnShutdown();
 
   const adminLate = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: admin.runId, interruptId: admin.finished.outcome!.interrupts[0]!.id }) });
   assert.deepEqual([adminLate.status, adminLate.text, answers.length], [400, REFUSAL, 0], "the admin approval is gone after shutdown");
