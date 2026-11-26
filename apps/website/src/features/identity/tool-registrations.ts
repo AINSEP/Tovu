@@ -16,7 +16,8 @@ import { IdentityConflictError, OwnerRequiredError } from "@jini-ai/user-managem
  * importing this feature must not register them or create an assistant runtime cycle.
  */
 import type { ToolContributor } from "@jini-ai/core";
-import { approvalToolHandler, notConfirmedResult } from "#src/contracts/core/human-confirm";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import {
   askThenReport,
   createSurfaceExchangeStore,

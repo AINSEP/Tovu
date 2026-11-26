@@ -16,40 +16,20 @@
  * The generic prepare/ask/run handler and its ordering rationale live in Jini/core/src/registration-kit.ts;
  * Tovu keeps the surface exchange, allowlist, dialog wording and fail-closed confirmation policy here.
  */
-import { requireHumanConfirm as daemonRequireHumanConfirm, HUMAN_CONFIRM_CHOICE_PARAM, type HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
+import { requireHumanConfirm as daemonRequireHumanConfirm, HUMAN_CONFIRM_CHOICE_PARAM, type HumanConfirmOutcome, approvalToolHandler as daemonApprovalToolHandler } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import type { ChatDeleteSurfaceDeps, HumanConfirmSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { requireChatDeleteGrant } from "./chat-delete-grant.js";
 import { nativeToolMetadata } from './tool-metadata/index.js';
-import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
-import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
-import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
+import { type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
+import { accessApprovalDetails, buildConfirmationSurface } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
 import type { UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
-import { approvalText } from '@jini-ai/core/contracts/site/approval-i18n';
 
 import {
   SURFACE_EXCHANGE_ID_PARAM,
-  type ConfirmationOutcome,
 } from "@jini-ai/daemon/surface-exchanges";
 import type { HumanConfirmSpec, HumanConfirmAlternative } from "@jini-ai/core/contracts/site/human-confirm";
-
-/** Shared operator-language presentation for policy approvals and domain-owned tool plans. */
-export function toolApprovalConfirmation({ descriptor, input, locale, details = [], danger = false }: {
-  descriptor: Parameters<typeof toolApprovalPresentation>[0]['descriptor']; input: unknown; locale: string;
-  details?: readonly SurfaceDetail[]; danger?: boolean;
-}, _options = {}): HumanConfirmSpec {
-  const toolId = descriptor.id;
-  const presentation = toolApprovalPresentation({ descriptor }, { text: ({ key }) => approvalText({ locale, key }) });
-  return {
-    toolId, errorCode: 'TOOL_APPROVAL', title: presentation.title,
-    ...(presentation.summary ? { description: presentation.summary } : {}), details, danger,
-    detailDisclosure: { label: approvalText({ locale, key: 'Details' }), details: [
-      { label: approvalText({ locale, key: 'Input' }), value: input ?? {}, labels: presentation.labels,
-        description: `${approvalText({ locale, key: 'Technical name' })}: ${toolId}` },
-    ] },
-    confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
-  };
-}
 
 /**
  * Shows the confirmation dialog and waits for the human's answer.
@@ -67,29 +47,6 @@ export async function requireHumanConfirm(
   // Shorthand `{ toolId }` on purpose: the allowlist completeness scan resolves the `toolId` of
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
   return daemonRequireHumanConfirm({ ctx, surfaces, spec, requireDeleteGrant: requireChatDeleteGrant, render: renderHumanConfirmation }, options);
-}
-
-/**
- * The model-facing result for an answer that was not a confirm — one wording for every gated tool,
- * so the model learns one shape: `cancelled: true` means the human said no; otherwise `reason` says
- * why no answer came. Spread it next to the tool's own `<verb>ed: false` flag.
- *
- * @complexity O(1).
- */
-export function notConfirmedResult(outcome: Extract<ConfirmationOutcome, { confirmed: false }>): {
-  cancelled: boolean;
-  reason?: "expired" | "abandoned";
-  note: string;
-} {
-  if (outcome.reason === "declined") return { cancelled: true, note: "The user cancelled. Nothing was changed." };
-  return {
-    cancelled: false,
-    reason: outcome.reason,
-    note:
-      outcome.reason === "expired"
-        ? "The user did not answer the confirmation dialog before it expired. Nothing was changed. Do not retry this action or reopen its confirmation automatically. Tell the user it expired and nothing changed, then wait for a new explicit request."
-        : "The confirmation dialog was closed because the run ended. Nothing was changed.",
-  };
 }
 
 /**
@@ -146,19 +103,8 @@ export function approvalToolHandler<TPrepared>(
     batch?: boolean;
   } = {},
 ): ToolHandler {
-  const steps: ApprovalSteps<TPrepared, HumanConfirmSpec> = {
-    prepare,
-    describe: async ({ ctx, prepared }) => {
-      const description = await describe({ ctx, prepared });
-      return description.access
-        ? { kind: 'access', ask: true, description, access: description.access }
-        : { ask: ask({ prepared }), description, rememberKey: rememberKey?.({ prepared }) };
-    },
-    askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
-    run,
-    notConfirmed: declined ?? (({ reason }) => ({ [flag]: false, ...notConfirmedResult({ confirmed: false, reason }) })),
-  };
-  if (batch) return createBatchApprovalHandler({ steps, combineDescriptions: ({ descriptions }) => ({
+  return daemonApprovalToolHandler({ surfaces, prepare, describe, run, confirm: requireHumanConfirm,
+    combineDescriptions: ({ descriptions }) => ({
     ...descriptions[0]!,
     title: `Permanently delete ${descriptions.length} selections?`,
     description: "Review every target below. One Confirm click approves this entire batch; there is no undo.",
@@ -166,22 +112,7 @@ export function approvalToolHandler<TPrepared>(
       { label: `Selection ${index + 1}`, value: description.title }, ...description.details,
     ]),
     warning: [...new Set(descriptions.map(description => description.warning).filter(Boolean))].join("\n"),
-  }) });
-  return createApprovalHandler(steps, { remembered });
-}
-
-/**
- * Refuses any input key outside `allowed`. For the confirm-gated tools a stray `confirm: true` or
- * `confirmationToken` is refused out loud, so the model is never left thinking it counted.
- *
- * @throws {ToolInputError} Naming the first unexpected key.
- * @complexity O(k) in the input's key count.
- */
-export function refuseUnexpectedKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
-  const extra = Object.keys(input).find((key) => !allowed.includes(key));
-  if (extra !== undefined) {
-    throw new ToolInputError({ message: `'${extra}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` });
-  }
+  }) }, { flag, ask, rememberKey, remembered, declined, batch });
 }
 
 function renderHumanConfirmation(

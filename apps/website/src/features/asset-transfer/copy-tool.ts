@@ -6,7 +6,8 @@ import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInpu
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { MAX_DOCUMENT_BYTES, MediaValidationError, validateDocumentIngress } from "@jini-ai/cms/media";
 import type { ToolContributor } from "@jini-ai/core";
-import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/files-copy";
 import { fetchImage, MEDIA_IMPORT_POLICY } from "../media-import/fetch-image.js";
 import { isImportShapeRejection, withCallerSafeEgressRefusal } from "../media-import/tool-registrations.js";
@@ -101,7 +102,7 @@ async function readLocal({ deps, ctx, source, maxBytes }: { deps: AssetToolDeps;
  * @throws Input/root/permission errors. @complexity O(total bytes + bounded folder entries). */
 async function prepare({ deps, ctx }: { deps: AssetToolDeps; ctx: ToolExecutionContext }, _options = {}): Promise<PreparedAssets> {
   const input = requireInputRecord({ input: ctx.input });
-  refuseUnexpectedKeys(input, ["sources", "destination", "overwrite"]);
+  refuseUnexpectedKeys({ input: input, allowed: ["sources", "destination", "overwrite"] });
   if (!Array.isArray(input.sources) || !input.sources.length || input.sources.length > FILES_COPY_LIMITS.maxFiles) throw new ToolInputError({ message: "sources must list 1..50 entries" });
   const { destination, prefix } = await requireCopyDestination({ deps, ctx, input: input.destination });
   const maxFileBytes = destination.kind === "library" ? MAX_DOCUMENT_BYTES : FILES_COPY_LIMITS.maxFileBytes;
@@ -138,7 +139,7 @@ async function requireCopyDestination({ deps, ctx, input }: { deps: AssetToolDep
 /** Select a source adapter after rejecting contradictory URL fields. */
 async function readGroup({ deps, ctx, raw, kind, maxFileBytes }: { deps: AssetToolDeps; ctx: ToolExecutionContext; raw: unknown; kind: PreparedAssets['destination']['kind']; maxFileBytes: number }, _options = {}): Promise<AssetFile[]> {
   const source = requireInputRecord({ input: raw });
-  refuseUnexpectedKeys(source, ["root", "path", "url", "themeId", "glob"]);
+  refuseUnexpectedKeys({ input: source, allowed: ["root", "path", "url", "themeId", "glob"] });
   if (source.root !== "url" && source.url !== undefined) throw new ToolInputError({ message: "url is only valid for root url" });
   if (source.root === "url" && kind === "library") throw new ToolInputError({ message: "Library copies need an allowed picked/site/theme file source, not an image URL" });
   if (source.root === "url") return [await readUrl({ deps, source, media: kind === "media" })];

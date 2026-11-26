@@ -30,7 +30,7 @@ import { constrainPrincipalToReadOnlyTools, filterReadOnlyToolCatalog } from "@j
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { ROUTINE_TOOL_IDS } from "#src/contracts/core/tool-metadata/routines";
+import { ROUTINE_TOOL_IDS } from "@jini-ai/core/tool-metadata/routines";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";

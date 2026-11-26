@@ -7,6 +7,7 @@ import test from "node:test";
 import { startTestServer } from "../helpers/http-test-server.js";
 
 import express from "express";
+import { registerPublicNewsletterConfirmRoute } from "../../inbound/public-http/routes/site/newsletter-confirm.js";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
@@ -384,4 +385,44 @@ test("UNSUBSCRIBE: an unexpected storage failure behind a validly signed token r
   const body = await res.text();
   assert.match(body, /Unexpected server error/);
   assert.doesNotMatch(body, /storage offline/);
+});
+
+
+test('overlapping newsletter requests retain their own incident reporter and subscription request facts', async t => {
+  const deps = createRouteDeps(); await deps.newsletterReady;
+  const { subscriptionId } = await seedConfirmedSubscription(deps);
+  const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  assert.ok(subscription);
+  await deps.newsletterSubscriptionRepo.save({ ...subscription, status: 'pending', subscribedAt: null, consentRevisionIdAtSubscribe: null });
+  const rawToken = randomBytes(32).toString('hex'), tokenHash = createHash('sha256').update(rawToken).digest('hex');
+  const now = deps.clock.nowIso();
+  await deps.newsletterConfirmationTokenRepo.save({ id: deps.idGen.newId(), workspaceId: deps.workspaceId, subscriptionId, tokenHash,
+    purpose: 'newsletter_subscription_confirm', createdAt: now, expiresAt: new Date(Date.parse(now) + 60_000).toISOString(), consumedAt: null });
+  const firstReporter = createRouteIncidentReporter(), secondReporter = createRouteIncidentReporter();
+  const facts: unknown[] = [], events: string[] = [];
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; }), held = new Promise<void>(resolve => { release = resolve; });
+  t.after(() => release());
+  const read = deps.newsletterConfirmationTokenRepo.findByTokenHash.bind(deps.newsletterConfirmationTokenRepo);
+  t.mock.method(deps.newsletterConfirmationTokenRepo, 'findByTokenHash', async input => {
+    if (input.tokenHash !== tokenHash) throw new Error('second request storage failure');
+    entered(); await held; return read(input);
+  });
+  const app = express();
+  app.use((req, res, next) => { res.locals.failureReporter = (req.query.token === rawToken ? firstReporter : secondReporter).reporter; next(); });
+  registerPublicNewsletterConfirmRoute({ app, deps: { ...deps,
+    membersConsentCapability: { request: async () => ({ requested: true }), confirm: async () => ({ status: 'granted', consentRevisionId: 'confirmed-revision' }), revoke: async () => ({ status: 'revoked' }) },
+    visitorAnalyticsProof: async ({ request }) => { facts.push(request.query.token); return { receiptId: 'receipt-fixture', policyVersion: 'policy' }; },
+    visitorAnalyticsDeliveryAllowed: async () => true,
+    visitorTracker: { ...deps.tracker, capture: async event => { events.push(event.name); } },
+  } });
+  const base = await startTestServer(app, t);
+  const first = fetch(`${base}/newsletter/confirm?token=${rawToken}`);
+  await started;
+  const second = await fetch(`${base}/newsletter/confirm?token=broken`);
+  assert.equal(second.status, 500); assert.equal(secondReporter.entries.length, 1); assert.equal(firstReporter.entries.length, 0);
+  release();
+  assert.equal((await first).status, 200);
+  assert.deepEqual(facts, [rawToken]); assert.deepEqual(events, ['newsletter_subscribed']);
+  assert.equal(firstReporter.entries.length, 0); assert.equal(secondReporter.entries.length, 1);
 });

@@ -1,4 +1,3 @@
-import { addDeclaredHostsToPolicy, CSP_REPORT_ONLY_HEADER } from "@jini-ai/core/contracts/server/security-headers";
 /** Product binding: plugin admission belongs to Jini's host; placement uses the shared
  * partial marker parser/expander. No CMS widget registry or resolver is replaced. */
 import { renderPluginWidgetPartials } from "@jini-ai/plugins/runtime/widget-partials";
@@ -8,7 +7,7 @@ import { DEFAULT_THEME_SLOTS } from "@jini-ai/cms/themes/theme-slots";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import { resolveVisitorPagePolicy, publicPageCache, finalizePublicPageHtml as finalizePage, type PerVisitorResponse } from "@jini-ai/cms/public-http/routes/site/pages/response";
+import { addPluginExportHostsToResponse, resolveVisitorPagePolicy, publicPageCache, finalizePublicPageHtml as finalizePage, type PerVisitorResponse } from "@jini-ai/cms/public-http/routes/site/pages/response";
 import { CONFIG_ID } from "@jini-ai/cookie-consent";
 import { hasConsentGatedScripts } from "@jini-ai/cookie-consent/site/pre-consent-cache";
 import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
@@ -91,19 +90,12 @@ export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Res
  *
  * @complexity O(html length) — one pass for each of the three transforms it composes.
  */
-/** The page's report-only policy names what its plugin exports declared; nothing is added otherwise. O(hosts). */
-function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: import("@jini-ai/core/contracts/server/security-headers").DeclaredPageHosts | undefined }, _optional: Record<string, never> = {}): void {
-  const response = req.res;
-  const policy = response?.getHeader?.(CSP_REPORT_ONLY_HEADER);
-  if (hosts && response && typeof policy === "string") response.setHeader(CSP_REPORT_ONLY_HEADER, addDeclaredHostsToPolicy({ policy, hosts }));
-}
-
 async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Request; html: string; formResult: FormSubmissionRedirectResult | undefined; deps: RouteDeps }, _optional = {}): Promise<string> {
   const result = await finalizePage({ html, formResult, ports: {
     listingBatchBody: ({ html }) => listingState.listingBatchBody({ req, html }),
     assertListingPageServed: ({ html }) => listingState.assertListingPageServed({ req, html }),
     pluginHead: () => deps.pluginExportRender?.headHtml({}),
-    addPluginHosts: () => addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) }),
+    addPluginHosts: () => addPluginExportHostsToResponse({ response: req.res, hosts: deps.pluginExportRender?.declaredHosts({}) }),
     widgetPartials: async ({ html }) => deps.pluginContributions ? renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo, render: {
       readNames: ({ html }) => markersOfType({ html, type: PARTIAL_MARKER_TYPE }).flatMap(marker => marker.id ? [marker.id] : []),
       validateHtml: validateServerWidgetFragment,

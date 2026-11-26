@@ -7,7 +7,8 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInp
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { SiteUpdateStatusReply } from "@jini-ai/core/contracts/site/devops-deploy";
 import { checkForUpdateFromFeed, type SiteUpdateCallOptions, type MigrationReadinessPort, type ReleaseFeedPort, type SiteBackupPort, type SiteUpdatePlan, type SiteUpdatePort } from "@jini-ai/devops/deploy";
-import { approvalToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import type { IdGenerator } from "@jini-ai/core/primitives";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/site-update";
 import { handOffApproved, type ApprovedHandoffPorts } from "./approved-handoff.js";
@@ -99,7 +100,7 @@ interface PreparedUpdate { runningVersion: string; plan: SiteUpdatePlan | null }
 /** -> reads only (permission, running version, feed); the owner's card comes after this. */
 async function prepareApply({ deps, runtime, ctx }: { deps: SiteUpdateToolDeps; runtime: SiteUpdateRuntime; ctx: ToolExecutionContext }, _optional = {}): Promise<PreparedUpdate> {
   const input = requireInputRecord({ input: ctx.input });
-  refuseUnexpectedKeys(input, ["toVersion"]);
+  refuseUnexpectedKeys({ input: input, allowed: ["toVersion"] });
   await deps.authorize({ ctx, permission: "system.write" });
   const runningVersion = await runtime.runningVersion();
   const update = await runtime.site.checkForUpdate({ runningVersion }, { signal: ctx.signal }).catch((error: unknown) => {

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { requireInputRecord, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
 
-import { approvalToolHandler, humanConfirmedToolHandler, notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm } from '../human-confirm.js';
+import { approvalToolHandler, humanConfirmedToolHandler, requireHumanConfirm } from '../human-confirm.js';
+import { refuseUnexpectedKeys, refuseUnexpectedKeysPort } from "@jini-ai/core";
+import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock } from "@jini-ai/platform/system";
@@ -145,12 +147,16 @@ for (const [reason, result] of [
 });
 
 test('allowed input keys pass and the first unexpected key is named even when it is empty', () => {
-  assert.equal(refuseUnexpectedKeys({ id: 'file' }, ['id']), undefined);
-  assert.equal(refuseUnexpectedKeys({}, []), undefined);
-  assert.throws(() => refuseUnexpectedKeys({ id: 'file', confirm: true, token: 'forged' }, ['id']), {
+  assert.equal(refuseUnexpectedKeys({ input: { id: 'file' }, allowed: ['id'] }), undefined);
+  assert.equal(refuseUnexpectedKeys({ input: {}, allowed: [] }), undefined);
+  assert.equal(refuseUnexpectedKeysPort({ id: 'file' }, ['id']), undefined);
+  assert.throws(() => refuseUnexpectedKeysPort({ confirm: true, token: 'forged' }, []), {
     message: "'confirm' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.",
   });
-  assert.throws(() => refuseUnexpectedKeys({ '': true }, []), {
+  assert.throws(() => refuseUnexpectedKeys({ input: { id: 'file', confirm: true, token: 'forged' }, allowed: ['id'] }), {
+    message: "'confirm' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.",
+  });
+  assert.throws(() => refuseUnexpectedKeys({ input: { '': true }, allowed: [] }), {
     message: "'' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.",
   });
 });

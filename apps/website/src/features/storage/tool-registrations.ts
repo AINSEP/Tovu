@@ -1,6 +1,7 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type DerivedRiskByToolId, type ToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { refuseUnexpectedKeys, type approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { type approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/storage";
 import { STORAGE_CLEANUP_TOOL_ID, storageAgentToolCatalog } from "./agent-tools.js";
 import type { StorageCleanupGate, StoragePassView } from "./cleanup-gate.js";
@@ -32,7 +33,7 @@ const NOT_APPROVED_MESSAGE = "This site's storage changed since you approved it.
 
 function readCleanupInput({ input, copy }: { input: unknown; copy: StorageToolContributorRequired["copy"] }): { dryRun: boolean } {
   const record = requireInputRecord({ input });
-  refuseUnexpectedKeys(record, ["dryRun", "classes"]);
+  refuseUnexpectedKeys({ input: record, allowed: ["dryRun", "classes"] });
   const dryRun = record.dryRun === undefined ? true : record.dryRun;
   if (typeof dryRun !== "boolean") throw new ToolInputError({ message: "Pass dryRun: true to preview or dryRun: false to clean up." });
   const classes = record.classes;

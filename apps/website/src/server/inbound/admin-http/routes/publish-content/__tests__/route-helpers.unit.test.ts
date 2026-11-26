@@ -7,7 +7,7 @@ import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shar
 import {
   acceptOverwriteEntityKeys,
   OVERWRITE_REFUSED,
-} from "../route-helpers.js";
+} from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 
 test("readRouteParam reads an absent or undefined param as an empty string, never the literal 'undefined'", () => {
   assert.equal(readRouteParam({ req: { params: {} }, name: "workspaceId" }), "");

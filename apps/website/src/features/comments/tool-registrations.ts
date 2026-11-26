@@ -16,7 +16,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { PrincipalRepoPort } from "@jini-ai/core/contracts/site/user-management";
-import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
+import { approvalToolHandler } from '#src/contracts/core/human-confirm';
+import { refuseUnexpectedKeysPort } from "@jini-ai/core";
 import { ForbiddenError as SettingsForbiddenError, createSettingsPrincipalLookup, type SettingsRepoPort } from "../settings/index.js";
 import { getCommentsSettings, setCommentsSettings } from "@jini-ai/cms/comments/site/settings";
 
@@ -70,7 +71,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: CommentsToolDeps }, _optional
     },
     settingsForbiddenError: SettingsForbiddenError,
     approvalHandler: approvalToolHandler,
-    refuseUnexpectedKeys,
+    refuseUnexpectedKeys: refuseUnexpectedKeysPort,
   };
 }
 

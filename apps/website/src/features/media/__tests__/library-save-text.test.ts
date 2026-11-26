@@ -1,5 +1,5 @@
 import { AttachmentRejectedError } from "@jini-ai/daemon/http";
-import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildMediaRegistrations, MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
@@ -17,7 +17,7 @@ const documentArchiveDeps = { yauzl: yauzl as unknown as YauzlPort, createArchiv
 function harness() {
   const fixture = libraryFixture();
   const unexpected = () => { throw new Error('generated text must not access attachments'); };
-  const tool = buildLibrarySaveAttachmentTool({ deps: { ...fixture.deps, refuseUnexpectedKeys }, getStore: unexpected, getMessageAttachmentRefs: unexpected, readFile: unexpected, archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
+  const tool = buildLibrarySaveAttachmentTool({ deps: { ...fixture.deps, refuseUnexpectedKeys: (input, allowed) => refuseUnexpectedKeys({ input, allowed }) }, getStore: unexpected, getMessageAttachmentRefs: unexpected, readFile: unexpected, archiveReader: createDocumentArchiveReader(documentArchiveDeps), isAttachmentRejected: ({ error }) => error instanceof AttachmentRejectedError, byteLengthUtf8: ({ text }) => Buffer.byteLength(text, "utf8"), encodeUtf8: ({ text }) => Buffer.from(text, "utf8"), description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.' });
   return { ...fixture, save: (input: Record<string, unknown>) => tool.handler(libraryContext(input)), tool };
 }
 

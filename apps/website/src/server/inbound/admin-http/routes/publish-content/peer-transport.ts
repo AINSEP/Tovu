@@ -1,14 +1,12 @@
-import { PublishContentPeerTransportError, type PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
+import { type PeerCallDeps } from "@jini-ai/cms/publish/content/peer-transport";
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Response } from "express";
 
-import { peerPushPlanRoute, peerPushConfirmRoute, peerPushExecuteRoute } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
+import { peerPushPlanRoute, peerPushConfirmRoute, peerPushExecuteRoute, knownPeerActionRefusal, PEER_ACTION_ERRORS } from "@jini-ai/cms/admin-http/routes/publish-content/peer-transport";
 import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
 import { refuseUnlessSessionCredential } from "../../admin-request-facts.js";
 import { confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport-binding";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
-import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError } from "@jini-ai/cms/publish/content/peers";
-import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import {
   canPublishToLive,
   PUBLISH_FROM_LIVE_SITE_CODE,
@@ -21,7 +19,6 @@ import {
   mappedErrorResponse,
   sendRefusal,
 } from "./route-helpers.js";
-import type { MappedErrorClass, RouteRefusal } from "@jini-ai/cms/admin-http/routes/publish-content/route-helpers";
 import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
@@ -73,32 +70,6 @@ import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shar
  * which puts it in one `Authorization` header. Every error body below is built from a typed error
  * whose message is derived from the PEER's response, never from the request.
  */
-
-/** The typed errors a peer action answers with their own message. */
-const PEER_ACTION_ERRORS: readonly MappedErrorClass[] = [
-  [PublishContentPeerNotFoundError, 404, "PEER_NOT_FOUND"],
-  // A connected destination's handshake. 502 for the same reason a transport error is: this
-  // instance is fine and the request was well-formed — the far side (or the path to it) is what
-  // failed, and the message is already the sentence the owner needs to act on.
-  [PublishTrustHandshakeError, 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
-  [PublishContentPeerCredentialMissingError, 409, "PEER_CREDENTIAL_MISSING"],
-  [PublishContentPeerSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
-];
-
-/** A peer action's typed failure as its refusal, or `undefined` for the redacted 500. Manual
- *  publishing (`modules/publish-content-backstop.ts`) maps its failures through this too.
- *  @complexity O(t) in the table length. */
-export function knownPeerActionRefusal({ err }: { err: unknown }, _options: Record<string, never> = {}): RouteRefusal | undefined {
-  if (err instanceof PublishContentPeerTransportError) {
-    // 502: this instance is fine and the request was well-formed; the PEER (or the path to it) is
-    // what failed. A 500 here would send an operator looking in the wrong server's logs — and for
-    // `EGRESS_REFUSED` specifically, the message is the `devHostAllowlist` diagnosis, which is only
-    // actionable if it reaches them intact.
-    return { status: 502, body: { error: err.message, code: err.code } };
-  }
-  const match = PEER_ACTION_ERRORS.find(([errorClass]) => err instanceof errorClass);
-  return match ? { status: match[1], body: { error: (err as Error).message, code: match[2] } } : undefined;
-}
 
 /** Answers a peer action's failure. Manual publishing (`backstop.ts`) reuses it, so a live-site
  *  failure reaches the owner there as the same actionable answer; `message` names its private 500.

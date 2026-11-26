@@ -69,7 +69,8 @@ import { contributeServerLogsTools } from "@jini-ai/diagnostics/server-logs/tool
 import { processServerLogSource } from "#src/features/server-logs/process-source";
 import { contributeObservabilityTools } from "@jini-ai/diagnostics/observability/tool-registrations";
 import { TELEMETRY_TEST_ERROR_MESSAGE } from "#src/features/observability/test-error-message";
-import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
+import { renderPostPreview } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
+import { TemplatePreviewRenderError } from "@jini-ai/cms/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/index";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";

@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
+import { ownerPasskeySite } from '@jini-ai/user-management/admin-http/owner/passkey-routes';
 import { test } from 'node:test';
 import type { Express, Request, Response } from 'express';
 import type { RouteDeps } from '#src/server/routes/types';
-import { ownerPasskeySite, registerOwnerPasskeyRoutes } from '../owner-passkey-routes.js';
+import { registerOwnerPasskeyRoutes } from '../owner-passkey-routes.js';
 
 test('passkey origin is trusted config/listener data, includes port and keeps a stable RP', () => {
-  assert.deepEqual(ownerPasskeySite({ deps: { derivedPublicOrigin: 'http://localhost:3000' }, localPort: 4321 }),
+  assert.deepEqual(ownerPasskeySite({ name: 'Tovu', copy: { unavailable: 'Passkeys are unavailable in this host. Use your authenticator app or recovery code.', insecure: 'Passkeys require HTTPS or localhost in a supported browser. Use your authenticator app or recovery code here.' }, deps: { derivedPublicOrigin: 'http://localhost:3000' }, localPort: 4321 }),
     { origin: 'http://localhost:4321', rpId: 'localhost', name: 'Tovu' });
-  assert.deepEqual(ownerPasskeySite({ deps: { passkeyOrigin: 'https://admin.example:8443', derivedPublicOrigin: 'http://localhost:3000' }, localPort: 4321 }),
+  assert.deepEqual(ownerPasskeySite({ name: 'Tovu', copy: { unavailable: 'Passkeys are unavailable in this host. Use your authenticator app or recovery code.', insecure: 'Passkeys require HTTPS or localhost in a supported browser. Use your authenticator app or recovery code here.' }, deps: { passkeyOrigin: 'https://admin.example:8443', derivedPublicOrigin: 'http://localhost:3000' }, localPort: 4321 }),
     { origin: 'https://admin.example:8443', rpId: 'admin.example', name: 'Tovu' });
-  assert.throws(() => ownerPasskeySite({ deps: {} }), /unavailable/);
-  assert.throws(() => ownerPasskeySite({ deps: { derivedPublicOrigin: 'http://evil.test' } }), /HTTPS or localhost/);
+  assert.throws(() => ownerPasskeySite({ name: 'Tovu', copy: { unavailable: 'Passkeys are unavailable in this host. Use your authenticator app or recovery code.', insecure: 'Passkeys require HTTPS or localhost in a supported browser. Use your authenticator app or recovery code here.' }, deps: {} }), /unavailable/);
+  assert.throws(() => ownerPasskeySite({ name: 'Tovu', copy: { unavailable: 'Passkeys are unavailable in this host. Use your authenticator app or recovery code.', insecure: 'Passkeys require HTTPS or localhost in a supported browser. Use your authenticator app or recovery code here.' }, deps: { derivedPublicOrigin: 'http://evil.test' } }), /HTTPS or localhost/);
 });
 
 function fixture(options: { caller?: string; kind?: string; allowed?: boolean } = {}) {
@@ -18,6 +19,7 @@ function fixture(options: { caller?: string; kind?: string; allowed?: boolean } 
   const handlers = new Map<string, Handler>();
   const app = { post: (path: string, handler: Handler) => handlers.set(path, handler),
     get: (path: string, handler: Handler) => handlers.set(path, handler) } as unknown as Express;
+  const events: string[] = [];
   let reads = 0;
   let cookies = 0;
   const deps = { workspaceId: 'site', ownerPrincipalId: Promise.resolve('owner'), identityReady: Promise.resolve(),
@@ -25,8 +27,8 @@ function fixture(options: { caller?: string; kind?: string; allowed?: boolean } 
     passkeyStore: { list: async () => { reads++; return [{ id: 'public-id', publicKey: 'never-return-this', counter: 123 }]; } },
   } as unknown as RouteDeps;
   registerOwnerPasskeyRoutes({ app, deps,
-    authenticate: async () => options.caller ? { principal: { id: options.caller }, kind: options.kind ?? 'session' } : null,
-    limiter: { check: async () => ({ allowed: options.allowed ?? true, retryAfterSeconds: 60 }) },
+    authenticate: async () => { events.push('authenticate'); return options.caller ? { principal: { id: options.caller }, kind: options.kind ?? 'session' } : null; },
+    limiter: { check: async () => { events.push('rate'); return { allowed: options.allowed ?? true, retryAfterSeconds: 60 }; } },
     signedIn: async () => { cookies++; },
   });
   async function invoke(path: string, input: { origin?: string; fetchSite?: string; body?: unknown } = {}) {
@@ -34,12 +36,12 @@ function fixture(options: { caller?: string; kind?: string; allowed?: boolean } 
     const req = { body: input.body ?? {}, headers: { host: 'spoofed.test' }, protocol: 'https', ip: '127.0.0.1', socket: { localPort: 3000 },
       is: () => 'application/json', get: (name: string) => name === 'origin' ? input.origin ?? 'https://trusted.test:8443'
         : name === 'sec-fetch-site' ? input.fetchSite : name === 'host' ? 'spoofed.test' : undefined } as unknown as Request;
-    const res = { setHeader: () => {}, status: (code: number) => { status = code; return res; },
-      json: (value: unknown) => { body = value; return res; }, send: () => res } as unknown as Response;
+    const res = { setHeader: (name: string, value: string) => { events.push(`${name}:${value}`); }, status: (code: number) => { status = code; return res; },
+      json: (value: unknown) => { events.push('json'); body = value; return res; }, send: () => res } as unknown as Response;
     await handlers.get(`/api/admin/v1/auth/passkeys${path}`)!(req, res);
     return { status, body };
   }
-  return { invoke, reads: () => reads, cookies: () => cookies };
+  return { invoke, events, reads: () => reads, cookies: () => cookies };
 }
 
 for (const options of [{}, { caller: 'staff' }, { caller: 'owner', kind: 'api_key' }]) {
@@ -66,4 +68,17 @@ test('owner status reveals only public credential IDs and never keys/counters', 
   const f = fixture({ caller: 'owner' });
   assert.deepEqual((await f.invoke('')).body, { isOwner: true, credentials: [{ id: 'public-id' }] });
   assert.equal(f.reads(), 1);
+});
+
+
+test('no-store precedes origin refusal, and management admission follows the limiter', async () => {
+  const refused = fixture();
+  assert.equal((await refused.invoke('/enroll', { origin: 'https://spoofed.test' })).status, 403);
+  assert.deepEqual(refused.events, ['Cache-Control:no-store', 'json']);
+  const management = fixture();
+  assert.equal((await management.invoke('/enroll')).status, 403);
+  assert.deepEqual(management.events, ['Cache-Control:no-store', 'rate', 'authenticate', 'json']);
+  const login = fixture({ allowed: false });
+  assert.equal((await login.invoke('/begin-login')).status, 429);
+  assert.deepEqual(login.events, ['Cache-Control:no-store', 'rate', 'Retry-After:60', 'json']);
 });

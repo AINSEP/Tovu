@@ -6,7 +6,8 @@ import { getAdminPostByIdOrSlug } from "#src/features/post/index";
 import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import type { AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { mountAdminRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
-import { renderPostPreview, TemplatePreviewRenderError } from "./template-preview-render.js";
+import { renderPostPreview } from "./template-preview-render.js";
+import { TemplatePreviewRenderError } from "@jini-ai/cms/admin-http/routes/posts/template-preview-render";
 // Clone/draft/theme-branch rationale lives beside renderPostPreview in template-preview-render.ts.
 import type { ContentRouteRegistrar } from "#src/server/runtime/composition/modules/content";
 

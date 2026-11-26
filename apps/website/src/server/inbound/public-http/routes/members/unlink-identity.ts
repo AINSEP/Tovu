@@ -2,10 +2,7 @@ import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import type { Express, RequestHandler } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { memberUnlinkIdentityRoute } from "@jini-ai/cms/public-http/routes/members/unlink-identity";
-import { MemberLoginError } from "@jini-ai/user-management/server";
-import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
-import { type MemberRecord } from "@jini-ai/user-management/members/types";
-import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
+import { unlinkMemberIdentity as jiniUnlinkMemberIdentity } from "@jini-ai/user-management/member-login/unlink-identity";
 import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-route-ports";
 import { checkMemberPost, type MemberPublicRouteDeps } from "./deps.js";
 import { MEMBER_AUTH_FAILURE, memberSessionCookie } from "./complete-sign-in.js";
@@ -22,53 +19,16 @@ import { currentOidcMember, memberOidcHeaders, memberOidcProviderId, memberOidcR
  *  host-resolved client facts, in place of the Express request. */
 type UnlinkRequest = { cookieHeader: string | undefined; providerId: string | undefined; userAgent: string | undefined; ip: string };
 
-/** Require a password or the existing mail owner's complete readiness check. Preparing never
- * persists/sends until deliver() is called; deliberately discard it here to avoid a second mail
- * availability policy that drifts from sign-in. O(1), bounded sender/status/origin reads.
- */
-async function requireAlternativeSignIn({ deps, member }: { deps: MemberOidcRouteDeps; member: MemberRecord }, _options = {}): Promise<void> {
-  const password = await deps.members.memberRepo.findPasswordHash({ workspaceId: deps.members.workspaceId, memberId: member.id });
-  // The password owner refuses pending members even when an operator provisioned a hash.
-  if (password && member.status === "active") return;
-  if (!member.emailVerifiedAt) throw new MemberLoginError({ code: "LOGIN_BLOCKED" });
-  try {
-    await prepareMemberChallenge({ deps: deps.links, input: { workspaceId: deps.members.workspaceId, email: member.email }, purpose: "signin" });
-  } catch { throw new MemberLoginError({ code: "LOGIN_BLOCKED" }); }
-}
-
-/** Unlink and revoke/reissue under the same locks and kernel as S2 link/Trash. Re-read session
- * after acquiring locks so concurrent unlink/disable cannot leave a replacement session usable.
- * @complexity O(s) revoked sessions; constant indexed identity/member reads, one transaction.
- */
 export async function unlinkMemberIdentity({ request, deps }: { request: UnlinkRequest; deps: MemberOidcRouteDeps }, _options = {}) {
-  const current = await currentOidcMember({ req: { headers: { cookie: request.cookieHeader } }, deps: deps.members });
-  if (!current) throw new MemberLoginError({ code: "LOGIN_INVALID" });
-  const providerId = memberOidcProviderId({ req: { params: { providerId: request.providerId as string } } });
-  return deps.links.transaction(async () => {
-    await deps.links.lockKey(`members:external-identities:${deps.members.workspaceId}`);
-    await deps.links.lockKey(`trash:member:${deps.members.workspaceId}:${current.member.id}`);
-    return unlinkLocked({ request, deps, providerId });
+  return jiniUnlinkMemberIdentity({ get workspaceId() { return deps.members.workspaceId; }, get providerId() { return request.providerId; },
+    readCurrent: () => currentOidcMember({ req: { headers: { cookie: request.cookieHeader } }, deps: deps.members }),
+    readProviderId: ({ providerId }) => memberOidcProviderId({ req: { params: { providerId: providerId as string } } }),
+    get links() { return deps.links; },
+    readPasswordHash: input => deps.members.memberRepo.findPasswordHash(input),
+    revokeSessions: input => deps.members.memberSessionRepo.revokeAllForMember(input),
+    saveMember: member => deps.members.memberRepo.save(member),
+    nowIso: () => nowIso({ clock: deps.members.clock }), userAgent: request.userAgent, ip: request.ip,
   });
-}
-
-/** Locked lifecycle step; a marker prevents anonymous auto-link even for an outstanding redirect.
- * @complexity O(s) sessions, one identity lookup/update and one member save.
- */
-async function unlinkLocked({ request, deps, providerId }: { request: UnlinkRequest; deps: MemberOidcRouteDeps; providerId: string }, _options = {}) {
-  const current = await currentOidcMember({ req: { headers: { cookie: request.cookieHeader } }, deps: deps.members });
-  if (!current) throw new MemberLoginError({ code: "LOGIN_INVALID" });
-  const now = nowIso({ clock: deps.members.clock });
-  const age = Date.parse(now) - Date.parse(current.session.createdAt);
-  if (!(age >= 0 && age <= 900000)) throw new MemberLoginError({ code: "LOGIN_BLOCKED" });
-  const input = { workspaceId: deps.members.workspaceId, memberId: current.member.id, providerId };
-  const identity = await deps.links.identities.findByMemberAndProvider(input);
-  if (!identity || identity.unlinkedAt) throw new MemberLoginError({ code: "LOGIN_INVALID" });
-  await requireAlternativeSignIn({ deps, member: current.member });
-  await deps.links.identities.unlink({ ...input, unlinkedAt: now });
-  await deps.members.memberSessionRepo.revokeAllForMember({ workspaceId: input.workspaceId, memberId: input.memberId, revokedAt: now });
-  const member = { ...current.member, credentialsRevokedAt: now, updatedAt: now, version: current.member.version + 1 };
-  await deps.members.memberRepo.save(member);
-  return issueMemberSession({ deps: deps.links, member, nowIso: now }, { userAgent: request.userAgent, ip: request.ip });
 }
 
 /** The app view the unlink spec is mounted on: the no-store/no-referrer headers, then `checkMemberPost`

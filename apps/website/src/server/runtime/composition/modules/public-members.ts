@@ -27,7 +27,8 @@ import { mountPublicRawRoute } from "#src/server/inbound/admin-http/admin-raw-ro
 import { memberAuthRefusal } from "@jini-ai/user-management/members/public-member-auth-response";
 import { toPublicMemberResponse } from "@jini-ai/user-management/members/public-member-response";
 import { checkMemberPost, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
-import { clearedMemberSessionCookie, MEMBER_AUTH_FAILURE, MEMBER_SESSION_COOKIE, memberSessionCookie } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
+import { clearedMemberSessionCookie, MEMBER_AUTH_FAILURE, memberSessionCookie } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
+import { MEMBER_SESSION_COOKIE } from "#src/server/inbound/public-http/http/members";
 import { memberOidcRefusal, uniqueMemberCookie, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import { MEMBER_SIGN_IN_FAILURE, memberSignInRefusal, reportMemberDeliveryFailure } from "#src/server/inbound/public-http/routes/members/sign-in";

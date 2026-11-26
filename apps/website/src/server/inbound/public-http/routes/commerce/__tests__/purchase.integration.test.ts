@@ -89,7 +89,9 @@ test("anonymous, operator, duplicate-cookie, disabled, revoked and expired sessi
   }
   await f.memberRepo.save({ ...f.member, status: "disabled", version: 2 });
   assert.equal((await f.request(orders, { priceId: "p" })).status, 401);
-  await f.memberRepo.save({ ...f.member, version: 3 });
+  await f.memberRepo.save({ ...f.member, credentialsRevokedAt: "2026-11-05T18:00:01.000Z", version: 3 });
+  assert.equal((await f.request(orders, { priceId: "p" })).status, 401);
+  await f.memberRepo.save({ ...f.member, version: 4 });
   await f.memberSessionRepo.save({ ...f.session, revokedAt: now });
   assert.equal((await f.request(orders, { priceId: "p" })).status, 401);
   await f.memberSessionRepo.save({ ...f.session, expiresAt: now });
@@ -211,4 +213,22 @@ test("POST pay returns only buyer fields and the continuation and intent outcome
     payment: { status: "pending", amount: { minorUnits: 2400, currency: "JPY" }, captured: { minorUnits: 0, currency: "JPY" }, refunded: { minorUnits: 0, currency: "JPY" }, next: { kind: "redirect", url: "https://checkout.example.test/session" } },
     intent: { ok: true },
   });
+});
+
+
+test('invalid input precedes buyer admission, foreign origin precedes activation, and only a write allocates one snapshot', async t => {
+  const f = await fixture(t);
+  let snapshots = 0, activations = 0;
+  const commerce = f.deps.commerce!;
+  commerce.forRequest = () => { snapshots++; return commerce; };
+  commerce.activate = async () => { activations++; return { active: true, ready: true, reason: null }; };
+  const buyers = t.mock.method(f.memberSessionRepo, 'findByTokenHash');
+  assert.equal((await f.request(orders, { priceId: '' })).status, 400);
+  assert.equal(buyers.mock.callCount(), 0); assert.equal(snapshots, 0);
+  assert.equal((await f.request(orders, { priceId: 'p' }, undefined, 'https://foreign.test')).status, 403);
+  assert.equal(activations, 0); assert.equal(snapshots, 1);
+  assert.equal((await f.request(orders, { priceId: 'p' })).status, 201);
+  assert.equal(snapshots, 2); assert.equal(activations, 1);
+  for (const page of ['return', 'cancel']) assert.equal((await f.request(`/commerce/${page}?orderId=order-one`)).status, 200);
+  assert.equal(snapshots, 2); assert.equal(activations, 1);
 });

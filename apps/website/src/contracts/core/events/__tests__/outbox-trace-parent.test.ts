@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { admitTraceparent } from "@jini-ai/infra/events/outbox-trace-parent";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
-import { OUTBOX_TRACEPARENT_METADATA_KEY as KEY, admitTraceparent, captureOutboxTraceParent, readOutboxTraceParent, withoutOutboxTraceParent } from "../outbox-trace-parent.js";
+import { OUTBOX_TRACEPARENT_METADATA_KEY as KEY, captureOutboxTraceParent, readOutboxTraceParent, withoutOutboxTraceParent } from "../outbox-trace-parent.js";
 
 /**
  * @file The host-owned outbox trace parent: only a valid W3C version-00 parent is ever persisted,

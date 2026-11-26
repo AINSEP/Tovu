@@ -4,7 +4,7 @@
 import { relative } from "node:path";
 import { ToolInputError, requireInputRecord, requireString, type ToolExecutionContext } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { findMediaByIdOrSlug } from "../media/index.js";
 import { readStoredBytes } from "@jini-ai/cms/media/site/original-bytes";
 import { FS_FILES_READ_PERMISSION } from "@jini-ai/cms/fs-files/agent-tools";
@@ -50,7 +50,7 @@ export async function readLocalFile({ rootPath, relativePath, maxBytes }: { root
  * @complexity O(bytes), capped before reads. @example await readAssetSource({ deps, ctx, input, maxBytes: 1000000 }); */
 export async function readAssetSource({ deps, ctx, input, maxBytes }: { deps: AssetToolDeps; ctx: ToolExecutionContext; input: unknown; maxBytes: number }, _options = {}) {
   const source = requireInputRecord({ input });
-  refuseUnexpectedKeys(source, ["root", "path", "themeId"]);
+  refuseUnexpectedKeys({ input: source, allowed: ["root", "path", "themeId"] });
   const path = requireString({ input: source, key: "path" });
   if (source.root !== "media") return { path, bytes: await readLocalFile({ ...await resolveAssetSource({ deps, ctx, source }), maxBytes }) };
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "media.read" }, { entityType: "media" });

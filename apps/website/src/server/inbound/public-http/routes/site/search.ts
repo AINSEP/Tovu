@@ -8,7 +8,7 @@ import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/
 import { mountPublicJsonRoute } from "../../../admin-http/admin-json-route-ports.js";
 import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
-import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "#src/server/inbound/public-http/http/members";
 
 /**
  * @file `GET /api/search` (lot S4): the host binding of Jini's `siteSearchRoute` (see its file doc for

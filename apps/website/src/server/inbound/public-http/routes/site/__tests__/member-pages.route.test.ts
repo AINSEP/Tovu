@@ -9,7 +9,7 @@ import test from "node:test";
 
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
-import { MEMBER_SESSION_COOKIE } from "../../members/complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "#src/server/inbound/public-http/http/members";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createSeoPostPort } from "#src/features/seo/index";
@@ -93,6 +93,7 @@ for (const theme of [starter, marketing]) {
         headers: route === "/account" ? { cookie: memberCookie } : {}, redirect: "manual",
       });
       assert.equal(res.status, 200, route);
+      if (route === "/account") assert.equal(res.headers.get("cache-control"), "private, no-store");
       const html = await res.text();
       assert.ok(html.includes(entry.body), `${route}: the page body reaches the theme's content slot`);
       assert.equal(html.match(/<script data-tovu-member-auth>/g)?.length, 1, `${route}: the member script is injected once`);
@@ -216,14 +217,16 @@ test("GET /signin with no themes installed answers like any other page", async (
 function captureHandler(deps: Partial<RouteDeps>) {
   let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
   registerMemberPageRoutes({ get: ((_paths: string[], fn: typeof handler) => { handler = fn; }) as never }, deps as RouteDeps);
-  const sent: { status?: number; body?: string; ended?: boolean } = {};
+  const sent: { status?: number; body?: string; ended?: boolean; cacheControl?: string; location?: string } = {};
   const res = {
+    set(name: string, value: string) { if (name === "Cache-Control") sent.cacheControl = value; return res; },
+    redirect(status: number, location: string) { sent.status = status; sent.location = location; return res; },
     status(code: number) { sent.status = code; return res; },
     type() { return res; },
     send(body: string) { sent.body = body; return res; },
     end() { sent.ended = true; return res; },
   };
-  return { run: (reqPath: string) => handler!({ path: reqPath }, res), sent };
+  return { run: (reqPath: string, cookie?: string) => handler!({ path: reqPath, headers: { cookie } }, res), sent };
 }
 
 test("registerMemberPageRoutes: an unknown path 404s and a render failure answers 500 instead of hanging", async (t) => {
@@ -256,4 +259,14 @@ test('static pages with consent off load theme and plugin declarations without t
     assert.match(html, /data-jini-declared-script src="\/plugin-menu\.js"/, route);
     assert.doesNotMatch(html, /data-jini-consent-loader|id="jini-consent"|\/_consent\//, route);
   }
+});
+
+
+test('account is private before the session lookup can deny it', async () => {
+  const deps = authenticatedDeps();
+  const current = captureHandler({ ...deps, memberSessionRepo: { ...deps.memberSessionRepo,
+    findByTokenHash: async () => { assert.equal(current.sent.cacheControl, 'private, no-store'); return null; },
+  } as RouteDeps['memberSessionRepo'] });
+  await current.run('/account', memberCookie);
+  assert.deepEqual(current.sent, { cacheControl: 'private, no-store', status: 303, location: '/signin#redirect=%2Faccount' });
 });

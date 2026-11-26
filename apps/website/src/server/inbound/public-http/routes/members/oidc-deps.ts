@@ -10,7 +10,7 @@ import { resolveMemberSession } from "@jini-ai/user-management/members/access-re
 import { type MemberSessionRecord, type MemberRecord } from "@jini-ai/user-management/members/types";
 import { checkMemberWorkspace, type MemberPublicRouteDeps } from "./deps.js";
 import { observeMemberSignInFailure } from "./analytics.js";
-import { MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "#src/server/inbound/public-http/http/members";
 
 export interface MemberOidcRouteDeps {
   members: MemberPublicRouteDeps;

@@ -6,7 +6,8 @@
  */
 import type { AgentPluginUninstallHost, AgentPluginUninstallToolDeps } from "@jini-ai/agent-plugins/site/uninstall-tool";
 import { PLUGINS_UNINSTALL_TOOL_ID } from "@jini-ai/plugins/runtime/uninstall-confirmation-ui";
-import { approvalToolHandler, notConfirmedResult } from "../../../contracts/core/human-confirm.js";
+import { approvalToolHandler } from "../../../contracts/core/human-confirm.js";
+import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { PLUGIN_HOST_COPY } from "../../../features/plugin-runtime/plugin-host-copy.js";
 import { previewAgentPluginUninstall, uninstallAgentPlugin } from "../../../features/agent-plugins/lifecycle.js";
 import { describeAgentPluginUninstallApproval } from "../../../features/agent-plugins/uninstall-confirmation-ui.js";

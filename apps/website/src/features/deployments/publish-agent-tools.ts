@@ -8,7 +8,8 @@ import { applyPluginCredentialCard } from "../../contracts/core/plugin-credentia
 import { findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/deployments';
 import { inspectStaticPublish } from './static-publish/inspection.js';
-import { approvalToolHandler, toolApprovalConfirmation } from '../../contracts/core/human-confirm.js';
+import { approvalToolHandler } from '../../contracts/core/human-confirm.js';
+import { toolApprovalConfirmation } from "@jini-ai/ui/mcp-ui/surfaces";
 import { domainPublishTool } from './static-publish/domain-publish-tool.js';
 import { checkToolPublishConsent } from './static-publish/publish-consent.js';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';

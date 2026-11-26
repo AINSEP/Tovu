@@ -587,3 +587,23 @@ test("golden: every pinned hash matches the committed table", () => {
   const drifted = Object.keys(GOLDEN).filter((key) => printed[key] !== GOLDEN[key]);
   assert.deepEqual(drifted, [], `render output drifted for: ${drifted.join(", ")}`);
 });
+
+
+test('managed documents transform the body before collecting assets and static home bypasses that shell', async () => {
+  const order: string[] = [];
+  const managed = await renderSite({ theme: null, route: 'home', siteTitle: 'Ordered', posts: [],
+    transformBody: async ({ html }) => { order.push('transform'); return html + '<p>transformed body</p>'; },
+    renderAssets: async () => { order.push('assets'); return { head: '<meta name="ordered" content="yes">', body: '' }; },
+  });
+  assert.deepEqual(order, ['transform', 'assets']);
+  assert.match(managed, /transformed body/);
+  const theme = loadTheme({ themeDir: path.join(ROOT, 'content', 'themes', 'static', 'tovu-theme'), id: 'tovu-theme', source: 'built-in' });
+  order.length = 0;
+  const html = await renderSite({ theme, route: 'home', siteTitle: 'Shell title must not appear', posts: [],
+    transformBody: async () => { throw new Error('static document reached managed shell'); },
+    renderAssets: async ({ static: complete }) => { assert.equal(complete, true); order.push('static assets'); return { head: '<meta name="static-ordered" content="yes">', body: '' }; },
+  });
+  assert.deepEqual(order, ['static assets']);
+  assert.match(html, /static-ordered/);
+  assert.doesNotMatch(html, /Shell title must not appear/);
+});

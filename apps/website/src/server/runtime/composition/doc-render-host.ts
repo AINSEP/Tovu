@@ -3,7 +3,7 @@ import { renderImageTag, renderVideoTag } from "@jini-ai/cms/widgets/media-tags"
 import { resolveEmbedHtmlAttributes, formatHtmlAttributes, omitKey } from "@jini-ai/cms/widgets/media-attributes";
 import { isPlausibleMediaRefId, plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
-import { safeImageSrc, extractYoutubeVideoId } from "#src/platform/html/safe-url";
+import { safeImageSrc, extractYoutubeVideoId } from "@jini-ai/cms/html/site/safe-url";
 
 /** The class names the Tovu public stylesheet targets — Jini's doc renderer emits exactly what it is
  *  handed here, so the rendered HTML stays what it was before the renderer moved. */
@@ -20,6 +20,6 @@ export const TOVU_DOC_RENDER_CLASSES: DocRenderClasses = {
 export const TOVU_DOC_NODE_HOST: DocNodeHost = {
   media: { renderImageTag, renderVideoTag, mediaPublicPath, mediaUrlKey, isPlausibleMediaRefId, plausibleMediaRefId },
   attributes: { resolveEmbedHtmlAttributes, formatHtmlAttributes, omitKey },
-  safeUrl: { safeImageSrc, extractYoutubeVideoId },
+  safeUrl: { safeImageSrc: ({ value }) => safeImageSrc({ value, isPrivatePath: path => /\/workspaces\/[^/]+\/media\/[^/]+\/original\b/i.test(path) }), extractYoutubeVideoId },
   classes: TOVU_DOC_RENDER_CLASSES,
 };

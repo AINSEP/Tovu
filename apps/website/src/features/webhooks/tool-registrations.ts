@@ -21,7 +21,8 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
+import { notConfirmedResult } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/webhooks";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 

@@ -2,7 +2,8 @@ import { toolMetadata } from "@jini-ai/core/tool-metadata/image-transform";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
-import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { FS_FILES_READ_PERMISSION } from "@jini-ai/cms/fs-files/agent-tools";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FsWriteInputError } from "@jini-ai/cms/fs-files/write-files";
@@ -61,7 +62,7 @@ const view = (rendered: readonly RenderedImage[]) => rendered.map(({ path, forma
  * @throws Input, permission, decode and writer refusals. @complexity O(outputs × pixels), bounded. */
 async function prepare({ routeDeps, ctx }: { routeDeps: ImageTransformToolDeps; ctx: Parameters<import("@jini-ai/core").ToolHandler>[0] }): Promise<Prepared> {
   const input = requireInputRecord({ input: ctx.input });
-  refuseUnexpectedKeys(input, ["source", "outputs", "destination"]);
+  refuseUnexpectedKeys({ input: input, allowed: ["source", "outputs", "destination"] });
   const outputs = input.outputs === undefined ? undefined : normalizeOutputs({ outputs: input.outputs });
   // An inspect needs no destination; it cannot reach a writer.
   const destination = outputs ? await requireAssetDestination({ deps: routeDeps, ctx, input: input.destination }) : undefined;

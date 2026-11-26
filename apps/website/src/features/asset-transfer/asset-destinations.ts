@@ -6,7 +6,7 @@ import { basename } from "node:path";
 import { ToolInputError, requireInputRecord, requireString, type ToolExecutionContext } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { DocumentArchiveReaderPort } from "@jini-ai/cms/media";
-import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { refuseUnexpectedKeys } from "@jini-ai/core";
 import { persistImportedMedia, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
 import { validateImageBytes, type fetchImage } from "../media-import/fetch-image.js";
 import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
@@ -45,7 +45,7 @@ const PERMISSION = { site: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION, picked: FS_FI
 export async function requireAssetDestination({ deps, ctx, input }: { deps: AssetToolDeps; ctx: ToolExecutionContext; input: unknown }, _options = {}): Promise<AssetDestination> {
   if (input === undefined) throw new ToolInputError({ message: "A write needs destination.kind: site, theme, media, library or picked" });
   const value = requireInputRecord({ input });
-  refuseUnexpectedKeys(value, ["kind", "themeId", "path"]);
+  refuseUnexpectedKeys({ input: value, allowed: ["kind", "themeId", "path"] });
   const kind = requireString({ input: value, key: "kind" }) as AssetDestination["kind"];
   if (!Object.hasOwn(PERMISSION, kind)) throw new ToolInputError({ message: "destination.kind must be site, theme, media, library or picked" });
   const themeId = kind === "theme" ? requireString({ input: value, key: "themeId" }) : undefined;

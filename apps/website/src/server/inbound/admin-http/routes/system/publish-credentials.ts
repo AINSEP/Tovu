@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { ToolInputError } from "@jini-ai/core";
+import { knownPublishCredentialListRefusal, listPublishCredentialsReply } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/list";
 import type { Express } from "express";
 import {
   listPublishCredentials,
@@ -50,15 +50,11 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credenti
  * real response for an error this function does not recognize, instead of a hung request.
  */
 function sendStoreError({ res, err }: { res: import("express").Response; err: unknown }, _options = {}): void {
-  if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
-  const rows: [new (...args: never[]) => Error, number, string][] = [
-    [PublishCredentialValidationError, 400, "VALIDATION"],
-    [PublishCredentialDuplicateLabelError, 409, "DUPLICATE_LABEL"],
-    [PublishCredentialNotFoundError, 404, "NOT_FOUND"],
-    [PublishCredentialSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
-  ];
-  const row = rows.find(([type]) => err instanceof type);
-  if (row) { res.status(row[1]).json({ error: row[2], detail: (err as Error).message }); return; }
+  const refusal = knownPublishCredentialListRefusal({ err, storeErrors: {
+    validation: PublishCredentialValidationError, duplicateLabel: PublishCredentialDuplicateLabelError,
+    notFound: PublishCredentialNotFoundError, secretStoreUnconfigured: PublishCredentialSecretStoreUnconfiguredError,
+  } });
+  if (refusal) { res.status(refusal.status).json(refusal.body); return; }
   sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-credentials", code: "INTERNAL_ERROR" });
 }
 
@@ -76,15 +72,12 @@ export function registerAdminPublishCredentialsListRoute(
     const params = { principalId: principal.id, permission: "system.publish", workspaceId: deps.workspaceId, entityType: "site-publish" };
     if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
     try {
-      const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
-      res.status(200).json({ credentials, executionMode: deps.publishExecutionMode });
-      // Fires AFTER the response is already sent, and only for rows THIS call itself found still
-      // `null` — never awaited, never able to change or delay what the caller above just received.
-      // `accountLabelHealScheduler.triggerFor` is documented to never throw or reject, even if `heal`
-      // misbehaves (`account-label-heal-scheduler.ts`'s own tests cover that directly) — see this
-      // file's header for why this is the one new trigger point and why it must stay exactly this
-      // narrow.
-      void triggerAccountLabelHeal(credentials);
+      await listPublishCredentialsReply({ deps: {
+        list: () => listPublishCredentials(readDeps, { workspaceId: deps.workspaceId }),
+        executionMode: () => deps.publishExecutionMode,
+        json: body => { res.status(200).json(body); },
+        triggerAccountLabelHeal,
+      } });
     } catch (err) {
       sendStoreError({ res, err });
     }

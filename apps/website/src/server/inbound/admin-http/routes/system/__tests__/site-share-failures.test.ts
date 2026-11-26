@@ -8,7 +8,7 @@ import type { Socket } from "node:net";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { sendSiteShareFailure } from "../site-share-password.js";
+import { sendSiteShareFailure, requireSavedKeysOwnerSession } from "../site-share-password.js";
 import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 import { recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
@@ -161,5 +161,29 @@ test("a foreign-origin owner session gets a no-store refusal before the reveal b
   assert.equal(revealed, 0, "the reveal backend is never reached");
   const missing = await request(app, "POST", "/share/password", { origin: "" });
   assert.equal(missing.status, 403);
+  assert.equal(revealed, 0);
+});
+
+
+test("publish trust refuses saved-key access before reading owner identity or origin", async () => {
+  const app = express();
+  let ownerReads = 0, originReads = 0, revealed = 0;
+  app.post("/api/admin/v1/workspaces/:workspaceId/site-shares/share/password", async (req, res) => {
+    res.locals.authCredentialKind = "session";
+    res.locals.publishTrust = { sourceInstallationId: "peer" };
+    Object.defineProperty(res.locals, "principal", { get: () => { ownerReads++; return { id: "owner" }; } });
+    const get = req.get.bind(req);
+    req.get = ((name: string) => { if (name === "origin") originReads++; return get(name); }) as typeof req.get;
+    if (await requireSavedKeysOwnerSession({ req, res, deps: { workspaceId: "ws", ownerPrincipalId: "owner" } })) {
+      revealed++;
+      res.json({ password: "never" });
+    }
+  });
+  const response = await request(app, "POST", "/share/password");
+  assert.equal(response.status, 403);
+  assert.equal(response.body.code, "FORBIDDEN");
+  assert.match(String(response.cacheControl), /no-store/);
+  assert.equal(ownerReads, 0);
+  assert.equal(originReads, 0);
   assert.equal(revealed, 0);
 });
