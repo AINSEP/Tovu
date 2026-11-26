@@ -53,7 +53,7 @@ function server(responses: Array<() => Response>) {
 function durablePorts() {
   const cancels: string[] = [];
   // The checkpoint follower of a parked run: it stays open (the run is not over), so it never settles here.
-  const ports: AdminAgUiDurablePorts = { followRun: () => undefined, cancelRun: async ({ runId }) => { cancels.push(runId); } };
+  const ports: AdminAgUiDurablePorts = { followRun: () => undefined, cancelRun: async ({ runId }) => { cancels.push(runId); }, cancelPendingRun: async () => {} };
   return { ports, cancels };
 }
 
@@ -166,14 +166,42 @@ describe("admin AG-UI approvals (P6-T2.T step 4, P6-T4.T Approvals gate)", () =>
 
   test("an expired resume shows the plain refusal once", async () => {
     const refusal = () => new Response(JSON.stringify({ error: EXPIRED_APPROVAL_MESSAGE, detail: "RAW-DAEMON-CANARY parked call gone" }), { status: 400, headers: { "Content-Type": "application/json" } });
-    const { client, rec } = await parkedDurableTurn([refusal, refusal]);
-    const card = routeApprovalToolCall({ approvals: client.approvals, fallback: vi.fn(), copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {});
+    const { client, rec, posts } = await parkedDurableTurn([refusal]);
+    const fallback = vi.fn();
+    const card = routeApprovalToolCall({ approvals: client.approvals, fallback, copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {});
     const result = await card({ name: "posts.delete", arguments: { __exchangeId: "ex-1", decision: "cancel" } });
-    await card({ name: "posts.delete", arguments: { __exchangeId: "ex-1", decision: "cancel" } });
+    const repeated = await card({ name: "posts.delete", arguments: { __exchangeId: "ex-1", decision: "cancel" } });
     await flush();
-    expect(result).toMatchObject({ isError: true });
+    expect([result, repeated]).toEqual([
+      { isError: true, content: [{ type: "text", text: "Answer not sent." }] },
+      { isError: true, content: [{ type: "text", text: "Answer not sent." }] },
+    ]);
+    expect(posts.map((post) => post.url)).toEqual([AG_UI_RUN_PATH, AG_UI_RUN_PATH]);
+    expect(fallback).not.toHaveBeenCalled();
     expect(rec.errors.map((error) => error.message)).toEqual([EXPIRED_APPROVAL_MESSAGE]);
     expect(rec.dones).toEqual([]);
+  });
+
+  test("two concurrent answers share one resume POST and both receive success", async () => {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const response = new Response(new ReadableStream<Uint8Array>({ start(stream) { controller = stream; } }), { status: 200 });
+    const { client, posts, rec } = await parkedDurableTurn([() => response]);
+    const fallback = vi.fn();
+    const card = routeApprovalToolCall({ approvals: client.approvals, fallback, copy: { sent: "Answer sent.", notSent: "Answer not sent." } }, {});
+    const first = card(APPROVE_CALL);
+    const second = card(APPROVE_CALL);
+    await flush();
+    expect(posts.map((post) => post.url)).toEqual([AG_UI_RUN_PATH, AG_UI_RUN_PATH]);
+    controller.enqueue(new TextEncoder().encode(frame({ type: EventType.RUN_STARTED, threadId: "conv-1", runId: "run-resume-2", parentRunId: "run-durable-1" }) +
+      frame({ type: EventType.RUN_FINISHED, threadId: "conv-1", runId: "run-resume-2" })));
+    controller.close();
+    expect(await Promise.all([first, second])).toEqual([
+      { isError: false, content: [{ type: "text", text: "Answer sent." }] },
+      { isError: false, content: [{ type: "text", text: "Answer sent." }] },
+    ]);
+    expect(posts).toHaveLength(2);
+    expect(fallback).not.toHaveBeenCalled();
+    expect(rec.errors).toEqual([]);
   });
 
   test("an expired resume of a delivery-only turn shows the plain refusal once and ends the turn once", async () => {

@@ -1,6 +1,7 @@
 import { EventType } from "@ag-ui/core";
 import { MCP_UI_ACTION_PLAN_META_KEY, MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import type { AgUiEvent } from "@jini-ai/chat/core/ag-ui";
+import { SURFACE_EXCHANGE_META } from "@jini-ai/chat/core";
 
 import type { AdminApprovalCard } from "#src/assistant/admin-ag-ui-approvals";
 
@@ -9,11 +10,6 @@ import type { AdminApprovalCard } from "#src/assistant/admin-ag-ui-approvals";
  * an approval card among the translated daemon events, and remembering the daemon stream's SSE
  * cursor so a resumed segment continues after the card instead of replaying the run from event 0.
  */
-
-/** Where `@jini-ai/chat`'s run-frame translation records the daemon exchange identity on a
- *  surface's `_meta` (`surface-recovery.ts`'s `SURFACE_EXCHANGE_META`). Read by value because that
- *  constant is not on a public subpath yet. NEEDS-JINI: export it next to `MCP_UI_ACTION_PLAN_META_KEY`. */
-const SURFACE_EXCHANGE_META = "jini/surface-exchange";
 
 const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 512;
