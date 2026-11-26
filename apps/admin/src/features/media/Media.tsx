@@ -9,7 +9,7 @@ import { useId, type ReactNode } from "react";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { Icon } from "@jini-ai/ui";
+import { Icon, I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
@@ -1493,7 +1493,7 @@ export function Media(props: MediaProps) {
   if (activeTab === "external-providers") {
     return (
       <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab} tabCounts={tabCounts}>
-        <ExternalProvidersPanel mediaProvidersPort={mediaProvidersPort} mediaProviderCatalogPolicy={mediaProviderCatalogPolicy} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} locale={controller.locale} catalog={providerCatalog} useAdminThemeBoundaryHook={props.useAdminThemeBoundaryHook} />
+        <ExternalProvidersPanel kit={{ I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES }} mediaProvidersPort={mediaProvidersPort} mediaProviderCatalogPolicy={mediaProviderCatalogPolicy} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} locale={controller.locale} catalog={providerCatalog} useAdminThemeBoundaryHook={props.useAdminThemeBoundaryHook} />
       </MediaPageShell>
     );
   }

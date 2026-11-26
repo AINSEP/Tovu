@@ -60,11 +60,12 @@ describe("Email tab components", () => {
     expect(screen.getByRole("button", { name: "Use this provider" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Show Access key" }));
     expect(key).toHaveAttribute("type", "text");
-    await userEvent.type(key, "secret");
+    await userEvent.type(key, "sk-SENTINEL-email-provider");
     await userEvent.click(screen.getByRole("button", { name: "Save key" }));
     expect(await screen.findByText("Key saved.")).toBeInTheDocument();
     expect(key).toHaveValue("");
-    expect(api.saveProviderKey).toHaveBeenCalledExactlyOnceWith({ providerId: PROVIDER.id, input: { token: "secret" } });
+    expect(document.body.textContent).not.toContain("sk-SENTINEL-email-provider");
+    expect(api.saveProviderKey).toHaveBeenCalledExactlyOnceWith({ providerId: PROVIDER.id, input: { token: "sk-SENTINEL-email-provider" } });
     expect(api.activateProvider).not.toHaveBeenCalled();
   });
 

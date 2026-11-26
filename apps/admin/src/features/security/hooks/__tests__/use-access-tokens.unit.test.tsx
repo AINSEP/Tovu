@@ -1294,6 +1294,7 @@ describe("useAccessTokens: makeDefault — already-default no-op, and a successf
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findRow(result.current.groups, "cred-1")!.row;
 
+    act(() => result.current.setExistingField({ rowId: "cred-1", patch: { token: "must-not-send-on-default" } }));
     await act(() => result.current.makeDefault(target));
 
     expect(update).toHaveBeenCalledExactlyOnceWith({ id: "cred-1", input: { isDefault: true, connection: undefined } });

@@ -1,3 +1,6 @@
+import { customCredentialReplaceReadyToSave, accessTokenWorksForChanged } from "@jini-ai/admin/security/custom-credential-forms";
+import { buildCredentialConnectionInput, requiredFieldsFilled } from "@jini-ai/devops/deploy/react/rules";
+import { buildSourceControlConnectionInput } from "@jini-ai/devops/source-control/react/rules";
 import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
 import { credentialDraftError } from "@/lib/credential-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -194,7 +197,7 @@ function existingRowState(
 ): AccessTokenExistingRowState {
   const d = existingTokenDraft({ row, draft });
   const b = busy ?? IDLE;
-  const readyToSave = accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: { ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info });
+  const readyToSave = accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields: { ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info });
   return { row, name: d.name, token: d.token, values: d.values, username: d.username, worksFor: d.worksFor, readyToSave, saving: b.saving, error: b.error };
 }
 
@@ -204,7 +207,7 @@ export interface AccessTokenAddFormState extends AccessTokenFormFields {
 /** @complexity O(1). */
 function addFormState({ entry, info }: { entry: AddFormEntry | undefined; info: AccessTokenProviderInfo }, _optional: Record<string, never> = {}): AccessTokenAddFormState {
   const e = entry ?? blankAddFormEntry();
-  const readyToSave = accessTokenRowReadyToSave({ fields: { ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info });
+  const readyToSave = accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields: { ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info });
   return { visible: e.visible, name: e.draft.name, token: e.draft.token, values: e.draft.values, username: e.draft.username, worksFor: e.draft.worksFor, readyToSave, saving: e.saving, error: e.error };
 }
 
@@ -600,7 +603,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const fields: CredentialAccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields, row, info: accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row }) })) return;
+    if (!accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields, row, info: accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row }) })) return;
     if (customCredentialNameTaken({ rows: (rows ?? []).filter(candidate => candidate.scope === row.scope), name: fields.name }, { excludeId: row.id })) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: t("this workspace") }) } }));
       return;
@@ -643,7 +646,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const info = accessTokenProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, ref });
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields, row, info })) return;
+    if (!accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields, row, info })) return;
     const providerLabel = info.label;
     if (accessTokenNameTaken({ rows: rows ?? [], ref, name: fields.name }, { excludeId: row.id })) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: providerLabel }) } }));
@@ -653,7 +656,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const patch = buildAccessTokenUpdatePatch({ fields, nameChanged, hasToken, info }, { currentWorksFor: row.worksFor });
+      const patch = buildAccessTokenUpdatePatch({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput, accessTokenWorksForChanged }, fields, nameChanged, hasToken, info }, { currentWorksFor: row.worksFor });
       const result = await writeCredential({ port, kind: row.kind, mode: { type: "update", id: row.id }, patch });
       mergeCredential({ kind: row.kind, result, isNew: false });
       // Same symmetry note as this function's draft fallback above: `result` (a publish/source-control
@@ -756,7 +759,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const info = accessTokenProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, ref });
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setAddForms(prev => ({ ...prev, [key]: { ...entry, saving: false, error } })); return; }
-    if (!accessTokenRowReadyToSave({ fields, info })) return;
+    if (!accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields, info })) return;
     const providerLabel = info.label;
     if (accessTokenNameTaken({ rows: rows ?? [], ref, name: fields.name })) {
       setAddForms((prev) => ({ ...prev, [key]: { ...entry, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: providerLabel }) } }));
@@ -764,7 +767,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     }
     setAddForms((prev) => ({ ...prev, [key]: { ...entry, saving: true, error: null } }));
     try {
-      const connection = buildAccessTokenConnectionInput({ fields, info });
+      const connection = buildAccessTokenConnectionInput({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput }, fields, info });
       const result = await writeCredential({ port, kind: ref.kind, mode: { type: "create", label: fields.name.trim() }, patch: { connection, ...(ref.kind === "publish" ? { worksFor: fields.worksFor } : {}) } });
       mergeCredential({ kind: ref.kind, result, isNew: true });
       setAddForms((prev) => ({ ...prev, [key]: blankAddFormEntry() }));

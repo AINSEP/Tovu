@@ -12,7 +12,8 @@ import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { EmailActivityTab } from "@jini-ai/admin/screens/email/EmailActivityTab";
 import { EmailOverviewTab } from "@jini-ai/admin/screens/email/EmailOverviewTab";
 import { Chip, Section, type Tone } from "@jini-ai/admin/screens/email/EmailParts";
-import { Segments } from "./EmailSegments";
+import { Segments } from "@jini-ai/admin/screens/email/EmailSegments";
+import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { EmailProviderTab } from "./EmailProviderTab";
 import { EmailSenderTab, SenderDomain } from "@jini-ai/admin/screens/email/EmailSenderTab";
 import { EmailTemplatesTab } from "@jini-ai/admin/screens/email/EmailTemplatesTab";
@@ -78,7 +79,7 @@ function pickPart<T extends string>({ parts, part }: { parts: readonly T[]; part
 /** A segmented pill over fixed parts, labelled through the dictionary. */
 function PartSegments<T extends string>(props: { name: string; label: string; labels: Record<T, string>; active: T; locale: string; onSelect: (part: string) => void }) {
   const items = (Object.keys(props.labels) as T[]).map((key) => ({ key, label: t({ locale: props.locale, key: props.labels[key] }) }));
-  return <Segments name={props.name} label={props.label} items={items} active={props.active} onSelect={props.onSelect} />;
+  return <Segments kit={{ ChatSettingsSegmented }} name={props.name} label={props.label} items={items} active={props.active} onSelect={props.onSelect} />;
 }
 
 const SUMMARY: Record<EmailSummary, { tone: Tone; chip: string; line: string }> = {

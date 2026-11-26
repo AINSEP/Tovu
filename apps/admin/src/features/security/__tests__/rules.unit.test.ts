@@ -1,3 +1,6 @@
+import { customCredentialReplaceReadyToSave, accessTokenWorksForChanged } from "@jini-ai/admin/security/custom-credential-forms";
+import { buildCredentialConnectionInput, requiredFieldsFilled } from "@jini-ai/devops/deploy/react/rules";
+import { buildSourceControlConnectionInput } from "@jini-ai/devops/source-control/react/rules";
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/admin-http/request";
@@ -20,7 +23,7 @@ function blankFields(overrides: Partial<AccessTokenFormFields> = {}): AccessToke
 }
 
 it("omits blank replacement material from a rename patch", () => {
-  const patch = buildAccessTokenUpdatePatch({ fields: blankFields({ name: "Renamed", token: "" }), nameChanged: true, hasToken: false, info: GITHUB_PAGES_INFO });
+  const patch = buildAccessTokenUpdatePatch({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput, accessTokenWorksForChanged }, fields: blankFields({ name: "Renamed", token: "" }), nameChanged: true, hasToken: false, info: GITHUB_PAGES_INFO });
   expect(patch).toEqual({ label: "Renamed" });
 });
 
@@ -185,45 +188,45 @@ describe("mediaProviderLabel", () => {
 });
 describe("accessTokenRowReadyToSave (Create flow)", () => {
   it("is not ready with a blank name, even with a token typed", () => {
-    expect(accessTokenRowReadyToSave({ fields: blankFields({ token: "tok" }), info: GITHUB_PAGES_INFO })).toBe(false);
+    expect(accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ token: "tok" }), info: GITHUB_PAGES_INFO })).toBe(false);
   });
 
   it("is not ready with a blank token, even with a name typed", () => {
-    expect(accessTokenRowReadyToSave({ fields: blankFields({ name: "Production" }), info: GITHUB_PAGES_INFO })).toBe(false);
+    expect(accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ name: "Production" }), info: GITHUB_PAGES_INFO })).toBe(false);
   });
 
   it("is ready once both are filled, for a provider needing no extra field", () => {
-    expect(accessTokenRowReadyToSave({ fields: blankFields({ name: "Production", token: "tok" }), info: GITHUB_PAGES_INFO })).toBe(true);
+    expect(accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ name: "Production", token: "tok" }), info: GITHUB_PAGES_INFO })).toBe(true);
   });
 
   it("stays not-ready for cloudflare-pages until Account ID is also filled", () => {
     const ref = { kind: "publish" as const, providerId: "cloudflare-pages" };
-    expect(accessTokenRowReadyToSave({ fields: blankFields({ ref, name: "Production", token: "tok" }), info: infoFor(ref) })).toBe(false);
-    expect(accessTokenRowReadyToSave({ fields: blankFields({ ref, name: "Production", token: "tok", values: { accountId: "acct-1" } }), info: infoFor(ref) })).toBe(true);
+    expect(accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ ref, name: "Production", token: "tok" }), info: infoFor(ref) })).toBe(false);
+    expect(accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ ref, name: "Production", token: "tok", values: { accountId: "acct-1" } }), info: infoFor(ref) })).toBe(true);
   });
 });
 
 describe("accessTokenReplaceReadyToSave (Replace flow)", () => {
   it("is not ready with everything blank — nothing to send", () => {
-    expect(accessTokenReplaceReadyToSave({ fields: blankFields({ name: "" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(false);
+    expect(accessTokenReplaceReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ name: "" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(false);
   });
 
   it("is ready for a rename-only save: new name, blank token", () => {
-    expect(accessTokenReplaceReadyToSave({ fields: blankFields({ name: "New Name" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(true);
+    expect(accessTokenReplaceReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ name: "New Name" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(true);
   });
 
   it("is NOT ready when the name is unchanged and the token is blank — no diff to send", () => {
-    expect(accessTokenReplaceReadyToSave({ fields: blankFields({ name: "Production" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(false);
+    expect(accessTokenReplaceReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ name: "Production" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(false);
   });
 
   it("is ready when a new site key is typed, name unchanged, for a provider needing no extra field", () => {
-    expect(accessTokenReplaceReadyToSave({ fields: blankFields({ name: "Production", token: "tok" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(true);
+    expect(accessTokenReplaceReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ name: "Production", token: "tok" }), currentName: "Production", info: GITHUB_PAGES_INFO })).toBe(true);
   });
 
   it("requires cloudflare-pages' accountId whenever a NEW token is typed, even on replace", () => {
     const ref = { kind: "publish" as const, providerId: "cloudflare-pages" };
-    expect(accessTokenReplaceReadyToSave({ fields: blankFields({ ref, name: "Production", token: "tok" }), currentName: "Production", info: infoFor(ref) })).toBe(false);
-    expect(accessTokenReplaceReadyToSave({ fields: blankFields({ ref, name: "Production", token: "tok", values: { accountId: "a" } }), currentName: "Production", info: infoFor(ref) })).toBe(true);
+    expect(accessTokenReplaceReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ ref, name: "Production", token: "tok" }), currentName: "Production", info: infoFor(ref) })).toBe(false);
+    expect(accessTokenReplaceReadyToSave({ deps: { requiredFieldsFilled }, fields: blankFields({ ref, name: "Production", token: "tok", values: { accountId: "a" } }), currentName: "Production", info: infoFor(ref) })).toBe(true);
   });
 });
 
@@ -231,34 +234,34 @@ describe("buildAccessTokenConnectionInput", () => {
   it("uses the default token field for a publish provider with no credential spec", () => {
     const ref = { kind: "publish" as const, providerId: "unlisted-host" };
     const info = accessTokenProviderInfo({ providers: [], copy: ACCESS_TOKEN_PROVIDER_COPY, ref });
-    expect(buildAccessTokenConnectionInput({ fields: blankFields({ ref, name: "Backup", token: "exact-token" }), info })).toEqual({ providerId: "unlisted-host", token: "exact-token" });
+    expect(buildAccessTokenConnectionInput({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput }, fields: blankFields({ ref, name: "Backup", token: "exact-token" }), info })).toEqual({ providerId: "unlisted-host", token: "exact-token" });
   });
 
   it("dispatches to the publish builder for a publish ref", () => {
-    const input = buildAccessTokenConnectionInput({ fields: blankFields({ name: "x", token: " ghp_abc " }), info: GITHUB_PAGES_INFO });
+    const input = buildAccessTokenConnectionInput({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput }, fields: blankFields({ name: "x", token: " ghp_abc " }), info: GITHUB_PAGES_INFO });
     expect(input).toEqual({ providerId: "github-pages", token: " ghp_abc " });
   });
 
   it("dispatches to the source-control builder for a source-control ref", () => {
     const ref = { kind: "source-control" as const, providerId: "bitbucket" };
-    const input = buildAccessTokenConnectionInput({ fields: blankFields({ ref, name: "x", token: "tok", values: { username: " alice " } }), info: infoFor(ref) });
+    const input = buildAccessTokenConnectionInput({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput }, fields: blankFields({ ref, name: "x", token: "tok", values: { username: " alice " } }), info: infoFor(ref) });
     expect(input).toEqual({ providerId: "bitbucket", token: "tok", username: "alice" });
   });
 });
 
 describe("buildAccessTokenUpdatePatch", () => {
   it("sends a label-only patch when only the name changed", () => {
-    const patch = buildAccessTokenUpdatePatch({ fields: blankFields({ name: "New Name" }), nameChanged: true, hasToken: false, info: GITHUB_PAGES_INFO });
+    const patch = buildAccessTokenUpdatePatch({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput, accessTokenWorksForChanged }, fields: blankFields({ name: "New Name" }), nameChanged: true, hasToken: false, info: GITHUB_PAGES_INFO });
     expect(patch).toEqual({ label: "New Name" });
   });
 
   it("sends a connection-only patch when only the token changed", () => {
-    const patch = buildAccessTokenUpdatePatch({ fields: blankFields({ name: "Same", token: "tok" }), nameChanged: false, hasToken: true, info: GITHUB_PAGES_INFO });
+    const patch = buildAccessTokenUpdatePatch({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput, accessTokenWorksForChanged }, fields: blankFields({ name: "Same", token: "tok" }), nameChanged: false, hasToken: true, info: GITHUB_PAGES_INFO });
     expect(patch).toEqual({ connection: { providerId: "github-pages", token: "tok" } });
   });
 
   it("sends both when both changed", () => {
-    const patch = buildAccessTokenUpdatePatch({ fields: blankFields({ name: "New Name", token: "tok" }), nameChanged: true, hasToken: true, info: GITHUB_PAGES_INFO });
+    const patch = buildAccessTokenUpdatePatch({ deps: { buildCredentialConnectionInput, buildSourceControlConnectionInput, accessTokenWorksForChanged }, fields: blankFields({ name: "New Name", token: "tok" }), nameChanged: true, hasToken: true, info: GITHUB_PAGES_INFO });
     expect(patch).toEqual({ label: "New Name", connection: { providerId: "github-pages", token: "tok" } });
   });
 });
@@ -342,14 +345,14 @@ describe("accessTokenExistingRowReadyToSave — the Replace form's gate, picked 
   const CUSTOM_INFO = infoFor({ kind: "custom", providerId: "name.com" });
 
   it("a custom row uses the custom gate: a username-only change is ready", () => {
-    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: blankCustomRowFields({ name: "name.com", username: "new-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(true);
-    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: blankCustomRowFields({ name: "name.com", username: "old-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(false);
+    expect(accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields: blankCustomRowFields({ name: "name.com", username: "new-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(true);
+    expect(accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields: blankCustomRowFields({ name: "name.com", username: "old-user" }), row: { kind: "custom", name: "name.com", username: "old-user" }, info: CUSTOM_INFO })).toBe(false);
   });
 
   it("a catalog row keeps the catalog gate: a username with no token and no rename is NOT ready", () => {
     const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", values: { username: "bb-user" }, username: "" };
     const info = infoFor(fields.ref);
-    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(false);
-    expect(accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: { ...fields, name: "Team 2" }, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(true);
+    expect(accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(false);
+    expect(accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields: { ...fields, name: "Team 2" }, row: { kind: "source-control", name: "Team", username: undefined }, info })).toBe(true);
   });
 });

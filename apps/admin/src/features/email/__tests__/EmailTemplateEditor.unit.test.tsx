@@ -25,7 +25,7 @@ describe("EmailTemplateEditor", () => {
       fireEvent.click(screen.getByRole("tab", { name: "HTML" }));
       const link = screen.getByRole("link", { name: source === "sidebar" ? "Pages sidebar" : "Back: Templates" });
       const target = source === "back icon" ? link.firstElementChild! : link;
-      fireEvent.click(target);
+      expect(fireEvent.click(target)).toBe(false);
       expect(confirm).toHaveBeenCalledExactlyOnceWith("You have unsaved changes. Leave without saving?");
       expect(window.location.pathname).toBe(`/admin/email/templates/${TEMPLATE.id}`);
       expect(screen.getByLabelText("Template HTML")).toHaveValue("<p>Keep my edits</p>");

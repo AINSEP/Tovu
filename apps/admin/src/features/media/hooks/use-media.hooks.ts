@@ -12,7 +12,7 @@ import { t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
 import { useGridPages, type MediaGridPort } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
-import { useMediaWrites } from "./use-media-writes.hooks";
+import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
 
 /**
  * @file Everything the top-level Media grid screen does, so `Media()` in `Media.tsx` is only
@@ -196,7 +196,7 @@ export function useMedia({ port, locale, t, tab, itemId, useGridPages: useGridPa
   }, []);
 
   const { uploadMutation, trashMutation, purgeMutation, restoreMutation, restoreFallback, clearOtherWriteErrors, trash, restore, pendingPurge, setPendingPurge, rowSavingId, purge } =
-    useMediaWritesHook({ port, locale, useFetchMutation });
+    useMediaWritesHook({ port, locale, useFetchMutation, deps: { KEYS, translate } });
 
   async function upload(event?: Pick<React.FormEvent, "preventDefault">) {
     event?.preventDefault();

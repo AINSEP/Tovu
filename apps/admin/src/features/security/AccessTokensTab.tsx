@@ -1,3 +1,5 @@
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
+import { fieldNameHandleSegment } from "@jini-ai/devops/deploy/react/rules";
 import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@jini-ai/admin/shell/components/SecretInput/SecretInput";
 import { forwardRef, useRef } from "react";
@@ -625,7 +627,7 @@ function ExtraFieldInputs({
       {fields.map((field) => (
         <ExtraFieldInput
           key={field.name}
-          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix({ fieldName: field.name })}`}
+          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix({ deps: { asciiSlug, fieldNameHandleSegment }, fieldName: field.name })}`}
           field={field}
           value={values[field.name] ?? ""}
           onChange={(value) => onFieldChange(field.name, value)}

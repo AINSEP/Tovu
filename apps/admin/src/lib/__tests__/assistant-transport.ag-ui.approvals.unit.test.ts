@@ -5,7 +5,7 @@ import type { RunHandlers } from "@jini-ai/chat/core";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 import { AG_UI_RUN_PATH, createAdminAgUiRunClient, type AdminAgUiDurablePorts } from "../assistant-transport-ag-ui";
-import { routeApprovalToolCall } from "@jini-ai/chat/transports/ag-ui/approval-relay";
+import { routeApprovalToolCall } from "@jini-ai/chat/core/assistant-client/ag-ui-approval-relay";
 const EXPIRED_APPROVAL_MESSAGE = "This request expired. Ask again.";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
 import golden from "./fixtures/admin-ag-ui-approval-wire.golden.json";

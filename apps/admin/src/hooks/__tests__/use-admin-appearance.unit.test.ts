@@ -36,6 +36,7 @@ it.each(["light", "dark"] as const)("routes Classic's live %s primary ramp throu
     expect(root.style.getPropertyValue("--jini-theme-dark-primary")).toBe("#a855f7");
     expect(root.style.getPropertyValue("--jini-theme-light-primary-ink")).toBe("#ffffff");
     rerender({ accentColor: "#ffba3e" });
+    expect(root.style.getPropertyValue("--jini-theme-light-primary-ink")).toBe("#111111");
     expect(root.style.getPropertyValue("--jini-theme-dark-primary-ink")).toBe("#111111");
     expect(root.getAttribute("data-admin-accent")).toBe("light");
     rerender({ accentColor: "#a855f7" });
@@ -50,6 +51,7 @@ it.each(["light", "dark"] as const)("routes Classic's live %s primary ramp throu
     expect(primary()).toBe("");
     expect(root.style.getPropertyValue("--jini-theme-dark-primary")).toBe("");
     expect(root.style.getPropertyValue("--jini-theme-light-primary-ink")).toBe("");
+    expect(root.style.getPropertyValue("--jini-theme-dark-primary-ink")).toBe("");
     expect(tokens.map((token) => getComputedStyle(root).getPropertyValue(token))).toEqual(defaults);
   } finally {
     stylesheet.remove();

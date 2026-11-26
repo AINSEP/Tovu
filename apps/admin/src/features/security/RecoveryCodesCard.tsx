@@ -1,4 +1,4 @@
-import { RecoveryCodesCard as JiniRecoveryCodesCard } from '@jini-ai/user-management/react';
+import { RecoveryCodesCard as JiniRecoveryCodesCard } from '@jini-ai/user-management/react/auth/RecoveryCodesCard';
 import { createRecoveryKitDownload, useDesktopOwnerReset, useRecoveryKit } from './RecoveryCodesCard.hooks';
 import { ErrorNotice } from '@jini-ai/ui/panel-kit';
 import type { OwnerRecoveryPort } from '@jini-ai/user-management/react/auth/owner-recovery-api';

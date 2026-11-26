@@ -1,3 +1,4 @@
+import { isTerminalRunStatus } from "@jini-ai/chat/core";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { isAbortError } from '@jini-ai/core/text';
@@ -251,6 +252,8 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
 
 type DockComposer = ReturnType<typeof useDockComposer>;
 
+const MESSAGE_CHANGE_DEPS = { isTerminalRunStatus };
+
 /** Per-run wiring: message persistence, run context, the failure surface, the empty state and the refresh signal. */
 function useDockRun({ props, t, execution, agent, transportState, composer }: { props: DockProps; t: DockTranslate; execution: DockExecution; agent: DockAgent; transportState: DockTransport; composer: DockComposer }, { useMessages = useMessagesChangeHandler, useContext = useRunContext }: { useMessages?: typeof useMessagesChangeHandler; useContext?: typeof useRunContext } = {}) {
   const { agentBridge = null } = props;
@@ -258,7 +261,7 @@ function useDockRun({ props, t, execution, agent, transportState, composer }: { 
   const { runtimeAccess } = agent;
   const { chats, transport } = transportState;
   const { selectedPluginRefIds, selectedSkills } = composer;
-  const handleMessagesChange = useMessages({ publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats });
+  const handleMessagesChange = useMessages({ deps: MESSAGE_CHANGE_DEPS, publishSettingsRefresh, publishContentRefresh, publishMessages: (messages) => { window.__tovuAssistantMessages = messages; }, chats });
   const runContext = useContext({
     agentBridge,
     model: localCliSelection.model,

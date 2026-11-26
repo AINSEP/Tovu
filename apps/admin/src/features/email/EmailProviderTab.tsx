@@ -9,7 +9,8 @@ import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "@jini-ai/admin/screens/email/email-api.types";
 import { Chip, Loaded, Section, when, type Tone } from "@jini-ai/admin/screens/email/EmailParts";
-import { Segments } from "./EmailSegments";
+import { Segments } from "@jini-ai/admin/screens/email/EmailSegments";
+import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { isFullyActive, type EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
 
 /**
@@ -228,7 +229,7 @@ function ProviderCards(props: { providers: readonly MailProviderConfiguration[];
     { key: ADD_PROVIDER_PART, label: t({ locale, key: "+ Add provider" }) }, { key: CAPABILITIES_PART, label: t({ locale, key: "Capabilities" }) }];
   return (
     <>
-      <Segments name="email-provider-pick" label={t({ locale, key: "Provider" })} active={shownId} onSelect={(id) => props.onSelect?.(id)} items={items} />
+      <Segments kit={{ ChatSettingsSegmented }} name="email-provider-pick" label={t({ locale, key: "Provider" })} active={shownId} onSelect={(id) => props.onSelect?.(id)} items={items} />
       {shownId === CAPABILITIES_PART ? <Lanes status={props.status} providers={providers} locale={locale} /> : null}
       {shownId === ADD_PROVIDER_PART ? <AddProvider controller={controller} locale={locale} onSelect={props.onSelect} /> : null}
       <ul className="email-list email-providers">

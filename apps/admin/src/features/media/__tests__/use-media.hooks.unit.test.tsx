@@ -9,7 +9,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/sh
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
 import { useGridPages } from "@jini-ai/cms/react/media/hooks/use-grid-pages.hooks";
-import { useMediaWrites } from "../hooks/use-media-writes.hooks";
+import { useMediaWrites } from "@jini-ai/cms/react/media/hooks/use-media-writes.hooks";
 import { MEDIA_RESOURCE, visibleMediaError as visibleMediaErrorRule } from "@jini-ai/admin/screens/media/rules";
 
 const visibleMediaError = (input: Omit<Parameters<typeof visibleMediaErrorRule>[0], "describeApiError">) => visibleMediaErrorRule({ ...input, describeApiError });

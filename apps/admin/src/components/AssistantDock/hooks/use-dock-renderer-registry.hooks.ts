@@ -15,7 +15,7 @@ import {
 } from "@jini-ai/chat/react";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createA2uiActionPoster } from "../../../lib/shell-collaborators";
-import { routeApprovalToolCall, type AgUiApprovalPoster } from "@jini-ai/chat/transports/ag-ui/approval-relay";
+import { routeApprovalToolCall, type AgUiApprovalPoster } from "@jini-ai/chat/core/assistant-client/ag-ui-approval-relay";
 import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard";
 import { hasAgentFailureNotice, useAgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";

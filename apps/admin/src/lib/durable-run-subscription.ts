@@ -1,22 +1,10 @@
 import { browserDurableSubscriptionPorts as createBrowserPorts, followDurableRun as follow } from "@jini-ai/chat/transports/http";
 import type { DurableRunBinding, DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
-import { subscriptionEnded, type TrackedRunHandlers } from "@jini-ai/admin/shell/lib/stream-activity";
+import { followDurableRun as followWithActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 export const durableRunBindings = new Map<string, DurableRunBinding>();
-/** Jini owns recovery, continuation, polling and terminal disposal. A missing durable row ends
- * this browser subscription without onDone, so release the host's page-stream retain as well.
- */
 export function followDurableRun(required: Omit<Parameters<typeof follow>[0], "notices" | "bindings">, optional = {}): () => void {
-  const endActivity = () => (required.handlers as TrackedRunHandlers)[subscriptionEnded]?.();
-  const stop = follow({ ...required, notices: RUN_NOTICES, bindings: durableRunBindings, ports: {
-    ...required.ports,
-    read: async (input, options) => {
-      const message = await required.ports.read(input, options);
-      if (message === "gone") endActivity();
-      return message;
-    },
-  } }, optional);
-  return () => { stop(); endActivity(); };
+  return followWithActivity({ ...required, deps: { follow: (input, options) => follow({ ...input, notices: RUN_NOTICES, bindings: durableRunBindings }, options) } }, optional);
 }
 
 export function browserDurableSubscriptionPorts(_required = {}, {

@@ -1,3 +1,5 @@
+import { customCredentialReplaceReadyToSave, accessTokenWorksForChanged } from "@jini-ai/admin/security/custom-credential-forms";
+import { requiredFieldsFilled } from "@jini-ai/devops/deploy/react/rules";
 import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isValidElementHandle } from "@jini-ai/core/agent-handles";
@@ -151,8 +153,8 @@ function groupFor(
   const ref = { kind: info.kind, providerId: info.providerId };
   return {
     info,
-    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ SOURCE_CONTROL: "source-control", fields: { ref, ...state }, row: state.row, info }) })),
-    addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ fields: { ref, ...addFormState }, info }) },
+    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ deps: { requiredFieldsFilled, accessTokenWorksForChanged, customCredentialReplaceReadyToSave }, SOURCE_CONTROL: "source-control", fields: { ref, ...state }, row: state.row, info }) })),
+    addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ deps: { requiredFieldsFilled }, fields: { ref, ...addFormState }, info }) },
   };
 }
 

@@ -75,7 +75,7 @@ export interface StorageScreenProps {
 
 /** The Storage screen over injected clients, clock and locale; {@link Storage} binds the live ones. */
 export function StorageScreen({ client, screenshotClient, reportErrors, now, locale, useWiredStorageHook, useScreenshotCleanupHook }: StorageScreenProps, _optional: Record<string, never> = {}) {
-  return <JiniStorageScreen client={client} screenshotClient={screenshotClient} reportErrors={reportErrors} now={now} locale={locale} useWiredStorageHook={useWiredStorageHook} useScreenshotCleanupHook={useScreenshotCleanupHook} Button={KitButton} links={storageLinks({ locale })} copy={storageCopy({ locale })} t={t} categoryLabels={CATEGORY_LABELS} kindLabels={KIND_LABELS} screenshotAgeDays={SCREENSHOT_AGE_DAYS} screenshotsAnchor={SCREENSHOTS_ANCHOR} screenshotHeading="Delete screenshots older than 90 days" />;
+  return <JiniStorageScreen client={client} screenshotClient={screenshotClient} reportErrors={reportErrors} now={now} locale={locale} useWiredStorageHook={useWiredStorageHook} useScreenshotCleanupHook={useScreenshotCleanupHook} kit={{ Button: KitButton }} links={storageLinks({ locale })} copy={storageCopy({ locale })} t={t} categoryLabels={CATEGORY_LABELS} kindLabels={KIND_LABELS} screenshotAgeDays={SCREENSHOT_AGE_DAYS} screenshotsAnchor={SCREENSHOTS_ANCHOR} screenshotHeading="Delete screenshots older than 90 days" />;
 }
 
 function reportStorageError({ error }: { error: unknown }): string {

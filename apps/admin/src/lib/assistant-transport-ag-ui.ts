@@ -33,7 +33,7 @@
 import { HttpAgent } from "@ag-ui/client";
 import type { RunAgentInput } from "@ag-ui/core";
 import { createAgUiRunClient, type AcceptedAgUiRun, type AgUiClient, type AgUiDurableLocalCliBinding, type AgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
-import { createAgUiApprovalRelay, type AgUiApprovalPoster, type AgUiApprovalRelay } from "@jini-ai/chat/transports/ag-ui/approval-relay";
+import { createAgUiApprovalRelay, type AgUiApprovalPoster, type AgUiApprovalRelay } from "@jini-ai/chat/core/assistant-client/ag-ui-approval-relay";
 import type { RunHandlers } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun } from "./durable-run-subscription";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";

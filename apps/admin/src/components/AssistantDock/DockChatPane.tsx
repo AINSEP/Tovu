@@ -1,3 +1,5 @@
+import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
+import { isDesktopAdmin } from "../../features/settings/ai-agent-presentation";
 import "@jini-ai/chat/react/styles/chat-settings.css";
 import { onTovuSecretRedacted } from "../../lib/shell-collaborators";
 import { subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
@@ -8,13 +10,13 @@ import { useDockChatCleanup } from "../../hooks/assistant-chats-dependencies.hoo
 import { t as translateAiAssistant } from "../../features/ai-assistant/ai-assistant-i18n";
 import { useWiredAssistantSubagentsSettings } from "../../features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { DockLeadingAccessory } from "@jini-ai/admin/shell/components/AssistantDock/DockLeadingAccessory";
-import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
+import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-props";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
 import { chatPaneDisplayProps, CHAT_TOOL_CALL_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/chat-display-preferences";
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
 import { SKILL_INSTALL_CONFIRMATION_HOST } from "../../features/skills/skill-install-confirmation-host";
 import { REPLY_LENGTH_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/assistant-runtime-preferences";
-import { ChatPane, ChatSettingsDialog, ConversationTitle, JiniChatProvider, createMidRunMessagePoster } from "@jini-ai/chat/react";
+import { ChatPane, ChatSettingsDialog, ConversationTitle, JiniChatProvider, createMidRunMessagePoster, useT } from "@jini-ai/chat/react";
 import type { ComponentProps } from "react";
 import { createAdminTypedAnswerPoster } from "../../lib/shell-collaborators";
 import { FailureSurfaceContext } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
@@ -180,8 +182,8 @@ function chatPaneComposerProps(dock: DockState) {
           //
           // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
           // slot, ahead of the mic — see `composerFooterLeading`.
-          footerLeadingAccessory: composerFooterLeading({ folderPicker,
-            voice: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
+          footerLeadingAccessory: composerFooterLeading({ folderPicker, kit: { chat: { useT } },
+            voice: voiceFooterAccessory({ kit: { PushToTalkMicButton }, enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
         },
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
         // `composerSlots` above — verified live (2026-08-21) that `ChatPane`'s own
@@ -200,7 +202,7 @@ function chatPaneComposerProps(dock: DockState) {
         // `DockLeadingAccessory`'s own doc carries the owner constraint on what renders here and
         // why it is a fragment (no DOM node of its own).
         leadingAccessory: <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop} canPickFolder={folderPicker.available}
-            folderWindowOpenElsewhere={folderWindowOpenElsewhere({ picking: folderPicker.picking })}
+            folderWindowOpenElsewhere={folderWindowOpenElsewhere({ deps: { isDesktopAdmin }, picking: folderPicker.picking })}
             folderWindowNoteKey="Folder window opened on the computer running Tovu"
             pluginChips={selectedPluginChips} onRemovePlugin={removePluginRef} skills={selectedSkills} skillOnlySend={skillOnlySend} />
         ,
