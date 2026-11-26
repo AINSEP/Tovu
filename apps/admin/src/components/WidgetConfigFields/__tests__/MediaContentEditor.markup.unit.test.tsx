@@ -1,18 +1,27 @@
+import { useMediaContentEditor } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor.hooks";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import { Icon } from "@jini-ai/ui";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
+import { DevicePreviewFrame } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreviewFrame";
+import { acceptsMedia } from "@jini-ai/admin/media";
+import { HtmlAttributeRows } from "../HtmlAttributeRows";
+import { useWiredMediaPickerItems, defaultMediaPickerPort } from "../../MediaPickerDialog/media-picker-dependencies.hooks";
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HtmlPreviewPort } from "@jini-ai/ui/admin-widgets";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
-import { MediaContentEditor } from "../MediaContentEditor";
+import { MediaContentEditor } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor";
 import type { MediaContentEditorController, MediaItemRow } from "@jini-ai/cms/react/widgets/WidgetConfigFields/MediaContentEditor.hooks";
 import type { MediaSlugProblem } from "@jini-ai/admin/shell/components/WidgetConfigFields/media-content-rules";
 import { useWidgetPreview } from "../WidgetPreview.hooks";
-import { useMediaContentEditor } from "../MediaContentEditor";
 
 it("preserves HTML and media attributes across mode switches", () => {
   const { result } = renderHook(() => {
     const [config, onChange] = useState<Record<string, unknown>>({ mode: "media", items: [], htmlAttributes: 'data-test="kept"' });
-    return useMediaContentEditor({ config, onChange, widgetType: "media" }, { port: { listMedia: async () => ({ media: [] }), mediaOriginalUrl: () => "" } });
+    return useMediaContentEditor({ config, onChange, widgetType: "media", port: { listMedia: async () => ({ media: [] }), mediaOriginalUrl: () => "" }, locale: "en", useMediaPickerItems: useWiredMediaPickerItems, acceptsMedia });
   });
   act(() => result.current.setMode({ mode: "html" }));
   act(() => result.current.setHtml({ html: "<p>kept</p>" }));
@@ -71,7 +80,9 @@ function renderEditor(vm: MediaContentEditorController, options: { agentHandle?:
   const port = options.preview ?? instantPreview;
   return render(
     <MediaContentEditor widgetType="media" config={{}} onChange={() => {}} agentHandle={options.agentHandle}
-      useEditor={() => vm} usePreview={(input) => useWidgetPreview(input, { render: port })} />,
+      hooks={{ useEditor: () => vm, usePreview: (input) => useWidgetPreview(input, { render: port }), useMediaPickerItems: useWiredMediaPickerItems, useTabBarKeyboard }}
+      kit={{ Dialog, Icon, InfoTip, DockHeaderTip, DevicePreviewFrame, HtmlAttributeRows }}
+      deps={{ port: defaultMediaPickerPort, locale: "en", acceptsMedia, resolveTabBarTabIndex }} />,
   );
 }
 

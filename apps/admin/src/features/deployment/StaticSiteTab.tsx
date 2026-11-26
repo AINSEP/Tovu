@@ -38,9 +38,9 @@ import { PublishRunResult } from "@jini-ai/devops/deploy/react";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
 import type { StaticExportController } from "@jini-ai/devops/deploy/react/hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
-import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
+import type { StaticPublishController } from "@jini-ai/devops/deploy/react/hooks/use-static-publish.hooks";
 import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hooks";
-import type { PublishCredentialRowState, PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
+import type { PublishCredentialRowState, PublishCredentialsController } from "@jini-ai/devops/deploy/react/hooks/use-publish-credentials.hooks";
 
 import { formatTimestamp, interpolate, splitOnPlaceholders, type Translate } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
@@ -453,8 +453,8 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
   // Keep the DI seams. Forwarding resolvers previously isolated these branches for the
   // complexity gate; this component is small enough to resolve its defaults directly.
 
-  const exportController = hooks.useStaticExportHook();
-  const publishController = hooks.useStaticPublishHook();
+  const exportController = hooks.useStaticExportHook({});
+  const publishController = hooks.useStaticPublishHook({});
   const credentialsController = hooks.usePublishCredentialsHook({ targets: publishController.targets });
 
   return (

@@ -1,3 +1,17 @@
+import { useExternalMcpAdmissions } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
+import { API_UNREACHABLE_CODE, describeApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
+import { hasPermission } from "@jini-ai/ui/panel-kit";
+import { admissionRestartHelps } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { describeAdmissionDrift } from "@jini-ai/admin/screens/settings/external-mcp-connection-drift";
+import { EXTERNAL_MCP_DRIFT_COPY } from "@jini-ai/admin/screens/settings/external-mcp-drift-copy";
+
+const engineDeps = { useFetchQuery, useFetchMutation, hasPermission, describeAdmissionDrift, admissionRestartHelps,
+  driftCopy: EXTERNAL_MCP_DRIFT_COPY, describeApiError,
+  isApiError: (error: unknown): error is ApiError => error instanceof ApiError,
+  apiUnreachableCode: API_UNREACHABLE_CODE, requestTimeoutCode: REQUEST_TIMEOUT_CODE,
+  t: (key: string) => key, reportRestartFailure: vi.fn() };
+
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,7 +20,7 @@ import { ApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
-import { isAssistantStartingError, useExternalMcpAdmissions, useWiredExternalMcpAdmissions } from "../use-external-mcp-admissions.hooks";
+import { isAssistantStartingError, useWiredExternalMcpAdmissions } from "../use-external-mcp-admissions.hooks";
 import { UNAVAILABLE_RETRY_ATTEMPTS, UNAVAILABLE_RETRY_INTERVAL_MS, type ExternalMcpAdmissionsPort } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
 import type { SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 
@@ -68,7 +82,7 @@ it("the wired admissions controller reads admissions and permissions and reports
 it("a rejected restart reports its error without starting a watch", async () => {
   const { port } = fakePort();
   port.restartAssistantDaemon = async () => { throw new Error("restart permission revoked"); };
-  const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+  const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
   await waitFor(() => expect(result.current.connections).toHaveLength(1));
   await act(async () => { result.current.restart(); });
   await waitFor(() => expect(result.current.restartError).toBe("restart permission revoked"));
@@ -79,7 +93,7 @@ it("a rejected restart reports its error without starting a watch", async () => 
 it("a restart refused without a reason uses the translated fallback", async () => {
   const { port } = fakePort();
   port.restartAssistantDaemon = async () => ({ ok: false });
-  const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED, t: (key) => `[translated] ${key}` }), { wrapper });
+  const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED, t: (key) => `[translated] ${key}` }), { wrapper });
   await waitFor(() => expect(result.current.connections).toHaveLength(1));
   await act(async () => { result.current.restart(); });
   await waitFor(() => expect(result.current.restartError).toBe("[translated] the restart was refused"));
@@ -97,7 +111,7 @@ describe("useExternalMcpAdmissions — restart usefulness", () => {
       broken: { allowedToolNames: "a", enabled: true, transport: "stdio", command: "/tmp/launcher" },
     };
     if (addFreshServer) saved.fresh = { allowedToolNames: "b", enabled: true };
-    const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: saved }), { wrapper });
+    const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: saved }), { wrapper });
     await waitFor(() => expect(result.current.connections.length).toBe(addFreshServer ? 2 : 1));
     expect(result.current.restartHelps).toBe(addFreshServer);
     expect(result.current.canRestart).toBe(false);
@@ -160,7 +174,7 @@ describe("useExternalMcpAdmissions — post-restart freshness (ADM-002)", () => 
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port } = fakePort({ bootDelayMs: 5_000 });
-      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.connections).toHaveLength(1));
       expect(result.current.connections[0]?.entries[0]?.kind).toBe("needs-write-grant");
@@ -185,7 +199,7 @@ describe("useExternalMcpAdmissions — post-restart freshness (ADM-002)", () => 
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port } = fakePort({ bootDelayMs: 5_000 });
-      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.connections).toHaveLength(1));
       await act(async () => {
@@ -209,7 +223,7 @@ describe("useExternalMcpAdmissions — post-restart freshness (ADM-002)", () => 
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port, getAdmissions } = fakePort();
-      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.connections).toHaveLength(1));
       const readsAfterLoad = getAdmissions.mock.calls.length;
@@ -229,7 +243,7 @@ describe("useExternalMcpAdmissions — post-restart freshness (ADM-002)", () => 
     try {
       const { port, getAdmissions } = fakePort();
       port.restartAssistantDaemon = async () => ({ ok: false, reason: "shutting down" });
-      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.connections).toHaveLength(1));
       const readsAfterLoad = getAdmissions.mock.calls.length;
@@ -254,7 +268,7 @@ describe("useExternalMcpAdmissions — post-restart freshness (ADM-002)", () => 
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port, getAdmissions } = fakePort();
-      const { result, unmount } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result, unmount } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.connections).toHaveLength(1));
       await act(async () => {
@@ -308,7 +322,7 @@ describe("useExternalMcpAdmissions — waits for a starting assistant instead of
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port } = startingPort(5);
-      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
       expect(result.current.unavailable).toBeNull();
@@ -329,7 +343,7 @@ describe("useExternalMcpAdmissions — waits for a starting assistant instead of
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY);
-      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
 
@@ -354,7 +368,7 @@ describe("useExternalMcpAdmissions — waits for a starting assistant instead of
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY, () => new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }));
-      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.unavailable).toBe("forbidden"));
       expect(result.current.waitingForAssistant).toBe(false);
@@ -373,7 +387,7 @@ describe("useExternalMcpAdmissions — waits for a starting assistant instead of
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY);
-      const { result, unmount } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+      const { result, unmount } = renderHook(() => useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), { wrapper });
 
       await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
       unmount();
@@ -421,7 +435,7 @@ describe("useExternalMcpAdmissions — restart permission", () => {
       if (kind === "failed") throw new Error("permission read denied");
       return { effectivePermissions: kind === "granted" ? ["system.write"] : [] };
     });
-    const { result } = renderHook(() => ({ controller: useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), query: useFetchQuery({ key: ["auth", "me"], fetch: () => port.me() }) }), { wrapper });
+    const { result } = renderHook(() => ({ controller: useExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: SAVED }), query: useFetchQuery({ key: ["auth", "me"], fetch: () => port.me() }) }), { wrapper });
     expect(result.current.controller.canRestart).toBe(false);
     await waitFor(() => expect(port.me).toHaveBeenCalledTimes(1));
     await act(async () => { release(); await pending; });

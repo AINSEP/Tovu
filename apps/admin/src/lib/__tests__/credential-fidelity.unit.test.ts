@@ -1,11 +1,22 @@
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
+import { describeApiError } from "@/lib/admin-http/request";
+import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
+import { isVersionConflict } from "@/lib/shell-collaborators";
+import { t as tExternalMcp } from "@jini-ai/admin/screens/settings/external-mcp-i18n";
+import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "@jini-ai/admin/screens/settings/rules";
 import { describe, expect, it } from 'vitest';
 import { ADMIN_LOCALES } from '@tovu/contracts/admin-locales';
-import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
+import { CREDENTIAL_COPY, credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { credentialDraftError, storedCredentialHint } from '../credential-copy';
 import { buildSourceControlConnectionInput } from '@jini-ai/devops/source-control/react/rules';
 import { buildCredentialConnectionInput } from '@jini-ai/devops/deploy/react/rules';
-import { describeStoredCredentials, toAccessTokenWriteBody } from '../../features/settings/hooks/use-external-mcp.hooks';
+import { describeStoredCredentials, toAccessTokenWriteBody } from '@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp.hooks';
 import type { AdminExternalMcpServer } from '@jini-ai/core/contracts/site/cms-external-mcp';
+
+const mcpDeps = { port: integrationsApi, credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage,
+  credentialDraftError, describeApiError, VERSION_CONFLICT_MESSAGE, isVersionConflict, translate: tExternalMcp,
+  mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport,
+  validateExternalMcpOAuthIdentity, now: Date.now };
 
 describe('credential byte preservation and safe admin hints', () => {
   it('uses server hints for both BYOK placeholders and separates a literal dot from the ellipsis', () => {
@@ -38,7 +49,7 @@ describe('credential byte preservation and safe admin hints', () => {
       expect(buildSourceControlConnectionInput({ fields: { providerId: 'github', token, values: {} }, declaredFields: [] }).token === token).toBe(true);
       const published = buildCredentialConnectionInput({ providerId: 'fixture-host', spec: { tokenField: 'apiKey', fields: [{ name: 'apiKey', label: 'Key', required: true, secret: true }] }, values: { apiKey: token } });
       expect(token === '' ? !('apiKey' in published) : published.apiKey === token).toBe(true);
-      expect(toAccessTokenWriteBody({ authMode: 'static_env', accessToken: token })).toEqual(token === '' ? {} : { accessToken: token });
+      expect(toAccessTokenWriteBody({ fields: { authMode: 'static_env', accessToken: token }, deps: mcpDeps })).toEqual(token === '' ? {} : { accessToken: token });
     }
   });
   it('validates the untrimmed draft bytes (M-trim-secret-before-validation)', () => {
@@ -55,8 +66,8 @@ describe('credential byte preservation and safe admin hints', () => {
   });
   it('renders only a supplied server hint and hides every character of a short secret', () => {
     const row = { envNames: [], hasAccessToken: true, accessTokenHint: { length: 1184, last4: 'a9F2' } } as unknown as AdminExternalMcpServer;
-    expect(describeStoredCredentials({ server: row }, { locale: 'en' })).toBe('Access token set (…a9F2, 1,184 chars)');
-    expect(describeStoredCredentials({ server: { ...row, accessTokenHint: { length: 5, last4: null } } }, { locale: 'en' })).toBe('Access token set (5 chars)');
+    expect(describeStoredCredentials({ deps: mcpDeps, server: row }, { locale: 'en' })).toBe('Access token set (…a9F2, 1,184 chars)');
+    expect(describeStoredCredentials({ deps: mcpDeps, server: { ...row, accessTokenHint: { length: 5, last4: null } } }, { locale: 'en' })).toBe('Access token set (5 chars)');
     expect(formatCredentialHint({ hint: { length: 5, last4: null }, locale: 'fr' })).toBe('5 caractères');
   });
   it.each(ADMIN_LOCALES.map(({ code }) => code))('has credential errors and outcomes for offered locale %s', locale => {

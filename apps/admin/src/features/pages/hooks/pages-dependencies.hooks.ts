@@ -2,7 +2,7 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/posts-host-ports";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { ApiError } from "@/lib/admin-http/request";
-import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
+import { VERSION_CONFLICT_CODE as PAGE_VERSION_CONFLICT_CODE } from "@jini-ai/core/optimistic-concurrency";
 import type { PagesPort } from "@jini-ai/admin/pages/hooks/pages-port.hooks";
 
 /**

@@ -5,7 +5,7 @@ import { defaultFeaturedImageRenditionUrl } from "./post-editor-dependencies.hoo
 import { adminKit } from "@/integrations/jini-kits";
 import { MediaPickerDialog } from "@/components/MediaPickerDialog/media-picker-host";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
+import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 
 /** Binds the real media client — the zero-dependency half of the `useX(deps)` / `useWiredX()` pair. */
 export function useWiredPostFeaturedImage({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }, _options: Record<string, never> = {}): PostFeaturedImageController {

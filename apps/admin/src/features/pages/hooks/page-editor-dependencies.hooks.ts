@@ -10,7 +10,7 @@ import { createPreviewEmbedIdsLoader, previewEmbedIdsPath, usePreviewEmbedIds, t
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PageEditorPort as CorePageEditorPort } from "@jini-ai/core/contracts/site/content-editor-ports";
 import type { AdminPagePluginEmbed } from "@jini-ai/admin/pages/api/pages-api.types";
-import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
+import { VERSION_CONFLICT_CODE as PAGE_VERSION_CONFLICT_CODE } from "@jini-ai/core/optimistic-concurrency";
 
 export type PageEditorPort = CorePageEditorPort<AdminPost, AdminPagePluginEmbed, StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot>;
 

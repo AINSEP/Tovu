@@ -32,7 +32,7 @@ import type {
   AccessTokensController,
 } from "./hooks/use-access-tokens.hooks";
 import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
-import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
+import type { OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { OtherCredentialEntry } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection";
 import { useOtherCredentialRemoveDialog } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection.hooks";
 import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsOrder } from "./AccessTokensTab.hooks";

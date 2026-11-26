@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { OtherCredentialEntry } from "@jini-ai/integrations/react/credentials/OtherCredentialsSection";
-import type { OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
+import type { OtherCredentialRowState, OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { OTHER_CREDENTIAL_STORES } from "../other-credential-stores";
 import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "@jini-ai/integrations/react/credentials/other-credential-stores";
 

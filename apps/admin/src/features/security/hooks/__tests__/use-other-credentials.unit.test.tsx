@@ -1,3 +1,19 @@
+import { formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useSerialWrites } from "@jini-ai/ui/panel-kit";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "@jini-ai/admin/security/security-i18n";
+import { OTHER_CREDENTIAL_STORES } from "../../other-credential-stores";
+import { envNamesFact, maskedTailFact, mediaProviderCatalogFrom, mediaProviderLabel, otherCredentialMatchesQuery } from "@jini-ai/integrations/react/credentials/other-credential-stores";
+import { ACCESS_TOKENS_RESOURCE } from "../../rules";
+
+const hooks = { useSerialWrites, useContentRefreshSubscription };
+const deps = { stores: OTHER_CREDENTIAL_STORES, resource: ACCESS_TOKENS_RESOURCE,
+  formatCredentialHint, formatCredentialHints, translateCredentialMessage, credentialDraftError,
+  envNamesFact, maskedTailFact, mediaProviderCatalogFrom, mediaProviderLabel, otherCredentialMatchesQuery,
+  describeApiError, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage };
+
 import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -5,8 +21,9 @@ import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminMediaProviderMap } from "@jini-ai/admin/screens/media/api/media-api";
 import type { MediaProviderFields } from "@jini-ai/ui/core";
-import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
-import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
+import { useWiredOtherCredentials } from "../use-other-credentials.hooks";
+import { useOtherCredentials } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
+import type { OtherCredentialGroupState } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
 import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 
@@ -157,7 +174,7 @@ describe("useOtherCredentials — media Replace/Remove name exactly one provider
   it("Replace patches only that provider with only the typed key, and no other provider is written", async () => {
     const server = fakePerProviderMediaServer(twoProviders);
     const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, patchMediaProvider: server.patchMediaProvider, removeMediaProvider: server.removeMediaProvider });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
     // Another window saves a newer grok key after this page loaded; this screen must not undo it.
@@ -177,7 +194,7 @@ describe("useOtherCredentials — media Replace/Remove name exactly one provider
   it("Remove deletes only that provider by name, and a provider saved in another window survives", async () => {
     const server = fakePerProviderMediaServer(twoProviders);
     const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, patchMediaProvider: server.patchMediaProvider, removeMediaProvider: server.removeMediaProvider });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     // Saved elsewhere after this page loaded — absent from this screen's view, so a map rebuilt from
     // that view would omit it, and omission would delete it.
@@ -200,7 +217,7 @@ describe("useOtherCredentials — reading all four stores", () => {
   it("recreates a media provider removed elsewhere using its new key without stale settings", async () => {
     const server = fakePerProviderMediaServer({ cloudinary: { apiKeyConfigured: true, apiKeyTail: "old4", baseUrl: "https://old.example" } });
     const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, patchMediaProvider: server.patchMediaProvider, removeMediaProvider: server.removeMediaProvider });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "media-provider")!.rows[0]!;
     server.setState({});
@@ -218,7 +235,7 @@ describe("useOtherCredentials — reading all four stores", () => {
         grok: { apiKeyConfigured: true },
       }),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const rows = findGroup(result.current.groups, "media-provider")!.rows;
     expect(rows.find(row => row.itemId === "cloudinary")!.valueFact).toBe("…new4, 18 chars");
@@ -235,7 +252,7 @@ describe("useOtherCredentials — reading all four stores", () => {
         fakeExternalMcpServer({ serverId: "names", label: "", envNames: ["KEY"] }),
       ] }),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const rows = findGroup(result.current.groups, "external-mcp")!.rows;
     expect(rows.map(row => row.itemId)).toEqual(["access", "environment", "names"]);
@@ -250,7 +267,7 @@ describe("useOtherCredentials — reading all four stores", () => {
       getSiteAssistantCredential: async () => ({ data: { isSet: true, masked: "••••kept", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
       setSiteAssistantCredential,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "site-assistant")!.rows[0]!;
     act(() => result.current.setDraftToken({ key: row.key, value: "bad token" }));
@@ -269,7 +286,7 @@ describe("useOtherCredentials — reading all four stores", () => {
       getSiteAssistantCredential: async () => ({ data: { isSet: true, masked: "••••kept", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
       deleteSiteAssistantCredential: async () => { throw new Error("permission denied"); },
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     await act(() => result.current.remove(findGroup(result.current.groups, "site-assistant")!.rows[0]!));
     expect(findGroup(result.current.groups, "site-assistant")!.rows[0]).toMatchObject({
@@ -283,7 +300,7 @@ describe("useOtherCredentials — reading all four stores", () => {
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "••••a9F2", tokenHint: { length: 18, last4: "a9F2" }, provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
       getAdminByokCredential: () => Promise.resolve({ data: { isSet: true, masked: null, tokenHint: { length: 4, last4: null }, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null } }),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: "es", filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: "es", filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(findGroup(result.current.groups, "site-assistant")?.rows[0]?.valueFact).toBe("…a9F2, 18 caracteres"));
     await waitFor(() => expect(findGroup(result.current.groups, "admin-byok")?.rows[0]?.valueFact).toBe("4 caracteres"));
   });
@@ -300,7 +317,7 @@ describe("useOtherCredentials — reading all four stores", () => {
         Promise.resolve({ servers: [fakeExternalMcpServer({ envNames: ["FOO", "BAR"] })] }),
     });
 
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     // site-assistant: singleKeyItems(isSet=true) → one row, masked-tail fact.
@@ -332,7 +349,7 @@ describe("useOtherCredentials — reading all four stores", () => {
     const port = createFakeOtherCredentialsPort({
       getMediaProviders: () => Promise.reject(new Error("media down")),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
 
     await waitFor(() => expect(result.current.groups).toBeDefined());
     expect(result.current.loadError).toBe("Couldn't load saved access tokens: media down");
@@ -351,7 +368,7 @@ describe("useOtherCredentials — category and query filtering", () => {
   }
 
   it("category='ai' includes only ai-category stores (site-assistant/admin-byok/external-mcp), excluding media/ops", async () => {
-    const { result } = renderHook(() => useOtherCredentials({ port: twoAiOneMediaPort(), t: T, locale: LOCALE, filter: { query: "", category: "ai" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port: twoAiOneMediaPort(), t: T, locale: LOCALE, filter: { query: "", category: "ai" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     const ids = result.current.groups?.map((g) => g.store.id) ?? [];
@@ -362,7 +379,7 @@ describe("useOtherCredentials — category and query filtering", () => {
   });
 
   it("matchCount only counts items whose name matches the query, independent of totalCount", async () => {
-    const { result } = renderHook(() => useOtherCredentials({ port: twoAiOneMediaPort(), t: T, locale: LOCALE, filter: { query: "cloud", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port: twoAiOneMediaPort(), t: T, locale: LOCALE, filter: { query: "cloud", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     expect(result.current.totalCount).toBe(2); // site-assistant row + cloudinary row, unfiltered
@@ -377,7 +394,7 @@ describe("useOtherCredentials — setDraftToken", () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "abcd", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     act(() => result.current.setDraftToken({ key: "site-assistant:site-assistant", value: "sk-typed" }));
@@ -396,7 +413,7 @@ describe("useOtherCredentials — replace: no-op guards", () => {
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "abcd", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
       setSiteAssistantCredential,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "site-assistant")!.rows[0]!;
 
@@ -418,7 +435,7 @@ describe("useOtherCredentials — replace: no-op guards", () => {
       "patchMediaProvider", "removeMediaProvider", "deleteExternalMcpServer",
     ] as const;
     const writeSpies = writes.map((method) => vi.spyOn(port, method));
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "external-mcp")!.rows[0]!;
     act(() => result.current.setDraftToken({ key: row.key, value: "irrelevant" }));
@@ -440,7 +457,7 @@ describe("useOtherCredentials — remaining read and write guards", () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: null, provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(findGroup(result.current.groups, "site-assistant")?.rows[0]?.valueFact).toBe("••••"));
   });
 
@@ -449,7 +466,7 @@ describe("useOtherCredentials — remaining read and write guards", () => {
       listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1" })] }),
     });
     const writeSpies = (["setSiteAssistantCredential", "setAdminByokCredential", "patchMediaProvider", "removeMediaProvider", "getMediaProviders", "deleteExternalMcpServer"] as const).map((method) => vi.spyOn(port, method));
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(findGroup(result.current.groups, "external-mcp")?.rows[0]).toBeDefined());
     const row = findGroup(result.current.groups, "external-mcp")!.rows[0]!;
     act(() => result.current.setDraftToken({ key: row.key, value: "a-replacement-value-1234" }));
@@ -473,7 +490,7 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
       getSiteAssistantCredential: () => Promise.resolve({ data: stored }),
       setSiteAssistantCredential,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "site-assistant")!.rows[0]!;
     act(() => result.current.setDraftToken({ key: row.key, value: "  sk-new  " }));
@@ -494,7 +511,7 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
       getAdminByokCredential: () => Promise.resolve({ data: { isSet: true, masked: "old2", protocol: "anthropic-messages", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null } }),
       setAdminByokCredential,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "admin-byok")!.rows[0]!;
     act(() => result.current.setDraftToken({ key: row.key, value: "sk-byok" }));
@@ -516,7 +533,7 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
       patchMediaProvider,
       removeMediaProvider,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
     act(() => result.current.setDraftToken({ key: row.key, value: "sk-cloud-new" }));
@@ -538,7 +555,7 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
       grok: { apiKeyConfigured: true, apiKeyTail: "grok", baseUrl: "https://grok.example/v1" },
     });
     const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, patchMediaProvider: server.patchMediaProvider, removeMediaProvider: server.removeMediaProvider });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
     act(() => result.current.setDraftToken({ key: row.key, value: "sk-cloud-new" }));
@@ -558,7 +575,7 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "abcd", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
       setSiteAssistantCredential: () => Promise.reject(new Error("network down")),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "site-assistant")!.rows[0]!;
     act(() => result.current.setDraftToken({ key: row.key, value: "sk-fails" }));
@@ -583,7 +600,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
       getSiteAssistantCredential: () => Promise.resolve({ data: stored }),
       deleteSiteAssistantCredential,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     await act(() => result.current.remove(findGroup(result.current.groups, "site-assistant")!.rows[0]!));
@@ -598,7 +615,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
       getAdminByokCredential: () => Promise.resolve({ data: { isSet: true, masked: "abcd", protocol: "anthropic-messages", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null } }),
       deleteAdminByokCredential,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     await act(() => result.current.remove(findGroup(result.current.groups, "admin-byok")!.rows[0]!));
@@ -618,7 +635,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
       patchMediaProvider,
       removeMediaProvider,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
 
@@ -642,7 +659,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
       fal: { baseUrl: "https://fal.example" },
     });
     const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, patchMediaProvider: server.patchMediaProvider, removeMediaProvider: server.removeMediaProvider });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
 
@@ -662,7 +679,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
       listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1", command: "x" })] }),
       deleteExternalMcpServer,
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     await act(() => result.current.remove(findGroup(result.current.groups, "external-mcp")!.rows[0]!));
@@ -675,7 +692,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "abcd", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
       deleteSiteAssistantCredential: () => Promise.reject(new Error("boom")),
     });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "site-assistant")!.rows[0]!;
     // A token was typed but never submitted before Remove was clicked.
@@ -703,7 +720,7 @@ describe("useOtherCredentials — Tier-2 writes from one tab are serialized", ()
       grok: { apiKeyConfigured: true, apiKeyTail: "g222" },
     }, { held: true });
     const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, patchMediaProvider: server.patchMediaProvider, removeMediaProvider: server.removeMediaProvider });
-    const { result } = renderHook(() => useOtherCredentials({ port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
+    const { result } = renderHook(() => useOtherCredentials({ hooks, deps, port, t: T, locale: LOCALE, filter: { query: "", category: "all" } }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const rows = findGroup(result.current.groups, "media-provider")!.rows;
     const cloudinary = rows.find((r) => r.itemId === "cloudinary")!;

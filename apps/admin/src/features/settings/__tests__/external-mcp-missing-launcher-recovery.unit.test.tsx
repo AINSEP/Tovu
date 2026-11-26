@@ -1,3 +1,18 @@
+import { useExternalMcpAdmissions as useRawExternalMcpAdmissions } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp-admissions.hooks";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { API_UNREACHABLE_CODE, describeApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
+import { hasPermission } from "@jini-ai/ui/panel-kit";
+import { admissionRestartHelps } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { describeAdmissionDrift } from "@jini-ai/admin/screens/settings/external-mcp-connection-drift";
+import { EXTERNAL_MCP_DRIFT_COPY } from "@jini-ai/admin/screens/settings/external-mcp-drift-copy";
+
+const engineDeps = { useFetchQuery, useFetchMutation, hasPermission, describeAdmissionDrift, admissionRestartHelps,
+  driftCopy: EXTERNAL_MCP_DRIFT_COPY, describeApiError,
+  isApiError: (error: unknown): error is ApiError => error instanceof ApiError,
+  apiUnreachableCode: API_UNREACHABLE_CODE, requestTimeoutCode: REQUEST_TIMEOUT_CODE,
+  t: (key: string) => key, reportRestartFailure: vi.fn() };
+
 import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -14,7 +29,7 @@ it("stops retrying after the existing admission wait bound", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const getAdmissions = vi.fn().mockRejectedValue(new ApiError({ message: "starting", status: 503 }, { code: "AGENT_DAEMON_UNAVAILABLE" }));
   const port: ExternalMcpAdmissionsPort = { getAdmissions, me: async () => ({ effectivePermissions: [] }), restartAssistantDaemon: async () => ({ ok: true }) };
-  const { result, unmount } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: {} }));
+  const { result, unmount } = renderHook(() => useRawExternalMcpAdmissions({ ...engineDeps, setTimeout, clearTimeout, port, savedAllowedToolNamesById: {} }));
   try {
     await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
     for (let attempt = 0; attempt < 65; attempt += 1) {

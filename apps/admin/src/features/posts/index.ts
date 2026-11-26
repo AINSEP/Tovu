@@ -6,5 +6,4 @@
  * directory without the router noticing. Adding a file to this feature is not an API change unless
  * it is exported from this line.
  */
-export { Posts } from "./Posts";
 export { PostEditor } from "./PostEditor";

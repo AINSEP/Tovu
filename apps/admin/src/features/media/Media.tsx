@@ -24,7 +24,8 @@ import {
   mediaShapeBadges,
   type MediaOrderBy,
 } from "@jini-ai/admin/screens/media/rules";
-import type { useWiredMedia, MediaController } from "./hooks/use-media.hooks";
+import type { useWiredMedia } from "./hooks/use-media.hooks";
+import type { MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import { MediaLoadMore } from "@jini-ai/cms/react/media/MediaLoadMore";
 import { t as mediaTranslate, VIDEO_CONVERSION_NOTICE_KEY } from "./media-i18n";
 import type { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
@@ -33,7 +34,8 @@ import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-
 import { DockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip";
 import type { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import type { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
-import type { useWiredEditMediaPanel, EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
+import type { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
+import type { EditMediaPanelController } from "@jini-ai/admin/screens/media/hooks/use-edit-media-panel.hooks";
 import type { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
 import type { useAdminKitValues } from "@jini-ai/admin/react/kit";
 import type { useMediaItemLink } from "@jini-ai/admin/screens/media/hooks/use-media-item-link.hooks";

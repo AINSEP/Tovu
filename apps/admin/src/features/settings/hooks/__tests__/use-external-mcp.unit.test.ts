@@ -1,9 +1,18 @@
+import { useExternalMcp as useWiredExternalMcp } from "../use-external-mcp.hooks";
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
+import { describeApiError } from "@/lib/admin-http/request";
+import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
+import { isVersionConflict } from "@/lib/shell-collaborators";
+import { useSerialWrites } from "@jini-ai/ui/panel-kit";
+import { t as tExternalMcp } from "@jini-ai/admin/screens/settings/external-mcp-i18n";
+import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "@jini-ai/admin/screens/settings/rules";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
-import type { ExternalMcpPort } from "../use-external-mcp.hooks";
-import { describeStoredCredentials, toAccessTokenWriteBody, useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
+import type { ExternalMcpPort } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp.hooks";
+import { describeStoredCredentials, toAccessTokenWriteBody, useExternalMcp as useExternalMcpHook } from "@jini-ai/mcp/react/external-mcp/hooks/use-external-mcp.hooks";
 
 /**
  * @file Coverage for `useExternalMcp` (0/9 funcs) — the real `/mcp-servers` transport behind
@@ -27,8 +36,13 @@ const { listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer, 
 // one `ExternalMcpSettingsPanel.hooks.tsx`'s `useExternalMcpDriftCopy` actually calls.
 // The original locale seam above is now supplied directly instead of replacing a module.
 const useAdminLocale = vi.fn(() => "en");
+const deps = { port, credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage,
+  credentialDraftError, describeApiError, VERSION_CONFLICT_MESSAGE, isVersionConflict, translate: tExternalMcp,
+  mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport,
+  validateExternalMcpOAuthIdentity, now: Date.now };
+
 function useExternalMcp() {
-  return useExternalMcpHook({ port, useAdminLocaleHook: useAdminLocale });
+  return useExternalMcpHook({ deps, hooks: { useAdminLocaleHook: useAdminLocale, useSerialWrites } });
 }
 
 beforeEach(() => {
@@ -89,18 +103,18 @@ const BLANK_OAUTH_FIELDS = {
 
 describe("stored credential summaries", () => {
   it("uses the default locale and reports no summary when nothing is stored", () => {
-    expect(describeStoredCredentials({ server: server() })).toBeUndefined();
+    expect(describeStoredCredentials({ deps, server: server() })).toBeUndefined();
   });
 
   it("uses server-derived hints instead of the legacy variable-name fallback", () => {
-    expect(describeStoredCredentials({ server: server({
+    expect(describeStoredCredentials({ deps, server: server({
       envNames: ["API_KEY"], envTokenHints: { API_KEY: { length: 16, last4: "abcd" } },
       hasAccessToken: true, accessTokenHint: { length: 20, last4: "wxyz" },
     }) }, { locale: "en" })).toBe("API_KEY: …abcd, 16 chars · Access token set (…wxyz, 20 chars)");
   });
 
   it("omits an absent static token and variable name from a write", () => {
-    expect(toAccessTokenWriteBody({ authMode: "static_env" })).toEqual({});
+    expect(toAccessTokenWriteBody({ fields: { authMode: "static_env" }, deps })).toEqual({});
   });
 });
 
@@ -194,7 +208,7 @@ describe("useExternalMcp — saved-server verification", () => {
       if (url === `${base}/mcp-servers`) return Response.json({ servers: [server({ hasAccessToken: true })] });
       throw new Error(`Unexpected default MCP request: ${url}`);
     });
-    const { result } = renderHook(() => useExternalMcpHook());
+    const { result } = renderHook(() => useWiredExternalMcp({}));
     const initialDependencies = result.current.dependencies;
     // The locale read changes the bound translator and its memoized port together.
     await waitFor(() => expect(result.current.dependencies).not.toBe(initialDependencies));
@@ -853,7 +867,7 @@ describe("useExternalMcp — hosted token validation characterization (L294)", (
       deleteExternalMcpServer: vi.fn<ExternalMcpPort["deleteExternalMcpServer"]>(),
       probeExternalMcpServer: vi.fn<ExternalMcpPort["probeExternalMcpServer"]>(),
     };
-    const hook = renderHook(() => useExternalMcpHook({ port: typedPort, useAdminLocaleHook: () => locale }));
+    const hook = renderHook(() => useExternalMcpHook({ deps: { ...deps, port: typedPort }, hooks: { useAdminLocaleHook: () => locale, useSerialWrites } }));
     return { ...hook, typedPort };
   }
 

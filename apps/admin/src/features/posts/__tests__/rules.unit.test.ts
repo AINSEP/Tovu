@@ -2,7 +2,7 @@ import { t as translate } from "../posts-i18n";
 import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "@jini-ai/admin/shell/lib/admin-post-list-sort";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { droppedUri, handleImageDrop, readFileAsDataUrl, titleNodeText, toolbarBtnClass, withTitleNode } from "../rules";
+import { droppedUri, handleImageDrop, readFileAsDataUrl, titleNodeText, toolbarBtnClass, withTitleNode } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import { buildPostRowMenuHandleMap, postRowMenuItems } from "@jini-ai/cms/react/posts/posts-list-rules";
 import { postSlugFollowsTitle, postSlugForTitle, buildPostAutosaveDraft, postAutosaveStaleBasisMessage, postVersionConflictMessage, resolvePostPreviewBranches } from "@jini-ai/cms/react/posts/post-editor-rules";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
@@ -119,7 +119,7 @@ describe("buildPostRowMenuHandleMap", () => {
 describe("readFileAsDataUrl", () => {
   it("resolves to a data: URL for a real File", async () => {
     const file = new File(["hello world"], "hello.txt", { type: "text/plain" });
-    const result = await readFileAsDataUrl(file);
+    const result = await readFileAsDataUrl({ file, deps: { createReader: () => new FileReader() } });
     expect(result).toMatch(/^data:text\/plain;base64,/);
     expect(atob(result.split(",")[1])).toBe("hello world");
   });
@@ -135,7 +135,7 @@ describe("readFileAsDataUrl", () => {
     }
     vi.stubGlobal("FileReader", FakeReader);
     const file = new File(["x"], "x.txt");
-    const result = await readFileAsDataUrl(file);
+    const result = await readFileAsDataUrl({ file, deps: { createReader: () => new FileReader() } });
     expect(result).toBe("");
     vi.unstubAllGlobals();
   });
@@ -151,7 +151,7 @@ describe("readFileAsDataUrl", () => {
     }
     vi.stubGlobal("FileReader", FailingReader);
     const file = new File(["x"], "x.txt");
-    await expect(readFileAsDataUrl(file)).rejects.toThrow("read failed");
+    await expect(readFileAsDataUrl({ file, deps: { createReader: () => new FileReader() } })).rejects.toThrow("read failed");
     vi.unstubAllGlobals();
   });
 
@@ -166,7 +166,7 @@ describe("readFileAsDataUrl", () => {
     }
     vi.stubGlobal("FileReader", FailingReaderNoError);
     const file = new File(["x"], "x.txt");
-    await expect(readFileAsDataUrl(file)).rejects.toThrow("failed to read file");
+    await expect(readFileAsDataUrl({ file, deps: { createReader: () => new FileReader() } })).rejects.toThrow("failed to read file");
     vi.unstubAllGlobals();
   });
 });
@@ -363,7 +363,7 @@ function fakeView(opts: { posAtCoordsResult?: { pos: number } | null; selectionT
   };
   const imageCreate = vi.fn((attrs: Record<string, unknown>) => fakeNode(attrs));
   const view = {
-    posAtCoords: vi.fn(() => opts.posAtCoordsResult ?? null),
+    posAtCoords: vi.fn((_coords: { left: number; top: number }) => opts.posAtCoordsResult ?? null),
     dispatch: vi.fn((t: unknown) => dispatched.push(t)),
     state: {
       selection: { to: opts.selectionTo ?? 7 },
@@ -418,7 +418,14 @@ describe("handleImageDrop", () => {
   it("returns false immediately (no-op) when moved=true — an internal content reorder, not an external drop", () => {
     const { view } = fakeView();
     const event = fakeDragEvent({});
-    const result = handleImageDrop({ view: view as never, event: event, moved: true });
+    const result = handleImageDrop({ view: view, event: event, moved: true, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
     expect(result).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();
   });
@@ -433,7 +440,14 @@ describe("handleImageDrop", () => {
     const file = new File(["img-bytes"], "photo.png", { type: "image/png" });
     const event = fakeDragEvent({ files: [file] });
 
-    const result = handleImageDrop({ view: view as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
 
     expect(result).toBe(false);
     expect(event.preventDefault).not.toHaveBeenCalled();
@@ -444,7 +458,14 @@ describe("handleImageDrop", () => {
     const { view, tr } = fakeView({ posAtCoordsResult: null, selectionTo: 42 });
     const event = fakeDragEvent({ uriListData: "https://example.com/pic.png" });
 
-    const result = handleImageDrop({ view: view as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
 
     expect(result).toBe(true);
     expect(tr.insert).toHaveBeenCalledWith(42, expect.anything());
@@ -454,7 +475,14 @@ describe("handleImageDrop", () => {
     const { view, tr, imageCreate } = fakeView({ posAtCoordsResult: { pos: 3 } });
     const event = fakeDragEvent({ uriListData: "https://example.com/pic.png" });
 
-    const result = handleImageDrop({ view: view as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
 
     expect(result).toBe(true);
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
@@ -468,7 +496,14 @@ describe("handleImageDrop", () => {
     const { view: view2, imageCreate, tr, insertedNodes } = fakeView({ posAtCoordsResult: { pos: 0 } });
     const event = fakeDragEvent({ plainTextData: "http://example.com/img.jpg" });
 
-    const result = handleImageDrop({ view: view2 as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view2, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view2.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view2.state.selection.to;
+        const node = view2.state.schema.nodes.image.create({ src: uri });
+        view2.dispatch(view2.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
     expect(result).toBe(true);
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(imageCreate).toHaveBeenCalledWith({ src: "http://example.com/img.jpg" });
@@ -481,7 +516,14 @@ describe("handleImageDrop", () => {
     const { view, imageCreate } = fakeView({ posAtCoordsResult: { pos: 0 } });
     const event = fakeDragEvent({ uriListData: "https://a.example/1.png", plainTextData: "https://b.example/2.png" });
 
-    handleImageDrop({ view: view as never, event: event, moved: false });
+    handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
     expect(imageCreate).toHaveBeenCalledWith({ src: "https://a.example/1.png" });
   });
 
@@ -489,7 +531,14 @@ describe("handleImageDrop", () => {
     const { view } = fakeView();
     const event = fakeDragEvent({ uriListData: "javascript:alert(1)" });
 
-    const result = handleImageDrop({ view: view as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
 
     expect(result).toBe(false);
     expect(event.preventDefault).not.toHaveBeenCalled();
@@ -500,7 +549,14 @@ describe("handleImageDrop", () => {
     const { view, imageCreate } = fakeView({ posAtCoordsResult: { pos: 0 } });
     const event = fakeDragEvent({ uriListData: "  https://example.com/pic.png  " });
 
-    const result = handleImageDrop({ view: view as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
 
     expect(result).toBe(true);
     expect(imageCreate).toHaveBeenCalledWith({ src: "https://example.com/pic.png" });
@@ -510,7 +566,14 @@ describe("handleImageDrop", () => {
     const { view } = fakeView();
     const event = fakeDragEvent({});
 
-    const result = handleImageDrop({ view: view as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
 
     expect(result).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();
@@ -520,7 +583,14 @@ describe("handleImageDrop", () => {
     const { view } = fakeView();
     const event = { clientX: 0, clientY: 0, dataTransfer: null, preventDefault: vi.fn() } as unknown as DragEvent;
 
-    const result = handleImageDrop({ view: view as never, event: event, moved: false });
+    const result = handleImageDrop({ view: view, event: event, moved: false, deps: {
+      insertImageAtDrop: ({ event, src: uri }) => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        const node = view.state.schema.nodes.image.create({ src: uri });
+        view.dispatch(view.state.tr.insert(pos, node));
+        return true;
+      },
+    } });
 
     expect(result).toBe(false);
   });

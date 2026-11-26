@@ -99,20 +99,6 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/pages/PageEditor.tsx",
-      "line": 936,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/pages/PageEditor.tsx",
-      "line": 936,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
       "file": "features/pages/Pages.tsx",
       "line": 299,
       "kind": "text",
@@ -264,20 +250,6 @@
       "text": "YouTube"
     },
     {
-      "file": "features/posts/Posts.tsx",
-      "line": 206,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
-      "file": "features/posts/Posts.tsx",
-      "line": 206,
-      "kind": "text",
-      "text": "&quot;",
-      "reason": "Encoded punctuation, not prose."
-    },
-    {
       "file": "features/security/AccessTokensTab.tsx",
       "line": 808,
       "kind": "aria-label",
@@ -389,13 +361,6 @@
       "kind": "text",
       "text": "px",
       "reason": "Exact brand, protocol, unit or editor notation."
-    },
-    {
-      "file": "components/WidgetConfigFields/MediaContentEditor.tsx",
-      "line": 322,
-      "kind": "placeholder",
-      "text": "<img data-media-slug=\"…\" alt=\"…\">",
-      "reason": "Literal example of a URL, identifier or markup."
     }
   ]
 }

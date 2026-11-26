@@ -10,7 +10,7 @@ import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokenKind } from "@jini-ai/admin/security/access-token-rows";
 import type { AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import type { AccessTokenAddFormState, AccessTokenExistingRowState, AccessTokenProviderGroupState, AccessTokensController } from "../hooks/use-access-tokens.hooks";
-import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
+import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 
 /**
  * @file `useMergedSecretsOrder` — the merge step behind the owner's 2026-09-21 round-2 ordering

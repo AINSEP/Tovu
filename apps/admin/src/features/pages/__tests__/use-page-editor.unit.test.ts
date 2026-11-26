@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useWiredPageEditor, usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
+import { useWiredPageEditor, usePageEditor } from "../hooks/use-page-editor.hooks";
+import type { PageEditorController } from "@jini-ai/admin/pages/hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";

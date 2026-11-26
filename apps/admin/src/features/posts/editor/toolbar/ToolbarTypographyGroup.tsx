@@ -1,5 +1,5 @@
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
-import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "../../rules";
+import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import type { ToolbarGroupProps } from "./toolbar-group-props";
 
 function FontFamilySelect({ editor, state: s, t }: ToolbarGroupProps) {

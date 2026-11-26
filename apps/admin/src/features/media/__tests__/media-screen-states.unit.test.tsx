@@ -15,7 +15,7 @@ import { cloneElement, Suspense } from "react";
 import { renderMediaPanel } from "@/media-panel";
 import type { PanelRouteContext } from "@/panel-contracts";
 import { Media } from "../Media";
-import type { MediaController } from "../hooks/use-media.hooks";
+import type { MediaController } from "@jini-ai/admin/screens/media/hooks/use-media.hooks";
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMediaProviderCatalog } from "@jini-ai/cms/react/media/use-media-provider-catalog.hooks";

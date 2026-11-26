@@ -1,6 +1,6 @@
 import type { Editor } from "@tiptap/react";
 import { type Translate, interpolate } from "@jini-ai/core/text";
-import { readFileAsDataUrl } from "../rules";
+import { readFileAsDataUrl } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
 import type { PostEditorPort } from "./post-editor-dependencies.hooks";
 
@@ -60,7 +60,7 @@ export async function uploadDroppedFile(
   { onError }: { onError?: UploadFailureHandler } = {},
 ): Promise<{ assetId: string; alt: string } | null> {
   try {
-    const dataUrl = await readFileAsDataUrl(file);
+    const dataUrl = await readFileAsDataUrl({ file, deps: { createReader: () => new FileReader() } });
     const dataBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
     const { media } = await port.uploadMedia({ filename: file.name, contentType: file.type, dataBase64 });
     return { assetId: media.id, alt: file.name };

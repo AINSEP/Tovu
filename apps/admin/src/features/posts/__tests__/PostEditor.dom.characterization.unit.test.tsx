@@ -8,7 +8,7 @@ import { PostEditor } from "../PostEditor";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { TOOLBAR_PRIMARY_RANKS } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
-import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "../rules";
+import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "@jini-ai/cms/react/posts/post-editor-input.rules";
 import { TOOLBAR_DEFAULTS } from "../editor/toolbar/toolbar-state";
 
 /**

@@ -6,7 +6,7 @@ import { accessTokenProviderInfo } from "@jini-ai/admin/security/access-token-pr
 import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokensController, AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../hooks/use-access-tokens.hooks";
-import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
+import type { OtherCredentialsController } from "@jini-ai/admin/security/host/hooks/use-other-credentials.hooks";
 
 /**
  * @file Regression coverage for the owner-reported bug: the remove-token dialog told an operator to

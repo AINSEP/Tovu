@@ -20,8 +20,8 @@ export const Dashboard = lazy(() => import("./features/dashboard").then(module =
 export const ImportExport = lazy(() => import("./features/import-export").then(module => ({ default: module.ImportExport })));
 export const CookieConsent = lazy(() => import("./integrations/jini-admin/consent-screen").then(module => ({ default: module.CookieConsent })));
 export const PostEditor = lazy(() => import("./features/posts").then(module => ({ default: module.PostEditor })));
-export const Posts = lazy(() => import("./features/posts").then(module => ({ default: module.Posts })));
-export const PageEditor = lazy(() => import("./features/pages").then(module => ({ default: module.PageEditor })));
+export const Posts = lazy(() => import("./features/posts/Posts").then(module => ({ default: module.Posts })));
+export const PageEditor = lazy(() => import("./features/pages/PageEditor").then(module => ({ default: module.PageEditor })));
 export const Pages = lazy(() => import("./features/pages").then(module => ({ default: module.Pages })));
 export { Comments } from "@jini-ai/admin/screens/comments";
 export const Analytics = lazy(() => import("./integrations/jini-admin/analytics-page").then(module => ({ default: module.Analytics })));
@@ -29,19 +29,19 @@ export const Library = lazy(() => import("./features/library").then(module => ({
 export const Menus = lazy(() => import("./features/menus").then(module => ({ default: module.Menus })));
 export const MenuEditor = lazy(() => import("./features/menus").then(module => ({ default: module.MenuEditor })));
 export { IntegrationDeliveries } from "./features/integrations";
-export const Providers = lazy(() => import("./features/providers").then(module => ({ default: module.Providers })));
+export const Providers = lazy(() => import("./features/providers/Providers").then(module => ({ default: module.Providers })));
 export const Users = lazy(() => import("./features/users").then(module => ({ default: module.Users })));
 export const Authentication = lazy(() => import("./features/authentication").then(module => ({ default: module.Authentication })));
 export const Roles = lazy(() => import("./features/roles").then(module => ({ default: module.Roles })));
-export const SettingsUi = lazy(() => import("./features/settings").then(module => ({ default: module.SettingsUi })));
+export const SettingsUi = lazy(() => import("./features/settings/SettingsUi").then(module => ({ default: module.SettingsUi })));
 export { Seo } from "@jini-ai/admin/screens/seo";
 // The SEO screen mounts through the host module scope; panels.tsx injects these into it.
 export { useModulePanel, bindModuleLoading } from "./integrations/jini-admin/modules.hooks";
 export { SeoModuleLoading } from "./integrations/jini-admin/seo-module.hooks";
 export { Redirects } from "@jini-ai/admin/screens/redirects";
 export { RedirectsModuleLoading } from "./integrations/jini-admin/redirects-module.hooks";
-export const Plugins = lazy(() => import("./features/plugins").then(module => ({ default: module.Plugins })));
-export const AgentPlugins = lazy(() => import("./features/plugins").then(module => ({ default: module.AgentPlugins })));
+export const Plugins = lazy(() => import("./features/plugins/Plugins").then(module => ({ default: module.Plugins })));
+export const AgentPlugins = lazy(() => import("./features/plugins/AgentPlugins").then(module => ({ default: module.AgentPlugins })));
 // The Forms screens rely on these host stylesheets; they load with the eager Forms bridge.
 import "./styles/native-domain-dialogs.css";
 import "./styles/form-field-attrs.css";
@@ -52,14 +52,14 @@ export const CollectionEntries = lazy(() => import("./features/collections").the
 export const CollectionEntryEditor = lazy(() => import("./features/collections/collection-entry-panel").then(module => ({ default: module.CollectionEntryEditor })));
 export const Taxonomy = lazy(() => import("./features/taxonomy").then(module => ({ default: module.Taxonomy })));
 export const Trash = lazy(() => import("./features/trash").then(module => ({ default: module.Trash })));
-export const Email = lazy(() => import("./features/email").then(module => ({ default: module.Email })));
-export const EmailTemplateEditor = lazy(() => import("./features/email").then(module => ({ default: module.EmailTemplateEditor })));
+export const Email = lazy(() => import("./features/email/email-panel").then(module => ({ default: module.EmailPanel })));
+export const EmailTemplateEditor = lazy(() => import("./features/email/email-panel").then(module => ({ default: module.EmailTemplateEditorPanel })));
 export const Database = lazy(() => import("./features/database").then(module => ({ default: module.Database })));
 export const Recovery = lazy(() => import("./features/recovery/recovery-panel").then(module => ({ default: module.Recovery })));
 export const Storage = lazy(() => import("./features/storage/Storage").then(module => ({ default: module.Storage })));
 export const Deployment = lazy(() => import("./features/deployment/deployment-panel").then(module => ({ default: module.Deployment })));
 export const SourceControl = lazy(() => import("./features/source-control/source-control-panel").then(module => ({ default: module.SourceControl })));
-export const Security = lazy(() => import("./features/security").then(module => ({ default: module.Security })));
+export const Security = lazy(() => import("./features/security/Security").then(module => ({ default: module.Security })));
 export const Observability = lazy(() => import("./features/observability").then(module => ({ default: module.Observability })));
 export { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "@jini-ai/admin/screens/widgets";
 export { WorkspaceRedirect } from "./features/workspace/WorkspaceRedirect";

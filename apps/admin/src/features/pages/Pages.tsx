@@ -9,7 +9,8 @@ import {
 import { siteUrl } from "../../lib/site-url";
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/publish-section-button-binding";
-import { pageAdminPath, pagePublicPath } from "./rules";
+import { postPublicPath as pagePublicPath } from "@jini-ai/cms/routing/public-path";
+import { pageAdminPath } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import type { ThemePagesController } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";

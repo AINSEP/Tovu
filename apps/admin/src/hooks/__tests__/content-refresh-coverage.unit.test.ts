@@ -51,11 +51,11 @@ const WIRED_HOOKS: readonly string[] = [
   // Taxonomy's list hook moved into `@jini-ai/admin`; its subscription is checked in the built
   // module this admin actually imports.
   "../node_modules/@jini-ai/admin/dist/screens/taxonomy/hooks/use-taxonomy.hooks.js",
-  "features/posts/hooks/use-posts.hooks.ts",
+  "../node_modules/@jini-ai/admin/src/posts/hooks/use-posts.hooks.ts",
   "features/pages/hooks/use-pages.hooks.ts",
   "features/plugins/hooks/use-plugins.hooks.ts",
   "features/plugins/hooks/use-agent-plugins.hooks.ts",
-  "features/media/hooks/use-media.hooks.ts",
+  "../node_modules/@jini-ai/admin/src/screens/media/hooks/use-media.hooks.ts",
   // Jini owns Forms list invalidation; the host port retains its filtered bus subscription.
   "integrations/jini-admin/forms-ports.ts",
   "features/security/hooks/use-access-tokens.hooks.ts",
@@ -74,7 +74,7 @@ const WIRED_HOOKS: readonly string[] = [
   // Jini owns the queue lifecycle; Tovu's event port is the surviving bus subscription.
   "integrations/jini-admin/comments-ports.ts",
   // Recovery owns restore points.
-  "features/deployment/hooks/use-static-export.hooks.ts",
+  "../node_modules/@jini-ai/devops/src/deploy/react/hooks/use-static-export.hooks.ts",
   "features/members/hooks/members-controller.hooks.ts",
   // Jini owns both list lifecycles; the resource-filtered host port retains their subscription.
   "integrations/jini-admin/widgets-ports.ts",
@@ -87,7 +87,7 @@ const WIRED_HOOKS: readonly string[] = [
   "features/themes/hooks/use-theme-explore.hooks.ts",
   // Editors wired through `use-external-entry-refresh.hooks.ts` (2026-09-16) — see this file's own
   // header note above for why these belong here despite holding an unsaved working copy.
-  "features/pages/hooks/use-page-editor.hooks.ts",
+  "../node_modules/@jini-ai/admin/src/pages/hooks/page-editor-recovery.hooks.ts",
 ];
 
 /** Parse real calls, so commented-out subscriptions cannot satisfy the guard. */
@@ -99,7 +99,7 @@ describe("content-refresh coverage (staleness-bug guard)", () => {
     const tree = ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true);
     const calls: ts.CallExpression[] = [];
     const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && SUBSCRIPTION_NAMES.has(node.expression.text)) calls.push(node);
+      if (ts.isCallExpression(node) && (ts.isIdentifier(node.expression) || ts.isPropertyAccessExpression(node.expression)) && SUBSCRIPTION_NAMES.has(ts.isIdentifier(node.expression) ? node.expression.text : node.expression.name.text)) calls.push(node);
       ts.forEachChild(node, visit);
     };
     visit(tree);

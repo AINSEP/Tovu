@@ -5,7 +5,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-q
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";
-import { usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
+import { usePageEditor } from "../hooks/use-page-editor.hooks";
+import type { PageEditorController } from "@jini-ai/admin/pages/hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";

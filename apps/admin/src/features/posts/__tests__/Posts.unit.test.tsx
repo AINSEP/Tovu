@@ -1,14 +1,34 @@
+import { bindPosts, postsListNotice } from "@jini-ai/admin/posts/Posts";
+import { useWiredPosts } from "../hooks/use-posts.hooks";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { ServerLabel } from "@/components/status-labels";
+import { PublishSectionButton } from "@/features/publish-content/publish-section-button-binding";
+import { siteUrl } from "@/lib/site-url";
+import { postRowMenuItems } from "@jini-ai/cms/react/posts/posts-list-rules";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
+import { t as translateForPosts } from "../posts-i18n";
 import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { usePosts } from "../hooks/use-posts.hooks";
+import { usePosts } from "@jini-ai/admin/posts/hooks/use-posts.hooks";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { t as translate } from "../posts-i18n";
+import { POSTS_RESOURCE } from "@jini-ai/cms/react/posts/posts-list-rules";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
-import { Posts, postsListNotice } from "../Posts";
-import type { PostsController } from "../hooks/use-posts.hooks";
+import type { PostsController } from "@jini-ai/admin/posts/hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "@jini-ai/cms/react/posts/posts-list-rules";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+
+const Posts = bindPosts({
+  hooks: { usePostsHook: useWiredPosts, useLocaleHook: useWiredAdminLocale },
+  kit: { ServerLabel, PublishSectionButton },
+  deps: { translate: translateForPosts, siteUrl, postRowMenuItems, navigate,
+    postAdminPath: ({ slug }) => `/admin/posts/${slug}`,
+    postEditorRoute: ({ slug }) => `/posts/${slug}`, viewerTimeZone: VIEWER_TIME_ZONE },
+});
 
 /**
  * @file `Posts` — markup-only list screen, twin of `features/pages/Pages.tsx`. Had NO test file
@@ -346,7 +366,7 @@ describe("postsListNotice", () => {
 
 it("New Post opens the unsaved editor without persisting an Untitled post", async () => {
   const port = createFakePostsListPort({ posts: [] });
-  render(<Posts usePostsHook={() => usePosts({ port, navigate: (routePath) => navigate({ routePath }) })} />);
+  render(<Posts usePostsHook={() => usePosts({ locale: "en", hooks: { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate, useContentRefreshSubscription }, deps: { port, navigate: (routePath) => navigate({ routePath }), createRoutePath: "/posts?create=1", resource: POSTS_RESOURCE, translate, buildPostRowMenuHandleMap } })} />);
   await userEvent.click(await screen.findByRole("button", { name: "New Post" }));
   expect(navigate).toHaveBeenCalledWith({ routePath: "/posts?create=1" });
   expect(port.posts).toEqual([]);
