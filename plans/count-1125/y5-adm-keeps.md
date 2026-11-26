@@ -19,6 +19,8 @@
 ^apps/admin/src/features/deployment/hooks/use-static-publish\.hooks\.ts$
 ^apps/admin/src/features/posts/Posts\.tsx$
 ^apps/admin/src/features/publish-content/PublishContentDialog\.tsx$
+^apps/admin/src/components/AssistantDock/AssistantDock\.tsx$
+^apps/admin/src/components/AssistantDock/hooks/execution-config\.hooks\.ts$
 ```
 
 ## Round 2 status

@@ -1,11 +1,8 @@
-import { useCallback } from "react";
 import { useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import { useExecutionConfig as useAdminExecutionConfig, useStoredAdminKey } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config.hooks";
-import type { DockExecutionConfigPort, ExecutionWrite, UseExecutionConfig } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config.hooks";
+import { bindExecutionConfig, useStoredAdminKey } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config.hooks";
 import { useExecutionConfigLedger } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config-ledger.hooks";
-import { subscribeExecutionConfigRefresh as subscribeJiniExecutionConfigRefresh } from "@jini-ai/admin/shell/components/AssistantDock/hooks/execution-config-refresh";
 import { retryWhileUnreachable } from "@/lib/retry-unreachable";
 import { DEFAULT_EXECUTION_CONFIG, loadAdminExecutionCredential, loadExecutionConfig } from "@/lib/execution-settings";
 import { EXECUTION_NAMESPACE } from "@jini-ai/admin/shell/lib/execution-settings-ledger";
@@ -54,58 +51,24 @@ import { applyExecutionConfigChange, persistExecutionConfigWrite } from "../exec
  * each hook's own doc comment for why.
  */
 
-const defaultDockExecutionConfigPort: DockExecutionConfigPort = {
-  loadConfig: loadExecutionConfig,
-  loadCredential: loadAdminExecutionCredential,
-  now: Date.now,
-};
-
-function subscribeExecutionConfigRefresh(
-  { revalidate }: { revalidate: () => void },
-  _options: Record<string, never> = {},
-): () => void {
-  return subscribeJiniExecutionConfigRefresh({ revalidate, deps: { window, document, subscribeToSettingsRefresh, EXECUTION_NAMESPACE } });
-}
-
-const ledgerIo = {
-  retry: retryWhileUnreachable,
-  subscribeRefresh: subscribeExecutionConfigRefresh,
-  onLoadFailure: (error: unknown) => console.error("[AssistantDock] failed to load execution config", error),
-};
-const storedKeyIo = {
-  retry: retryWhileUnreachable,
-  subscribeRefresh: ({ revalidate }: { revalidate: () => void }) => subscribeToSettingsRefresh((scope) => {
-    if (scope && !scope.includes(EXECUTION_NAMESPACE)) return;
-    revalidate();
-  }),
-  onLoadFailure: (error: unknown) => console.error("[AssistantDock] failed to load stored BYOK credential state", error),
-};
-
-export function useExecutionConfig(
-  _requiredArgs: Record<string, never> = {},
-  { useBootScope = useAdminBootScope, useLoader = useCachedLoader, useInvalidator = useInvalidate, useLedger = useExecutionConfigLedger, useStoredKey = useStoredAdminKey, ...seams }: {
-    useBootScope?: typeof useAdminBootScope;
-    useLoader?: typeof useCachedLoader;
-    useInvalidator?: typeof useInvalidate;
-    useLedger?: typeof useExecutionConfigLedger;
-    useStoredKey?: typeof useStoredAdminKey;
-    port?: DockExecutionConfigPort;
-    persistWrite?: typeof persistExecutionConfigWrite;
-  } = {},
-): UseExecutionConfig {
-  // Non-hook seams default by spread, not `=`: same values without a branch apiece.
-  const { port, persistWrite } = { port: defaultDockExecutionConfigPort, persistWrite: persistExecutionConfigWrite, ...seams };
-  const persistMode = useCallback(({ write }: { write: ExecutionWrite }) =>
-    persistWrite({ write, failureLog: "[AssistantDock] failed to save execution mode" }), [persistWrite]);
-  return useAdminExecutionConfig({
-    port, initialConfig: DEFAULT_EXECUTION_CONFIG, namespace: EXECUTION_NAMESPACE,
-    useBootScopeHook: useBootScope, useCachedLoaderHook: useLoader, useInvalidateHook: useInvalidator,
-    useLedgerHook: useLedger, useStoredKeyHook: useStoredKey, ledgerIo, storedKeyIo,
-    applyChange: applyExecutionConfigChange, persistWrite: persistMode,
-  });
-}
-
-export function useExecutionConfigSeam({ override }: { override: typeof useExecutionConfig | undefined }, _options: Record<string, never> = {}): UseExecutionConfig {
-  return (override ?? useExecutionConfig)();
-}
-
+export const useExecutionConfig = bindExecutionConfig({
+  hooks: {
+    useBootScopeHook: useAdminBootScope,
+    useCachedLoaderHook: useCachedLoader,
+    useInvalidateHook: useInvalidate,
+    useLedgerHook: useExecutionConfigLedger,
+    useStoredKeyHook: useStoredAdminKey,
+  },
+  deps: {
+    port: { loadConfig: loadExecutionConfig, loadCredential: loadAdminExecutionCredential, now: Date.now },
+    initialConfig: DEFAULT_EXECUTION_CONFIG,
+    namespace: EXECUTION_NAMESPACE,
+    refresh: { window, document, subscribeToSettingsRefresh, EXECUTION_NAMESPACE },
+    retry: retryWhileUnreachable,
+    onConfigLoadFailure: (error: unknown) => console.error("[AssistantDock] failed to load execution config", error),
+    onStoredKeyLoadFailure: (error: unknown) => console.error("[AssistantDock] failed to load stored BYOK credential state", error),
+    applyChange: applyExecutionConfigChange,
+    persistWrite: persistExecutionConfigWrite,
+    modeFailureLog: "[AssistantDock] failed to save execution mode",
+  },
+});

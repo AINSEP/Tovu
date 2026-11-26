@@ -80,7 +80,7 @@ test("a config load that hits a restarting API retries and applies the config on
   mockLoadExecutionConfig.mockRejectedValueOnce(unreachable()).mockResolvedValueOnce({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok" });
   mockLoadAdminExecutionCredential.mockResolvedValue({ isSet: false } as Credential);
 
-  const { result } = renderHook(() => useExecutionConfig());
+  const { result } = renderHook(() => useExecutionConfig({}));
   await flush(0);
   await flush(1_000);
 
@@ -94,7 +94,7 @@ test("a credential load that hits a restarting API retries and reports the store
   mockLoadExecutionConfig.mockResolvedValue(DEFAULT_EXECUTION_CONFIG);
   mockLoadAdminExecutionCredential.mockRejectedValueOnce(unreachable()).mockResolvedValueOnce({ isSet: true } as Credential);
 
-  const { result } = renderHook(() => useExecutionConfig());
+  const { result } = renderHook(() => useExecutionConfig({}));
   await flush(0);
   await flush(1_000);
 
@@ -107,7 +107,7 @@ test("loads cancelled by the page unloading are not logged as failures", async (
   mockLoadExecutionConfig.mockRejectedValue(pageUnloadAbort());
   mockLoadAdminExecutionCredential.mockRejectedValue(pageUnloadAbort());
 
-  const { result } = renderHook(() => useExecutionConfig());
+  const { result } = renderHook(() => useExecutionConfig({}));
   await flush(5_000);
 
   expect(consoleError).not.toHaveBeenCalled();
@@ -119,7 +119,7 @@ test("an API that stays down is still reported, once, after the retries give up"
   mockLoadExecutionConfig.mockRejectedValue(unreachable());
   mockLoadAdminExecutionCredential.mockResolvedValue({ isSet: false } as Credential);
 
-  const { result } = renderHook(() => useExecutionConfig());
+  const { result } = renderHook(() => useExecutionConfig({}));
   await flush(0);
   expect(consoleError).not.toHaveBeenCalled();
   await flush(120_000);
@@ -135,7 +135,7 @@ test("a non-reachability failure is reported immediately, not retried", async ()
   mockLoadExecutionConfig.mockRejectedValue(forbidden);
   mockLoadAdminExecutionCredential.mockResolvedValue({ isSet: false } as Credential);
 
-  renderHook(() => useExecutionConfig());
+  renderHook(() => useExecutionConfig({}));
   await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
   expect(consoleError).toHaveBeenCalledExactlyOnceWith("[AssistantDock] failed to load execution config", forbidden);
   expect(mockLoadExecutionConfig).toHaveBeenCalledTimes(1);
@@ -149,7 +149,7 @@ test("unmounting during a retry wait stops retrying", async () => {
   mockLoadExecutionConfig.mockRejectedValue(unreachable());
   mockLoadAdminExecutionCredential.mockRejectedValue(unreachable());
 
-  const { unmount } = renderHook(() => useExecutionConfig());
+  const { unmount } = renderHook(() => useExecutionConfig({}));
   await flush(0);
   unmount();
   await flush(120_000);
