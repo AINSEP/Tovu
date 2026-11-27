@@ -269,3 +269,39 @@ test("different secrets with matching display hints and source row IDs get disti
     assert.equal(await projectToken(f, second.keyId), secondToken);
   } finally { await f.close(); }
 });
+
+test("the permission lookup reads one source row's metadata, and a row removed from its site reads as missing", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Deploy");
+    await f.save(f.a, "vercel-gone", "Old");
+    const choices = await f.siteKeys.list({});
+    const keyId = siteRow(choices, "Vercel, Deploy, site-a").keyId;
+    assert.equal(keyId, "saved-on-site:site-a:vercel-a");
+    assert.deepEqual(await f.siteKeys.find({ keyId }), {
+      workspaceId: "project", id: "vercel-a", kind: "vendor", label: "Deploy", ownerKey: "tovu", principalId: null, binding: null,
+      provider: "vercel", isDefault: false, revision: 1, sealed: null, last4: null, tokenLength: null, meta: vendorMeta, createdAt: "", updatedAt: "",
+    }, "metadata only: no sealed payload, no token hint");
+    const goneId = siteRow(choices, "Vercel, Old, site-a").keyId;
+    await f.a.service.delete({ workspaceId: f.a.id, id: "vercel-gone", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, expectedRevision: 1 });
+    assert.equal(await f.siteKeys.find({ keyId: goneId }), null);
+    assert.deepEqual(await f.projectRows(), [], "a lookup never writes the owner store");
+  } finally { await f.close(); }
+});
+
+test("a source site that cannot be read while listing becomes one locked row and other sites stay listed", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Deploy");
+    await f.save(f.b, "vercel-b", "Preview");
+    for (const suffix of ["-wal", "-shm"]) fs.rmSync(`${f.a.dbPath}${suffix}`, { force: true });
+    fs.writeFileSync(f.a.dbPath, "this is not a database file at all, only some text");
+    const choices = await f.siteKeys.list({});
+    const broken = siteRow(choices, "Keys saved on site-a");
+    assert.deepEqual(broken, { keyId: "saved-on-site:site-a:", kind: "vendor", name: "Keys saved on site-a", siteName: "site-a",
+      locked: "site-a can't be read right now. Open it in Tovu, then try again. Details: P25_SITE_KEYS_UNREADABLE; secret values omitted." });
+    const own = siteRow(choices, "Vercel, Preview, this site");
+    assert.equal(own.locked, undefined, "this site's own key stays usable");
+    assert.deepEqual(choices.map(row => row.siteName).sort(), ["site-a", "site-b"]);
+  } finally { await f.close(); }
+});
