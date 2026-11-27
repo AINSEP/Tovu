@@ -929,3 +929,18 @@ test("classifyCoreColumn rejects an unreviewed autoincrement key and an unsuppor
   assert.throws(() => classifyCoreColumn({ sqlTableName: "unreviewed_probe", col: columns.find((column) => column.name === "id")! }), /autoincrement primary key "unreviewed_probe.id" has no entry in REVIEWED_INTEGER_ID_COLUMNS/);
   assert.throws(() => classifyCoreColumn({ sqlTableName: "unreviewed_probe", col: columns.find((column) => column.name === "amount")! }), /unmapped column kind "SQLiteReal" on "unreviewed_probe.amount"/);
 });
+
+test("reseedSequenceSql applies the 63-byte limit to a column name, not a character limit", () => {
+  const fitting = `${"é".repeat(31)}a`;
+  assertIdentifierFits({ identifier: fitting, what: "column name" });
+  const oversized = "é".repeat(32);
+  assert.throws(() => reseedSequenceSql({ sqlTableName: "analytics_events", sqlColumnName: oversized }), {
+    message: `column name "${oversized}" is 64 bytes, exceeding PostgreSQL's 63-byte NAMEDATALEN-1 limit. PostgreSQL truncates over-long identifiers silently rather than rejecting them.`,
+  });
+});
+
+test("plugin transfer refuses a column kind from a newer or incompatible declaration", () => {
+  // Exercise the runtime boundary, where a plugin declaration can come from another version.
+  const decl = { name: "payload", type: "DECIMAL" } as unknown as ColumnDecl;
+  assert.throws(() => classifyPluginColumn(decl), { message: 'unmapped plugin column type "DECIMAL"' });
+});

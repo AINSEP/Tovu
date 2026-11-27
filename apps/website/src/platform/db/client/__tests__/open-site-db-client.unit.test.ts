@@ -8,6 +8,7 @@ import ts from "typescript";
 
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
+import * as sqliteDriver from "../../kernel/drivers/sqlite.js";
 import {
   type ImportSiteDbDriver,
   openSiteDbClient,
@@ -202,6 +203,43 @@ test("W1-L: sqlite refuses a missing file and creates nothing", async (t) => {
     { message: `${site.chatDbPath} does not exist: the site's API process creates and migrates it at boot; start the site, then retry` }
   );
   assert.deepEqual(fs.readdirSync(site.siteDir), ["content.db"]);
+});
+
+test("W1-L: a failed chat open closes the content handle and preserves the original error", async (t) => {
+  const site = scratchSite(t);
+  fs.writeFileSync(site.dbPath, "");
+  fs.writeFileSync(site.chatDbPath, "");
+  const failure = new Error("chat database could not be opened");
+  const opened: string[] = [];
+  let contentHandle: sqliteDriver.NativeSqliteDatabase | undefined;
+  const sqlite: SiteDbDrivers["sqlite"] = {
+    ...sqliteDriver,
+    openSqliteFileKernel: <DB>({ filePath }: { filePath: string }) => {
+      opened.push(filePath);
+      if (filePath === site.chatDbPath) {
+        assert.equal(contentHandle?.open, true);
+        throw failure;
+      }
+      assert.equal(filePath, site.dbPath);
+      const kernel = sqliteDriver.openSqliteFileKernel<DB>({ filePath });
+      contentHandle = sqliteDriver.sqliteConnectionOf({ kernel });
+      return kernel;
+    },
+  };
+  const importDriver: ImportSiteDbDriver = async <K extends keyof SiteDbDrivers>({ kind }: { kind: K }) => {
+    assert.equal(kind, "sqlite");
+    return sqlite as SiteDbDrivers[K];
+  };
+  try {
+    await assert.rejects(
+      openSiteDbClient({ storage: { kind: "sqlite" }, ...site, resolvePostgresConnectionString: unusedResolver }, { env: {}, importDriver }),
+      error => error === failure,
+    );
+    assert.deepEqual(opened, [site.dbPath, site.chatDbPath]);
+    assert.equal(contentHandle?.open, false);
+  } finally {
+    if (contentHandle?.open) sqliteDriver.closeSqliteConnection({ source: contentHandle });
+  }
 });
 
 test("W1-L: TOVU_DB=memory is refused before any driver loads", async () => {

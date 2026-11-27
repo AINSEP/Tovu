@@ -5,6 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { SqlBufferSink } from "#src/platform/db/repos/analytics-sink";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
@@ -110,6 +112,27 @@ test("SqliteBufferSink reports durable: true, LocalBufferSink reports durable: f
   const memory = createLocalAnalyticsSink({});
   assert.equal(sqlite.capabilities().durable, true);
   assert.equal(memory.capabilities().durable, false);
+});
+
+test("SQL sink limits reads to the newest 50 by default and clamps requests to 1–500", async t => {
+  const db = openContentDb(":memory:");
+  t.after(() => closeSqliteConnection({ source: db }));
+  const kernel = contentKernel({ store: db });
+  const sink = new SqlBufferSink({ kernel, workspaceId: WORKSPACE_ID });
+  const hits = Array.from({ length: 501 }, (_, i) => makeHit({ path: `/hit-${i}` }));
+  for (let offset = 0; offset < hits.length; offset += 100) {
+    await sink.acceptBatch({ hits: hits.slice(offset, offset + 100) });
+  }
+  const expected = hits.map(hit => hit.path).reverse();
+  assert.deepEqual(sink.capabilities(), { durable: true, batch: true });
+  assert.deepEqual((await sink.list({})).map(hit => hit.path), expected.slice(0, 50));
+  for (const [limit, size] of [
+    [Number.NaN, 50], [Number.POSITIVE_INFINITY, 50],
+    [-1, 1], [0, 1], [1, 1], [2, 2], [2.9, 2],
+    [499, 499], [500, 500], [501, 500],
+  ] as const) {
+    assert.deepEqual((await sink.list({}, { limit })).map(hit => hit.path), expected.slice(0, size), `limit ${limit}`);
+  }
 });
 
 test("ADR-046 Phase 1: analytics_events survives a simulated process restart (real on-disk file)", async () => {

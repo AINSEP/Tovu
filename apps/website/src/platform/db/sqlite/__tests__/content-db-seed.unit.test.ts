@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { contentKernel } from "../../content-kernel.js";
 import { seedContentStore } from "../../prepare-content-store.js";
+import { closeSqliteConnection } from "../../kernel/drivers/sqlite.js";
 import { openContentDb, type ContentDb, type ContentDbSeedData } from "../content-db.js";
 import * as schema from "../../schema.sqlite.js";
 
@@ -165,4 +166,30 @@ test("seeds multiple posts in the order given", async () => {
     posts.map((p) => p.id),
     ["post-1", "post-2"]
   );
+});
+
+test("first boot stores portable entries with their JSON fields and reopening keeps an operator edit", async t => {
+  const db = openContentDb(":memory:");
+  t.after(() => closeSqliteConnection({ source: db }));
+  const now = "2026-08-21T00:00:00.000Z";
+  const seed = seedData({
+    contentEntries: [
+      { id: "starter-card", workspaceId: "ws-1", type: "widget", slug: "starter-card",
+        title: "Starter card", status: "draft", createdAt: now, updatedAt: now, version: 1,
+        fieldsJson: { visible: true, links: [{ href: "/about" }] } },
+      { id: "starter-list", workspaceId: "ws-1", type: "collection", slug: "starter-list",
+        title: "Starter list", status: "draft", createdAt: now, updatedAt: now, version: 1,
+        fieldsJson: { ids: ["first", "second"] } },
+    ],
+  });
+  const read = () => db.select({
+    id: schema.entries.id, workspaceId: schema.entries.workspaceId, type: schema.entries.type, fields: schema.entries.fieldsJson,
+  }).from(schema.entries).orderBy(schema.entries.id).all().map(row => ({ ...row, fields: JSON.parse(row.fields) }));
+  await seedContentDb({ db, seed });
+  const card = { id: "starter-card", workspaceId: "ws-1", type: "widget", fields: { visible: true, links: [{ href: "/about" }] } };
+  const list = { id: "starter-list", workspaceId: "ws-1", type: "collection", fields: { ids: ["first", "second"] } };
+  assert.deepEqual(read(), [card, list]);
+  db.update(schema.entries).set({ fieldsJson: '{"visible":false,"links":[]}' }).where(eq(schema.entries.id, "starter-card")).run();
+  await seedContentDb({ db, seed });
+  assert.deepEqual(read(), [{ ...card, fields: { visible: false, links: [] } }, list]);
 });

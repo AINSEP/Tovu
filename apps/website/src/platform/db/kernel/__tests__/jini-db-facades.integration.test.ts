@@ -11,12 +11,40 @@ import { sql } from "kysely";
 import { sqliteKernel as jiniSqliteKernel } from "@jini-ai/db/kernel/sqlite";
 import { openMemorySqliteKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf } from "../drivers/sqlite.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
+import { openPostgresKernel } from "../drivers/postgres.js";
 import { defaultPgliteSocketDir, ensurePrivateDir, acquireOwnerLock, OWNER_LOCK_FILE, PGLITE_LOW_MEMORY_START_PARAMS, PgliteOwnerLockedError } from "../drivers/pglite-owner.js";
 import { storageOps, StorageOpNotSupportedError } from "../ops.js";
 import { hasLedger, runMigrations } from "../../migrations/runner.js";
 import { type MigrationStep } from "@jini-ai/core/contracts/storage";
 import { MigrationChecksumError, UnknownAppliedMigrationError } from "@jini-ai/db/migrate";
-import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { kernelSessionPoolMax, withKernelSessionLock, type KyselyKernel } from "@jini-ai/db/kernel";
+import { contentKernel, schemaErasedKernel } from "../../content-kernel.js";
+
+test("the configured Postgres pool limit is part of session-owner admission", async t => {
+  const kernel = openPostgresKernel<unknown>({ connectionString: "postgres://unused:unused@127.0.0.1:1/unused", max: 1 });
+  t.after(() => kernel.close());
+  assert.equal(kernelSessionPoolMax({ kernel }), 1);
+  await assert.rejects(withKernelSessionLock({ kernel, key: "pool-capacity-probe", run: async () => assert.fail("a one-connection pool cannot run the owner") }), {
+    message: "A database session owner requires a PostgreSQL pool with at least 2 connections.",
+  });
+});
+
+test("erasing the content schema preserves the kernel and its transaction boundary", async t => {
+  const raw = new Database(":memory:");
+  t.after(() => { raw.close(); });
+  raw.exec("CREATE TABLE probe (value TEXT PRIMARY KEY)");
+  const kernel = contentKernel({ store: raw });
+  const erased = schemaErasedKernel({ store: kernel });
+  assert.equal(contentKernel({ store: kernel }), kernel);
+  assert.equal(erased, kernel);
+  assert.equal(schemaErasedKernel({ store: { $client: raw } }), erased);
+  await assert.rejects(kernel.transaction(async () => {
+    await erased.run(db => sql`INSERT INTO probe VALUES ('rolled-back')`.execute(db));
+    assert.deepEqual(await kernel.query(sql`SELECT value FROM probe`), [{ value: "rolled-back" }]);
+    throw new Error("cancel seed");
+  }), { message: "cancel seed" });
+  assert.deepEqual(raw.prepare("SELECT value FROM probe").all(), []);
+});
 
 test("same-file locking crosses from a Tovu shim into a direct Jini kernel", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "j02-locks-"));
