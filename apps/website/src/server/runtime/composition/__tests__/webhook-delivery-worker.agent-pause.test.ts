@@ -123,3 +123,22 @@ test("a composition that does not carry the switch (absent) delivers everything,
   await worker.stop();
   assert.equal(site.posted.length, 3);
 });
+
+test("without a pause gate the bare switch holds agent deliveries and an absent switch lets them resume", async (t) => {
+  const site = await rig(false);
+  delete site.deps.agentPauseGate;
+  const worker = startServingWebhookDeliveryWorker({ deps: site.deps }, { httpClient: site.httpClient, scheduler: idleScheduler });
+  t.after(() => worker.stop());
+
+  await worker.tick();
+  assert.deepEqual([...site.posted].sort(), ["https://example.com/sub-legacy", "https://example.com/sub-person"]);
+  assert.equal((await site.row("sub-agent"))?.status, "pending");
+  assert.equal((await site.row("sub-agent"))?.attempts, 0);
+
+  delete site.deps.adminAssistantEnabled;
+  site.setNow(LATER);
+  await worker.tick();
+  assert.deepEqual([...site.posted].sort(), ["https://example.com/sub-agent", "https://example.com/sub-legacy", "https://example.com/sub-person"]);
+  assert.equal((await site.row("sub-agent"))?.status, "delivered");
+  assert.equal((await site.row("sub-agent"))?.attempts, 1);
+});

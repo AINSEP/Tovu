@@ -146,3 +146,50 @@ test("a verified-ready daemon clears a stale latch, so /api/agents does not stay
     assert.equal(isAssistantDaemonKnownFailed(), false);
   } finally { clearAssistantDaemonFailure(); }
 });
+
+test("a failed port refresh is retried on the next demand without spawning from the failed attempt", { timeout: 2000 }, async () => {
+  const events: string[] = [];
+  let refreshes = 0;
+  const child = Object.assign(new EventEmitter(), { pid: 372, kill: () => true });
+  startAssistantDaemon({ workspaceId: "retry-site", siteDir: "/unused" }, {
+    parentIpc: false, registerProcessSignalHandlers: false,
+    beforeStart: async () => { events.push("eligible"); },
+    refreshPort: async () => {
+      events.push("refresh");
+      if (++refreshes === 1) throw new Error("local port probe failed");
+    },
+    readDiscovery: async () => { events.push("discover"); return { pid: 372, url: "http://127.0.0.1:4513" }; },
+    spawnDaemonProcess: () => { events.push("spawn"); return child; },
+  });
+  await assert.rejects(ensureAssistantDaemonReady({}, {}), { message: "local port probe failed" });
+  assert.deepEqual(events, ["eligible", "refresh"]);
+  await ensureAssistantDaemonReady({}, {});
+  assert.deepEqual(events, ["eligible", "refresh", "eligible", "refresh", "spawn", "discover"]);
+  assert.equal(lifecycle.isAssistantDaemonReady(), true);
+  child.emit("exit", 88, null);
+});
+
+test("an aborted demand cannot spawn after its asynchronous readiness prerequisite releases", { timeout: 2000 }, async () => {
+  const boot = deferred();
+  const gateEntered = deferred();
+  const abort = new AbortController();
+  let spawns = 0;
+  const child = Object.assign(new EventEmitter(), { pid: 374, kill: () => true });
+  startAssistantDaemon({ workspaceId: "abort-site", siteDir: "/unused" }, {
+    parentIpc: false, registerProcessSignalHandlers: false,
+    beforeStart: () => { gateEntered.resolve(); return boot.promise; },
+    refreshPort: async () => {},
+    readDiscovery: async () => ({ pid: 374, url: "http://127.0.0.1:4513" }),
+    spawnDaemonProcess: () => { spawns++; return child; },
+  });
+  const demand = ensureAssistantDaemonReady({}, { signal: abort.signal });
+  await gateEntered.promise;
+  const rejection = assert.rejects(demand, { message: "caller disconnected" });
+  abort.abort(new Error("caller disconnected"));
+  boot.resolve();
+  await rejection;
+  assert.equal(spawns, 0);
+  await ensureAssistantDaemonReady({}, {});
+  assert.equal(spawns, 1);
+  child.emit("exit", 88, null);
+});

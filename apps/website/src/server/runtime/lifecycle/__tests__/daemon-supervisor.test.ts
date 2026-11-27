@@ -571,3 +571,34 @@ test("shutdown() on win32 falls back to a direct SIGTERM on the child when killT
 
   assert.deepEqual(children[0].killedSignals, ["SIGTERM"]);
 });
+
+test("repeated bind failures stop retrying with a port-specific recovery instruction", () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  const pending = new Set<() => void>();
+  let spawned = 0;
+  const now = () => 123_000;
+  const supervisor = createDaemonSupervisor({
+    daemonPort: "4771",
+    now,
+    policy: createRespawnPolicy({ now, portConflictMaxAttempts: 2, backoffScheduleMs: [19] }),
+    spawnDaemonProcess: () => children[spawned++].handle,
+    scheduler: { schedule: ({ run }) => { pending.add(run); return () => { pending.delete(run); }; } },
+    log: () => {},
+  });
+  try {
+    supervisor.start();
+    children[0].emitExit(87, null);
+    assert.equal(pending.size, 1, "first bind failure schedules one retry");
+    const [retry] = pending;
+    pending.delete(retry);
+    retry();
+    assert.equal(spawned, 2);
+    children[1].emitExit(87, null);
+    assert.equal(pending.size, 0, "the port-specific cap prevents another launch");
+    assert.equal(supervisor.isReady(), false);
+    const failure = getReadinessSnapshot().modules.find(module => module.name === "assistant-daemon")?.lifecycle;
+    assert.equal(failure?.status, "failed");
+    assert.equal(failure.reasonCode,
+      "gave up after 2 attempts trying to bind 127.0.0.1:4771 — likely a zombie process still holding the port; find it with `lsof -ti :4771 -sTCP:LISTEN`, stop it, then use the manual restart to try again");
+  } finally { supervisor.shutdown(); }
+});

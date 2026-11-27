@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { EnvConfigError } from "@jini-ai/core/config/env-schema";
-import { readTovuBootEnv } from "../env-schema.js";
+import { declaredTovuEnvNames, readTovuBootEnv } from "../env-schema.js";
 
 const collectWarnings = () => {
   const messages: string[] = [];
@@ -58,4 +58,19 @@ describe("readTovuBootEnv", () => {
     readTovuBootEnv({ env: { TOVU_DB: "memory" }, scope: "website", warn: neither.warn }, { aliases });
     assert.equal(neither.messages.length, 0);
   });
+});
+
+it("the boot inventory exposes distinct website, desktop and daemon listener variables", () => {
+  const names = declaredTovuEnvNames();
+  assert.deepEqual(Object.fromEntries(Object.entries(names).map(([scope, vars]) => [scope, [...vars].sort()])), {
+    website: ["PORT", "TOVU_CHAT_DB", "TOVU_CONTENT_DB", "TOVU_DB", "TOVU_HOST", "TOVU_PLUGINS_DIR", "TOVU_RUNNING_APP", "TOVU_START_AUTO_PORT"],
+    desktop: ["TOVU_DESKTOP_CLI_MODE", "TOVU_DESKTOP_PORT", "TOVU_DESKTOP_SELFTEST", "TOVU_DESKTOP_SITE_DIR", "TOVU_DESKTOP_SITE_DIRS", "TOVU_DESKTOP_UI", "TOVU_DESKTOP_URL", "TOVU_DESKTOP_USER_DATA_DIR"],
+    daemon: ["JINI_AGENT_DAEMON_PORT", "JINI_ALLOWED_ORIGINS", "JINI_BIND_HOST", "JINI_WEB_PORT", "TOVU_AGENT_DAEMON_REGISTRY_PATH", "TOVU_AGENT_DAEMON_STANDALONE", "TOVU_SITE_LISTENER_ORIGIN"],
+  });
+  const { warn, messages } = collectWarnings();
+  const env = { PORT: "invalid for website", TOVU_DESKTOP_PORT: " 4302 ", JINI_AGENT_DAEMON_PORT: "0" };
+  assert.equal(readTovuBootEnv({ env, scope: "desktop", warn }).TOVU_DESKTOP_PORT, 4302);
+  assert.throws(() => readTovuBootEnv({ env: { ...env, TOVU_DESKTOP_PORT: "0" }, scope: "desktop", warn }),
+    { name: "EnvConfigError", message: "TOVU_DESKTOP_PORT: must be a whole number from 1 to 65535 when set (the first desktop site's port)." });
+  assert.deepEqual(messages, []);
 });

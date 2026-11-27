@@ -37,3 +37,18 @@ test("contact-form keeps its legacy shell classes, fallback copy and button labe
   const builtin = String(pinned.formBuiltin);
   for (const legacy of ["widget widget-contact-form", "Thanks — your message has been sent.", "widget-contact-form-success", "widget-contact-form-error", "Send"]) assert.ok(builtin.includes(legacy) || (legacy === "widget widget-contact-form" && /class="widget [^"]* widget-contact-form"/.test(builtin)), `pinned bytes lack ${legacy}`);
 });
+
+test("repeated contact widgets use different field ids and keep each label bound to its own input", () => {
+  const props = { slug: "contact", fields: [{ id: "email", type: "email", label: "Email" }] };
+  const fieldId = (html: string) => {
+    const input = /<input\b[^>]*\bid="(widget-contact-[\da-f-]+-email)"[^>]*>/.exec(html);
+    assert.ok(input, "the email control has an occurrence-scoped id");
+    assert.ok(html.includes(`for="${input[1]}"`), "the email label targets that control");
+    assert.match(input[1], /^widget-contact-[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}-email$/);
+    return input[1];
+  };
+
+  const first = fieldId(renderWidgetContactForm({ props, host: host.contactForm }));
+  const second = fieldId(renderWidgetContactForm({ props, host: host.contactForm }));
+  assert.notEqual(first, second, "two contact widgets cannot share document ids");
+});

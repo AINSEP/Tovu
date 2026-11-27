@@ -17,3 +17,16 @@ test("isDaemonLifecycleLogQuiet: unset, 'on' or anything else logs as before", (
   assert.equal(isDaemonLifecycleLogQuiet({ TOVU_DAEMON_LIFECYCLE_LOG: "on" }), false);
   assert.equal(isDaemonLifecycleLogQuiet({ TOVU_DAEMON_LIFECYCLE_LOG: "" }), false);
 });
+
+test("the no-argument lifecycle switch follows the live launcher environment", () => {
+  const previous = process.env.TOVU_DAEMON_LIFECYCLE_LOG;
+  try {
+    process.env.TOVU_DAEMON_LIFECYCLE_LOG = "off";
+    assert.equal(isDaemonLifecycleLogQuiet(), true);
+    process.env.TOVU_DAEMON_LIFECYCLE_LOG = "OFF";
+    assert.equal(isDaemonLifecycleLogQuiet(), false);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_DAEMON_LIFECYCLE_LOG;
+    else process.env.TOVU_DAEMON_LIFECYCLE_LOG = previous;
+  }
+});
