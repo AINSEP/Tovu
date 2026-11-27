@@ -11,7 +11,7 @@ test('standalone site daemons keep the public origin and a separate reachable ca
   assert.equal(result.TOVU_SITE_CALLBACK_ORIGIN, input.siteCallbackOrigin);
 });
 
-for (const entry of ['../../../../index.ts', '../../../../cli/commands/serve.ts']) {
+for (const entry of ['../../../../index.ts', '../../../../cli/commands/serve-listen.ts']) {
   test(`${entry} supplies and closes the daemon callback listener for LAN-bound sites`, () => {
     const source = readFileSync(new URL(entry, import.meta.url), 'utf8');
     assert.match(source, /await startSiteDaemonListener\(/);
