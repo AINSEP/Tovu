@@ -51,7 +51,7 @@ let recorded: RecordedRequest[] = [];
  *  to point a later test at a differently-configured daemon instance. These two flags are how tests
  *  steer that one daemon's behavior instead: each test sets what it needs right after `bootAgUi`
  *  (which resets both to their defaults), the daemon handler below reads them per-request. */
-type StartRunBehavior = "ok" | "http-failure" | "delayed-ok" | "refusal-with-canary";
+type StartRunBehavior = "ok" | "http-failure" | "delayed-ok" | "refusal-with-canary" | "refusal-plain-text" | "refusal-prose-code";
 type EventsBehavior =
   | "normal"
   | "http-failure"
@@ -241,6 +241,16 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         if (startRunBehavior === "refusal-with-canary") {
           res.writeHead(409, { "content-type": "application/json" });
           res.end(JSON.stringify({ error: `slot busy: ${PRIVATE_CANARY}`, code: "CHAT_RUN_BUSY", detail: PRIVATE_CANARY }));
+          return;
+        }
+        if (startRunBehavior === "refusal-plain-text") {
+          res.writeHead(503, { "content-type": "text/plain" });
+          res.end(`daemon restarting, see ${PRIVATE_CANARY}`);
+          return;
+        }
+        if (startRunBehavior === "refusal-prose-code") {
+          res.writeHead(409, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "slot busy", code: `busy at ${PRIVATE_CANARY}` }));
           return;
         }
         if (startRunBehavior === "delayed-ok") {
@@ -1200,4 +1210,27 @@ test("admin AG-UI refusals, failures, disconnects and no reply each leave one ac
     const events = assertOneTerminalOutcome({ wire: await (await post(session)).text(), label });
     assert.equal(events.at(-1)?.message, "The assistant’s response was interrupted. Send your request again.", label);
   }
+});
+
+test("a daemon refusal without a bare refusal code keeps its status and report reference but names no reason", { timeout: 60_000 }, async (t) => {
+  const reported: unknown[] = [];
+  const session = await bootAgUi(t, undefined, (deps) => {
+    const base = deps.tracker;
+    deps.tracker = { ...base, error: (input, options) => { reported.push(options?.context?.attributes?.["tovu.report_id"]); base.error(input, options); } };
+  });
+  for (const [behavior, status] of [["refusal-plain-text", 503], ["refusal-prose-code", 409]] as const) {
+    startRunBehavior = behavior;
+    const response = await fetch(`${session.baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+      method: "POST", headers: { "content-type": "application/json", cookie: session.cookie }, body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
+    });
+    const text = await response.text();
+    assert.equal(response.status, status, `${behavior}: the daemon's status is kept`);
+    assert.ok(!text.includes("PRIVATE-DIAGNOSTIC-CANARY"), `${behavior}: the refusal body leaked the daemon's private detail: ${text}`);
+    const refusal = JSON.parse(text) as Record<string, unknown>;
+    assert.deepEqual(Object.keys(refusal).sort(), ["code", "error", "reportId"], `${behavior}: no reason field for a non-code refusal`);
+    assert.equal(refusal.code, "DAEMON_START_FAILED");
+    assert.equal(refusal.error, "The assistant could not start that request. Send it again; if it keeps failing, restart the site.");
+    assert.equal(reported.at(-1), refusal.reportId, `${behavior}: the host reporter holds the same reference`);
+  }
+  startRunBehavior = "ok";
 });

@@ -68,3 +68,20 @@ test("an unhandled AG-UI error is one sanitized incident plus the generic stream
   assert.match(sinks.frames[0]!, /RUN_ERROR/);
   assert.ok(!sinks.frames[0]!.includes(TOVU_KEY_SECRET));
 });
+
+test("an AG-UI error before the stream starts is one sanitized incident handed to the next error handler, with no stream frame", async (t) => {
+  const { sinks, handler } = harness();
+  t.mock.method(console, "error", (...args: unknown[]) => { sinks.console.push(args); });
+  const thrown = secretError();
+  const req = { get body(): unknown { throw thrown; } };
+  const res = { headersSent: false, locals: {}, write: (frame: string) => { sinks.frames.push(frame); return true; },
+    end: () => { throw new Error("end must not be called before the stream started"); } };
+  const forwarded = await new Promise<unknown[]>((resolve) => { handler(req, res, (...args: unknown[]) => resolve(args)); });
+
+  assert.deepEqual(forwarded, [thrown], "the error goes to the host's error middleware, unchanged");
+  assert.deepEqual(sinks.frames, [], "no RUN_ERROR frame on a response that never started streaming");
+  assert.equal(sinks.tracker.length, 1, "exactly one tracker report");
+  const everything = dump({ logger: sinks.logger, tracker: sinks.tracker, console: sinks.console });
+  for (const secret of [TOVU_KEY_SECRET, CAUSE_SECRET, FIELD_SECRET]) assert.ok(!everything.includes(secret), `leaked ${secret}`);
+  assert.equal(sinks.console.length, 0, "no raw console sink");
+});
