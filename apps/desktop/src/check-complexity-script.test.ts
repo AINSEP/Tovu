@@ -123,8 +123,11 @@ test("lintAtCeiling runs ESLint from the repo root at 9/9 with test files ignore
   assert.deepEqual(lintAtCeiling({ spawn: empty }), { status: 0, stdout: "", stderr: "" });
 });
 
-test("the real entry lints this checkout and exits with a verdict it explains", { timeout: 120_000 }, () => {
-  const child = spawnSync(process.execPath, [SCRIPT], { encoding: "utf8", timeout: 110_000 });
+// The real entry lints the whole checkout: ~60 s alone, but past 110 s under the coverage pass on a
+// loaded machine (pre-push 2026-11-27), where the old 110 s kill left empty output and a confusing failure.
+test("the real entry lints this checkout and exits with a verdict it explains", { timeout: 330_000 }, () => {
+  const child = spawnSync(process.execPath, [SCRIPT], { encoding: "utf8", timeout: 320_000 });
+  assert.equal(child.signal, null, `check-complexity was killed (${child.signal}) before it finished linting`);
   assert.match(child.stdout, /^check-complexity — \d+ files linted at 9\/9\n/);
   if (child.status === 0) assert.match(child.stdout, /check-complexity: OK — \d+ grandfathered, 0 new\n$/);
   else {
