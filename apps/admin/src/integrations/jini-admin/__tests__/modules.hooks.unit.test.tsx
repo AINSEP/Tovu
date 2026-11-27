@@ -6,7 +6,7 @@ import { defineAdminModule, type ModulePageProps } from '@jini-ai/core/contracts
 import type { LazyTabView } from '@jini-ai/admin/core/react';
 import { createOverlayController } from '@jini-ai/admin/react/overlays';
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
-import { AdminModulesContext, createHostAdminScope, mediaPublishContribution, useAdminModules, useHostMediaPicker, useModulePanel, useModuleProviderContent } from '../modules.hooks';
+import { AdminModulesContext, bindModuleLoading, createHostAdminScope, mediaPublishContribution, useAdminModules, useHostMediaPicker, useModulePanel, useModuleProviderContent } from '../modules.hooks';
 import { PublishSectionButton } from '../../../features/publish-content/publish-section-button-binding';
 
 /**
@@ -223,4 +223,36 @@ describe('mediaPublishContribution', () => {
     expect(mediaPublishContribution.type).toBe(PublishSectionButton);
     expect(mediaPublishContribution.props).toEqual({ section: 'media' });
   });
+});
+
+it('keeps the same loading component mounted for the same locale source and rebinds when it changes', () => {
+  function Loading({ useAdminLocaleHook: useLocale }: { useAdminLocaleHook: UseAdminLocaleHook }) {
+    return <p role="status">{useLocale({}, {}) === 'es' ? 'Cargando informes…' : 'Loading reports…'}</p>;
+  }
+  const useEnglish: UseAdminLocaleHook = () => 'en';
+  const useSpanish: UseAdminLocaleHook = () => 'es';
+  const English = bindModuleLoading({ Loading, useAdminLocaleHook: useEnglish });
+  const { rerender } = render(<English />);
+  const initialStatus = screen.getByRole('status');
+  expect(initialStatus).toHaveTextContent('Loading reports…');
+
+  const ReboundEnglish = bindModuleLoading({ Loading, useAdminLocaleHook: useEnglish });
+  rerender(<ReboundEnglish />);
+  expect(screen.getByRole('status')).toBe(initialStatus);
+
+  const Spanish = bindModuleLoading({ Loading, useAdminLocaleHook: useSpanish });
+  rerender(<Spanish />);
+  expect(screen.getByRole('status')).toHaveTextContent('Cargando informes…');
+});
+
+it('rebuilds a scope when grants become known even if the permission list has not changed', () => {
+  const permissions: readonly string[] = ['admin.security.site-key.manage'];
+  const { result, rerender } = renderHook(({ grantsReady }) => useAdminModules({
+    permissions, useAdminLocaleHook, grantsReady,
+  }), { initialProps: { grantsReady: false } });
+  const loading = result.current;
+  expect(loading?.permissionKey).toBe('{"permissions":["admin.security.site-key.manage"],"grantsReady":false}');
+  rerender({ grantsReady: true });
+  expect(result.current).not.toBe(loading);
+  expect(result.current?.permissionKey).toBe('["admin.security.site-key.manage"]');
 });

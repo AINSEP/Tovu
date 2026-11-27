@@ -9,7 +9,7 @@ import { ADMIN_BASE } from "@jini-ai/admin/shell/lib/router";
 import { createBrowserTelemetry } from "../browser-telemetry";
 import { installBrowserErrorListeners, createReactRootErrorHandlers, toRouteTemplate, type BrowserTelemetryPayload } from "@jini-ai/admin/browser";
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 
 it("binds the collector's initial route to the admin root", () => {
   const sent: BrowserTelemetryPayload[] = [];
@@ -74,4 +74,29 @@ describe("error sources", () => {
     expect(consoleError).toHaveBeenCalledWith(error);
     act(() => { root.unmount(); });
   });
+});
+
+it("posts only the settled pageview using the live host's cookie and keepalive settings", async () => {
+  vi.useFakeTimers();
+  vi.resetModules();
+  vi.stubEnv("MODE", "production");
+  const telemetryPath = "/api/admin/v1/telemetry";
+  const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
+    if (url === telemetryPath && init?.method === "POST") return Response.json({});
+    return Response.json({ error: "Unexpected telemetry request" }, { status: 404 });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { adminTelemetry } = await import("../browser-telemetry");
+  adminTelemetry.setSignedIn(true);
+  adminTelemetry.setRoute("/admin/posts/:postId");
+  await vi.advanceTimersByTimeAsync(700);
+  adminTelemetry.setRoute("/admin/pages/:slug");
+  await vi.advanceTimersByTimeAsync(300);
+  expect(fetch).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(700);
+
+  expect(fetch).toHaveBeenCalledExactlyOnceWith(telemetryPath, expect.objectContaining({
+    method: "POST", keepalive: true, credentials: "same-origin",
+    body: JSON.stringify({ type: "pageview", route: "/admin/pages/:slug" }),
+  }));
 });

@@ -5,13 +5,17 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import { ApiError, onUnauthenticated } from "../admin-http/request";
 
 import {
+  applyChatCleanup,
   createConversation,
+  deleteSelectedConversations,
   deleteConversation,
   HttpError,
   listConversations,
   loadMessages,
+  previewChatCleanup,
   renameConversation,
   saveMessage,
+  setConversationPinned,
 } from "../assistant-chats";
 
 /**
@@ -295,4 +299,82 @@ test('unchanged focus refresh reads a tiny reply and retains the existing parsed
   const initial = await loadMessages({ conversationId: 'conditional-history' });
   expect(await loadMessages({ conversationId: 'conditional-history' })).toBe(initial);
   expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/assistant/chats/conditional-history/messages?ifVersion=%22v-history%22');
+});
+
+const chatBase = "/api/assistant/chats";
+const keptByCleanup = [{ id: "pinned-chat", title: "Reference", reason: "pinned" }];
+const oldChat = { id: "old-chat", title: "Old notes", titleSource: "manual", messageCount: 7, createdAt: 1, updatedAt: 2 };
+
+it.each([
+  ["returns the saved pin", false, true, true],
+  ["returns an unpinned result for an older response without the flag", true, undefined, false],
+] as const)("%s instead of echoing the requested pin", async (_title, requested, saved, expected) => {
+  const path = chatBase + "/chat%2F27";
+  const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
+    if (input === path && init?.method === "PATCH" && init.body === JSON.stringify({ pinned: requested })) {
+      return jsonResponse({ conversation: { id: "canonical-chat-27", pinned: saved } });
+    }
+    return jsonResponse({ error: "wrong pin request" }, 400);
+  });
+  vi.stubGlobal("fetch", fetch);
+  await expect(setConversationPinned({ id: "chat/27", pinned: requested }))
+    .resolves.toEqual({ id: "canonical-chat-27", pinned: expected });
+  expect(fetch).toHaveBeenCalledExactlyOnceWith(path, expect.objectContaining({
+    method: "PATCH", body: JSON.stringify({ pinned: requested }), credentials: "same-origin",
+  }));
+});
+
+it("previews a cutoff without deleting and applies only the confirmed preview", async () => {
+  const before = 1_700_000_000_000;
+  const token = "signed-preview-2";
+  const pinnedChat = { ...oldChat, id: "pinned-chat", title: "Reference", pinned: true };
+  const preview = { count: 1, bytes: 924, kept: keptByCleanup, previewToken: token };
+  const chats = new Map([[oldChat.id, oldChat], [pinnedChat.id, pinnedChat]]);
+  const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
+    if (input === chatBase && init?.method === "GET") return jsonResponse({ conversations: Array.from(chats.values()) });
+    if (input === chatBase + "/cleanup/preview" && init?.method === "POST" && init.body === '{"before":1700000000000}') {
+      return jsonResponse(preview);
+    }
+    if (input === chatBase + "/cleanup/apply" && init?.method === "POST" && init.body === '{"previewToken":"signed-preview-2","confirm":true}') {
+      chats.delete("old-chat");
+      return jsonResponse({ deleted: ["old-chat"], kept: keptByCleanup, previewToken: "continuation-3" });
+    }
+    return jsonResponse({ error: "wrong cleanup route or body" }, 400);
+  });
+  vi.stubGlobal("fetch", fetch);
+  await expect(previewChatCleanup({ before })).resolves.toEqual(preview);
+  expect((await listConversations()).map(({ id }) => id)).toEqual(["old-chat", "pinned-chat"]);
+  await expect(applyChatCleanup({ previewToken: token }))
+    .resolves.toEqual({ deleted: ["old-chat"], kept: keptByCleanup, previewToken: "continuation-3" });
+  expect((await listConversations()).map(({ id }) => id)).toEqual(["pinned-chat"]);
+});
+
+it("propagates the expired preview conflict so the caller can ask for a fresh preview", async () => {
+  const body = { code: "PREVIEW_EXPIRED", error: "Preview expired" };
+  vi.stubGlobal("fetch", vi.fn<typeof globalThis.fetch>(async (input, init) =>
+    input === chatBase + "/cleanup/apply" && init?.method === "POST" && init.body === '{"previewToken":"expired","confirm":true}'
+      ? jsonResponse(body, 409, "Conflict")
+      : jsonResponse({ error: "wrong apply request" }, 400),
+  ));
+  await expect(applyChatCleanup({ previewToken: "expired" })).rejects.toMatchObject({
+    name: "HttpError", message: "409 Conflict", status: 409, code: "PREVIEW_EXPIRED", body,
+  });
+});
+
+it("deletes only selected chats and returns the server's list of protected chats", async () => {
+  const otherChat = { ...oldChat, id: "not-selected", title: "Leave this chat alone" };
+  const pinnedChat = { ...oldChat, id: "pinned-chat", title: "Reference", pinned: true };
+  const chats = new Map([[oldChat.id, oldChat], [otherChat.id, otherChat], [pinnedChat.id, pinnedChat]]);
+  vi.stubGlobal("fetch", vi.fn<typeof globalThis.fetch>(async (input, init) => {
+    if (input === chatBase && init?.method === "GET") return jsonResponse({ conversations: Array.from(chats.values()) });
+    if (input !== chatBase + "/delete-selected" || init?.method !== "POST" || init.body !== '{"ids":["old-chat","pinned-chat"],"confirm":true}') {
+      return jsonResponse({ error: "wrong batch request" }, 400);
+    }
+    chats.delete("old-chat");
+    return jsonResponse({ deleted: ["old-chat"], kept: keptByCleanup });
+  }));
+  expect((await listConversations()).map(({ id }) => id)).toEqual(["old-chat", "not-selected", "pinned-chat"]);
+  await expect(deleteSelectedConversations({ ids: ["old-chat", "pinned-chat"], confirm: true }))
+    .resolves.toEqual({ deleted: ["old-chat"], kept: keptByCleanup });
+  expect((await listConversations()).map(({ id }) => id)).toEqual(["not-selected", "pinned-chat"]);
 });

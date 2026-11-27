@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { Playground as PlaygroundRoute } from "../../../panel-pages";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -23,6 +25,7 @@ import {
 
 afterEach(() => {
   resetPlaygroundRenderTargetBus();
+  vi.unstubAllGlobals();
 });
 
 describe("Playground", () => {
@@ -85,4 +88,20 @@ describe("Playground", () => {
     expect(screen.getByRole("heading", { name: "Zona de pruebas" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Playground" })).not.toBeInTheDocument();
   });
+});
+
+it("publishes and retires the assistant canvas through the lazy Playground route", async () => {
+  vi.stubGlobal("fetch", vi.fn<typeof globalThis.fetch>(async (input) => {
+    const url = new URL(String(input), window.location.origin);
+    return url.pathname.endsWith("/settings/effective") && url.searchParams.get("namespace") === "core.language"
+      ? Response.json({ data: [{ key: "locale", value: "en" }] })
+      : new Response(null, { status: 404 });
+  }));
+  const { container, unmount } = render(<Suspense fallback={<p>Opening Playground…</p>}><PlaygroundRoute /></Suspense>);
+  expect(await screen.findByRole("heading", { name: "Playground" })).toBeInTheDocument();
+  const target = getPlaygroundRenderTarget();
+  expect(target).toBeInstanceOf(HTMLElement);
+  expect(container).toContainElement(target);
+  unmount();
+  expect(getPlaygroundRenderTarget()).toBeNull();
 });

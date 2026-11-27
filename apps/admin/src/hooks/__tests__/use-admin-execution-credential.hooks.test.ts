@@ -1,3 +1,4 @@
+import { resolveAdminByokFooterStatusLine } from "../use-admin-execution-credential.hooks";
 import { resolveByokFooterStatusLine } from "@jini-ai/integrations/react/admin-credentials/byok-footer-status";
 import { useExecutionCredential } from "@jini-ai/ui";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
@@ -1123,5 +1124,22 @@ describe("useAdminExecutionCredential — the three writes to the one credential
     await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
     expect(result.current.saveState.status).toBe("error");
     expect(callCount).toBe(2);
+  });
+});
+
+describe("resolveAdminByokFooterStatusLine host copy", () => {
+  it("uses the English stored-key message when no translator or endpoint override is supplied", () => {
+    expect(resolveAdminByokFooterStatusLine({ status: "idle", isStored: true }))
+      .toBe("Stored on the server, encrypted. Paste a new key to replace it.");
+  });
+
+  it("translates the warning for a key saved against another endpoint", () => {
+    const translations: Record<string, string> = {
+      "Your saved key is for a different provider. Paste a key for this one.": "Gespeicherter Schlüssel gehört zu einem anderen Anbieter.",
+    };
+    const t = (key: string) => translations[key] ?? key;
+
+    expect(resolveAdminByokFooterStatusLine({ status: "idle", isStored: true }, { storedKeyIsForOtherEndpoint: true, t }))
+      .toBe("Gespeicherter Schlüssel gehört zu einem anderen Anbieter.");
   });
 });

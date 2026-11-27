@@ -95,3 +95,18 @@ describe('Tovu kit classes', () => {
     } finally { style.remove(); }
   });
 });
+
+it.each([
+  ["select", "field"],
+  ["button", "button"],
+] as const)("publishes a %s control to the page driver as %s", async (role, expectedRole) => {
+  const attrs = tovuAgentAttrs({ handle: "schedule-control" }, { role, label: "Schedule interval" });
+  const { container } = render(role === "select"
+    ? <select aria-label="Schedule interval" {...attrs}><option>Weekly</option></select>
+    : <button type="button" {...attrs}>Schedule interval</button>);
+  const driver = createDomPageDriver({ root: container, pages: {} });
+
+  expect(await driver.findElements({}, { query: "schedule-control" })).toEqual([
+    expect.objectContaining({ handle: "schedule-control", role: expectedRole, label: "Schedule interval" }),
+  ]);
+});

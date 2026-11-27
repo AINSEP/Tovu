@@ -421,3 +421,19 @@ describe("useSidebarSiteSection", () => {
     expect(result.current).toBe("available");
   });
 });
+
+it("waits for availability when the browser denies access to window.localStorage", () => {
+  const storage = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+    throw new DOMException("Storage access denied", "SecurityError");
+  });
+  try {
+    const { result, rerender } = renderHook(({ availability }) => useSidebarSiteSection(availability), {
+      initialProps: { availability: "unknown" as SiteSectionAvailability },
+    });
+    expect(result.current).toBe("unknown");
+    rerender({ availability: "available" });
+    expect(result.current).toBe("available");
+  } finally {
+    storage.mockRestore();
+  }
+});

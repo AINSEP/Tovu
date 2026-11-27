@@ -7,6 +7,7 @@ import type { ExternalMcpOAuthConnectWindow } from "@jini-ai/admin/screens/setti
 import { useHostExternalMcpOAuthConnect } from "../settings-external-mcp-oauth-connect.hooks";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -44,4 +45,57 @@ describe("useHostExternalMcpOAuthConnect", () => {
     act(() => listeners.get("message")!({ origin: win.origin, data: { type: "tovu:external-mcp-connected" } } as unknown as Event));
     expect(onConnected).toHaveBeenCalledTimes(1);
   });
+});
+
+it("forwards the shared destination and completes device sign-in on the polled server", async () => {
+  vi.useFakeTimers();
+  const route = "/api/admin/v1/workspaces/workspace-local/mcp-servers/device%20server/oauth";
+  const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
+    if (input === route + "/connect" && init?.method === "POST" && init.body === '{"destination":"shared"}') {
+      return Response.json({ auth: { kind: "device_code", userCode: "TEST-123", verificationUri: "https://provider.example/device", intervalSeconds: 2, expiresAt: "2026-11-27T12:00:00Z" } });
+    }
+    if (input === route + "/device/poll" && init?.method === "POST") return Response.json({ status: "connected" });
+    return new Response(null, { status: 404 });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const open = vi.fn<ExternalMcpOAuthConnectWindow["open"]>().mockReturnValue(null);
+  const win: ExternalMcpOAuthConnectWindow = {
+    open, origin: window.location.origin,
+    addEventListener: window.addEventListener.bind(window), removeEventListener: window.removeEventListener.bind(window),
+  };
+  const onConnected = vi.fn();
+  const { result, unmount } = renderHook(() => useHostExternalMcpOAuthConnect({
+    serverId: "device server", grant: "device_code", onConnected,
+  }, { win: () => win }));
+
+  await act(() => result.current.connect({ destination: "shared" }));
+  expect(result.current.state).toEqual({ phase: "device", userCode: "TEST-123", verificationUri: "https://provider.example/device" });
+  expect(open).toHaveBeenCalledExactlyOnceWith({ url: "https://provider.example/device" });
+  await act(() => vi.advanceTimersByTimeAsync(1_999));
+  expect(onConnected).not.toHaveBeenCalled();
+  await act(() => vi.advanceTimersByTimeAsync(1));
+  expect(result.current.state).toEqual({ phase: "idle" });
+  expect(onConnected).toHaveBeenCalledExactlyOnceWith();
+  expect(fetch.mock.calls.map(([url]) => url)).toEqual([route + "/connect", route + "/device/poll"]);
+  unmount();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("uses the host's fallback error when the connect port throws an untyped error", async () => {
+  const open = vi.fn<ExternalMcpOAuthConnectWindow["open"]>().mockReturnValue(null);
+  const win: ExternalMcpOAuthConnectWindow = {
+    open, origin: window.location.origin,
+    addEventListener: window.addEventListener.bind(window), removeEventListener: window.removeEventListener.bind(window),
+  };
+  const connect = vi.spyOn(integrationsApi, "connectExternalMcpOAuth").mockRejectedValue(new Error("offline"));
+  const onConnected = vi.fn();
+  const { result } = renderHook(() => useHostExternalMcpOAuthConnect({
+    serverId: "research", grant: "authorization_code", onConnected,
+  }, { win: () => win, fallbackError: "Try connecting Research again." }));
+
+  await act(() => result.current.connect());
+  expect(result.current.state).toEqual({ phase: "idle", error: "Try connecting Research again." });
+  expect(open).toHaveBeenCalledExactlyOnceWith({ url: "about:blank" });
+  expect(connect).toHaveBeenCalledExactlyOnceWith({ serverId: "research" });
+  expect(onConnected).not.toHaveBeenCalled();
 });

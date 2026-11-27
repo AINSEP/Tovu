@@ -156,3 +156,28 @@ describe("selected-skill guidance projection (BYOK dispatch)", () => {
     expect(messages.map((message) => message.content)).toStrictEqual(["first", "answer", "GUIDE second", "later"]);
   });
 });
+
+describe("a host that withdraws a callback after transport creation", () => {
+  test.each([
+    ["getExecutionConfig", "assistant transport has no execution config callback"],
+    ["getAgUiEnabled", "assistant transport has no AG-UI enabled callback"],
+    ["getResumeCapableAgentIds", "assistant transport has no resumable agents callback"],
+    ["ensureConversationId", "assistant transport has no conversation id callback"],
+    ["persistUserTurn", "assistant transport has no user turn persistence callback"],
+  ] as const)("fails explicitly when Jini invokes the old %s port", (key, message) => {
+    const options: NonNullable<Parameters<typeof createTovuAssistantTransport>[0]> = {
+      getExecutionConfig: () => ({ mode: "local-cli" }) as ExecutionConfig,
+      getAgUiEnabled: () => false,
+      getResumeCapableAgentIds: () => new Set(["claude"]),
+      ensureConversationId: async () => "conv-1",
+      persistUserTurn: async () => {},
+    };
+    const forwarded = jiniOptionsFor(options);
+    delete options[key];
+    const invoke = key === "persistUserTurn"
+      ? () => forwarded.persistUserTurn!({ conversationId: "conv-1", message: { id: "u1", role: "user", content: "hello" } }, {})
+      : () => forwarded[key]!({}, {});
+
+    expect(invoke).toThrow(message);
+  });
+});

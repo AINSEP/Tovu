@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { Icon as UiIcon, useT as useUiT, SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES } from "@jini-ai/ui";
 import { UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID } from "@jini-ai/ui/panel-kit";
-import { useT as useChatT } from "@jini-ai/chat/react";
+import { defaultConversationListHooks, useT as useChatT } from "@jini-ai/chat/react";
 import { Icon, SettingsDialogShell, useAdminKitValues, type SettingsDialogTab as KitSettingsDialogTab } from "@jini-ai/admin/react/kit";
 import { SettingsDialogShell as UiSettingsDialogShell, type SettingsDialogTab as UiSettingsDialogTab, type TabbedDialogTab } from "@jini-ai/ui";
-import { render, renderHook } from "@/__tests__/render-with-jini-kits";
+import { render, renderHook, screen } from "@/__tests__/render-with-jini-kits";
 import { adminKit } from "../jini-kits";
 import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 
@@ -60,5 +60,34 @@ describe("Tovu's admin kit: SettingsDialogTab mirrors the UI owner (P12 #8, F8.4
     expect(adminKit.components.SettingsDialogShell).toBe(UiSettingsDialogShell);
     const { getByText } = render(<SettingsDialogShell tabs={[overviewTab]} presentation="inline" />);
     expect(getByText("Overview panel body")).not.toBeNull();
+  });
+});
+
+describe("conversation switcher kit binding", () => {
+  const fixture = {
+    conversations: [{ id: "draft-review-7", title: "Draft review" }],
+    activeConversationId: "draft-review-7",
+    onSelect: () => {},
+    onCreate: () => {},
+  };
+  const List = adminKit.chat.ConversationList;
+
+  it("uses the custom translator with a complete hook bundle", () => {
+    const hooks = {
+      ...defaultConversationListHooks,
+      useT: () => (key: string) => key === "Conversations" ? "Gespräche" : key,
+    };
+    render(<List {...fixture} hooks={hooks} />);
+    expect(screen.getByRole("button", { name: "Gespräche — Draft review" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it.each([
+    ["null", null],
+    ["only a view hook", { useConversationListView: defaultConversationListHooks.useConversationListView }],
+    ["only a translator", { useT: () => () => "Not the default translator" }],
+  ] as const)("keeps the default switcher when given %s", (_label, hooks) => {
+    // Includes malformed runtime input crossing the admin kit's opaque host seam.
+    render(<List {...fixture} hooks={hooks as object} />);
+    expect(screen.getByRole("button", { name: "Conversations — Draft review" })).toHaveAttribute("aria-expanded", "false");
   });
 });

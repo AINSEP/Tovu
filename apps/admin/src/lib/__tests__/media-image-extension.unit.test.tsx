@@ -226,3 +226,17 @@ describe("MediaImage mounted node view and HTML serialization", () => {
     } finally { editor.destroy(); reparsed.destroy(); }
   });
 });
+
+it("preserves the old URL if only a transform name survived in imported HTML", () => {
+  const oldUrl = "https://cdn.example/legacy.png";
+  const editor = new Editor({ extensions: [StarterKit, MediaImage], content:
+    `<img transformname="public" src="${oldUrl}" alt="">` });
+  try {
+    const saved = editor.getJSON().content?.find(({ type }) => type === "image");
+    expect(saved?.attrs).toMatchObject({ assetId: null, transformName: "public", src: oldUrl, alt: "" });
+    render(<MediaImageNodeView {...fakeNodeViewProps(saved?.attrs ?? {})} />);
+    expect(screen.getByAltText("")).toHaveAttribute("src", oldUrl);
+  } finally {
+    editor.destroy();
+  }
+});

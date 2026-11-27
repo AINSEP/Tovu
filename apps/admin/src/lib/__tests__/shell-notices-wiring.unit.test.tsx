@@ -1,3 +1,6 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { AdminKitProvider } from "@jini-ai/admin/react/kit";
+import { adminKit } from "../../integrations/jini-kits";
 import { act, fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
@@ -57,4 +60,25 @@ describe("TovuServerRestartingBanner", () => {
     });
     expect(screen.queryByRole("status")).toBeNull();
   });
+});
+
+it("renders the live connection banner before any server failure as an empty slot", () => {
+  const { container } = render(<TovuServerRestartingBanner />);
+  expect(container).toBeEmptyDOMElement();
+});
+
+it("renders an English dismiss action when there is no document locale", () => {
+  const failure = formatUserFacingError({
+    message: "Saving the menu failed.", action: "Try saving again.", step: "Save menu", cause: "offline",
+  }, { errorId: "menu-save" });
+  adminFailureChannel.publish({ failure });
+  vi.stubGlobal("document", undefined);
+  let markup: string;
+  try {
+    markup = renderToStaticMarkup(<AdminKitProvider kit={adminKit}><TovuAdminFailureNotice /></AdminKitProvider>);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+  expect(markup).toContain('aria-label="Dismiss error"');
+  expect(markup).toContain("Saving the menu failed.");
 });

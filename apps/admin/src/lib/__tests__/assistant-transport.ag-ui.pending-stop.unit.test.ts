@@ -51,3 +51,41 @@ test.each(["detach", "acceptance"])("Stop before acceptance posts the owned mess
   expect(posts.map((post) => post.url)).toEqual([AG_UI_RUN_PATH, "/api/runs/pending/cancel"]);
   expect(handlers.onError).not.toHaveBeenCalled();
 });
+
+test.each([204, 404, 503])("stops the accepted canonical run and handles cancel HTTP %s", async (status) => {
+  const runId = `canonical/${status}`;
+  const conversationId = `conversation-${status}`;
+  const messageId = `message-${status}`;
+  const startPath = "/api/admin/v1/assistant/ag-ui-run";
+  const cancelPath = `/api/runs/canonical%2F${status}/cancel`;
+  const stream = streamFromChunks([
+    `data: ${JSON.stringify({ type: EventType.RUN_STARTED, threadId: conversationId, runId })}\n\n`,
+    `data: ${JSON.stringify({ type: EventType.RUN_FINISHED, threadId: conversationId, runId })}\n\n`,
+  ]);
+  const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
+    if (input === startPath && init?.method === "POST") return new Response(stream, { headers: { "content-type": "text/event-stream" } });
+    if (input === cancelPath && init?.method === "POST") return new Response(null, { status });
+    return new Response(null, { status: 400 });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const detach = new AbortController();
+  const handlers: RunHandlers = { onEvent: vi.fn(), onError: vi.fn(), onDone: vi.fn() };
+  try {
+    const started = await agUiRunClient.startAgUiRun({
+      input: { history: [{ id: "question", role: "user", content: "Hello" }], conversationId, signal: detach.signal },
+      handlers, durable: { launch: { contextRef: {}, conversationId, messageId }, bindRun: vi.fn() },
+    }, {});
+    expect(started).toEqual({ runId });
+
+    const stopping = agUiRunClient.stopAgUiRun({ runId }, {});
+    if (status === 503) await expect(stopping).rejects.toThrow("Stopping the assistant failed (HTTP 503).");
+    else await expect(stopping).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenLastCalledWith(cancelPath, {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ runId, messageId, conversationId }),
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  } finally {
+    detach.abort();
+  }
+});

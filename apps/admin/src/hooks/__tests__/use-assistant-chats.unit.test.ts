@@ -909,3 +909,20 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
     expect(attempts).toBe(2);
   });
 });
+
+it("retries a network rejection even if an untyped error happens to have a status field", async () => {
+  vi.useFakeTimers();
+  const networkFailure = Object.assign(new TypeError("connection dropped"), { status: 403 });
+  const port = createFakeAssistantChatsPort({
+    onSaveMessage: (_conversationId, _message, attempt) => { if (attempt === 1) throw networkFailure; },
+  });
+  const { result } = await mountWith(port);
+  act(() => result.current.onMessagesChange({ messages: [message("m-network", "keep this reply")] }));
+  await act(() => vi.advanceTimersByTimeAsync(999));
+  expect(port.saveAttempts()).toBe(1);
+  expect(port.saved.get("fake-1") ?? []).toEqual([]);
+  await act(() => vi.advanceTimersByTimeAsync(1));
+
+  expect(port.saveAttempts()).toBe(2);
+  expect(port.saved.get("fake-1")).toEqual([message("m-network", "keep this reply")]);
+});

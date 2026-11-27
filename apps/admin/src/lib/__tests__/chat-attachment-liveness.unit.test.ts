@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import type { ChatAttachment } from "@jini-ai/chat/core";
 
@@ -173,4 +173,21 @@ describe("createChatAttachmentValidator", () => {
     expect(await createChatAttachmentValidator({ fetchImpl })([])).toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+it("uses the browser fetch when no attachment probe transport is supplied", async () => {
+  const browserFetch = vi.fn<typeof globalThis.fetch>(async (input, init) =>
+    input === "/api/attachments/attachment%3A11111111-2222-3333-4444-555555555555" && init?.method === "HEAD"
+      ? new Response(null, { status: 200 })
+      : new Response(null, { status: 404 }));
+  vi.stubGlobal("fetch", browserFetch);
+
+  expect(await createChatAttachmentValidator()([attachment(LIVE_REF, "draft-cover.png")]))
+    .toEqual([attachment(LIVE_REF, "draft-cover.png")]);
+  expect(browserFetch).toHaveBeenCalledExactlyOnceWith(
+    "/api/attachments/attachment%3A11111111-2222-3333-4444-555555555555",
+    expect.objectContaining({ method: "HEAD", credentials: "same-origin" }),
+  );
 });

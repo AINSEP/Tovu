@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RetentionPassResult } from "@jini-ai/platform/retention";
@@ -8,7 +9,7 @@ import { StorageScreen } from "@jini-ai/admin/screens/storage/StorageScreen";
 import { useWiredStorage } from "@jini-ai/admin/screens/storage/hooks/use-storage.hooks";
 import { useScreenshotCleanup } from "@jini-ai/admin/screens/storage/hooks/use-screenshot-cleanup.hooks";
 import { render as renderWithKits } from "@/__tests__/render-with-jini-kits";
-import { Storage } from "../Storage";
+import { Storage } from "../../../panel-pages";
 import { storageClient } from "../api/storage-api";
 
 const AMOUNT = { bytes: 2048, knownBytes: 2048, files: 1 };
@@ -52,7 +53,7 @@ function harness() {
 afterEach(() => { cleanup(); });
 
 describe("StorageScreen", () => {
-  it("Storage names its tab and distinguishes categories without repeating destinations", async () => {
+  it("the lazy Storage route names its tab and distinguishes categories without repeating destinations", async () => {
     const previousTitle = document.title;
     document.title = "Previous page";
     const request = vi.spyOn(storageClient, "report").mockResolvedValue({
@@ -65,9 +66,9 @@ describe("StorageScreen", () => {
       lastPass: null,
     });
     try {
-      const view = renderWithKits(<Storage useAdminLocaleHook={() => "en"} />);
+      const view = renderWithKits(<Suspense fallback={<p>Opening Storage…</p>}><Storage useAdminLocaleHook={() => "en"} /></Suspense>);
       for (const label of ["Content database", "Screenshots", "Database write-ahead log", "Database shared-memory files"]) {
-        expect(await screen.findByText(`${label}: 2 kB`)).toBeTruthy();
+        expect(await screen.findByText(`${label}: 2 kB`, {}, { timeout: 8_000 })).toBeTruthy();
       }
       expect(screen.queryByText(/Content database \(Database\)|Screenshots \(Screenshots\)/)).toBeNull();
       expect(screen.getByRole("link", { name: "Database" }).getAttribute("href")).toBe("/admin/database");
@@ -80,7 +81,7 @@ describe("StorageScreen", () => {
       request.mockRestore();
       document.title = previousTitle;
     }
-  });
+  }, 10_000);
 
   it("shows the page title and styles every section heading like its sibling screens (live-found bare headings, 2026-11-25)", async () => {
     harness();

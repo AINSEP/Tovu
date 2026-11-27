@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@/__tests__/render-with-jini-kits';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KitProvider } from '@jini-ai/ui-kit/react';
 import { createAdmin } from '@jini-ai/admin/core/module';
@@ -6,7 +7,7 @@ import { createOverlayController } from '@jini-ai/admin/react/overlays';
 import { createMemorySecurityApi, createMemoryOtherCredentials, createMemoryRootKey } from '@jini-ai/admin/security/adapters/memory';
 import { navigate } from '@jini-ai/admin/shell/lib/router';
 import { AdminModulesProvider } from '../AdminModulesProvider';
-import { createHostAdminScope } from '../modules.hooks';
+import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
 import { createHostSecurityModule, SecurityModulePanel, type SecurityOwnerPorts } from '../security-module.hooks';
 import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import type { Runtime } from '../module-context';
@@ -89,4 +90,40 @@ describe('Security host panel', () => {
     await waitFor(() => expect(owner.recovery.issue).toHaveBeenCalledTimes(1));
     for (const code of CODES) expect(await within(recovery).findByText(code, { exact: false })).toBeInTheDocument();
   });
+});
+
+it('resets the desktop owner password only after entering matching values', async () => {
+  const user = userEvent.setup();
+  const owner = ownerPorts();
+  const reset = vi.fn<SecurityOwnerPorts['recovery']['reset']>().mockResolvedValue(undefined);
+  owner.recovery = { ...owner.recovery, status: async () => ({ isOwner: true, available: true, desktopOwnerReset: true }), reset };
+  const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook }, {
+    securityPorts: securityPorts(), securityOwnerPorts: owner,
+  });
+  disposers.push(() => { runtime.admin.dispose(); runtime.overlays.dispose(); });
+  function AccessTokens() {
+    return <>{useModulePanel({ moduleId: 'security', pageId: 'secrets', route: {
+      view: null, params: {}, query: new URLSearchParams('tab=access-tokens'),
+    } }).content}</>;
+  }
+  render(<AdminModulesContext.Provider value={runtime}><AccessTokens /></AdminModulesContext.Provider>);
+  await user.click(await screen.findByText('Reset owner password', { selector: 'summary' }));
+  await user.type(screen.getByLabelText('New owner password', { selector: 'input' }), 'fixture-new-password');
+  const confirmation = screen.getByLabelText('Confirm new owner password', { selector: 'input' });
+  const submit = screen.getByRole('button', { name: 'Reset password and sign out sessions' });
+  await user.type(confirmation, 'wrong-confirmation');
+  await user.click(submit);
+  expect(screen.getByText(/The passwords do not match/)).toBeInTheDocument();
+  expect(reset).not.toHaveBeenCalled();
+  await user.clear(confirmation);
+  await user.type(confirmation, 'fixture-new-password');
+  await user.click(submit);
+
+  expect(reset).toHaveBeenCalledExactlyOnceWith({ password: 'fixture-new-password' });
+  expect(await screen.findByText('Owner password reset. All sessions and recovery codes were invalidated. Reopen the site or sign in with your new password.')).toBeInTheDocument();
+});
+
+it('shows a loading status while the Security module scope is not ready', () => {
+  render(<SecurityModulePanel tabId="site-key" />);
+  expect(screen.getByRole('status')).toHaveTextContent(/loading/i);
 });

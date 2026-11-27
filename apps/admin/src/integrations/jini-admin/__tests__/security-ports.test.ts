@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSecurityHostPorts, createSecurityTranslator, securityApi, securitySessionGrants, describeSecurityError, securityRefreshSignal } from '../security-ports';
+import { createSecurityHostPorts, createSecurityTranslator, securityApi, securitySessionGrants, describeSecurityError, onSecurityCredentialsChanged, securityRefreshSignal } from '../security-ports';
 import { tSecurity as translateSecurity } from "../../../lib/i18n-common";
-import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 /** A transport that records the wire (method, path, JSON body) and answers with a fixed reply. */
 function recordingTransport({ reply = {} }: { reply?: unknown } = {}) {
@@ -92,4 +92,30 @@ describe('security host ports', () => {
     // A thrown non-Error (for example a raw value) carries no server message: fixed copy shows instead.
     expect(describeSecurityError({ error: 'fixture-secret-value' })).toBeUndefined();
   });
+});
+
+it('publishes a credential change to access-token consumers and stops refreshing after unsubscribe', () => {
+  const onRefresh = vi.fn();
+  const stop = securityRefreshSignal.subscribe({ onRefresh });
+  const listener = vi.fn();
+  const unsubscribe = subscribeToContentRefresh({ listener });
+  try {
+    onSecurityCredentialsChanged();
+    expect(listener).toHaveBeenCalledExactlyOnceWith(['access-tokens']);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    stop();
+    onSecurityCredentialsChanged();
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  } finally {
+    stop();
+    unsubscribe();
+  }
+});
+it('leaves an unknown security copy key readable', () => {
+  expect(createSecurityTranslator({ locale: 'es' })('Unregistered security instruction')).toBe('Unregistered security instruction');
+});
+
+it('uses loaded permissions by default without granting unrelated write affordances', () => {
+  expect(securitySessionGrants({ permissions: ['admin.security.site-key.manage', 'system.publish'] }))
+    .toEqual(['security.read', 'admin.security.tokens.manage', 'system.publish']);
 });

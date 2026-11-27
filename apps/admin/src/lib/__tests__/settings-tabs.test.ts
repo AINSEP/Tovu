@@ -646,3 +646,61 @@ describe("L13 mutation gaps — privacy defaults and unchanged flags", () => {
     expect(candidates.filter(c => c.changed).map(c => c.key)).toEqual(["wrapTabs"]);
   });
 });
+
+describe("live metrics consent", () => {
+  it("emits the saved grant and clears an earlier withdrawal marker after the ledger confirms it", async () => {
+    const key = "jini:metrics-withdrawal";
+    const event = "jini:metrics-consent-changed";
+    const previousMarker = localStorage.getItem(key);
+    const decisions: unknown[] = [];
+    const listen = (change: Event) => {
+      if (change instanceof CustomEvent) decisions.push(change.detail);
+    };
+    localStorage.setItem(key, "1");
+    window.addEventListener(event, listen);
+    saveChangedEntries.mockResolvedValueOnce(["telemetry.metrics"]);
+    try {
+      expect(await savePrivacy({ ...DEFAULT_PRIVACY, telemetry: { metrics: true, content: false } }, DEFAULT_PRIVACY))
+        .toEqual(["telemetry.metrics"]);
+      expect(decisions).toEqual([true]);
+      expect(localStorage.getItem(key)).toBeNull();
+    } finally {
+      window.removeEventListener(event, listen);
+      if (previousMarker === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, previousMarker);
+    }
+  });
+
+  it("still emits a withdrawal if storage is blocked and the durable save fails", async () => {
+    const event = "jini:metrics-consent-changed";
+    const decisions: unknown[] = [];
+    const listen = (change: Event) => {
+      if (change instanceof CustomEvent) decisions.push(change.detail);
+    };
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Storage blocked"); });
+    window.addEventListener(event, listen);
+    saveChangedEntries.mockRejectedValueOnce(new Error("Ledger offline"));
+    try {
+      const previous = { ...DEFAULT_PRIVACY, telemetry: { metrics: true, content: false } };
+      await expect(savePrivacy(DEFAULT_PRIVACY, previous)).rejects.toThrow("Ledger offline");
+      expect(setItem).toHaveBeenCalledExactlyOnceWith("jini:metrics-withdrawal", "1");
+      expect(decisions).toEqual([false]);
+    } finally {
+      window.removeEventListener(event, listen);
+      setItem.mockRestore();
+    }
+  });
+});
+
+it("saves consent without event or storage globals in a non-browser caller", async () => {
+  const browserWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  if (!browserWindow) throw new Error("Expected the jsdom window before simulating a non-browser caller");
+  try {
+    expect(Reflect.deleteProperty(globalThis, "window")).toBe(true);
+    saveChangedEntries.mockResolvedValueOnce(["telemetry.metrics"]);
+    await expect(savePrivacy({ ...DEFAULT_PRIVACY, telemetry: { metrics: true } }, DEFAULT_PRIVACY))
+      .resolves.toEqual(["telemetry.metrics"]);
+  } finally {
+    Object.defineProperty(globalThis, "window", browserWindow);
+  }
+});

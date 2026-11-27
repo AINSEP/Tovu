@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { mediaApi } from "../../features/media/api/media-api";
 import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 import { WidgetEmbed, WidgetEmbedInsertControl, WidgetEmbedNodeView, WidgetEmbedStatus, widgetTypeLabel } from "../widget-embed-extension";
 
@@ -670,4 +671,35 @@ describe("WidgetEmbed mounted node view", () => {
       expect(screen.queryByText("Hero text")).not.toBeInTheDocument();
     } finally { mounted.unmount(); editor.destroy(); }
   });
+});
+
+it("saves edited media content only on the placement after selecting a custom override", async () => {
+  const user = userEvent.setup();
+  const updateAttributes = vi.fn();
+  const mediaWidget = {
+    ...ACTIVE_WIDGET, title: "Photo grid", widgetType: "media" as const,
+    config: { mode: "media", items: [], layout: "grid", columns: 3 },
+  };
+  vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: mediaWidget, whereUsed: NO_WHERE_USED });
+  vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
+  render(<WidgetEmbedNodeView {...fakeNodeViewProps({ placementId: "spot-7", widgetEntryId: "w1" }, { updateAttributes })} />);
+  await screen.findByText("Photo grid");
+  await user.click(screen.getByRole("button", { name: "Style" }));
+
+  expect(screen.getByRole("radio", { name: "Use the widget's content" })).toBeChecked();
+  expect(screen.queryByLabelText("Columns")).toBeNull();
+  await user.click(screen.getByRole("radio", { name: "Custom for this post" }));
+  expect(screen.getByRole("radio", { name: "Custom for this post" })).toBeChecked();
+  const columns = screen.getByLabelText("Columns");
+  expect(columns).toHaveValue(3);
+  await user.clear(columns);
+  await user.type(columns, "4");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+
+  expect(updateAttributes).toHaveBeenCalledExactlyOnceWith({
+    cssClass: null, htmlAttributes: null,
+    content: { mode: "media", items: [], layout: "grid", columns: 4 },
+  });
+  expect(mediaWidget.config.columns).toBe(3);
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

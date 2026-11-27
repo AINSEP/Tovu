@@ -11,6 +11,7 @@ import {
   AG_UI_RUN_PATH,
   agUiRunClient,
   createAdminAgUiRunClient,
+  guardTerminalOutcome,
   type AdminAgUiDurablePorts,
   isAgUiTransportEnabled,
 } from "../assistant-transport-ag-ui";
@@ -1038,5 +1039,44 @@ describe("an AG-UI attachment reaches the selected agent (client wire)", () => {
 
     const sent = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string) as { forwardedProps: { durableRun: { launch: Record<string, unknown> } } };
     expect(sent.forwardedProps.durableRun.launch).toEqual({ attachmentIds: ["att-1"], pluginRefIds: ["ui-ux-design"], model: "opus" });
+  });
+});
+
+describe("terminal outcomes at the AG-UI adapter", () => {
+  test("reports actionable copy when a run finishes without any reply", () => {
+    const { rec, recorder } = terminalRecorder();
+    const guarded = guardTerminalOutcome({ handlers: recorder, intentionalStop: () => false });
+    guarded.onDone([]);
+    expect(rec.errors.map(({ message }) => message)).toEqual(["The assistant did not reply. Send your message again."]);
+    expect(rec.dones).toEqual([[]]);
+  });
+
+  test("does not turn an intentional Stop into a missing-reply error", () => {
+    const { rec, recorder } = terminalRecorder();
+    const canceled = new AbortController();
+    const guarded = guardTerminalOutcome({ handlers: recorder, intentionalStop: () => canceled.signal.aborted });
+    canceled.abort();
+    guarded.onDone([]);
+    expect(rec.errors).toEqual([]);
+    expect(rec.dones).toEqual([[]]);
+  });
+
+  test("accepts a canonical final reply even without a live event", () => {
+    const { rec, recorder } = terminalRecorder();
+    const final: AgentEvent[] = [{ kind: "text", text: "Recovered from checkpoint." }];
+    guardTerminalOutcome({ handlers: recorder, intentionalStop: () => false }).onDone(final);
+    expect(rec.errors).toEqual([]);
+    expect(rec.dones).toEqual([final]);
+  });
+
+  test("does not duplicate the first error or replace it with generic missing-reply copy", () => {
+    const { rec, recorder } = terminalRecorder();
+    const guarded = guardTerminalOutcome({ handlers: recorder, intentionalStop: () => false });
+    const first = new Error("Assistant connection expired.");
+    guarded.onError(first);
+    guarded.onError(new Error("Second copy from the same attempt."));
+    guarded.onDone([]);
+    expect(rec.errors).toEqual([first]);
+    expect(rec.dones).toEqual([[]]);
   });
 });
