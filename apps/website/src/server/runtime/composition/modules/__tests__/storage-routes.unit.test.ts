@@ -1,12 +1,13 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
 import test from "node:test";
+import path from "node:path";
 import type { AddressInfo } from "node:net";
 import express from "express";
 import { createCleanupPreviewStore, type RetentionPassResult } from "@jini-ai/platform/retention";
 import { adminSameOriginWrites, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { SiteStorageReport } from "#src/features/storage/measure";
-import { STORAGE_ROUTE_PATHS, mountStorageRoutes, storageOwnerFrom, type SiteStoragePort } from "../storage-routes.js";
+import { STORAGE_ROUTE_PATHS, mountStorageRoutes, passView, servingStoragePaths, storageOwnerFrom, storageToolPorts, type SiteStoragePort } from "../storage-routes.js";
 
 const OWNER = "owner-1";
 
@@ -162,4 +163,52 @@ test("a process that does not serve the site refuses in plain words", async () =
     assert.deepEqual([answer.status, answer.body?.code], [503, "NOT_SERVING"]);
     assert.deepEqual([(await h.call("POST", {}, { principal: "builtin-admin" })).status], [403], "owner check still comes first");
   } finally { await h.close(); }
+});
+
+test("a stopped storage pass never claims policy results, and a completed pass projects failed and itemless policies", () => {
+  assert.deepEqual(passView({ pass: { status: "stopped", dryRun: false } }), { status: "stopped", dryRun: false });
+  assert.deepEqual(passView({ pass: {
+    status: "completed", dryRun: true, startedAt: 27, finishedAt: 38,
+    policies: [
+      { id: "share-cache", kind: "old-copy", status: "failed", message: "Could not measure old copies" },
+      { id: "legacy-preview", kind: "old-copy", status: "measured", measurement: { bytes: 83 } },
+    ],
+  } }), {
+    status: "completed", dryRun: true, startedAt: 27, finishedAt: 38,
+    policies: [
+      { id: "share-cache", kind: "old-copy", status: "failed", message: "Could not measure old copies" },
+      { id: "legacy-preview", kind: "old-copy", status: "measured", bytes: 83 },
+    ],
+  });
+});
+
+test("storage tool owner lookup is live and absent serving storage refuses without exposing paths", async () => {
+  let owner = "original-owner";
+  const tool = storageToolPorts({ storage: undefined, ownerPrincipalId: async () => owner });
+  await tool.authorizeOwner({ principalId: "original-owner" });
+  owner = "replacement-owner";
+  await assert.rejects(tool.authorizeOwner({ principalId: "original-owner" }), {
+    message: "Only the site owner can see or clean up this site's storage.",
+  });
+  await tool.authorizeOwner({ principalId: "replacement-owner" });
+  await assert.rejects(tool.measure(), {
+    message: "Storage cleanup runs only in the app that is serving this site. Start the site and try again.",
+  });
+  await assert.rejects(tool.cleanup.preview({ principalId: "replacement-owner" }), {
+    message: "Storage cleanup runs only in the app that is serving this site. Start the site and try again.",
+  });
+});
+
+test("serving storage paths omit roots and sibling paths, but keep nested database ops and logs", () => {
+  const parent = path.resolve("storage-fixtures");
+  const siteDir = path.join(parent, "site");
+  assert.deepEqual(servingStoragePaths({
+    siteDir, contentDbPath: path.join(siteDir, "db", "content.db"),
+    mediaUploadsDir: path.join(parent, "site-sibling", "uploads"), themesDir: siteDir,
+  }), [
+    { category: "content-database", path: path.join(siteDir, "db", "content.db") },
+    { category: "screenshots", path: path.join(siteDir, ".captures") },
+    { category: "shares", path: path.join(siteDir, "db", "ops", "shares") },
+    { category: "logs", path: path.join(siteDir, "ops", "logs") },
+  ]);
 });

@@ -168,3 +168,26 @@ test("visitor Stop while an approval is parked sends one cancelled resume and ru
   assert.deepEqual([late.status, (await late.json() as { error: string }).error], [400, VISITOR_APPROVAL_EXPIRED]);
   assert.equal(requests.length, 1);
 });
+
+test("a visitor resume with new messages, multiple answers or a foreign origin does not consume the held call", { timeout: 10_000 }, async (t) => {
+  const { baseUrl, requests } = await boot({ t, ask: true });
+  const tab = await guestTab(baseUrl);
+  const interruptId = await interruptOf(await start(baseUrl, tab));
+  const answer = { interruptId, status: "resolved", payload: "allow" };
+  const valid = { ...empty, threadId: "thread-1", runId: "run-2", parentRunId: "run-1", messages: [], resume: [answer] };
+  for (const [headers, body] of [
+    [tab, { ...valid, messages: [{ id: "new-1", role: "user", content: "New turn" }] }],
+    [tab, { ...valid, resume: [answer, answer] }],
+    [{ ...tab, origin: "https://other.example", "sec-fetch-site": "cross-site" }, valid],
+  ] as const) {
+    const refused = await post(baseUrl, headers, body);
+    assert.equal(refused.status, 400);
+    assert.equal(refused.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await refused.json(), { error: "I can't help with that request here." });
+  }
+  assert.equal(requests.length, 1);
+  const continued = await resume(baseUrl, tab, interruptId, "allow");
+  assert.equal(continued.status, 200);
+  assert.equal(events(await continued.text()).at(-1)?.type, "RUN_FINISHED");
+  assert.equal(requests.length, 2);
+});

@@ -247,3 +247,25 @@ test("composed owner keyring cannot derive for the site", async () => {
     assert.equal(derivations, 0, "no derivation reaches the owner keyring");
   } finally { await f.close(); }
 });
+
+test("different secrets with matching display hints and source row IDs get distinct shared records", async () => {
+  const f = await fixture();
+  try {
+    const c = await f.c();
+    const firstToken = "fake-demo-secret-east-1234";
+    const secondToken = "fake-demo-secret-west-1234";
+    await f.save(f.a, "same-source-row", "Deploy", firstToken);
+    await f.save(c, "same-source-row", "Deploy", secondToken);
+    const choices = await f.keysOnB.listChoices({});
+    const first = await f.keysOnB.use({ keyId: siteRow(choices, "Vercel, Deploy, site-a").keyId, use: true });
+    const second = await f.keysOnB.use({ keyId: siteRow(choices, "Vercel, Deploy, site-c").keyId, use: true });
+    assert.equal(first.keyId, "same-source-row");
+    assert.match(second.keyId, /^same-source-row-[a-f0-9]{8}$/);
+    assert.deepEqual(
+      (await f.projectRows()).map(({ id, label }) => [id, label]).sort(),
+      [[first.keyId, "Deploy"], [second.keyId, "Deploy (site-c)"]].sort(),
+    );
+    assert.equal(await projectToken(f, first.keyId), firstToken);
+    assert.equal(await projectToken(f, second.keyId), secondToken);
+  } finally { await f.close(); }
+});

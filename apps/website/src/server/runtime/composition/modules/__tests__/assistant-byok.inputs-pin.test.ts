@@ -271,3 +271,62 @@ test("a response closed before the turn begins never starts a paid BYOK call", a
   assert.equal(probe.providerCalls(), 0, "a disconnected user must not leave paid work running");
   assert.equal(probe.streamStarts(), 0);
 });
+
+test("BYOK rejects malformed picked folders before any provider request or SSE response", async (t) => {
+  const deps = createRouteDeps();
+  const reporter = testToolReporter();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
+  const toolSurface = createByokToolSurface({ ...deps, reporter }, { installExtensions: false });
+  createAssistantByokModule({ reporter, routeDeps: deps }, { toolSurface }).registerRoutes?.({ app });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  let providerCalls = 0;
+  const providerUrl = await startStubProviderServer(t, () => {
+    providerCalls += 1;
+    return { status: 500, body: "Provider should not be called" };
+  });
+  const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", content: "Summarize today's work" }],
+      byok: { protocol: "anthropic", apiKey: "fixture-key", model: "fixture-model", baseUrl: providerUrl },
+      folders: "not-an-array",
+    }),
+  });
+  assert.equal(response.status, 400);
+  assert.match(response.headers.get("content-type") ?? "", /^application\/json\b/);
+  assert.deepEqual(await response.json(), { error: "Invalid picked folders", code: "VALIDATION_ERROR" });
+  assert.equal(providerCalls, 0);
+});
+
+test("a throwing BYOK per-run tool binding ends the already-open stream with one private error", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const deps = createRouteDeps();
+  const reporter = testToolReporter();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
+  const surface = createByokToolSurface({ ...deps, reporter }, { installExtensions: false });
+  const failure = new Error("private tool registry failure");
+  const toolSurface: ByokToolSurface = { ...surface, createRun: () => { throw failure; } };
+  createAssistantByokModule({ reporter, routeDeps: deps }, { toolSurface }).registerRoutes?.({ app });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  let calls = 0;
+  const providerUrl = await startStubProviderServer(t, () => {
+    calls += 1;
+    return { status: 500, body: "Provider should not be called" };
+  });
+
+  const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", content: "Write a draft" }],
+      byok: { protocol: "anthropic", apiKey: "fixture-key", model: "fixture-model", baseUrl: providerUrl },
+    }),
+  });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/event-stream\b/);
+  assert.equal(await response.text(), 'event: error\ndata: {"message":"assistant failed"}\n\n');
+  assert.equal(calls, 0);
+});

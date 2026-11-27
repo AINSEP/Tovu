@@ -208,3 +208,17 @@ test("first durable launch waits for readiness and dispatches the accepted ident
   assert.equal(calls.length, 1);
   assert.equal(JSON.parse(calls[0]!.body!).idempotencyKey, "accepted-1");
 });
+
+test("runStatus returns unknown and probes neither endpoint when prior daemon discovery fails", async () => {
+  const currentUrls: string[] = [];
+  const { calls, fetch } = recordingFetch(() => new Response(null, { status: 404 }));
+  const client = createHttpRunDaemonClient({ observability }, {
+    previousDaemon: async () => { throw new Error("daemon registry unreadable"); },
+    currentUrl: () => { currentUrls.push("current"); return "http://127.0.0.1:4300"; },
+    fetch,
+  });
+
+  assert.equal(await client.runStatus({ runId: "saved-attempt", principalId: "owner" }), null);
+  assert.deepEqual(currentUrls, []);
+  assert.deepEqual(calls, []);
+});

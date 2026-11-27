@@ -138,3 +138,14 @@ test('alphabetical pages match the admin comparator across case, whitespace and 
   }
   assert.equal(listCalls.mock.callCount(), 0, 'alphabetical paging never reads the whole library');
 });
+
+test("the media grid refuses a store without bounded queries instead of reading the whole library", async () => {
+  let fullReads = 0;
+  const { app } = fixture(registerAdminMediaGridRoute, {
+    mediaRepo: { list: async () => { fullReads += 1; return []; } },
+  });
+  assert.deepEqual(await dispatchJsonRequest(app, "GET", `${BASE}/media/grid?limit=7`), {
+    status: 501, body: { error: "this media store cannot answer grid pages" },
+  });
+  assert.equal(fullReads, 0);
+});

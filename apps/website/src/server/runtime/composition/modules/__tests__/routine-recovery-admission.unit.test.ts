@@ -170,3 +170,12 @@ test("only the current lease owner waits for the routine boot barrier; a passive
     assert.deepEqual(seen.recovered, ["m1"]);
   }
 });
+
+test("a corrupt durable envelope falls through to ordinary recovery without reading or cancelling a routine", async () => {
+  for (const contextRef of ["{broken", "null"]) {
+    const h = admission(durableRun({ request: { contextRef } }));
+    assert.equal(await h.admit({ turn: turn() }), "recover", contextRef);
+    assert.deepEqual(h.reads, [], contextRef);
+    assert.deepEqual(h.cancels, [], contextRef);
+  }
+});

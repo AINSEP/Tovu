@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import express from "express";
 
 import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
@@ -10,7 +11,10 @@ import { postRepoFor } from "#src/features/post/repo";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
-import { composeRevisionThinning } from "../revision-thinning-routes.js";
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { adminSameOriginWrites, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { composeRevisionThinning, mountRevisionThinning } from "../revision-thinning-routes.js";
 
 /**
  * @file The (uncalled, DISABLED until STOP 6) composition helper for revision thinning: the binding
@@ -66,4 +70,58 @@ test("only the installation owner's own session may thin", async () => {
     await assert.rejects(f.ownerCheck({ context }), (error: unknown) => error instanceof RouteRefusalError && error.response.status === 403 && /Only the site owner/.test(JSON.stringify(error.response.body)));
   }
   assert.deepEqual(await f.ownerCheck({ context: { id: OWNER } as OperatorPrincipalRecord }), { principal: OWNER });
+});
+
+test("revision thinning HTTP requires owner, same origin and a confirmed fresh token before deleting history", async (t) => {
+  const { kernel, repo, ids, binding, ownerCheck } = await fixture();
+  t.after(() => (kernel as unknown as { close(): Promise<void> }).close());
+
+  const app = express();
+  app.use(express.json());
+  app.use((req, res, next) => {
+    res.locals.principal = { id: req.get("x-fixture-principal") ?? OWNER, workspaceId: WS, kind: "user", roles: [] };
+    next();
+  });
+  const incidents = createRouteIncidentReporter();
+  mountRevisionThinning({ app, binding, ownerCheck, adminPorts: {
+    errors: incidents.errors, mount: mountAdminJsonRoute, origin: adminSameOriginWrites,
+    deps: { workspaceId: WS, authorize: async () => ({ allowed: true, reason: "test" }) },
+  } });
+  const origin = await startTestServer(app, t);
+  async function call(path: "preview" | "apply", body: unknown, { requestOrigin = origin, principal = OWNER } = {}) {
+    const res = await fetch(`${origin}/api/admin/posts/revisions/thinning/${path}`, {
+      method: "POST", headers: { "content-type": "application/json", origin: requestOrigin, "x-fixture-principal": principal },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, body: await res.json() as { previewToken?: string; code?: string } };
+  }
+  const scope = { postId: "p1", kind: "post" };
+  const before = { ...scope, before: "2026-03-01" };
+  assert.equal((await call("preview", before, { requestOrigin: "https://unrelated.example" })).status, 403);
+  assert.deepEqual(await call("preview", before, { principal: "editor-2" }), {
+    status: 403, body: { code: "OWNER_ONLY", error: "Only the site owner can thin revisions." },
+  });
+  const invalid = await call("preview", { ...before, before: "not-a-date" });
+  assert.deepEqual([invalid.status, invalid.body.code], [400, "INVALID_INPUT"]);
+  const preview = await call("preview", before);
+  assert.equal(preview.status, 200);
+  assert.equal(preview.body.previewToken, "t-1");
+  const apply = { ...scope, previewToken: "t-1", confirm: true };
+  assert.deepEqual(await call("apply", { ...apply, confirm: "true" }), {
+    status: 400, body: { code: "INVALID_INPUT", error: "Confirm the revision preview first." },
+  });
+  assert.deepEqual(await call("apply", { ...scope, confirm: true }), {
+    status: 400, body: { code: "INVALID_INPUT", error: "Preview the revisions to delete first." },
+  });
+  assert.equal((await call("apply", apply, { requestOrigin: "https://unrelated.example" })).status, 403);
+  assert.equal((await call("apply", apply, { principal: "editor-2" })).status, 403);
+
+  const savedIds = async () => (await repo.listRevisions({ workspaceId: WS, postId: "p1" })).map((row) => row.id);
+  assert.deepEqual(await savedIds(), ids);
+  assert.deepEqual(await call("apply", apply), { status: 200, body: { deleted: ids.slice(0, 2), kept: [] } });
+  assert.deepEqual(await savedIds(), ids.slice(2));
+  const reused = await call("apply", apply);
+  assert.deepEqual([reused.status, reused.body.code], [410, "PREVIEW_EXPIRED"]);
+  assert.deepEqual(await savedIds(), ids.slice(2));
+  assert.deepEqual(incidents.entries, []);
 });

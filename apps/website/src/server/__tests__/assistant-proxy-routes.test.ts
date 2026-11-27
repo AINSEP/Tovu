@@ -832,3 +832,19 @@ test("spans: every proxied daemon call is one CLIENT span, never its path, query
     assertSpanOmits(call, [TOKEN, "/api", "chat-secret-42", "batch-secret", "exchange-secret", "file bytes", "webhooks"]);
   }
 });
+
+test("run start rejects malformed and non-object context envelopes before reaching the daemon", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  for (const contextRef of ['{"bad":', "null", '["prompt"]', "42"]) {
+    const response = await fetch(`${baseUrl}/api/runs`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ agentId: "claude", contextRef }),
+    });
+    assert.equal(response.status, 400, contextRef);
+    assert.deepEqual(await response.json(), {
+      error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR",
+    });
+  }
+  assert.deepEqual(recorded, []);
+});

@@ -22,6 +22,7 @@ import { registerMemberOidcVerifyEmailRoute } from "../../inbound/public-http/ro
 import { registerMemberUnlinkIdentityRoute } from "../../inbound/public-http/routes/members/unlink-identity.js";
 import { registerMemberLoginProvidersRoute, registerPublicMemberMeRoute } from "#src/server/runtime/composition/modules/public-members";
 import { MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from "../../inbound/public-http/routes/members/oidc-deps.js";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 
@@ -502,4 +503,30 @@ test('S3 failed callback and continuation protocols never read the identity-link
   assert.equal(response.status, 401);
   assert.equal(linkReads, 0);
   assert.ok(!cookie(response, 'tovu_member_session'));
+});
+
+test("memory-only members publish no login providers and refuse OIDC without disclosing foreign workspaces", async (t) => {
+  const deps = createRouteDeps();
+  assert.equal(deps.contentKernel, undefined);
+  const base = await startTestServer(createApp(deps), t);
+  const workspace = `${base}/api/members/v1/workspaces/${encodeURIComponent(deps.workspaceId)}`;
+  const foreign = `${base}/api/members/v1/workspaces/not-this-workspace`;
+  const providers = await fetch(`${workspace}/login-providers`);
+  assert.equal(providers.status, 200);
+  assert.equal(providers.headers.get("cache-control"), "no-store");
+  assert.equal(providers.headers.get("referrer-policy"), "no-referrer");
+  assert.deepEqual(await providers.json(), { providers: [] });
+
+  const startPath = "/oidc/google/start";
+  const choice = await fetch(workspace + startPath, { redirect: "manual" });
+  assert.equal(choice.status, 503);
+  assert.equal(choice.headers.get("location"), null);
+  assert.equal(choice.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await choice.json(), { error: "member login failed", code: "LOGIN_UNAVAILABLE" });
+  for (const path of ["/login-providers", startPath]) {
+    const refused = await fetch(foreign + path, { redirect: "manual" });
+    assert.equal(refused.status, 404);
+    assert.equal(refused.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await refused.json(), { error: "workspace was not found" });
+  }
 });

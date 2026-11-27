@@ -290,3 +290,34 @@ test("passive profile: a second window never runs a routine slot while the owner
   await passive.close();
   await owner.close();
 });
+
+test("the routines route refuses a missing id and pages persisted runs without exposing private fields", async (t) => {
+  const contentDbPath = tempSite(t);
+  const routineId = await seedRoutine(contentDbPath);
+  const h = harness(t, { contentDbPath });
+  try {
+    await h.compose();
+    const missing = await h.call(`get ${ROUTINE_ROUTE_BASE}/:id`, { params: { id: "missing-routine" } });
+    assert.equal(missing.ok, false);
+    if (missing.ok) assert.fail("a missing id must have an error");
+    assert.equal(missing.error.code, "NOT_FOUND");
+
+    await h.clock.advance(2 * 60 * 60_000);
+    const saved = await readRuns(contentDbPath, routineId);
+    assert.equal(saved.length, 2);
+    const first = await h.call(`get ${ROUTINE_ROUTE_BASE}/:id/runs`, { params: { id: routineId }, query: { limit: "1" } });
+    if (!first.ok) assert.fail(JSON.stringify(first.error));
+    const page = first.value as { runs: Array<{ runId: string; status: string }>; nextCursor: string | null };
+    assert.equal(typeof page.nextCursor, "string");
+    assert.deepEqual(page.runs.map(({ runId, status }) => [runId, status]), [[saved[0]!.id, "succeeded"]]);
+    assert.doesNotMatch(JSON.stringify(page.runs), /holderId|exchangeId|approvalExchangeRef/);
+
+    const second = await h.call(`get ${ROUTINE_ROUTE_BASE}/:id/runs`, {
+      params: { id: routineId }, query: { limit: "1", cursor: page.nextCursor },
+    });
+    if (!second.ok) assert.fail(JSON.stringify(second.error));
+    const next = second.value as typeof page;
+    assert.equal(next.nextCursor, null);
+    assert.deepEqual(next.runs.map(({ runId, status }) => [runId, status]), [[saved[1]!.id, "succeeded"]]);
+  } finally { await h.close(); }
+});

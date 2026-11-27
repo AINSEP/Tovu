@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { createRouteDeps } from "../../app.js";
+import { createSiteAssistantModule } from "../site-assistant.js";
 import { resolveProviderFromCredential, type SiteAssistantCredentialChoice } from "../site-assistant-preflight.js";
 
 /** The provider decision for a visitor chat turn, without a repo or sealer: each refusal answers 503
@@ -58,4 +61,20 @@ test("an env-sourced Google key dials only the env endpoint and falls back to th
   const h = harness();
   assert.deepEqual(h.decide({ GEMINI_API_KEY: " g-env ", TOVU_SITE_ASSISTANT_BASE_URL: "https://vertex.example" }, { baseUrl: "https://stored-not-for-env-key.example" }),
     { protocol: "google", apiKey: "g-env", model: "gemini-flash-latest", baseUrl: "https://vertex.example" });
+});
+
+test("site assistant boot tells the operator that its legacy CLI request was refused", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const deps = createRouteDeps();
+  const reporter = createRouteIncidentReporter().reporter;
+  const cli = createSiteAssistantModule({ deps, reporter }, { env: {
+    NODE_ENV: "development", TOVU_SITE_ASSISTANT_MODE: "cli", TOVU_SITE_ASSISTANT_ALLOW_CLI: "1",
+  } });
+  cli.start!();
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments), [
+    ["[site-assistant] Visitor CLI execution is disabled locally and in production, regardless of TOVU_SITE_ASSISTANT_ALLOW_CLI; native access is owner-only."],
+  ]);
+  const byok = createSiteAssistantModule({ deps, reporter }, { env: { TOVU_SITE_ASSISTANT_MODE: "byok" } });
+  byok.start!();
+  assert.equal(warn.mock.callCount(), 1);
 });

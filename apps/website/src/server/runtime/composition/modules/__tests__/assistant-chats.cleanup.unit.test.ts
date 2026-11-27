@@ -123,3 +123,25 @@ test("delete-selected without confirm is refused", async () => {
     assert.equal(applied.body?.code, "PREVIEW_EXPIRED");
   } finally { await h.close(); }
 });
+
+test("a pin-only patch preserves the title, and invalid pin or title values never change the conversation", async () => {
+  const h = await harness();
+  try {
+    const chats = h.own("alice");
+    await chats.create({ id: "pin-me" });
+    assert.equal((await h.call("PATCH", "/pin-me", { title: "Ship checklist" })).status, 200);
+    const pinned = await h.call("PATCH", "/pin-me", { pinned: true });
+    assert.equal(pinned.status, 200);
+    assert.deepEqual([pinned.body?.conversation.title, pinned.body?.conversation.pinned], ["Ship checklist", true]);
+
+    assert.deepEqual(await h.call("PATCH", "/pin-me", { pinned: "false", title: "Do not write" }), {
+      status: 400, body: { error: "'pinned' must be true or false", code: "VALIDATION_ERROR" },
+    });
+    const oversized = await h.call("PATCH", "/pin-me", { pinned: false, title: "x".repeat(4096) });
+    assert.equal(oversized.status, 400);
+    assert.equal(oversized.body?.code, "VALIDATION_ERROR");
+    assert.equal(oversized.body?.error, "'title' must be at most 50 characters");
+    const latest = await chats.get({ id: "pin-me" });
+    assert.deepEqual([latest?.title, latest?.pinned], ["Ship checklist", true]);
+  } finally { await h.close(); }
+});

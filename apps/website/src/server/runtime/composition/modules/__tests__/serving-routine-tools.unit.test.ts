@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { approvalText } from "#src/contracts/core/approval-i18n";
 import {
   contributeRoutineTools, ROUTINE_CREATE_TOOL_ID, ROUTINE_DELETE_TOOL_ID, ROUTINE_LIST_TOOL_ID, ROUTINE_SET_ENABLED_TOOL_ID,
 } from "#src/features/routines/routine-tool-registrations";
 import { surfacesWithReceipts } from "#src/assistant/byok-tool-surface";
 import type { AssistantRoutinesHandle } from "../assistant-routines.js";
-import { servingRoutineToolOptions } from "../serving-routine-tools.js";
+import { servingRoutineToolOptions, settingsLocaleFor } from "../serving-routine-tools.js";
 import { ROUTINE_AVAILABILITY_REFUSALS } from "#src/features/routines/routine-commands";
 
 /**
@@ -123,4 +124,39 @@ test("passes the existing localized desktop availability notice and only that ho
   assert.equal(host.copy({ key: "This routine runs only while Tovu is open and your computer is awake" }), "Questa routine viene eseguita solo mentre Tovu è aperto e il computer è attivo");
   assert.equal(host.copy({ key: "Create routine" }), "Crea routine");
   assert.equal(host.copy({ key: "Unknown catalog title" as Parameters<typeof host.copy>[0]["key"] }), "Unknown catalog title");
+});
+
+test("routine approval copy reads the owner's scoped locale and falls back to English for absent or invalid settings", async () => {
+  const iso = "2026-10-04T10:00:00.000Z";
+  const settingsRepo = new InMemorySettingsRepo({
+    definitions: [{
+      settingId: "locale-def", version: 1, workspaceId: null, namespace: "core.language", key: "locale",
+      ownerKind: "core", ownerId: null, schema: { type: "string", nullable: true }, defaultValue: null,
+      scopes: 7, secret: false, status: "active", aliasOfNamespace: null, aliasOfKey: null, coercionTag: null,
+      createdAt: iso, updatedAt: iso,
+    }],
+    userValues: [
+      { settingId: "locale-def", scope: "user", workspaceId: "ws-1", principalId: OWNER, valueJson: "it",
+        state: "set", defVersion: 1, seq: 1, updatedBy: OWNER, updatedAt: iso, originPluginId: null },
+      { settingId: "locale-def", scope: "user", workspaceId: "ws-2", principalId: OWNER, valueJson: "fr",
+        state: "set", defVersion: 1, seq: 2, updatedBy: OWNER, updatedAt: iso, originPluginId: null },
+    ],
+  });
+  const localeFor = settingsLocaleFor({ settingsRepo, workspaceId: "ws-1" });
+  assert.equal(await localeFor({ principalId: OWNER }), "it");
+  assert.equal(await localeFor({ principalId: "other-owner" }), "en");
+  assert.equal(await settingsLocaleFor({ settingsRepo, workspaceId: "ws-2" })({ principalId: OWNER }), "fr");
+  assert.equal(await settingsLocaleFor({ settingsRepo: new InMemorySettingsRepo(), workspaceId: "ws-1" })({ principalId: OWNER }), "en");
+});
+
+test("a locale lookup failure does not refuse the live owner or reuse another request's localized copy", async () => {
+  let calls = 0;
+  const host = servingRoutineToolOptions(base(deferred().promise), {
+    localeFor: async () => { if (++calls === 1) return "it"; throw new Error("settings offline"); },
+  }).routines!;
+  const actor = { principalId: OWNER, workspaceId: "ws-1" };
+  assert.deepEqual(await host.resolveOwnerActor({ principalId: OWNER }), actor);
+  assert.equal(host.copy({ key: "Create routine" }), "Crea routine");
+  assert.deepEqual(await host.resolveOwnerActor({ principalId: OWNER }), actor);
+  assert.equal(host.copy({ key: "Create routine" }), "Create routine");
 });

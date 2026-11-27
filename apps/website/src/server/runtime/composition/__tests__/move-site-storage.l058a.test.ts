@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { ValidationError } from '#src/platform/site-dir/errors';
 import { moveSiteStorage } from '../move-site-storage.js';
 import { acquireOwnerLock } from '#src/platform/db/kernel/drivers/pglite-owner';
 
@@ -31,4 +32,20 @@ test('L058a held PGlite owner lock refuses without touching metadata', async t =
     await assert.rejects(moveSiteStorage({ siteDir, connectionString: 'unused', secretRef: { env: 'PG_TEST' } }),
       { message: `storage move: the site is running (process ${process.pid}); stop it, then move it` });
   } finally { release(); }
+});
+
+test("a broken site metadata file is reported as a storage move validation error and is not rewritten", async (t) => {
+  const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "move-metadata-"));
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  const meta = path.join(siteDir, ".site-meta.json");
+  fs.writeFileSync(meta, '{"storage":');
+  await assert.rejects(moveSiteStorage({ siteDir, connectionString: "unused", secretRef: "site" }), (error: unknown) => {
+    assert(error instanceof ValidationError);
+    const prefix = `storage move: ${meta} cannot be read: `;
+    assert.equal(error.message.slice(0, prefix.length), prefix);
+    assert.notEqual(error.message.slice(prefix.length), "");
+    return true;
+  });
+  assert.equal(fs.readFileSync(meta, "utf8"), '{"storage":');
+  assert.deepEqual(fs.readdirSync(siteDir), [".site-meta.json"]);
 });

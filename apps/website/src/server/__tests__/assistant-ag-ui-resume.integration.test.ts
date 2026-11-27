@@ -470,3 +470,28 @@ test("server shutdown abandons every parked visitor and admin approval once", { 
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(providerRequests.length, 1, "the held visitor call ended: no continuation ran");
 });
+
+test("an admin approval needs a fresh segment id and resumes from the parked cursor despite a client header", { timeout: 60_000 }, async (t) => {
+  const { baseUrl, cookie, conversationId, ownerId } = await boot(t);
+  const first = await startTurn({ baseUrl, cookie, conversationId });
+  const interruptId = first.finished.outcome!.interrupts[0]!.id;
+  const addressing = { conversationId, parentRunId: first.runId, interruptId };
+  for (const runId of [first.runId, "", "r".repeat(129)]) {
+    const refused = await resume({ baseUrl, cookie, body: resumeBody({ ...addressing, runId }) });
+    assert.deepEqual(refused, { status: 400, text: REFUSAL });
+  }
+  assert.deepEqual(answers, []);
+  const second = await fetch(`${baseUrl}${RUN_PATH}`, {
+    method: "POST", headers: { "content-type": "application/json", cookie, "last-event-id": "999" },
+    body: resumeBody({ ...addressing, runId: "fresh-segment" }),
+  });
+  assert.equal(second.status, 200);
+  const events = parse(await second.text());
+  assert.deepEqual(events.find((event) => event.type === "RUN_STARTED"), {
+    type: "RUN_STARTED", threadId: conversationId, runId: "fresh-segment", parentRunId: first.runId,
+  });
+  assert.deepEqual(events.filter((event) => event.type === "TEXT_MESSAGE_CONTENT").map((event) => event.delta), ["After approval."]);
+  assert.equal(lastEventIds.at(-1), "2");
+  assert.deepEqual(answers, [{ principal: ownerId, body: { toolName: "posts.delete", params: { __exchangeId: "ex-1", decision: "confirm" } } }]);
+  assert.deepEqual(launches, [first.runId]);
+});

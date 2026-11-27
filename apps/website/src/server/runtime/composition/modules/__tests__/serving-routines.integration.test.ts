@@ -1,13 +1,13 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import express, { Router } from "express";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
-import { createRoutinesNotReadyStarter, startServingRoutines, ROUTINES_NOT_READY } from "../serving-routines.js";
+import { createRoutinesNotReadyStarter, startServingRoutines, ROUTINES_NOT_READY, writeRoutineBeaconAtomically } from "../serving-routines.js";
 import type { SiteStoreHooks } from "../../site-deps/store-close-hooks.js";
 import type { StoreCloseRegistration } from "../../site-deps/open-store.js";
 import { ROUTINE_ROUTE_BASE } from "../assistant-routines.js";
@@ -104,4 +104,18 @@ test("the fallback starter settles failed with the not-ready copy and launches n
   const start = await createRoutinesNotReadyStarter()({ routine: {} as never, trigger: "scheduled" as never, startedAt: 0, runId: "run-1" });
   assert.deepEqual(await start.completion, { status: "failed", error: ROUTINES_NOT_READY, errorCode: "ROUTINES_NOT_READY" });
   assert.equal(ROUTINES_NOT_READY, "Routines are not ready yet.");
+});
+
+test("the routine beacon creates a private file and replaces its complete record on the next write", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "serving-routine-beacon-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = path.join(root, "nested", "runtime");
+  const beacon = path.join(dir, "routines.json");
+
+  await writeRoutineBeaconAtomically({ path: beacon, enabled: 12, now: () => 4000 });
+  assert.deepEqual(JSON.parse(readFileSync(beacon, "utf8")), { v: 1, enabled: 12, updatedAt: 4000 });
+  await writeRoutineBeaconAtomically({ path: beacon, enabled: 0, now: () => 4500 });
+  assert.deepEqual(JSON.parse(readFileSync(beacon, "utf8")), { v: 1, enabled: 0, updatedAt: 4500 });
+  assert.deepEqual(readdirSync(dir), ["routines.json"]);
+  if (process.platform !== "win32") assert.equal(statSync(beacon).mode & 0o077, 0);
 });

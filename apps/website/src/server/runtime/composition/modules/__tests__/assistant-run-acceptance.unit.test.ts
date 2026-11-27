@@ -146,3 +146,35 @@ test("durable ownership is authorized before Stop: another principal or workspac
 test("Codex FIX 3: routines stay dark — the release flag is off at the host root", () => {
   assert.equal(ROUTINES_RELEASE_ENABLED, false);
 });
+
+test("settlement without a polling port reads a scoped saved message by id", async () => {
+  const calls: unknown[] = [];
+  const sleepCalls: number[] = [];
+  const message = { runStatus: "succeeded", content: "Retained reply", events: [{ type: "text_delta", delta: "Retained reply" }] };
+  const scope = { principalId: "owner", workspaceId: "ws", messageId: "m1" };
+  const store = { load: async (...args: unknown[]) => {
+    calls.push(args);
+    return { ...base, message };
+  } };
+  const acceptance = createOwnerChatAcceptance({
+    store: store as unknown as Parameters<typeof createOwnerChatAcceptance>[0]["store"], now: () => 5, mintRunId: () => "attempt-4",
+    launch: async () => assert.fail("settlement must not launch"), attach: () => assert.fail("settlement must not attach"),
+    recover: async () => assert.fail("settlement must not recover"), sleep: async ({ ms }) => { sleepCalls.push(ms); },
+  });
+  const events: unknown[] = [];
+  assert.deepEqual(await acceptance.watchSettlement(scope, { onEvents: (batch) => { events.push(...batch); } }), { status: "completed", text: "Retained reply" });
+  assert.deepEqual(events, [{ type: "text_delta", delta: "Retained reply" }]);
+  assert.deepEqual(await acceptance.watchSettlement({ ...scope, workspaceId: "foreign" }, { onEvents: () => assert.fail("foreign events") }), { status: "failed", text: "" });
+  assert.deepEqual(await acceptance.watchSettlement({ ...scope, principalId: "foreign" }, { onEvents: () => assert.fail("foreign events") }), { status: "failed", text: "" });
+  assert.deepEqual(calls, [[{ messageId: "m1" }, {}], [{ messageId: "m1" }, {}], [{ messageId: "m1" }, {}]]);
+  assert.deepEqual(sleepCalls, []);
+});
+
+test("the AG-UI entry accepts malformed or non-object stored context only as an empty envelope", async () => {
+  for (const contextRef of ["{corrupt", "null", '["array"]', "42"]) {
+    const h = harness();
+    await acceptOwnedAssistantRun({ ...base, request: { agentId: "claude", contextRef }, ports: agUiPorts(h) }, {});
+    assert.deepEqual(h.accepted.map(({ request }) => request), [{ agentId: "claude", contextRef: "{}" }], contextRef);
+    assert.deepEqual(h.launched, ["m1"], contextRef);
+  }
+});

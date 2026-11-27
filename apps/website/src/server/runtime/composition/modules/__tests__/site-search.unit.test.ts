@@ -12,6 +12,9 @@ import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecy
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
+import type { MediaRecord } from "@jini-ai/cms/media";
+import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
 import {
@@ -560,4 +563,55 @@ test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, memb
   assert.equal(await ports.readProviderSetting(), "meilisearch");
   assert.deepEqual(await ports.loadPluginProviders(), { items: [], refusals: [] });
   assert.equal((contributionCalls[0] as { workspaceId: string }).workspaceId, WS);
+});
+
+test("bound media search pages use stable ids and give raster and SVG hits their correct URL variants", async (t) => {
+  const kernel = freshSqliteContentKernel();
+  t.after(() => kernel.close());
+  const repo = new SqliteMediaRepo({ store: kernel });
+  const rows = [
+    { id: "z-svg", slug: "map-overlay", mime: "image/svg+xml", sha: "f6".repeat(32) },
+    { id: "a-raster", slug: "lake-photo", mime: "image/png", sha: "ab".repeat(32) },
+  ];
+  for (const row of rows) {
+    const record: MediaRecord = {
+      kind: "media", originalFilename: null, id: row.id, workspaceId: WS,
+      title: row.slug, slug: row.slug, alt: "", caption: "", credit: "", source: { sha256: row.sha, contentType: row.mime },
+      status: "active", createdAt: new Date(NOW).toISOString(), updatedAt: new Date(NOW).toISOString(), version: 1,
+      width: null, height: null, cssClass: null, htmlAttributes: null,
+    };
+    await repo.save(record);
+  }
+  const settingsRepo = new InMemorySettingsRepo();
+  const ports = bindSiteSearchPorts({
+    workspaceId: WS, kernel, now: () => NOW, settingsRepo,
+    settingsWriteDeps: {
+      repo: settingsRepo, clock: { nowMs: () => NOW, nowIso: () => new Date(NOW).toISOString() },
+      ids: { newId: () => "setting-id" }, authorize: async () => ({ allowed: true, reason: "test" }),
+      principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),
+    },
+    keyring: {
+      activeKey: async () => assert.fail("local media scan must not open a key"),
+      deriveSigningSecret: async () => assert.fail("local media scan must not derive signing secrets"),
+      derive: async () => assert.fail("local media scan must not derive keys"),
+    },
+    resolveCredentialByLabel: async () => assert.fail("local media scan must not resolve credentials"),
+    resolveMemberContext: async () => assert.fail("local media scan must not resolve member sessions"),
+    httpClient: { send: async () => assert.fail("local media scan must not make network requests") },
+    loadContributions: async () => assert.fail("local media scan must not load plugins"),
+    isPluginActive: async () => assert.fail("local media scan must not probe plugin activity"),
+  });
+  const source = ports.sources.find((item) => item.collection === "media_image");
+  assert.ok(source, "a media image source is available");
+  const scope = { siteId: WS, workspaceId: WS, limit: 1 };
+  const first = await source.scan(scope);
+  assert.equal(first.nextCursor, "a-raster");
+  assert.deepEqual(first.records.map((row) => [row.key.documentId, row.document?.url]), [
+    ["a-raster", "/m/lake-photo/public.v1/image.webp?v=abababababab"],
+  ]);
+  const last = await source.scan(scope, { cursor: first.nextCursor });
+  assert.equal(last.nextCursor, undefined);
+  assert.deepEqual(last.records.map((row) => [row.key.documentId, row.document?.url]), [
+    ["z-svg", "/m/map-overlay/original.svg?v=f6f6f6f6f6f6"],
+  ]);
 });

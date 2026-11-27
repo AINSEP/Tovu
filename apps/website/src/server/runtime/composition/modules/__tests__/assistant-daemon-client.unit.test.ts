@@ -506,3 +506,9 @@ test("fetchAgentDaemonEventStream: a reset stream GET is still retried (GET only
   assert.equal(daemon.hits(), 2);
   assert.equal(sent.status, undefined);
 });
+
+test("a ready frontend stream keeps the response untouched for the normal proxy", () => {
+  const { res, sent } = fakeRes();
+  assert.equal(parkColdFrontendStream({ res, isReady: () => true }), false);
+  assert.deepEqual(sent, {});
+});

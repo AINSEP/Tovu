@@ -85,3 +85,15 @@ test("a turn whose provider reported no recognizable usage leaves the span witho
   assert.equal(usage.total(), undefined);
   assert.deepEqual(usage.withUsage({ status: "succeeded" }), { status: "succeeded" });
 });
+
+test("sparse BYOK snapshots do not erase previously reported counters or replace USD with a non-finite number", () => {
+  const usage = createByokRunUsage();
+  const withCost = { type: "usage" as const, usage: { input_tokens: 11 }, costUsd: 0.125 };
+  const withBadCost = { type: "usage" as const, usage: { output_tokens: 4 }, costUsd: Infinity };
+  usage.observe({ type: "status", label: "requesting" });
+  usage.observe(withCost);
+  usage.observe(withBadCost);
+  assert.deepEqual(usage.withUsage({ status: "succeeded" }), {
+    status: "succeeded", usage: { inputTokens: 11, outputTokens: 4, costUsd: 0.125 },
+  });
+});

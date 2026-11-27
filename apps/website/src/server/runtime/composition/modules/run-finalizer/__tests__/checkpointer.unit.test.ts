@@ -5,7 +5,7 @@ import { flush, unhandledRejections } from "../../../../../__tests__/run-finaliz
 import type { RunDaemonClient } from "../../run-daemon-http-client.js";
 import { createCheckpointer, type CheckpointerPorts } from "../checkpointer.js";
 import type { RunLogPort, RunTimerPort } from "@jini-ai/chat/core/durable-runs/run-finalizer";
-import { makeWatch } from "../watch-state.js";
+import { interruptionEvents, makeWatch } from "../watch-state.js";
 
 /**
  * @file The checkpointer against fakes of its four ports (ledger, clock, timer, log). The cadence
@@ -117,4 +117,17 @@ test("the host binding sends the watch's ids and projection and carries the ledg
   assert.deepEqual(calls[0]!.options, { expected: undefined, previous: undefined });
   assert.equal(watch.checkpointState, persisted);
   assert.deepEqual(calls[1]!.options, { expected: 42, previous: persisted });
+});
+
+test("an interrupted replay cannot replace a longer checkpoint with an equal event count", () => {
+  const watch = quietWatch();
+  watch.retainedEvents = [{ kind: "text", text: "Draft saved before restart" }];
+  watch.events = [{ kind: "text", text: "Draft" }];
+  assert.deepEqual(interruptionEvents({ watch }), [{ kind: "text", text: "Draft saved before restart" }]);
+
+  watch.events = [{ kind: "text", text: "Draft saved before restart and replay caught up" }];
+  assert.deepEqual(interruptionEvents({ watch }), [{ kind: "text", text: "Draft saved before restart and replay caught up" }]);
+
+  watch.retainedEvents.push({ kind: "text", text: "!" });
+  assert.deepEqual(interruptionEvents({ watch }), [{ kind: "text", text: "Draft saved before restart" }, { kind: "text", text: "!" }]);
 });

@@ -21,7 +21,7 @@ function row(id: string, widgetType = "text", status = "active") {
     fieldsJson: { ext: { widget: { payload: JSON.stringify({ widgetType, status, config: { body: `Body ${id}` } }) } } },
   };
 }
-function harness(overrides: Record<string, unknown> = {}) {
+function harness(overrides: Record<string, unknown> = {}, incidents?: ReturnType<typeof createRouteIncidentReporter>) {
   let counter = 0;
   const deps = { workspaceId: "ws-7", entryRepo: new InMemoryEntryRepo(), entryRefsRepo: new InMemoryEntryRefsRepo(),
     contentTypeRepo: new InMemoryContentTypeRepo(), outbox: new InMemoryOutbox(), widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
@@ -32,7 +32,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   registerAdminWidgetListRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
   registerAdminWidgetGetRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
   registerAdminWidgetCreateRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
-  registerAdminWidgetAgentToolsRoutes({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
+  registerAdminWidgetAgentToolsRoutes({ app, deps: deps as any, errors: incidents?.errors ?? createRouteIncidentReporter().errors });
   registerAdminWidgetRegionGetRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
   registerAdminWidgetRegionsListRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
   registerAdminWidgetRegionMutatePlacementsRoute({ app, deps: deps as any, errors: createRouteIncidentReporter().errors });
@@ -40,6 +40,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   return { deps, invoke: async (method: "get" | "post" | "put", suffix = "", request: Record<string, unknown> = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
+    if (incidents) res.locals.failureReporter = incidents.reporter;
     await extractRouteHandler(app, method, base + suffix)({ params: { workspaceId: "ws-7", id: "slug-active-text" }, query: {}, ...request }, res);
     return capture;
   } };
@@ -263,4 +264,34 @@ test("widgets list: mounted in reporter mode, a failed answer write is one site 
   assert.match(error.requestId, /^ERR-7E57-/);
   assert.ok(JSON.stringify(incidents.entries[0]).includes(error.requestId), "the reply names the recorded incident");
   assert.equal(authorizations, 1, "the route ran once; a failed write never runs the handler again");
+});
+
+test("a failed create-tool placement returns the saved widget ID and one private failure", async (t) => {
+  const incidents = createRouteIncidentReporter();
+  const bindingRepo = new InMemoryWidgetRegionBindingRepo();
+  const { deps, invoke } = harness({ widgetBindingRepo: bindingRepo }, incidents);
+  const lookups: unknown[] = [];
+  t.mock.method(bindingRepo, "findByRegion", async (scope: Parameters<typeof bindingRepo.findByRegion>[0]) => {
+    lookups.push(scope);
+    throw new Error("private placement database detail");
+  });
+  const response = await invoke("post", "/tools/create", { body: {
+    widgetType: "text", title: "Footer card", config: { body: "Saved in the library" },
+    target: { kind: "region", regionKey: "footer", baseVersion: 3 },
+  } });
+  assert.equal(response.statusCode, 500);
+  const body = response.jsonBody as {
+    tool: string; placementFailed: boolean; widget: { id: string; title: string; config: unknown }; code: string; errorId: string;
+  };
+  assert.deepEqual([body.tool, body.placementFailed, body.code, body.errorId], [
+    "widgets.create", true, "INTERNAL_ERROR", "ERR-7E57-0000-0000-0000",
+  ]);
+  assert.deepEqual(lookups, [{ workspaceId: "ws-7", regionKey: "footer" }]);
+  const saved = await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }, { type: "widget" });
+  assert.deepEqual(saved.map(({ id, title }) => ({ id, title })), [{ id: body.widget.id, title: "Footer card" }]);
+  assert.deepEqual([body.widget.title, body.widget.config], ["Footer card", { body: "Saved in the library" }]);
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }, { type: "widget_area" }), []);
+  assert.doesNotMatch(JSON.stringify(body), /private placement database detail/);
+  assert.equal(incidents.entries.length, 1);
+  assert.match(JSON.stringify(incidents.entries), /private placement database detail/);
 });
