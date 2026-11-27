@@ -11,7 +11,7 @@ import { vaultFixture, vaultStep, stamp, insertFixture } from "#src/platform/db/
 import { describeCredential, resolveCustomCredentialByLabel, updateCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createTovuVaultKinds, type TovuVaultPolicy } from "#src/platform/secrets/vault-kinds";
-import { normalizeVaultAtBoot, normalizeSiteVaultAtBoot, recoverLegacyVaultRecord, TOVU_VAULT_OWNER_KEY, type VaultBootInput } from "../vault-boot.js";
+import { loadSiteVaultKinds, normalizeVaultAtBoot, normalizeSiteVaultAtBoot, recoverLegacyVaultRecord, TOVU_VAULT_OWNER_KEY, type VaultBootInput } from "../vault-boot.js";
 import { legacyVaultAad, type VaultLegacyContext } from "@jini-ai/platform/secrets/legacy-codecs";
 
 /** S2: real GCM + SQLite/PGlite integration; ordinary Jini reads prove new AAD, not a legacy
@@ -592,4 +592,13 @@ test("host boot wiring emits flagged coverage before returning when the site key
       WHERE sealed_ciphertext IS NOT NULL AND json_extract(meta, '$.legacyAad') IS NOT NULL`);
     assert.ok(Number(legacy[0]!.n) > 0, "missing keys keep the original envelopes recoverable");
   } finally { await fixture.kernel.close(); }
+});
+
+test("the site vault policy reads custom and source-control secrets from their token field and no field for other kinds or unknown vendors", async () => {
+  const { policy } = await loadSiteVaultKinds({ workspaceId: "ws" }, { loadContributions: async () => ({ items: [], refusals: [] }) });
+  assert.deepEqual(
+    (["custom", "source-control", "media-provider", "mcp-env"] as const).map(kind => [kind, policy.tokenField({ kind, provider: "github" })]),
+    [["custom", "token"], ["source-control", "token"], ["media-provider", undefined], ["mcp-env", undefined]],
+  );
+  assert.equal(policy.tokenField({ kind: "vendor", provider: "no-such-vendor" }), undefined, "a vendor no deploy target declares has no token field");
 });
