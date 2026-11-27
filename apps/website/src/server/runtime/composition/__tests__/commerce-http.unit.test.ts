@@ -5,30 +5,43 @@ import express from 'express';
 import type { RouteDeps } from '#src/server/routes/types';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
+import { UNAVAILABLE_ERROR_ID } from '@jini-ai/core/errors/reporter';
 import { registerCommerceHttp } from '../commerce-http.js';
 
-test('storefront readiness failure returns its redacted incident reference', async t => {
-  const logs: unknown[][] = [];
-  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+function storefrontGuard({ storefrontStatus }: { storefrontStatus: () => Promise<unknown> }) {
   let handler: ((req: unknown, res: unknown, next: () => void) => Promise<void>) | undefined;
   const app = { use: (route: typeof handler) => { handler = route; } } as unknown as express.Express;
-  registerCommerceHttp({ app, deps: { workspaceId: 'workspace', clock: { nowMs: () => 0, nowIso: () => '2026-11-05T00:00:00.000Z' }, commerce: {
-    storefrontStatus: async () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); },
-  } } as unknown as RouteDeps });
+  registerCommerceHttp({ app, deps: { workspaceId: 'workspace', clock: { nowMs: () => 0, nowIso: () => '2026-11-05T00:00:00.000Z' }, commerce: { storefrontStatus } } as unknown as RouteDeps });
   assert.ok(handler, 'the storefront guard is registered');
+  return handler;
+}
+
+// why: the storefront incident goes through the request's bound failure reporter (admin-failure.ts);
+// redaction of the diagnostic is that reporter's job, so this pins what commerce-http owns: the exact
+// error and operation it reports, and that the visitor sees only the reporter's reference.
+test('storefront readiness failure reports through the bound reporter and returns only its incident reference', async () => {
+  const thrown = new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET');
+  const handler = storefrontGuard({ storefrontStatus: async () => { throw thrown; } });
+  const recorded: unknown[][] = [];
+  const failureReporter = { record: (...args: unknown[]) => { recorded.push(args); return { errorId: 'ERR-AAAA-BBBB-CCCC-DDDD' }; } };
+  let status = 0; let body = '';
+  const res = { locals: { failureReporter }, status(code: number) { status = code; return res; }, type() { return res; }, send(value: string) { body = value; return res; } };
+  await handler({ path: '/products' }, res, () => assert.fail('the failure must be answered'));
+  assert.equal(status, 503);
+  assert.equal(body, '<h1>The shop catalog is temporarily unavailable.</h1><p>Please try again shortly.</p><p>Reference: ERR-AAAA-BBBB-CCCC-DDDD</p>');
+  assert.deepEqual(recorded, [[{ error: thrown, step: 'commerce:storefront', operation: 'commerce:storefront' }, {}]]);
+});
+
+test('storefront readiness failure with no bound reporter still answers 503 with the unavailable reference', async t => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const handler = storefrontGuard({ storefrontStatus: async () => { throw new Error('boom'); } });
   let status = 0; let body = '';
   const res = { locals: {}, status(code: number) { status = code; return res; }, type() { return res; }, send(value: string) { body = value; return res; } };
   await handler({ path: '/products' }, res, () => assert.fail('the failure must be answered'));
   assert.equal(status, 503);
-  assert.match(body, /The shop catalog is temporarily unavailable/);
-  const match = /Reference: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/.exec(body); assert.ok(match, 'the visitor receives an incident reference');
-  assert.doesNotMatch(body, /boom|SECRETSECRETSECRETSECRET/);
-  const entry = logs.find(args => args[0] === '[commerce:storefront]'); assert.ok(entry, 'the incident is logged');
-  const detail = entry[1] as { errorId: string; diagnostic: string };
-  assert.equal(detail.errorId, match[1]);
-  assert.match(detail.diagnostic, /boom/);
-  assert.match(detail.diagnostic, /commerce-http\.unit\.test\.ts/);
-  assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
+  assert.equal(body, `<h1>The shop catalog is temporarily unavailable.</h1><p>Please try again shortly.</p><p>Reference: ${UNAVAILABLE_ERROR_ID}</p>`);
+  assert.deepEqual(logs, [['[admin-failure] reporter unavailable', { operation: 'commerce:storefront' }]]);
 });
 
 test('disabled commerce lets published product and commerce paths reach the CMS', async t => {

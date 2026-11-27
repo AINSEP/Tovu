@@ -235,9 +235,10 @@ for (const [label, parts, bootFunction, ensureFunction] of [
   // why: 50579f4f (complexity <=10) moved main()'s pre-listener boot steps into prepareSiteBoot();
   // that main() still runs it unconditionally first is pinned by the test after this loop.
   // The third entry is the function that runs the site-key ensure (and so the warning after it);
-  // serve.ts's ensure lives in serveBootedSite(), which runServeCommand() reaches only past its gate.
+  // serve.ts's ensure lives in prepareSiteKey(), which serveBootedSite() awaits unconditionally
+  // (pinned by its own test below) and runServeCommand() reaches only past its gate.
   ["index.ts", ["index.ts"], "prepareSiteBoot", "prepareSiteBoot"],
-  ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"], "runServeCommand", "serveBootedSite"],
+  ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"], "runServeCommand", "prepareSiteKey"],
 ] as const) {
   test(`${label} imports warnIfNoSiteKeyAtBoot from site-key-boot-notice`, () => {
     const source = bootPathAst(...parts);
@@ -275,6 +276,19 @@ for (const [label, parts, bootFunction, ensureFunction] of [
     assert.equal(ensures.length, 1, "the warning is the statement right after the site-key ensure");
   });
 }
+
+test("cli/commands/serve.ts serveBootedSite() awaits prepareSiteKey unconditionally, and nothing else calls it", () => {
+  const source = bootPathAst("cli", "commands", "serve.ts");
+  const calls = findAll(source, (node) => ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "prepareSiteKey");
+  assert.equal(calls.length, 1, "prepareSiteKey is called exactly once");
+  const awaited = calls[0].parent;
+  assert.ok(ts.isAwaitExpression(awaited), "prepareSiteKey is awaited");
+  const statement = awaited.parent;
+  assert.ok(ts.isExpressionStatement(statement), "the await is its own statement");
+  const body = statement.parent;
+  assert.ok(ts.isBlock(body) && ts.isFunctionDeclaration(body.parent) && body.parent.name?.text === "serveBootedSite",
+    "the call is a top-level statement of serveBootedSite(), not under an if/try/loop");
+});
 
 test("index.ts main() runs prepareSiteBoot unconditionally, as its first statement", () => {
   const source = bootPathAst("index.ts");

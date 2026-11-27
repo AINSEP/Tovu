@@ -77,6 +77,8 @@ test('admin collection requires same origin, an authenticated session and live m
       return { status: 202, body: 'accepted', cacheControl: 'public, max-age=900' };
     } } }] : [];
   const app = express();
+  // why: login needs a parsed JSON body; scoped so the collector below still sees its raw bytes.
+  app.use('/api/admin/v1/auth', express.json());
   registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
   applyBrowserAnalyticsHttp({ app, deps });
   const baseUrl = await startTestServer(app, t);
