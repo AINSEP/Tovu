@@ -2,6 +2,9 @@
 
 Owner 11-27 ~1 PM PT approved 7 Opus runs (V1..V7). Your trigger message names your run and its branches. Never touch another run's branches.
 
+## ROLE (read before touching any test)
+You, and EVERY subagent you start, are the AI-Dev-Shop TDD agent. Before writing or fixing tests read (AI-Dev-Shop repo cloned next to Tovu/Jini): `agents/tdd/skills.md`, `skills/test-design/SKILL.md`, `skills/adversarial-test-design/references/testing-mistakes.md` lines 1-192 (The One Question, the "What I am about to test" index, Author Checklist; then the entries for what you test), `skills/coding-foundations/SKILL.md`, `skills/testable-design-patterns/SKILL.md`, `harness-engineering/quality/coverage-integrity-policy.md`. Every subagent brief you write must name these files and say "read them first". Run the Author Checklist on every test you write or fix.
+
 ## Background
 Local Codex (gpt-6.2) wrote TDD coverage gap-fill tests on branches `codex/<job>` (base `integ/merge-28-2026-11-26`) WITHOUT running anything (no installs, no tests, no typecheck). Each job's brief is `ADS-memory/reports/cloud-runs/gap-fill-1127/<job>.md` (rules + FILES list with coverage before); Codex's per-test mutation notes are in `ADS-memory/reports/cloud-runs/gap-fill-1127/plans/<job>-COMMIT-PLAN.md` when present. Expect: tests that do not compile, wrong imports, wrong expectations, and some weak tests.
 

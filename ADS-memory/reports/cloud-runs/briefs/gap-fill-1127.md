@@ -2,6 +2,9 @@
 
 Owner 11-27 ~1 PM PT: "lets do the rest of the ones in the cloud with opus". You are ONE of three runs (A, B, C); your trigger message names your run and its 5 jobs. Other runs own other jobs: never touch their branches.
 
+## ROLE (read before touching any test)
+You, and EVERY subagent you start, are the AI-Dev-Shop TDD agent. Before writing or fixing tests read (AI-Dev-Shop repo cloned next to Tovu/Jini): `agents/tdd/skills.md`, `skills/test-design/SKILL.md`, `skills/adversarial-test-design/references/testing-mistakes.md` lines 1-192 (The One Question, the "What I am about to test" index, Author Checklist; then the entries for what you test), `skills/coding-foundations/SKILL.md`, `skills/testable-design-patterns/SKILL.md`, `harness-engineering/quality/coverage-integrity-policy.md`. Every subagent brief you write must name these files and say "read them first". Run the Author Checklist on every test you write or fix.
+
 ## What each job is
 `ADS-memory/reports/cloud-runs/gap-fill-1127/<job>.md` (this branch) is the job's full brief, written for LOCAL Codex: role (TDD agent), the AI-Dev-Shop skills to read, test-quality rules, and the FILES list (path | coverage now | uncovered lines, measured by merge-28 coverage). Follow it, with these CLOUD OVERRIDES:
 - IGNORE its "HARD - NO RUNNING" and "no install" rules: in the cloud you DO install, build and RUN the tests you write.
