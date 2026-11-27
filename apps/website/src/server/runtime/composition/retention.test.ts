@@ -220,3 +220,81 @@ test("free-page shutdown drains before closing SQLite", async () => {
   await stopped;
   assert.deepEqual(events, ["step finished", "drained", "sqlite closes"]);
 });
+
+test("a report-only measurement that fails is reported with its cause and listed as failed beside the measured ones", async () => {
+  const errors: Array<{ error: Error; policyId: string }> = [];
+  const cause = new Error("stat failed");
+  const lifecycle = startSiteRetention({
+    createRunner: createRetentionRunner, policiesForSignal: () => [],
+    reportOnlyForSignal: () => [
+      { id: "media-bytes", kind: "old-copy", measure: async () => ({ bytes: 42 }) },
+      { id: "screenshot-bytes", kind: "old-copy", measure: async () => { throw cause; } },
+    ],
+    clock: { now: () => 0 }, scheduler: { setTimeout, clearTimeout, setInterval, clearInterval },
+    reportError: ({ error, policyId }) => errors.push({ error, policyId }), log: () => {},
+  });
+  const report = await lifecycle.runOnce({ dryRun: true });
+  assert.equal(report.status, "completed");
+  assert.deepEqual(report.status === "completed" ? report.policies : [], [
+    { id: "media-bytes", kind: "old-copy", status: "measured", measurement: { bytes: 42 } },
+    { id: "screenshot-bytes", kind: "old-copy", status: "failed", message: "This storage report could not be measured." },
+  ]);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0]!.policyId, "screenshot-bytes");
+  assert.equal(errors[0]!.error.message, "Storage report for screenshot-bytes could not be measured.");
+  assert.equal(errors[0]!.error.cause, cause);
+  await lifecycle.stop();
+});
+
+test("a failed free-page pass is reported, overlapping and post-stop ticks start nothing", async () => {
+  const timers: Array<{ callback: () => void; ms: number }> = [];
+  const errors: Array<{ error: Error; policyId: string }> = [];
+  const cause = new Error("vacuum step failed");
+  let runs = 0;
+  let fail!: () => void;
+  const lifecycle = startSiteRetention({
+    createRunner: createRetentionRunner, policiesForSignal: () => [],
+    freePagesForSignal: () => ({ run: () => { runs++; return new Promise<void>((_resolve, reject) => { fail = () => reject(cause); }); }, drain: async () => {} }),
+    clock: { now: () => 0 },
+    scheduler: { setTimeout: (callback: () => void, ms: number) => timers.push({ callback, ms }), clearTimeout: () => {}, setInterval: (callback: () => void, ms: number) => timers.push({ callback, ms }), clearInterval: () => {} },
+    reportError: ({ error, policyId }) => errors.push({ error, policyId }), log: () => {},
+  }, { bootDelayMs: 1, freePagesDelayMs: 2, freePagesIntervalMs: 3 });
+  lifecycle.listenerReady();
+  timers.find(timer => timer.ms === 2)!.callback();
+  const daily = timers.find(timer => timer.ms === 3)!;
+  daily.callback();
+  assert.equal(runs, 1, "a tick while a pass is in flight must not start a second one");
+  fail();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(errors.map(({ error, policyId }) => ({ message: error.message, cause: error.cause, policyId })),
+    [{ message: "Free-page reclaim could not finish.", cause, policyId: "db-free-pages" }]);
+  await lifecycle.stop();
+  daily.callback();
+  assert.equal(runs, 1, "a tick after stop must not run");
+});
+
+test("listenerReady schedules the boot pass once, and never after stop; a pass refused after stop is returned as is", async () => {
+  const timers: number[] = [];
+  const lifecycle = startSiteRetention({
+    createRunner: createRetentionRunner, policiesForSignal: () => [],
+    clock: { now: () => 0 },
+    scheduler: { setTimeout: (_callback: () => void, ms: number) => timers.push(ms), clearTimeout: () => {}, setInterval: () => undefined, clearInterval: () => {} },
+    reportError: () => {}, log: () => {},
+  }, { bootDelayMs: 1 });
+  lifecycle.listenerReady();
+  lifecycle.listenerReady();
+  assert.deepEqual(timers, [1]);
+  await lifecycle.stop();
+  const after = startSiteRetention({
+    createRunner: createRetentionRunner, policiesForSignal: () => [],
+    clock: { now: () => 0 },
+    scheduler: { setTimeout: (_callback: () => void, ms: number) => timers.push(ms), clearTimeout: () => {}, setInterval: () => undefined, clearInterval: () => {} },
+    reportError: () => {}, log: () => {},
+  }, { bootDelayMs: 5 });
+  await after.stop();
+  after.listenerReady();
+  assert.deepEqual(timers, [1]);
+  const refused = await after.runOnce({ dryRun: true });
+  assert.deepEqual(refused, { status: "stopped", dryRun: true });
+  assert.equal(after.lastReport(), undefined);
+});
