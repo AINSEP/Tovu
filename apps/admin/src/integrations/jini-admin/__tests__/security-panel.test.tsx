@@ -33,7 +33,7 @@ const securityPorts = () => ({ securityApi: createMemorySecurityApi({}), otherCr
 function mount({ permissions = ['*'], grantsReady = true, tab = null as string | null, owner = ownerPorts() } = {}) {
   const runtime = createHostAdminScope({ permissions, useAdminLocaleHook: () => 'en' }, { securityPorts: securityPorts(), securityOwnerPorts: owner, grantsReady });
   disposers.push(() => { runtime.admin.dispose(); runtime.overlays.dispose(); });
-  render(<KitProvider kit={tovuKit}><AdminModulesProvider useAdminLocaleHook={() => 'en'} permissions={permissions} grantsReady={grantsReady} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={tab} /></AdminModulesProvider></KitProvider>);
+  render(<KitProvider kit={tovuKit}><AdminModulesProvider useAdminLocaleHook={() => 'en'} permissions={permissions} grantsReady={grantsReady} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={tab} useAdminLocaleHook={useAdminLocaleHook} /></AdminModulesProvider></KitProvider>);
   return { owner };
 }
 const tabNames = () => screen.getAllByRole('tab').map(tab => tab.textContent?.trim());
@@ -72,7 +72,7 @@ describe('Security host panel', () => {
     const overlays = createOverlayController({});
     disposers.push(() => { admin.dispose(); overlays.dispose(); });
     const runtime = { permissionKey: '[]', admin, overlays, picker: null as never, bindings: { security: feature.react } } as unknown as Runtime;
-    render(<KitProvider kit={tovuKit}><AdminModulesProvider useAdminLocaleHook={() => 'en'} permissions={[]} grantsReady useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={null} /></AdminModulesProvider></KitProvider>);
+    render(<KitProvider kit={tovuKit}><AdminModulesProvider useAdminLocaleHook={() => 'en'} permissions={[]} grantsReady useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={null} useAdminLocaleHook={useAdminLocaleHook} /></AdminModulesProvider></KitProvider>);
     expect(await screen.findByText('Permission denied')).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
   });
@@ -124,6 +124,9 @@ it('resets the desktop owner password only after entering matching values', asyn
 });
 
 it('shows a loading status while the Security module scope is not ready', () => {
-  render(<SecurityModulePanel tabId="site-key" />);
-  expect(screen.getByRole('status')).toHaveTextContent(/loading/i);
+  const locale = vi.fn<UseAdminLocaleHook>(() => 'es');
+  render(<SecurityModulePanel tabId="site-key" useAdminLocaleHook={locale} />);
+  // No module scope mounted: the panel shows the host's translated fallback through the injected hook.
+  expect(screen.getByRole('status').textContent).toBe('Loading credentials…');
+  expect(locale).toHaveBeenCalledWith({}, {});
 });

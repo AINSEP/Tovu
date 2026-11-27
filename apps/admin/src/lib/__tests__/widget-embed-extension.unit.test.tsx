@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@/__tests__/fetch-query-render";
+import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -692,8 +692,10 @@ it("saves edited media content only on the placement after selecting a custom ov
   expect(screen.getByRole("radio", { name: "Custom for this post" })).toBeChecked();
   const columns = screen.getByLabelText("Columns");
   expect(columns).toHaveValue(3);
-  await user.clear(columns);
-  await user.type(columns, "4");
+  // A controlled number input re-clamps after every keystroke (clear -> 1, then "14" -> 6),
+  // so deliver the finished value the way a spinner or paste does.
+  fireEvent.change(columns, { target: { value: "4" } });
+  expect(columns).toHaveValue(4);
   await user.click(screen.getByRole("button", { name: "Save" }));
 
   expect(updateAttributes).toHaveBeenCalledExactlyOnceWith({
