@@ -694,3 +694,27 @@ test('footprint reads are limited to once a minute; new PIDs use RSS until the n
   assert.equal((await monitor.get({ panelOpen: true })).total.rssBytes, 50);
   assert.equal(reads, 2);
 });
+
+test('a site change at the same clock instant refreshes ownership without fabricating CPU usage', async () => {
+  let now = 10_000;
+  let openSites: { id: string; pid: number }[] = [];
+  let rows = [usage(1, 0, 400_000_000, 2)];
+  const monitor = createDesktopResources({
+    desktopPid: 1, platform: 'linux', now: () => now, totalMem: () => 8_000_000_000,
+    openSites: () => openSites, listUsage: async () => rows,
+  });
+  const initial = await monitor.get({ panelOpen: true });
+  assert.equal(initial.app.cpuPercent, null);
+  openSites = [{ id: 'catalog', pid: 9 }];
+  rows = [usage(1, 0, 410_000_000, 3), usage(9, 1, 200_000_000, 1)];
+  const refreshed = await monitor.get({ panelOpen: true });
+  assert.equal(refreshed.sampledAt, 10_000);
+  assert.equal(refreshed.app.cpuPercent, null);
+  assert.equal(refreshed.total.cpuWarning, false);
+  assert.deepEqual(refreshed.sites.map((group) => [group.siteId, group.rssBytes]), [['catalog', 200_000_000]]);
+  now += 5_000;
+  rows = [usage(1, 0, 410_000_000, 5), usage(9, 1, 200_000_000, 1.5)];
+  const next = await monitor.get({ panelOpen: true });
+  assert.equal(next.app.cpuPercent, 40);
+  assert.equal(next.sites.find((group) => group.siteId === 'catalog')?.cpuPercent, 10);
+});

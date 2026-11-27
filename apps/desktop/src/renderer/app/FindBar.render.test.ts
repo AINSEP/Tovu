@@ -74,3 +74,18 @@ test('FindBar: with nothing typed there is nothing to step through, so previous 
   assert.equal(view.byLabel({ label: 'Next match' })?.hasAttribute('disabled'), true);
   assert.equal(view.byLabel({ label: 'Close find bar' })?.hasAttribute('disabled'), false, 'close always works');
 });
+
+test('the field carries its accessible name and the controls advertise their actual shortcuts', (t) => {
+  const { find } = fakeFind();
+  const view = mount({ t, element: createElement(FindBar, { find, labels: FIND_BAR_LABELS }) });
+  const input = view.container.querySelector('input[aria-label="Find in page"]');
+  assert.equal(input?.getAttribute('placeholder'), 'Find in page');
+  for (const [label, tip] of [
+    ['Previous match', 'Previous match (Shift+Enter)'],
+    ['Next match', 'Next match (Enter)'],
+    ['Close find bar', 'Close (Esc)'],
+  ] as const) {
+    const button = view.byLabel({ label });
+    assert.equal(button?.getAttribute('title'), tip);
+  }
+});

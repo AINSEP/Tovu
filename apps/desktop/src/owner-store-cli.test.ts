@@ -164,3 +164,14 @@ test('S3 spawn/pipe failures, oversized stdout and deadlines settle safely and k
     if (f.calls.length) assert.equal(f.calls[0]!.killed, true);
   }
 });
+
+test('a populated CLI inventory preserves safe entry metadata but never child-only fields', async () => {
+  const safe = { id: 'deploy', kind: 'vendor', label: 'Deploy', provider: 'deploy-provider', revision: 3,
+    configured: true, isDefault: false, worksFor: ['deploy-provider'], usedBy: ['Staging'] };
+  const f = fixture({ output: success({ action: 'list', data: {
+    entries: [{ ...safe, payload: { token: secret }, keyFile: '/private/key', meta: { secret } }], rawInventory: secret,
+  } }) });
+  const result = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'list', fields: { store: 'project' } }, f.options);
+  assert.deepEqual(result, { version: 1, action: 'list', ok: true, data: { entries: [safe] } });
+  assert.equal(f.calls[0]?.killed, false);
+});

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { startDesktopMcpHttp } from './desktop-mcp-http.ts';
+import { createDesktopMcpHttpRuntime, startDesktopMcpHttp } from './desktop-mcp-http.ts';
 import { createSitesMcpToolHost } from './sites-mcp-tools.ts';
 import { trackSite, sitesFilePath } from './tracked-sites.ts';
 
@@ -131,4 +131,36 @@ test('queued desktop mutations cannot overtake an unfinished mutation', async (t
   await Promise.all([first, second]);
   assert.deepEqual(events, ['start', 'finish', 'start', 'finish']);
   await host.drain({});
+});
+
+test('the default desktop runtime serves the real tracked inventory until shutdown', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-mcp-runtime-'));
+  const projectsPath = sitesFilePath({ userDataDir: dir });
+  const warnings: unknown[] = [];
+  trackSite({ beforeAddedRows: () => {}, projectsPath, siteDir: '/sites/handmade' });
+  const runtime = createDesktopMcpHttpRuntime({
+    context: { beforeAddedRows: () => {}, projectsPath, revealPath: async () => assert.fail('list cannot reveal a folder') },
+    warn: (input) => warnings.push(input),
+  });
+  let closed = false;
+  t.after(async () => {
+    try { if (!closed) await runtime.close({}); }
+    finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+  const environment = await runtime.environment({});
+  const { TOVU_DESKTOP_MCP_URL: url, TOVU_DESKTOP_MCP_TOKEN: token } = environment;
+  assert.ok(url && token);
+  assert.equal(new URL(url).hostname, '127.0.0.1');
+  const response = await fetch(url, {
+    method: 'POST', headers: { ...headers, Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_sites', arguments: {} } }),
+  });
+  assert.equal(response.status, 200);
+  const { result } = await response.json() as { result: { structuredContent: { count: number; sites: { siteDir: string }[] } } };
+  assert.equal(result.structuredContent.count, 1);
+  assert.deepEqual(result.structuredContent.sites.map(({ siteDir }) => siteDir), ['/sites/handmade']);
+  assert.deepEqual(warnings, []);
+  await runtime.close({});
+  closed = true;
+  assert.deepEqual(await runtime.environment({}), {});
 });

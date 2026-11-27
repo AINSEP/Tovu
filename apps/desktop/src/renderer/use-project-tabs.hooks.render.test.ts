@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
-import { renderHookWithView as renderHook } from './app-hooks.test-support.js';
+import { renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
 import { useProjectTabs } from './use-project-tabs.hooks.js';
 
 test('useProjectTabs: opening adds once and selects, remembers an admin page, and closing picks a neighbour', (t) => {
@@ -68,4 +68,23 @@ test('useProjectTabs reports complete open lists initially and after changes, in
   act(() => hook.current().openProjectTab({ id: 'a' }));
   act(() => hook.current().closeProjectTab({ id: 'a' }));
   assert.deepEqual(reports, [[], ['a'], ['a', 'b'], ['b']]);
+});
+
+test('a refused presence report does not prevent the next complete report', async (t) => {
+  const failure = new Error('main was restarting');
+  const logged = t.mock.method(console, 'error', () => {});
+  const calls: { siteIds: readonly string[] }[] = [];
+  const getBridge = () => ({ reportOpenSiteTabs: async (input: { siteIds: readonly string[] }) => {
+    calls.push(input);
+    if (input.siteIds.length === 1) throw failure;
+  } });
+  const hook = renderHook(t, () => useProjectTabs({}, { getBridge }));
+  act(() => hook.current().openProjectTab({ id: 'catalog' }));
+  await settle();
+  assert.deepEqual(hook.current().openTabs, ['catalog']);
+  act(() => hook.current().openProjectTab({ id: 'orders' }));
+  await settle();
+  assert.deepEqual(calls, [{ siteIds: [] }, { siteIds: ['catalog'] }, { siteIds: ['catalog', 'orders'] }]);
+  assert.deepEqual(logged.mock.calls.map(({ arguments: args }) => args), [['[tovu-desktop] report open site tabs:', failure]]);
+  assert.equal(hook.current().activeTab, 'orders');
 });

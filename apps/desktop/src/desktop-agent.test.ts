@@ -399,3 +399,26 @@ test("Antigravity installs its static connector before a desktop turn and refuse
   await assert.rejects(blocked.chat.startTurn({ prompt: "hello", agentId: "antigravity" }), /not been approved/);
   assert.equal(blocked.runs.length, 0);
 });
+
+test("failure to publish the start error cannot prevent the run from becoming terminal", async (t) => {
+  const h = await harness(t, {
+    readFullCliAccess: async () => false,
+    run: async () => { throw new Error("agent could not launch"); },
+  });
+  const emitOriginal = h.chat.lifecycle.emit.bind(h.chat.lifecycle);
+  const refused: unknown[] = [];
+  t.mock.method(h.chat.lifecycle, "emit", async (input: Parameters<typeof emitOriginal>[0]) => {
+    if (input.input.event === "error") {
+      refused.push(input);
+      throw new Error("event stream write failed");
+    }
+    return emitOriginal(input);
+  });
+  const { runId } = await h.chat.startTurn({ prompt: "Draft a release summary", agentId: "codex" });
+  // One event-loop boundary drains this already-rejected executor promise without timing a retry.
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal((await h.chat.lifecycle.get({ runId }))?.state, "failed");
+  assert.deepEqual(refused, [{ runId, input: { event: "error", data: { message: "The desktop assistant could not start this turn." } } }]);
+  assert.deepEqual(h.errors.map(([label]) => label), [`[desktop-agent] run ${runId} failed to start`, "[desktop-agent] Could not report the failed run"]);
+  assert.match(String(h.errors[1]?.[1]), /event stream write failed/);
+});

@@ -48,3 +48,16 @@ test('a failed stop shows the reason', (t) => {
 test('with no site to ask about nothing is drawn', (t) => {
   assert.equal(render(t, { project: null }).ask, null);
 });
+
+test('closing an externally running dev site names its command as code in the dialog', (t) => {
+  const { ask, buttons, calls } = render(t, { project: site({ id: 'external' }, { fields: {
+    displayName: 'Outside shop', status: 'running', externalUrl: 'http://localhost:4100/admin/', externalLauncher: 'npm-run-dev',
+  } }) });
+  assert.equal(ask?.getAttribute('aria-label'), 'Stop Outside shop too?');
+  assert.equal(ask?.querySelector('code')?.textContent, 'npm run dev');
+  assert.equal(ask?.querySelector('code')?.parentElement?.textContent, 'This stops npm run dev, including the admin dev server.');
+  const keep = buttons.find((button) => button.textContent === 'Keep running');
+  assert.equal(dom.window.document.activeElement, keep);
+  keep?.click();
+  assert.deepEqual(calls, ['keep']);
+});

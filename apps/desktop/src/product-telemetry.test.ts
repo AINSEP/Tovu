@@ -150,3 +150,19 @@ test('desktop launch forwards the explicit or default export policy into shared 
     await product.dispose();
   }
 });
+
+test('usage consent without an installation id does not consume the one launch event', async (t) => {
+  const f = fixture();
+  const unbound: ProductConsent = { crashes: false, usage: true, installationId: null };
+  f.consent(unbound);
+  const product = await bootDesktopProductTelemetry({ launch, readConsent: f.readConsent, crashReporter: f.crashReporter }, { boot: f.boot });
+  t.after(() => product.dispose());
+  product.consentChanged(unbound);
+  assert.deepEqual(f.events, []);
+  const bound = { ...unbound, installationId: 'installation-test' };
+  f.consent(bound);
+  product.consentChanged(bound);
+  product.consentChanged(bound);
+  assert.deepEqual(f.events, [{ name: 'app_started', userId: 'system', properties: { launchMode: 'fresh' } }]);
+  assert.deepEqual(f.starts, []);
+});

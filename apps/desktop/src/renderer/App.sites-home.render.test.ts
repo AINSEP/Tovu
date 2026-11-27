@@ -8,7 +8,7 @@
  */
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
-import { closeHost, openFirstSite, renderApp, site } from './app-render-harness.js';
+import { act, closeHost, dom, openFirstSite, renderApp, settle, site } from './app-render-harness.js';
 
 // jsdom's visual clock keeps the process alive after the last test unless the window is closed.
 after(closeHost);
@@ -70,4 +70,35 @@ test('App: a running card\'s ⏻ wears the header\'s own "Create website" class'
   const create = app.all({ selector: '.main__tools button' }).find((button) => button.textContent?.includes('Create website'));
   assert.ok(create?.classList.contains('button--create'), 'the header button is the source of the style');
   assert.ok(app.byLabel({ label: 'Stop Site a' })?.classList.contains('button--create'), 'the running ⏻ carries the same class');
+});
+
+test('dropping an existing website uses its native path and opens its own running tab', async (t) => {
+  const file = new dom.window.File([], 'catalog');
+  const folder = '/sites/existing/catalog';
+  const record = site({ id: 'catalog' }, { fields: { displayName: 'Supplier catalog' } });
+  const calls: unknown[][] = [];
+  const app = await renderApp(t, {
+    getPathForFile: (value) => { calls.push(['path', value]); return value === file ? folder : ''; },
+    addSite: async () => { calls.push(['picker']); return null; },
+    addDroppedSite: async (input) => { calls.push(['drop', input]); return record; },
+    startSite: async (input) => {
+      calls.push(['start', input]);
+      return { ...record, status: 'running', port: 4317 };
+    },
+  });
+  await app.click({ el: app.byText({ text: 'Import' }) });
+  const page = app.byLabel({ label: 'Import a website' });
+  assert.ok(page);
+  const drop = new dom.window.Event('drop', { bubbles: true, cancelable: true });
+  Object.defineProperty(drop, 'dataTransfer', { value: {
+    files: [file], items: [{ kind: 'file', webkitGetAsEntry: () => ({ isDirectory: true }) }],
+  } });
+  await act(async () => { page.dispatchEvent(drop); });
+  await settle();
+  assert.equal(drop.defaultPrevented, true);
+  assert.deepEqual(calls, [['path', file], ['drop', { folder }], ['start', { id: 'catalog' }]]);
+  const tab = app.all({ selector: '[role="tab"]' }).find((node) => node.textContent?.trim() === 'Supplier catalog');
+  assert.equal(tab?.getAttribute('aria-selected'), 'true');
+  assert.equal(app.byLabel({ label: 'Import a website' }), null);
+  assert.equal(app.container.querySelector('webview[partition="persist:catalog"]')?.getAttribute('src'), 'http://127.0.0.1:4317/admin/');
 });

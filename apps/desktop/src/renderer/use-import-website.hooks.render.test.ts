@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
 import { renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
-import { importPageError, useImportWebsite } from './use-import-website.hooks.js';
+import { createOpenImportPage, importPageError, useImportWebsite } from './use-import-website.hooks.js';
 import { copyableDetails } from '@jini-ai/ui/app-shell';
 import { site } from './app-render-harness.js';
 import type { SiteAdminPage } from './import-site-entry.js';
@@ -179,4 +179,17 @@ test('useImportWebsite: a changed .tovu.zip says it looks damaged and offers a f
 test('copyableDetails: a share timeout identifies only the origin and elapsed wait', () => {
   const error = new FetchTimeoutError('https://provider.example/share/sample-share-code/site.tovu.zip?download=sample-query', 120000);
   assert.equal(copyableDetails({ error }), 'fetch timed out after 120000ms: https://provider.example');
+});
+
+test('opening Import clears stale folder and live errors before opening the tab', () => {
+  const state = { folder: 'Old folder error', live: 'Old address error' };
+  const opened: typeof state[] = [];
+  const open = createOpenImportPage({
+    clearAddError: () => { state.folder = ''; },
+    liveImport: { clearFailure: () => { state.live = ''; } },
+    startImporting: () => { opened.push({ ...state }); },
+  });
+  assert.deepEqual(opened, []);
+  open();
+  assert.deepEqual(opened, [{ folder: '', live: '' }]);
 });

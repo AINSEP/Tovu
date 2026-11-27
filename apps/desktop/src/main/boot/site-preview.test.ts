@@ -182,3 +182,17 @@ test("a failing read or sweep is reported, never thrown — hygiene must not fai
     assert.match(warnings[0]!, failing === "read" ? /torn file/ : /readdir denied/);
   }
 });
+
+test('an HTTPS preview accepts localhost only and requires the site\'s assigned partition', async () => {
+  const h = captureHarness();
+  const secure = { ...target, scheme: 'https' as const };
+  h.url('https://127.0.0.1:8123/catalog');
+  assert.equal(await h.capture(secure), false);
+  h.url('https://localhost:8123/catalog');
+  assert.equal(await h.capture({ ...secure, partition: 'persist:other' }), false);
+  assert.equal(h.captureCalls(), 0, 'neither wrong origin nor wrong partition may be captured');
+  assert.deepEqual(h.writes, []);
+  assert.equal(await h.capture(secure), true);
+  assert.deepEqual(h.resizes, [{ width: 640 }]);
+  assert.deepEqual(h.writes, [{ siteDir: '/sites/alpha', png: Buffer.from('png') }]);
+});

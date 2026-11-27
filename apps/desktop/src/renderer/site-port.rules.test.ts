@@ -56,3 +56,10 @@ test('siteCardStatus names the running app in the title and drops its detail lin
   });
   assert.deepEqual(siteCardStatus({ project: {}, connection: stopped }), { title: 'Stopped.', detail: null });
 });
+
+test('a running site without a named launcher still advertises its local address', () => {
+  assert.deepEqual(siteCardStatus({
+    project: { statusDetail: 'The server selected another port.' },
+    connection: sitePortPresentation({ port: 4312 }),
+  }), { title: 'Running at http://localhost:4312', detail: 'The server selected another port.' });
+});

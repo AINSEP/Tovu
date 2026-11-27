@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
-import { renderHook, settle } from './dom-hook-harness.js';
+import { installDom, renderHook, settle } from './dom-hook-harness.js';
 import { useResources, type ResourcesPorts } from './use-resources.hooks.js';
 import type { ResourcesRequest, ResourcesSnapshot } from '../contracts/resources.js';
 import { createDesktopResources } from '../desktop-resources.ts';
@@ -62,4 +62,40 @@ test('launch badge recovers from two initial sampler failures within ten seconds
   assert.equal(hook.current()!.total.rssBytes, 123_000_000);
   assert.ok(at <= 10_000);
   assert.equal([...f.timers.values()][0]!.delay, 60_000, 'successful readings resume the cheap badge cadence');
+});
+
+test('default resources polling follows document visibility and cancels its scheduled window timer', async (t) => {
+  const window = installDom();
+  const before = Object.getOwnPropertyDescriptor(window, 'tovuRunner');
+  const hiddenBefore = Object.getOwnPropertyDescriptor(document, 'hidden');
+  let hidden = true;
+  const requests: ResourcesRequest[] = [];
+  const report = snapshot(37_000);
+  const set = t.mock.method(window, 'setTimeout', () => 71);
+  const clear = t.mock.method(window, 'clearTimeout', () => {});
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+  Object.defineProperty(window, 'tovuRunner', { configurable: true, value: {
+    getResources: async (input: ResourcesRequest) => { requests.push(input); return report; },
+  } });
+  t.after(() => {
+    if (before) Object.defineProperty(window, 'tovuRunner', before);
+    else Reflect.deleteProperty(window, 'tovuRunner');
+    if (hiddenBefore) Object.defineProperty(document, 'hidden', hiddenBefore);
+    else Reflect.deleteProperty(document, 'hidden');
+  });
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen: true }) });
+  await settle();
+  assert.deepEqual(requests, []);
+  assert.equal(hook.current(), null);
+  hidden = false;
+  act(() => { document.dispatchEvent(new window.Event('visibilitychange')); });
+  await settle();
+  assert.deepEqual(requests, [{ panelOpen: true }]);
+  assert.equal(hook.current(), report);
+  assert.deepEqual(set.mock.calls.map(({ arguments: args }) => [typeof args[0], args[1]]), [['function', 37_000]]);
+  hook.unmount();
+  assert.deepEqual(clear.mock.calls.map(({ arguments: args }) => args), [[71]]);
+  act(() => { document.dispatchEvent(new window.Event('visibilitychange')); });
+  await settle();
+  assert.deepEqual(requests, [{ panelOpen: true }]);
 });

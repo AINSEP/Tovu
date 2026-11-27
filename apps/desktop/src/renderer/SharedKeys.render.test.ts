@@ -169,3 +169,41 @@ test('shared OAuth row offers owner disconnect with metadata only and never a se
   assert.match(host.textContent!, /Provider revocation has not been confirmed/);
   assert.match(host.textContent!, /Independent local connections remain connected/);
 });
+
+test('provider replacement refuses non-text secrets, then clears a valid draft before saving only its secret fields', async (t) => {
+  const provider = { ...entry, kind: 'api-connection' as const, label: 'Payments connection' };
+  const sent: OwnerStoreInput['put'][] = [];
+  const bridge = {
+    list: async () => ({ version: 1, ok: true, action: 'list', data: { entries: [provider] } }),
+    put: async (input: OwnerStoreInput['put']) => {
+      sent.push(input);
+      return { version: 1, ok: true, action: 'put', data: { entry: provider } };
+    },
+  } as unknown as OwnerStoreBridge;
+  const { host, dom } = mount(t, bridge);
+  await settle();
+  const row = [...host.querySelectorAll('article')].find((item) => item.querySelector('h3')?.textContent === 'Payments connection');
+  const replace = [...(row?.querySelectorAll('button') ?? [])].find((button) => button.textContent === 'Replace key');
+  assert.ok(replace);
+  act(() => replace.click());
+  const field = row?.querySelector<HTMLInputElement>('input[name="secrets"]');
+  const form = field?.form;
+  assert.ok(field && form);
+  const submit = () => act(() => { form.dispatchEvent(new dom.Event('submit', { bubbles: true, cancelable: true })); });
+  field.value = '{"apiKey":123}';
+  submit();
+  assert.equal(field.validationMessage, 'Enter a JSON object with secret field names and their new text values.');
+  assert.deepEqual(sent, []);
+
+  field.value = '{"apiKey":"fixture-payment-secret"}';
+  submit();
+  assert.equal(field.value, '');
+  assert.equal(field.validationMessage, '');
+  await settle();
+  assert.deepEqual(sent, [{ store: 'project', entry: {
+    id: 'saved-a', kind: 'api-connection', label: 'Payments connection', provider: 'hosting', expectedRevision: 7,
+    meta: {}, payload: { secrets: { apiKey: 'fixture-payment-secret' } },
+  } }]);
+  assert.equal(host.querySelector('[role="status"]')?.textContent, 'Saved to your project. Site usage is unavailable in this version.');
+  assert.doesNotMatch(host.textContent ?? '', /fixture-payment-secret/);
+});

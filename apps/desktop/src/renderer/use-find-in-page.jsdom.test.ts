@@ -437,3 +437,19 @@ test('the query scheduler\'s default clock is the real timer: cancel drops, sett
   });
   assert.deepEqual(runs, ['settled']);
 });
+
+test('zero find matches are distinct from waiting for the first result and clearing the query', (t) => {
+  const time = manualClock();
+  const window = fakeBridge();
+  const bar = renderFind(t, { bridge: window.bridge, clock: time.clock });
+  window.toggle();
+  bar.act(() => bar.current().setQuery({ text: 'no-such-heading' }));
+  time.runTimers();
+  assert.deepEqual(window.calls.at(-1), ['find', { text: 'no-such-heading', forward: true, findNext: true }]);
+  assert.equal(bar.current().countLabel, '');
+  window.report(result(0, 0));
+  assert.equal(bar.current().countLabel, 'No results');
+  bar.act(() => bar.current().setQuery({ text: '' }));
+  assert.equal(bar.current().countLabel, '');
+  assert.deepEqual(window.calls.at(-1), ['stop']);
+});

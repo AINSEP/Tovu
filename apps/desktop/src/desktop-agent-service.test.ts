@@ -517,3 +517,36 @@ test("routines desktop lifecycle stays dark while the release flag is off", asyn
   assert.equal(listed, 0);
   assert.equal(power.listenerCount("resume"), 0);
 });
+
+test("daemon exit notifies only still-bound owned servers with the exited pid", async () => {
+  const h = harness();
+  const active = serverBoot(h, "old", "/sites/active");
+  const gone = serverBoot(h, "old", "/sites/gone");
+  const delivered: { site: string; payload: unknown }[] = [];
+  for (const [site, { child }] of [["active", active], ["gone", gone]] as const) {
+    const send = child.send.bind(child);
+    child.send = (message, callback) => {
+      const outgoing = message as { kind: string; id: string; payload?: unknown };
+      if (outgoing.kind !== "request") return send(message, callback);
+      delivered.push({ site, payload: outgoing.payload });
+      queueMicrotask(() => child.emit("message", { jiniIpc: 1, kind: "reply", id: outgoing.id, ok: true, payload: {} }));
+      callback(null);
+      return true;
+    };
+  }
+  try {
+    assert.equal((await active.register()).ok, true);
+    assert.equal((await gone.register()).ok, true);
+    gone.binding.dispose();
+    const daemon = h.children[0]!;
+    assert.deepEqual(delivered, []);
+    daemon.connected = false;
+    daemon.emit("exit", 88, null);
+    assert.deepEqual(delivered, [{ site: "active", payload: { operation: "unavailable", pid: 500 } }]);
+    const next = await active.register();
+    assert.equal(next.ok, true);
+    assert.equal((next.payload as { pid: number }).pid, 501);
+  } finally {
+    await h.service.shutdown({}, {});
+  }
+});

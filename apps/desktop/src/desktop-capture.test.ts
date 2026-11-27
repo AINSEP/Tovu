@@ -206,3 +206,15 @@ test('the capture bridge refuses a non-loopback URL before any window opens, and
     bridge.close();
   }
 });
+
+test('a failed webContents lookup destroys the unreturned capture window without masking the cause', () => {
+  const failure = new Error('WebContents is not available');
+  const events: string[] = [];
+  const native = {
+    get webContents() { events.push('read webContents'); throw failure; },
+    destroy() { events.push('destroy window'); },
+  } as unknown as BrowserWindow;
+  const factory = desktopCaptureWindowFactory({ createWindow: () => native });
+  assert.throws(() => factory({}), (error: unknown) => error === failure);
+  assert.deepEqual(events, ['read webContents', 'destroy window']);
+});

@@ -44,3 +44,19 @@ test('pt-PT (a region the copy has no row for) falls back to the pt-BR copy, not
   assert.equal(ptPT.automaticUpdates, 'Atualizar Tovu automaticamente');
   assert.deepEqual(desktopCopy({ locale: 'pt' }), desktopCopy({ locale: 'pt-BR' }));
 });
+
+test('every locale preserves each interpolation exactly once and does not introduce unknown placeholders', () => {
+  const expected = new Map([
+    ['stopConfirm.title', ['{name}']], ['stopConfirm.otherBody', ['{app}']],
+    ['lastWindowQuit.quitMany', ['{count}']], ['lastWindowQuit.keepsMany', ['{count}']],
+    ['tabClose.stopToo', ['{name}']],
+  ]);
+  for (const locale of ['en', ...LOCALES]) {
+    const copy = new Map(leaves(desktopCopy({ locale })));
+    for (const path of expected.keys()) assert.equal(copy.has(path), true, `${locale}.${path}`);
+    for (const [path, text] of copy) {
+      assert.equal(typeof text, 'string', `${locale}.${path}`);
+      assert.deepEqual(String(text).match(/\{[^{}]+\}/g) ?? [], expected.get(path) ?? [], `${locale}.${path}`);
+    }
+  }
+});

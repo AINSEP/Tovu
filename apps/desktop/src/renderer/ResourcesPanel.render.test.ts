@@ -235,3 +235,29 @@ test('starting a site refreshes the real sampler, hook and card while the toolba
   assert.equal(host.querySelector('.resources-chip')!.textContent, '~0.4 GB approx.');
   assert.equal(reads, 2);
 });
+
+test('the Resources panel focuses its first action and its default Stop updates the project from the preload', async (t) => {
+  const dom = installDom();
+  const saved = Object.getOwnPropertyDescriptor(dom, 'tovuRunner');
+  const calls: unknown[] = [], updates: SiteRecord[] = [];
+  const stopped: SiteRecord = { ...SITE, status: 'stopped', port: 0, statusDetail: 'Stopped from Resources' };
+  Object.defineProperty(dom, 'tovuRunner', { configurable: true, value: {
+    stopSite: async (input: { id: string }) => { calls.push(input); return stopped; },
+  } });
+  t.after(() => {
+    if (saved) Object.defineProperty(dom, 'tovuRunner', saved);
+    else Reflect.deleteProperty(dom, 'tovuRunner');
+  });
+  const { host } = mount(t, createElement(ResourcesPanel, {
+    projects: [SITE], snapshot: SNAPSHOT, onSiteUpdated: (record) => updates.push(record),
+    onClose: () => {}, Shell, useTrap() {},
+  }));
+  const stop = [...host.querySelectorAll('button')].find((button) => button.textContent === 'Stop');
+  assert.ok(stop);
+  assert.equal(stop, document.activeElement);
+  assert.deepEqual(calls, []);
+  act(() => stop.click());
+  await settle();
+  assert.deepEqual(calls, [{ id: SITE.id }]);
+  assert.deepEqual(updates, [stopped]);
+});

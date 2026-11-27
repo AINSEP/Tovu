@@ -526,3 +526,12 @@ test("a lease held under this window's own server pid lets Delete erase, unless 
   assert.equal(fs.existsSync(id), false, "this window's own server was stopped and the folder erased");
   assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }), []);
 });
+
+test("registered Cancel Import forwards only the fixed cancellation reason to main", async (t) => {
+  const f = fixture({ t });
+  const stops: unknown[][] = [];
+  f.deps.stopRunningImports = async (...args) => { stops.push(args); };
+  assert.deepEqual(stops, []);
+  await f.invoke({ channel: "runner:sites:cancel-import", payload: { reason: "quit", path: "/not-owned" } });
+  assert.deepEqual(stops, [[{}, { reason: "cancel" }]]);
+});

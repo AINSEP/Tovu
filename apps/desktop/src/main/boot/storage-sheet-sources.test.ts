@@ -33,7 +33,7 @@ function fakeChild(stdout: string): ChildProcess {
 const partitionOf = (siteDir: string) => partitionDirName(sitePartition({ siteDir }));
 
 function world({ catalog = { listSiteDirs: () => [] as readonly string[] }, activity = {} }: {
-  catalog?: { listSiteDirs(): readonly string[] }; activity?: Record<string, SiteActivity>;
+  catalog?: { listSiteDirs(): readonly string[] }; activity?: Record<string, SiteActivity | Error>;
 } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "st18-src-")));
   const userData = path.join(root, "profile"), sites = path.join(root, "sites");
@@ -66,7 +66,11 @@ function world({ catalog = { listSiteDirs: () => [] as readonly string[] }, acti
     measure: async ({ path: target }) => fs.existsSync(target) ? { state: "measured", bytes: 1 } : { state: "unknown", reason: "missing" },
     trash: {
       protectedRoots: [userData], fs: { lstat: (target) => fs.promises.lstat(target), realpath: (target) => fs.promises.realpath(target) },
-      siteActivity: ({ dir: site }) => activity[path.basename(site)] ?? "idle",
+      siteActivity: ({ dir: site }) => {
+        const state = activity[path.basename(site)];
+        if (state instanceof Error) throw state;
+        return state ?? "idle";
+      },
       withAddOpenFence: ({ dir: site, run }) => { calls.fenced.push(site); return run(); },
       trashItem: async (target) => { calls.trashed.push(target); fs.rmSync(target, { recursive: true }); },
     },
@@ -149,4 +153,17 @@ test("broken catalog gives unknown and no sign-in action", async () => {
   assert.equal(w.sources.labelForPartition({ partition: partitionOf(w.dir("old")) }), undefined);
   assert.deepEqual(await w.sources.trashFolder({ dir: w.dir("old") }), { state: "kept", reason: "unknown" });
   assert.ok(fs.existsSync(w.dir("old")) && fs.existsSync(path.join(w.partitionsRoot, w.stranger, "Cookies")));
+});
+
+test("an unreadable activity check keeps a dismissed folder, while an unreadable size is never reported as zero", async (t) => {
+  const w = world({ activity: { old: new Error("site activity unavailable") } });
+  t.after(() => fs.rmSync(w.root, { recursive: true, force: true }));
+  const folder = w.dir("old"), data = path.join(folder, "draft.txt");
+  fs.writeFileSync(data, "keep my draft");
+  assert.equal(await w.sources.measureTree({ path: folder }), 1);
+  assert.equal(await w.sources.measureTree({ path: w.dir("missing") }), null);
+  assert.deepEqual(await w.sources.trashFolder({ dir: folder }), { state: "kept", reason: "unknown" });
+  assert.deepEqual(w.calls.fenced, [folder]);
+  assert.deepEqual(w.calls.trashed, []);
+  assert.equal(fs.readFileSync(data, "utf8"), "keep my draft");
 });

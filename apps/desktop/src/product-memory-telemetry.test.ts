@@ -225,3 +225,31 @@ test('sampling failures log once per streak, reset on success, and redact the ca
   assert.equal(logs.length, 2, 'a successful sample starts a new failure streak');
   memory.dispose();
 });
+
+test('unavailable resource snapshots do not emit false zero metrics, and a later sample recovers', async (t) => {
+  let at = 0, ready = false;
+  const monitor = createDesktopResources({
+    desktopPid: 1, platform: 'linux', now: () => at, totalMem: () => 8e9, openSites: () => [],
+    listUsage: async () => ready ? [{ pid: 1, ppid: 0, name: 'Tovu', rssBytes: 256 * MB, cpuSeconds: 0 }] : [],
+  });
+  const metrics: { name: string; value: number }[] = [];
+  const inputs: unknown[] = [];
+  const memory = startProductMemoryTelemetry({
+    monitor: { get: (input) => { inputs.push(input); return monitor.get(input); } },
+    tracker: { ...createNoopTracker({}), metric: (input) => { metrics.push(input); } },
+    readConsent: () => ({ crashes: false, usage: true, installationId: 'installation-test' }),
+    desktopPid: 1, rendererPids: () => new Set<number>(), heapUsedBytes: () => 17 * MB, uptime: () => at / 1000,
+  }, { now: () => at, schedule: () => () => {} });
+  t.after(() => memory.dispose());
+  assert.equal((await monitor.get({ panelOpen: false })).status, 'unavailable');
+  await memory.tick();
+  assert.deepEqual(metrics, []);
+  ready = true;
+  at += 5_000;
+  await memory.tick();
+  assert.deepEqual(inputs, [{ panelOpen: false }, { panelOpen: false }]);
+  assert.deepEqual(metrics, [
+    { name: 'process.memory.rss', value: 256 * MB }, { name: 'process.count', value: 1 },
+    { name: 'process.memory.heap_used', value: 17 * MB }, { name: 'process.uptime', value: 5 },
+  ]);
+});

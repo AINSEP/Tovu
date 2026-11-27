@@ -15,7 +15,7 @@ import { bindDesktopPartitions, nodePartitionFs } from "../../desktop-partition-
 import { desktopJsonFile } from "../../durable-json-file.ts";
 import { bindDesktopRetirement } from "../../site-retirement.ts";
 import { trackSite } from "../../tracked-sites.ts";
-import { nodePartitionPassFs, runDesktopPartitionPass, type DesktopPartitionPassLogEvent } from "./desktop-partition-pass.ts";
+import { nodePartitionPassFs, runDesktopPartitionPass, type DesktopPartitionPassLogEvent, type DesktopPartitionPassRequired } from "./desktop-partition-pass.ts";
 import { bindStorageSignInRemoval } from "./storage-sheet-binding.ts";
 
 const sleep = ({ ms }: { ms: number }) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -66,10 +66,13 @@ function fixture({ sessionData }: { sessionData?: string } = {}) {
     retirement.port.append({ candidate }, {});
     return { siteDir, partitionDir };
   };
-  const run = ({ passFs = nodePartitionPassFs({ fs }), maintenance = [], bootWaitMs }: { passFs?: PartitionPassFsPort; maintenance?: PartitionMaintenance[]; bootWaitMs?: number } = {}) =>
+  const run = ({ passFs = nodePartitionPassFs({ fs }), maintenance = [], bootWaitMs, partitionPass = runPartitionPass, mono = () => performance.now() }: {
+    passFs?: PartitionPassFsPort; maintenance?: PartitionMaintenance[]; bootWaitMs?: number;
+    partitionPass?: DesktopPartitionPassRequired["partitionPass"]; mono?: () => number;
+  } = {}) =>
     runDesktopPartitionPass({
-      partitionPass: runPartitionPass, claims: binding, ledger: retirement.ledger, fs: passFs, root: { isManaged: binding.isManaged },
-      maintenance, log: (event) => logs.push(event), mono: () => performance.now(), scheduler: { sleep },
+      partitionPass, claims: binding, ledger: retirement.ledger, fs: passFs, root: { isManaged: binding.isManaged },
+      maintenance, log: (event) => logs.push(event), mono, scheduler: { sleep },
       newToken: () => randomUUID().replace(/-/g, ""),
     }, bootWaitMs === undefined ? {} : { bootWaitMs });
   return { base, userData, partitionsRoot, projectsPath, binding, retirement, logs, writeProjects, partitionFor, retired, run };
@@ -212,4 +215,37 @@ test("T6 confirmed sign-in removal: a site added back after the owner confirmed 
   // Control: the same binding removes an unclaimed sign-in when nothing races it.
   assert.deepEqual(await remove(nodePartitionPassFs({ fs }))({ partition: path.basename(idle.partitionDir), confirmed: true, evidence: "owner-dialog" }), { state: "removed" });
   assert.equal(fs.existsSync(idle.partitionDir), false);
+});
+
+test("a continuing pass that rejects records one failed report and never rejects settled", async (t) => {
+  const f = fixture();
+  t.after(() => fs.rmSync(f.base, { recursive: true, force: true }));
+  let fail!: (reason: Error) => void;
+  const done = new Promise<never>((_resolve, reject) => { fail = reject; });
+  let now = 100;
+  const run = await f.run({
+    bootWaitMs: 37, mono: () => now,
+    partitionPass: async (_required, options) => {
+      assert.deepEqual(options, { budgetMs: 37 });
+      now += 37;
+      return { state: "continuing", done };
+    },
+  });
+  assert.deepEqual([run.wait, run.waitedMs, run.lastReport()], ["continuing", 37, null]);
+  assert.deepEqual(f.logs, [{ event: "pass-continuing", detail: "after 37 ms" }]);
+  fail(Object.assign(new Error("partition storage disappeared"), { code: "EIO" }));
+  const result = await run.settled;
+  assert.deepEqual(result, { result: "failed", reason: "EIO", removed: [], cacheCleared: [], restored: [], kept: [], skipped: [] });
+  assert.equal(run.lastReport(), result);
+  assert.deepEqual(f.logs, [{ event: "pass-continuing", detail: "after 37 ms" }, { event: "pass-failed", detail: "EIO" }]);
+});
+
+test("a pass implementation throwing before it returns is reported as finished and failed", async (t) => {
+  const f = fixture();
+  t.after(() => fs.rmSync(f.base, { recursive: true, force: true }));
+  const run = await f.run({ mono: () => 100, partitionPass: () => { throw new Error("writer unavailable"); } });
+  assert.deepEqual([run.wait, run.waitedMs], ["finished", 0]);
+  assert.deepEqual(await run.settled, { result: "failed", reason: "writer unavailable", removed: [], cacheCleared: [], restored: [], kept: [], skipped: [] });
+  assert.deepEqual(run.lastReport(), await run.settled);
+  assert.deepEqual(f.logs, [{ event: "pass-failed", detail: "writer unavailable" }]);
 });

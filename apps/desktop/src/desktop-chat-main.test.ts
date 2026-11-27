@@ -28,7 +28,7 @@ test("a renderer-reported folder resolves only to a tracked site, normalized, wi
 
 type Factory = typeof createDesktopAgentRuntime;
 
-function setup(t: TestContext, extra: { readFullCliAccess?: () => Promise<boolean>; factory?: Factory | null } = {}) {
+function setup(t: TestContext, extra: { readFullCliAccess?: () => Promise<boolean>; factory?: Factory | null; revealPath?: (input: { target: string }) => Promise<void> } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-chat-main-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const agentRuntime = createNativeAgentRuntime({ env: {} });
@@ -54,7 +54,7 @@ function setup(t: TestContext, extra: { readFullCliAccess?: () => Promise<boolea
   const runtime = startDesktopChat({
     agentRuntime, userDataDir: dir, beforeAddedRows: () => {}, projectsPath,
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
-    revealPath: async () => {}, pickDirectory: async () => null,
+    revealPath: extra.revealPath ?? (async () => {}), pickDirectory: async () => null,
     broadcast: ({ channel, payload }) => broadcasts.push([channel, payload]),
     readSiteName: ({ siteDir }) => `Site ${path.basename(siteDir)}`,
     ...(extra.readFullCliAccess ? { readFullCliAccess: extra.readFullCliAccess } : {}),
@@ -120,4 +120,17 @@ test("by default the real desktop agent runtime starts with every built tool reg
   const ids = runtime.toolIds();
   for (const id of ["desktop.list_sites", "desktop.navigate", "site.list_tools", "site.call_tool", "tool_gaps_list"]) assert.ok(ids.includes(id), id);
   assert.equal(new URL(runtime.daemonUrl).hostname, "127.0.0.1");
+});
+
+test("the desktop reveal tool passes the tracked folder to the native reveal port", async (t) => {
+  const revealed: string[] = [];
+  const s = setup(t, { revealPath: async ({ target }) => { revealed.push(target); } });
+  await s.runtime;
+  const siteDir = path.join(s.dir, "catalog");
+  trackSite({ beforeAddedRows: () => {}, projectsPath: s.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  const tools = s.captured().required.buildTools({ addresseeOf: () => null });
+  const reveal = tools.find((tool) => tool.descriptor.id === "desktop.reveal_site_folder");
+  assert.ok(reveal);
+  await reveal.handler({ executionId: "reveal", principal: { id: "owner" }, run: { id: "r" }, input: { siteDir }, signal: new AbortController().signal });
+  assert.deepEqual(revealed, [siteDir]);
 });

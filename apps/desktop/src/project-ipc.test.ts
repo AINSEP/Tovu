@@ -14,7 +14,7 @@ import path from "node:path";
 import { PROJECT_NOT_OPEN_MESSAGE, SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
 import { SITE_IPC_CHANNELS, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { buildSiteRecord, siteRecordLifecycle } from "./project-ipc.records.ts";
-import { importSharedSiteDiscovery, handleList, handleLocate, rescanSites } from "./project-ipc.catalog.ts";
+import { importSharedSiteDiscovery, handleList, handleLocate, rememberSiteAlias, rescanSites } from "./project-ipc.catalog.ts";
 import { handleAddSite, handleImportArchive } from "./project-ipc.import.ts";
 import { handleCreate, planNewSiteDir, handleTokenSignInPlugins } from "./project-ipc.create.ts";
 import { handleDelete } from "./project-ipc.delete.ts";
@@ -2399,7 +2399,7 @@ test("a list whose names changed on disk is still returned when the name cache c
 import type { ResourcesSnapshot } from './contracts/resources.ts';
 
 /** Drive the existing registration owner with a real serializer and fake clock/children. */
-function b2LifecycleHarness(t: { after(fn: () => void): void }) {
+function b2LifecycleHarness(t: { after(fn: () => void): void }, { afterAdopt }: { afterAdopt?: (boot: number) => Promise<void> } = {}) {
   let now = 1_000_000, minutes = 10, nextPid = 100, boots = 0;
   let bootError: Error | undefined;
   const timers: { delayMs: number; run: () => void; cancelled: boolean }[] = [];
@@ -2424,7 +2424,13 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
     return server;
   }
   const deps = baseDeps({ openSites, transitions: createChildTransitions({}), serializer: createKeyedSerializer({}),
-    openSiteServer: async () => { if (openSites.has(siteDir)) return; boots++; if (bootError) throw bootError; openSites.set(siteDir, { server: child() }); },
+    openSiteServer: async () => {
+      if (openSites.has(siteDir)) return;
+      boots++;
+      if (bootError) throw bootError;
+      openSites.set(siteDir, { server: child() });
+      if (afterAdopt) await afterAdopt(boots);
+    },
     ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); }, removeHandler: channel => { registered.delete(channel); } },
   });
   trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
@@ -2846,4 +2852,106 @@ test("withdrawn site stays stopped this session: a routine background start queu
   // A site that was never withdrawn starts through the same key.
   assert.equal(await startRoutineSiteInBackground({ siteDir: "/sites/b", deps: deps as never }), true);
   assert.deepEqual(opened, ["/sites/b"]);
+});
+
+test("an exit during adoption retries after the in-flight manual start finishes, even if adoption rejects", async (t) => {
+  for (const rejects of [false, true]) {
+    let complete!: () => void;
+    const gate = new Promise<void>((resolve) => { complete = resolve; });
+    const failure = new Error("session adoption failed");
+    const h = b2LifecycleHarness(t, { afterAdopt: async (boot) => {
+      if (boot !== 1) return;
+      await gate;
+      if (rejects) throw failure;
+    } });
+    h.server().die(1);
+    const manual = Promise.resolve(h.invoke(SITE_IPC_CHANNELS.start));
+    const manuallySettled = rejects ? assert.rejects(manual, failure) : manual;
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(h.boots(), 1, "the replacement has started adoption");
+      h.server().die(5);
+      assert.deepEqual(h.pending().map(({ delayMs }) => delayMs), [1000]);
+      const firing = h.next();
+      assert.equal(h.boots(), 1, "the retry cannot overtake the in-flight adoption");
+      complete();
+      await manuallySettled;
+      await firing;
+      await h.drain();
+      assert.equal(h.boots(), 2, "the exit's retry survives either adoption outcome");
+      assert.equal(h.record().status, 'running');
+      assert.deepEqual(h.pending(), []);
+    } finally {
+      complete();
+      await manuallySettled;
+    }
+  }
+});
+
+test("native pickers with no selected path never change the project registry", async (t) => {
+  const { deps, asked } = importDeps("/unused/archive.tovu.zip", { dir: "/not-imported" });
+  t.after(() => fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }));
+  const siteDir = "/sites/picker-refused";
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  const before = fs.readFileSync(deps.projectsPath, "utf8");
+  const noSelection = {
+    ...deps,
+    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [] }) },
+  };
+  assert.equal(await handleImportArchive({ pick: true }, noSelection), null);
+  assert.deepEqual(asked, []);
+
+  const locate = baseDeps({ projectsPath: deps.projectsPath, dialog: noSelection.dialog });
+  t.after(() => fs.rmSync(path.dirname(locate.statePath), { recursive: true, force: true }));
+  await assert.rejects(handleLocate({ id: siteDir, deps: locate }), { message: "No folder was chosen." });
+  assert.equal(fs.readFileSync(deps.projectsPath, "utf8"), before);
+});
+
+test("a normal serve Error with no invalid-directory code is never rewritten as a moved folder", async (t) => {
+  const base = tempDir();
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const siteDir = writeSite(path.join(base, "catalog"), "catalog-id");
+  const launchError = new Error("The configured port is already in use.");
+  const deps = baseDeps({ openSiteServer: async ({ siteDir: dir }) => {
+    assert.equal(dir, siteDir);
+    fs.rmSync(dir, { recursive: true });
+    throw launchError;
+  } });
+  t.after(() => fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }));
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  await assert.rejects(handleStart({ id: siteDir, deps }), (error) => error === launchError);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [siteDir]);
+});
+
+test("an already-destroyed project window is not destroyed again when untracking its site", async (t) => {
+  const base = tempDir(), siteDir = writeSite(path.join(base, "catalog"), "catalog");
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const closed: unknown[][] = [];
+  const deps = baseDeps({ recordSiteClosed: (...args: unknown[]) => { closed.push(args); } });
+  t.after(() => fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }));
+  let stopped = false;
+  const destroyedWindow = { isDestroyed: () => true, destroy: () => assert.fail("Electron window was already destroyed") };
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  deps.openSites.set(siteDir, { server: { pid: 607, stop: async () => { stopped = true; } }, window: destroyedWindow });
+  await handleDelete({ id: siteDir, deps });
+  assert.equal(stopped, true);
+  assert.equal(deps.openSites.has(siteDir), false);
+  assert.deepEqual(closed, [[{ registryDir: deps.registryPath, siteDir }, { pid: 607 }]]);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
+  assert.equal(fs.readFileSync(path.join(siteDir, "config.json"), "utf8"), '{"name":"catalog"}');
+});
+
+test("an explicit rename replaces the collision alias both now and on the next inventory read", (t) => {
+  const deps = renameDeps({ readSiteName: ({ siteDir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(siteDir, "config.json"), "utf8")).name });
+  const base = path.dirname(deps.projectsPath);
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const dir = writeSite(path.join(base, "catalog"), "catalog-id");
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
+  rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir: dir, displayNameAlias: "catalog 2" });
+  assert.equal(handleList(deps).find(({ id }) => id === dir)?.displayName, "catalog 2");
+
+  assert.equal(handleRename({ id: dir, name: "New catalog" }, deps).displayName, "New catalog");
+  assert.equal(handleList(deps).find(({ id }) => id === dir)?.displayName, "New catalog");
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).find((row) => row.siteDir === dir)?.displayNameAlias, undefined);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")), { name: "New catalog" });
 });

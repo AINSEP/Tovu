@@ -238,3 +238,52 @@ test("T-3.6 second window of a held site does not clear", async () => {
   assert.deepEqual(result, { state: "ran", value: { state: "ran", update: true, cleared: [], kept: [{ partition: name, reason: "held" }] } });
   assert.ok(fs.existsSync(path.join(dir, "Code Cache")));
 });
+
+test("cache sizing treats only a missing root as empty", async (t) => {
+  const root = tmp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const vanished = path.join(root, "vanished");
+  assert.deepEqual(await measureTreeBytes({ fs, path: vanished }), { state: "measured", bytes: 0 });
+
+  // Simulate a file removed after readdir but before lstat, without racing real I/O.
+  const disappearing: typeof fs = { ...fs, promises: { ...fs.promises, readdir: async () => ["vanished"] } as typeof fs.promises };
+  assert.deepEqual(await measureTreeBytes({ fs: disappearing, path: root }), { state: "unknown", reason: "ENOENT" });
+  const unreadable: typeof fs = { ...fs, promises: { ...fs.promises, lstat: async () => { throw new Error("stat adapter failed"); } } };
+  assert.deepEqual(await measureTreeBytes({ fs: unreadable, path: root }), { state: "unknown", reason: "Error: stat adapter failed" });
+});
+
+test("cache sizing respects its entry budget and does not follow symlinks", async (t) => {
+  const base = tmp();
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const cache = path.join(base, "cache");
+  const external = path.join(base, "external");
+  fs.mkdirSync(cache);
+  fs.writeFileSync(external, Buffer.alloc(128));
+  fs.writeFileSync(path.join(cache, "entry"), "12345");
+  fs.symlinkSync(external, path.join(cache, "outside-link"));
+  assert.deepEqual(await measureTreeBytes({ fs, path: cache }, { maxEntries: 3 }), { state: "measured", bytes: 5 });
+  assert.deepEqual(await measureTreeBytes({ fs, path: cache }, { maxEntries: 2 }), { state: "unknown", reason: "more than 2 entries" });
+});
+
+test("with version inference off, a fresh launch preserves code cache until an explicit update", async (t) => {
+  const { userData, name, dir } = profileWithPartition();
+  t.after(() => fs.rmSync(userData, { recursive: true, force: true }));
+  const marker = desktopMaintenanceMarker({ userDataDir: userData, fs });
+  const launch = (appVersion: string, mode: "fresh" | "update") => {
+    const { writer, cacheFs } = bootDeps({ userData });
+    const codeCache = bindDesktopCodeCache({
+      appVersion, argv: [], launchMode: () => mode, marker, fs: cacheFs, evidence: GO,
+      interlock: { readHoldersStrict: unheld, newToken, isManaged: (candidate) => candidate === name, clock: noClock },
+      measure: async () => assert.fail("boot does not measure code cache"), sessionDataDir: userData,
+    }, { versionChangeIsUpdate: false });
+    return codeCache.bootMaintenance({ partition: name, path: dir, classification: "tracked", writer });
+  };
+
+  const entry = path.join(dir, "Code Cache", "js");
+  await marker.writeLaunchVersion({ version: "1.0.0" });
+  assert.deepEqual(await launch("2.0.0", "fresh"), { state: "ran", update: false, cleared: [], kept: [] });
+  assert.deepEqual(fs.readFileSync(entry), Buffer.alloc(4096, 2));
+  assert.deepEqual(await launch("2.0.0", "update"), { state: "ran", update: true, cleared: [name], kept: [] });
+  assert.equal(fs.existsSync(entry), false);
+  assert.equal(fs.readFileSync(path.join(dir, "Cookies"), "utf8"), "cookie-jar");
+});

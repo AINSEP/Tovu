@@ -122,3 +122,22 @@ test('ImportWebsite: tells its owner when the page opens, and not while it is hi
   assert.deepEqual(hidden.calls, []);
   assert.equal(render(t).calls[0], 'page-open');
 });
+
+test('Copy details writes the full diagnostic rather than the inline summary', async (t) => {
+  const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  const copies: string[] = [];
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+    writeText: async (text: string) => { copies.push(text); },
+  } });
+  t.after(() => {
+    if (previous) Object.defineProperty(navigator, 'clipboard', previous);
+    else Reflect.deleteProperty(navigator, 'clipboard');
+  });
+  const detail = 'EACCES\nThe target could not be opened.';
+  const view = render(t, { failure: { message: 'Could not import this website.', details: detail } });
+  assert.deepEqual(copies, []);
+  await view.click({ el: view.byText({ text: 'Copy details' }) });
+  assert.deepEqual(copies, [detail]);
+  assert.equal(view.byText({ text: 'Copied' })?.textContent, 'Copied');
+  assert.equal(view.container.querySelector('[role="alert"]')?.textContent, 'Could not import this website.');
+});

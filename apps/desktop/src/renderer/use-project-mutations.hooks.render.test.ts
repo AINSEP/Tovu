@@ -161,3 +161,21 @@ test('useProjectMutations: the ready notice goes for good once its site starts; 
   act(() => setProjects([site('new', { status: 'stopped' })]));
   assert.equal(hook.current().lastCreated, null, 'stopping again must not resurrect the notice');
 });
+
+test('starting the newly created site clears its ready notice permanently without dropping its card', async (t) => {
+  let setInventory!: Dispatch<SetStateAction<readonly SiteRecord[]>>;
+  const getBridge = () => ({ createSite: async () => CREATED, deleteSite: async () => {} });
+  const hook = renderHook(t, () => useProjectsWith([site('other')], (setProjects, projects) => {
+    setInventory = setProjects;
+    return useProjectMutations({
+      setProjects, projects, closeProjectTab: () => {}, startCreating: () => {}, stopCreating: () => {},
+    }, { getBridge });
+  }));
+  await act(() => hook.current().handleCreate(INPUT));
+  assert.equal(hook.current().lastCreated, CREATED);
+  act(() => setInventory([site('other'), site('new', { status: 'running', port: 4173 })]));
+  assert.equal(hook.current().lastCreated, null);
+  assert.deepEqual(hook.current().projects.map(({ id, status }) => [id, status]), [['other', 'stopped'], ['new', 'running']]);
+  act(() => setInventory([site('other'), site('new')]));
+  assert.equal(hook.current().lastCreated, null, 'later stops do not reannounce creation');
+});

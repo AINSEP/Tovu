@@ -10,6 +10,8 @@ import test from 'node:test';
 import type { AppVersionBridge } from '@jini-ai/desktop-host/app-version';
 import { deferred, renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
 import { useAppVersion } from './use-app-version.hooks.js';
+import { installDom } from './dom-hook-harness.js';
+import { ownerStoreBridge } from './runner-api.js';
 
 test('useAppVersion: reads the exact main-process version once and keeps it across re-renders', async (t) => {
   let reads = 0;
@@ -53,4 +55,33 @@ test('useAppVersion: with no preload bridge at all the brand stays usable — no
   await settle();
   assert.equal(window.tovuRunner, undefined, 'no preload in this test process');
   assert.deepEqual(hook.current(), { version: null, error: null });
+});
+
+test('the default app version lookup uses the runner preload, independently of shared keys', async (t) => {
+  const window = installDom();
+  const before = Object.getOwnPropertyDescriptor(window, 'tovuRunner');
+  const previousOwner = Object.getOwnPropertyDescriptor(window, 'tovuOwnerStore');
+  const owner = Object.freeze({ list: async () => ({ version: 1, action: 'list', ok: true, data: { entries: [] } }) });
+  const requests: unknown[][] = [];
+  Object.defineProperty(window, 'tovuRunner', { configurable: true, value: {
+    getAppVersion: async (...args: unknown[]) => { requests.push(args); return '6.9.1-dev'; },
+  } });
+  Object.defineProperty(window, 'tovuOwnerStore', { configurable: true, writable: true, value: owner });
+  t.after(() => {
+    if (before) Object.defineProperty(window, 'tovuRunner', before);
+    else Reflect.deleteProperty(window, 'tovuRunner');
+    if (previousOwner) Object.defineProperty(window, 'tovuOwnerStore', previousOwner);
+    else Reflect.deleteProperty(window, 'tovuOwnerStore');
+  });
+  assert.equal(ownerStoreBridge(), owner);
+  const hook = renderHook(t, () => useAppVersion({}));
+  await settle();
+  assert.deepEqual(hook.current(), { version: '6.9.1-dev', error: null });
+  assert.deepEqual(requests, [[]]);
+  delete window.tovuOwnerStore;
+  assert.equal(ownerStoreBridge(), undefined);
+  hook.rerender();
+  await settle();
+  assert.deepEqual(hook.current(), { version: '6.9.1-dev', error: null });
+  assert.deepEqual(requests, [[]]);
 });

@@ -113,3 +113,18 @@ test('readProcessStartMs: ps lstart in the C locale for exactly this pid; win32,
   assert.equal(readProcessStartMs({ pid: 42 }, { platform: 'linux', runPs: () => { throw new Error('no such process'); } }), null);
   assert.equal(readProcessStartMs({ pid: 42 }, { platform: 'linux', runPs: () => 'garbage' }), null);
 });
+
+test('without ps on PATH the default process-start reader refuses to establish identity', (t) => {
+  const previous = process.env.PATH;
+  const previousAgentHome = process.env.AGENT_RUNTIME_HOME;
+  t.after(() => {
+    if (previous === undefined) delete process.env.PATH;
+    else process.env.PATH = previous;
+    if (previousAgentHome === undefined) delete process.env.AGENT_RUNTIME_HOME;
+    else process.env.AGENT_RUNTIME_HOME = previousAgentHome;
+  });
+  // A location inside a file cannot be a search directory on any machine.
+  process.env.PATH = new URL('./external-site-stop.ts/', import.meta.url).pathname;
+  process.env.AGENT_RUNTIME_HOME = process.env.PATH;
+  assert.equal(readProcessStartMs({ pid: process.pid }, { platform: 'linux' }), null);
+});

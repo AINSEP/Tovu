@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { reportShellTelemetry, installShellErrorReporting } from './product-telemetry.js';
+import { installDom } from './dom-hook-harness.js';
 
 test('shell actions send only the explicit payload and a broken bridge cannot break the action', () => {
   const sent: unknown[] = [];
@@ -23,4 +24,24 @@ test('window errors and rejections reach the bridge as shell error payloads; tea
   dispose(); target.dispatchEvent(event);
   target.dispatchEvent(Object.assign(new Event('unhandledrejection'), { reason: 'after dispose' }));
   assert.equal(sent.length, 2);
+});
+
+test('the default error reporter sends the shell payload through the actual preload lookup and detaches', (t) => {
+  const window = installDom();
+  const previous = window.tovuTelemetry;
+  const received: unknown[] = [];
+  window.tovuTelemetry = { report: (input) => received.push(input) };
+  t.after(() => { window.tovuTelemetry = previous; });
+  const dispose = installShellErrorReporting({ target: window });
+  try {
+    const failure = new Error('renderer load failed');
+    failure.stack = 'pinned stack';
+    const error = new window.ErrorEvent('error', { error: failure, message: 'fallback', cancelable: true });
+    assert.equal(window.dispatchEvent(error), true, 'host preserves normal browser event handling');
+    assert.deepEqual(received, [{ payload: { kind: 'error', message: 'renderer load failed', stack: 'pinned stack' } }]);
+  } finally {
+    dispose();
+  }
+  window.dispatchEvent(new window.ErrorEvent('error', { message: 'after teardown' }));
+  assert.equal(received.length, 1);
 });

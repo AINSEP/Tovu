@@ -16,7 +16,9 @@ after(closeHost);
 
 const TIP = 'Each loaded site stays in memory (~300 MB each). Higher = instant switching between sites, more memory. Other open tabs reload when you switch to them.';
 
-async function renderLoadedSites(t: TestContext, { saved = 1, fail = false, setter = true }: { saved?: number; fail?: boolean; setter?: boolean } = {}) {
+async function renderLoadedSites(t: TestContext, { saved = 1, fail = false, failure, setter = true }: {
+  saved?: number; fail?: boolean; failure?: string; setter?: boolean;
+} = {}) {
   const writes: number[] = [];
   let changed: ((maximum: number) => void) | undefined;
   const bridge: Partial<RunnerInventoryBridge> = {
@@ -24,6 +26,7 @@ async function renderLoadedSites(t: TestContext, { saved = 1, fail = false, sett
     onMaximumLiveSiteViewsChanged: ({ listener }, _options = {}) => { changed = listener; return () => { changed = undefined; }; },
   };
   if (setter) bridge.setMaximumLiveSiteViews = async ({ maximum }, _options = {}) => {
+    if (failure !== undefined) throw failure;
     if (fail) throw new Error('disk full');
     writes.push(maximum);
     return Math.min(maximum, 5);
@@ -142,4 +145,16 @@ test('Loaded sites: an older preload with no save channel leaves the row out', a
   const view = await renderLoadedSites(t, { setter: false });
   assert.equal(view.input(), null);
   assert.deepEqual(view.all({ selector: '.settings__row > .settings__label' }).map((label) => label.textContent), ['Theme']);
+});
+
+test('a plain-text Loaded sites refusal rolls back and keeps its diagnostic out of the menu', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
+  const view = await renderLoadedSites(t, { saved: 3, failure: 'settings store read-only' });
+  assert.equal(view.input()?.value, '3');
+  await view.click({ el: view.byLabel({ label: 'More loaded sites' }) });
+  assert.equal(view.input()?.value, '3');
+  assert.equal(view.input()?.getAttribute('aria-valuenow'), '3');
+  assert.equal(view.container.querySelector('[role="alert"]')?.textContent, 'Loaded sites could not be saved.');
+  assert.doesNotMatch(view.text(), /settings store read-only/);
+  assert.deepEqual(logged.mock.calls.map(({ arguments: args }) => args), [['[tovu-desktop] save loaded sites: settings store read-only']]);
 });

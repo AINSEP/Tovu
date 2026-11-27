@@ -208,3 +208,21 @@ test('release probe: an unsent public comment survives switching sites without a
   assert.equal(runProbe(t, {}).release, false);
   assert.equal(comment.value, 'My unfinished comment');
 });
+
+test('the release probe returns the admin scroll container\'s position rather than the window position', (t) => {
+  dom.window.history.replaceState(null, '', '/admin/pages');
+  const inner = dom.window.document.createElement('main');
+  inner.className = 'jini-admin-content';
+  inner.scrollTop = 387;
+  dom.window.document.body.append(inner);
+  t.after(() => { inner.remove(); dom.window.history.replaceState(null, '', '/'); });
+  const answer = runProbe(t, {});
+  assert.equal(answer.release, true);
+  assert.equal(answer.url, 'http://localhost/admin/pages');
+  assert.deepEqual([answer.x, answer.y, answer.innerY], [0, 0, 387]);
+  const failure = t.mock.method(dom.window.document, 'querySelector', () => { throw new Error('document detached while probing'); });
+  const refused = runProbe(t, {});
+  assert.equal(refused.release, false);
+  assert.equal(refused.url, undefined);
+  assert.deepEqual(failure.mock.calls.map(({ arguments: args }) => args), [['.jini-admin-content']]);
+});

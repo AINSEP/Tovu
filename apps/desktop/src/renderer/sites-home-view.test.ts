@@ -83,3 +83,12 @@ test('root presentation keeps chrome, guest targets and duplicate-site notices a
   });
   assert.equal(appPresentation({ ...input, showSitesHome: true, appearanceOpen: true }).onSitesHome, false);
 });
+
+test('an open Import tab can show only in the unoccluded Websites home layer', () => {
+  const home = { ...BASE, activeTab: null, isImporting: true };
+  assert.equal(deriveSitesHomeView(home).showImportPage, true);
+  assert.equal(deriveSitesHomeView({ ...home, appearanceOpen: true }).showImportPage, false);
+  assert.equal(deriveSitesHomeView({ ...home, activeTab: '/a' }).showImportPage, false);
+  assert.equal(deriveSitesHomeView({ ...home, activeId: 'agents' }).showImportPage, false);
+  assert.equal(deriveSitesHomeView({ ...home, isImporting: false }).showImportPage, false);
+});

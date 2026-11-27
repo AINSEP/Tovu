@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { withFileLock } from "@jini-ai/platform/fs";
 import { PartitionBusyError, PartitionOpenRefusedError } from "@jini-ai/desktop-host/electron/partitions";
 import { sitePartition } from "./desktop-auth.ts";
-import { bindDesktopPartitions, partitionOpenFailure, nodePartitionFs, NO_RETIREMENT, type DesktopRetirementPort } from "./desktop-partition-lock.ts";
+import { bindDesktopPartitions, partitionOpenFailure, partitionWriterLock, nodePartitionFs, NO_RETIREMENT, type DesktopRetirementPort } from "./desktop-partition-lock.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -178,4 +178,28 @@ test("heldSiteSession answers only a partition this process already holds, and n
   assert.deepEqual(f.invalidated, [], "a lookup must not invalidate a retirement record");
   await f.binding.acquireSite({ siteDir });
   assert.deepEqual(f.binding.heldSiteSession({ partition }), { name: partition });
+});
+
+test("writer identity never treats corrupt data or a foreign hostname as a dead local pid", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-writer-proof-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const lockPath = path.join(root, "writer.lock");
+  const pids: number[] = [];
+  const lock = partitionWriterLock({
+    fs: nodePartitionFs({ fs }), fileLock: { withFileLock },
+    process: { pid: 40, bootId: "boot", hostname: "local", newToken: () => "d0",
+      isAlive: ({ pid }) => { pids.push(pid); return pid === 401; } },
+  });
+  assert.deepEqual(await lock.readToken({ lockPath }), { state: "free" });
+  const check = async (text: string, expected: unknown) => {
+    fs.writeFileSync(lockPath, text);
+    assert.deepEqual(await lock.readToken({ lockPath }), expected);
+  };
+  await check("{", { state: "unknown", reason: "unreadable lock" });
+  await check('{"token":"a1","pid":"401","hostname":"local"}', { state: "unknown", reason: "malformed lock" });
+  await check('{"token":"b1","pid":402,"hostname":"foreign"}', { state: "held", token: "b1", owner: "unknown" });
+  assert.deepEqual(pids, [], "only local, well-formed owners can be probed");
+  await check('{"token":"c1","pid":401,"hostname":"local"}', { state: "held", token: "c1", owner: "live" });
+  await check('{"token":"c2","pid":402,"hostname":"local"}', { state: "held", token: "c2", owner: "dead" });
+  assert.deepEqual(pids, [401, 402]);
 });

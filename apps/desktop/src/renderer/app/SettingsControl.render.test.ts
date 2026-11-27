@@ -155,3 +155,21 @@ test('SettingsControl: sleep defaults to ten and a late startup read cannot repl
   await view.click({ el: view.gear() });
   assert.equal(view.byLabel({ label: '5 min' })?.getAttribute('aria-checked'), 'true');
 });
+
+test('a failed startup sleep read keeps the default and a successful save clears the error', async (t) => {
+  const writes: number[] = [];
+  const view = renderSettings(t, { bridge: {
+    getIdleSiteSleepMinutes: async () => { throw new Error('private profile diagnostic'); },
+    setIdleSiteSleepMinutes: async (value) => { writes.push(value); return 30; },
+  } });
+  await view.click({ el: view.gear() });
+  assert.equal(view.byLabel({ label: '10 min' })?.getAttribute('aria-checked'), 'true');
+  assert.equal(view.container.querySelector('[role="alert"]')?.textContent, 'Sleep idle sites setting could not be loaded.');
+  assert.doesNotMatch(view.text(), /private profile diagnostic/);
+  assert.deepEqual(writes, []);
+  await view.click({ el: view.byLabel({ label: '5 min' }) });
+  assert.deepEqual(writes, [5]);
+  assert.equal(view.byLabel({ label: '30 min' })?.getAttribute('aria-checked'), 'true');
+  assert.equal(view.byLabel({ label: '5 min' })?.getAttribute('aria-checked'), 'false');
+  assert.equal(view.container.querySelector('[role="alert"]'), null);
+});

@@ -1,10 +1,13 @@
 /** Owner 2026-10-09: the nav version comes from Electron through the fixed preload contract. */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import ts from 'typescript';
 import { RUNNER_APP_VERSION_CHANNEL } from './contracts/app-version.ts';
-import { registerAppVersionIpc } from './app-version-ipc.ts';
+import { describeDesktopTag, registerAppVersionIpc } from './app-version-ipc.ts';
 
 /** Read actual wiring expressions without importing Electron or mocking a module. */
 function sourceFile(relative: string): ts.SourceFile {
@@ -100,4 +103,36 @@ test('main registers the version adapter with Electron\'s own app and the repo r
   const registration = findNode(file, (node): node is ts.CallExpression =>
     ts.isCallExpression(node) && node.expression.getText(file) === 'registerAppVersionIpc');
   assert.equal(registration.getText(file), 'registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT })');
+});
+
+test('the real Git port finds the desktop tag past a newer unrelated tag', async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), 'tovu-desktop-version-'));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (...args: string[]) => execFileSync('git', [
+    '-c', 'user.name=Desktop Test', '-c', 'user.email=desktop@example.test', '-c', 'commit.gpgSign=false',
+    '-c', 'tag.gpgSign=false', '-c', 'core.hooksPath=/dev/null', ...args,
+  ], { cwd, stdio: 'pipe' });
+  git('init', '--quiet');
+  git('commit', '--quiet', '--allow-empty', '-m', 'desktop release');
+  await assert.rejects(describeDesktopTag({ cwd }), { code: 128 });
+  git('tag', 'desktop-v8.3.2');
+  git('commit', '--quiet', '--allow-empty', '-m', 'unrelated release');
+  git('tag', 'website-v9.0.0');
+  assert.equal((await describeDesktopTag({ cwd })).trim(), 'desktop-v8.3.2');
+});
+
+test('the real Git port rejects when the executable is absent from PATH', async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), 'tovu-no-git-'));
+  const originalPath = process.env.PATH;
+  const originalAgentHome = process.env.AGENT_RUNTIME_HOME;
+  t.after(() => {
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+    if (originalAgentHome === undefined) delete process.env.AGENT_RUNTIME_HOME;
+    else process.env.AGENT_RUNTIME_HOME = originalAgentHome;
+    rmSync(cwd, { recursive: true, force: true });
+  });
+  process.env.PATH = cwd;
+  process.env.AGENT_RUNTIME_HOME = cwd;
+  await assert.rejects(describeDesktopTag({ cwd }), { message: 'git executable is unavailable.' });
 });

@@ -62,3 +62,45 @@ test("one child at a time", async () => {
   assert.equal(await first, "ran");
   assert.deepEqual(spawned, ["/sites/a"]);
 });
+
+test("the scheduled tick records a failed child once and clears its own interval on dispose", async () => {
+  type Interval = { run: () => void; ms: number };
+  const intervals = new Set<Interval>();
+  const attempts: { dir: string; at: number }[] = [];
+  const spawns: { dir: string }[] = [];
+  const { d } = deps({
+    setInterval: (run, ms) => { const handle = { run, ms }; intervals.add(handle); return handle; },
+    clearInterval: (handle) => { assert.equal(intervals.delete(handle as Interval), true); },
+    recordAttempt: (input) => attempts.push(input),
+    lastAttempt: ({ dir }) => attempts.find((attempt) => attempt.dir === dir)?.at,
+    spawnCompact: async (input) => { spawns.push(input); throw new Error("CLI refused compaction"); },
+  });
+  const trigger = createStorageIdleCompaction(d, { tickMs: 73 })!;
+  assert.deepEqual([...intervals].map(({ ms }) => ms), [73]);
+  for (const { run } of intervals) run();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(attempts, [{ dir: "/sites/a", at: 1_000_000_000 }]);
+  assert.equal(await trigger.tick(), "skipped");
+  assert.deepEqual(spawns, [{ dir: "/sites/a" }]);
+  trigger.dispose();
+  assert.equal(intervals.size, 0);
+});
+
+test("overlapping site selection cannot launch two compaction children", async () => {
+  let measure!: (bytes: number) => void;
+  const size = new Promise<number>((resolve) => { measure = resolve; });
+  let finish!: () => void;
+  const child = new Promise<void>((resolve) => { finish = resolve; });
+  const spawns: { dir: string }[] = [];
+  const { d } = deps({
+    siteBytes: () => size,
+    spawnCompact: async (input) => { spawns.push(input); await child; },
+  });
+  const trigger = createStorageIdleCompaction(d)!;
+  const first = trigger.tick(), second = trigger.tick();
+  measure(1024);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  finish();
+  assert.deepEqual(await Promise.all([first, second]), ["ran", "skipped"]);
+  assert.deepEqual(spawns, [{ dir: "/sites/a" }]);
+});

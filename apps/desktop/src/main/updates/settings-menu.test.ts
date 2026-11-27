@@ -202,3 +202,42 @@ test("Open Recent with no recent sites shows one disabled placeholder", () => {
   const recent = fileMenu(ownServer({ recents: [] }).template)[1]!;
   assert.deepEqual(recent.submenu, [{ label: "No recent sites", enabled: false }]);
 });
+
+test("Loaded sites writes the chosen capacity in the right profile and reports either kind of save error", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "loaded-sites-menu-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const preferencePath = path.join(dir, "desktop-preferences.json");
+  fs.writeFileSync(preferencePath, JSON.stringify({ automaticUpdates: false, maximumLiveSiteViews: 2 }));
+  const errors: unknown[] = [], writes: unknown[] = [];
+  const required = {
+    locale: "en-US", preferencePath, product: { launch: null, consentChanged() {} },
+    setAutomaticUpdates() {},
+    showErrorBox: (input: { title: string; content: string }) => errors.push(input),
+  };
+  const radios = (menu: ReturnType<typeof desktopSettingsMenu>) => {
+    const submenu = menu.submenu.find((item) => item.label === "Loaded sites")?.submenu;
+    assert.ok(Array.isArray(submenu));
+    return submenu as Clickable[];
+  };
+  const selected = (menu: ReturnType<typeof desktopSettingsMenu>) => radios(menu).filter((item) => item.checked).map((item) => item.label);
+  const real = desktopSettingsMenu(required);
+  assert.deepEqual(selected(real), ["2"]);
+  const four = radios(real).find((item) => item.label === "4");
+  assert.ok(four);
+  four.click({ checked: true });
+  assert.deepEqual(JSON.parse(fs.readFileSync(preferencePath, "utf8")), { automaticUpdates: false, maximumLiveSiteViews: 4 });
+  assert.deepEqual(selected(desktopSettingsMenu(required)), ["4"]);
+  assert.deepEqual(errors, []);
+
+  for (const failure of [new Error("locked profile"), "quota exceeded"]) {
+    const failing = desktopSettingsMenu({ ...required, setMaximumLiveSiteViews: (input) => { writes.push(input); throw failure; } });
+    const five = radios(failing).find((item) => item.label === "5");
+    assert.ok(five);
+    const clicked = { checked: true };
+    five.click(clicked);
+    assert.equal(clicked.checked, false);
+    assert.deepEqual(selected(failing), ["4"]);
+  }
+  assert.deepEqual(writes, [{ maximumLiveSiteViews: 5 }, { maximumLiveSiteViews: 5 }]);
+  assert.deepEqual(errors, [{ title: "Tovu", content: "locked profile" }, { title: "Tovu", content: "quota exceeded" }]);
+});

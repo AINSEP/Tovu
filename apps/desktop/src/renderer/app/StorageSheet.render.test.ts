@@ -9,10 +9,10 @@ import { createElement, useState } from 'react';
 import type { DesktopStorageView } from '@tovu/contracts/desktop-storage';
 import { act, fakeSiteSettings, mount, settle, type TestContext } from './component-harness.js';
 import { closeHost } from '../app-render-harness.js';
-import { StorageSheet, type StorageSheetState } from './StorageSheet.js';
+import { StorageSheet, StorageSheetLauncher, type StorageSheetState } from './StorageSheet.js';
 import { TopNav } from './TopNav.js';
 import { STORAGE_SHEET_COPY, StorageButton, storageSheetSlot } from '../storage-sheet-slot.js';
-import { STORAGE_SHEET_ENABLED } from '../../contracts/storage-sheet.js';
+import { STORAGE_SHEET_ENABLED, type StorageSheetBridge } from '../../contracts/storage-sheet.js';
 
 after(closeHost);
 
@@ -94,4 +94,93 @@ test('with the flag off there is no Storage entry on the sites home', async (t) 
   const lit = nav(storageSheetSlot({ enabled: true, bridge }));
   await settle();
   assert.ok(lit.container.querySelector('.topnav__storage'), 'the entry exists only when the flag is on');
+});
+
+test('the real Storage slot loads on open, waits for confirmation, and displays the refreshed list', async (t) => {
+  const calls: unknown[][] = [];
+  let removed = false;
+  const bridge: StorageSheetBridge = {
+    list: async () => {
+      calls.push(['list']);
+      return removed ? { ...VIEW, signIns: { state: 'ok', items: [] } } : VIEW;
+    },
+    preview: async (input) => {
+      calls.push(['preview', input]);
+      return { state: 'ready', confirmationId: 'remove-g1', action: 'remove-sign-in', label: 'Unknown website' };
+    },
+    act: async (input) => {
+      calls.push(['act', input]);
+      removed = input.confirmationId === 'remove-g1';
+      return { state: 'done' };
+    },
+  };
+  const slot = storageSheetSlot({ enabled: true, bridge });
+  assert.ok(slot);
+  const view = mount({ t, element: createElement(StorageSheetLauncher, { slot }) });
+  const sheet = () => view.container.querySelector('section[aria-label="Storage"]');
+  const click = async (label: string) => {
+    const button = [...view.container.querySelectorAll('button')].find((node) => node.textContent === label);
+    assert.ok(button, label);
+    await view.click({ el: button });
+  };
+
+  assert.equal(sheet(), null);
+  assert.deepEqual(calls, []);
+  await click('Storage');
+  await settle();
+  assert.equal(sheet()?.querySelector('h2')?.textContent, 'Storage');
+  assert.match(sheet()?.textContent ?? '', /Unknown website/);
+  await click('Remove sign-in');
+  await settle();
+  assert.match(sheet()?.querySelector('.storage-sheet__confirm')?.textContent ?? '', /Remove the saved sign-in for Unknown website\?/);
+  assert.deepEqual(calls, [['list'], ['preview', { id: 'g1', action: 'remove-sign-in' }]]);
+  await click('Cancel');
+  assert.equal(sheet()?.querySelector('.storage-sheet__confirm'), null);
+  assert.equal(removed, false);
+  await click('Remove sign-in');
+  await settle();
+  await click('Confirm');
+  await settle();
+  assert.deepEqual(calls, [['list'], ['preview', { id: 'g1', action: 'remove-sign-in' }],
+    ['preview', { id: 'g1', action: 'remove-sign-in' }], ['act', { confirmationId: 'remove-g1' }], ['list']]);
+  assert.equal(sheet()?.querySelector('[role="status"]')?.textContent, 'Done.');
+  assert.doesNotMatch(sheet()?.textContent ?? '', /Unknown website/);
+  await click('Close');
+  assert.equal(sheet(), null);
+});
+
+test('Storage reports failed preview and act as refreshed lists without exposing rejection details', async (t) => {
+  let listings = 0, previews = 0;
+  const actions: unknown[] = [];
+  const bridge: StorageSheetBridge = {
+    list: async () => ({ ...VIEW, sites: [{ ...VIEW.sites[0]!, label: `Bakery revision ${++listings}` }] }),
+    preview: async () => {
+      if (++previews === 1) throw new Error('internal preview failure');
+      return { state: 'ready', confirmationId: 'reviewed', action: 'remove-sign-in', label: 'Unknown website' };
+    },
+    act: async (input) => { actions.push(input); throw new Error('internal act failure'); },
+  };
+  const slot = storageSheetSlot({ enabled: true, bridge });
+  assert.ok(slot);
+  const view = mount({ t, element: createElement(StorageSheet, { ...slot, onClose: () => {} }) });
+  const click = async (label: string) => {
+    const button = [...view.container.querySelectorAll('button')].find((node) => node.textContent === label);
+    assert.ok(button, label);
+    await view.click({ el: button });
+    await settle();
+  };
+  await settle();
+  assert.match(view.container.textContent ?? '', /Bakery revision 1/);
+  await click('Remove sign-in');
+  assert.equal(view.container.querySelector('.storage-sheet__confirm'), null);
+  assert.match(view.container.textContent ?? '', /Bakery revision 2/);
+  assert.equal(view.container.querySelector('[role="status"]')?.textContent, 'The list changed. It has been refreshed.');
+  assert.deepEqual(actions, []);
+  await click('Remove sign-in');
+  await click('Confirm');
+  assert.deepEqual(actions, [{ confirmationId: 'reviewed' }]);
+  assert.equal(view.container.querySelector('.storage-sheet__confirm'), null);
+  assert.match(view.container.textContent ?? '', /Bakery revision 3/);
+  assert.equal(view.container.querySelector('[role="status"]')?.textContent, 'The list changed. It has been refreshed.');
+  assert.doesNotMatch(view.container.textContent ?? '', /internal (preview|act) failure/);
 });

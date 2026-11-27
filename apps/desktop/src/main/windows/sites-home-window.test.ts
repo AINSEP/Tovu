@@ -232,3 +232,19 @@ test("only the renderer's own file may load; a remote page goes to the OS browse
   assert.deepEqual(home.opened, ["https://evil.example/"]);
   assert.deepEqual(home.window.webContents.popup?.({ url: "https://evil.example/" }), { action: "deny" });
 });
+
+test("preview registration belongs to the exact shell and guest that emitted attach", () => {
+  const registrations: { window: FakeHomeWindow; webContents: SpellCheckWebContents }[] = [];
+  const home = fakeHome({ registerPreviewGuest: (input) => registrations.push(input) });
+  openSitesHomeWindow({ ports: home.ports });
+  const attached = home.window.webContents.listeners.get("did-attach-webview") as (event: unknown, contents: SpellCheckWebContents) => void;
+  assert.deepEqual(registrations, [], "no guest exists during shell construction");
+  const first = fakeContents([]), second = fakeContents([]);
+  attached({}, first);
+  attached({}, second);
+  assert.deepEqual(registrations, [
+    { window: home.window, webContents: first }, { window: home.window, webContents: second },
+  ]);
+  assert.equal(registrations[0]?.webContents, first);
+  assert.equal(registrations[1]?.webContents, second);
+});

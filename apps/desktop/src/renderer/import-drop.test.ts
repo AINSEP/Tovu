@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { classifyImportDrop } from './import-drop.js';
+import { classifyImportDrop, classifyImportFiles } from './import-drop.js';
 
 const file = (name: string) => ({ name }) as File;
 const fileItem = (isDirectory: boolean) => ({ kind: 'file', webkitGetAsEntry: () => ({ isDirectory }) });
@@ -18,4 +18,10 @@ test('wrong types, several items and a pathless file get a plain sentence', () =
   assert.match(JSON.stringify(refused(drop([], []))), /website folder or a \.tovu\.zip/);
   assert.match(JSON.stringify(refused(drop([file('a.zip'), file('b.zip')], [fileItem(false), fileItem(false)]))), /one website at a time/);
   assert.match(JSON.stringify(refused(drop([file('a.zip')], [fileItem(false)]), () => '')), /Choose file/);
+});
+
+test('the picker refuses multiple valid archives before resolving any path', () => {
+  const selected = [file('sale.tovu.zip'), file('blog.tovu.zip')];
+  assert.deepEqual(classifyImportFiles({ files: selected, getPathForFile: () => assert.fail('must not pick either archive') }),
+    { kind: 'refused', message: 'Drop one website at a time.' });
 });

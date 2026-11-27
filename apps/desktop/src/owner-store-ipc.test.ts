@@ -296,3 +296,30 @@ test('global disconnect requires native approval and binds apply to the reviewed
   }
   assert.equal(calls.length, count);
 });
+
+test('a failed reviewed disconnect returns the apply refusal and does not run any further write', async () => {
+  const calls: Parameters<Run>[0][] = [];
+  const review = { id: 'oauth', label: 'Mail', sites: ['Catalog'], revision: 5, sourceDigest: 'canonical-review',
+    applied: false, status: 'connected', remoteRevocation: 'pending' as const };
+  const approved: unknown[] = [];
+  const refusal = { version: 1, ok: false, action: 'disconnect', error: {
+    code: 'source-changed', message: 'The import source changed after it was reviewed. Run the import again.',
+  } } as const;
+  const run: Run = async (input) => {
+    calls.push(input);
+    assert.equal(input.action, 'disconnect');
+    return (calls.length === 1
+      ? { version: 1, ok: true, action: 'disconnect', data: review }
+      : refusal) as OwnerStoreReply<typeof input.action>;
+  };
+  const controller = createOwnerStoreController({
+    run, pickBackup: async () => null, confirmImport: async () => false,
+    confirmDisconnect: async ({ report }) => { approved.push(report); return true; },
+  });
+  assert.deepEqual(await controller.execute({ action: 'disconnect', input: { id: 'oauth', expectedRevision: 5 } }), refusal);
+  assert.deepEqual(approved, [review]);
+  assert.deepEqual(calls, [
+    { action: 'disconnect', fields: { id: 'oauth', expectedRevision: 5, apply: false } },
+    { action: 'disconnect', fields: { id: 'oauth', expectedRevision: 5, apply: true, expectedDigest: 'canonical-review' } },
+  ]);
+});

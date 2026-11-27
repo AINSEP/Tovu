@@ -112,3 +112,42 @@ test('preview eligibility checks shell URL, owner, host webContents and actual p
   assert.equal(isLivePreviewGuestAllowed({ ...input, owner: { ...owner, isDestroyed: () => true } }), false);
   assert.equal(isLivePreviewGuestAllowed({ ...input, owner: { ...owner, webContents: { getURL: () => 'file:///foreign.html' } } }), false);
 });
+
+test('an eligible HTTPS guest exposes its live URL and delegates each capture to that guest', async () => {
+  const target = { siteDir: '/sites/store', port: 5443, partition: 'persist:store', scheme: 'https' as const };
+  const owner = { isDestroyed: () => false };
+  let url = 'https://localhost:5443/catalog';
+  const page = { resize: () => ({ toPNG: () => Buffer.from('store preview') }) };
+  let captures = 0;
+  const guest = Object.assign(new EventEmitter(), {
+    getURL: () => url, isDestroyed: () => false, isLoading: () => false,
+    capturePage: async () => { captures++; return page; },
+  });
+  const scheduled: { siteDir: string }[] = [];
+  const guests = createLivePreviewGuests<typeof owner, typeof guest>({
+    resolve: ({ url: requested }) => new URL(requested).pathname.startsWith('/catalog') ? target : undefined,
+    allowed: (input) => input.owner === owner && input.guest === guest && input.target === target,
+    schedule: (input) => scheduled.push(input),
+    cancel: () => {},
+  });
+  const off = guests.register({ owner, guest });
+  try {
+    guest.emit('did-finish-load');
+    assert.deepEqual(scheduled, [{ siteDir: '/sites/store' }]);
+    const preview = guests.liveGuest({ siteDir: '/sites/store' });
+    assert.ok(preview);
+    assert.equal(preview.partition, 'persist:store');
+    assert.equal(preview.getURL(), 'https://localhost:5443/catalog');
+    url = 'https://localhost:5443/catalog/item';
+    assert.equal(preview.getURL(), url);
+    assert.equal(preview.isCurrent(), true);
+    assert.equal(await preview.capturePage(), page);
+    assert.equal(await preview.capturePage(), page);
+    assert.equal(captures, 2);
+    url = 'https://localhost:5443/unregistered';
+    assert.equal(preview.isCurrent(), false);
+    assert.equal(guests.liveGuest({ siteDir: '/sites/store' }), undefined);
+  } finally {
+    off();
+  }
+});

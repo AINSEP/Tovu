@@ -29,3 +29,16 @@ test("an unreadable icon is logged and the boot carries on", () => {
   }));
   assert.deepEqual(logs, ["tovu desktop: could not set the dock icon (Failed to load image) — using the default."]);
 });
+
+test("a dock throwing a non-Error still logs the native refusal", () => {
+  const logs: { message: string }[] = [];
+  applyDockIcon({
+    dock: { setIcon: (iconPath) => {
+      assert.equal(iconPath, "/brand/icon.png");
+      throw "native image decoder refused";
+    } },
+    iconPath: "/brand/icon.png",
+    log: (event) => logs.push(event),
+  });
+  assert.deepEqual(logs, [{ message: "tovu desktop: could not set the dock icon (native image decoder refused) — using the default." }]);
+});

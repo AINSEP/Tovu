@@ -577,3 +577,10 @@ test("an image with only summary counters cannot be unioned, so that axis keeps 
   assert.deepEqual(counted(["LF:10", "LH:3"], ["DA:1,1", "DA:2,0", "LF:2", "LH:1"]), { lf: 10, lh: 3, brf: 0, brh: 0, fnf: 0, fnh: 0 });
   assert.deepEqual(counted(["LF:10", "LH:3", "BRF:4", "BRH:1"], ["LF:10", "LH:9", "BRF:4", "BRH:0"]), { lf: 10, lh: 9, brf: 4, brh: 1, fnf: 0, fnh: 0 });
 });
+
+test("summary-only ties keep the first image independently for each axis", () => {
+  assert.deepEqual(counted(
+    ["LF:12", "LH:5", "BRF:7", "BRH:2", "FNF:4", "FNH:1"],
+    ["LF:8", "LH:5", "BRF:4", "BRH:3", "FNF:2", "FNH:1"],
+  ), { lf: 12, lh: 5, brf: 4, brh: 3, fnf: 4, fnh: 1 });
+});
