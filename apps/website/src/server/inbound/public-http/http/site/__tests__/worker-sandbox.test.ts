@@ -44,6 +44,51 @@ test("source worker setup preserves stdin stat failures other than EBADF", () =>
   assert.equal(result.status, 0, result.stderr);
 });
 
+test("a source worker setup failure removes the partial bundle directory and preserves its cause", t => {
+  const isolatedTmp = mkdtempSync(path.join(tmpdir(), "tovu-worker-fault-"));
+  t.after(() => rmSync(isolatedTmp, { recursive: true, force: true }));
+  // The source bundle promise and the filesystem override live only in this cold subprocess.
+  const script = `
+    import assert from "node:assert/strict";
+    import fs from "node:fs";
+    import { tmpdir } from "node:os";
+    import path from "node:path";
+    import { syncBuiltinESMExports } from "node:module";
+    import { renderInWorkerSandbox } from ${JSON.stringify(new URL("../worker-sandbox.ts", import.meta.url).href)};
+    const failure = Object.assign(new Error("worker dependency link is not writable"), { code: "EACCES" });
+    const original = fs.symlinkSync;
+    let partialDirectory;
+    fs.symlinkSync = (from, to, type) => {
+      const directory = path.dirname(to);
+      if (path.dirname(directory) === tmpdir() && path.basename(directory).startsWith("tovu-theme-workers-")) {
+        partialDirectory = directory;
+        throw failure;
+      }
+      return original(from, to, type);
+    };
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(
+        renderInWorkerSandbox({ workerBasename: "liquid-worker", errorLabel: "Liquid", input: { source: "", ctx: {} } }),
+        error => error === failure,
+      );
+      assert.ok(partialDirectory, "setup attempted the dependency link");
+      assert.equal(fs.existsSync(partialDirectory), false, "cleanup precedes the rejected render");
+    } finally {
+      fs.symlinkSync = original;
+      syncBuiltinESMExports();
+    }
+  `;
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", script], {
+    cwd: path.resolve(import.meta.dirname, "../../../../../../../../.."),
+    env: { ...process.env, TMPDIR: isolatedTmp, TEMP: isolatedTmp, TMP: isolatedTmp },
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("compiled JavaScript runs both real template workers and reports missing-entry and silent-exit failures without a TS loader", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "tovu-compiled-sandbox-"));
   const siteDir = path.resolve(import.meta.dirname, "..");

@@ -4,6 +4,7 @@ import test from "node:test";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { memberCompletionCredential } from "@jini-ai/cms/public-http/routes/members/complete-sign-in";
 import { readOidcEmailProof } from "@jini-ai/user-management/member-login/oidc-request";
+import { memberStringBody } from "../deps.js";
 
 /**
  * @file F6 fix wave (L12 Stryker top-5): the emailed six-digit code and the strict proof DTO, one
@@ -52,4 +53,30 @@ test("sign-in completion prefers a link token, and refuses a code without a chal
   assert.equal(memberCompletionCredential({ body: { token: "" } }), null);
   assert.equal(memberCompletionCredential({ body: { challengeId: "", code: "123456" } }), null);
   assert.equal(memberCompletionCredential({ body: { code: "123456" } }), null);
+});
+
+test("the member sign-in DTO accepts just email and the optional string return path", () => {
+  const email = "reader@example.test";
+  assert.deepEqual(memberStringBody({ kind: "signIn", body: { email } }), { email });
+  assert.deepEqual(memberStringBody({ kind: "signIn", body: { email, redirectPath: "/account" } }), {
+    email, redirectPath: "/account",
+  });
+});
+
+test("the member sign-in DTO refuses non-record bodies", () => {
+  for (const body of [null, "reader@example.test", [{ email: "reader@example.test" }]]) {
+    assert.equal(memberStringBody({ kind: "signIn", body }), null);
+  }
+});
+
+test("the member sign-in DTO refuses missing, non-string or unrecognized fields", () => {
+  const email = "reader@example.test";
+  for (const [label, body] of [
+    ["missing email", { redirectPath: "/account" }],
+    ["non-string email", { email: 17 }],
+    ["non-string optional return path", { email, redirectPath: 17 }],
+    ["unrecognized field", { email, workspaceId: "other" }],
+  ] as const) {
+    assert.equal(memberStringBody({ kind: "signIn", body }), null, label);
+  }
 });

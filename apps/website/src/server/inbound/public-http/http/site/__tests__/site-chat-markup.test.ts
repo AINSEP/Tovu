@@ -64,3 +64,52 @@ test('the host chat bubble and loader are untagged necessary features', () => {
   assert.equal(markup.body.includes('<button type="button" class="jini-chat-bubble" data-jini-chat-loader'), true);
   assert.equal(markup.body.includes('<script defer src="/site-chat/site-assistant-loader.js"></script>'), true);
 });
+
+test('successful asset probes are bounded to the sixteen newest deployments', () => {
+  const expectedFiles = ['site-assistant-loader.js', 'site-assistant.js', 'site-assistant.css'];
+  const available = new Map(Array.from({ length: 17 }, (_, index) =>
+    [`/deploy/${index}`, new Set(expectedFiles)] as const));
+  const probes: string[] = [];
+  const isReady = createSiteChatAssetReadiness({
+    exists: ({ directory, name }) => {
+      probes.push(`${directory}/${name}`);
+      return available.get(directory)?.has(name) ?? false;
+    },
+  });
+  const ready = (index: number) => isReady({ directory: `/deploy/${index}`, variant: 'react' });
+
+  for (let index = 0; index < 16; index++) assert.equal(ready(index), true);
+  available.get('/deploy/0')?.delete('site-assistant.css');
+  probes.length = 0;
+  assert.equal(ready(0), true);
+  assert.deepEqual(probes, [], 'the first deployment remains cached at exactly sixteen');
+
+  assert.equal(ready(16), true);
+  probes.length = 0;
+  assert.equal(ready(1), true);
+  assert.deepEqual(probes, [], 'inserting one deployment did not evict the whole cache');
+  assert.equal(ready(0), false, 'the evicted deployment is checked against its current files');
+  assert.deepEqual(probes, [
+    '/deploy/0/site-assistant-loader.js', '/deploy/0/site-assistant.js', '/deploy/0/site-assistant.css',
+  ]);
+});
+
+test('a completed React build does not mark the lightweight build ready, and missing assets are retried', () => {
+  const files = new Set(['site-assistant-loader.js', 'site-assistant.js', 'site-assistant.css', 'site-assistant-vanilla.js']);
+  const probes: string[] = [];
+  const isReady = createSiteChatAssetReadiness({
+    exists: ({ directory, name }) => {
+      probes.push(name);
+      return directory === '/new-release' && files.has(name);
+    },
+  });
+  assert.equal(isReady({ directory: '/new-release', variant: 'react' }), true);
+  probes.length = 0;
+  assert.equal(isReady({ directory: '/new-release', variant: 'vanilla' }), false);
+  assert.deepEqual(probes, ['site-assistant-loader.js', 'site-assistant-vanilla.js', 'site-assistant-vanilla.css']);
+
+  files.add('site-assistant-vanilla.css');
+  probes.length = 0;
+  assert.equal(isReady({ directory: '/new-release', variant: 'vanilla' }), true);
+  assert.deepEqual(probes, ['site-assistant-loader.js', 'site-assistant-vanilla.js', 'site-assistant-vanilla.css']);
+});

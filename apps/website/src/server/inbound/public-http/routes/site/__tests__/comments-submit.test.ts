@@ -5,6 +5,8 @@ import express from "express";
 
 import type { CommentSubmission } from "@jini-ai/cms/comments";
 import type { CommentIngressPolicy, CommentIngressResult } from "@jini-ai/cms/comments";
+import type { ProductEvent } from "@jini-ai/core/contracts/observability";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import { registerCommentsSubmitRoute, isSameOriginCommentPost } from "../comments-submit.js";
 import { commentFormReturnTo } from "@jini-ai/cms/public-http/routes/site/comments-submit";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -27,6 +29,60 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
  */
 
 const WORKSPACE_ID = "workspace-1";
+
+test("a stored comment emits only the entry and moderation state after the visitor's consent is verified", { timeout: 3000 }, async t => {
+  const app = express();
+  app.use(express.json());
+  const events: ProductEvent[] = [];
+  const delivered = Promise.withResolvers<void>();
+  const proofs: { receiptId: string; policyVersion: string }[] = [];
+  const requestPaths: string[] = [];
+  const submissions: [string, string][] = [];
+  const now = "2026-10-25T12:00:00.000Z";
+  registerCommentsSubmitRoute({ app, deps: {
+    workspaceId: WORKSPACE_ID,
+    ipHashSalt: Promise.resolve("fixture-site-salt"),
+    rateLimiter: { check: async () => ({ allowed: true }) },
+    ingressPolicy: { submit: async submission => {
+      submissions.push([submission.entryId, submission.bodyRaw]);
+      return { ok: true, autoClassified: "pending", comment: {
+        id: "comment-1", workspaceId: WORKSPACE_ID, entryId: submission.entryId, parentId: null,
+        threadRootId: "comment-1", depth: 0, status: "pending", authorPrincipalId: null,
+        authorName: submission.authorName, authorEmail: submission.authorEmail ?? null, authorUrl: null,
+        authorIpHash: null, bodyText: submission.bodyRaw, spamScore: null, spamProvider: null,
+        createdAt: now, updatedAt: now, version: 1,
+      } };
+    } },
+    idGen: { newId: () => "comment-visitor" },
+    visitorAnalyticsProof: async ({ request }) => {
+      requestPaths.push(request.originalUrl);
+      return { receiptId: "receipt-comment", policyVersion: "policy-4" };
+    },
+    visitorAnalyticsDeliveryAllowed: async ({ proof }) => {
+      proofs.push(proof);
+      return true;
+    },
+    visitorTracker: createTracker({ productAnalytics: {
+      capture(event) { events.push(event); delivered.resolve(); },
+      identify() {},
+    } }),
+  } });
+  const base = await startTestServer(app, t);
+  const response = await fetch(`${base}/api/site/comments`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: base },
+    body: JSON.stringify({ entryId: "article-9", authorName: "Visitor", authorEmail: "private@example.test", body: "Private draft text" }),
+  });
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), { id: "comment-1", status: "pending" });
+  await delivered.promise;
+  assert.deepEqual(submissions, [["article-9", "Private draft text"]]);
+  assert.deepEqual(requestPaths, ["/api/site/comments"]);
+  assert.deepEqual(proofs, [{ receiptId: "receipt-comment", policyVersion: "policy-4" }]);
+  assert.deepEqual(events, [{
+    name: "comment_submitted", userId: "visitor:comment-visitor", properties: { entryId: "article-9", moderationState: "pending" },
+  }]);
+});
 
 function buildApp(
   submitImpl: CommentIngressPolicy["submit"],

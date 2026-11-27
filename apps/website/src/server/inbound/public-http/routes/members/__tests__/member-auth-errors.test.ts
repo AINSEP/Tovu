@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { createCapturingResponse, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { respondToSignInError, reportMemberDeliveryFailure } from "../sign-in.js";
-import { sendMemberAuthError } from "../complete-sign-in.js";
+import { sendMemberAuthError, setMemberSessionCookie } from "../complete-sign-in.js";
 import { MemberAuthError } from "@jini-ai/user-management/members/types";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 
@@ -52,4 +52,24 @@ test("site-wide sender setup refusal stays 503 without leaking a provider except
   assert.deepEqual(capture.jsonBody, { error: "Member sign-in is unavailable: email is not set up for this site.", code: "MEMBER_SIGN_IN_UNAVAILABLE" });
   assert.doesNotMatch(JSON.stringify(capture.jsonBody), /PROVIDER_CANARY|ws-private/);
   assert.equal(logs.mock.calls.length, 0, "a known refusal is not an incident");
+});
+
+test("the member cookie writer appends a scoped session without replacing earlier cookies", async t => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-24T12:00:00.000Z") });
+  const app = express();
+  app.post("/complete", (_req, res) => {
+    res.append("Set-Cookie", "preference=compact; Path=/");
+    setMemberSessionCookie({ res, rawToken: "signed+value", expiresAtIso: "2026-10-24T12:01:30.000Z" });
+    res.status(204).end();
+  });
+  const result = await fetch(`${await startTestServer(app, t)}/complete`, { method: "POST" });
+  assert.equal(result.status, 204);
+  const cookies = result.headers.getSetCookie();
+  assert.equal(cookies.length, 2);
+  assert.equal(cookies[0], "preference=compact; Path=/");
+  const [value, ...attributes] = cookies[1]!.split("; ");
+  assert.equal(value, "tovu_member_session=signed%2Bvalue");
+  assert.deepEqual(new Set(attributes), new Set([
+    "Max-Age=90", "Path=/", "Expires=Sat, 24 Oct 2026 12:01:30 GMT", "HttpOnly", "Secure", "SameSite=Lax",
+  ]));
 });

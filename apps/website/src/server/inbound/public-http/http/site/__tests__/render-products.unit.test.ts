@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { SiteProduct, SiteRenderContext } from "@jini-ai/cms/public-http/http/site/render-context";
 import { buildTemplateRenderData } from "../render/template-render-data.js";
+import { renderSite } from "../render-site.js";
 
 /**
  * @file Focused, isolated coverage for `buildTemplateRenderData`'s product mapping (2026-08-12:
@@ -112,4 +113,12 @@ test("buildTemplateRenderData: prices honor zero- and three-decimal currencies o
   assert.equal(products[0].compareAtPriceFormatted, "¥3,500");
   assert.equal(products[1].priceFormatted, "KWD 1.234");
   assert.equal((data.product as Record<string, unknown>).priceFormatted, "€99.00");
+});
+
+test("the themeless product detail formats the price using the product's zero-decimal currency", async () => {
+  const html = await renderSite({
+    theme: null, route: "product", siteTitle: "Tea Shop", posts: [],
+    product: siteProduct({ title: "Cup & saucer", price: 2800, currency: "JPY" }),
+  });
+  assert.match(html, /<article class="entry"><h1 class="entry-title">Cup &amp; saucer<\/h1><p class="entry-meta">¥2,800<\/p><\/article>/);
 });

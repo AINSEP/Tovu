@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import express, { type ErrorRequestHandler, type Request } from 'express';
+import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { createFormsAdmissionMiddleware } from '../forms-admission.js';
 
 test('source and site admission runs before a body reader and uses injected time without sleeping', async () => {
@@ -61,4 +63,39 @@ test('JSON admission refusals retain their original wire response when native re
   assert.equal(nativeCalls, 0);
   assert.deepEqual(statuses, [429]);
   assert.deepEqual(bodies, [{ code: 'FORMS_RATE_LIMIT_EXCEEDED', error: 'Too many form requests. Wait 60 seconds, then send the form again.' }]);
+});
+
+test('a failed native refusal renderer reaches Express error handling without admitting the blocked submission', async t => {
+  const app = express();
+  const error = new Error('native refusal renderer is unavailable');
+  const attempts: { request: Request; retryAfterSeconds: number }[] = [];
+  const forwarded: unknown[] = [];
+  let admitted = 0;
+  app.post('/forms/contact/submit',
+    createFormsAdmissionMiddleware({ workspaceId: 'fixture', clock: { nowMs: () => 0 } }, {
+      async onHtmlRefusal({ request, retryAfterSeconds }) {
+        attempts.push({ request, retryAfterSeconds });
+        throw error;
+      },
+    }),
+    (_req, res) => { admitted++; res.status(202).end(); },
+  );
+  const handleError: ErrorRequestHandler = (failure, _req, res, _next) => {
+    forwarded.push(failure);
+    res.status(503).send('Please retry later');
+  };
+  app.use(handleError);
+  const url = `${await startTestServer(app, t)}/forms/contact/submit`;
+  const submit = () => fetch(url, { method: 'POST', headers: { accept: 'text/html' } });
+  for (let index = 0; index < 5; index++) assert.equal((await submit()).status, 202);
+
+  const blocked = await submit();
+  assert.equal(blocked.status, 503);
+  assert.equal(blocked.headers.get('retry-after'), '60');
+  assert.equal(await blocked.text(), 'Please retry later');
+  assert.equal(admitted, 5);
+  assert.equal(attempts.length, 1);
+  assert.equal(attempts[0]?.request.originalUrl, '/forms/contact/submit');
+  assert.equal(attempts[0]?.retryAfterSeconds, 60);
+  assert.deepEqual(forwarded, [error]);
 });

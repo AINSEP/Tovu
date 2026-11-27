@@ -209,6 +209,38 @@ test("admin errors with statusCode 413 are delegated unchanged before a response
   assert.equal(logged.mock.callCount(), 0);
 });
 
+test("a valid admin error status takes precedence over a conflicting statusCode", async t => {
+  const publicRefusal = Object.assign(new Error("required field missing"), { status: 422, statusCode: 500 });
+  const privateFailure = Object.assign(new Error("private backend detail"), { status: 503, statusCode: 422 });
+  const delegated: unknown[] = [];
+  const incidents: unknown[] = [];
+  const app = express();
+  app.locals.failureReporter = {
+    record(input: unknown) { incidents.push(input); return { errorId: "ERR-1000-2000-3000-4000" }; },
+  };
+  app.get("/api/admin/v1/client-refusal", (_req, _res, next) => next(publicRefusal));
+  app.get("/api/admin/v1/server-failure", (_req, _res, next) => next(privateFailure));
+  app.use(captureRouteError);
+  const writeDelegated: express.ErrorRequestHandler = (error, _req, res, _next) => {
+    delegated.push(error);
+    res.status(error.status).json({ code: "EDIT_REFUSED" });
+  };
+  app.use(writeDelegated);
+  const base = await startTestServer(app, t);
+
+  const invalid = await fetch(`${base}/api/admin/v1/client-refusal`);
+  assert.equal(invalid.status, 422);
+  assert.deepEqual(await invalid.json(), { code: "EDIT_REFUSED" });
+  assert.deepEqual(delegated, [publicRefusal]);
+  assert.deepEqual(incidents, []);
+
+  const fault = await fetch(`${base}/api/admin/v1/server-failure`);
+  assert.equal(fault.status, 500);
+  assert.equal((await fault.json() as { errorId: string }).errorId, "ERR-1000-2000-3000-4000");
+  assert.deepEqual(delegated, [publicRefusal]);
+  assert.equal(incidents.length, 1);
+});
+
 /** The bound host shape `createApp` installs: one site reporter over the request's real tracker, on `res.locals`. */
 async function bootWithReporter(t: test.TestContext, routes: (app: express.Express, tracker: ReturnType<typeof createTracker>, reporter: ReturnType<typeof createTovuErrorReporter>) => void) {
   const { port, reports } = recording();

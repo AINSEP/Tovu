@@ -8,6 +8,8 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 import express from "express";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
+import type { ProductEvent } from "@jini-ai/core/contracts/observability";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
 import { type MemberRecord } from "@jini-ai/user-management/members/types";
@@ -134,6 +136,43 @@ test("S3 provider metadata and plain start expose no client secrets; callback co
   assert.equal(started.location.searchParams.get("redirect_uri"), `https://site.example${OIDC}/callback`);
 });
 
+test("OIDC start and callback bind consent to their own requests and report only bounded outcomes", { timeout: 5000 }, async t => {
+  const f = fixture();
+  const events: ProductEvent[] = [];
+  const paths: string[] = [];
+  const requested = Promise.withResolvers<void>();
+  const failed = Promise.withResolvers<void>();
+  f.members.visitorTracker = createTracker({ productAnalytics: {
+    capture(event) {
+      events.push(event);
+      if (event.name === "member_sign_in_requested") requested.resolve();
+      if (event.name === "member_sign_in_failed") failed.resolve();
+    },
+    identify() {},
+  } });
+  f.members.visitorAnalyticsProof = async ({ request }) => {
+    paths.push(request.path);
+    return { receiptId: "oidc-policy-receipt", policyVersion: "1" };
+  };
+  f.members.visitorAnalyticsDeliveryAllowed = async ({ proof }) =>
+    proof.receiptId === "oidc-policy-receipt" && proof.policyVersion === "1";
+  const base = await startTestServer(f.app, t);
+
+  const started = await f.start(base);
+  assert.ok(started.binding.startsWith("__Secure-tovu_member_login_binding="));
+  await requested.promise;
+  const denied = await callback(base, new URLSearchParams({ error: "access_denied" }), started.binding);
+  refusedTo(denied, "LOGIN_CANCELLED");
+  await failed.promise;
+
+  assert.deepEqual(paths, [`${OIDC}/start`, `${OIDC}/callback`]);
+  assert.deepEqual(events.map(({ name, properties }) => ({ name, properties })), [
+    { name: "member_sign_in_requested", properties: { method: "oidc", realm: "member" } },
+    { name: "member_sign_in_failed", properties: { method: "oidc", realm: "member", reasonClass: "authentication_failed" } },
+  ]);
+  assert.equal(f.exchanges(), 0);
+});
+
 for (const proof of ["missing", "wrong", "duplicate", "duplicate-spaced", "forwarded"] as const) {
   test(`S3 ${proof} callback binding refuses before exchange and clears cookie`, async t => {
     const f = fixture(), base = await startTestServer(f.app, t), start = await f.start(base);
@@ -247,6 +286,43 @@ test("S3 custom domain requires one browser-bound emailed code; retries spend bu
   assert.equal((await post(base, `${OIDC}/verify-email`, proof.body, proof.binding)).status, 401);
   const again = await f.start(base), login = await callback(base, again.params, again.binding);
   assert.equal(login.headers.get("location"), "/account"); assert.equal(f.sent.length, 1);
+});
+
+test("OIDC email verification reports the committed member session without including the email or proof", { timeout: 5000 }, async t => {
+  const f = fixture({ email: "person@custom.example" });
+  const base = await startTestServer(f.app, t);
+  const proof = await emailContinuation(f, base);
+  const captured = Promise.withResolvers<void>();
+  const events: ProductEvent[] = [];
+  const proofPaths: string[] = [];
+  f.members.visitorTracker = createTracker({ productAnalytics: {
+    capture(event) {
+      if (event.name === "member_signed_in") { events.push(event); captured.resolve(); }
+    },
+    identify() {},
+  } });
+  f.members.visitorAnalyticsProof = async ({ request }) => {
+    proofPaths.push(request.path);
+    return { receiptId: "verify-receipt", policyVersion: "1" };
+  };
+  f.members.visitorAnalyticsDeliveryAllowed = async ({ proof: consent }) =>
+    consent.receiptId === "verify-receipt" && consent.policyVersion === "1";
+
+  const response = await post(base, `${OIDC}/verify-email`, proof.body, proof.binding);
+  assert.equal(response.status, 200);
+  const { member, returnPath } = await response.json() as { member: { id: string }; returnPath: string };
+  assert.equal(returnPath, "/account");
+  assert.ok(cookie(response, "tovu_member_session").startsWith("tovu_member_session="));
+  const sessions = (await f.members.memberSessionRepo.listByMember({ workspaceId: "ws", memberId: member.id }))
+    .filter(session => !session.revokedAt);
+  assert.equal(sessions.length, 1);
+  const [session] = sessions;
+  await captured.promise;
+  assert.deepEqual([...new Set(proofPaths)], [`${OIDC}/verify-email`]);
+  assert.deepEqual(events, [{
+    name: "member_signed_in", userId: `member:ws:${member.id}`,
+    properties: { eventId: `member-signed-in:${session!.id}`, method: "oidc", realm: "member", isNewMember: true },
+  }]);
 });
 
 for (const mode of ["missing", "wrong", "duplicate", "tamper", "expire", "disable", "csrf", "inject"] as const) {

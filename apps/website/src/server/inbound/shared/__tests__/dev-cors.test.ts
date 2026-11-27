@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express, Request, Response } from "express";
+import express from "express";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { applyDevCors, defaultDevCorsOrigins, isDevCorsEnabled } from "../dev-cors.js";
 
 type Middleware = (req: Request, res: Response, next: () => void) => void;
@@ -104,4 +106,28 @@ test("defaultDevCorsOrigins: the admin Vite dev origins, honoring TOVU_ADMIN_DEV
   ]);
   assert.ok(defaultDevCorsOrigins({ env: { TOVU_ADMIN_DEV_PORT: "5274" } }).includes("http://localhost:5274"));
   assert.ok(!defaultDevCorsOrigins({ env: { TOVU_ADMIN_DEV_PORT: "5274" } }).includes("http://localhost:5173"));
+});
+
+test("applyDevCors uses the trimmed port from the development environment for browser preflight", async t => {
+  const app = express();
+  applyDevCors(app, { env: { NODE_ENV: "development", TOVU_ADMIN_DEV_PORT: " 5274 " } });
+  app.options("/settings", (_req, res) => { res.status(405).end(); });
+  app.get("/settings", (_req, res) => { res.json({ page: "settings" }); });
+  const url = `${await startTestServer(app, t)}/settings`;
+  const origin = "https://127.0.0.1:5274";
+
+  const allowed = await fetch(url, { method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "PATCH" } });
+  assert.equal(allowed.status, 204);
+  assert.deepEqual([
+    allowed.headers.get("access-control-allow-origin"), allowed.headers.get("vary"),
+    allowed.headers.get("access-control-allow-headers"), allowed.headers.get("access-control-allow-methods"),
+  ], [origin, "Origin", "Content-Type", "GET,PUT,PATCH,OPTIONS"]);
+
+  const unlisted = await fetch(url, { method: "OPTIONS", headers: { Origin: "https://127.0.0.1:5173", "Access-Control-Request-Method": "PATCH" } });
+  assert.equal(unlisted.status, 405);
+  assert.equal(unlisted.headers.get("access-control-allow-origin"), null);
+
+  const actual = await fetch(url, { headers: { Origin: origin } });
+  assert.equal(actual.headers.get("access-control-allow-origin"), origin);
+  assert.deepEqual(await actual.json(), { page: "settings" });
 });

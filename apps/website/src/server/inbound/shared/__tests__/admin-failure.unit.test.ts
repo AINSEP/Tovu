@@ -14,7 +14,7 @@ import { createTovuErrorReporter } from "#src/server/runtime/composition/error-r
 import { adminFailureResponse, reportServerFailure, sendAdminFailure } from "../admin-failure.js";
 import type { Request, Response } from "express";
 import { captureRouteError } from "../observability-middleware.js";
-import { createRequestReportScope } from "../request-admissions.js";
+import { createRequestReportScope, wasAdmittedInRequest } from "../request-admissions.js";
 
 const ERR_ID = /^ERR-[0-9a-f]{4}(?:-[0-9a-f]{4}){3}$/i;
 const UNAVAILABLE = "ERR-0000-0000-0000-0000";
@@ -100,6 +100,31 @@ test("an unrelated earlier report in the request does not skip this failure's tr
   sendAdminFailure({ res, error: new Error("this failure"), reporter }, { operation: "pages:load" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.optional?.tracker, undefined);
+});
+
+test("one request recognizes admissions from distinct trackers without treating similar errors as the same failure", () => {
+  const makeTracker = (reports: ErrorReport[]) => createTracker({
+    observability: { ...createNoopObservabilityPort({}), reportError: report => { reports.push(report); } },
+  });
+  const firstReports: ErrorReport[] = [];
+  const secondReports: ErrorReport[] = [];
+  const first = makeTracker(firstReports);
+  const second = makeTracker(secondReports);
+  const scope = createRequestReportScope({});
+  const one = new Error("load failed");
+  const two = new Error("load failed");
+  runWithErrorReportScope({ scope, work: () => {
+    first.error({ error: one });
+    second.error({ error: two });
+  } });
+
+  assert.deepEqual(firstReports.map(report => (report.error as Error).message), ["load failed"]);
+  assert.deepEqual(secondReports.map(report => (report.error as Error).message), ["load failed"]);
+  assert.equal(wasAdmittedInRequest({ scope, error: one }), true);
+  assert.equal(wasAdmittedInRequest({ scope, error: two }), true);
+  assert.equal(wasAdmittedInRequest({ scope, error: new Error("load failed") }), false);
+  assert.equal(wasAdmittedInRequest({ scope, error: "load failed" }), false);
+  assert.equal(wasAdmittedInRequest({ scope: createRequestReportScope({}), error: one }), false);
 });
 
 test("a throwing reporter answers with the unavailable id and writes no console line", t => {

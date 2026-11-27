@@ -27,3 +27,17 @@ for (const host of ["deployed.example:8080", "127.0.0.1:4567"]) {
     }
   });
 }
+
+test("a home page served with an unusable Host retains the verified canonical origin", async () => {
+  const deps = createRouteDeps();
+  deps.themes = [];
+  deps.originRegistry.canonicalOrigin = async ({ workspaceId }) => {
+    assert.equal(workspaceId, deps.workspaceId);
+    return { scheme: "https", host: "stored.example", source: "workspace-setting", verifiedAt: "2026-10-31T00:00:00Z" };
+  };
+  const app = createApp(deps, { themeIdOverride: "none" });
+  const response = await dispatchHttpRequest({ app, method: "GET", url: "/", headers: { host: "bad.example:99999" } });
+  assert.equal(response.status, 200);
+  assert.match(response.body, /<link rel="canonical" href="https:\/\/stored\.example\/"\s*\/?\s*>/);
+  assert.doesNotMatch(response.body, /bad\.example/);
+});

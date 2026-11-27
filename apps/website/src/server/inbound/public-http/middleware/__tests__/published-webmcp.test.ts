@@ -22,6 +22,34 @@ test('visitor content lookup is lazy, once per eligible HTML response, and absen
   assert.equal(lookups, 1);
 });
 
+test('an unavailable visitor publication policy keeps serving the page without publishing it', async t => {
+  const app = express();
+  const calls: { path: string }[] = [];
+  let available = false;
+  applyPublishedWebMcp({
+    app, readEnabled: async () => false,
+    allowsVisitorPublication: async input => {
+      calls.push(input);
+      if (!available) throw new Error('policy store unavailable');
+      return true;
+    },
+  });
+  const html = '<html><body><article>Published story</article><div id="tovu-site-assistant-root"></div></body></html>';
+  app.get('/story', (_req, res) => res.type('html').send(html));
+  const url = `${await startTestServer(app, t)}/story?edition=2`;
+
+  const refused = await fetch(url);
+  assert.equal(refused.status, 200);
+  assert.equal(await refused.text(), html);
+  assert.deepEqual(calls, [{ path: '/story' }]);
+
+  available = true;
+  const recovered = await fetch(url);
+  assert.equal(recovered.status, 200);
+  assert.match(await recovered.text(), /tovu-visitor-publication/);
+  assert.deepEqual(calls, [{ path: '/story' }, { path: '/story' }]);
+});
+
 test('public pages honor the server gate, including native forms, while APIs and admin stay outside it', async (t) => {
   let enabled = true;
   const app = express();

@@ -6,7 +6,7 @@ import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
+import { createCapturingResponse, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { freshThemePreviewHtml } from "@jini-ai/cms/public-http/middleware/theme-preview-refresh";
 import { createThemePreviewMiddleware } from "../theme-preview-refresh.js";
 
@@ -174,6 +174,32 @@ test("authenticated preview CSS versions absolute local fonts, images and import
   const publicRes = { ...res, locals: {}, send: (body: string) => { sent = body; return publicRes; } };
   staticHandler({ ...req, params: { themeId: "test" } }, publicRes, () => assert.fail("public CSS missing"));
   assert.equal(sent, css);
+});
+
+test("an undecodable authenticated preview asset path falls through without serving or caching a stylesheet", async t => {
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const { registerThemeStaticAssets } = await import("../theme-static-assets.js");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "preview-undecodable-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "test", "css"), { recursive: true });
+  fs.writeFileSync(path.join(root, "test", "css", "main.css"), 'body{background:url(/theme-assets/test/paper.png)}');
+  const app = express();
+  registerThemeStaticAssets({ app, themeRoots: [root] }, {
+    isAuthenticatedPreviewRevision: ({ revision }) => revision === "rev-1",
+  });
+  app.use((_req, res) => { res.status(404).type("text").send("No matching theme asset"); });
+  const url = `${await startTestServer(app, t)}/theme-preview-assets/rev-1/test/css`;
+
+  const malformed = await fetch(`${url}/bad%.css`);
+  assert.equal(malformed.status, 404);
+  assert.equal(malformed.headers.get("cache-control"), "no-store");
+  assert.equal(await malformed.text(), "No matching theme asset");
+
+  const valid = await fetch(`${url}/main.css`);
+  assert.equal(valid.status, 200);
+  assert.equal(await valid.text(), 'body{background:url(/theme-preview-assets/rev-1/test/paper.png)}');
 });
 
 /** A minimal valid declarative theme folder (same fixture shape as `theme-trash.test.ts`). */

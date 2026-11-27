@@ -7,6 +7,7 @@ import type { MediaRecord } from "#src/features/media/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveMediaAssetMetadataForRender } from "../pages/render-context/media-metadata.js";
 import { resolveHtmlEmbedsForRender } from "../pages/render-context/widgets.js";
+import { resolveSiteTimeZoneForRender } from "../pages/render-context/site-title.js";
 
 /**
  * @file Direct-import characterization for `pages.ts`'s exported `resolve*ForRender` helpers'
@@ -49,6 +50,18 @@ function postRecord(overrides: Partial<PublicPostRecord> = {}): PublicPostRecord
     ...overrides,
   } as PublicPostRecord;
 }
+
+test("the render time zone is read for the requested workspace, and an unwired host remains on UTC", async () => {
+  const resolve = async ({ workspaceId }: { workspaceId: string }) => {
+    if (workspaceId === "west") return "America/Los_Angeles";
+    if (workspaceId === "east") return "Asia/Tokyo";
+    throw new Error(`unrecognized workspace: ${workspaceId}`);
+  };
+  const siteTimeZone = { resolveTimeZone: resolve };
+  assert.equal(await resolveSiteTimeZoneForRender({ workspaceId: "west", siteTimeZone }), "America/Los_Angeles");
+  assert.equal(await resolveSiteTimeZoneForRender({ workspaceId: "east", siteTimeZone }), "Asia/Tokyo");
+  assert.equal(await resolveSiteTimeZoneForRender({ workspaceId: "west" }), "UTC");
+});
 
 test("resolveHtmlEmbedsForRender: an undefined post short-circuits to undefined, never touching resolveHtmlPageEmbeds", async () => {
   const deps = createRouteDeps();

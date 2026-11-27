@@ -111,6 +111,33 @@ test('published empty Custom CSS uses the default style; the owner styling is pr
   assert.equal(await serve('#jini-consent { padding: 12px; }'), '#jini-consent { padding: 12px; }');
 });
 
+test('a legacy global opt-out publication is served as automatic region mode', async t => {
+  const f = await policyFixture({ t });
+  const published = await f.store.readPublished({});
+  assert.ok(published);
+  f.deps.consentStore = { ...f.store, readPublished: async () => ({
+    ...published, config: { ...published.config, enabled: true, regionMode: 'opt-out' },
+  }) };
+
+  const policy = await readSiteConsentPolicy({ deps: f.deps });
+  assert.equal(policy.regionMode, 'auto');
+  assert.equal(policy.policyVersion, f.policy);
+  assert.equal(policy.enabled, true);
+});
+
+test('an enabled published consent policy without a privacy link is refused', async t => {
+  const f = await policyFixture({ t });
+  const published = await f.store.readPublished({});
+  assert.ok(published);
+  f.deps.consentStore = { ...f.store, readPublished: async () => ({
+    ...published, config: { ...published.config, enabled: true, privacyPolicyUrl: '' },
+  }) };
+
+  await assert.rejects(readSiteConsentPolicy({ deps: f.deps }), {
+    message: 'Published consent policy is invalid.',
+  });
+});
+
 test('bound readiness counts site receipts and reports unavailable storage without exposing paths', async t => {
   const f = await policyFixture({ t });
   f.deps.createSiteApp = () => {
