@@ -304,6 +304,27 @@ test("completeKeyOnlySiteMeta: a meta that changes under every attempt is never 
   }
 });
 
+test("completeKeyOnlySiteMeta retries with the fingerprint a concurrent writer just added", async t => {
+  const dir = buildDevSite({ db: false, metaText: JSON.stringify({ siteKeyId: SITE_KEY_ID, storage: { kind: "pglite" } }) });
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, ".site-meta.json");
+  let reads = 0;
+  const metadata = await completeKeyOnlySiteMeta({ dir }, { readText: ({ dir: requested }) => {
+    assert.equal(requested, dir);
+    if (++reads === 2) {
+      fs.writeFileSync(file, JSON.stringify({ siteKeyId: SITE_KEY_ID, siteKeyFingerprint: FINGERPRINT, storage: { kind: "pglite" } }));
+    }
+    return fs.readFileSync(file, "utf8");
+  } });
+
+  assert.equal(metadata?.siteKeyFingerprint, FINGERPRINT);
+  const persisted = readSiteDir({ dir }).meta;
+  assert.equal(persisted.siteId, SITE_KEY_ID);
+  assert.equal(persisted.siteKeyId, SITE_KEY_ID);
+  assert.equal(persisted.siteKeyFingerprint, FINGERPRINT);
+  assert.deepEqual(persisted.storage, { kind: "pglite" });
+});
+
 test("buildSiteMetaForNewKey: an unreadable or never-migrated content.db yields no meta", async () => {
   for (const [label, write] of [
     ["corrupt", (file: string) => fs.writeFileSync(file, "this is not a sqlite database".repeat(200))],

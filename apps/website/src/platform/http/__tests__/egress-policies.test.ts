@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createHttpClient } from "../client.js";
 import {
-  createPublishContentPeerEgressPolicy, CUSTOM_CREDENTIALS_EGRESS_POLICY, LIVE_PAGE_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY,
+  createPublishContentPeerEgressPolicy, createSiteWebFetchEgressPolicy, CUSTOM_CREDENTIALS_EGRESS_POLICY, LIVE_PAGE_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY,
   parsePublishContentDevHosts, PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES, SINGLE_HOP_HTTPS_EGRESS_POLICY, SITE_BACKUP_EGRESS_POLICY,
   SITE_IMPORT_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY,
 } from "../egress-policies.js";
@@ -72,6 +72,23 @@ class RecordingTransport implements HttpTransportAdapter {
 }
 
 const request = (url: string): HttpRequest => ({ method: "GET", url, headers: {}, timeoutMs: 1000 });
+
+test("the site web reader permits its configured loopback origin without granting neighboring ports", async () => {
+  const allowed = "http://127.0.0.1:3182/notes";
+  const otherPort = "http://127.0.0.1:3183/notes";
+  const transport = new RecordingTransport();
+  const client = createHttpClient({ transport, policy: createSiteWebFetchEgressPolicy({ origin: `${allowed}?from=site` }) });
+  const publicOnly = createHttpClient({ transport, policy: createSiteWebFetchEgressPolicy({}) });
+  const refused = {
+    name: "EgressRefusedError",
+    message: "egress to '127.0.0.1' (127.0.0.1) rejected: resolved address is loopback",
+  };
+  await assert.rejects(publicOnly.send(request(allowed)), refused);
+  await assert.rejects(client.send(request(otherPort)), refused);
+  assert.equal(transport.calls, 0);
+  assert.equal((await client.send(request(allowed))).bodyText, "ok");
+  assert.equal(transport.calls, 1);
+});
 
 for (const [name, policy] of POLICY_PINS) {
   test(`${name} refuses a host that resolves to a private address before any transport call`, async () => {

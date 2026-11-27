@@ -193,6 +193,29 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     assert.deepEqual(await device.get("server"), authorization);
   });
 
+  test(`discard preserves a device sign-in replaced after the inventory read [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    const clock = { nowMs: () => Date.parse(NOW) };
+    const stale = createSqlDeviceAuthorizationStore({ kernel: fx.kernel, workspaceId: WS, ...fx.wrong, clock });
+    const active = createSqlDeviceAuthorizationStore({ kernel: fx.kernel, workspaceId: WS, ...fx.right, clock });
+    const original = { deviceCode: "old-device-code", userCode: "OLD", verificationUri: "https://auth.example.test",
+      verificationUriComplete: null, expiresAt: "2026-10-11T01:00:00.000Z", intervalSeconds: 5 };
+    const replacement = { ...original, deviceCode: "new-device-code", userCode: "NEW" };
+    await stale.put("switch-account", original);
+    assert.deepEqual(await stale.get("switch-account"), original);
+    let checked = 0;
+    const result = await discardVaultCredentialsNotOpening({
+      kernel: fx.kernel,
+      sealer: { open: async (input, options) => {
+        if (++checked === 1) await active.put("switch-account", replacement);
+        return fx.right.sealer.open(input, options);
+      } },
+    });
+    assert.equal(checked, 1, "only the snapshotted envelope is classified");
+    assert.deepEqual(result, { discarded: 0, kept: 1 });
+    assert.deepEqual(await active.get("switch-account"), replacement);
+  });
+
   test(`a later reseal failure rolls back the earlier vault write [${each.name}]`, async () => {
     const fx = await fixture(each.make());
     const before = [await fx.put({ id: "a", key: fx.wrong }), await fx.put({ id: "b", key: fx.wrong })];

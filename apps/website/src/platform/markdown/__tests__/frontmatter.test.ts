@@ -93,6 +93,14 @@ test("empty, scalar and sequence YAML documents do not expose frontmatter fields
   }
 });
 
+test("only a YAML mapping can expose a field named 0, not a top-level sequence or scalar", () => {
+  assert.deepEqual([
+    readFrontmatterField({ markdown: "---\n0: mapping value\n---", key: "0" }),
+    readFrontmatterField({ markdown: "---\n- sequence value\n---", key: "0" }),
+    readFrontmatterField({ markdown: "---\nscalar value\n---", key: "0" }),
+  ], ["mapping value", undefined, undefined]);
+});
+
 // L11 Stryker: the fallback's quote-strip anchors and the leading `---` check survived.
 test("the regex fallback strips only the outer quotes, keeping an inner apostrophe and quote", () => {
   // `: [` inside an unclosed flow sequence makes YAML refuse the block, so the fallback runs.

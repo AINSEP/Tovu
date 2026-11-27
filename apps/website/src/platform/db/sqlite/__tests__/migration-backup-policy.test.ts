@@ -4,6 +4,8 @@ import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import Database from "better-sqlite3";
+import { createCopyCoordinator, sqliteCopyPorts } from "../copy-coordinator.js";
 import { migrateSqliteContentFile, openContentDb } from "../content-db.js";
 import { testCopyPorts } from "./helpers/copy-ports.js";
 
@@ -74,4 +76,59 @@ test("backup pruning failure logs redacted cause and does not refuse completed m
   const text = warnings.mock.calls.map(call => call.arguments.join(" ")).join(" ");
   assert.match(text, /Could not prune older pre-migration backups.*retention context/);
   assert.doesNotMatch(text, /PRUNE_CANARY/);
+});
+
+test("protection reads every nonempty artifact ref across sites and closes the read-only journal", async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-protected-"));
+  const journalPath = path.join(dir, "database-journal.db");
+  const handles: Database.Database[] = [];
+  t.after(() => {
+    for (const handle of handles) if (handle.open) handle.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const { listProtected } = sqliteCopyPorts({
+    journalPath, copies: createCopyCoordinator({}, {}), exists: fs.existsSync,
+    open: (requested, options) => {
+      assert.equal(requested, journalPath);
+      assert.deepEqual(options, { readonly: true, fileMustExist: true });
+      const db = new Database(requested, options);
+      handles.push(db);
+      return db;
+    },
+  });
+  assert.deepEqual(await listProtected(), []);
+  assert.equal(handles.length, 0);
+  const journal = new Database(journalPath);
+  try {
+    journal.exec("CREATE TABLE restore_points (site_id TEXT, artifact_ref TEXT);");
+    const insert = journal.prepare("INSERT INTO restore_points VALUES (?, ?)");
+    insert.run("north", "/copies/north.db");
+    insert.run("north", "");
+    insert.run("south", "/copies/south.db");
+  } finally {
+    journal.close();
+  }
+
+  assert.deepEqual([...(await listProtected())].sort(), ["/copies/north.db", "/copies/south.db"]);
+  assert.deepEqual(handles.map(db => db.open), [false]);
+});
+
+test("a present journal missing the protection table fails closed and releases its handle", async t => {
+  const db = new Database(":memory:");
+  t.after(() => { if (db.open) db.close(); });
+  const journalPath = "/fixture/database-journal.db";
+  const { listProtected } = sqliteCopyPorts({
+    journalPath, copies: createCopyCoordinator({}, {}),
+    exists: requested => {
+      assert.equal(requested, journalPath);
+      return true;
+    },
+    open: (requested, options) => {
+      assert.equal(requested, journalPath);
+      assert.deepEqual(options, { readonly: true, fileMustExist: true });
+      return db;
+    },
+  });
+  await assert.rejects(listProtected(), { code: "SQLITE_ERROR", message: "no such table: restore_points" });
+  assert.equal(db.open, false);
 });

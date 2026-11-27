@@ -264,3 +264,39 @@ test("repairSite metadata write failure removes only its new config and preserve
   assert.deepEqual(fs.readFileSync(dbPath), before);
   assert.deepEqual(fs.readFileSync(uploadPath), Buffer.from([0, 255, 72, 19]));
 });
+
+test("repairSite still surfaces the metadata-write error when removing the uncommitted config fails", async t => {
+  const dir = mkTempDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  writeMigratedDb(dir);
+  const configPath = path.join(dir, "config.json");
+  const metaPath = path.join(dir, ".site-meta.json");
+  const dbPath = path.join(dir, "content.db");
+  const databaseBefore = fs.readFileSync(dbPath);
+  const rename = fs.renameSync;
+  const unlink = fs.unlinkSync;
+  const attemptedRollback: string[] = [];
+  const renameFault = t.mock.method(fs, "renameSync", (from: fs.PathLike, to: fs.PathLike) => {
+    if (to === metaPath) throw new Error("metadata commit refused");
+    return rename(from, to);
+  });
+  const unlinkFault = t.mock.method(fs, "unlinkSync", (target: fs.PathLike) => {
+    if (target !== configPath) return unlink(target);
+    attemptedRollback.push(target);
+    throw new Error("config rollback refused");
+  });
+  try {
+    await assert.rejects(repairSite({ dir, name: "Recovered notes" }), {
+      constructor: InternalError, name: "InternalError",
+      message: `repairSite: failed while writing markers at ${dir}: metadata commit refused`,
+    });
+  } finally {
+    unlinkFault.mock.restore();
+    renameFault.mock.restore();
+  }
+  assert.deepEqual(attemptedRollback, [configPath]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), { name: "Recovered notes", domain: null, port: null });
+  assert.equal(fs.existsSync(metaPath), false);
+  assert.throws(() => readSiteDir({ dir }), { name: "SiteDirInvalidError", message: /\.site-meta\.json/ });
+  assert.deepEqual(fs.readFileSync(dbPath), databaseBefore);
+});

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { chromium as nativeChromium } from "playwright";
 
 import { importPlaywrightChromium, playwrightModuleLoader } from "../playwright-loader.js";
 import type { PlaywrightLike } from "@jini-ai/diagnostics/web-evidence/playwright";
@@ -25,8 +26,10 @@ test("the host loader adapts Playwright contexts and copies readonly launch argu
     cookies: async () => cookies,
     close: async () => { closed.push("context"); },
   };
-  t.mock.module("playwright", { namedExports: { chromium: {
-    launch: async (options: Parameters<PlaywrightLike["chromium"]["launch"]>[0]) => {
+  // The loader has already bound Playwright's real export. Intercept the vendor call on that
+  // same object, so this test never launches an installed browser.
+  t.mock.method(nativeChromium, "launch",
+    async (options: Parameters<PlaywrightLike["chromium"]["launch"]>[0]) => {
       launches.push(options);
       if (options?.headless && options.args?.includes("--proxy-server=http://127.0.0.1:9") && options.channel !== "chrome") {
         throw new Error("downloaded Chromium absent");
@@ -35,8 +38,7 @@ test("the host loader adapts Playwright contexts and copies readonly launch argu
         newContext: async (options: unknown) => { contextInputs.push(options); return nativeContext; },
         close: async () => { closed.push("browser"); },
       };
-    },
-  } } });
+    });
 
   const { chromium } = await playwrightModuleLoader.load({ moduleName: "playwright" });
   const args = Object.freeze(["--disable-dev-shm-usage"]);
@@ -76,9 +78,10 @@ test("the host loader adapts Playwright contexts and copies readonly launch argu
 test("importPlaywrightChromium resolves the host's Playwright adapter, which launches the native chromium", async t => {
   const launches: unknown[] = [];
   const closed: string[] = [];
-  t.mock.module("playwright", { namedExports: { chromium: {
-    launch: async (options: unknown) => { launches.push(options); return { newContext: async () => ({}), close: async () => { closed.push("browser"); } }; },
-  } } });
+  t.mock.method(nativeChromium, "launch", async (options: unknown) => {
+    launches.push(options);
+    return { newContext: async () => ({}), close: async () => { closed.push("browser"); } };
+  });
   const chromium = await importPlaywrightChromium();
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] }) as { close(): Promise<void> };
   await browser.close();

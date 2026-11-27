@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import Database from "better-sqlite3";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { migrateSqliteContentFile, openContentDb, openContentDbReadOnly, openSqliteContentConnection } from "../content-db.js";
 import { openChatDb, openSiteChatDb } from "../chat-db.js";
+import { openRoutinesDb } from "../routines-db.js";
 import { testCopyPorts } from "./helpers/copy-ports.js";
 
 // hwb: a host opener may map its requested file to an owned handle; no hidden native open is permitted.
@@ -41,4 +45,50 @@ test("migrating an in-memory content database applies the chain without taking a
     assert.notEqual(db.$client.prepare("SELECT name FROM sqlite_master WHERE name = 'posts'").get(), undefined);
     assert.deepEqual((await migrateSqliteContentFile({ db, filePath: ":memory:", ...testCopyPorts({ filePath: ":memory:" }) })).applied, [], "a database at head is left untouched");
   } finally { db.$client.close(); }
+});
+
+test("the routines sidecar uses WAL, waits on writers, and enforces its run foreign keys", t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "routines-opener-"));
+  const filePath = path.join(dir, "routines.db");
+  const handle = new Database(filePath);
+  t.after(() => {
+    if (handle.open) handle.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  handle.pragma("foreign_keys = OFF");
+  handle.pragma("busy_timeout = 17");
+
+  const db = openRoutinesDb({ filePath, openSqlite: requested => {
+    assert.equal(requested, filePath);
+    return handle;
+  } });
+  assert.equal(db, handle);
+  assert.equal(db.pragma("journal_mode", { simple: true }), "wal");
+  assert.equal(db.pragma("busy_timeout", { simple: true }), 5000);
+  db.exec("CREATE TABLE routines (id TEXT PRIMARY KEY); CREATE TABLE runs (routine_id TEXT REFERENCES routines(id));");
+  assert.throws(() => db.prepare("INSERT INTO runs VALUES (?)").run("missing"), {
+    code: "SQLITE_CONSTRAINT_FOREIGNKEY",
+    message: "FOREIGN KEY constraint failed",
+  });
+  db.prepare("INSERT INTO routines VALUES (?)").run("daily");
+  db.prepare("INSERT INTO runs VALUES (?)").run("daily");
+  assert.deepEqual(handle.prepare("SELECT routine_id FROM runs").all(), [{ routine_id: "daily" }]);
+});
+
+test("a half-configured routines handle closes before the setup error reaches the caller", t => {
+  const handle = new Database(":memory:");
+  t.after(() => { if (handle.open) handle.close(); });
+  const failure = new Error("could not set the routines busy timeout");
+  const nativePragma = handle.pragma.bind(handle);
+  t.mock.method(handle, "pragma", (source: string) => {
+    if (source === "journal_mode = WAL") return nativePragma(source);
+    if (source === "busy_timeout = 5000") throw failure;
+    throw new Error(`unexpected pragma ${source}`);
+  });
+
+  assert.throws(() => openRoutinesDb({ filePath: ":memory:", openSqlite: requested => {
+    assert.equal(requested, ":memory:");
+    return handle;
+  } }), (error: unknown) => error === failure);
+  assert.equal(handle.open, false);
 });

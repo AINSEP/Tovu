@@ -78,9 +78,20 @@ test("openSiteChatDb migrates fresh and legacy files, preserves conversations an
         const invalidLedger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all();
         db.close();
         db = undefined;
-        await assert.rejects(() => openSiteChatDb({ filePath: file }), (error: unknown) =>
-          error instanceof UnknownAppliedMigrationError && error.ids.includes("9999_unknown_chat_step")
-        );
+        const rejectedHandle = new Database(file, { fileMustExist: true });
+        try {
+          await assert.rejects(() => openSiteChatDb({ filePath: file }, {
+            open: (requested, options) => {
+              assert.equal(requested, file);
+              assert.deepEqual(options, {});
+              return rejectedHandle;
+            },
+          }), (error: unknown) =>
+            error instanceof UnknownAppliedMigrationError && error.ids.includes("9999_unknown_chat_step"));
+          assert.equal(rejectedHandle.open, false, "a rejected migration must release the requested database");
+        } finally {
+          if (rejectedHandle.open) rejectedHandle.close();
+        }
         db = new Database(file, { readonly: true });
         assert.deepEqual(db.prepare("SELECT * FROM ai_chats ORDER BY id").all(), chats);
         assert.deepEqual(db.prepare("SELECT * FROM ai_chat_messages ORDER BY id").all(), messages);

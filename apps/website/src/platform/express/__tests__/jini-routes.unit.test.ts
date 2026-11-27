@@ -10,7 +10,7 @@ import { captureRequestFacts } from "#src/platform/express/request-facts";
 import { createRecordingObservability, createRecordingReporter } from "@jini-ai/core/errors/testing";
 import { agentRoutes } from "@jini-ai/daemon/http";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
-import { daemonRouteHost, expressSendResponse, mountJiniRouteInPlace, mountJiniRoutes, NO_OPERATION_TRACKING } from "../jini-routes.js";
+import { daemonRouteHost, expressSendResponse, mountJiniPostRoutesInPlace, mountJiniRouteInPlace, mountJiniRoutes, NO_OPERATION_TRACKING } from "../jini-routes.js";
 
 /** @file `mountJiniRoutes` on a real Express app and socket, and the host object the daemon scope hands Jini's route groups. */
 
@@ -183,6 +183,44 @@ test("an in-place route keeps the bridge's writer unless told otherwise: the ans
   mountJiniRouteInPlace({ app, route: page });
   const response = await fetch(`${await listen(t, app)}/page`);
   assert.deepEqual([response.status, response.headers.get("etag"), response.headers.getSetCookie().length, await response.text()], [201, null, 2, "<p>done</p>"]);
+});
+
+test("in-place mounts reject unsupported methods up front rather than silently dropping a body", () => {
+  const app = express();
+  assert.throws(() => mountJiniRouteInPlace({ app, route: { method: "POST", path: "/save", handler: says("no") } }), {
+    message: "mountJiniRouteInPlace: POST /save carries a body; mount it with mountJiniRoutes",
+  });
+  assert.throws(() => mountJiniPostRoutesInPlace({ app, routes: [page] }), {
+    message: "mountJiniPostRoutesInPlace: GET /page is not a POST route",
+  });
+});
+
+test("an in-place POST forwards the already-parsed body and serves buffered JSON with Express headers", async t => {
+  const app = express();
+  app.use(express.json());
+  mountJiniPostRoutesInPlace({ app, routes: [{
+    method: "POST", path: "/notes/:id",
+    handler: async ({ request, params }) => {
+      const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store" });
+      headers.append("set-cookie", "mode=edit; Path=/");
+      headers.append("set-cookie", "view=notes; Path=/");
+      return new Response(JSON.stringify({
+        id: params.id, url: request.url, method: request.method,
+        length: request.headers.get("content-length"), body: await request.json(),
+      }), { status: 202, headers });
+    },
+  }] }, { anonymous: true });
+  const response = await fetch(`${await listen(t, app)}/notes/n%207?revision=3`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: '{ "title" : "Café" }', signal: AbortSignal.timeout(2_000),
+  });
+  const expected = { id: "n 7", url: "http://localhost/notes/n%207?revision=3", method: "POST", length: "17", body: { title: "Café" } };
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), expected);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(response.headers.getSetCookie(), ["mode=edit; Path=/", "view=notes; Path=/"]);
+  assert.equal(response.headers.get("content-length"), String(Buffer.byteLength(JSON.stringify(expected))));
+  assert.match(response.headers.get("etag") ?? "", /^W\/"/);
 });
 
 // P4-T2 host edge: a route host built with its site's `errors` and a mount given the same reporter put the

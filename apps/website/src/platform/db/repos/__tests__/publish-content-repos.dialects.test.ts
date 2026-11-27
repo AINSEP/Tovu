@@ -208,6 +208,24 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
     assert.equal(await runs.findById({ workspaceId: OTHER, id: "run-1" }), null);
   });
 
+  test("runs: retention protects only non-null restore points for this workspace's planned and applying runs", async () => {
+    const { seeded, runs } = make();
+    await seeded;
+    const records = [
+      { ...RUN, id: "planned", phase: "planned", restorePointId: "rp-planned" },
+      { ...RUN, id: "applying", phase: "applying", restorePointId: "rp-applying" },
+      { ...RUN, id: "no-restore", phase: "planned", restorePointId: null },
+      { ...RUN, id: "failed", phase: "failed", restorePointId: "rp-failed" },
+      { ...RUN, id: "foreign", workspaceId: OTHER, phase: "applying", restorePointId: "rp-foreign" },
+    ] satisfies PublishContentRunRecord[];
+    for (const record of records) await runs.save({ record });
+
+    assert.deepEqual(await runs.inFlightRestorePointIds({ workspaceId: WS }), new Set(["rp-planned", "rp-applying"]));
+    assert.deepEqual(await runs.inFlightRestorePointIds({ workspaceId: OTHER }), new Set(["rp-foreign"]));
+    await runs.save({ record: { ...records[1]!, phase: "failed" } });
+    assert.deepEqual(await runs.inFlightRestorePointIds({ workspaceId: WS }), new Set(["rp-planned"]));
+  });
+
   test("history: newest first, target filter, limit, optional fields omitted, boolean reachable", async () => {
     const { seeded, history } = make();
     await seeded;

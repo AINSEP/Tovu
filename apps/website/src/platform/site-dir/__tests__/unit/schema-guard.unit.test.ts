@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { runtimeSchemaVersion, compareSchemaVersion } from "../../schema-guard.js";
+import { runtimeSchemaVersion, compareSchemaVersion, isBundledSchemaIdentity } from "../../schema-guard.js";
 
 /**
  * @file SPEC-003 C-006 (`runtimeSchemaVersion` + guard compare) — TDD certification, unit tier.
@@ -96,4 +96,14 @@ test("site schemaVersion strictly greater than the runtime's -> compareSchemaVer
     },
     "REQ-05(a): a site schema newer than this runtime must refuse rather than attempt to serve/downgrade"
   );
+});
+
+test("an archive's older schema is trusted only when its index and tag identify the same bundled migration", () => {
+  const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as { entries: Array<{ idx: number; tag: string }> };
+  const [older, newer] = journal.entries;
+  assert.ok(older && newer && older.idx !== newer.idx && older.tag !== newer.tag);
+  assert.equal(isBundledSchemaIdentity({ schema: { index: older.idx, tag: older.tag } }), true);
+  assert.equal(isBundledSchemaIdentity({ schema: { index: older.idx, tag: newer.tag } }), false);
+  assert.equal(isBundledSchemaIdentity({ schema: { index: newer.idx, tag: older.tag } }), false);
+  assert.equal(isBundledSchemaIdentity({ schema: { index: -1, tag: older.tag } }), false);
 });

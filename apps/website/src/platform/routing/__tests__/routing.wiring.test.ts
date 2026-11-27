@@ -5,6 +5,7 @@ import { buildPostRecord } from '#src/features/post/__tests__/post-record.fixtur
 import { registerRedirectsPhaseHandlers } from '@jini-ai/cms/redirects/site/phase-handler';
 import { entryPublicPath, getNamedRoute, getSlugChangeCapture, registerResolvePhase, registerSlugChangeCapture,
   resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase, urlFor } from '../adapter.js';
+import { runPreContentPhase as runPublicPreContentPhase } from '../index.js';
 
 const ctx = { workspaceId: 'workspace-rt', originOverride: 'https://rt.example/' };
 test.beforeEach(() => resetRoutingRegistrationsForTests({}));
@@ -53,4 +54,20 @@ test('Tovu shares the Jini capture slot and stale disposers cannot unbind a newe
   assert.equal(getSlugChangeCapture({}), currentCapture);
   current();
   assert.equal(getSlugChangeCapture({}), undefined);
+});
+
+test('an optional resolver failure logs a safe operator diagnostic and the public route still reaches its next resolver', async t => {
+  const log = t.mock.method(console, 'error', () => {});
+  registerResolvePhase({ phase: 'pre_content', resolver: async () => { throw new TypeError('private resolver diagnostic'); } }, { onError: 'skip' });
+  registerResolvePhase({ phase: 'pre_content', resolver: async (path, context) => {
+    assert.equal(path, '/notes');
+    assert.deepEqual(context, ctx);
+    return { kind: 'redirect', location: '/field-notes', statusCode: 302 };
+  } });
+  assert.deepEqual(await runPublicPreContentPhase({ path: '/notes', ctx }), {
+    kind: 'redirect', location: '/field-notes', statusCode: 302,
+  });
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ['[routing] a pre_content resolver failed for /notes — skipping it', 'TypeError'],
+  ]);
 });

@@ -152,6 +152,23 @@ test("a live owner builds the shared admin bundle when none is supplied, then bo
   assert.equal(state.ms, 1000);
 });
 
+test("a missing admin or repository root stops the watchdog without building or booting", async () => {
+  for (const [paths, message] of [
+    [{ TOVU_REPO_ROOT: "/repo" }, "local site child has no admin build root"],
+    [{ TOVU_LOCAL_ADMIN_BUILD_ROOT: "/runtime" }, "local site child has no repository root"],
+  ] as const) {
+    const { proc } = fakeProcess({ ...paths, TOVU_LOCAL_SITE_OWNER_PID: String(OWNER) });
+    const { timers, handle, state } = fakeTimers();
+    await assert.rejects(runLocalSiteChild({}, { proc, timers,
+      reapOwnTree: async () => assert.fail("the owner is still live"),
+      buildAdminBundle: async () => assert.fail("bundle paths must be checked before building"),
+      importEntry: async () => assert.fail("startup must not import the site with missing paths"),
+    }), { name: "Error", message });
+    assert.deepEqual(state.cleared, [handle]);
+    assert.equal(proc.env.TOVU_ADMIN_DIST, undefined);
+  }
+});
+
 test("a supplied admin bundle is reused without building; the watchdog reaps once the owner goes away", async () => {
   const env: NodeJS.ProcessEnv = { TOVU_LOCAL_SITE_OWNER_PID: String(OWNER), TOVU_ADMIN_DIST: "/shared/dist" };
   const { proc } = fakeProcess(env);

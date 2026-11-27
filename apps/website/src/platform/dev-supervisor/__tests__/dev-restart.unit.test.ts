@@ -36,6 +36,37 @@ test("an acknowledged request returns the supervisor's decision, not a completed
   }
 });
 
+test("native acknowledgement polling consumes only the current restart's reply file", async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "dev-restart-ack-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-16T12:00:00.000Z") });
+  const requestFile = path.join(directory, "request.json");
+  const ownReply = `${requestFile}.request-current.result`;
+  const staleReply = `${requestFile}.request-earlier.result`;
+  const polls: Array<() => void> = [];
+  const port = devRestartPortFromEnv({
+    env: { [DEV_RESTART_REQUEST_FILE_ENV]: requestFile }, newId: () => "request-current",
+    schedule: (poll, delay) => { assert.equal(delay, 100); polls.push(poll); },
+  });
+  assert.ok(port);
+  fs.writeFileSync(staleReply, '{"accepted":true}');
+  const result = port.requestRestart({ reason: "switch to field-notes" }, { awaitAcceptance: true });
+  assert.deepEqual(JSON.parse(fs.readFileSync(requestFile, "utf8")), {
+    reason: "switch to field-notes", requestId: "request-current", requestedAt: "2026-10-16T12:00:00.000Z", pid: process.pid,
+  });
+  assert.equal(polls.length, 1);
+  polls.shift()!();
+  assert.equal(polls.length, 1, "the stale reply did not resolve this request");
+  const refusal = { accepted: false, reason: "Site is open in Desktop." };
+  fs.writeFileSync(ownReply, JSON.stringify(refusal));
+  polls.shift()!();
+
+  assert.deepEqual(await result, refusal);
+  assert.deepEqual(polls, []);
+  assert.equal(fs.existsSync(ownReply), false);
+  assert.equal(fs.readFileSync(staleReply, "utf8"), '{"accepted":true}');
+});
+
 test("acknowledgements are bounded and fail closed on missing, malformed or unreadable replies", async () => {
   const cases = [
     { readFile: () => null, polls: 150, reason: "The dev supervisor did not confirm the restart request." },

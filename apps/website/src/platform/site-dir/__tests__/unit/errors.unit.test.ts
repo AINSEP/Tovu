@@ -27,3 +27,10 @@ test("site-dir typed domain errors: constructors set name, message, and inherit 
     assert.equal(err.message, message, `${expectedName} must preserve the message passed to constructor`);
   }
 });
+
+test("ValidationError keeps the original cause separate from the operator-facing message", () => {
+  const cause = new Error("internal location unavailable");
+  const error = new ValidationError({ message: "Select a valid database location." }, { cause });
+  assert.equal(error.message, "Select a valid database location.");
+  assert.equal(error.cause, cause);
+});

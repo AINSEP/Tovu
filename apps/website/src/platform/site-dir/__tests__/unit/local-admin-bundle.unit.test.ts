@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -93,6 +95,45 @@ for (const boundary of ["outside temp root", "linked temp root", "linked active 
     assert.equal(fs.readFileSync(path.join(output, "admin.js"), "utf8"), "built");
   });
 }
+
+test("an unexpected temp-root probe failure warns but does not block the active admin bundle", async t => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "admin-cleanup-fault-"));
+  t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
+  const runtimeDir = path.join(tempRoot, `tovu-local-sites-${process.pid}-Active`);
+  const protectedDir = path.join(tempRoot, "tovu-local-sites-2147483647-Kept01");
+  fs.mkdirSync(runtimeDir);
+  fs.mkdirSync(protectedDir);
+  fs.writeFileSync(path.join(protectedDir, "canary"), "uninspected");
+  const nativeLstat = fsp.lstat;
+  const fault = t.mock.method(fsp, "lstat", async (file: fs.PathLike) => {
+    if (file === tempRoot) throw Object.assign(new Error("temp-root metadata unavailable"), { code: "EIO" });
+    return nativeLstat(file);
+  });
+  syncBuiltinESMExports();
+  const warnings = t.mock.method(console, "warn", () => {});
+  const output = path.join(runtimeDir, "admin-build", "dist");
+  try {
+    const dist = await journeyAdminBundle({ runtimeDir, repoRoot: "/repo" }, {
+      tempRoot,
+      env: {},
+      build: async required => {
+        assert.deepEqual(required, { repoRoot: "/repo", output, env: { NODE_ENV: "production" } });
+        fs.mkdirSync(output, { recursive: true });
+        fs.writeFileSync(path.join(output, "admin.js"), "active bundle");
+      },
+    });
+    assert.equal(dist, output);
+  } finally {
+    fault.mock.restore();
+    syncBuiltinESMExports();
+  }
+  assert.deepEqual(warnings.mock.calls.map(call => call.arguments), [
+    ["tovu local sites: could not inspect unused admin builds: Error: temp-root metadata unavailable"],
+  ]);
+  assert.equal(fs.readFileSync(path.join(protectedDir, "canary"), "utf8"), "uninspected");
+  assert.equal(fs.readFileSync(path.join(output, "admin.js"), "utf8"), "active bundle");
+  assert.equal(fs.readFileSync(path.join(runtimeDir, "admin-build", "ready"), "utf8"), "ready");
+});
 
 test("journey and local boot share one origin-neutral production bundle with failed-build recovery", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-bundle-"));

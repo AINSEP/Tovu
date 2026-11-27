@@ -339,6 +339,25 @@ test("an EgressRefusedError built without a callerSafeMessage says LESS, never m
   assert.ok(!err.callerSafeMessage.includes("10.0.4.7"));
 });
 
+test("the host localizes a neutral refusal without exposing its internal diagnostic", async () => {
+  const cause = new EgressRefusedError({ message: "pinned transport refused internal peer 10.0.4.7" });
+  const transport: HttpTransportAdapter = {
+    async requestPinned(req, peer) {
+      assert.equal(req.url, "https://example.com/");
+      assert.deepEqual(peer, { ip: "93.184.216.34", port: 443, authority: "example.com", tlsServerName: "example.com" });
+      throw cause;
+    },
+  };
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await assert.rejects(() => client.send(makeRequest()), (error: unknown) => {
+    assert.ok(error instanceof EgressRefusedError);
+    assert.equal(error.message, "pinned transport refused internal peer 10.0.4.7");
+    assert.equal(error.callerSafeMessage, "egress to the requested host was refused by this site's outbound network policy");
+    return true;
+  });
+});
+
 test("rejects bracketed IPv6-literal link-local/private/multicast targets, correctly classified despite the URL's bracketed hostname", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
