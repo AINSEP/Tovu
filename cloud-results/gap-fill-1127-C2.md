@@ -18,7 +18,7 @@ What was not done: no RemoteTrigger, no `--no-verify`, no force-push. There were
 | tv-w62-cov-web-9 | codex/tv-w62-cov-web-9 | df18b916 -> 9bc9cc6b | 6 | 54/54 |
 | tv-w62-cov-web-11 | codex/tv-w62-cov-web-11 | 1e8d5a56 -> 544c0de5 | 13 (+1 stale test repointed) | 27/27, plus readiness 5/5 |
 | tv-w62-cov-web-12 | codex/tv-w62-cov-web-12 | 8837e23e -> 5a946c4c | 9 | 77/77 |
-| tv-w62-cov-web-13 | codex/tv-w62-cov-web-13 | 7a42921e -> eb3b6f08 | 14 | see the job 13 section |
+| tv-w62-cov-web-13 | codex/tv-w62-cov-web-13 | 7a42921e -> eb3b6f08 | 14 | 112/112 (all 7 files touched this run) |
 | tv-w62-cov-web-14 | codex/tv-w62-cov-web-14 | 58042d30 -> 993419bc | 23 (+1 stale test repointed) | 23/23 new; daemon-supervisor set 133/133; callback-wiring 3/3 |
 
 ## Setup (what worked)
