@@ -197,8 +197,10 @@ export function planAssetRelocation(required: { fileNames: readonly string[] }, 
 function rewriteExactBareAttributeValue({ html, attr, fileName, replacementValue }: { html: string; attr: "href" | "src"; fileName: string; replacementValue: string }, _optional = {}): string {
   /** Escapes every regex metacharacter in `value` so it can be embedded literally inside a `RegExp` source
    * string — filenames are build output, not attacker input, but a `.` in `styles.css` must still match
-   * only a literal dot, not "any character", or `stylesXcss` would wrongly match too. */
-  const pattern = new RegExp(`(${attr}=)(["'])${RegExp.escape(fileName)}\\2`, "g");
+   * only a literal dot, not "any character", or `stylesXcss` would wrongly match too. The lookbehind
+   * requires `attr` to be the WHOLE attribute name, so a sibling `data-src=`/`data-href=` carrying the
+   * same filename is left untouched rather than rewritten alongside the real `src=`/`href=`. */
+  const pattern = new RegExp(`(?<![\\w-])(${attr}=)(["'])${RegExp.escape(fileName)}\\2`, "g");
   return html.replace(pattern, (_match, attrEquals: string, quote: string) => `${attrEquals}${quote}${replacementValue}${quote}`);
 }
 

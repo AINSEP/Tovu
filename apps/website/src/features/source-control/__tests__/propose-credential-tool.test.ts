@@ -360,7 +360,7 @@ test('a credential save failure logs only fixed exchange metadata and leaves no 
   const f = fixture();
   const writes: string[] = [];
   f.repo.vault.put = async input => {
-    writes.push(input.workspaceId);
+    writes.push(input.record.workspaceId);
     throw new Error(`storage failure involving ${SECRET}`);
   };
   const { pending } = await form(f);

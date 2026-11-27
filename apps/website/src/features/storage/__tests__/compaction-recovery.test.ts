@@ -258,7 +258,6 @@ test("when hard links are unavailable a verified separate copy preserves the old
   });
   const outcome = await resolveCompactionAttention(required);
   assert.equal(outcome.status, "restored");
-  if (outcome.status !== "restored") assert.fail(outcome.message);
   assert.notEqual(await nodeRestoreFs.identity(outcome.preservedPath), s.oldIdentity);
   assert.equal(await nodeRestoreFs.sha256(outcome.preservedPath), s.oldSha);
   assert.equal(await nodeRestoreFs.sha256(s.mainPath), s.copySha);
