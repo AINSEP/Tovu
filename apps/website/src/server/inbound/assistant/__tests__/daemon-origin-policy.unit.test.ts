@@ -39,3 +39,17 @@ test("the injected port changes only the website port, not allowed origins or th
   assert.equal(policy.isSameOrigin({ req: { headers: { host: "10.0.0.5:9000", origin: "https://proxy.example" } } }), true);
   assert.equal(policy.isSameOrigin({ req: { headers: { host: "10.0.0.5:9000", origin: "https://other.example" } } }), false);
 });
+
+// Mutations: default an origin without a port to the daemon's port, or swap the http/https defaults.
+test("a pinned listener origin without a port trusts its scheme's default port", () => {
+  const policyFor = (origin: string) => createDaemonOriginPolicy({ port: DAEMON_PORT, env: { TOVU_SITE_LISTENER_ORIGIN: origin } });
+  const same = (origin: string, host: string, requestOrigin: string) => policyFor(origin).isSameOrigin({ req: { headers: { host, origin: requestOrigin } } });
+  assert.equal(same("http://localhost", "127.0.0.1", "http://127.0.0.1"), true, "http without a port is port 80");
+  assert.equal(same("http://localhost", "127.0.0.1:443", "http://127.0.0.1:443"), false);
+  assert.equal(same("https://localhost", "127.0.0.1:443", "http://127.0.0.1:443"), true, "https without a port is port 443");
+  assert.equal(same("https://localhost", "127.0.0.1:80", "http://127.0.0.1:80"), false);
+});
+
+test("an invalid pinned listener origin throws instead of trusting another port", () => {
+  assert.throws(() => createDaemonOriginPolicy({ port: DAEMON_PORT, env: { TOVU_SITE_LISTENER_ORIGIN: "not a url" } }), TypeError);
+});

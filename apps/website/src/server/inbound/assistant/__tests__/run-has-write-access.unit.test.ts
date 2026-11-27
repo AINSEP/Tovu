@@ -30,6 +30,12 @@ test('the disclosure names the CLI, the switches it turned on and their reach', 
   assert.match(text, /other chats on this site/);
 });
 
+// Mutations: always say "it"; drop the `?? key` fallback (an unlabelled key would print "undefined").
+test('the disclosure lists several switches in order with a plural pronoun, naming an unlabelled key by its id', () => {
+  const text = readOnlyAccessDisclosure({ name: 'Cli', keys: ['web', 'subagents', 'futureReadKey'] });
+  assert.match(text, /^Cli runs with Web fetch\/search, Subagents\/Task, and futureReadKey on\. Cli can't run with them off, /);
+});
+
 test('the grant saves only the planned keys against the fresh revision, then discloses', async () => {
   const saved: unknown[] = []; const notices: string[] = [];
   const ok = await grantReadOnlyRunAccess({ name: 'Cli', agentId: 'cli', keys: ['web'],
