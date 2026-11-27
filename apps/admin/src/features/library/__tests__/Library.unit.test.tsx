@@ -865,7 +865,7 @@ it("renames, previews and trashes the intended document through the live Library
   const id = "doc/notes";
   let document = fakeDocument({ filename: "notes.md" }, { overrides: { id } });
   const update = vi.spyOn(mediaApi, "updateMedia").mockImplementation(async (target, patch) => {
-    if (target.id !== id || !patch.title) throw new Error("Unexpected document update");
+    if (target.id !== id || !patch?.title) throw new Error("Unexpected document update");
     document = { ...document, title: patch.title };
     return { media: document };
   });

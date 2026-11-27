@@ -160,9 +160,13 @@ it("announces a missing conversation from the assistant URL while preserving its
 });
 
 it("does not apply the assistant conversation query on an unrelated panel", async () => {
-  window.history.replaceState(null, "", "/admin/posts?conversation=not-owned");
-  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
-  expect(await screen.findByRole("heading", { name: "Posts", exact: true })).toBeInTheDocument();
+  window.history.replaceState(null, "", "/admin/import-export?conversation=not-owned");
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
+  await waitFor(() => expect(screen.getByRole("link", { name: "Import & Export" })).toHaveAttribute("aria-current", "page"));
+  const dock = container.querySelector("aside.admin-chat-dock");
+  expect(dock).not.toBeNull();
+  await act(async () => {});
   expect(window.location.search).toBe("?conversation=not-owned");
+  expect(within(dock as HTMLElement).queryByRole("status")).toBeNull();
   expect(screen.queryByText("This conversation is no longer available.")).toBeNull();
 });

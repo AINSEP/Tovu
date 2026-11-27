@@ -74,7 +74,7 @@ it("edits extra folders and database placement, then shows the saved settings", 
   expect(dialog.getByRole("textbox", { name: "Extra folder 1" })).toHaveValue("  /shared  ");
   await user.selectOptions(dialog.getByRole("combobox", { name: "Database location" }), "appData");
   expect(dialog.getByText("Saved in /data/config.json")).toBeVisible();
-  await user.click(dialog.getByRole("button", { name: "Save", exact: true }));
+  await user.click(dialog.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(writes).toEqual([{ sitesHome: "/sites/new", siteRoots: ["/shared"], databases: "appData" }]));
   await waitFor(() => expect(dialog.getByRole("textbox", { name: "Extra folder 1" })).toHaveValue("/shared"));
 });
@@ -122,6 +122,6 @@ it("keeps configuration load errors visible inside and outside settings and disa
   await user.click(screen.getByRole("button", { name: "Sites settings" }));
   const dialog = within(await screen.findByRole("dialog"));
   expect(dialog.getByRole("alert")).toHaveTextContent("Site configuration is unreadable.");
-  expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  expect(dialog.getByRole("button", { name: "Save" })).toBeDisabled();
   expect(screen.getAllByRole("alert")).toHaveLength(1);
 });

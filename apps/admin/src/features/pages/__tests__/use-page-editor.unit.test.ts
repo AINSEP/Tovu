@@ -2977,7 +2977,7 @@ describe("page editor recovery and failure outcomes", () => {
   });
 });
 
-it("replaces an id-based bookmark with the wired page slug, then sends Back to the pages list", async () => {
+it("replaces an id-based bookmark with the wired page slug, then leaves a clean Back click to the native link", async () => {
   const id = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
   const page = { ...DOC_PAGE, id, slug: "privacy-policy" };
   const prior = window.location.href;
@@ -2990,8 +2990,9 @@ it("replaces an id-based bookmark with the wired page slug, then sends Back to t
     expect(window.history.length).toBe(entries);
     const preventDefault = vi.fn();
     await act(async () => result.current.onBackLinkClick({ preventDefault }));
-    expect(preventDefault).toHaveBeenCalledTimes(1);
-    expect(window.location.pathname).toBe("/admin/pages");
+    // A clean editor with no interactive surface leaves Back to the browser's own link navigation.
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe("/admin/pages/privacy-policy");
     unmount();
   } finally {
     window.history.replaceState(null, "", prior);

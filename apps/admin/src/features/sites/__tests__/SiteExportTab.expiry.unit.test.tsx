@@ -133,8 +133,8 @@ describe("share expiry controls on the Export tab (P11 ST-12b.T)", () => {
 });
 
 it("does not dismiss the expiry notice for a different export after acknowledging one", () => {
-  const { result, rerender } = renderHook(
-    ({ newestBackup }: { newestBackup: SiteShare | undefined }) => useShareExpiryState({ offered: [7], newestBackup }),
+  const { result, rerender } = renderHook<ReturnType<typeof useShareExpiryState>, { newestBackup: SiteShare | undefined }>(
+    ({ newestBackup }) => useShareExpiryState({ offered: [7], newestBackup }),
     { initialProps: { newestBackup: undefined } },
   );
   act(() => result.current.useShareExpiry().acknowledge());

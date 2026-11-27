@@ -378,7 +378,7 @@ describe("usePushToTalk — unmount releases the microphone", () => {
   });
 });
 
-it("keeps an unknown capture rejection out of the recording indicator's copy", () => {
+it("shows an Error's own message but keeps a non-Error capture rejection generic", () => {
   expect(describeCaptureError({ error: new Error("Microphone disconnected") })).toBe("Microphone disconnected");
   expect(describeCaptureError({ error: { message: "Opaque bridge payload" } })).toBe("Unknown error");
 });
