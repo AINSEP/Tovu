@@ -1,4 +1,4 @@
-PARTIAL run A | jobs 0/5 complete (5/5 pushed with partial progress) | tests added 429 | files 100% >=36/355 (all three axes; more at 100% lines) | bugs 6 (5 fixed, 1 open) | left: cms-3 ~60 files, misc-1 ~55, plugins-1 ~20 (branch-only gaps), ui-1 ~40, admin-8 ~65 (lists below)
+PARTIAL run A | jobs 0/5 complete (5/5 pushed with partial progress) | tests added 432 | files 100% >=37/355 (all three axes; more at 100% lines) | bugs 6 (5 fixed, 1 open) | left: cms-3 ~60 files, misc-1 ~55, plugins-1 ~20 (branch-only gaps), ui-1 ~40, admin-8 ~65 (lists below)
 
 # gap-fill-1127 run A: Jini TDD coverage gap fill (cloud, tests run)
 
@@ -25,23 +25,25 @@ This was an unattended cloud run on Opus at high effort, started 2026-11-27 at a
 
 **Coverage method:**
 - "Before" is the merge-28 number in each job brief.
-- "After" for **plugins-1** is a run of the whole plugins suite: 102 files, 1208 tests, all green, `--coverage.include` set to the job's 37 files. It is comparable to "before".
+- "After" for **plugins-1** is a run of the whole plugins suite: 102 files, 1213 tests, all green, `--coverage.include` set to the job's 37 files. It is comparable to "before".
 - "After" for the other four jobs is the subagent's scoped run: only the touched test files plus the neighbouring `__tests__` folders. It may **undercount** files that tests elsewhere also exercise.
 
 Per-test mutation notes are in each job section, and in full in the subagent ledgers (`cloud-results/gap-fill-1127-A/ledger-*.md`). Most mutations are reasoned, not run. The ones that were actually executed are marked "checked".
 
 ---
 
-## w62-cov-plugins-1: `codex/w62-cov-plugins-1` @ `058bacde` (10 commits, pushed)
+## w62-cov-plugins-1: `codex/w62-cov-plugins-1` @ `792a80cd` (11 commits, pushed)
 
-There was no prior Codex branch, so this one starts from merge-28. 81 tests added, 0 removed, and the whole plugins suite is green.
+There was no prior Codex branch, so this one starts from merge-28. 84 tests added, 0 removed, and the whole plugins suite is green.
 
 | file | before L/B/F | after L/B/F |
 |---|---|---|
 | host/activation-polling.ts | 61.8/97.4/83.3 | **100**/94.4/**100** |
 | host/node/integrity-command.ts | 25/100/0 | **100/100/100** |
 | host/node/runtime-package-location.ts | 47.8/100/50 | **100/100/100** |
-| host/node/runtime-boot.ts | 58.3/38.1/45.5 | 89.2/76.1/81.8 (re-measured before the 2 boot-conflict tests; those add lines 31-37 and 73-76) |
+| host/node/runtime-boot.ts | 58.3/38.1/45.5 | 98.3/84.3/81.8 |
+| host/node/runtime-load-target.ts | 94.1/85.7/100 | **100/100/100** |
+| host/worker/import-policy.ts | 91.2/80/100 | **100**/87.5/**100** |
 | host/node/runtime-core.ts | 85.5/85.2/63.6 | 95.2/94.3/86.4 |
 | host/provider-revision-watch.ts | 88.1/88.2/80 | **100**/90.9/**100** |
 | host/tools/install.ts | 0/0/0 | **100/100/100** |
@@ -52,7 +54,7 @@ There was no prior Codex branch, so this one starts from merge-28. 81 tests adde
 | runtime/plugin-tool-messages.ts | 76.6/75/80 | **100/100/100** |
 | runtime/sdk-resolver.ts | 46.2/100/33.3 | **100/100/100** |
 | runtime/install-source.ts | 94.2/70.4/100 | **100**/75.9/**100** |
-| the other 23 files | unchanged | see `coverage-summary` in the run |
+| the other 21 files | unchanged | see `coverage-summary` in the run |
 
 ### Tests added, with the mutation that should turn each one red
 
@@ -67,6 +69,11 @@ There was no prior Codex branch, so this one starts from merge-28. 81 tests adde
   - leaving the `.tmp-` file behind
   - dropping the default stdout
 - **Checked:** the module had 0% function coverage before, and every case runs it.
+
+The same file also has 2 `resolveLoadTarget` tests. Caught: dropping the built-in `packageRoot` spread, the importer, the site `siteEntryPath`, or the `null` for a site without an install folder or manifest.
+
+**`host/worker/__tests__/import-policy.unit.test.ts` (+1)**
+- A missing entry keeps its plain path, but ENOTDIR is thrown. Caught: swallowing every realpath error, or rethrowing ENOENT.
 
 **`host/__tests__/unit/activation-polling.unit.test.ts` (+5 tests)**
 - Seeding only this workspace's enabled rows: caught if the workspace or enabled filter is dropped.
@@ -160,13 +167,14 @@ This uses react-dom/server with a recording kit, because the package has no jsdo
 ### EXCEPTIONs
 - `host/tools/contract.ts` lines 4-9: a type-only contract module. Its only "executable" lines are `import { type … }` statements, and every consumer uses `import type`, so it never loads at runtime.
 - `host/tools/index.ts` 2-4,7: a pure public re-export barrel. `public-entry.test.ts` exercises it through the built entry.
+- `host/hook-registry.ts` 140: the documented fail-closed `default` arm of an exhaustive switch over the field-type union. `validateManifest` refuses any other type before a plugin can attach.
 - `host/node/runtime-core.ts` 102-103 and 107-108: defense-in-depth `startsWith` checks that `SAFE_PLUGIN_ID_SEGMENT` already makes unreachable, since an id with no `/`, `..` or leading dot cannot resolve outside its root. These should be refactored with a guaranteeing comment if the owner wants 100%. I did not fake tests for them.
 
 ### Left in plugins-1
 Small branch gaps in:
 - `capability-tools` (376-377, 641-655, 681-682) and `declarative-content-types` (122-124, 200-202, 376-378, 411-416, 457-458)
 - `module-snapshot` (59-60, 243-244, 294-296), `runtime-activation` (114-115, 159-160, 208-220) and `runtime-reload` 98
-- `runtime-load-target` 70-71, `import-policy` 87-89 (a non-ENOENT realpath failure), `discovery` 294-298 (case-insensitive duplicate) and `hook-registry` 140
+- `discovery` 294-298 (case-insensitive duplicate, probably unreachable because ids are lowercase-only)
 - branch-only files: admin-response, archive-policy, runtime-conflicts, plugin-install-port, word-count plugin, enable-confirmation-ui, start, invocation-binding, provider-host, provider-contributions, contributions, package-files
 
 ---
