@@ -128,3 +128,43 @@ test('a settings writer rejecting with null preserves the original reason withou
   assert.equal(authorizations, 2);
   assert.equal((await f.layer()).revisionSeq, 0);
 });
+
+test('the consent snapshot carries the addressed revision and a reason only when a host lock applies', async () => {
+  const f = await fixture();
+  const seeded = await f.seed({ ...DEFAULT_PERMISSIONS });
+  const owner = await readAssistantToolConsentSnapshot(f.base);
+  assert.equal(owner.allowed, true);
+  assert.equal(owner.revisionSeq, seeded.revisionSeq);
+  assert.equal(owner.permissions.enabled, true);
+  assert.equal('reason' in owner, false);
+  const other = await readAssistantToolConsentSnapshot({ ...f.base, principalId: 'other-admin' });
+  assert.equal(other.allowed, false);
+  assert.equal(other.reason, 'not_owner');
+  assert.equal(other.permissions.enabled, false);
+});
+
+test('Allow turns the switched-off assistant on only when the card asked for "enabled"', async () => {
+  const f = await fixture();
+  const seeded = await f.seed({ ...DEFAULT_PERMISSIONS, enabled: false });
+  assert.equal((await readAssistantToolConsentSnapshot(f.base)).permissions.enabled, false);
+  assert.equal(await allowAssistantRunTools({ ...f.base, keys: ['userMcp'], expectedRevisionSeq: seeded.revisionSeq, isLive: () => true }), true);
+  const capabilityOnly = await readAssistantToolConsentSnapshot(f.base);
+  assert.equal(capabilityOnly.permissions.enabled, false);
+  assert.equal(await allowAssistantRunTools({ ...f.base, keys: ['enabled', 'userMcp'], expectedRevisionSeq: capabilityOnly.revisionSeq, isLive: () => true }), true);
+  const switchedOn = await readAssistantToolConsentSnapshot(f.base);
+  assert.equal(switchedOn.permissions.enabled, true);
+  assert.equal(switchedOn.permissions.capabilities.userMcp, true);
+});
+
+test('a run that ends while the settings write is inside its transaction leaves the grant unsaved', async () => {
+  const f = await fixture();
+  const seeded = await f.seed({ ...DEFAULT_PERMISSIONS });
+  let checks = 0;
+  // Checks 1-2 precede the write, 3 opens the transaction, 4 runs after the write inside it.
+  const isLive = () => ++checks < 4;
+  assert.equal(await allowAssistantRunTools({ ...f.base, keys: ['userMcp'], expectedRevisionSeq: seeded.revisionSeq, isLive }), false);
+  assert.equal(checks, 4);
+  const after = await f.layer();
+  assert.equal(after.revisionSeq, seeded.revisionSeq);
+  assert.equal(after.raw.byAgent, undefined);
+});
