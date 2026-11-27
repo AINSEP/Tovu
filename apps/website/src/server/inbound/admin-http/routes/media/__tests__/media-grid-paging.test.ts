@@ -144,7 +144,7 @@ test("the media grid refuses a store without bounded queries instead of reading 
   const { app } = fixture(registerAdminMediaGridRoute, {
     mediaRepo: { list: async () => { fullReads += 1; return []; } },
   });
-  assert.deepEqual(await dispatchJsonRequest(app, "GET", `${BASE}/media/grid?limit=7`), {
+  assert.deepEqual(await dispatchJsonRequest(app, "GET", `${BASE}/media/grid?tab=all&orderBy=created&limit=7`), {
     status: 501, body: { error: "this media store cannot answer grid pages" },
   });
   assert.equal(fullReads, 0);

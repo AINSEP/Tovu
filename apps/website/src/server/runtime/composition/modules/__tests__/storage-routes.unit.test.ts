@@ -194,7 +194,8 @@ test("storage tool owner lookup is live and absent serving storage refuses witho
   await assert.rejects(tool.measure(), {
     message: "Storage cleanup runs only in the app that is serving this site. Start the site and try again.",
   });
-  await assert.rejects(tool.cleanup.preview({ principalId: "replacement-owner" }), {
+  // `async`: the gate is built per call, so an absent port throws as the awaited call is made.
+  await assert.rejects(async () => tool.cleanup.preview({ principalId: "replacement-owner" }), {
     message: "Storage cleanup runs only in the app that is serving this site. Start the site and try again.",
   });
 });

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { membersMailTransport } from "#src/features/members/mail-transport";
 /** Google login S3: real HTTP + real sealed state/JWT/link owners, entirely local protocol I/O.
