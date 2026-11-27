@@ -394,3 +394,40 @@ test('owner picker inventory excludes unrelated API connections before offering 
     assert.deepEqual((await store.inventory!({}))[0]!.meta, { credentialFormat: 'agent-plugin-state' }, 'owner picker retains the credential format without undefined subtype metadata');
   } finally { store.close({}); }
 });
+
+test("Shared Keys are refused when the app-data folder is the sites root or inside it, before any file is created", async (t) => {
+  const { home, sitesHome } = dirs(t);
+  for (const appDataDir of [sitesHome, path.join(sitesHome, "keys")]) {
+    await assert.rejects(openProjectStore({ sitesHome, home, appDataDir }),
+      { message: "Shared Keys must stay outside site folders. Choose a separate app-data folder, then restart Tovu. Details: P25_OWNER_STORE_INSIDE_SITES." }, appDataDir);
+    assert.equal(fs.existsSync(path.join(appDataDir, "project.db")), false, appDataDir);
+  }
+  const beside = path.join(home, "Documents", "Tovu-keys");
+  const store = await openProjectStore({ sitesHome, home, appDataDir: beside });
+  t.after(() => store.close({}));
+  assert.equal(store.dbPath, path.join(beside, "project.db"), "a sibling whose name only starts like the sites root is outside it");
+});
+
+test("the Shared Key label lookup finds one project key by kind and label, and refuses an ambiguous label", async (t) => {
+  const { home, sitesHome } = dirs(t);
+  const store = await openProjectStore({ sitesHome, home });
+  t.after(() => store.close({}));
+  const keyring = new InMemoryKeyring();
+  const project = { workspaceId: store.vault.workspaceId, repo: new CustomCredentialVaultRepo({ vault: store.vault.repo }), sealer: store.vault.sealer, keyring: store.vault.keyring };
+  await createCustomCredential({ repo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project }), sealer: new AesGcmSecretSealer({ keyring }), keyring,
+    clock: { nowMs: () => 0 }, idGen: { newId: () => "cred-1" } }, { workspaceId: "site-a", label: "hosting", category: "hosting", baseUrl: "https://api.example.test", connection: { token: "tok-a" } });
+  assert.ok(store.findByLabel, "the SQLite project store provides the indexed label lookup");
+  // A custom credential's project row is stored under the vault's "vendor" kind.
+  assert.equal((await store.findByLabel({ label: "hosting", kind: "vendor" }))?.id, "cred-1");
+  assert.equal(await store.findByLabel({ label: "hosting", kind: "custom" }), null);
+  assert.equal(await store.findByLabel({ label: "billing", kind: "vendor" }), null);
+
+  const db = new Database(store.dbPath);
+  try {
+    // The unique label index covers only vendor and source-control rows, so another kind can repeat a label.
+    db.exec("CREATE TEMP TABLE copy AS SELECT * FROM secrets_vault WHERE id = 'cred-1'; UPDATE copy SET id = 'cred-2', kind = 'api-connection', is_default = 0; INSERT INTO secrets_vault SELECT * FROM copy;");
+    assert.equal((await store.findByLabel({ label: "hosting", kind: "api-connection" }))?.id, "cred-2", "one row of a kind is still found");
+    db.exec("UPDATE copy SET id = 'cred-3'; INSERT INTO secrets_vault SELECT * FROM copy;");
+  } finally { db.close(); }
+  await assert.rejects(store.findByLabel({ label: "hosting", kind: "api-connection" }), { message: "More than one Shared Key has this label. Rename the conflicting key in Shared Keys and try again." });
+});
