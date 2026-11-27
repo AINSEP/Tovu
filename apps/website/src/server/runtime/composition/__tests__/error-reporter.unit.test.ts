@@ -129,3 +129,29 @@ test("a throwing tracker never replaces the failure: record still returns the id
   assert.match(errorId, /^ERR-/);
   assert.equal(host.calls.length, 1, "the host record is still written");
 });
+
+test("tracker dimensions bound attribute count and text, and cannot override the incident identity", () => {
+  const { tracker, calls } = recordingTracker();
+  const fields = Array.from({ length: 38 }, (_, i) => [`field_${i}`, i] as const);
+  const accepted = trackerReportPort({ tracker }).reportError({ error: new TypeError("could not save"), context: {
+    operation: "settings.save", incidentId: "ERR-1234-5678-1234-5678",
+    attributes: { incidentId: "ERR-AAAA-AAAA-AAAA-AAAA", atLimit: "x".repeat(256), oversized: "y".repeat(257),
+      [CANARY]: "safe value", ...Object.fromEntries(fields) }, exactSecrets: [CANARY],
+  } });
+  assert.equal(accepted, true);
+  assert.deepEqual(calls.map(({ error, context }) => ({ name: error.name, message: error.message, context })), [{
+    name: "TypeError", message: "could not save", context: { operation: "settings.save", attributes: {
+      incidentId: "ERR-1234-5678-1234-5678", atLimit: "x".repeat(256), ...Object.fromEntries(fields.slice(0, 30)),
+    } },
+  }]);
+});
+
+test("a private operation label is replaced with the safe generic tracker operation", () => {
+  const { tracker, calls } = recordingTracker();
+  assert.equal(trackerReportPort({ tracker }).reportError({
+    error: new Error("storage failed"), context: { operation: `uploads.${CANARY}`, exactSecrets: [CANARY] },
+  }), true);
+  assert.deepEqual(calls.map(({ error, context }) => ({ message: error.message, context })), [
+    { message: "storage failed", context: { operation: "application.error" } },
+  ]);
+});

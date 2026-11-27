@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import type { RouteDeps } from '#src/server/routes/types';
+import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
+import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { registerCommerceHttp } from '../commerce-http.js';
 
 test('storefront readiness failure returns its redacted incident reference', async t => {
@@ -42,6 +44,25 @@ test('disabled commerce lets published product and commerce paths reach the CMS'
     const response: Response = await fetch(`http://127.0.0.1:${address.port}${path}`);
     assert.equal(response.status, 200); assert.equal(await response.text(), 'Published CMS page');
   }
+});
+
+test('an active shop with unavailable checkout answers product pages without reading or rendering the catalog', async () => {
+  const app = express();
+  const reads: string[] = [];
+  const deps = portFake<RouteDeps>({
+    workspaceId: 'shop', clock: { nowMs: () => 0, nowIso: () => '2026-11-05T00:00:00.000Z' },
+    commerce: { storefrontStatus: async () => { reads.push('status'); return { active: true, ready: false, reason: 'configure payment' }; } },
+    commerceCatalog: { listProducts: async () => { reads.push('list'); return []; }, findProduct: async () => { reads.push('find'); return null; } },
+  });
+  registerCommerceHttp({ app, deps });
+  app.use((_req, res) => { res.status(418).send('CMS fallback'); });
+  for (const url of ['/products', '/products/notebook']) {
+    const reply = await dispatchHttpRequest({ app, method: 'GET', url });
+    assert.equal(reply.status, 404);
+    assert.match(String(reply.headers['content-type']), /^text\/html/);
+    assert.equal(reply.body, '<h1>This shop is not accepting purchases.</h1>');
+  }
+  assert.deepEqual(reads, ['status', 'status']);
 });
 
 test('a product request shares readiness and configured origin through guard, point lookup and controls', async t => {

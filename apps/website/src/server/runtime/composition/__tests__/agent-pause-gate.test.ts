@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createAgentPauseGate, sqlAgentPauseHoldStore, type AgentPauseHoldStore } from "../agent-pause-gate.js";
+import { createAgentPauseGate, createMemoryAgentPauseHoldStore, sqlAgentPauseHoldStore, type AgentPauseHoldStore } from "../agent-pause-gate.js";
 import type { HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 
 const clock = { nowIso: () => "2026-11-24T00:00:00.000Z" };
@@ -58,3 +58,17 @@ for (const adapter of eachDialect({ tables: ["agent_pause_holds"], make: db => s
     assert.equal(await store.heldSince({ workspaceId: "w" }), null);
   });
 }
+
+test("an off boot records the first hold before any worker checks, without touching another workspace", async () => {
+  const store = createMemoryAgentPauseHoldStore();
+  const bind = (workspaceId: string, enabled: boolean, nowIso: string) =>
+    createAgentPauseGate({ store, workspaceId, assistantEnabled: () => enabled, clock: { nowIso: () => nowIso } });
+  assert.equal(await store.heldSince({ workspaceId: "editorial" }), null);
+  await bind("editorial", false, "2026-11-24T06:00:00.000Z").recordSwitchState();
+  assert.equal(await store.heldSince({ workspaceId: "editorial" }), "2026-11-24T06:00:00.000Z");
+  await bind("editorial", false, "2026-11-25T06:00:00.000Z").recordSwitchState();
+  await bind("storefront", true, "2026-11-25T06:00:00.000Z").recordSwitchState();
+  assert.equal(await store.heldSince({ workspaceId: "editorial" }), "2026-11-24T06:00:00.000Z");
+  assert.equal(await bind("storefront", true, "2026-11-25T06:00:00.000Z").isAgentWorkAllowed(), true);
+  assert.equal(await bind("editorial", true, "2026-11-25T06:00:00.000Z").isAgentWorkAllowed(), false);
+});

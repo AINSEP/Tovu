@@ -6,6 +6,16 @@ import { allowsLocalOwnerSignInRequest, consumeLocalOwnerSignIn, resolveLocalOwn
 const dev = { NODE_ENV: "development", TOVU_DEV_OWNER_SIGNIN: "1", TOVU_HOST: "127.0.0.1", TOVU_DEV_SUPERVISOR_PID: "42" };
 const noContainer = { pathExists: () => false };
 
+test("owner sign-in warning uses stderr by default and stays silent without an opt-in", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  warnOnLocalOwnerSignIn({ env: { NODE_ENV: "production" } });
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), []);
+  warnOnLocalOwnerSignIn({ env: { NODE_ENV: "production", TOVU_DEV_OWNER_SIGNIN: "1" } });
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [[
+    "[local-owner-signin] WARNING: TOVU_DEV_OWNER_SIGNIN is disabled: production or non-development mode. Local owner sign-in requires a loopback dev launcher; deployed sites keep per-site accounts.",
+  ]]);
+});
+
 test("devsignin: an explicit local launcher enables sign-in and an absent/disabled flag never does", () => {
   assert.deepEqual(resolveLocalOwnerSignIn({ env: dev }, noContainer), { enabled: true, routineDesktopEligible: false });
   assert.deepEqual(resolveLocalOwnerSignIn({ env: {} }, noContainer), { enabled: false, routineDesktopEligible: false });

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { ToolExecutionContext } from "@jini-ai/core";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 import type { HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
-import { buildAgentPauseRegistrations, RESUME_AGENT_WORK_TOOL_ID } from "../agent-pause-tools.js";
+import { buildAgentPauseRegistrations, RESUME_AGENT_WORK_TOOL_ID, type AgentPauseToolDeps } from "../agent-pause-tools.js";
 import { createAgentPauseGate, createMemoryAgentPauseHoldStore } from "../agent-pause-gate.js";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
 
 /**
  * @file H4: `resume_agent_work` releases the agent-pause hold only through the approval card. No
@@ -40,3 +43,29 @@ test("resume_agent_work: a confirmed card releases the hold", async () => {
   assert.deepEqual(await run(), { resumed: true });
   assert.equal(await gate.isAgentWorkAllowed(), true);
 });
+
+for (const scenario of [
+  { name: "denied principal", allowed: false, message: "resume_agent_work: this caller may not use the admin assistant." },
+  { name: "authorized principal without a gate", allowed: true, message: "resume_agent_work: this site has no agent-pause gate composed; nothing is held." },
+] as const) {
+  test(`resume_agent_work refuses a ${scenario.name} before asking for approval`, async () => {
+    const checks: unknown[] = [];
+    const actions: string[] = [];
+    const deps: AgentPauseToolDeps = { workspaceId: "editors", authorize: async input => {
+      checks.push(input);
+      return { allowed: scenario.allowed, reason: scenario.allowed ? "matched" : "denied" };
+    }, agentPauseGate: scenario.allowed ? undefined : { resume: async () => {
+      actions.push("resume");
+      return { resumed: true };
+    } } };
+    const [tool] = buildAgentPauseRegistrations({ deps, surfaces: portFake<AssistantSurfaceDeps>({}) }, {
+      askHuman: async () => { actions.push("approval"); return { confirmed: true }; },
+    });
+    assert.ok(tool);
+    const context: ToolExecutionContext = { executionId: "exec-5", principal: { id: "editor-3" },
+      run: { id: "run-1" }, input: {}, signal: new AbortController().signal };
+    await assert.rejects(tool.handler(context), { message: scenario.message });
+    assert.deepEqual(checks, [{ principalId: "editor-3", workspaceId: "editors", permission: "admin.assistant.use" }]);
+    assert.deepEqual(actions, []);
+  });
+}

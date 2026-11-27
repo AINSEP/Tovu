@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import type { TovuSeedBundledAgentPluginsResult } from "#src/features/agent-plugins/lifecycle";
+import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "#src/assistant/external-mcp-roster-change";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 
 const lifecycle = await import("#src/features/agent-plugins/lifecycle");
@@ -17,6 +18,8 @@ const selection = new Map<string, string>();
 let activations: { schemaVersion: 1; plugins: Record<string, { enabled: boolean }> } = { schemaVersion: 1, plugins: {} };
 let activationsFailure: Error | undefined;
 let installed: { pluginId: string }[] = [];
+let syncFaces = async (): Promise<void> => {};
+let lockSoon = async (): Promise<string[]> => [];
 mock.module("#src/features/agent-plugins/lifecycle", { namedExports: { ...lifecycle,
   seedBundledAgentPlugins: async () => { calls.push("seed"); return report; },
   listInstalledPlugins: async () => installed,
@@ -31,10 +34,10 @@ mock.module("#src/features/agent-plugins/apply-tool-renames", { namedExports: { 
   applyAgentPluginToolRenames: async () => { calls.push("renames"); },
 } });
 mock.module("@jini-ai/agent-plugins/site/provider-plugin-link", { namedExports: { ...faces,
-  syncProviderFaces: async () => { calls.push("faces"); },
+  syncProviderFaces: async () => { calls.push("faces"); await syncFaces(); },
 } });
 mock.module("@jini-ai/agent-plugins/site/soon-lock", { namedExports: { ...soonLock,
-  lockSoonAgentPlugins: async () => { calls.push("soon-lock"); return []; },
+  lockSoonAgentPlugins: async () => { calls.push("soon-lock"); return await lockSoon(); },
 } });
 mock.module("#src/features/agent-plugins/grant-signed-in-defaults", { namedExports: { ...grants,
   grantDeclaredToolsAtBoot: async ({ deps: input }: Parameters<typeof grants.grantDeclaredToolsAtBoot>[0]) => {
@@ -182,4 +185,49 @@ test("D0a: no selection and an empty folder is quiet; an id both seeded and enab
   assert.deepEqual(bundledAgentPluginBootWarnings({ sourceRoot: "bundled", seededIds: [], selectedIds: [], enabledIds: [], installedIds: [] }), []);
   assert.deepEqual(bundledAgentPluginBootWarnings({ sourceRoot: "bundled", seededIds: ["fly"], selectedIds: ["fly"], enabledIds: ["fly"], installedIds: [] }), []);
   assert.deepEqual(bundledAgentPluginBootWarnings({ sourceRoot: "bundled", seededIds: ["fly"], selectedIds: [], enabledIds: ["a", "b"], installedIds: ["b"] }).length, 1);
+});
+
+test("provider-face and Soon-lock errors each warn and cannot prevent token import", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+  syncFaces = async () => { throw new Error("provider state is unavailable"); };
+  lockSoon = async () => { throw "activation store is busy"; };
+  t.after(() => { syncFaces = async () => {}; lockSoon = async () => []; });
+  t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
+  const module = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" })
+    .find(candidate => candidate.name === "bundled-agent-plugins");
+  assert.ok(module);
+  await module.prepare();
+  assert.deepEqual(calls, [
+    "seed", "faces",
+    "warn:[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: provider state is unavailable",
+    "soon-lock",
+    "warn:[bundled-agent-plugins] plugins that aren't ready yet could not be switched off; the next start retries: activation store is busy",
+    "tokens", "renames", "grants",
+  ]);
+});
+
+test("a nonempty Soon lock broadcasts the exact lowered roster before importing tokens", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+  lockSoon = async () => ["upcoming-mail", "upcoming-docs"];
+  t.after(() => { lockSoon = async () => []; resetExternalMcpRosterChangeListenersForTests(); });
+  const lowered: unknown[] = [];
+  onExternalMcpRosterChanged({ key: "boot-reporting-assertion", listener: change => {
+    lowered.push(change);
+    calls.push("roster");
+  } });
+  t.mock.method(console, "info", (line: string) => { calls.push(`info:${line}`); });
+  const module = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" })
+    .find(candidate => candidate.name === "bundled-agent-plugins");
+  assert.ok(module);
+  await module.prepare();
+  assert.deepEqual(lowered, [{ pluginIds: ["upcoming-mail", "upcoming-docs"] }]);
+  assert.deepEqual(calls, [
+    "seed", "faces", "soon-lock",
+    "info:[bundled-agent-plugins] switched off plugins that aren't ready yet: upcoming-mail, upcoming-docs",
+    "roster", "tokens", "renames", "grants",
+  ]);
 });

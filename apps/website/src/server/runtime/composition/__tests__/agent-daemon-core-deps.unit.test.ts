@@ -88,6 +88,25 @@ test("a retained resource closes on composition failure and shutdown", async () 
   assert.equal(closed, 1);
 });
 
+for (const scenario of [
+  { field: "TOVU_WORKSPACE", value: "another-workspace", message: "the daemon workspace does not match its site server" },
+  { field: "TOVU_SITE_DIR", value: path.join(tmpdir(), "another-site"), message: "the daemon directory does not match its site server" },
+] as const) {
+  test(`daemon refuses a bootstrap snapshot that disagrees with ${scenario.field} before opening storage`, async () => {
+    const f = fixture();
+    const opened: string[] = [];
+    await assert.rejects(createAgentDaemonCoreDeps({
+      env: { TOVU_SITE_LISTENER_ORIGIN: f.env.TOVU_SITE_LISTENER_ORIGIN, [scenario.field]: scenario.value },
+      token: "private",
+    }, { fetch: f.fetcher, openClient: async () => {
+      opened.push("retained database");
+      throw new Error("storage should not be reached");
+    } }), error => error instanceof Error && error.message.includes(scenario.message));
+    assert.deepEqual(f.calls, [{ operation: "bootstrap", input: {} }]);
+    assert.deepEqual(opened, []);
+  });
+}
+
 test("daemon telemetry preserves event order and bounds a slow site's queue", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const f = fixture();

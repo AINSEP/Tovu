@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 import { createCommerceWorker } from '../commerce-worker.js';
 
@@ -14,6 +17,36 @@ function fixture({ owner = true, active = true, pending = false } = {}) {
   return { worker, timers, warnings, state };
 }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
+
+test('the serving worker owns its real file lock until close and cancels the default scheduled cycle', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'tovu-settlement-worker-'));
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let cycles = 0;
+  const warnings: string[] = [];
+  const worker = createCommerceWorker({ owner: true, directory, active: async () => true,
+    hasPending: async () => false, run: async () => { cycles++; }, warn: ({ message }) => warnings.push(message) });
+  try {
+    assert.deepEqual(await readdir(directory), []);
+    await worker.kick();
+    assert.equal(cycles, 1);
+    assert.deepEqual(await readdir(directory), ['commerce-worker.lock']);
+    t.mock.timers.tick(4_999);
+    await tick();
+    assert.equal(cycles, 1);
+    t.mock.timers.tick(1);
+    await tick();
+    assert.equal(cycles, 2);
+    await worker.close();
+    assert.deepEqual(await readdir(directory), []);
+    t.mock.timers.tick(5_000);
+    await tick();
+    assert.equal(cycles, 2);
+    assert.deepEqual(warnings, []);
+  } finally {
+    await worker.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test('commerce-off with no durable work schedules nothing and releases ownership', async () => {
   const { worker, timers, state } = fixture({ active: false });

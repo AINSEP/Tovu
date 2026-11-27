@@ -10,8 +10,9 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import { formDestinationKeyLabel } from "#src/features/form-destinations/key-store";
-import type { FormDestinationPage, FormDestinationRegistry } from "@jini-ai/cms/forms";
-import { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT } from "@jini-ai/core/settings";
+import type { FormDestinationPage, FormDestinationRegistry, FormDestinationKit } from "@jini-ai/cms/forms";
+import { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT, set } from "@jini-ai/core/settings";
+import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
 import { FORM_PULL_LEASE_MS } from "@jini-ai/cms/forms/destinations/pull";
 import { closeSqliteConnection, sqliteKernel } from "#src/platform/db/kernel/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -143,6 +144,42 @@ test("the publish-side port hands the site's active forms, as the generic manife
   s.deps = { ...s.deps, loadFormDestinations: async () => ({ list: () => [cohosted], get: () => cohosted, resolve: () => cohosted, refusals: [] }) };
   const preview = await composeFormSubmissions(s.deps).destination.previewInput({ workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit });
   assert.deepEqual(preview.hosting?.forms.map((form) => form.slug), ["waitlist"]);
+});
+
+test("external receiver preview opens the current site's saved credential and forwards its connection fields", async () => {
+  const s = setup({ hosts: {} });
+  const repo = new InMemorySettingsRepo();
+  const settings = { repo, clock: s.deps.clock, ids: s.deps.idGen, principals: { findActiveById: async () => null },
+    authorize: async () => ({ allowed: true, reason: "test" }) };
+  await ensureFormDestinationSetting({ deps: { ...settings, settingsRepo: repo, ensureSettingDefinitions }, systemPrincipalId: "system" });
+  await set({ deps: settings, input: { namespace: "core.forms", key: "receiver", scope: "workspace",
+    workspaceId: W, value: "external-inbox", callerPrincipalId: "owner" } });
+  const kit: FormDestinationKit = { timeouts: {}, fetch: async () => assert.fail("preview is read-only") };
+  const calls: unknown[] = [];
+  const entry: NonNullable<ReturnType<FormDestinationRegistry["get"]>> = {
+    descriptor: { id: "external-inbox", label: "External inbox", module: "receiver.mjs", receive: "external", credentialLabel: "Inbox key" },
+    pluginId: "external",
+    module: { preview: async input => {
+      calls.push({ kit: input.kit, slugs: input.forms.map(form => form.slug), site: input.site, credential: input.credential });
+      return { status: "on", forms: 1, message: "The waitlist goes to the external inbox.", changes: [] };
+    } },
+  };
+  const destination = composeFormSubmissions({ ...s.deps, settingsRepo: repo, loadFormDestinations: async ({ workspaceId }) => {
+    assert.equal(workspaceId, W);
+    return { list: () => [entry], get: id => id === entry.descriptor.id ? entry : undefined, resolve: () => undefined, refusals: [] };
+  } }).destination;
+  const preview = () => destination.previewInput({ workspaceId: W, hostingTargetId: "hosting-a", projectName: "spring-launch", kit });
+
+  await createCustomCredential(s.deps.credentials, { workspaceId: "other-site", label: "Inbox key", category: "hosting",
+    baseUrl: "https://foreign.example", connection: { token: "foreign-token" } });
+  assert.deepEqual(await preview(), { formSubmissions: { status: "off", forms: 1, changes: [],
+    message: 'Form submissions: form destination \'external-inbox\' needs its saved connection "Inbox key". Save it under Custom credentials with exactly that label, then try again.' } });
+  assert.deepEqual(calls, []);
+  await createCustomCredential(s.deps.credentials, { workspaceId: W, label: "Inbox key", category: "hosting",
+    baseUrl: "https://inbox.example", connection: { username: "form-publisher", token: "inbox-fixture-token" } });
+  assert.deepEqual(await preview(), { formSubmissions: { status: "on", forms: 1, message: "The waitlist goes to the external inbox.", changes: [] } });
+  assert.deepEqual(calls, [{ kit, slugs: ["waitlist"], site: { projectName: "spring-launch" },
+    credential: { baseUrl: "https://inbox.example", username: "form-publisher", token: "inbox-fixture-token" } }]);
 });
 
 // ---- Security pins (phase A): the per-receiver pull lease and the automatic pull's admission. ----

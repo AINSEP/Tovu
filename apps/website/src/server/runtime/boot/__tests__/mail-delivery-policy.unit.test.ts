@@ -69,6 +69,10 @@ test("resendPolicyFor: sign-in links and forms never re-send; other mail may re-
   assert.equal(resendPolicyFor({ options: { sourceContext: { module: "forms" } } }), "never");
 });
 
+test("resendPolicyFor: a missing purpose does not block recovery for newsletter mail", () => {
+  assert.equal(resendPolicyFor({ options: { sourceContext: { module: "newsletter" } } }), "on_unknown");
+});
+
 test("a send is reserved, dispatched in Tovu's call shape and marked sent; a replay returns the receipt without re-sending", async () => {
   const { ledger, wrap } = wrapper();
   const inner = recordingMailer();

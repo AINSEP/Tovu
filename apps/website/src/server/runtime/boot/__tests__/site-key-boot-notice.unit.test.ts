@@ -102,6 +102,12 @@ test("a broken key FILE points at the file, not at the env var", () => {
   assert.match(text, /not-hex/);
 });
 
+test("a damaged environment key without probe details still names the variable and an unreadable cause", () => {
+  const lines = run({ inspect: () => status({ invalid: true, source: "env" }) });
+  assert.equal(lines[2], "     the TOVU_SITE_KEY environment variable is present but not usable (unreadable).");
+  assert.ok(lines.includes(`     Otherwise restore the original site key at ${KEY_FILE}, or set TOVU_SITE_KEY.`));
+});
+
 test("production is silent — the readiness gate has already refused the boot", () => {
   const lines = run({ mode: () => "production" });
   assert.deepEqual(lines, [], "warning immediately before process.exit(1) helps nobody");

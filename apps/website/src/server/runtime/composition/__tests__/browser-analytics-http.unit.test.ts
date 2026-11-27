@@ -6,10 +6,103 @@ import express, { type Express, type Request, type RequestHandler, type Response
 import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { createNoopObservabilityPort, type MetricInput, type MetricOptions } from '@jini-ai/core/contracts/observability';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
+import { startTestServer, loginAsBarePrincipal } from '#src/server/__tests__/helpers/http-test-server';
+import { createRouteIncidentReporter } from '#src/server/__tests__/helpers/route-incident-reporter';
+import { registerAuthRoutes } from '../../../inbound/admin-http/dev-auth.js';
 import { TELEMETRY_CONSENT } from '../telemetry-consent.js';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import { createRouteDeps } from '../app.js';
 import { applyBrowserAnalyticsHttp } from '../browser-analytics-http.js';
+
+test('provider asset delivery preserves types and cache hints, while unclaimed paths and provider faults stay distinct', async t => {
+  const calls: unknown[] = [];
+  const asset = '/_jini/browser-analytics/site/example';
+  const app = express();
+  const deps = { ...createRouteDeps(), browserAnalytics: ({ surface }: { surface: string }) => {
+    assert.equal(surface, 'site');
+    return [{ source: '', origins: [], supportsStatic: false, http: { path: asset, handle: async (input: { path: string }) => {
+      calls.push(input);
+      if (input.path === '/fault') throw new Error('upstream-private-detail');
+      assert.equal(input.path, '/client.js');
+      return { status: 200, body: '/* browser asset */', contentType: 'application/javascript', cacheControl: 'public, max-age=120' };
+    } } }];
+  } };
+  applyBrowserAnalyticsHttp({ app, deps });
+  app.get('/_jini/browser-analytics/other', (_req, res) => { res.status(202).send('next route'); });
+  const baseUrl = await startTestServer(app, t);
+
+  const found = await fetch(baseUrl + asset + '/client.js?cache=v2');
+  assert.equal(found.status, 200);
+  assert.equal(found.headers.get('content-type'), 'application/javascript');
+  assert.equal(found.headers.get('cache-control'), 'public, max-age=120');
+  assert.equal(await found.text(), '/* browser asset */');
+  assert.deepEqual(calls, [{ method: 'GET', path: '/client.js', body: new Uint8Array(), contentType: 'application/octet-stream' }]);
+
+  const missing = await fetch(baseUrl + asset + '-other/client.js');
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get('cache-control'), 'private, no-store');
+  assert.equal(await missing.text(), '');
+  assert.equal(calls.length, 1);
+  const other = await fetch(baseUrl + '/_jini/browser-analytics/other');
+  assert.equal(other.status, 202);
+  assert.equal(await other.text(), 'next route');
+  assert.equal(calls.length, 1);
+
+  const fault = await fetch(baseUrl + asset + '/fault');
+  assert.equal(fault.status, 502);
+  assert.equal(await fault.text(), '');
+  assert.deepEqual(calls[1], { method: 'GET', path: '/fault', body: new Uint8Array(), contentType: 'application/octet-stream' });
+});
+
+test('admin collection requires same origin, an authenticated session and live metrics consent', async t => {
+  const previousOrigin = process.env.TOVU_PUBLIC_URL;
+  t.after(() => {
+    if (previousOrigin === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = previousOrigin;
+  });
+  process.env.TOVU_PUBLIC_URL = 'http://localhost:3000';
+  const deps = createRouteDeps();
+  const repo = new InMemorySettingsRepo();
+  await deps.settingsReady;
+  deps.settingsRepo = repo;
+  const workspaceId = deps.workspaceId, now = '2026-11-20T00:00:00Z';
+  await repo.saveDefinition({ settingId: 'test-admin-metrics', version: 1, workspaceId: null, ...TELEMETRY_CONSENT,
+    ownerKind: 'core', ownerId: null, schema: { type: 'boolean' }, defaultValue: false, scopes: 2, secret: false,
+    status: 'active', aliasOfNamespace: null, aliasOfKey: null, coercionTag: null, createdAt: now, updatedAt: now });
+  const calls: unknown[] = [];
+  const collector = '/_jini/browser-analytics/admin/report';
+  deps.browserAnalytics = ({ surface }) => surface === 'admin' ? [{ source: '', origins: [], supportsStatic: false,
+    http: { path: collector, handle: async input => {
+      calls.push(input);
+      return { status: 202, body: 'accepted', cacheControl: 'public, max-age=900' };
+    } } }] : [];
+  const app = express();
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
+  applyBrowserAnalyticsHttp({ app, deps });
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsBarePrincipal(deps, baseUrl, { username: 'metrics-operator' });
+  assert.match(cookie, /^tovu_session=.+/);
+  const send = (headers: Record<string, string>) => fetch(baseUrl + collector + '/event', {
+    method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: '{"duration":73}',
+  });
+  const off = await send({ origin: baseUrl, cookie });
+  assert.equal(off.status, 403);
+  assert.equal(await off.text(), '');
+  await repo.saveWorkspaceValue({ settingId: 'test-admin-metrics', scope: 'workspace', workspaceId, principalId: null,
+    valueJson: true, state: 'set', defVersion: 1, seq: 1, updatedBy: 'metrics-operator', updatedAt: now, originPluginId: null });
+  const refusedHeaders: Record<string, string>[] = [{ origin: baseUrl }, { origin: 'null', cookie }, { cookie }];
+  for (const headers of refusedHeaders) {
+    const refused = await send(headers);
+    assert.equal(refused.status, 403);
+    assert.equal(await refused.text(), '');
+  }
+  assert.deepEqual(calls, []);
+  const accepted = await send({ origin: baseUrl, cookie });
+  assert.equal(accepted.status, 202);
+  assert.equal(accepted.headers.get('cache-control'), 'private, no-store');
+  assert.equal(await accepted.text(), 'accepted');
+  assert.deepEqual(calls, [{ method: 'POST', path: '/event', body: Buffer.from('{"duration":73}'), contentType: 'application/json' }]);
+});
 
 test('generic site collectors require full analytics; assets, origin checks and rate limits remain', async t => {
   const f = consentFixture({ t });

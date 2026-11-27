@@ -301,6 +301,12 @@ test("production route guards consult classified inventory entries and keep thei
   assert.deepEqual(capabilityRouteGuard({ capabilityName: "seo", mode: "local" }), { register: true });
 });
 
+test("an unclassified route is allowed locally but not registered in production", () => {
+  const capabilityName = "uncatalogued-fixture-capability";
+  assert.deepEqual(capabilityRouteGuard({ capabilityName, mode: "local" }), { register: true });
+  assert.deepEqual(capabilityRouteGuard({ capabilityName, mode: "production" }), { register: false });
+});
+
 test("a non-production capability without a durable adapter is not a durability refusal, and a throwing sharp probe is a readiness failure", async () => {
   const result = await runProductionReadinessGate({
     mode: "production",

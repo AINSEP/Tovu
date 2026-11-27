@@ -109,6 +109,22 @@ test('without flush: retain rejection + monitor listeners exactly, with no fatal
   }
 });
 
+test("the injected event source reports a non-Error rejection as an attributed Error", t => {
+  const { port, reports } = recording();
+  const target = new EventEmitter();
+  const uninstall = installProcessErrorReporting({ tracker: createTracker({ observability: port }), processRole: "desktop-main" }, { target });
+  t.after(uninstall);
+  target.emit("unhandledRejection", "worker startup failed", Promise.resolve());
+  assert.deepEqual(reports.map(({ context }) => context), [
+    { operation: "process.unhandled_rejection", attributes: { process: "desktop-main" } },
+  ]);
+  assert.ok(reports[0]?.error instanceof Error);
+  assert.match(reports[0].error.message, /worker startup failed/);
+  uninstall();
+  target.emit("unhandledRejection", "not reported after removal", Promise.resolve());
+  assert.equal(reports.length, 1);
+});
+
 test('fatal path logs, reports, awaits flush and exits 1 in that order', async () => {
   const steps: string[] = [];
   const target = new EventEmitter();

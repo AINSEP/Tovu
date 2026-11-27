@@ -18,7 +18,7 @@ const id = "plugin_mail";
 const baseUrl = "https://api.vendor.example.com";
 
 /** Exercise both guards through the catalog's real plugin owner and the extracted row resolver. */
-async function harness(options: { owner?: string; enabled?: boolean; authMode?: string; missingRow?: boolean; baseUrl?: string } = {}) {
+async function harness(options: { owner?: string; enabled?: boolean; authMode?: string; missingRow?: boolean; clearedToken?: boolean; baseUrl?: string } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
@@ -34,6 +34,7 @@ async function harness(options: { owner?: string; enabled?: boolean; authMode?: 
     assert.ok(row);
     // Leave a static key in the payload to prove non-static rows are refused before decryption.
     if (options.authMode) await repo.upsert({ ...row, authMode: options.authMode });
+    if (options.clearedToken) await repo.upsert({ ...row, sealedOAuth: null });
   }
   const adapters: MailAdapterRegistry = { refusals: [], list: () => [{
     pluginId,
@@ -82,5 +83,11 @@ test("domain-read fallback returns the active plugin's enabled static key at its
   const { deps, lookups } = await harness();
 
   assert.deepEqual(await resolveMailDomainReadCredential({ deps, id }), { token: "full-access-key", baseUrl });
+  assert.deepEqual(lookups, [{ workspaceId, serverId }]);
+});
+
+test("an eligible account row with no stored token returns null from the resolver", async () => {
+  const { deps, lookups } = await harness({ clearedToken: true });
+  assert.equal(await deps.resolvePluginAccountToken({ pluginId, serverId }), null);
   assert.deepEqual(lookups, [{ workspaceId, serverId }]);
 });

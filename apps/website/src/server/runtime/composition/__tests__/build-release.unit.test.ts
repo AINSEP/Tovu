@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readBuildRelease, telemetryEnvironment } from '../build-release.js';
+import { readBuildRelease, readProductVersion, telemetryEnvironment } from '../build-release.js';
 
 test('release uses the running manifest version and short SHA, with bounded dev fallbacks', () => {
   const read = (file: string) => file.endsWith('runtime-manifest.json')
@@ -19,4 +19,30 @@ test('telemetry environment retains the host bounded runtime selection', () => {
   assert.equal(telemetryEnvironment({ env: { ELECTRON_RUN_AS_NODE: '1' } }), 'desktop');
   assert.equal(telemetryEnvironment({ env: { ELECTRON_RUN_AS_NODE: '1', TOVU_RUNTIME_MODE: 'production' } }), 'production');
   assert.equal(telemetryEnvironment({ env: { NODE_ENV: 'production', TOVU_RUNTIME_MODE: 'anything' } }), 'local');
+});
+
+test('incident versions prefer the runtime manifest and fall back to the source package without adding a release suffix', () => {
+  for (const [manifestVersion, packageVersion, expected] of [
+    ['4.2.3-rc.1', '9.1.0', '4.2.3-rc.1'],
+    ['operator@example.test', '9.1.0', '9.1.0'],
+    [null, 'latest', undefined],
+  ] as const) {
+    const files: string[] = [];
+    const result = readProductVersion({ productRoot: '/tovu-build' }, { read: (file, encoding) => {
+      assert.equal(encoding, 'utf8');
+      files.push(file);
+      if (file === '/tovu-build/runtime-manifest.json') return JSON.stringify({ tovuVersion: manifestVersion, tovuSha: '0123456789' });
+      if (file === '/tovu-build/package.json') return JSON.stringify({ version: packageVersion });
+      assert.fail(`unexpected metadata path ${file}`);
+    } });
+    assert.equal(result, expected);
+    assert.deepEqual(files, manifestVersion === '4.2.3-rc.1'
+      ? ['/tovu-build/runtime-manifest.json']
+      : ['/tovu-build/runtime-manifest.json', '/tovu-build/package.json']);
+  }
+});
+
+test('telemetry uses the explicitly selected runtime mode instead of re-reading an inherited mode', () => {
+  assert.equal(telemetryEnvironment({ env: { TOVU_RUNTIME_MODE: 'production', ELECTRON_RUN_AS_NODE: '1' }, runtimeMode: 'local' }), 'desktop');
+  assert.equal(telemetryEnvironment({ env: {}, runtimeMode: 'production' }), 'production');
 });

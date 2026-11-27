@@ -152,3 +152,20 @@ test("the boot gate prints the local owner sign-in refusal, and production with 
   assert.doesNotMatch(defaultPassword.stderr, /default-owner-password, \d{4}-/);
   assert.match(defaultPassword.stdout, /gate-passed/);
 });
+
+test("production boot warns about the development analytics seed and keeps serving", (t) => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-gate-analytics-"));
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
+  const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
+  const env: NodeJS.ProcessEnv = { ...process.env, TEST_GATE_CWD: cwd, HOME: cwd, TOVU_RUNTIME_MODE: "production",
+    TOVU_ADMIN_PASSWORD: "nondefault-test-password", TOVU_SITE_KEY: "7a".repeat(32), COMMENTS_IP_SALT: "test-salt" };
+  delete env.ANALYTICS_ROOT_KEY_SEED;
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30_000 });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.stdout.split(/\r?\n/).includes("gate-passed"));
+  assert.deepEqual(result.stderr.split(/\r?\n/).filter(line => line.includes("dev-secret-placeholder")), [
+    "[production-readiness-gate] WARNING PRODUCTION_BOOT_UNSAFE_DEFAULT (dev-secret-placeholder): Analytics uses a development seed. Set ANALYTICS_ROOT_KEY_SEED to a private, stable value in the deployment environment. Boot continues.",
+  ]);
+});

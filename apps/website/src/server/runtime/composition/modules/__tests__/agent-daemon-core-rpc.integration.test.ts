@@ -135,6 +135,22 @@ test("attempt lookup carries live authority without copying the answer event log
   assert.equal("attemptBase" in head!, false);
 });
 
+test("clearing a daemon session over RPC removes only the matching server-owned locator", async t => {
+  const { core, server } = await fixture(t);
+  const runId = "daemon-test-run";
+  const locator = { conversationId: "chat", agentId: "codex" };
+  await server.agentSessions.setSessionId({ ...locator, sessionId: "running-session" });
+  const otherLocator = { conversationId: "chat", agentId: "claude" };
+  await server.agentSessions.setSessionId({ ...otherLocator, sessionId: "other-agent-session" });
+  assert.equal(await core.getSessionForAttempt({ runId }), "running-session");
+
+  await core.chatRunLedger.durable.clearSession({ runId, sessionId: "stale-session" }, {});
+  assert.equal(await core.getSessionForAttempt({ runId }), "running-session");
+  await core.chatRunLedger.durable.clearSession({ runId, sessionId: "running-session" }, {});
+  assert.equal(await core.getSessionForAttempt({ runId }), null);
+  assert.equal(await server.agentSessions.getSessionId(otherLocator), "other-agent-session");
+});
+
 test("the next daemon run reads live provider capture policy from its site authority", async t => {
   let capture: import("@jini-ai/core/contracts/ai-trace").AiContentCapture = "metadata";
   const f = await fixture(t, { aiTraceSink: { get capture() { return capture; }, record() {} } });
