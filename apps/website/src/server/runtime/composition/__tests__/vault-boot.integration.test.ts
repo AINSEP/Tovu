@@ -399,6 +399,26 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     } finally { await kernel.close(); }
   });
 
+  test(`${dialect}: a legacy envelope the key cannot open is flagged unopenable and keeps its original bytes`, async () => {
+    const { kernel, input, repo } = await prepared(dialect);
+    try {
+      const old = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
+      const legacyOpens: string[] = [];
+      const sealer = { seal: input.sealer.seal.bind(input.sealer), open: async (required: Parameters<typeof input.sealer.open>[0], options?: { aad?: string }) => {
+        if (options?.aad?.startsWith("secrets-vault:")) return await input.sealer.open(required, options);
+        legacyOpens.push(options?.aad ?? "");
+        throw new Error("authentication tag mismatch");
+      } };
+      const report = await normalizeVaultAtBoot({ ...input, sealer });
+      assert.ok(legacyOpens.length > 0, "precondition: boot tried to open at least one legacy envelope");
+      assert.equal(report.green, false);
+      assert.deepEqual(report.flagged.filter(flag => flag.id === "custom"), [{ id: "custom", kind: old.kind, reason: "unopenable" }]);
+      const kept = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
+      assert.deepEqual(kept.sealed, old.sealed);
+      assert.deepEqual(kept.meta.legacyAad, old.meta.legacyAad);
+    } finally { await kernel.close(); }
+  });
+
   test(`${dialect}: the shared operation lock denies boot before DB work and the Jini workspace lock fences writers`, async () => {
     const { kernel, input } = await prepared(dialect);
     try {
