@@ -1,0 +1,13 @@
+# Ledger misc-1 (w62-cov-misc-1)
+## Step (a) Codex partial work: 19 files run. 3 reds fixed, commit see git log.
+- isolation-m1: toThrow(new Error) -> new CodexMcpIsolationError (test wrong).
+- home-staging inline MCP: PROD fix home-config.ts:188 throw CodexMcpIsolationError (mutation: revert to Error -> test red).
+- staging-policy:48 expectation updated to class.
+## Step (b)
+- agentic site-install-flow.test.ts (8 tests): installs pinned GitHub skill (mut: drop trim / change note text / skip reportLifecycleEvent -> red); already-installed refusal (mut: remove listManagedSkills check); SkillInputError->ToolInputError (mut: rethrow raw); outage propagates by identity (mut: wrap all errors); abort before write (mut: remove throwIfAborted); contributor shape; installSkill+list; register no-list registry (mut: skip policy wrap); single-flight refresh (mut: remove pending cache); fileRoot 'site' (mut: change fileRoot).
+- agentic skills-hooks-behaviour.unit.test.tsx (15 tests): useSkills list wrap non-Error (mut: drop cause), read error message, rows github shortCommit slice(0,7), expand toggle, remove/cancel/confirm, write error cause precedence (mut: swap actionCause/queryError), onInstalled mounted guard, github trim + files reset; useSkillFiles disabled/null id, Error vs wrapped, selection fallback, copy renames, error translation; modal null/title function-replacer ($&)/headerExtras; useSkillInstall read/install failure, cancel/fail.
+- skills-client.wire: list/files/guidance + 3 malformed guidance branches.
+- chat approvals test (+6): Unsent vs Expired (mut: drop cause-chain loop / regex), held-done settle (mut: remove heldDone settle in refuse), last-usage transcript (mut: keep all usage), release returns resumeRunId (mut: return undefined), deny payload (mut: allow always). Fixed pre-existing red (wip 0cbe0534): durable segment onDone simulated -> removed, added onDone-not-called.
+- chat chat-cleanup.hooks.unit.test.tsx (new, 23): error text branches; overlay optimistic/saved/revert; preview validation 0/366/1.5/NaN, cutoff math (mut: DAY_MS), token mismatch, partial, expired vs other error; deletion confirm labels, kept stay ticked; panel branches.
+- agentic installed-skill-tools (+3), page-port.test.ts (new, 3).
+## Coverage after (scoped runs, see report). Files left: runtime-port-bindings forwarders (F 48%), session-run.ts 461-467, chat validate.ts 165-167, frontend-invocation-handler 168-170, ag-ui-transport 257, the many 100%-lines/tiny-branch files, remotion template assets (EXCEPTION candidates: skill template assets shipped to user projects, not engine code).
