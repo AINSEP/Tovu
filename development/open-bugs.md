@@ -2389,3 +2389,21 @@ Fixed unless marked OPEN.
 - **FIXED (test, Codex):** Tovu admin `folder-zip-port` wiring assertion rendered `useWiredPlugins` without the AdminKit provider tree.
 - **OPEN (pre-existing, red on merge-27 too; production-pointing):** github overlay `source-control-credential.test.mjs` imports `resolveDefaultForSourceControl`, which `store.ts` does not export (SyntaxError on import); `form-file-cleanup-wiring` throws `paths[0] is undefined` (delayed form cleanup gets no path); `site-chat-selection` hits `InMemorySettingsRepo.transaction is not reentrant`; railway overlay `deploy-config` `line.includes is not a function`; `no-raw-sqlite` ratchet red (new raw SQLite outside the kernel).
 - **OPEN:** chat P26 test still asserts `{ runId: "ag:empty" }` while production now rejects an empty AG-UI stream with "The assistant stopped before replying. Send your message again." (also `ag-ui/interrupts.test.ts`).
+
+## verify-1127 V3 (2026-11-27): Jini packages/cms Codex coverage branches (cms-1/2/4/5/7/8)
+Full report: `cloud-results/verify-1127-V3.md` on `cloud/verify-1127-V3`.
+
+**OPEN**
+- `Jini packages/cms/src/seo/cover-image.ts:58` together with `seo/seo.ts:194`: an external body-image URL is injected as the `ogImage` override, and `twitter:image` then inherits it, contrary to the doc "OG only, never Twitter's fallback". The test "a transient external body cover does not leak into the Twitter image tag" was dropped from `codex/w62-cov-cms-7`. Proposed fix: a separate transient OG-only body fallback in the seo.ts OG chain, so Twitter keeps its own chain.
+- `Jini packages/cms/src/posts/publish-content.retire.ts` (`undoRetiredPost`): undo of a retire on an already-trashed holder is a no-op (`restorePostForward` is version-gated, and `releaseTrashedSlug` does not bump the version). The trashed row keeps the renamed slug (`story-trashed`). Owner decision; the test was dropped from `codex/w62-cov-cms-4`.
+- `Jini packages/cms/src/widgets/tool-handlers.areas.ts:157-166`: the comment claims schema decoration for the reorder shape check, but `isWidgetsShapeRejection` does not match `ToolInputError`. Owner decision.
+- OLD reds (also red on the merge-28 base):
+  - `posts/__tests__/content-duplicate.post-page.test.ts` "duplicates an HTML page through the injected HTML store"
+  - `widgets/site/__tests__/publish-content.test.ts` "destination form ids swap only for the matching widget type"
+
+**FIXED on the codex branches (test-first; the Codex tests proved them)**
+- cms-2: `content-duplication/tool-registrations.ts:67` accepted array `overrides` (`isRecord`), now `isNonArrayRecord`. `forms/destinations/rewrite-actions.ts:50` called `Uint8Array.toString("utf8")` and got "60,112,…", so form actions were never rewritten for byte pages; now uses `TextDecoder`.
+- cms-4: `posts/post-retire.ts` overwrote a save that landed during the slug search (unconditional `save`); now CAS via `persistUpdatedPost`. `posts/preview-tool.ts:69` advertised id-or-slug but looked up by id only; now `getAdminPostByIdOrSlug`.
+- cms-5: `posts/sql/revision-thinning.ts:59` accepted nonexistent days (`Date.parse` rollover). `public-http/http/site/form-validation-i18n.ts` and `render/doc/doc-nodes.ts:325` resolved Object.prototype keys (`constructor`). `posts/post-tool-policy.ts:124` refusal typing did not fit `PostToolDeps` under `exactOptionalPropertyTypes`.
+- cms-7: `seo/site/page-head-contributor.ts:36` dropped an authored OG image equal to the body URL from the Article JSON-LD.
+- cms-8: `settings/site/visitor-tools-configure.ts:33` rejected dotted tool ids that the catalog lists. `trash/site/adapters/media.ts` published a duplicate change on a same-tick hide retry.
