@@ -32,6 +32,7 @@ Rules held throughout:
 - Heavy commands ran one at a time through a shared flock.
 - **Trap: dual module identity.** cms production modules import their siblings through the package self-name (`@jini-ai/cms/posts/post`), which resolves to the built dist, while tests import `../post.js` from src. So `instanceof` checks and `assert.rejects({constructor})` fail across the two. The fix is to import the error class from the same specifier the thrower uses.
 - **Trap: mutations.** A mutation reaches a test only through a module that test imports directly (self-name imports hit dist).
+- gitleaks 8.21.2 (installed for this run): the Jini commits were scanned with Jini's config and found no leaks. Tovu's `.gitleaks.toml` fails to parse in 8.21.2 ("(28, 105): missing comma", a quoted `'''…'''` allowlist entry), so this report commit was scanned with the default ruleset instead and found no leaks. `.gitleaks.toml` was not touched. Owner: check that config against the pinned gitleaks version.
 - OLD reds also on base: `posts/__tests__/content-duplicate.post-page.test.ts` ("duplicates an HTML page through the injected HTML store") and the cms-8 widgets publish-content case above.
 
 ## Open BUG (not fixed; also in development/open-bugs.md)
