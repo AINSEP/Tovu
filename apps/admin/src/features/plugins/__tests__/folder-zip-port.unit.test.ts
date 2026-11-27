@@ -10,7 +10,7 @@ import { useFolderUpload } from "@jini-ai/admin/shell/components/InstallTabCard/
 import * as jiniPluginsHooks from "@jini-ai/admin/screens/plugins/hooks/use-plugins.hooks";
 import { FOLDER_EMPTY, FOLDER_UNREADABLE } from "@jini-ai/agent-plugins/folder-zip";
 import { FolderZipError } from "@jini-ai/agent-plugins/core/folder-zip-error";
-import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { renderHook as renderHookWithJiniKits } from "@/__tests__/render-with-jini-kits";
 import { AgentPlugins } from "../AgentPlugins";
 import { folderZipPort, useWiredPlugins } from "../hooks/use-plugins.hooks";
 
@@ -36,7 +36,7 @@ describe("host folder-zip port", () => {
       throw new Error(`Unexpected request: ${init?.method} ${url}`);
     });
     try {
-      renderHook(useWiredPlugins, { wrapper: FetchQueryProvider });
+      renderHookWithJiniKits(useWiredPlugins);
       expect(usePlugins.mock.calls[0]?.[0].folderZip).toBe(folderZipPort);
     } finally {
       cleanup();
