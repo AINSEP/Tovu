@@ -21,3 +21,20 @@ test("a refused or rolled-back rename emits no success output", async () => {
   }), (actual) => actual === error);
   assert.deepEqual(output, []);
 });
+
+test("with no output port a committed rename writes one JSON line to stdout", async t => {
+  const output: string[] = [];
+  const originalWrite = process.stdout.write.bind(process.stdout) as (chunk: unknown) => boolean;
+  t.mock.method(process.stdout, "write", (chunk: unknown) => {
+    if (typeof chunk !== "string") return originalWrite(chunk);
+    output.push(chunk);
+    return true;
+  });
+  await runSiteRenameCommand({ oldName: "old", newName: "new" }, {
+    rename: async received => {
+      assert.deepEqual(received, { oldName: "old", newName: "new" });
+      return { from: "/sites/old", to: "/sites/new" };
+    },
+  });
+  assert.deepEqual(output, ['{"from":"/sites/old","to":"/sites/new"}\n']);
+});

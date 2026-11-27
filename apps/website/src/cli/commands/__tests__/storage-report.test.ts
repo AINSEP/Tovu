@@ -148,3 +148,26 @@ test("overridden folders follow the same TOVU_*_DIR variables the server reads",
   assert.equal(paths.find(entry => entry.category === "uploads")?.path, path.join(dir, "media"));
   assert.equal(paths.find(entry => entry.category === "shares")?.path, path.join(dir, "ops", "shares"));
 });
+
+test("an outside database with an unreadable sidecar keeps its size unknown in the report", async t => {
+  const dir = await site(t);
+  const outside = await realpath(await mkdtemp(path.join(tmpdir(), "storage-report-external-")));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const contentDbPath = path.join(outside, "content.db");
+  await writeFile(contentDbPath, Buffer.alloc(2048));
+  // stat resolves symlinks, so this produces ELOOP without depending on whether the test user is root.
+  await symlink("content.db-wal", contentDbPath + "-wal");
+  const lines: string[] = [];
+  const report = await runStorageReportCommand({
+    dir, measureSiteStorage,
+    resolvePaths: (input, options) => {
+      assert.deepEqual(input, { dir });
+      assert.deepEqual(options, { reserveIdentity: false });
+      return { contentDbPath, chatDbPath: path.join(dir, "chat.db") };
+    },
+    stdout: { write: chunk => lines.push(chunk) },
+  });
+  assert.deepEqual(report.elsewhere, [{ category: "content-database", path: contentDbPath, mainBytes: 2048, walBytes: null, shmBytes: 0 }]);
+  assert.deepEqual(report.databases.map(db => db.category), ["chat-database"]);
+  assert.equal(lines.at(-1), `  content-database kept outside this folder at ${contentDbPath}: unknown\n`);
+});

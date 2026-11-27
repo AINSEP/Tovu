@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
-import { FORM_DELIVERY_EVENT, FormDeliveryError } from "@jini-ai/cms/forms";
+import { FORM_ATTACHMENT_CLEANUP_EVENT, FORM_DELIVERY_EVENT, FORM_NOTIFY_DELIVERY_EVENT, FormDeliveryError } from "@jini-ai/cms/forms";
 import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { startOutboxDrainer } from "../outbox-drainer.js";
 import { outboxRetryPolicyForEvent } from "../outbox-retry-policies.js";
@@ -95,4 +95,14 @@ test("the background drainer applies the same table: a non-retryable form delive
   await drainer.stop();
   assert.equal(attempts(), 1);
   assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), [], "sealed, not waiting for a retry");
+});
+
+test("form notification and attachment cleanup get the same bounded delivery backoff", () => {
+  const error = new FormDeliveryError({ code: "rate-limited", retryable: true, retryAfterMs: 600_000 });
+  for (const name of [FORM_NOTIFY_DELIVERY_EVENT, FORM_ATTACHMENT_CLEANUP_EVENT]) {
+    const policy = outboxRetryPolicyForEvent({ event: event(name) });
+    assert.equal(policy?.maxAttempts, 8, name);
+    assert.equal(policy?.backoffMs({ attempts: 1, random: () => 0, error }), 600_000, name);
+    assert.equal(policy?.retryable?.({ error: new FormDeliveryError({ code: "authorization-required", retryable: false }) }), false, name);
+  }
 });

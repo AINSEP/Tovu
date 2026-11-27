@@ -39,3 +39,16 @@ test('CLI preserves the specific redacted cause without exposing the supplied pa
     return true;
   });
 });
+
+test("reset forwards the explicitly selected username with the environment-supplied password", async () => {
+  const calls: unknown[] = [];
+  const output: string[] = [];
+  await runResetOwnerCommand({ dir: "/fixture/site" }, {
+    env: { TOVU_ADMIN_RESET_USERNAME: "site-founder", TOVU_ADMIN_RESET_PASSWORD: "fixture-password" },
+    prompt: async () => assert.fail("a configured password does not use the interactive prompt"),
+    reset: async input => { calls.push(input); return "site-founder"; },
+    print: text => { output.push(text); },
+  });
+  assert.deepEqual(calls, [{ dir: "/fixture/site", password: "fixture-password", username: "site-founder" }]);
+  assert.deepEqual(output, ["Owner 'site-founder' password reset and verified. Sign in with the new password. Unset TOVU_ADMIN_RESET_PASSWORD if configured."]);
+});

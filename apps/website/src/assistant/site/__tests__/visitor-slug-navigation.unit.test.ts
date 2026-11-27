@@ -37,7 +37,7 @@ test('a slug from search_published_entries resolves to that published page; unpu
   }
 });
 
-function registryWithPage() {
+function registryWithPage({ listPages }: { listPages?: () => Promise<readonly { id: string; label: string; path: string }[]> } = {}) {
   const { deps } = fixture();
   const html = publishVisitorPage({ html: '<html><body><div id="tovu-site-assistant-root"></div></body></html>', path: '/contact', workspaceId: 'w' });
   const revision = /data-agent-publication="([^"]+)"/.exec(html)![1]!;
@@ -49,7 +49,7 @@ function registryWithPage() {
   const ports: VisitorExecutionPorts = { initialPolicy: policy, readPolicy: async () => policy, budgets: { charge: async () => true },
     ip: 'ip', workspaceId: 'w', runId: 'turn', clock: { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' },
     ids: { newId: () => 'id' }, sink: { append: async () => {} }, reportError: () => {} };
-  const registry = createSiteCapabilityRegistry(deps, { visitorExecution: ports, page: { publication, registrations } });
+  const registry = createSiteCapabilityRegistry(deps, { visitorExecution: ports, page: { publication, registrations, listPages } });
   return { registry, wires };
 }
 
@@ -70,4 +70,15 @@ test('the visitor navigate tool is offered by slug, in visitor wording, and navi
     const refused = await registry.invoke({ name: 'page.navigate', input: { slug }, caller: 'anonymous-visitor' });
     assert.notEqual(refused.kind, 'ok', `slug ${slug} must not navigate`);
   }
+});
+
+test('a still-resolvable navigation target cannot act from a page removed from the live list', async () => {
+  let pages = [{ id: 'p-contact', label: 'Contact', path: '/contact' }, { id: 'theme:pricing', label: 'Pricing', path: '/pricing' }];
+  const { registry, wires } = registryWithPage({ listPages: async () => pages });
+  const request = { name: 'page.navigate', input: { slug: 'pricing' }, caller: 'anonymous-visitor' };
+  assert.equal((await registry.invoke(request)).kind, 'ok');
+  assert.equal(wires[0]?.page, 'theme:pricing');
+  pages = [{ id: 'theme:pricing', label: 'Pricing', path: '/pricing' }];
+  assert.deepEqual(await registry.invoke(request), { kind: 'error', error: 'Page no longer public' });
+  assert.equal(wires.length, 1);
 });

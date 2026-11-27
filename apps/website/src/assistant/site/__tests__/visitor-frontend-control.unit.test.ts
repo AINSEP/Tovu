@@ -427,3 +427,15 @@ test('a disconnected page cannot begin or settle its old invocation', async t =>
   // The stale call is left to the registry's own timeout; this test only proves the page lost it.
   void stale.catch(() => undefined);
 });
+
+test('browser delivery requires a run ID and an object argument record', () => {
+  const { calls, writer } = recordingToolCallWriter();
+  const valid = { invocationId: 'inv-20', capabilityId: 'page.click', input: { handle: 'menu' } };
+  assert.equal(projectVisitorBrowserInvocation({ runId: '', invocation: valid, writer }), false);
+  for (const invocation of [null, 'page.click', { ...valid, capabilityId: 17 }, { ...valid, input: null }, { ...valid, input: ['menu'] }]) {
+    assert.equal(projectVisitorBrowserInvocation({ runId: 'run-20', invocation, writer }), false);
+  }
+  assert.deepEqual(calls, []);
+  assert.equal(projectVisitorBrowserInvocation({ runId: 'run-20', invocation: valid, writer }), true);
+  assert.deepEqual(calls, [{ toolCallId: 'inv-20', toolCallName: 'tovu.page_action', args: '{"runId":"run-20","invocationId":"inv-20","capabilityId":"page.click","input":{"handle":"menu"}}' }]);
+});

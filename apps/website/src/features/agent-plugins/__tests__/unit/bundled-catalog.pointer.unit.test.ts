@@ -8,3 +8,8 @@ test('explicit skill and supporting-file pointers name Tovu’s registered loade
   assert.equal(formatPluginToolPointer({ pluginId: 'synthetic', file: 'SKILL.md' }),
     'load_agent_plugin({"pluginId":"synthetic","file":"SKILL.md"})');
 });
+
+test('a skill-only pointer leaves the supporting file unspecified', () => {
+  assert.equal(formatPluginToolPointer({ pluginId: 'synthetic', skill: 'other' }),
+    'load_agent_plugin({"pluginId":"synthetic","skill":"other"})');
+});

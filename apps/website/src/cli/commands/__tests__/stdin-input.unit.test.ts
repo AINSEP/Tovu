@@ -28,3 +28,12 @@ test("non-cap stream errors pass through unchanged", async () => {
   input.destroy(failure);
   await assert.rejects(reading, (error: unknown) => error === failure);
 });
+
+test("stdin returns the complete text without trimming whitespace or breaking split UTF-8 characters", async () => {
+  const input = new PassThrough();
+  const reading = readStdinOrRefuse({ input }, { flag: "--create-input-stdin" });
+  const bytes = Buffer.from("  café\n");
+  input.write(bytes.subarray(0, 6));
+  input.end(bytes.subarray(6));
+  assert.equal(await reading, "  café\n");
+});

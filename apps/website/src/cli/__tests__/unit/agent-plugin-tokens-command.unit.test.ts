@@ -8,7 +8,9 @@ import test from "node:test";
 import {
   bundledAgentPluginsRoot,
   defaultNewSiteAgentPluginTokenCheck,
+  readNewSiteAgentPluginTokensFromStdin,
   runTokenSignInPluginsCommand,
+  storeNewSiteAgentPluginTokens,
 } from "../../commands/agent-plugin-tokens.js";
 import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
 
@@ -45,4 +47,24 @@ test("token-sign-in defaults to the bundled root and stdout", async (t) => {
   t.mock.restoreAll();
   const expected = `${JSON.stringify({ plugins: await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsRoot() }) })}\n`;
   assert.equal(written.filter((chunk) => chunk === expected).length, 1, "the list is written to stdout exactly once");
+});
+
+test("malformed token JSON is refused without quoting the input", async () => {
+  const read = async () => '{"supabase":"fixture-token-value"';
+  await assert.rejects(readNewSiteAgentPluginTokensFromStdin({}, { read }), {
+    name: "ValidationError",
+    message: "init: --agent-plugin-tokens-stdin expects a JSON object on stdin",
+  });
+});
+
+test("a failed seal reports only plugin IDs and does not report success or retry", async () => {
+  const tokens = { supabase: "fixture-value-one", resend: "fixture-value-two" };
+  const lines: string[] = [];
+  const calls: unknown[] = [];
+  await storeNewSiteAgentPluginTokens({ site: { dir: "/fixture/created-site", siteId: "site-key-7" }, tokens }, {
+    seal: async input => { calls.push(input); throw new Error("seal failed with fixture-value-one"); },
+    write: line => { lines.push(line); },
+  });
+  assert.deepEqual(calls, [{ siteDir: "/fixture/created-site", siteKeyId: "site-key-7", tokens }]);
+  assert.deepEqual(lines, ["agent-plugin-tokens: failed supabase,resend\n"]);
 });

@@ -902,3 +902,18 @@ for (const agentId of ['deepseek', 'claude']) test(`selected adapter chooses plu
   assert.ok(!f.runs.guidanceIds({ runId: 'daemon-test-run' }).includes(f.pluginId), 'a deferred id is absent from guidanceIds');
   f.runs.forget({ runId: 'daemon-test-run' });
 });
+
+test('access approval denies a missing person or an active agent but accepts the active human in this workspace', async () => {
+  const records = new InMemoryPrincipalRepo({});
+  const principalRepo = Object.assign(records, createSettingsPrincipalLookup({ repo: records }));
+  const workspaceId = 'approval-workspace';
+  const assertApprover = createAccessApprover({ principalRepo, workspaceId });
+  const person = { id: 'reviewer', displayName: 'Reviewer', status: 'active', createdAt: '2026-11-22T00:00:00.000Z' } as const;
+  const request = { toolId: 'agent_plugin_connect', principalId: person.id };
+  const denied = { name: 'ToolInputError', message: 'agent_plugin_connect: an active, signed-in person must approve this access change. Nothing was changed.' };
+  await assert.rejects(assertApprover(request), denied);
+  await records.save({ ...person, workspaceId, kind: 'agent' });
+  await assert.rejects(assertApprover(request), denied);
+  await records.save({ ...person, workspaceId, kind: 'user' });
+  assert.equal(await assertApprover(request), undefined);
+});

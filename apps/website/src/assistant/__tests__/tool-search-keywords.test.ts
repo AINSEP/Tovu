@@ -83,3 +83,16 @@ test("assistant_ask_choice folds decision/confirmation vocabulary an operator wo
   assert.match(indexed, /\bapprove\b|\bapproval\b/, "'get approval first' phrasing must be indexed");
 });
 
+
+test("metadata without search terms keeps the host vocabulary while explicit registration terms take precedence", () => {
+  const query = { toolId: "identity_user_create", description: "Creates an operator." };
+  const defaultWords = indexedDescriptionFor(query, { metadata: {}, includeDoc2query: false });
+  assert.match(defaultWords, /\binvite\b/);
+  assert.equal(stripSearchKeywords({ indexed: defaultWords }), "Creates an operator.");
+  const override = indexedDescriptionFor(query, {
+    metadata: { search: { keywords: "onboarding liaison" } }, includeDoc2query: false,
+  });
+  assert.match(override, /\bonboarding liaison\b/);
+  assert.doesNotMatch(override, /\binvite\b/);
+  assert.equal(stripSearchKeywords({ indexed: override }), "Creates an operator.");
+});

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS } from "@jini-ai/cms/widgets/markers";
+import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
 import { otherEmbedTypesText } from "#src/contracts/core/page-html";
 import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
 
@@ -21,4 +21,16 @@ test("a type registered without a placeholder or a note is still listed, with a 
 
 test("a type with no target key is listed with its type alone", () => {
   assert.equal(otherEmbedTypesText({ targetKeys: { "keyless-type": [] } }), '`{"type":"keyless-type"}`');
+});
+
+test("the page writer's legacy Gallery example still validates with layout and accessible image text intact", () => {
+  const writer = pagesAgentToolCatalog.find(entry => entry.name === "pages_write_html");
+  const example = writer?.description.match(/data-embed-config='(\{"type":"gallery","images":.*?\})'/)?.[1];
+  assert.ok(example, "model-facing instructions must include a copyable legacy Gallery example");
+  const parsed = parseGalleryConfig({ config: JSON.parse(example) });
+  assert.deepEqual(parsed.errors, []);
+  assert.deepEqual(parsed.warnings, []);
+  assert.equal(parsed.config?.layout, "grid");
+  assert.equal(parsed.config?.columns, 3);
+  assert.deepEqual(parsed.config?.images, [{ mediaId: "asset-1", alt: "Description", caption: "Optional caption" }]);
 });

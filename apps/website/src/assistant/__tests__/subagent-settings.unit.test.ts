@@ -139,3 +139,19 @@ test("per-agent choices survive reads and apply only to the selected agent after
   assert.equal(resolve("claude").capabilities.shell, false);
   assert.equal(resolve("antigravity", false).capabilities.userMcp, false);
 });
+
+test("the permissions source distinguishes a saved snapshot, a saved legacy grant and a default", async () => {
+  const saved = assistantCliPermissions({ enabled: true, capabilities: { web: false } });
+  for (const { answers, source, enabled } of [
+    { answers: { snapshot: userLayer({ enabled: saved.enabled, capabilities: { ...saved.capabilities }, userMcpDefaultOn: true }), legacy: new Error("legacy must not be read") }, source: "site", enabled: true },
+    { answers: { legacy: userLayer(false) }, source: "site", enabled: false },
+    { answers: {}, source: "default", enabled: true },
+  ]) {
+    const sources: unknown[] = [];
+    const result = await readAssistantCliPermissions(cliRequired(answers), {
+      onSource: input => { sources.push(input); }, readFailure: "throw",
+    });
+    assert.deepEqual(sources, [{ source }]);
+    assert.equal(result.enabled, enabled);
+  }
+});

@@ -73,3 +73,17 @@ test("an unknown or missing bearer fails closed and never serves the unfiltered 
     assert.ok(!JSON.stringify(body).includes("site_write"));
   }
 });
+
+test("a bearer whose tracked run ended no longer has a discovery principal", () => {
+  const principalByRunId = new Map([["run-live", { id: "owner" }]]);
+  const resolvePrincipal = discoveryPrincipalResolver({
+    runCredentials: { resolveCaller: ({ token }) => token === "own-token" ? { runId: "run-live", principalId: "owner" } : undefined },
+    principalByRunId,
+  });
+  const request = new Request("https://site.test/api/tools/search", { headers: { authorization: "Bearer own-token" } });
+  assert.deepEqual(resolvePrincipal({ request }), { id: "owner" });
+  principalByRunId.delete("run-live");
+  assert.throws(() => resolvePrincipal({ request }), {
+    message: "tool discovery needs a live run; no principal could be resolved for this request",
+  });
+});

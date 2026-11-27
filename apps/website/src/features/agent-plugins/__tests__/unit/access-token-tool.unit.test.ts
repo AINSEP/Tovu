@@ -1,7 +1,7 @@
 import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../../__tests__/support/credential-save.js";
-import { saveAgentPluginToken } from "../../access-token-tool.js";
+import { requireTargetRow, resolveTarget, saveAgentPluginToken, saveStaticAccessToken } from "../../access-token-tool.js";
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -121,7 +121,7 @@ async function setup(
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tools = new Map(credentialSaveFixtureRegistrations({ registrations: buildAgentPluginConnectRegistrations(deps, { surfaceExchanges }), adapters: { agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps: deps, surfaces: { surfaceExchanges } }, optional) } }).map((r) => [r.descriptor.id, r]));
   const readRow = () => repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" });
-  return { repo, sealer, http, surfaceExchanges, tools, readRow, connected };
+  return { repo, sealer, http, surfaceExchanges, tools, readRow, connected, deps };
 }
 
 type Env = Awaited<ReturnType<typeof setup>>;
@@ -482,4 +482,41 @@ test("a destination repointed while the token form is open cannot receive the su
   assert.deepEqual(env.connected, []);
   assert.equal(env.surfaceExchanges.size(), 0);
   assert.equal(JSON.stringify(emitted).includes(TOKEN), false);
+});
+
+test("the token target adapters reject a repointed row before saving and preserve its contents", async () => {
+  const f = await setup({ rowUrl: "https://other.test/mcp" });
+  const routeDeps = f.deps;
+  const target = await resolveTarget({ routeDeps, pluginId: "supabase", principalId: PRINCIPAL });
+  assert.deepEqual({ pluginId: target.pluginId, connectionId: target.connectionId, url: target.config.url },
+    { pluginId: "supabase", connectionId: "supabase", url: "https://mcp.supabase.com/mcp" });
+  const before = await f.readRow();
+  assert.equal(before?.url, "https://other.test/mcp");
+  const refusal = { name: "ToolInputError", message: "agent_plugin_set_access_token: the 'supabase' connection no longer points at Supabase. Nothing was changed." };
+  await assert.rejects(requireTargetRow({ routeDeps, target }), refusal);
+  await assert.rejects(saveStaticAccessToken({ routeDeps, target, principalId: PRINCIPAL, token: TOKEN }), refusal);
+  assert.deepEqual(await f.readRow(), before);
+  assert.deepEqual(f.http.requests, []);
+});
+
+test("the standalone token save keeps a configured row unchanged on abort, then seals a later valid save", async () => {
+  const f = await setup({ allowedToolNames: "list_tables" });
+  const routeDeps = f.deps;
+  const target = await resolveTarget({ routeDeps, pluginId: "supabase", principalId: PRINCIPAL });
+  assert.equal((await requireTargetRow({ routeDeps, target })).authMode, "oauth");
+  const before = await f.readRow();
+  const controller = new AbortController();
+  const stopped = new Error("cancelled request");
+  controller.abort(stopped);
+  const save = { routeDeps, target, principalId: PRINCIPAL, token: TOKEN };
+  await assert.rejects(saveStaticAccessToken(save, { signal: controller.signal }), error => error === stopped);
+  assert.deepEqual(await f.readRow(), before);
+  await saveStaticAccessToken(save);
+  assert.equal((await f.readRow())?.authMode, "static_env");
+  assert.equal((await f.readRow())?.enabled, false);
+  await enableRow(f);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo: f.repo, sealer: f.sealer }, workspaceId: WORKSPACE });
+  const loaded = configs.find(config => config.target.kind === "streamable_http" && config.target.url === "https://mcp.supabase.com/mcp");
+  assert.equal(loaded?.target.kind, "streamable_http");
+  assert.deepEqual(loaded?.target.kind === "streamable_http" ? loaded.target.headers : null, { authorization: `Bearer ${TOKEN}` });
 });

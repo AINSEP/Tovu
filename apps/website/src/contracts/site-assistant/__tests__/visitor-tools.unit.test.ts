@@ -40,3 +40,22 @@ test("positive safe limits including approved widening round-trip without mode l
     assert.deepEqual(parseVisitorToolPolicy({ value }), value);
   }));
 });
+
+test("newer stricter or equally strict navigation grants still keep both lower quotas", () => {
+  for (const [legacy, current] of [["auto", "off"], ["ask", "ask"]] as const) {
+    const policy = parseVisitorToolPolicy({ value: { version: 1, tools: {
+      navigate_to_entry: { mode: legacy, limits: { perIpPerHour: 4, perSitePerDay: 29 } },
+      "page.navigate": { mode: current, limits: { perIpPerHour: 9, perSitePerDay: 13 } },
+    } } });
+    const expected = { mode: current, limits: { perIpPerHour: 4, perSitePerDay: 13 } };
+    assert.deepEqual(policy, { version: 1, tools: { "page.navigate": expected } });
+    assert.deepEqual(resolveVisitorToolChoice({ policy, toolId: "page.navigate" }), expected);
+  }
+});
+
+test("an unmigrated policy still honors a legacy grant for its renamed capability", () => {
+  const choice = { mode: "off" as const, limits: { perIpPerHour: 3, perSitePerDay: 11 } };
+  assert.deepEqual(resolveVisitorToolChoice({
+    policy: { version: 1, tools: { scroll_to_entry: choice } }, toolId: "page.scroll_to",
+  }), choice);
+});

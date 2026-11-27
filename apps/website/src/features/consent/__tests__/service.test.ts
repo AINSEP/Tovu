@@ -127,6 +127,11 @@ test('deployment accepts valid local evidence while incomplete and unavailable p
   assert.ok(incomplete?.blockingProblems.some(problem => problem.code === 'PRIVACY_LINK_REQUIRED'), 'enabled consent requires a privacy link');
   assert.equal(incomplete?.code, 'CONSENT_REVIEW_REQUIRED');
   assert.deepEqual(incomplete?.choices.map(choice => choice.id), ['fix-now', 'publish-without-banner']);
+  assert.equal(incomplete?.choices.find(choice => choice.id === 'fix-now')?.href, '/consent?tab=overview');
+  const withoutBanner = incomplete?.choices.find(choice => choice.id === 'publish-without-banner');
+  assert.equal(withoutBanner?.href, '/consent?tab=rules&intent=publish-without-banner');
+  assert.match(String(withoutBanner?.action), /POST consent\/publish with current revision ids, then retry deployment/);
+  assert.match(String(withoutBanner?.warning), /Optional scripts may run without a visitor choice/);
   const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
   assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);

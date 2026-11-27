@@ -83,3 +83,15 @@ test("visitorsafe: a duplicate visitor turn gets plain words with its lookup id 
   // A retried duplicate is the widget's own retry, not a server fault, so no error-tracker incident.
   assert.equal(siteAssistantIncident({ entry: entries[0]! }), undefined);
 });
+
+test("an operator incident keeps the redacted stack and falls back to the code for a blank first line", () => {
+  for (const [diagnostic, message] of [
+    ["Provider quota exhausted\n  at provider ([REDACTED:exact_secret])", "Provider quota exhausted"],
+    ["\n  at provider", "provider_error"],
+  ] as const) {
+    const incident = siteAssistantIncident({ entry: { code: "provider_error", errorId: "err-13", diagnostic } });
+    assert.equal(incident?.name, "SiteAssistantError");
+    assert.equal(incident?.message, message);
+    assert.equal(incident?.stack, diagnostic);
+  }
+});

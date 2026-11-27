@@ -218,8 +218,8 @@ test("serve: with no --port and no config.json port, a present-but-invalid PORT 
   await assertOwnerReleased(dir);
 });
 
-test("serve: a dir argument logs that TOVU_CONTENT_DB and TOVU_DB are ignored (BR-04/EC-08)", async (t) => {
-  withEnv(t, { TOVU_CONTENT_DB: path.join(parent, "ignored-content.db"), TOVU_DB: path.join(parent, "ignored.db") });
+test("serve: a dir argument logs that all three legacy DB paths are ignored (BR-04/EC-08)", async (t) => {
+  withEnv(t, { TOVU_CHAT_DB: path.join(parent, "ignored-chat.db"), TOVU_CONTENT_DB: path.join(parent, "ignored-content.db"), TOVU_DB: path.join(parent, "ignored.db") });
   const dir = await pgliteSite();
   const stderr: string[] = [];
   const write = process.stderr.write.bind(process.stderr);
@@ -229,6 +229,7 @@ test("serve: a dir argument logs that TOVU_CONTENT_DB and TOVU_DB are ignored (B
   });
   // A bad port ends the run right after the boot, so no listener is ever bound.
   await assert.rejects(runServeCommand({ dir, port: "abc", host: "127.0.0.1" }, commandEffects), ValidationError);
+  assert.ok(stderr.includes("tovu: warning: TOVU_CHAT_DB is ignored when a dir argument is given\n"));
   assert.ok(stderr.includes("tovu: warning: TOVU_CONTENT_DB is ignored when a dir argument is given\n"));
   assert.ok(stderr.includes("tovu: warning: TOVU_DB is ignored when a dir argument is given\n"));
   await assertOwnerReleased(dir);

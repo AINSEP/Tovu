@@ -46,3 +46,31 @@ for (const mode of ["none", "tokens", "envelope", "empty-envelope"] as const) {
     assert.deepEqual(stdout, [`created site 'Pinned name' at ${dir}\n`, `next: tovu serve ${dir}\n`, ...(expected ? ["agent-plugin-tokens: saved supabase\n"] : [])]);
   });
 }
+
+test("init refuses conflicting credential inputs before reading stdin or creating the site", async t => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-init-credentials-"));
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const dir = path.join(parent, "site");
+  for (const conflict of [{ adminPassword: "fixture-password" }, { agentPluginTokensStdin: true }]) {
+    let reads = 0;
+    await assert.rejects(runInitCommand({ dir, createInputStdin: true, ...conflict,
+      readCreateInput: async () => { reads++; return "{}"; },
+    }), { name: "ValidationError", message: "init: --create-input-stdin cannot be combined with --admin-password or --agent-plugin-tokens-stdin" });
+    assert.equal(reads, 0);
+    assert.equal(fs.existsSync(dir), false);
+  }
+});
+
+test("init rejects malformed or non-object credential envelopes before creating the site", async t => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-init-envelope-"));
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const dir = path.join(parent, "site");
+  for (const raw of ['{"adminPassword":"fixture-password"', "null", "[]", "42"]) {
+    let reads = 0;
+    await assert.rejects(runInitCommand({ dir, createInputStdin: true,
+      readCreateInput: async () => { reads++; return raw; },
+    }), { name: "ValidationError", message: "init: --create-input-stdin expects a JSON object on stdin" });
+    assert.equal(reads, 1);
+    assert.equal(fs.existsSync(dir), false);
+  }
+});

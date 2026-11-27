@@ -142,3 +142,12 @@ for (const [toolId, input, expected] of [
   await f.result;
   assert.equal(f.directives[0].summary, expected);
 });
+
+test("an explicitly Off tool denies confirmation without emitting a prompt", async () => {
+  const f = fixture({ mode: "off" });
+  f.gate.delegate.onConfirm!(f.request);
+  assert.equal(await f.result, "deny");
+  assert.deepEqual(f.directives, []);
+  await assert.rejects(f.gate.assertApproved({ executionId: "exec", input: f.request.input }),
+    { message: "I can't help with that request here." });
+});

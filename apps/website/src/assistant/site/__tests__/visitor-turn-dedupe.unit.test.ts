@@ -161,3 +161,16 @@ test("readVisitorTurnId accepts an opaque client id and treats anything else as 
   assert.equal(readVisitorTurnId({ body: { turnId: "x".repeat(65) } }), null);
   assert.equal(readVisitorTurnId({ body: { turnId: "has space in it!!" } }), null);
 });
+
+test("an expired later entry is swept at capacity without evicting an older live turn", () => {
+  let now = 0;
+  const dedupe = createVisitorTurnDedupe({ clock: { nowMs: () => now } }, { ttlMs: 5, inFlightCeilingMs: 100, maxEntries: 2 });
+  assert.equal(dedupe.admit({ scope: "site", turnId: "older-live" }).admitted, true);
+  const later = dedupe.admit({ scope: "site", turnId: "later-expired" });
+  assert.equal(later.admitted, true);
+  later.finish({ delivered: true });
+  now = 5;
+  assert.equal(dedupe.admit({ scope: "site", turnId: "new-turn" }).admitted, true);
+  assert.equal(dedupe.size(), 2);
+  assert.deepEqual(dedupe.admit({ scope: "site", turnId: "older-live" }), { admitted: false, state: "in-flight" });
+});

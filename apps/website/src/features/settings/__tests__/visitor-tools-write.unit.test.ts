@@ -156,3 +156,16 @@ test("stored JSON corruption, missing definitions, and repo failures all fail cl
   assert.equal(await f.read(), null);
   assert.match(String(f.reports.at(-1)), /store down/);
 });
+
+test("visitor policy fails closed on a storage outage and reads the saved choice again after recovery", async () => {
+  const f = await visitorSettingsFixture();
+  await f.write();
+  const error = new Error("settings storage offline");
+  const readValue = f.repo.getWorkspaceValue.bind(f.repo);
+  f.repo.getWorkspaceValue = async () => { throw error; };
+  assert.equal(await f.read(), null);
+  assert.deepEqual(f.reports, [error]);
+  f.repo.getWorkspaceValue = readValue;
+  assert.deepEqual(await f.read(), { version: 1, tools: { list_categories: { mode: "off", limits: { perIpPerHour: 30, perSitePerDay: 1000 } } } });
+  assert.deepEqual(f.reports, [error]);
+});

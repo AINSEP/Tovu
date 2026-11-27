@@ -170,3 +170,44 @@ test("a cancelled resume from another owner stops nothing", async () => {
   assert.deepEqual(h.events, []);
   assert.equal(await h.coordinator.resumeVisitorApproval({ input: resumeInput(), owner: OWNER, attachResponse }), "resumed");
 });
+
+test("malformed resume envelopes never attach or consume the parked approval", async () => {
+  const h = harness();
+  assert.equal(h.park(), true);
+  const valid = resumeInput();
+  for (const input of [
+    null, "resume", { ...valid, resume: {} }, { ...valid, resume: [] },
+    { ...valid, resume: [...valid.resume, ...valid.resume] }, { ...valid, resume: [null] },
+    { ...valid, resume: [{ ...valid.resume[0], interruptId: "x".repeat(129) }] },
+    { ...valid, runId: 123 }, { ...valid, runId: "" }, { ...valid, runId: "x".repeat(129) },
+    { ...valid, runId: "run-1" },
+  ]) {
+    assert.equal(await h.coordinator.resumeVisitorApproval({ input, owner: OWNER, attachResponse }), "expired", JSON.stringify(input));
+    assert.deepEqual(h.events, []);
+  }
+  assert.equal(await h.coordinator.resumeVisitorApproval({ input: valid, owner: OWNER, attachResponse: ids => {
+    assert.deepEqual(ids, { threadId: "thread-1", parentRunId: "run-1", runId: "run-2" });
+    return "new-segment";
+  } }), "resumed");
+  assert.deepEqual(h.events, ["attach:new-segment", "settle:true"]);
+});
+
+test("a bound exchange that already ended cleans up the attached segment without denying twice", async () => {
+  const h = harness({ settle: async () => false });
+  assert.equal(h.park(), true);
+  assert.equal(await h.coordinator.resumeVisitorApproval({ input: resumeInput(), owner: OWNER, attachResponse }), "expired");
+  h.clock.now += 120_000;
+  h.fireDue();
+  assert.deepEqual(h.events, ["attach:segment:run-2", "settle:true", "cleanup:expired"]);
+});
+
+test("a failed shutdown denial is reported while the parked execution is still cleaned up", async () => {
+  const error = new Error("confirmation backend closed");
+  const h = harness({ settle: () => Promise.reject(error) });
+  assert.equal(h.park(), true);
+  h.coordinator.shutdownVisitorApprovals();
+  assert.equal(await h.coordinator.resumeVisitorApproval({ input: resumeInput(), owner: OWNER, attachResponse }), "expired");
+  assert.deepEqual(h.confirms, [{ challengeId: CHALLENGE, owner: OWNER, allow: false }]);
+  assert.deepEqual(h.events, ["settle:false", "cleanup:shutdown"]);
+  assert.deepEqual(h.reports, [error]);
+});

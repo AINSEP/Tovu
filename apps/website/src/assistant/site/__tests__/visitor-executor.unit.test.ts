@@ -179,3 +179,14 @@ test("refusal-only calls stay denied when audit re-enables the tool and normal c
   assert.ok(f.events.every(event => event.toolId === "list_categories"));
   assert.doesNotMatch(JSON.stringify(f.events), /secret/);
 });
+
+test("a call whose arguments cannot be detached is refused before policy, audit or handler work", async () => {
+  const f = fixture();
+  assert.deepEqual(await f.executor.invoke({ ...call, input: { invalid: () => "private" } }), refused);
+  assert.equal(f.calls(), 0);
+  assert.equal(f.charges(), 0);
+  assert.deepEqual(f.events, []);
+  assert.equal(f.errors.length, 1);
+  assert.equal((f.errors[0] as Error).name, "DataCloneError");
+  assert.deepEqual(await f.executor.invoke(call), { kind: "ok", result: call.input, directive: undefined });
+});

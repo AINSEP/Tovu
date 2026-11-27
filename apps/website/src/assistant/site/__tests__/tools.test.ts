@@ -270,3 +270,23 @@ describe("site assistant tools", () => {
     });
   });
 });
+
+it("caps nested document text at 4000 characters including the separators", async () => {
+  // The inserted space must count toward the model-facing text cap, not just the stored text.
+  const prefix = "a".repeat(3997);
+  const port = fakePort([row({ slug: "long-doc", status: "published", bodyJson: { content: [
+    null, 17, { text: "" }, { text: prefix }, { content: [{ text: "XYZtail" }, { text: "omit me" }] },
+  ] } })]).port;
+  const tools = createSiteAssistantTools(makeDeps({ postRepo: port as never }));
+  const result = await tools.get_published_entry({ slug: "long-doc" });
+  assert.deepEqual(result, { slug: "long-doc", title: "long-doc", updatedAt: "2026-01-01", type: "post", text: prefix + " XY" });
+});
+
+it("does not read the document placeholder when an HTML entry has no HTML", async () => {
+  const port = fakePort([row({ slug: "empty-html", status: "published", kind: "page", bodyFormat: "html",
+    bodyHtml: null, bodyJson: { text: "stale placeholder" } })]).port;
+  const tools = createSiteAssistantTools(makeDeps({ postRepo: port as never }));
+  assert.deepEqual(await tools.get_published_entry({ slug: "empty-html" }), {
+    slug: "empty-html", title: "empty-html", updatedAt: "2026-01-01", type: "page", text: "",
+  });
+});

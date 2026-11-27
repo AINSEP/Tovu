@@ -36,9 +36,10 @@ const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-help-unknown-worker-coverage-"));
 after(() => fs.rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
 
-function runCli(args: string[]): { status: number | null; stdout: string; stderr: string } {
+function runCli(args: string[], input?: string): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", "tsx", CLI_MAIN, ...args], {
     encoding: "utf8",
+    input,
     env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
@@ -61,4 +62,11 @@ test("AC-12: tovu <unknown-command> exits 2 with usage printed", () => {
   const result = runCli(["this-command-does-not-exist"]);
   assert.equal(result.status, 2, `stderr: ${result.stderr}`);
   assert.match(result.stdout + result.stderr, /usage/i, "AC-12: usage must print for an unknown command");
+});
+
+test("import-local dispatches stdin to its own validator and emits no success reply for malformed input", () => {
+  const result = runCli(["import-local"], '["not an object"]\n');
+  assert.equal(result.status, 2);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /import-local: stdin must contain one JSON request object\./);
 });

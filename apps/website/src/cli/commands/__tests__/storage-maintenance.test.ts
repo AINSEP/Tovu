@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file P11 ST-16 (clean half): `tovu storage clean <dir> [--dry-run] [--json]` and
  * `tovu storage capabilities [--json]`. Clean runs the serving root's retention policies on a STOPPED
@@ -18,7 +19,7 @@ import type { RetentionPolicy } from "@jini-ai/platform/retention";
 import { claimSiteRunning, readSiteRunning } from "#src/platform/site-dir/site-running";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import {
-  runStorageCapabilitiesCommand, runStorageCleanCommand, storageCleanPorts,
+  runStorageCapabilitiesCommand, runStorageCleanCommand, runStorageCompactCommand, storageCleanPorts,
   type StorageCleanRequired, type StorageCompactionBinding, type StoppedSiteHandles,
 } from "../storage-maintenance.js";
 import { registerStorageCommands } from "../storage-program.js";
@@ -273,4 +274,57 @@ test("resolve requires a confirmed action", async t => {
   assert.deepEqual(calls, [`resolve:${dir}`]);
   assert.deepEqual(confirmations, [{ action: "keep-current", database: "chat", markerAt: 17, recoveryCopyPath: "/site/pre-compact-content-17.db", mainIdentity: "dev:ino" }]);
   assert.equal(bound.exits.at(-1), 0);
+});
+
+test("a compact refusal distinguishes a busy site from an invalid recovery decision", async t => {
+  const dir = await site(t);
+  const calls: unknown[] = [];
+  for (const [reason, code] of [["busy", 3], ["running", 3], ["stale", 1]] as const) {
+    const out = capture();
+    const { binding } = fakeBinding();
+    const message = "No local files were changed.";
+    const exit = await runStorageCompactCommand({ dir, stdout: out.stdout, binding: {
+      ...binding, resume: async input => { calls.push(input); return { status: "refused", reason, message }; },
+    } }, { resume: true, json: true });
+    assert.equal(exit, code, reason);
+    assert.deepEqual(JSON.parse(out.text()), { status: "refused", reason, message });
+  }
+  assert.deepEqual(calls, [{ siteDir: dir }, { siteDir: dir }, { siteDir: dir }]);
+});
+
+test("compact maps a partial result to exit 2 and keeps private failure details out of the output", async t => {
+  const dir = await site(t);
+  const { binding } = fakeBinding();
+  const partial = capture();
+  assert.equal(await runStorageCompactCommand({ dir, stdout: partial.stdout, binding: {
+    ...binding, compact: async input => { assert.deepEqual(input, { siteDir: dir }); return { status: "partial" }; },
+  } }, {}), 2);
+  assert.equal(partial.text(), "Compact partial.\n");
+  const failure = capture();
+  assert.equal(await runStorageCompactCommand({ dir, stdout: failure.stdout, binding: {
+    ...binding, compact: async () => { throw new TypeError("private path"); },
+  } }, {}), 1);
+  assert.equal(failure.text(), "Could not compact this website (TypeError).\n");
+});
+
+test("Commander clean defaults to preview, and --dry-run overrides --apply", async t => {
+  const dir = await site(t);
+  const lease = claimSiteRunning({ dir, app: "Web", purpose: "maintenance" }, { log: () => {} });
+  assert.equal(lease.attached, null);
+  try {
+    for (const [flags, dryRun] of [
+      [[], true], [["--apply"], false], [["--apply", "--dry-run"], true],
+    ] as const) {
+      const command = storageProgram();
+      await command.program.parseAsync(["storage", "clean", dir, "--json", ...flags], { from: "user" });
+      assert.deepEqual(command.exits, [3]);
+      const reply = JSON.parse(command.out.text()) as { status: string; dryRun: boolean; policies: unknown[] };
+      assert.equal(reply.status, "busy");
+      assert.equal(reply.dryRun, dryRun);
+      assert.deepEqual(reply.policies, []);
+      assert.equal(readSiteRunning({ dir })?.purpose, "maintenance");
+    }
+  } finally {
+    lease.release();
+  }
 });

@@ -41,3 +41,9 @@ test("subscribers receive the envelope without the reserved transport value", ()
   const legacy = event();
   assert.equal(withoutOutboxTraceParent({ event: legacy }), legacy);
 });
+
+test("transport metadata is removed entirely when the trace parent was its only member", () => {
+  const original = event({ "tovu.outbox.traceparent": VALID });
+  assert.deepEqual(withoutOutboxTraceParent({ event: original }), event());
+  assert.deepEqual(original.metadata, { "tovu.outbox.traceparent": VALID });
+});

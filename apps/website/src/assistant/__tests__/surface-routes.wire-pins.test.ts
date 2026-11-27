@@ -1,6 +1,7 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { request } from "node:http";
 
 import express from "express";
 
@@ -11,6 +12,8 @@ import type { ToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { nodeIntervalScheduler } from "#src/platform/express/jini-routes";
+import { answerSurface } from "../surface-answer.js";
+import { surfaceRouteHost } from "../surface-route-host.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
@@ -223,4 +226,67 @@ test("OPTIONS and other methods are answered by Express's own route table, not s
     const get = await fetch(`${baseUrl}${path}`);
     assert.equal(get.status, 404, `${path} GET falls through to Express's not-found`);
   }
+});
+
+test("a streamed surface answer keeps its NDJSON status and body; an unhandled answer leaves the response for the caller", async t => {
+  const app = express();
+  app.get("/test-surface/:kind", async (req, res, next) => {
+    try {
+      const before = res.listenerCount("close");
+      const handled = await answerSurface({ res, produce: async () => {
+        if (req.params.kind === "next") return undefined;
+        const enc = new TextEncoder();
+        return new Response(new ReadableStream<Uint8Array>({ start: controller => {
+          controller.enqueue(enc.encode('{"kind":"card"}\n'));
+          controller.enqueue(enc.encode('{"kind":"done"}\n'));
+          controller.close();
+        } }), { status: 202, headers: { "content-type": "application/x-ndjson" } });
+      } });
+      if (!handled) res.status(418).json({ fallback: true, listenerDelta: res.listenerCount("close") - before });
+    } catch (error) { next(error); }
+  });
+  const base = await startTestServer(app, t);
+  const streamed = await fetch(base + "/test-surface/restore");
+  assert.equal(streamed.status, 202);
+  assert.equal(streamed.headers.get("content-type"), "application/x-ndjson");
+  assert.equal(await streamed.text(), '{"kind":"card"}\n{"kind":"done"}\n');
+  const fallback = await fetch(base + "/test-surface/next");
+  assert.equal(fallback.status, 418);
+  assert.deepEqual(await fallback.json(), { fallback: true, listenerDelta: 0 });
+});
+
+test("the shared surface host fails closed when a route opts into same-origin checking", () => {
+  const { errors } = createRouteIncidentReporter();
+  const host = surfaceRouteHost({ errors });
+  assert.equal(host.context.originPolicy.isSameOrigin({
+    req: { headers: { host: "site.test", origin: "https://site.test", "sec-fetch-site": "same-origin" } },
+  }), false);
+  assert.equal(host.context.errors?.reporter, errors.reporter);
+});
+
+test("leaving while a surface answer is pending aborts the producer", { timeout: 5_000 }, async t => {
+  const app = express();
+  let started!: () => void;
+  const producing = new Promise<void>(resolve => { started = resolve; });
+  let complete!: (result: boolean) => void;
+  const produced = new Promise<boolean>(resolve => { complete = resolve; });
+  app.get("/pending", async (_req, res, next) => {
+    try {
+      complete(await answerSurface({ res, produce: async ({ signal }) => {
+        const left = new Promise<undefined>(resolve => {
+          signal.addEventListener("abort", () => resolve(undefined), { once: true });
+        });
+        started();
+        return left;
+      } }));
+    } catch (error) { next(error); }
+  });
+  const base = await startTestServer(app, t);
+  const client = request(base + "/pending");
+  client.on("error", () => { /* Destroying the pending request can report ECONNRESET. */ });
+  t.after(() => { client.destroy(); });
+  client.end();
+  await producing;
+  client.destroy();
+  assert.equal(await produced, false);
 });
